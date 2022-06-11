@@ -17,15 +17,13 @@ from symtable import Symbol
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
+import scqubits.io_utils.fileio_serializers as serializers
 import sympy
 import yaml
 
 from numpy import ndarray
-from sympy import symbols
-
-import scqubits.io_utils.fileio_serializers as serializers
-
 from scqubits.utils.misc import flatten_list, is_float_string
+from sympy import symbols
 
 
 def process_word(word: str) -> Union[float, symbols]:
@@ -1285,7 +1283,7 @@ class SymbolicCircuit(serializers.Serializable):
                             circ_copy.nodes.remove(node)
 
         if circ_copy.nodes == []:
-            return [], []
+            return [], [], []
         # *****************************************************************************
 
         # **************** Constructing the node_sets ***************
@@ -1377,18 +1375,103 @@ class SymbolicCircuit(serializers.Serializable):
                 if is_same_branch(branch, branch_copy):
                     superconducting_loop_branches.append(branch)
 
-        return tree, superconducting_loop_branches
+        return tree, superconducting_loop_branches, node_sets
 
     def _closure_branches(self):
         r"""
         Returns and stores the closure branches in the circuit.
         """
-        tree, superconducting_loop_branches = self._spanning_tree()
+        tree, superconducting_loop_branches, node_sets = self._spanning_tree()
         if tree == []:
             closure_branches = []
         else:
             closure_branches = list(set(superconducting_loop_branches) - set(tree))
         return closure_branches
+
+    def _find_path_to_root(self, node: Node) -> Tuple[int, List["Node"], List["Branch"]]:
+        r"""
+        Returns all the nodes and branches in the spanning tree path between the 
+        input node and the root of the spanning tree. Also returns the distance 
+        (generation) between the input node and the root node. The root of the spanning 
+        tree  is node 0 if there is a physical ground node, otherwise it is node 1.
+
+        Parameters
+        ----------
+        node: Node
+            Node variable which is the input
+
+        Returns
+        -------
+            An integer for the generation number, a list of ancestor nodes, and a list 
+            of branches on the path
+        """
+        # define root index
+        root = 1
+        if self.is_grounded:
+            root = 0
+        # extract spanning tree node_sets (to determine the generation of the node)
+        tree, superconducting_loop_branches, node_sets = self._spanning_tree()
+        # find out the generation number of the node in the spanning tree
+        # generation number begins from 0
+        for igen, nodes in enumerate(node_sets):
+            nodes_id = [node.id for node in nodes]
+            if node.id in nodes_id:
+                generation = igen 
+                break
+        # find out the path from the node to the root
+        current_node = node 
+        ancestor_nodes_list = []
+        branch_path_to_root = [] 
+        # looping over the parent generations
+        for istep in range(generation-1,-1,-1):
+            # finding the parent of the current_node, and the branch that links the parent and
+            # current_node
+            for branch in tree:
+                nodes_id = [node.id for node in node_sets[istep]]
+                if (branch.nodes[1].id == current_node.id) and (branch.nodes[0].id in nodes_id):
+                    ancestor_nodes_list.append(branch.nodes[0])
+                    branch_path_to_root.append(branch)
+                    current_node = branch.nodes[0]
+                    break
+                elif (branch.nodes[0].id == current_node.id) and (branch.nodes[1].id in nodes_id):
+                    ancestor_nodes_list.append(branch.nodes[1])
+                    branch_path_to_root.append(branch)
+                    current_node = branch.nodes[1]
+                    break
+        ancestor_nodes_list.reverse()
+        branch_path_to_root.reverse()
+        return generation, ancestor_nodes_list, branch_path_to_root
+
+    def _find_loop(self, closure_branch: Branch) -> List["Branch"]:
+        r"""
+        Find out the loop that is closed by the closure branch
+
+        Parameters
+        ----------
+        closure_branch: Branch
+            The input closure branch
+
+        Returns
+        -------
+            A list of branches that corresponds to the loop closed by the closure branch
+        """
+        # find out ancestor nodes, path to root and generation number for each node in the 
+        # closure branch
+        gen_1, ancestors_1, path_1 = self._find_path_to_root(closure_branch.nodes[0])
+        gen_2, ancestors_2, path_2 = self._find_path_to_root(closure_branch.nodes[1])
+        # find the first common ancestor of these two nodes
+        # start from the root node, find out the last generation where two nodes have the
+        # same ancestor
+        gen_last_same_ancestor = 0
+        for igen in range(min(gen_1, gen_2)):
+            if ancestors_1[igen].id == ancestors_2[igen].id:
+                gen_last_same_ancestor = igen
+            elif ancestors_1[igen].id != ancestors_2[igen].id:
+                break 
+        # get all the branches of the paths from the two nodes to the root, after the last
+        # shared ancestor, and the closure branch itself
+        loop = path_1[gen_last_same_ancestor:] + path_2[gen_last_same_ancestor:] + [closure_branch]
+        return loop
 
     def _set_external_fluxes(self, closure_branches: List[Branch] = None):
         # setting the class properties

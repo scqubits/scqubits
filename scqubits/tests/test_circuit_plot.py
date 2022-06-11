@@ -14,7 +14,7 @@ circ = scq.Circuit.from_yaml(
 )
 system_hierarchy = [[1, 3], [2]]
 
-circ.initiate_circuit(
+circ.configure(
     transformation_matrix=None,
     system_hierarchy=system_hierarchy,
     subsystem_trunc_dims=[100, 30],
