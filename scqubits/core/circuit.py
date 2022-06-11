@@ -2480,12 +2480,12 @@ class Circuit(Subsystem):
 
         # Hamiltonian function
         if initiate_sym_calc:
-            self.initiate_circuit()
+            self.configure()
 
     def __repr__(self) -> str:
         return self._id_str
 
-    def initiate_circuit(
+    def configure(
         self,
         transformation_matrix: ndarray = None,
         system_hierarchy: list = None,
