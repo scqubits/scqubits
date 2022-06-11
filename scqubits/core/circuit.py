@@ -176,21 +176,13 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         }
 
         self.var_categories_list: List[int] = []
-        cutoffs = []
-        for var in list(self.hamiltonian_symbolic.free_symbols):
-            if "I" not in str(var):
-                filtered_var = re.findall(
-                    r"\d+", re.sub(r"ng\d+|Φ\d+", "", str(var))
-                )  # filtering offset charges and external flux
-                if not filtered_var:
-                    continue
-                else:
-                    var_index = int(filtered_var[0])
-                if var_index not in self.var_categories_list:
-                    for cutoff_name in self.parent.cutoff_names:
-                        if str(var_index) in cutoff_name:
-                            cutoffs.append(getattr(self.parent, cutoff_name))
-                    self.var_categories_list.append(var_index)
+        cutoffs: List[int] = []
+        for var_name in self.hamiltonian_variables_momenta():
+            var_index = get_trailing_number(var_name)
+            if var_index not in self.var_categories_list:
+                self.var_categories_list.append(var_index)
+                cutoffs += self._get_cutoff_value(var_index)
+
         self.var_categories_list.sort()
 
         self.var_categories: Dict[str, List[int]] = {}
@@ -1575,21 +1567,23 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         return np.diag(np.sin(x.diagonal()))
 
     def _hamiltonian_for_harmonic_extended_vars(self):
-
         hamiltonian = self._hamiltonian_sym_for_numerics
-        cutoffs_dict = self.cutoffs_dict()  # dict(zip(index_list, cutoff_names))
+        cutoffs_dict = self.cutoffs_dict()
         # substitute all the parameter values
+        all_sym_parameters = (
+            list(self.symbolic_params.keys())
+            + self.external_fluxes
+            + self.offset_charges
+        )
         hamiltonian = hamiltonian.subs(
             [
-                (param, getattr(self, str(param)))
-                for param in list(self.symbolic_params.keys())
-                + self.external_fluxes
-                + self.offset_charges
+                (sym_param, getattr(self, sym_param.name))
+                for sym_param in all_sym_parameters
             ]
         )
         hamiltonian = hamiltonian.subs(
             "I", 1
-        )  # does not make a difference as all the trignometric expressions are
+        )  # does not make a difference as all the trigonometric expressions are
         # expanded out.
         # remove constants from the Hamiltonian
         hamiltonian -= hamiltonian.as_coefficients_dict()[1]
@@ -2387,6 +2381,24 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             plt.colorbar()
         plt.title("Wave function along variables " + str(var_indices))
 
+    def _get_cutoff_value(self, var_index: int) -> int:
+        """Return the cutoff value associated with the variable with integer index
+        `var_index`."""
+        for cutoff_name in self.parent.cutoff_names:
+            if str(var_index) in cutoff_name:
+                return getattr(self.parent, cutoff_name)
+
+    def hamiltonian_variables_momenta(self) -> List[str]:
+        """
+        Returns a list of the names (strings) of all generalized fluxes and charges
+        occurring in the symbolic Hamiltonian.
+        """
+        return [
+            symbol.name
+            for symbol in self.hamiltonian_symbolic.free_symbols
+            if "Q" in symbol.name or "θ" in symbol.name
+        ]
+
 
 class Circuit(Subsystem):
     """
@@ -2792,3 +2804,7 @@ def compose(f: Callable, g: Callable):
         return f(g(x))
 
     return g_after_f
+
+
+def is_coordinate_or_momentum(var) -> bool:
+    return "I" not in str(var) and "ng" not in str(var) and "Φ" not in str(var)
