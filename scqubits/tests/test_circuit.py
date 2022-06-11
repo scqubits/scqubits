@@ -30,7 +30,7 @@ closure_branches = [DFC.branches[0], DFC.branches[4], DFC.branches[-1]]
 system_hierarchy = [[[1], [3]], [2], [4]]
 subsystem_trunc_dims = [[34, [6, 6]], 6, 6]
 
-DFC.initiate_circuit(
+DFC.configure(
     closure_branches=closure_branches,
     system_hierarchy=system_hierarchy,
     subsystem_trunc_dims=subsystem_trunc_dims,
