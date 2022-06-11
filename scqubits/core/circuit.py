@@ -8,15 +8,18 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
+
 import functools
 import itertools
 import re
 
 from types import MethodType
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import overload, Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import qutip as qt
 import scipy as sp
+from sympy import latex
+
 import scqubits.core.discretization as discretization
 import scqubits.core.oscillator as osc
 import scqubits.core.qubit_base as base
@@ -1286,23 +1289,23 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 osc_freqs[var_index] = (8 * ELi * ECi) ** 0.5
                 osc_lengths[var_index] = (8.0 * ECi / ELi) ** 0.25
                 nonwrapped_ops["position"] = functools.partial(
-                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2 ** 0.5)
+                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2**0.5)
                 )
                 nonwrapped_ops["sin"] = compose(
                     sp.linalg.sinm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
                     ),
                 )
                 nonwrapped_ops["cos"] = compose(
                     sp.linalg.cosm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
                     ),
                 )
                 nonwrapped_ops["momentum"] = functools.partial(
                     op.ia_minus_iadag_sparse,
-                    prefactor=1 / (osc_lengths[var_index] * 2 ** 0.5),
+                    prefactor=1 / (osc_lengths[var_index] * 2**0.5),
                 )
 
                 for short_op_name in nonwrapped_ops.keys():
@@ -1757,21 +1760,17 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 sm.symbols("Qs" + str(var_index)), sm.symbols("Q" + str(var_index)) ** 2
             )
             expr_modified = expr_modified.replace(
-                sm.symbols("ng" + str(var_index)
-                           ), sm.symbols("n_g" + str(var_index))
+                sm.symbols("ng" + str(var_index)), sm.symbols("n_g" + str(var_index))
             )
             # replace I by 1
-            expr_modified = expr_modified.replace(
-                sm.symbols("I"
-                           ), 1
-            )
+            expr_modified = expr_modified.replace(sm.symbols("I"), 1)
         for (
             ext_flux_var
         ) in self.external_fluxes:  # removing 1.0 decimals from flux vars
             expr_modified = expr_modified.replace(1.0 * ext_flux_var, ext_flux_var)
         return expr_modified
 
-    def sym_potential(self, float_round: int = 3) -> sm.Expr:
+    def sym_potential(self, float_round: int = 3, print_latex: bool = False) -> sm.Expr:
         """
         Method returns a user readable symbolic Lagrangian for the current instance
 
@@ -1779,49 +1778,68 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         ----------
         float_round:
             Number of digits after the decimal to which floats are rounded
+        print_latex:
+            if set to True, the expression is additionally printed as LaTeX code
 
         Returns
         -------
-        Human redeable form of the Lagrangian
+        Human readable form of the Lagrangian
         """
         potential = self._make_expr_human_readable(
             self.potential_symbolic, float_round=float_round
         )
 
+        if print_latex:
+            print(latex(potential))
         return potential
 
     def sym_hamiltonian(
-        self, subsystem_index: Optional[int] = None, float_round: int = 3
+        self,
+        subsystem_index: Optional[int] = None,
+        float_round: int = 3,
+        print_latex: bool = False,
     ) -> sm.Expr:
         """
-        Method returns a user readable symbolic Hamiltonian for the current instance
+         Method returns a user readable symbolic Hamiltonian for the current instance
 
-        Parameters
-        ----------
-        subsystem_index:
-            when set to an index, the Hamiltonian for the corresponding subsystem is returned.
-        float_round:
-            Number of digits after the decimal to which floats are rounded
+         Parameters
+         ----------
+         subsystem_index:
+             when set to an index, the Hamiltonian for the corresponding subsystem is
+             returned.
+         float_round:
+             Number of digits after the decimal to which floats are rounded
+        print_latex:
+             if set to True, the expression is additionally printed as LaTeX code
 
-        Returns
-        -------
-        hamiltonian
-            Sympy expression which is simplified to make it human readable.
+         Returns
+         -------
+         hamiltonian
+             Sympy expression which is simplified to make it human readable.
         """
         if subsystem_index is not None:
             if not self.hierarchical_diagonalization:
                 raise Exception(
                     "Current instance does not have any subsystems as hierarchical diagonalization is not utilized. If so, do not set subsystem_index keyword argument."
                 )
-            return self._make_expr_human_readable(
+            hamiltonian = self._make_expr_human_readable(
                 self.subsystems[subsystem_index].hamiltonian_symbolic,
                 float_round=float_round,
             )
-        return self._make_expr_human_readable(
-            self.hamiltonian_symbolic.expand(), float_round=float_round
-        )
+        else:
+            hamiltonian = self._make_expr_human_readable(
+                self.hamiltonian_symbolic.expand(), float_round=float_round
+            )
+        if print_latex:
+            print(latex(hamiltonian))
+        return hamiltonian
 
-    def sym_interaction(self, subsystem_indices: Tuple[int], float_round: int = 3):
+    def sym_interaction(
+        self,
+        subsystem_indices: Tuple[int],
+        float_round: int = 3,
+        print_latex: bool = False,
+    ) -> sm.Expr:
         """
         Returns the interaction between any set of subsystems for the current instance.
         It would return the interaction terms having operators from all the subsystems
@@ -1833,6 +1851,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             Tuple of subsystem indices
         float_round:
             Number of digits after the decimal to which floats are rounded
+        print_latex:
+             if set to True, the expression is additionally printed as LaTeX code
 
         Returns
         -------
@@ -1861,7 +1881,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     np.sort(interaction_var_indices), np.sort(subsystem_indices)
                 ):
                     interaction += term
-        return self._make_expr_human_readable(interaction, float_round=float_round)
+        interaction = self._make_expr_human_readable(
+            interaction, float_round=float_round
+        )
+        if print_latex:
+            print(latex(interaction))
+        return interaction
 
     # ****************************************************************
     # ************* Functions for plotting potential *****************
@@ -2249,7 +2274,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             var_indices, system_hierarchy_for_vars_chosen
         )
         wf_plot = np.sum(
-            np.abs(wf_ext_basis)**2,
+            np.abs(wf_ext_basis) ** 2,
             axis=tuple(dims_to_be_summed),
         )
         # reorder the array according to the order in var_indices
@@ -2342,8 +2367,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 var_indices[0] in self.var_categories["periodic"]
             ):
                 plt.bar(
-                    np.arange(-cutoffs_dict[var_index],
-                              cutoffs_dict[var_index] + 1),
+                    np.arange(-cutoffs_dict[var_index], cutoffs_dict[var_index] + 1),
                     wf_plot.T,
                 )
             else:
@@ -2704,14 +2728,18 @@ class Circuit(Subsystem):
             )
         return node_var_eqns
 
-    def sym_lagrangian(self, vars_type: str = "node") -> sm.Expr:
+    def sym_lagrangian(
+        self, vars_type: str = "node", print_latex: bool = False
+    ) -> sm.Expr:
         """
         Method returns a user readable symbolic Lagrangian for the current instance
 
         Parameters
         ----------
-        vars:
+        vars_type:
             "node" or "new", fixes the kind of lagrangian requested, by default "node"
+        print_latex:
+            if set to True, the expression is additionally printed as LaTeX code
 
         Returns
         -------
@@ -2733,38 +2761,59 @@ class Circuit(Subsystem):
                     sm.symbols("vθ" + str(var_index)),
                     sm.symbols("\\dot{θ_" + str(var_index) + "}"),
                 )
-
+        if print_latex:
+            print(latex(lagrangian))
         return lagrangian
 
-    def show_offset_charges(self) -> List[sm.Equality]:
+    def offset_charge_transformation(self) -> List[sm.Equality]:
         """
-        Returns the variable transformation between offset charges of periodic variables and the 
-        offset node charges
+        Returns the variable transformation between offset charges of periodic variables
+        and the offset node charges
 
         Returns
         -------
         sm.Expr
-            Human redeable form of expressions of offset charges in terms of node offset charges
+            Human readable form of expressions of offset charges in terms of node offset
+            charges
         """
         trans_mat = self.transformation_matrix
-        node_offset_charge_vars = [sm.symbols("q_g" + str(index)) for index in range(1, len(self.symbolic_circuit.nodes) + 1)]
-        periodic_offset_charge_vars = [sm.symbols("ng" + str(index)) for index in self.symbolic_circuit.var_categories['periodic']]
+        node_offset_charge_vars = [
+            sm.symbols("q_g" + str(index))
+            for index in range(1, len(self.symbolic_circuit.nodes) + 1)
+        ]
+        periodic_offset_charge_vars = [
+            sm.symbols("ng" + str(index))
+            for index in self.symbolic_circuit.var_categories["periodic"]
+        ]
         periodic_offset_charge_eqns = []
         for idx, node_var in enumerate(periodic_offset_charge_vars):
-            periodic_offset_charge_eqns.append(self._make_expr_human_readable(sm.Eq(periodic_offset_charge_vars[idx] , np.sum(trans_mat[idx, :] * node_offset_charge_vars))))
+            periodic_offset_charge_eqns.append(
+                self._make_expr_human_readable(
+                    sm.Eq(
+                        periodic_offset_charge_vars[idx],
+                        np.sum(trans_mat[idx, :] * node_offset_charge_vars),
+                    )
+                )
+            )
         return periodic_offset_charge_eqns
 
-    def show_external_fluxes(self) -> Dict[sm.Expr, Tuple["Branch",List["Branch"]]]:
+    def sym_external_fluxes(self) -> Dict[sm.Expr, Tuple["Branch", List["Branch"]]]:
         """
-        Method returns a dictionary of Human readable external fluxes with associated branches and
-        loops (represented as lists of branches) for the current instance
+        Method returns a dictionary of Human readable external fluxes with associated
+        branches and loops (represented as lists of branches) for the current instance
 
         Returns
         -------
-        A dictionary of Human redeable external fluxes with their associated branches and loops
+            A dictionary of Human readable external fluxes with their associated
+            branches and loops
         """
-        # return a dictionary of sympy expressions that maps to a tuple of the associated branch and a list of branches that represent the loop
-        return {self._make_expr_human_readable(self.external_fluxes[ibranch]): (self.closure_branches[ibranch], self.symbolic_circuit._find_loop(self.closure_branches[ibranch])) for ibranch in range(len(self.external_fluxes))}
+        return {
+            self._make_expr_human_readable(self.external_fluxes[ibranch]): (
+                self.closure_branches[ibranch],
+                self.symbolic_circuit._find_loop(self.closure_branches[ibranch]),
+            )
+            for ibranch in range(len(self.external_fluxes))
+        }
 
 
 # example input strings
@@ -2819,7 +2868,3 @@ def compose(f: Callable, g: Callable):
         return f(g(x))
 
     return g_after_f
-
-
-def is_coordinate_or_momentum(var) -> bool:
-    return "I" not in str(var) and "ng" not in str(var) and "Φ" not in str(var)
