@@ -181,7 +181,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             var_index = get_trailing_number(var_name)
             if var_index not in self.var_categories_list:
                 self.var_categories_list.append(var_index)
-                cutoffs += self._get_cutoff_value(var_index)
+                cutoffs += self.cutoffs_dict()[var_index]
 
         self.var_categories_list.sort()
 
@@ -910,14 +910,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     ##################################################################
     ############### Functions to construct the operators #############
     ##################################################################
-    def _cutoffs_by_index_dict(self):
-        variables = self.var_categories["periodic"] + self.var_categories["extended"]
-        cutoffs_by_index_list = np.fromiter(self._collect_cutoff_values(), dtype=int)
-        return dict(zip(variables, cutoffs_by_index_list))
 
     def _collect_cutoff_values(self):
         if not self.hierarchical_diagonalization:
-            cutoff_dict = self.get_cutoffs()
+            cutoff_dict = self.cutoffs_dict()
             for cutoff_name in cutoff_dict.keys():
                 for cutoff in cutoff_dict[cutoff_name]:
                     if "cutoff_n" in cutoff_name:
@@ -1337,24 +1333,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         for param in self.symbolic_params:
             params.append(getattr(self, param.name))
         return params
-
-    def get_cutoffs(self) -> Dict[str, list]:
-        """
-        Method to get the cutoffs for each of the circuit's degree of freedom.
-        """
-        cutoffs_dict: Dict[str, List[Any]] = {
-            "cutoff_n": [],
-            "cutoff_ext": [],
-        }
-
-        for cutoff_type in cutoffs_dict.keys():
-            attr_list = [x for x in self.cutoff_names if cutoff_type in x]
-
-            if len(attr_list) > 0:
-                attr_list.sort()
-                cutoffs_dict[cutoff_type] = [getattr(self, attr) for attr in attr_list]
-
-        return cutoffs_dict
 
     def external_flux_values(self) -> List[float]:
         """
