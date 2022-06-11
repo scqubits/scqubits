@@ -14,7 +14,7 @@
 import inspect
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -32,6 +32,7 @@ try:
         FloatSlider,
         FloatText,
         HBox,
+        HTML,
         Image,
         IntSlider,
         IntText,
@@ -302,18 +303,18 @@ class GUI:
 
         if current_qubit in gui_defaults.paramvals_from_papers.keys():
             common_params_dropdown_list = ["Manual"]
-            common_params_dropdown_list.extend(gui_defaults.paramvals_from_papers[current_qubit].keys())
+            common_params_dropdown_list.extend(
+                gui_defaults.paramvals_from_papers[current_qubit].keys()
+            )
             self.qubit_plot_options_widgets["common_params_dropdown"] = Dropdown(
-                options=common_params_dropdown_list,
-                disabled=False,
-                layout=std_layout
+                options=common_params_dropdown_list, disabled=False, layout=std_layout
             )
         else:
-            self.qubit_plot_options_widgets["common_params_dropdown"] = Label(value="None")
+            self.qubit_plot_options_widgets["common_params_dropdown"] = Label(
+                value="None"
+            )
 
-        self.qubit_plot_options_widgets["link_HTML"] = HTML(
-            value=""
-        )
+        self.qubit_plot_options_widgets["link_HTML"] = HTML(value="")
 
     def initialize_qubit_params_widgets_dict(self) -> None:
         """Creates all the widgets that will be used
@@ -416,7 +417,9 @@ class GUI:
                 "max": widget_max_text,
             }
 
-        if isinstance(self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)):
+        if isinstance(
+            self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)
+        ):
             widget_min_text = FloatText(
                 value=gui_defaults.phi_grid_defaults["grid_min_val"],
                 description="min=",
@@ -440,7 +443,7 @@ class GUI:
         qubit_info_tab = self.qubit_info_layout()
         common_qubit_params_tab = self.common_qubit_params_layout()
 
-        tab_titles = ["Qubit Plot", "Ranges", "Qubit Info", 'Common Params']
+        tab_titles = ["Qubit Plot", "Ranges", "Qubit Info", "Common Params"]
         self.tab_widget.children = [
             qubit_plot_tab,
             param_ranges_tab,
@@ -503,7 +506,7 @@ class GUI:
             current_values_dict[param_name] = widget.get_interact_value()
         return current_values_dict
 
-    def get_plot_option_refresh(self):
+    def get_plot_option_refresh(self) -> Callable:
         current_plot_option = self.qubit_and_plot_ToggleButtons[
             "plot_buttons"
         ].get_interact_value()
@@ -547,7 +550,11 @@ class GUI:
         if not self.manual_update_and_save_widgets[
             "manual_update_checkbox"
         ].get_interact_value():
-            qubit_plot_options_blacklist = ["qubit_info_image_widget", "common_params_dropdown", "link_HTML"]
+            qubit_plot_options_blacklist = [
+                "qubit_info_image_widget",
+                "common_params_dropdown",
+                "link_HTML",
+            ]
 
             for widget in self.qubit_params_widgets.values():
                 widget.observe(self.current_plot_option_refresh, names="value")
@@ -575,11 +582,17 @@ class GUI:
         if not self.manual_update_and_save_widgets[
             "manual_update_checkbox"
         ].get_interact_value():
-            qubit_plot_options_blacklist = ["qubit_info_image_widget", "common_params_dropdown", "link_HTML"]
+            qubit_plot_options_blacklist = [
+                "qubit_info_image_widget",
+                "common_params_dropdown",
+                "link_HTML",
+            ]
 
             for widget in self.qubit_params_widgets.values():
                 widget.unobserve(self.current_plot_option_refresh, names="value")
-                widget.unobserve(self.common_params_dropdown_value_refresh, names="value")
+                widget.unobserve(
+                    self.common_params_dropdown_value_refresh, names="value"
+                )
             for widget_name, widget in self.qubit_plot_options_widgets.items():
                 if widget_name not in qubit_plot_options_blacklist:
                     widget.unobserve(self.current_plot_option_refresh, names="value")
@@ -616,7 +629,11 @@ class GUI:
             self.qubit_plot_options_widgets["wavefunction_scale_slider"].disabled = True
 
     def manual_update_checkbox(self, change) -> None:
-        qubit_plot_options_blacklist = ["qubit_info_image_widget", "common_params_dropdown", "link_HTML"]
+        qubit_plot_options_blacklist = [
+            "qubit_info_image_widget",
+            "common_params_dropdown",
+            "link_HTML",
+        ]
         if change["new"]:
             self.manual_update_and_save_widgets["update_button"].disabled = False
 
@@ -630,7 +647,7 @@ class GUI:
 
             for widget in self.qubit_params_widgets.values():
                 widget.observe(self.current_plot_option_refresh, names="value")
-            for widget in self.qubit_plot_options_widgets.values():
+            for widget_name, widget in self.qubit_plot_options_widgets.items():
                 if widget_name not in qubit_plot_options_blacklist:
                     widget.observe(self.current_plot_option_refresh, names="value")
             self.current_plot_option_refresh(None)
@@ -648,12 +665,21 @@ class GUI:
         current_qubit = self.qubit_and_plot_ToggleButtons[
             "qubit_buttons"
         ].get_interact_value()
-        current_dropdown_value = self.qubit_plot_options_widgets["common_params_dropdown"].get_interact_value()
+        current_dropdown_value = self.qubit_plot_options_widgets[
+            "common_params_dropdown"
+        ].get_interact_value()
 
         if current_dropdown_value != "Manual":
-            for param_name, param_val in gui_defaults.paramvals_from_papers[current_qubit][current_dropdown_value]["params"].items():
-                if self.qubit_params_widgets[param_name].get_interact_value() != param_val:
-                    self.qubit_plot_options_widgets["common_params_dropdown"].value = "Manual"
+            for param_name, param_val in gui_defaults.paramvals_from_papers[
+                current_qubit
+            ][current_dropdown_value]["params"].items():
+                if (
+                    self.qubit_params_widgets[param_name].get_interact_value()
+                    != param_val
+                ):
+                    self.qubit_plot_options_widgets[
+                        "common_params_dropdown"
+                    ].value = "Manual"
         if not self.manual_update_and_save_widgets[
             "manual_update_checkbox"
         ].get_interact_value():
@@ -667,20 +693,32 @@ class GUI:
         current_qubit = self.qubit_and_plot_ToggleButtons[
             "qubit_buttons"
         ].get_interact_value()
-        current_dropdown_value = self.qubit_plot_options_widgets["common_params_dropdown"].get_interact_value()
+        current_dropdown_value = self.qubit_plot_options_widgets[
+            "common_params_dropdown"
+        ].get_interact_value()
 
         if current_dropdown_value != "Manual":
-            params = gui_defaults.paramvals_from_papers[current_qubit][current_dropdown_value]["params"]
+            params = gui_defaults.paramvals_from_papers[current_qubit][
+                current_dropdown_value
+            ]["params"]
             for param_name, param_val in params.items():
                 param_max = self.ranges_widgets[param_name]["max"].get_interact_value()
                 param_min = self.ranges_widgets[param_name]["min"].get_interact_value()
 
                 if param_val < param_min:
-                    self.ranges_widgets[param_name]["min"].value = self.active_defaults[param_name]["min"]
-                    self.qubit_params_widgets[param_name].min = self.active_defaults[param_name]["min"]
+                    self.ranges_widgets[param_name]["min"].value = self.active_defaults[
+                        param_name
+                    ]["min"]
+                    self.qubit_params_widgets[param_name].min = self.active_defaults[
+                        param_name
+                    ]["min"]
                 if param_val > param_max:
-                    self.ranges_widgets[param_name]["max"].value = np.ceil(param_val/10)*10
-                    self.qubit_params_widgets[param_name].max = np.ceil(param_val/10)*10
+                    self.ranges_widgets[param_name]["max"].value = (
+                        np.ceil(param_val / 10) * 10
+                    )
+                    self.qubit_params_widgets[param_name].max = (
+                        np.ceil(param_val / 10) * 10
+                    )
 
                 self.qubit_params_widgets[param_name].value = param_val
         self.observe_ranges()
@@ -698,7 +736,7 @@ class GUI:
                 if widget_name == "state_slider":
                     min_value = 1
                 elif widget_name == "Wavefunction":
-                    min_value=new_min
+                    min_value = new_min
                 elif widget_name in self.qubit_params_widgets.keys():
                     min_value = self.active_defaults[widget_name]["min"]
                 else:
@@ -707,7 +745,9 @@ class GUI:
                 new_min = min_value
             if new_max <= new_min:
                 changed_widget_key = change["owner"].description
-                if (widget_name == "state_slider" and new_min == 1) or (widget_name != "Wavefunction" and new_min == 0):
+                if (widget_name == "state_slider" and new_min == 1) or (
+                    widget_name != "Wavefunction" and new_min == 0
+                ):
                     text_widgets["max"].value = new_min + text_widgets["min"].step
                     new_max = new_min + text_widgets["min"].step
                 elif changed_widget_key == "min=":
@@ -716,14 +756,14 @@ class GUI:
                 else:
                     text_widgets["max"].value = new_min + text_widgets["min"].step
                     new_max = new_min + text_widgets["min"].step
-                    
+
             if widget_name in self.qubit_plot_options_widgets.keys():
                 widget = self.qubit_plot_options_widgets[widget_name]
             elif widget_name in self.qubit_params_widgets.keys():
                 widget = self.qubit_params_widgets[widget_name]
             else:
                 widget = None
-                
+
             if isinstance(widget, SelectMultiple):
                 current_values = list(widget.value)
                 new_values = []
@@ -734,7 +774,7 @@ class GUI:
                 if len(new_values) == 0:
                     new_values.append(widget.options[0])
                 widget.value = new_values
-            elif widget == None:
+            elif widget is None:
                 pass
             else:
                 widget.min = new_min
@@ -749,13 +789,19 @@ class GUI:
         current_qubit = self.qubit_and_plot_ToggleButtons[
             "qubit_buttons"
         ].get_interact_value()
-        current_dropdown_value = self.qubit_plot_options_widgets["common_params_dropdown"].get_interact_value()
+        current_dropdown_value = self.qubit_plot_options_widgets[
+            "common_params_dropdown"
+        ].get_interact_value()
 
         if current_dropdown_value == "Manual":
-            self.qubit_plot_options_widgets["link_HTML"].value=""
+            self.qubit_plot_options_widgets["link_HTML"].value = ""
         else:
-            link = gui_defaults.paramvals_from_papers[current_qubit][current_dropdown_value]["link"]
-            self.qubit_plot_options_widgets["link_HTML"].value = "<a href="+link+" target='_blank'>"+link+"</a>"
+            link = gui_defaults.paramvals_from_papers[current_qubit][
+                current_dropdown_value
+            ]["link"]
+            self.qubit_plot_options_widgets["link_HTML"].value = (
+                "<a href=" + link + " target='_blank'>" + link + "</a>"
+            )
 
     def evals_vs_paramvals_plot_refresh(self, change) -> None:
         scan_dropdown_value = self.qubit_plot_options_widgets[
@@ -833,7 +879,7 @@ class GUI:
             value_dict["phi_grid"] = Grid1d(
                 min_val=self.ranges_widgets["Wavefunction"]["min"].get_interact_value(),
                 max_val=self.ranges_widgets["Wavefunction"]["max"].get_interact_value(),
-                pt_count=gui_defaults.phi_grid_defaults["grid_pt_count"]
+                pt_count=gui_defaults.phi_grid_defaults["grid_pt_count"],
             )
 
         self.wavefunctions_plot(**value_dict)
@@ -928,8 +974,11 @@ class GUI:
         )
 
         manual_update_and_save_HBox = HBox(
-            [manual_update_HBox, save_HBox,],
-            layout=Layout(width='95%', justify_content="space-between"),
+            [
+                manual_update_HBox,
+                save_HBox,
+            ],
+            layout=Layout(width="95%", justify_content="space-between"),
         )
 
         return manual_update_and_save_HBox
@@ -986,15 +1035,14 @@ class GUI:
     def common_qubit_params_layout(self):
         dropdown_box = Box(
             [self.qubit_plot_options_widgets["common_params_dropdown"]],
-            layout=Layout(width='50%')
+            layout=Layout(width="50%"),
         )
         link_box = Box(
             [self.qubit_plot_options_widgets["link_HTML"]],
-            layout=Layout(display='flex', width='50%')
+            layout=Layout(display="flex", width="50%"),
         )
         common_qubit_params_HBox = HBox(
-            [dropdown_box, link_box],
-            layout=Layout(width="100%")
+            [dropdown_box, link_box], layout=Layout(width="100%")
         )
         return common_qubit_params_HBox
 
@@ -1021,16 +1069,21 @@ class GUI:
         qubit_params_grid = HBox(layout=HBox_layout)
 
         params_size = len(self.qubit_params_widgets)
-        if params_size > 6: 
-            left_right_HBox_layout = Layout(display = 'flex', flex_flow='column nowrap', object_fit="contain", width='50%')
+        if params_size > 6:
+            left_right_HBox_layout = Layout(
+                display="flex",
+                flex_flow="column nowrap",
+                object_fit="contain",
+                width="50%",
+            )
             left_HBox = HBox(layout=left_right_HBox_layout)
             right_HBox = HBox(layout=left_right_HBox_layout)
 
             counter = 1
             for param_slider in self.qubit_params_widgets.values():
-                param_slider.layout.width='95%'
-                if params_size % 2 == 0: 
-                    if counter <= params_size/2:
+                param_slider.layout.width = "95%"
+                if params_size % 2 == 0:
+                    if counter <= params_size / 2:
                         left_HBox.children += (param_slider,)
                     else:
                         right_HBox.children += (param_slider,)
@@ -1224,7 +1277,8 @@ class GUI:
         phi_grid: Optional[Grid1d],
         **params: Union[Tuple[float, float], float, int]
     ) -> None:
-        """This is the method associated with qubit_plot_interactive that allows for
+        """
+        This is the method associated with qubit_plot_interactive that allows for
         us to interact with plot_wavefunction(). Namely, this method is for
         the qubits that have an option for scaling the wavefunction amplitudes.
 
@@ -1232,14 +1286,10 @@ class GUI:
         ----------
         eigenvalue_states:
             The number of states to be plotted
-
         mode_value:
-            Current value of the mode (e.g. real, imaginary, etc.)
-
-        manual_scale_tf:
-
+            Current value of the mode (e.g. 'real', 'imaginary', etc.)
         scale_value:
-
+        phi_grid:
         **params:
             Dictionary of current qubit parameter values (taken from the sliders)
         """
@@ -1254,7 +1304,10 @@ class GUI:
                 )
             else:
                 self.fig, ax = self.active_qubit.plot_wavefunction(  # type:ignore
-                    which=eigenvalue_states, mode=mode_value, scaling=scale_value, phi_grid=phi_grid
+                    which=eigenvalue_states,
+                    mode=mode_value,
+                    scaling=scale_value,
+                    phi_grid=phi_grid,
                 )
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
