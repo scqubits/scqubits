@@ -543,6 +543,9 @@ class GUI:
         return plot_option_refresh
 
     def update_params(self):
+        """Uses the current parameter values to set the parameters of the 
+        active qubit.
+        """
         current_values = self.get_current_values()
 
         if isinstance(self.active_qubit, (scq.ZeroPi, scq.FullZeroPi)):
@@ -564,6 +567,28 @@ class GUI:
         text_widget: Dict[str, Union[IntText, FloatText]],
         changed_widget_key: str,
     ) -> Tuple[Union[int, float], Union[int, float]]:
+        """Adjusts range values so that they make sense/are viable.
+
+        Parameters
+        ----------
+        new_min
+            The current value of the minimum IntText/FloatText
+        new_max
+           The current value of the maximum IntText/FloatText
+        widget_name
+            The name of the corresponding parameter/qubit plot option
+        text_widget
+            A dictionary that contains the minimum and maximum 
+            IntText/FloatText widgets
+        changed_widget_key
+            A string that encodes whether the minimum or maximum IntText/FloatText 
+            widget has been changed
+
+        Returns
+        -------
+            A tuple containing the viable minimum and maximum values for the 
+            corresponding parameter/qubit plot option widget
+        """
         if new_min <= 0 or ("cut" in widget_name and new_min == 1):
             if widget_name == "state_slider":
                 new_min = 1
@@ -596,6 +621,20 @@ class GUI:
         widget_name: str,
         text_widget: Dict[str, Union[IntText, FloatText]],
     ):
+        """Adjusts the values of the IntText/FloatText widgets
+
+        Parameters
+        ----------
+        new_min
+            The current value of the minimum IntText/FloatText
+        new_max
+           The current value of the maximum IntText/FloatText
+        widget_name
+            The name of the corresponding parameter/qubit plot option
+        text_widget
+            A dictionary that contains the minimum and maximum 
+            IntText/FloatText widgets
+        """
         text_widget["min"].value = new_min
         text_widget["max"].value = new_max
 

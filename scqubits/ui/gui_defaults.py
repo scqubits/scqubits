@@ -159,7 +159,7 @@ paramvals_from_papers = {
                 "EJ": 11.34,
                 "EC": 0.293,
             },
-            "link": ""
+            "link": "https://quantum-computing.ibm.com/"
         },
         "[CPB] Bouchiat et al., Phys. Scr. 165 (1998)": {
             "params": {
