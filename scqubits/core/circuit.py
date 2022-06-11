@@ -8,11 +8,12 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
-
+import functools
 import itertools
 import re
+from types import MethodType
 
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import qutip as qt
@@ -91,6 +92,28 @@ def get_trailing_number(input_str: str) -> Union[int, None]:
     """
     match = re.search(r"\d+$", input_str)
     return int(match.group()) if match else None
+
+
+def get_operator_number(input_str: str) -> int:
+    """
+    Returns the number inside an operator name. Example:
+        $ get_operator_number("annihilation9_operator")
+        $ 9
+
+    Parameters
+    ----------
+    input_str:
+        operator name (one of the methods ending with `_operator`)
+
+    Returns
+    -------
+        returns the integer as int, else returns None
+    """
+    match = re.search(r"([0-9]+)", input_str)
+    number = int(match.group())
+    if not number:
+        raise Exception("{} is not a valid operator name.".format(input_str))
+    return number
 
 
 class Subsystem(base.QubitBaseClass, serializers.Serializable):
@@ -202,10 +225,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         for i in self.var_categories_list:
             potential_symbolic = (
                 potential_symbolic.replace(
-                    sm.symbols("θc" + str(i)), sm.cos(1.0 * sm.symbols("θ" + str(i)))
+                    sm.symbols("cosθ" + str(i)), sm.cos(1.0 * sm.symbols("θ" + str(i)))
                 )
                 .replace(
-                    sm.symbols("θs" + str(i)), sm.sin(1.0 * sm.symbols("θ" + str(i)))
+                    sm.symbols("sinθ" + str(i)), sm.sin(1.0 * sm.symbols("θ" + str(i)))
                 )
                 .subs(sm.symbols("I"), 1 / (2 * np.pi))
             )
@@ -225,14 +248,13 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         self._initiate_subsystem()
 
     def cutoffs_dict(self) -> Dict[int, int]:
-        cutoffs_dict= {}
-        
+        cutoffs_dict = {}
+
         for var_index in self.var_categories_list:
             if self.is_child:
                 for cutoff_name in self.parent.cutoff_names:
                     if str(var_index) in cutoff_name:
-                        cutoffs_dict[var_index] = getattr(
-                            self.parent, cutoff_name)
+                        cutoffs_dict[var_index] = getattr(self.parent, cutoff_name)
             else:
                 for cutoff_name in self.cutoff_names:
                     if str(var_index) in cutoff_name:
@@ -429,10 +451,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         self._set_vars()
         if self.hierarchical_diagonalization:
             self.generate_subsystems()
-            self.set_operators()
+            self.operators_by_name = self.set_operators()
             self.build_hilbertspace()
         else:
-            self.set_operators()
+            self.operators_by_name = self.set_operators()
 
     def set_system_hierarchy(
         self, system_hierarchy: list, subsystem_trunc_dims: list
@@ -465,13 +487,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     # *****************************************************************
     # **** Functions to construct the operators for the Hamiltonian ****
     # *****************************************************************
-
-    @staticmethod
-    def _exp_dia(x):
-        """
-        This is a special function to calculate the expm of sparse diagonal matrices
-        """
-        return sparse.diags(np.exp((x.todia()).diagonal())).tocsc()
 
     @staticmethod
     def _cos_dia(x):
@@ -616,9 +631,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             #   - substituting cos and sin operators with their own symbols
             for i in self.var_categories["extended"]:
                 interaction = interaction.replace(
-                    sm.cos(1.0 * sm.symbols("θ" + str(i))), sm.symbols("θc" + str(i))
+                    sm.cos(1.0 * sm.symbols("θ" + str(i))), sm.symbols("cosθ" + str(i))
                 ).replace(
-                    sm.sin(1.0 * sm.symbols("θ" + str(i))), sm.symbols("θs" + str(i))
+                    sm.sin(1.0 * sm.symbols("θ" + str(i))), sm.symbols("sinθ" + str(i))
                 )
 
             expr_dict = interaction.as_coefficients_dict()
@@ -696,11 +711,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         # Defining the list of variables for periodic operators
         periodic_symbols_sin = self._generate_symbols_list(
-            "θs", self.var_categories["periodic"]
+            "sinθ", self.var_categories["periodic"]
         )
 
         periodic_symbols_cos = self._generate_symbols_list(
-            "θc", self.var_categories["periodic"]
+            "cosθ", self.var_categories["periodic"]
         )
         periodic_symbols_n = self._generate_symbols_list(
             "n", self.var_categories["periodic"]
@@ -716,10 +731,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 sm.symbols("Qs" + str(i)) for i in self.var_categories["extended"]
             ]
             sin_symbols = [
-                sm.symbols("θs" + str(i)) for i in self.var_categories["extended"]
+                sm.symbols("sinθ" + str(i)) for i in self.var_categories["extended"]
             ]
             cos_symbols = [
-                sm.symbols("θc" + str(i)) for i in self.var_categories["extended"]
+                sm.symbols("cosθ" + str(i)) for i in self.var_categories["extended"]
             ]
 
         elif self.ext_basis == "harmonic":
@@ -737,10 +752,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 sm.symbols("θ" + str(i)) for i in self.var_categories["extended"]
             ]
             sin_symbols = [
-                sm.symbols("θs" + str(i)) for i in self.var_categories["extended"]
+                sm.symbols("sinθ" + str(i)) for i in self.var_categories["extended"]
             ]
             cos_symbols = [
-                sm.symbols("θc" + str(i)) for i in self.var_categories["extended"]
+                sm.symbols("cosθ" + str(i)) for i in self.var_categories["extended"]
             ]
             momentum_symbols = [
                 sm.symbols("Q" + str(i)) for i in self.var_categories["extended"]
@@ -848,8 +863,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         for i in self.var_categories["periodic"]:
             hamiltonian = hamiltonian.replace(
-                sm.cos(1.0 * sm.symbols("θ" + str(i))), sm.symbols("θc" + str(i))
-            ).replace(sm.sin(1.0 * sm.symbols("θ" + str(i))), sm.symbols("θs" + str(i)))
+                sm.cos(1.0 * sm.symbols("θ" + str(i))), sm.symbols("cosθ" + str(i))
+            ).replace(
+                sm.sin(1.0 * sm.symbols("θ" + str(i))), sm.symbols("sinθ" + str(i))
+            )
 
         if self.ext_basis == "discretized":
 
@@ -865,10 +882,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             for i in self.var_categories["extended"]:
                 hamiltonian = hamiltonian.replace(
                     sm.cos(1.0 * sm.symbols("θ" + str(i))),
-                    sm.symbols("θc" + str(i)),
+                    sm.symbols("cosθ" + str(i)),
                 ).replace(
                     sm.sin(1.0 * sm.symbols("θ" + str(i))),
-                    sm.symbols("θs" + str(i)),
+                    sm.symbols("sinθ" + str(i)),
                 )
 
         # removing the constants from the Hamiltonian
@@ -982,9 +999,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     format=matrix_format,
                 )
         else:
-            return self._change_sparsity(operator)
+            return self._sparsity_adaptive(operator)
 
-    def _change_sparsity(
+    def _sparsity_adaptive(
         self, matrix: Union[csc_matrix, ndarray]
     ) -> Union[csc_matrix, ndarray]:
         """
@@ -1195,62 +1212,47 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         )
         return sin_op
 
-    def circuit_operators(self):
+    def circuit_operator_functions(self) -> Dict[str, Callable]:
         """
-        Returns the set of operators needed to evaluate the Hamiltonian of the current
-        instance.
+        Returns the set of operator functions to be turned into methods of the `Circuit`
+        class.
         """
         periodic_vars = self.vars["periodic"]
-        normal_vars = self.vars["extended"]
-        cutoffs = self.cutoffs_dict() #dict(zip(index_list, cutoff_names))
+        extended_vars = self.vars["extended"]
+        cutoffs_dict = self.cutoffs_dict()
 
         grids = {}
         for i in self.var_categories["extended"]:
             grids[i] = discretization.Grid1d(
                 self.discretized_phi_range[i][0],
                 self.discretized_phi_range[i][1],
-                cutoffs[i],
+                cutoffs_dict[i],
             )
 
         # constructing the operators for extended variables
 
+        extended_operators = {}
         if self.ext_basis == "discretized":
-            extended_operators = {
-                "position": [],
-                "momentum": [],
-                "momentum_squared": [],
-                "cos": [],
-                "sin": [],
+            nonwrapped_ops = {
+                "position": self._phi_operator,
+                "cos": self._cos_phi,
+                "sin": self._sin_phi,
+                "momentum": self._i_d_dphi_operator,
+                "momentum_squared": self._i_d2_dphi2_operator,
             }
-            for v in normal_vars["position"]:  # position operators
-                index = int(get_trailing_number(v.name))
-                phi_operator = self._phi_operator(grids[index])
-                extended_operators["position"].append(
-                    self._kron_operator(phi_operator, index)
-                )
-                extended_operators["sin"].append(
-                    self._kron_operator(self._sin_phi(grids[index]), index)
-                )
-                extended_operators["cos"].append(
-                    self._kron_operator(self._cos_phi(grids[index]), index)
-                )
-            for v in normal_vars["momentum"]:  # momentum operators
-                index = int(get_trailing_number(v.name))
-                a_operator = self._i_d_dphi_operator(grids[index])
-                extended_operators["momentum"].append(
-                    self._kron_operator(a_operator, index)
-                )
-            for v in normal_vars["momentum_squared"]:  # squared momentum operators
-                index = int(get_trailing_number(v.name))
-                ps_operator = self._i_d2_dphi2_operator(grids[index])
-                extended_operators["momentum_squared"].append(
-                    self._kron_operator(ps_operator, index)
-                )
-        elif self.ext_basis == "harmonic":
-            H = self._hamiltonian_sym_for_numerics
-            cutoffs_dict = self.cutoffs_dict()#dict(zip(index_list, cutoff_names))
+            for short_op_name in nonwrapped_ops.keys():
+                for sym_variable in extended_vars[short_op_name]:
+                    index = int(get_trailing_number(sym_variable.name))
+                    op_func = nonwrapped_ops[short_op_name]
+                    op_name = sym_variable.name + "_operator"
+                    extended_operators[op_name] = grid_operator_func_factory(
+                        op_func, index, grids
+                    )
+
+        else:  # expect that self.ext_basis is "harmonic":
+            hamiltonian = self._hamiltonian_sym_for_numerics
             # substitute all the parameter values
-            H = H.subs(
+            hamiltonian = hamiltonian.subs(
                 [
                     (param, getattr(self, str(param)))
                     for param in list(self.symbolic_params.keys())
@@ -1259,87 +1261,77 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 ]
             )
 
-            # calculate oscillator frequencies and use harmonic oscillator basis
             osc_lengths = {}
             osc_freqs = {}
-            extended_operators = {
-                "annihilation": [],
-                "creation": [],
-                "number": [],
-                "position": [],
-                "momentum": [],
-                "sin": [],
-                "cos": [],
+            nonwrapped_ops = {
+                "creation": op.creation_sparse,
+                "annihilation": op.annihilation_sparse,
+                "number": op.number_sparse,
+                "position": None,  # need to set for each variable separately
+                "sin": None,
+                "cos": None,
+                "momentum": None,
             }
-            for var_index in self.var_categories["extended"]:
-                ECi = float(H.coeff("Q" + str(var_index) + "**2").cancel()) / 4
-                ELi = float(H.coeff("θ" + str(var_index) + "**2").cancel()) * 2
+
+            for list_idx, var_index in enumerate(self.var_categories["extended"]):
+                ECi = (
+                    float(hamiltonian.coeff("Q" + str(var_index) + "**2").cancel()) / 4
+                )
+                ELi = (
+                    float(hamiltonian.coeff("θ" + str(var_index) + "**2").cancel()) * 2
+                )
                 osc_freqs[var_index] = (8 * ELi * ECi) ** 0.5
                 osc_lengths[var_index] = (8.0 * ECi / ELi) ** 0.25
-                ad_operator = op.creation_sparse(cutoffs_dict[var_index])
-                a_operator = op.annihilation_sparse(cutoffs_dict[var_index])
-                extended_operators["creation"].append(
-                    self._kron_operator(a_operator, var_index)
+                nonwrapped_ops["position"] = functools.partial(
+                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2**0.5)
                 )
-                extended_operators["annihilation"].append(
-                    self._kron_operator(ad_operator, var_index)
+                nonwrapped_ops["sin"] = compose(
+                    sp.linalg.sinm,
+                    functools.partial(
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
+                    ),
                 )
-                extended_operators["number"].append(
-                    self._kron_operator(
-                        op.number_sparse(cutoffs_dict[var_index]), var_index
-                    )
+                nonwrapped_ops["cos"] = compose(
+                    sp.linalg.cosm,
+                    functools.partial(
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
+                    ),
                 )
-                x_operator = (
-                    (ad_operator + a_operator) * osc_lengths[var_index] / (2**0.5)
-                )
-                extended_operators["position"].append(
-                    self._kron_operator(x_operator, var_index)
-                )
-                extended_operators["momentum"].append(
-                    self._kron_operator(
-                        1j
-                        * (ad_operator - a_operator)
-                        / (osc_lengths[var_index] * 2**0.5),
-                        var_index,
-                    )
+                nonwrapped_ops["momentum"] = functools.partial(
+                    op.ia_minus_iadag_sparse,
+                    prefactor=1 / (osc_lengths[var_index] * 2**0.5),
                 )
 
-                extended_operators["sin"].append(
-                    self._kron_operator(
-                        sp.linalg.sinm(x_operator.toarray()),
-                        var_index,
+                for short_op_name in nonwrapped_ops.keys():
+                    op_func = nonwrapped_ops[short_op_name]
+                    sym_variable = extended_vars[short_op_name][list_idx]
+                    op_name = sym_variable.name + "_operator"
+                    extended_operators[op_name] = operator_func_factory(
+                        op_func, cutoffs_dict, var_index
                     )
-                )
-
-                extended_operators["cos"].append(
-                    self._kron_operator(
-                        sp.linalg.cosm(x_operator.toarray()),
-                        var_index,
-                    )
-                )
 
             self.osc_lengths = osc_lengths
             self.osc_freqs = osc_freqs
 
         # constructing the operators for periodic variables
-        periodic_operators = {"sin": [], "cos": [], "number": []}
-        for v in periodic_vars["sin"]:
-            index = int(v.name[2:])
-            a_operator = self._change_sparsity(self._sin_theta(cutoffs[index]))
-            periodic_operators["sin"].append(self._kron_operator(a_operator, index))
-        for v in periodic_vars["cos"]:
-            index = int(v.name[2:])
-            a_operator = self._change_sparsity(self._cos_theta(cutoffs[index]))
-            periodic_operators["cos"].append(self._kron_operator(a_operator, index))
-        for v in periodic_vars["number"]:
-            index = int(v.name[1:])
-            n_operator = self._change_sparsity(self._n_theta_operator(cutoffs[index]))
-            periodic_operators["number"].append(self._kron_operator(n_operator, index))
+        periodic_operators = {}
+        nonwrapped_ops = {
+            "sin": self._sin_theta,
+            "cos": self._cos_theta,
+            "number": self._n_theta_operator,
+        }
+        for short_op_name, op_func in nonwrapped_ops.items():
+            for sym_variable in periodic_vars[short_op_name]:
+                index = get_operator_number(sym_variable.name)
+                op_name = sym_variable.name + "_operator"
+                periodic_operators[op_name] = operator_func_factory(
+                    op_func, cutoffs_dict, index
+                )
 
         return {
-            "periodic": periodic_operators,
-            "extended": extended_operators,
-            "identity": [self._identity()],
+            **periodic_operators,
+            **extended_operators,
+            "identity_operator": self._identity,
         }
 
     ##################################################################
@@ -1372,14 +1364,14 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         return cutoffs_dict
 
-    def get_external_flux(self) -> List[float]:
+    def external_flux_values(self) -> List[float]:
         """
         Returns all the time independent external flux set using the circuit attributes
         for each of the independent loops detected.
         """
         return [getattr(self, flux.name) for flux in self.external_fluxes]
 
-    def get_offset_charges(self) -> List[float]:
+    def offset_charge_values(self) -> List[float]:
         """
         Returns all the offset charges set using the circuit attributes for each of the
         periodic degree of freedom.
@@ -1388,35 +1380,41 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             getattr(self, offset_charge.name) for offset_charge in self.offset_charges
         ]
 
-    def get_all_operators(self, return_dict: bool = False):
-        """
-        Returns a list of operators which can be given as an argument to
-        self._hamiltonian_sym_for_numericsunc. These operators are not calculated again
-        and are fetched directly from the circuit attibutes. Use set_attributes instead
-        if the paramaters, expecially cutoffs, are changed.
-
-        Parameters
-        ----------
-
-        return_dict: bool
-            returns the dictionary of operators if set to True.
-        """
-        variable_symbols_list = flatten_list(
-            self.vars["periodic"].values()
-        ) + flatten_list(self.vars["extended"].values())
-        operator_list = []
-        for operator in variable_symbols_list:
-            operator_list.append(getattr(self, operator.name))
-
-        # adding the identity operator
-        operator_list.append(self._identity())
-
-        if return_dict:
-            variable_symbols_list.append(sm.symbols("I"))
-            operator_dict = dict(zip(variable_symbols_list, operator_list))
-            return operator_dict
-
-        return operator_list
+    # def get_all_operators(
+    #     self, return_dict: bool = False
+    # ) -> Union[List[Callable], Dict[str, Callable]]:
+    #     """
+    #     Returns a list of operators which can be given as an argument to
+    #     `self._hamiltonian_sym_for_numerics`. These operators are not calculated again
+    #     and are fetched directly from the circuit attributes. Use set_attributes instead
+    #     if the parameters, especially cutoffs, are changed.
+    #
+    #     Parameters
+    #     ----------
+    #     return_dict: bool
+    #         returns the dictionary of operators if set to True.
+    #
+    #     Returns
+    #     -------
+    #         Either a list of operator functions, or a dict mapping operator names to
+    #         operator functions.
+    #     """
+    #     variable_symbols_list = flatten_list(
+    #         self.vars["periodic"].values()
+    #     ) + flatten_list(self.vars["extended"].values())
+    #     operator_list = []
+    #     for operator in variable_symbols_list:
+    #         operator_list.append(getattr(self, operator.name))
+    #
+    #     # adding the identity operator
+    #     operator_list.append(self._identity())
+    #
+    #     if return_dict:
+    #         variable_symbols_list.append(sm.symbols("I"))
+    #         operator_dict = dict(zip(variable_symbols_list, operator_list))
+    #         return operator_dict
+    #
+    #     return self.operators_by_name.values()
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
@@ -1424,35 +1422,29 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         return {}
 
-    def set_operators(self):
+    def set_operators(self) -> Dict[str, Callable]:
         """
-        Sets the operator attributes of the circuit with new operators calculated using
-        the paramaters set in the circuit attributes. Returns a list of operators
-        similar to the method get_operators.
+        Creates the operator methods `<name>_operator` for the circuit.
         """
 
         if self.hierarchical_diagonalization:
             for subsys in self.subsystems.values():
                 subsys.set_operators()
-        else:
-            variable_symbols_list = (
-                flatten_list(self.vars["periodic"].values())
-                + flatten_list(self.vars["extended"].values())
-                + self.vars["identity"]
-            )
+            return
 
-            # if not self.is_child:
-            ops = self.circuit_operators()
-            operator_list = flatten_list(ops["periodic"].values()) + flatten_list(
-                ops["extended"].values()
-            )
+        variable_symbols_list = (
+            flatten_list(self.vars["periodic"].values())
+            + flatten_list(self.vars["extended"].values())
+            + self.vars["identity"]
+        )
 
-            operator_list = operator_list + [self._identity()]
+        op_func_by_name = self.circuit_operator_functions()
+        for op_name, op_func in op_func_by_name.items():
+            setattr(self, op_name, MethodType(op_func, self))
 
-            for idx, operator in enumerate(variable_symbols_list):
-                setattr(self, operator.name, operator_list[idx])
+        return op_func_by_name
 
-    def get_operator(self, operator_name: str) -> qt.Qobj:
+    def get_operator_by_name(self, operator_name: str) -> qt.Qobj:
         """
         Returns the operator for the given operator symbol which has the same dimension
         as the hilbertdim of the instance from which the operator is requested.
@@ -1585,7 +1577,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     def _hamiltonian_for_harmonic_extended_vars(self):
 
         hamiltonian = self._hamiltonian_sym_for_numerics
-        cutoffs_dict = self.cutoffs_dict() #dict(zip(index_list, cutoff_names))
+        cutoffs_dict = self.cutoffs_dict()  # dict(zip(index_list, cutoff_names))
         # substitute all the parameter values
         hamiltonian = hamiltonian.subs(
             [
@@ -1623,36 +1615,32 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         H_str = self._get_eval_hamiltonian_string(hamiltonian)
         self._H_str_harmonic = H_str
 
-        variable_symbols_list = (
-            flatten_list(self.vars["periodic"].values())
-            + flatten_list(self.vars["extended"].values())
-            + self.vars["identity"]
-        )
-
-        variable_str_list = [
-            str(operator)
-            for operator in variable_symbols_list
-            + self.offset_charges
-            + self.external_fluxes
+        offset_charge_names = [
+            offset_charge.name for offset_charge in self.offset_charges
         ]
-        variable_values_list = (
-            self.get_all_operators()
-            + self.get_offset_charges()
-            + self.get_external_flux()
-        )
-        variable_dict = dict(zip(variable_str_list, variable_values_list))
+        offset_charge_dict = dict(zip(offset_charge_names, self.offset_charge_values()))
+        external_flux_names = [
+            external_flux.name for external_flux in self.external_fluxes
+        ]
+        external_flux_dict = dict(zip(external_flux_names, self.external_flux_values()))
+
+        replacement_dict = {
+            **self.operators_by_name,
+            **offset_charge_dict,
+            **external_flux_dict,
+        }
 
         # adding matrix power to the dict
         if self.type_of_matrices == "dense":
-            variable_dict["matrix_power"] = np.linalg.matrix_power
-            variable_dict["cos"] = self._cos_dia_dense
-            variable_dict["sin"] = self._sin_dia_dense
+            replacement_dict["matrix_power"] = np.linalg.matrix_power
+            replacement_dict["cos"] = self._cos_dia_dense
+            replacement_dict["sin"] = self._sin_dia_dense
         else:
-            variable_dict["matrix_power"] = self.matrix_power_sparse
-            variable_dict["cos"] = self._cos_dia
-            variable_dict["sin"] = self._sin_dia
+            replacement_dict["matrix_power"] = self.matrix_power_sparse
+            replacement_dict["cos"] = self._cos_dia
+            replacement_dict["sin"] = self._sin_dia
 
-        return eval(H_str, variable_dict)
+        return eval(H_str, replacement_dict)
 
     def _hamiltonian_for_discretized_extended_vars(self):
         hamiltonian = self._hamiltonian_sym_for_numerics
@@ -1671,17 +1659,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         H_str = self._get_eval_hamiltonian_string(hamiltonian)
         self._H_str_sparse = H_str
 
-        variable_dict = self.get_all_operators(return_dict=True)
-        # changing variables to strings
-        variable_dict_str = dict(
-            zip([var.name for var in variable_dict.keys()], variable_dict.values())
-        )
-        variable_dict_str["cos"] = self._cos_dia
-        variable_dict_str["sin"] = self._sin_dia
+        replacement_dict = self.operators_by_name
 
-        return eval(H_str, variable_dict_str)
+        replacement_dict["cos"] = self._cos_dia
+        replacement_dict["sin"] = self._sin_dia
 
-        # replace * with @ for non-diagonal operators
+        return eval(H_str, replacement_dict)
 
     def hamiltonian(self):
         """
@@ -1775,14 +1758,14 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 expr_modified = expr_modified.subs(term, round(term, float_round))
 
         for var_index in self.var_categories_list:
-            # replace θs with sin(..) and similarly with cos
+            # replace sinθ with sin(..) and similarly with cos
             expr_modified = (
                 expr_modified.replace(
-                    sm.symbols("θc" + str(var_index)),
+                    sm.symbols("cosθ" + str(var_index)),
                     sm.cos(1.0 * sm.symbols("θ" + str(var_index))),
                 )
                 .replace(
-                    sm.symbols("θs" + str(var_index)),
+                    sm.symbols("sinθ" + str(var_index)),
                     sm.sin(1.0 * sm.symbols("θ" + str(var_index))),
                 )
                 .replace(
@@ -2157,8 +2140,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     wf_dim += subsys_var_index_list.index(var_index)
                     break
         return wf_dim
-    
-    def _dims_to_be_summed(self, var_indices: List[int], system_hierarchy_for_vars_chosen) -> List[int]:
+
+    def _dims_to_be_summed(
+        self, var_indices: List[int], system_hierarchy_for_vars_chosen
+    ) -> List[int]:
         dims_to_be_summed = []
         num_wf_dims = 0
         if self.hierarchical_diagonalization:
@@ -2175,7 +2160,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 else:
                     dims_to_be_summed += [num_wf_dims]
                     num_wf_dims += 1
-            
+
         else:
             dims_to_be_summed = [
                 var_index - 1
@@ -2281,15 +2266,22 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # if a probability plot is requested, sum over the dimesnsions not relevant to
         # the ones in var_categories
         if self.hierarchical_diagonalization:
-            dims_to_be_summed = self._dims_to_be_summed(var_indices, system_hierarchy_for_vars_chosen)
+            dims_to_be_summed = self._dims_to_be_summed(
+                var_indices, system_hierarchy_for_vars_chosen
+            )
             wf_plot = np.sum(
                 np.abs(wf_ext_basis),
                 axis=tuple(dims_to_be_summed),
             )
         # reorder the array according to the order in var_indices
-        all_var_indices = flatten_list_recursive(self.system_hierarchy) if self.hierarchical_diagonalization else self.var_categories_list
-        var_index_order = [all_var_indices.index(
-            var_index) for var_index in var_indices]
+        all_var_indices = (
+            flatten_list_recursive(self.system_hierarchy)
+            if self.hierarchical_diagonalization
+            else self.var_categories_list
+        )
+        var_index_order = [
+            all_var_indices.index(var_index) for var_index in var_indices
+        ]
         var_index_dims = (stats.rankdata(var_index_order) - 1).astype(int)
         dims_reshape = np.array(wf_plot.shape)[var_index_dims]
         wf_plot = wf_plot.reshape(*dims_reshape)
@@ -2331,7 +2323,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 "dimensions should be less than 2."
             )
         var_indices = np.sort(var_indices)
-        cutoffs_dict = self.cutoffs_dict()  # dictionary for cutoffs for each variable index
+        cutoffs_dict = (
+            self.cutoffs_dict()
+        )  # dictionary for cutoffs for each variable index
         grids_dict = {}
         var_index_dims_dict = {}
         for cutoff_attrib in self.cutoff_names:
@@ -2423,6 +2417,7 @@ class Circuit(Subsystem):
     Circuit
         An instance of class `Circuit`
     """
+
     def __init__(
         self,
         symbolic_circuit: SymbolicCircuit,
@@ -2772,3 +2767,28 @@ def example_circuit(qubit: str) -> str:
         return inputs_by_qubit_name[qubit]
     else:
         raise AttributeError("Qubit not available or invalid input.")
+
+
+def grid_operator_func_factory(
+    inner_op: Callable, index: int, grids_dict: Dict[int, discretization.Grid1d]
+) -> Callable:
+    def operator_func(self: Subsystem):
+        return self._kron_operator(inner_op(grids_dict[index]), index)
+
+    return operator_func
+
+
+def operator_func_factory(
+    inner_op: Callable, cutoffs_dict: dict, index: int
+) -> Callable:
+    def operator_func(self):
+        return self._kron_operator(inner_op(cutoffs_dict[index]), index)
+
+    return operator_func
+
+
+def compose(f: Callable, g: Callable):
+    def g_after_f(x: Any) -> Any:
+        return f(g(x))
+
+    return g_after_f
