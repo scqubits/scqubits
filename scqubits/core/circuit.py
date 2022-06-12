@@ -14,20 +14,20 @@ import itertools
 import re
 
 from types import MethodType
-from typing import overload, Any, Callable, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union, overload
 
+import numpy as np
 import qutip as qt
 import scipy as sp
-from sympy import latex
-
 import scqubits.core.constants as constants
-import scqubits.core.storage as storage
 import scqubits.core.discretization as discretization
 import scqubits.core.oscillator as osc
 import scqubits.core.qubit_base as base
+import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
+import scqubits.utils.plot_defaults as defaults
+import scqubits.utils.plotting as plot
 import sympy as sm
-import numpy as np
 
 from matplotlib import pyplot as plt
 from numpy import ndarray
@@ -42,8 +42,7 @@ from scqubits.utils.spectrum_utils import (
     identity_wrap,
     order_eigensystem,
 )
-import scqubits.utils.plotting as plot
-import scqubits.utils.plot_defaults as defaults
+from sympy import latex
 
 
 def truncation_template(
@@ -2519,7 +2518,7 @@ class Circuit(Subsystem):
     def __repr__(self) -> str:
         return self._id_str
 
-    def set_closure_branches(self, closure_branches = List[Branch]) -> None:
+    def set_closure_branches(self, closure_branches=List[Branch]) -> None:
         """
         sets the closure branches, to which external flux is associated, to a given set
         of branches. An external flux variable is created for each of the branches
@@ -2529,12 +2528,12 @@ class Circuit(Subsystem):
         ----------
 
         closure_branches:
-            List of Branch objects, to which external flux can be associated. 
+            List of Branch objects, to which external flux can be associated.
         """
 
         # clear the old external flux properties
         for ext_flux in self.external_fluxes:
-            delattr(self, "_"+ext_flux.name)
+            delattr(self, "_" + ext_flux.name)
 
         # reconstruct the symbolic circuit
         self.symbolic_circuit.initiate_symboliccircuit(
@@ -2542,16 +2541,17 @@ class Circuit(Subsystem):
             closure_branches=closure_branches,
         )
         # copying the required attributes
-        required_attributes = [ 'closure_branches',
-                                'external_fluxes',
-                                'hamiltonian_symbolic',
-                                'lagrangian_node_vars',
-                                'lagrangian_symbolic',
-                                'potential_symbolic',
-                                ]
+        required_attributes = [
+            "closure_branches",
+            "external_fluxes",
+            "hamiltonian_symbolic",
+            "lagrangian_node_vars",
+            "lagrangian_symbolic",
+            "potential_symbolic",
+        ]
         for attr in required_attributes:
             setattr(self, attr, getattr(self.symbolic_circuit, attr))
-        
+
         # set the external fluxes
         for flux in self.external_fluxes:
             # setting the default to zero external flux
@@ -2565,7 +2565,7 @@ class Circuit(Subsystem):
             + self.cutoff_names
             + ["input_string"]
         )
-        
+
         if len(self.symbolic_circuit.nodes) > 3:
             self.hamiltonian_symbolic = (
                 self.symbolic_circuit.generate_symbolic_hamiltonian(
@@ -2576,7 +2576,10 @@ class Circuit(Subsystem):
         self.generate_hamiltonian_sym_for_numerics()
 
         if self.hierarchical_diagonalization:
-            self.set_system_hierarchy(system_hierarchy=self.system_hierarchy,  subsystem_trunc_dims=self.subsystem_trunc_dims)
+            self.set_system_hierarchy(
+                system_hierarchy=self.system_hierarchy,
+                subsystem_trunc_dims=self.subsystem_trunc_dims,
+            )
 
     def configure(
         self,
@@ -2623,21 +2626,23 @@ class Circuit(Subsystem):
             closure_branches=closure_branches,
         )
         # copying all the required attributes
-        required_attributes = [ 'branches',
-                                'closure_branches',
-                                'external_fluxes',
-                                'ground_node',
-                                'hamiltonian_symbolic',
-                                'input_string',
-                                'is_grounded',
-                                'lagrangian_node_vars',
-                                'lagrangian_symbolic',
-                                'nodes',
-                                'offset_charges',
-                                'potential_symbolic',
-                                'symbolic_params',
-                                'transformation_matrix',
-                                'var_categories']
+        required_attributes = [
+            "branches",
+            "closure_branches",
+            "external_fluxes",
+            "ground_node",
+            "hamiltonian_symbolic",
+            "input_string",
+            "is_grounded",
+            "lagrangian_node_vars",
+            "lagrangian_symbolic",
+            "nodes",
+            "offset_charges",
+            "potential_symbolic",
+            "symbolic_params",
+            "transformation_matrix",
+            "var_categories",
+        ]
         for attr in required_attributes:
             setattr(self, attr, getattr(self.symbolic_circuit, attr))
 
