@@ -88,6 +88,43 @@ def wavefunction1d(
     _process_options(fig, axes, **kwargs)
     return fig, axes
 
+def wavefunction1d_nopotential(
+    wavefuncs: Union["WaveFunction", "List[WaveFunction]"],
+    offset: Union[float, Iterable[float]] = 0,
+    **kwargs
+) -> Tuple[Figure, Axes]:
+    """
+    Plots the amplitude of a single real-valued 1d wave function, along with the
+    potential energy if provided.
+
+    Parameters
+    ----------
+    wavefuncs:
+        basis and amplitude data of wave function to be plotted
+    potential_vals:
+        potential energies, array length must match basis array of `wavefunc`
+    offset:
+        y-offset for the wave function (e.g., shift by eigenenergy)
+    scaling:
+        scaling factor for wave function amplitudes
+    **kwargs:
+        standard plotting option (see separate documentation)
+
+    Returns
+    -------
+        matplotlib objects for further editing
+    """
+    fig, axes = kwargs.get("fig_ax") or plt.subplots()
+
+    offset_list = utils.to_list(offset)
+    wavefunc_list: List[WaveFunction] = utils.to_list(wavefuncs)
+
+    for wavefunction, energy_offset in zip(wavefunc_list, offset_list):
+        plot_wavefunction_to_axes(axes, wavefunction, energy_offset, **kwargs)
+
+    _process_options(fig, axes, **kwargs)
+    return fig, axes
+
 
 def wavefunction1d_discrete(wavefunc: "WaveFunction", **kwargs) -> Tuple[Figure, Axes]:
     """

@@ -20,6 +20,8 @@ import qutip as qt
 import scipy as sp
 from sympy import latex
 
+import scqubits.core.constants as constants
+import scqubits.core.storage as storage
 import scqubits.core.discretization as discretization
 import scqubits.core.oscillator as osc
 import scqubits.core.qubit_base as base
@@ -40,6 +42,8 @@ from scqubits.utils.spectrum_utils import (
     identity_wrap,
     order_eigensystem,
 )
+import scqubits.utils.plotting as plot
+import scqubits.utils.plot_defaults as defaults
 
 
 def truncation_template(
@@ -1289,23 +1293,23 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 osc_freqs[var_index] = (8 * ELi * ECi) ** 0.5
                 osc_lengths[var_index] = (8.0 * ECi / ELi) ** 0.25
                 nonwrapped_ops["position"] = functools.partial(
-                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2**0.5)
+                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2 ** 0.5)
                 )
                 nonwrapped_ops["sin"] = compose(
                     sp.linalg.sinm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
                     ),
                 )
                 nonwrapped_ops["cos"] = compose(
                     sp.linalg.cosm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
                     ),
                 )
                 nonwrapped_ops["momentum"] = functools.partial(
                     op.ia_minus_iadag_sparse,
-                    prefactor=1 / (osc_lengths[var_index] * 2**0.5),
+                    prefactor=1 / (osc_lengths[var_index] * 2 ** 0.5),
                 )
 
                 for short_op_name in nonwrapped_ops.keys():
@@ -2000,14 +2004,20 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         if len(sweep_vars) == 1:
             plot = plt.plot(*(list(sweep_vars.values()) + [potential_energies]))
-            plt.xlabel(list(sweep_vars.keys())[0])
+            plt.xlabel(
+                r"$\theta_{{{}}}$".format(
+                    get_trailing_number(list(sweep_vars.keys())[0])
+                )
+            )
             plt.ylabel("Potential energy in GHz")
 
         if len(sweep_vars) == 2:
             plot = plt.contourf(*(list(sweep_vars.values()) + [potential_energies]))
-            var_names = list(sweep_vars.keys())
-            plt.xlabel(var_names[0])
-            plt.ylabel(var_names[1])
+            var_indices = [
+                get_trailing_number(var_name) for var_name in list(sweep_vars.keys())
+            ]
+            plt.xlabel(r"$\theta_{{{}}}$".format(var_indices[0]))
+            plt.ylabel(r"$\theta_{{{}}}$".format(var_indices[1]))
             cbar = plt.colorbar()
             cbar.set_label("Potential energy in GHz")
         return plot
@@ -2118,7 +2128,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         U_n_phi = np.array(
             [
-                np.exp(n * self._default_grid_phi.make_linspace() * 1j)
+                np.exp(
+                    n * np.linspace(-np.pi, np.pi, self._default_grid_phi.pt_count) * 1j
+                )
                 for n in range(2 * getattr(self, "cutoff_n_" + str(var_index)) + 1)
             ]
         )
@@ -2181,7 +2193,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def generate_wf_plot_data(
         self,
-        n: int = 0,
+        which: int = 0,
         var_indices: Tuple[int] = (1,),
         eigensys: ndarray = None,
         change_discrete_charge_to_phi: bool = True,
@@ -2210,7 +2222,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         else:
             _, wfs = eigensys
 
-        wf = wfs[:, n]
+        wf = wfs[:, which]
         if self.hierarchical_diagonalization:
             system_hierarchy_for_vars_chosen = list(
                 set([self.get_subsystem_index(index) for index in np.sort(var_indices)])
@@ -2294,10 +2306,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def plot_wavefunction(
         self,
-        n=0,
+        which=0,
         var_indices: Tuple[int] = (1,),
         eigensys=None,
         change_discrete_charge_to_phi: bool = True,
+        **kwargs
     ):
         """
         Returns the plot of the probability density of the wave function in the
@@ -2331,13 +2344,13 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         for cutoff_attrib in self.cutoff_names:
             var_index = get_trailing_number(cutoff_attrib)
             if "cutoff_n" in cutoff_attrib:
-                grids_dict[var_index] = self._default_grid_phi.make_linspace()
+                grids_dict[var_index] = self._default_grid_phi
             else:
                 var_index_dims_dict[var_index] = getattr(self, cutoff_attrib)
                 if self.ext_basis == "harmonic":
-                    grid = self._default_grid_phi.make_linspace()
+                    grid = self._default_grid_phi
                 elif self.ext_basis == "discretized":
-                    grid = np.linspace(
+                    grid = discretization.Grid1d(
                         self.discretized_phi_range[var_index][0],
                         self.discretized_phi_range[var_index][1],
                         cutoffs_dict[var_index],
@@ -2345,7 +2358,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 grids_dict[var_index] = grid
 
         wf_plot = self.generate_wf_plot_data(
-            n=n,
+            which=which,
             var_indices=var_indices,
             eigensys=eigensys,
             change_discrete_charge_to_phi=change_discrete_charge_to_phi,
@@ -2363,29 +2376,49 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 var_types.append("Dimensionless flux, variable:")
 
         if len(var_indices) == 1:
+
+            wavefunc = storage.WaveFunction(
+                basis_labels=grids_dict[var_indices[0]].make_linspace(),
+                amplitudes=wf_plot,
+            )
+
             if not change_discrete_charge_to_phi and (
                 var_indices[0] in self.var_categories["periodic"]
             ):
-                plt.bar(
-                    np.arange(-cutoffs_dict[var_index], cutoffs_dict[var_index] + 1),
-                    wf_plot.T,
-                )
+                kwargs = {
+                    **defaults.wavefunction1d_discrete("abs_sqr"),
+                    **kwargs,
+                }
+                amplitude_modifier = constants.MODE_FUNC_DICT["abs_sqr"]
+                wavefunc.amplitudes = amplitude_modifier(wavefunc.amplitudes)
+                plot.wavefunction1d_discrete(wavefunc, **kwargs)
             else:
-                plt.plot(
-                    np.array(grids_dict[var_indices[0]]),
-                    wf_plot.T,
+                plot.wavefunction1d_nopotential(
+                    wavefunc,
+                    0,
+                    xlabel=r"$\theta_{{{}}}$".format(str(var_indices[0])),
+                    **kwargs
                 )
-            plt.xlabel(var_types[0] + str(var_indices[0]))
+
         elif len(var_indices) == 2:
-            x, y = np.meshgrid(
-                np.array(grids_dict[var_indices[0]]),
-                np.array(grids_dict[var_indices[1]]),
+
+            wavefunc_grid = discretization.GridSpec(
+                np.asarray(
+                    [
+                        list(grids_dict[var_indices[0]].get_initdata().values()),
+                        list(grids_dict[var_indices[1]].get_initdata().values()),
+                    ]
+                )
             )
-            plt.contourf(x, y, wf_plot.T)
-            plt.xlabel(var_types[0] + str(var_indices[0]))
-            plt.ylabel(var_types[1] + str(var_indices[1]))
-            plt.colorbar()
-        plt.title("Wave function along variables " + str(var_indices))
+
+            wavefunc = storage.WaveFunctionOnGrid(wavefunc_grid, wf_plot)
+            plot.wavefunction2d(
+                wavefunc,
+                zero_calibrate=False,
+                xlabel=r"$\theta_{{{}}}$".format(str(var_indices[0])),
+                ylabel=r"$\theta_{{{}}}$".format(str(var_indices[1])),
+                **kwargs
+            )
 
     def _get_cutoff_value(self, var_index: int) -> int:
         """Return the cutoff value associated with the variable with integer index
