@@ -1813,13 +1813,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 raise Exception(
                     "Current instance does not have any subsystems as hierarchical diagonalization is not utilized. If so, do not set subsystem_index keyword argument."
                 )
-            return self._make_expr_human_readable(
-                self.subsystems[subsystem_index].hamiltonian_symbolic,
-                float_round=float_round,
-            )
-        return self._make_expr_human_readable(
-            self.hamiltonian_symbolic.expand(), float_round=float_round
-        )
+            return sm.Add(sm.UnevaluatedExpr(self._make_expr_human_readable(self.subsystems[subsystem_index].hamiltonian_symbolic - self.subsystems[subsystem_index].potential_symbolic, float_round=float_round)),
+                sm.UnevaluatedExpr(self._make_expr_human_readable(self.subsystems[subsystem_index].potential_symbolic, float_round=float_round)), evaluate=False)
+                
+        return sm.Add(sm.UnevaluatedExpr(self._make_expr_human_readable(self.hamiltonian_symbolic.expand()-self.potential_symbolic.expand(), float_round=float_round)), 
+            sm.UnevaluatedExpr(self._make_expr_human_readable(self.potential_symbolic.expand(), float_round=float_round)), evaluate=False)
 
     def sym_interaction(self, subsystem_indices: Tuple[int], float_round: int = 3):
         """
@@ -2269,10 +2267,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def plot_wavefunction(
         self,
-        n=0,
+        which=0,
         var_indices: Tuple[int] = (1,),
-        eigensys=None,
+        esys: Tuple[ndarray, ndarray] =None,
         change_discrete_charge_to_phi: bool = True,
+        **kwargs,
     ):
         """
         Returns the plot of the probability density of the wave function in the
@@ -2291,6 +2290,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         change_discrete_charge_to_phi:
             chooses if the discrete charge basis for the periodic variable
             needs to be changed to phi basis.
+        **kwargs:
+            plotting parameters
         """
         if len(var_indices) > 2:
             raise AttributeError(
@@ -2320,9 +2321,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 grids_dict[var_index] = grid
 
         wf_plot = self.generate_wf_plot_data(
-            n=n,
+            n=which,
             var_indices=var_indices,
-            eigensys=eigensys,
+            eigensys=esys,
             change_discrete_charge_to_phi=change_discrete_charge_to_phi,
         )
 
@@ -2725,6 +2726,7 @@ class Circuit(Subsystem):
                     sm.symbols("vφ" + str(var_index)),
                     sm.symbols("\\dot{φ_" + str(var_index) + "}"),
                 )
+
         elif vars_type == "new":
             lagrangian = self._make_expr_human_readable(self.lagrangian_symbolic)
             # replace v\theta with \theta_dot

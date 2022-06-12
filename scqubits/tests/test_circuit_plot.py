@@ -30,7 +30,7 @@ circ.cutoff_ext_3 = 50
 
 
 def test_plot_wf():
-    circ.plot_wavefunction(n=0, var_indices=(2, 3))
+    circ.plot_wavefunction(which=0, var_indices=(2, 3))
 
 
 def test_plot_potential():
