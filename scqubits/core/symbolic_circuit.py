@@ -1388,11 +1388,13 @@ class SymbolicCircuit(serializers.Serializable):
             closure_branches = list(set(superconducting_loop_branches) - set(tree))
         return closure_branches
 
-    def _find_path_to_root(self, node: Node) -> Tuple[int, List["Node"], List["Branch"]]:
+    def _find_path_to_root(
+        self, node: Node
+    ) -> Tuple[int, List["Node"], List["Branch"]]:
         r"""
-        Returns all the nodes and branches in the spanning tree path between the 
-        input node and the root of the spanning tree. Also returns the distance 
-        (generation) between the input node and the root node. The root of the spanning 
+        Returns all the nodes and branches in the spanning tree path between the
+        input node and the root of the spanning tree. Also returns the distance
+        (generation) between the input node and the root node. The root of the spanning
         tree  is node 0 if there is a physical ground node, otherwise it is node 1.
 
         Parameters
@@ -1402,7 +1404,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         Returns
         -------
-            An integer for the generation number, a list of ancestor nodes, and a list 
+            An integer for the generation number, a list of ancestor nodes, and a list
             of branches on the path
         """
         # define root index
@@ -1416,24 +1418,28 @@ class SymbolicCircuit(serializers.Serializable):
         for igen, nodes in enumerate(node_sets):
             nodes_id = [node.id for node in nodes]
             if node.id in nodes_id:
-                generation = igen 
+                generation = igen
                 break
         # find out the path from the node to the root
-        current_node = node 
+        current_node = node
         ancestor_nodes_list = []
-        branch_path_to_root = [] 
+        branch_path_to_root = []
         # looping over the parent generations
-        for istep in range(generation-1,-1,-1):
+        for istep in range(generation - 1, -1, -1):
             # finding the parent of the current_node, and the branch that links the parent and
             # current_node
             for branch in tree:
                 nodes_id = [node.id for node in node_sets[istep]]
-                if (branch.nodes[1].id == current_node.id) and (branch.nodes[0].id in nodes_id):
+                if (branch.nodes[1].id == current_node.id) and (
+                    branch.nodes[0].id in nodes_id
+                ):
                     ancestor_nodes_list.append(branch.nodes[0])
                     branch_path_to_root.append(branch)
                     current_node = branch.nodes[0]
                     break
-                elif (branch.nodes[0].id == current_node.id) and (branch.nodes[1].id in nodes_id):
+                elif (branch.nodes[0].id == current_node.id) and (
+                    branch.nodes[1].id in nodes_id
+                ):
                     ancestor_nodes_list.append(branch.nodes[1])
                     branch_path_to_root.append(branch)
                     current_node = branch.nodes[1]
@@ -1455,7 +1461,7 @@ class SymbolicCircuit(serializers.Serializable):
         -------
             A list of branches that corresponds to the loop closed by the closure branch
         """
-        # find out ancestor nodes, path to root and generation number for each node in the 
+        # find out ancestor nodes, path to root and generation number for each node in the
         # closure branch
         gen_1, ancestors_1, path_1 = self._find_path_to_root(closure_branch.nodes[0])
         gen_2, ancestors_2, path_2 = self._find_path_to_root(closure_branch.nodes[1])
@@ -1467,10 +1473,14 @@ class SymbolicCircuit(serializers.Serializable):
             if ancestors_1[igen].id == ancestors_2[igen].id:
                 gen_last_same_ancestor = igen
             elif ancestors_1[igen].id != ancestors_2[igen].id:
-                break 
+                break
         # get all the branches of the paths from the two nodes to the root, after the last
         # shared ancestor, and the closure branch itself
-        loop = path_1[gen_last_same_ancestor:] + path_2[gen_last_same_ancestor:] + [closure_branch]
+        loop = (
+            path_1[gen_last_same_ancestor:]
+            + path_2[gen_last_same_ancestor:]
+            + [closure_branch]
+        )
         return loop
 
     def _set_external_fluxes(self, closure_branches: List[Branch] = None):
