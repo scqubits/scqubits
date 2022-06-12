@@ -2519,6 +2519,65 @@ class Circuit(Subsystem):
     def __repr__(self) -> str:
         return self._id_str
 
+    def set_closure_branches(self, closure_branches = List[Branch]) -> None:
+        """
+        sets the closure branches, to which external flux is associated, to a given set
+        of branches. An external flux variable is created for each of the branches
+        listed in closure_branches.
+
+        Parameters
+        ----------
+
+        closure_branches:
+            List of Branch objects, to which external flux can be associated. 
+        """
+
+        # clear the old external flux properties
+        for ext_flux in self.external_fluxes:
+            delattr(self, "_"+ext_flux.name)
+
+        # reconstruct the symbolic circuit
+        self.symbolic_circuit.initiate_symboliccircuit(
+            transformation_matrix=self.symbolic_circuit.transformation_matrix,
+            closure_branches=closure_branches,
+        )
+        # copying the required attributes
+        required_attributes = [ 'closure_branches',
+                                'external_fluxes',
+                                'hamiltonian_symbolic',
+                                'lagrangian_node_vars',
+                                'lagrangian_symbolic',
+                                'potential_symbolic',
+                                ]
+        for attr in required_attributes:
+            setattr(self, attr, getattr(self.symbolic_circuit, attr))
+        
+        # set the external fluxes
+        for flux in self.external_fluxes:
+            # setting the default to zero external flux
+            self._make_property(flux.name, 0.0, "update_external_flux_or_charge")
+
+        # setting the __init__params attribute
+        self._init_params = (
+            [param.name for param in self.symbolic_params]
+            + [flux.name for flux in self.external_fluxes]
+            + [offset_charge.name for offset_charge in self.offset_charges]
+            + self.cutoff_names
+            + ["input_string"]
+        )
+        
+        if len(self.symbolic_circuit.nodes) > 3:
+            self.hamiltonian_symbolic = (
+                self.symbolic_circuit.generate_symbolic_hamiltonian(
+                    substitute_params=True
+                )
+            )
+
+        self.generate_hamiltonian_sym_for_numerics()
+
+        if self.hierarchical_diagonalization:
+            self.set_system_hierarchy(system_hierarchy=self.system_hierarchy,  subsystem_trunc_dims=self.subsystem_trunc_dims)
+
     def configure(
         self,
         transformation_matrix: ndarray = None,
@@ -2563,7 +2622,24 @@ class Circuit(Subsystem):
             transformation_matrix=transformation_matrix,
             closure_branches=closure_branches,
         )
-        self.__dict__.update(self.symbolic_circuit.__dict__)
+        # copying all the required attributes
+        required_attributes = [ 'branches',
+                                'closure_branches',
+                                'external_fluxes',
+                                'ground_node',
+                                'hamiltonian_symbolic',
+                                'input_string',
+                                'is_grounded',
+                                'lagrangian_node_vars',
+                                'lagrangian_symbolic',
+                                'nodes',
+                                'offset_charges',
+                                'potential_symbolic',
+                                'symbolic_params',
+                                'transformation_matrix',
+                                'var_categories']
+        for attr in required_attributes:
+            setattr(self, attr, getattr(self.symbolic_circuit, attr))
 
         # removing any of the old cutoffs
         old_cutoffs = []
