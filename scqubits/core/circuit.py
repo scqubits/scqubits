@@ -2288,9 +2288,17 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         # if a probability plot is requested, sum over the dimesnsions not relevant to
         # the ones in var_categories
-        dims_to_be_summed = self._dims_to_be_summed(
-            var_indices, system_hierarchy_for_vars_chosen
-        )
+        if self.hierarchical_diagonalization:
+            dims_to_be_summed = self._dims_to_be_summed(
+                var_indices, system_hierarchy_for_vars_chosen
+            )
+        # since system_hierarchy_for_vars_chosen is not defined for a circuit without HD
+        # replace the argument system_hierarchy_for_vars_chosen for _dims_to_be_summed
+        # by [] 
+        else:
+            dims_to_be_summed = self._dims_to_be_summed(
+                var_indices, []
+            )
         wf_plot = np.sum(
             np.abs(wf_ext_basis) ** 2,
             axis=tuple(dims_to_be_summed),
