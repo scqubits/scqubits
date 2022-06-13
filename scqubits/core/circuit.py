@@ -1825,22 +1825,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 raise Exception(
                     "Current instance does not have any subsystems as hierarchical diagonalization is not utilized. If so, do not set subsystem_index keyword argument."
                 )
-            return sm.Add(
-                sm.UnevaluatedExpr(
-                    self._make_expr_human_readable(
-                        self.subsystems[subsystem_index].hamiltonian_symbolic
-                        - self.subsystems[subsystem_index].potential_symbolic,
-                        float_round=float_round,
-                    )
-                ),
-                sm.UnevaluatedExpr(
-                    self._make_expr_human_readable(
-                        self.subsystems[subsystem_index].potential_symbolic,
-                        float_round=float_round,
-                    )
-                ),
-                evaluate=False,
-            )
+            return self._make_expr_human_readable(
+                        self.subsystems[subsystem_index].hamiltonian_symbolic)
 
         return sm.Add(
             sm.UnevaluatedExpr(
