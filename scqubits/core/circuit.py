@@ -2501,6 +2501,7 @@ class Circuit(Subsystem):
         subsystem_trunc_dims: list = None,
         truncated_dim: int = None,
     ):
+        sm.init_printing(order="none")
         self.is_child = False
         self.symbolic_circuit: SymbolicCircuit = symbolic_circuit
 
