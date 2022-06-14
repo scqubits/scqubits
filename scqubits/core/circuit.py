@@ -1825,22 +1825,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 raise Exception(
                     "Current instance does not have any subsystems as hierarchical diagonalization is not utilized. If so, do not set subsystem_index keyword argument."
                 )
-            return sm.Add(
-                sm.UnevaluatedExpr(
-                    self._make_expr_human_readable(
-                        self.subsystems[subsystem_index].hamiltonian_symbolic
-                        - self.subsystems[subsystem_index].potential_symbolic,
-                        float_round=float_round,
-                    )
-                ),
-                sm.UnevaluatedExpr(
-                    self._make_expr_human_readable(
-                        self.subsystems[subsystem_index].potential_symbolic,
-                        float_round=float_round,
-                    )
-                ),
-                evaluate=False,
-            )
+            return self._make_expr_human_readable(
+                        self.subsystems[subsystem_index].hamiltonian_symbolic)
 
         return sm.Add(
             sm.UnevaluatedExpr(
@@ -2302,9 +2288,17 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         # if a probability plot is requested, sum over the dimesnsions not relevant to
         # the ones in var_categories
-        dims_to_be_summed = self._dims_to_be_summed(
-            var_indices, system_hierarchy_for_vars_chosen
-        )
+        if self.hierarchical_diagonalization:
+            dims_to_be_summed = self._dims_to_be_summed(
+                var_indices, system_hierarchy_for_vars_chosen
+            )
+        # since system_hierarchy_for_vars_chosen is not defined for a circuit without HD
+        # replace the argument system_hierarchy_for_vars_chosen for _dims_to_be_summed
+        # by [] 
+        else:
+            dims_to_be_summed = self._dims_to_be_summed(
+                var_indices, []
+            )
         wf_plot = np.sum(
             np.abs(wf_ext_basis) ** 2,
             axis=tuple(dims_to_be_summed),
@@ -2501,7 +2495,7 @@ class Circuit(Subsystem):
         subsystem_trunc_dims: list = None,
         truncated_dim: int = None,
     ):
-        sm.init_printing()
+        sm.init_printing(order="none")
         self.is_child = False
         self.symbolic_circuit: SymbolicCircuit = symbolic_circuit
 
