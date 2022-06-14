@@ -24,12 +24,12 @@ from typing import (
     Callable,
     Dict,
     List,
-    Literal,
     Optional,
     Tuple,
     Union,
     overload,
 )
+from typing_extensions import Literal
 
 import numpy as np
 

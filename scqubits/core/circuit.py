@@ -14,7 +14,7 @@ import itertools
 import re
 
 from types import MethodType
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union, overload
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import qutip as qt
@@ -2501,6 +2501,7 @@ class Circuit(Subsystem):
         subsystem_trunc_dims: list = None,
         truncated_dim: int = None,
     ):
+        sm.init_printing()
         self.is_child = False
         self.symbolic_circuit: SymbolicCircuit = symbolic_circuit
 
