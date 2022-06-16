@@ -1275,23 +1275,23 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 osc_freqs[var_index] = (8 * ELi * ECi) ** 0.5
                 osc_lengths[var_index] = (8.0 * ECi / ELi) ** 0.25
                 nonwrapped_ops["position"] = functools.partial(
-                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2 ** 0.5)
+                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2**0.5)
                 )
                 nonwrapped_ops["sin"] = compose(
                     sp.linalg.sinm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
                     ),
                 )
                 nonwrapped_ops["cos"] = compose(
                     sp.linalg.cosm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
                     ),
                 )
                 nonwrapped_ops["momentum"] = functools.partial(
                     op.ia_minus_iadag_sparse,
-                    prefactor=1 / (osc_lengths[var_index] * 2 ** 0.5),
+                    prefactor=1 / (osc_lengths[var_index] * 2**0.5),
                 )
 
                 for short_op_name in nonwrapped_ops.keys():
@@ -2341,7 +2341,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         for cutoff_attrib in self.cutoff_names:
             var_index = get_trailing_number(cutoff_attrib)
             if "cutoff_n" in cutoff_attrib:
-                grids_dict[var_index] = discretization.Grid1d(-np.pi, np.pi, self._default_grid_phi.pt_count)
+                grids_dict[var_index] = discretization.Grid1d(
+                    -np.pi, np.pi, self._default_grid_phi.pt_count
+                )
             else:
                 var_index_dims_dict[var_index] = getattr(self, cutoff_attrib)
                 if self.ext_basis == "harmonic":

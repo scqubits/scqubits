@@ -1021,9 +1021,7 @@ class SymbolicCircuit(serializers.Serializable):
             "extended": [
                 i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_rest
             ],
-            "free": [
-                i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_free
-            ],
+            "free": [i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_free],
             "frozen": [
                 i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_frozen
             ],
