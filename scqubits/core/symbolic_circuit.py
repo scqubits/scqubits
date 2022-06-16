@@ -257,7 +257,7 @@ class SymbolicCircuit(serializers.Serializable):
     branches_list: List[Branch]
         List of branches connecting the above set of nodes.
     basis_completion: str
-        choices are: "simple" (default) or "canonical_basis_vectors"; selects type of basis for
+        choices are: "heuristic" (default) or "canonical"; selects type of basis for
         completing the transformation matrix.
     ground_node:
         If the circuit is grounded, the ground node is treated separately and should be
@@ -272,7 +272,7 @@ class SymbolicCircuit(serializers.Serializable):
         nodes_list: List[Node],
         branches_list: List[Branch],
         branch_var_dict: dict,
-        basis_completion: str = "simple",
+        basis_completion: str = "heuristic",
         ground_node: Optional[Node] = None,
         initiate_sym_calc: bool = True,
         input_string: str = "",
@@ -535,7 +535,7 @@ class SymbolicCircuit(serializers.Serializable):
         cls,
         input_string: str,
         from_file: bool = True,
-        basis_completion: str = "simple",
+        basis_completion: str = "heuristic",
         initiate_sym_calc: bool = True,
     ):
         """
@@ -566,8 +566,8 @@ class SymbolicCircuit(serializers.Serializable):
             `input_string`, else the circuit graph description in YAML should be
             provided as a string.
         basis_completion:
-            choices: "simple" or "canonical_basis_vectors"; used to choose a type of basis
-            for completing the transformation matrix. Set to "simple" by default.
+            choices: "heuristic" or "canonical"; used to choose a type of basis
+            for completing the transformation matrix. Set to "heuristic" by default.
         initiate_sym_calc:
             set to True by default. Initiates the object attributes by calling
             the function `initiate_symboliccircuit` method when set to True.
@@ -960,7 +960,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         standard_basis = np.array(standard_basis)
 
-        if self.basis_completion == "canonical_basis_vectors":
+        if self.basis_completion == "canonical":
             standard_basis = np.identity(len(self.nodes))
 
         new_basis = modes.copy()

@@ -2726,7 +2726,7 @@ class Circuit(Subsystem):
         input_string: str,
         from_file: bool = True,
         ext_basis="discretized",
-        basis_completion="simple",
+        basis_completion="heuristic",
         initiate_sym_calc=True,
         system_hierarchy: list = None,
         subsystem_trunc_dims: list = None,
@@ -2750,9 +2750,9 @@ class Circuit(Subsystem):
             phi or harmonic oscillator basis for extended variables,
             by default "discretized"
         basis_completion:
-            either "simple" or "canonical_basis_vectors", defines the matrix used for completing the
+            either "heuristic" or "canonical", defines the matrix used for completing the
             transformation matrix. Sometimes used to change the variable transformation
-            to result in a simpler symbolic Hamiltonian, by default "simple"
+            to result in a simpler symbolic Hamiltonian, by default "heuristic"
         initiate_sym_calc:
             attribute to initiate Circuit instance, by default `True`
         system_hierarchy:
@@ -2770,9 +2770,9 @@ class Circuit(Subsystem):
             An instance of class `Circuit`
         """
 
-        if basis_completion not in ["simple", "canonical_basis_vectors"]:
+        if basis_completion not in ["heuristic", "canonical"]:
             raise Exception(
-                "Incorrect parameter set for basis_completion. It can either be 'simple' or 'canonical_basis_vectors'"
+                "Incorrect parameter set for basis_completion. It can either be 'simple' or 'canonical'"
             )
 
         symbolic_circuit = SymbolicCircuit.from_yaml(

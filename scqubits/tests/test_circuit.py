@@ -30,7 +30,7 @@ def test_eigenvals_harmonic():
         DATADIR + "circuit_DFC.yaml",
         ext_basis="harmonic",
         initiate_sym_calc=False,
-        basis_completion="canonical_basis_vectors",
+        basis_completion="canonical",
     )
 
     closure_branches = [DFC.branches[0], DFC.branches[4], DFC.branches[-1]]
@@ -64,7 +64,7 @@ def test_eigenvals_discretized():
         DATADIR + "circuit_DFC.yaml",
         ext_basis="discretized",
         initiate_sym_calc=False,
-        basis_completion="canonical_basis_vectors",
+        basis_completion="canonical",
     )
 
     closure_branches = [DFC.branches[0], DFC.branches[4], DFC.branches[-1]]
