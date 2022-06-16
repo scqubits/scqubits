@@ -88,6 +88,7 @@ def wavefunction1d(
     _process_options(fig, axes, **kwargs)
     return fig, axes
 
+
 def wavefunction1d_nopotential(
     wavefuncs: Union["WaveFunction", "List[WaveFunction]"],
     offset: Union[float, Iterable[float]] = 0,

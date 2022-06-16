@@ -51,8 +51,9 @@ def harm_osc_wavefunction(
     -------
         value of harmonic oscillator wave function
     """
-    result = pbdv(n, np.sqrt(2.0) * x / l_osc) / np.sqrt(l_osc * np.sqrt(np.pi) *
-                                                         factorial(n))
+    result = pbdv(n, np.sqrt(2.0) * x / l_osc) / np.sqrt(
+        l_osc * np.sqrt(np.pi) * factorial(n)
+    )
     return result[0]
 
 

@@ -113,7 +113,7 @@ def get_operator_number(input_str: str) -> int:
     -------
         returns the integer as int, else returns None
     """
-    match = re.search(r"([0-9]+)", input_str)
+    match = re.search(r"(\d+)", input_str)
     number = int(match.group())
     if not number:
         raise Exception("{} is not a valid operator name.".format(input_str))
@@ -911,9 +911,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             )
         setattr(self, "_hamiltonian_sym_for_numerics", hamiltonian)
 
-    ##################################################################
-    ############### Functions to construct the operators #############
-    ##################################################################
+    # #################################################################
+    # ############## Functions to construct the operators #############
+    # #################################################################
     def get_cutoffs(self) -> Dict[str, list]:
         """
         Method to get the cutoffs for each of the circuit's degree of freedom.
@@ -1292,23 +1292,23 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 osc_freqs[var_index] = (8 * ELi * ECi) ** 0.5
                 osc_lengths[var_index] = (8.0 * ECi / ELi) ** 0.25
                 nonwrapped_ops["position"] = functools.partial(
-                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2 ** 0.5)
+                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2**0.5)
                 )
                 nonwrapped_ops["sin"] = compose(
                     sp.linalg.sinm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
                     ),
                 )
                 nonwrapped_ops["cos"] = compose(
                     sp.linalg.cosm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
                     ),
                 )
                 nonwrapped_ops["momentum"] = functools.partial(
                     op.ia_minus_iadag_sparse,
-                    prefactor=1 / (osc_lengths[var_index] * 2 ** 0.5),
+                    prefactor=1 / (osc_lengths[var_index] * 2**0.5),
                 )
 
                 for short_op_name in nonwrapped_ops.keys():
@@ -1343,9 +1343,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             "identity_operator": self._identity,
         }
 
-    ##################################################################
-    ################ Functions for parameter queries #################
-    ##################################################################
+    # #################################################################
+    # ############### Functions for parameter queries #################
+    # #################################################################
     def get_params(self) -> List[float]:
         """
         Method to get the circuit parameters set using the instance attributes.
@@ -1434,9 +1434,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         )
         return identity_wrap(operator, subsystem, list(self.subsystems.values()))
 
-    ##################################################################
-    ############# Functions for eigen values and matrices ############
-    ##################################################################
+    # #################################################################
+    # ############ Functions for eigenvalues and matrices ############
+    # #################################################################
     def _is_mat_mul_replacement_necessary(self, term):
         return (
             set(self.var_categories["extended"])
@@ -1460,7 +1460,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     )  # replacing all the * with @
 
         elif self.ext_basis == "harmonic":
-            term_string = ""
             # replace ** with np.matrix_power
             if "**" in str(term):
                 operators = [
@@ -1507,7 +1506,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             H_string += term_string
 
         # replace all position, sin and cos operators with methods
-        H_string = re.sub(r"(?P<x>(θ\d)|(cosθ\d))", "\g<x>_operator(self)", H_string)
+        H_string = re.sub(r"(?P<x>(θ\d)|(cosθ\d))", r"\g<x>_operator(self)", H_string)
 
         # replace all other operators with methods
         operator_symbols_list = flatten_list_recursive(
@@ -1549,8 +1548,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def _hamiltonian_for_harmonic_extended_vars(self):
         hamiltonian = self._hamiltonian_sym_for_numerics
-        cutoffs_dict = self.cutoffs_dict()
-        # substitute all the parameter values
+        # substitute all parameter values
         all_sym_parameters = (
             list(self.symbolic_params.keys())
             + self.external_fluxes
@@ -1575,7 +1573,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             ECi = float(hamiltonian.coeff("Q" + str(var_index) + "**2").cancel()) / 4
             ELi = float(hamiltonian.coeff("θ" + str(var_index) + "**2").cancel()) * 2
             osc_freq = (8 * ELi * ECi) ** 0.5
-            osc_length = (8.0 * ECi / ELi) ** 0.25
             hamiltonian = (
                 (
                     hamiltonian
@@ -1803,46 +1800,52 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         print_latex: bool = False,
     ) -> sm.Expr:
         """
-         Method returns a user readable symbolic Hamiltonian for the current instance
+        Method returns a user readable symbolic Hamiltonian for the current instance
 
-         Parameters
-         ----------
-         subsystem_index:
-             when set to an index, the Hamiltonian for the corresponding subsystem is
-             returned.
-         float_round:
-             Number of digits after the decimal to which floats are rounded
+        Parameters
+        ----------
+        subsystem_index:
+            when set to an index, the Hamiltonian for the corresponding subsystem is
+            returned.
+        float_round:
+            Number of digits after the decimal to which floats are rounded
         print_latex:
-             if set to True, the expression is additionally printed as LaTeX code
+            if set to True, the expression is additionally printed as LaTeX code
 
-         Returns
-         -------
-         hamiltonian
-             Sympy expression which is simplified to make it human readable.
+        Returns
+        -------
+        hamiltonian
+            Sympy expression which is simplified to make it human readable.
         """
         if subsystem_index is not None:
             if not self.hierarchical_diagonalization:
                 raise Exception(
-                    "Current instance does not have any subsystems as hierarchical diagonalization is not utilized. If so, do not set subsystem_index keyword argument."
+                    "Current instance does not have any subsystems as hierarchical "
+                    "diagonalization is not utilized. If so, do not set subsystem_index"
+                    " keyword argument."
                 )
-            return self._make_expr_human_readable(
-                        self.subsystems[subsystem_index].hamiltonian_symbolic)
-
-        return sm.Add(
-            sm.UnevaluatedExpr(
-                self._make_expr_human_readable(
-                    self.hamiltonian_symbolic.expand()
-                    - self.potential_symbolic.expand(),
-                    float_round=float_round,
-                )
-            ),
-            sm.UnevaluatedExpr(
-                self._make_expr_human_readable(
-                    self.potential_symbolic.expand(), float_round=float_round
-                )
-            ),
-            evaluate=False,
-        )
+            sym_hamiltonian = self._make_expr_human_readable(
+                self.subsystems[subsystem_index].hamiltonian_symbolic
+            )
+        else:
+            sym_hamiltonian = sm.Add(
+                sm.UnevaluatedExpr(
+                    self._make_expr_human_readable(
+                        self.hamiltonian_symbolic.expand()
+                        - self.potential_symbolic.expand(),
+                        float_round=float_round,
+                    )
+                ),
+                sm.UnevaluatedExpr(
+                    self._make_expr_human_readable(
+                        self.potential_symbolic.expand(), float_round=float_round
+                    )
+                ),
+                evaluate=False,
+            )
+        if print_latex:
+            print(latex(sym_hamiltonian))
+        return sym_hamiltonian
 
     def sym_interaction(
         self,
@@ -2041,13 +2044,14 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         var_index:
             var index whose oscillator parameter needs to be fetched
         which_param:
-            "length" or "freq" - decides which parameter is returned, by default "length"
+            "length" or "freq" - decides which parameter is returned, by default
+            "length"
 
         Returns
         -------
-        float:
             returns the float value which is the oscillator length or the frequency of
-            the oscillator corresponding to var_index depending on the string   which_param.
+            the oscillator corresponding to var_index depending on the string
+            `which_param`.
         """
         if not self.hierarchical_diagonalization:
             return eval("self.osc_" + which_param + "s[" + str(var_index) + "]")
@@ -2210,7 +2214,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Parameters
         ----------
-        n:
+        which:
             integer to choose which wave function to plot
         var_indices:
             A tuple containing the indices of the variables chosen to plot the
@@ -2240,7 +2244,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
             # **** Converting to the basis in which the variables are defined *****
             wf_original_basis = wf_hd_reshaped
-            wf_dim = system_hierarchy_for_vars_chosen[0]
             for subsys_index in system_hierarchy_for_vars_chosen:
                 wf_dim = 0
                 for sys_index in range(subsys_index):
@@ -2269,7 +2272,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         for var_index in var_indices:
             # finding the dimension corresponding to the var_index
             if not self.hierarchical_diagonalization:
-                wf_dim = (self.var_categories_list).index(var_index)  # var_index - 1
+                wf_dim = self.var_categories_list.index(var_index)
             else:
                 wf_dim = self._get_var_dim_for_reshaped_wf(var_indices, var_index)
 
@@ -2294,11 +2297,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             )
         # since system_hierarchy_for_vars_chosen is not defined for a circuit without HD
         # replace the argument system_hierarchy_for_vars_chosen for _dims_to_be_summed
-        # by [] 
+        # by []
         else:
-            dims_to_be_summed = self._dims_to_be_summed(
-                var_indices, []
-            )
+            dims_to_be_summed = self._dims_to_be_summed(var_indices, [])
         wf_plot = np.sum(
             np.abs(wf_ext_basis) ** 2,
             axis=tuple(dims_to_be_summed),
@@ -2332,12 +2333,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Parameters
         ----------
-        n:
+        which:
             integer to choose which wave function to plot
         var_indices:
             A tuple containing the indices of the variables chosen to plot the
             wave function in. Should not have more than 2 entries.
-        eigensys:
+        esys:
             The object returned by the method `.eigensys`, is used to avoid the
             re-evaluation of the eigen systems if already evaluated.
         change_discrete_charge_to_phi:
@@ -2793,7 +2794,12 @@ class Circuit(Subsystem):
         Parameters
         ----------
         input_string:
-            string describing the graph of a circuit in the YAML format.
+            String describing the number of nodes and branches connecting then along
+            with their parameters
+        from_file:
+            Set to True by default, when a file name should be provided to
+            `input_string`, else the circuit graph description in YAML should be
+            provided as a string.
         ext_basis:
             can be "discretized" or "harmonic" which chooses whether to use discretized
             phi or harmonic oscillator basis for extended variables,
