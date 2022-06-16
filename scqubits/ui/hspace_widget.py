@@ -37,7 +37,7 @@ else:
 import scqubits
 
 from scqubits.core.oscillator import Oscillator
-from scqubits.core.qubit_base import QubitBaseClass
+from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass
 from scqubits.utils import misc as utils
 
 QuantumSys = Union[QubitBaseClass, Oscillator]
@@ -226,7 +226,7 @@ class HilbertSpaceUi:
         candidates_dict = {
             name: subsys
             for name, subsys in main.__dict__.items()
-            if isinstance(subsys, scqubits.core.qubit_base.QuantumSystem)
+            if isinstance(subsys, QuantumSystem)
         }
         return candidates_dict
 

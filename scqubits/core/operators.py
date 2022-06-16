@@ -97,7 +97,7 @@ def number(dimension: int, prefactor: Union[float, complex] = None) -> ndarray:
 
 def number_sparse(
     dimension: int, prefactor: Union[float, complex] = None
-) -> dia_matrix:
+) -> csc_matrix:
     """Number operator matrix of size dimension x dimension in sparse matrix
     representation. An additional prefactor can be directly included in the
     generation of the matrix by supplying 'prefactor'.
@@ -118,7 +118,95 @@ def number_sparse(
         diag_elements *= prefactor
     return sp.sparse.dia_matrix(
         (diag_elements, [0]), shape=(dimension, dimension), dtype=np.float_
+    ).tocsc()
+
+
+def a_plus_adag_sparse(
+    dimension: int, prefactor: Union[float, complex, None] = None
+) -> csc_matrix:
+    """Operator matrix for prefactor(a+a^dag) of size dimension x dimension in
+    sparse matrix representation.
+
+    Parameters
+    ----------
+    dimension:
+        matrix size
+    prefactor:
+        prefactor multiplying the number operator matrix
+        (if not given, this defaults to 1)
+
+    Returns
+    -------
+        prefactor * (a + a^dag) as sparse operator matrix, size dimension x dimension
+    """
+    prefactor = prefactor if prefactor is not None else 1.0
+    return prefactor * (annihilation_sparse(dimension) + creation_sparse(dimension))
+
+
+def a_plus_adag(
+    dimension: int, prefactor: Union[float, complex, None] = None
+) -> ndarray:
+    """Operator matrix for prefactor(a+a^dag) of size dimension x dimension in
+    sparse matrix representation.
+
+    Parameters
+    ----------
+    dimension:
+        matrix size
+    prefactor:
+        prefactor multiplying the number operator matrix
+        (if not given, this defaults to 1)
+
+    Returns
+    -------
+        prefactor (a + a^dag) as ndarray, size dimension x dimension
+    """
+    return a_plus_adag_sparse(dimension, prefactor=prefactor).toarray()
+
+
+def ia_minus_iadag_sparse(
+    dimension: int, prefactor: Union[float, complex, None] = None
+) -> csc_matrix:
+    """Operator matrix for prefactor(ia-ia^dag) of size dimension x dimension as
+    ndarray
+
+    Parameters
+    ----------
+    dimension:
+        matrix size
+    prefactor:
+        prefactor multiplying the number operator matrix
+        (if not given, this defaults to 1)
+
+    Returns
+    -------
+        prefactor  (ia - ia^dag) as sparse operator matrix, size dimension x dimension
+    """
+    prefactor = prefactor if prefactor is not None else 1.0
+    return prefactor * (
+        1j * annihilation_sparse(dimension) - 1j * creation_sparse(dimension)
     )
+
+
+def ia_minus_iadag(
+    dimension: int, prefactor: Union[float, complex, None] = None
+) -> ndarray:
+    """Operator matrix for prefactor(ia-ia^dag) of size dimension x dimension as
+    ndarray
+
+    Parameters
+    ----------
+    dimension:
+        matrix size
+    prefactor:
+        prefactor multiplying the number operator matrix
+        (if not given, this defaults to 1)
+
+    Returns
+    -------
+        prefactor  (ia - ia^dag) as ndarray, size dimension x dimension
+    """
+    return ia_minus_iadag_sparse(dimension, prefactor=prefactor).toarray()
 
 
 def sigma_minus() -> np.ndarray:
