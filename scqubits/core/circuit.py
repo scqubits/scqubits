@@ -2341,7 +2341,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         for cutoff_attrib in self.cutoff_names:
             var_index = get_trailing_number(cutoff_attrib)
             if "cutoff_n" in cutoff_attrib:
-                grids_dict[var_index] = self._default_grid_phi
+                grids_dict[var_index] = discretization.Grid1d(-np.pi, np.pi, self._default_grid_phi.pt_count)
             else:
                 var_index_dims_dict[var_index] = getattr(self, cutoff_attrib)
                 if self.ext_basis == "harmonic":
