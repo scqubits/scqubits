@@ -2774,7 +2774,7 @@ class Circuit(Subsystem):
 
         if basis_completion not in ["heuristic", "canonical"]:
             raise Exception(
-                "Incorrect parameter set for basis_completion. It can either be 'simple' or 'canonical'"
+                "Incorrect parameter set for basis_completion. It can either be 'heuristic' or 'canonical'"
             )
 
         symbolic_circuit = SymbolicCircuit.from_yaml(
