@@ -11,10 +11,12 @@
 
 import functools
 import itertools
+from os import system
 import re
 
 from types import MethodType
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from attr import has
 
 import numpy as np
 import qutip as qt
@@ -244,6 +246,14 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         self._configure()
 
     def cutoffs_dict(self) -> Dict[int, int]:
+        """
+        Returns a dictionary, where each variable is associated with its respective cutoff.
+
+        Returns
+        -------
+        Dict[int, int]
+            Cutoffs dictionary; {var_index: cutoff}
+        """
         cutoffs_dict = {}
 
         for var_index in self.var_categories_list:
@@ -451,34 +461,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             self.build_hilbertspace()
         else:
             self.operators_by_name = self.set_operators()
-
-    def set_system_hierarchy(
-        self, system_hierarchy: list, subsystem_trunc_dims: list
-    ) -> None:
-        """
-        Updates the subsystem hierarchy for the Circuit instance.
-
-        Parameters
-        ----------
-        system_hierarchy:
-            A list of lists which is provided by the user to define subsystems
-        subsystem_trunc_dims:
-            dict object which can be generated for a specific `system_hierarchy`
-            using the method `truncation_template`
-        """
-        if len(self.symbolic_circuit.nodes) > 3:
-            self.hamiltonian_symbolic = (
-                self.symbolic_circuit.generate_symbolic_hamiltonian(
-                    substitute_params=True
-                )
-            )
-
-        self.hierarchical_diagonalization = True
-        self.system_hierarchy = system_hierarchy
-        self.subsystem_trunc_dims = subsystem_trunc_dims
-        self.generate_hamiltonian_sym_for_numerics()
-        self.generate_subsystems()
-        self.build_hilbertspace()
 
     # *****************************************************************
     # **** Functions to construct the operators for the Hamiltonian ****
@@ -1340,7 +1322,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         return {
             **periodic_operators,
             **extended_operators,
-            "identity_operator": self._identity,
+            "I_operator": Circuit._identity,
         }
 
     # #################################################################
@@ -1348,7 +1330,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     # #################################################################
     def get_params(self) -> List[float]:
         """
-        Method to get the circuit parameters set using the instance attributes.
+        Method to get the circuit parameters set for all the branches.
         """
         params = []
         for param in self.symbolic_params:
@@ -1358,7 +1340,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     def external_flux_values(self) -> List[float]:
         """
         Returns all the time independent external flux set using the circuit attributes
-        for each of the independent loops detected.
+        for each of the closure branches.
         """
         return [getattr(self, flux.name) for flux in self.external_fluxes]
 
@@ -1386,12 +1368,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             for subsys in self.subsystems.values():
                 subsys.operators_by_name = subsys.set_operators()
             return
-
-        variable_symbols_list = (
-            flatten_list(self.vars["periodic"].values())
-            + flatten_list(self.vars["extended"].values())
-            + self.vars["identity"]
-        )
 
         op_func_by_name = self.circuit_operator_functions()
         for op_name, op_func in op_func_by_name.items():
@@ -2325,6 +2301,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         var_indices: Tuple[int] = (1,),
         esys: Tuple[ndarray, ndarray] = None,
         change_discrete_charge_to_phi: bool = True,
+        zero_calibrate: bool = True,
         **kwargs
     ):
         """
@@ -2344,6 +2321,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         change_discrete_charge_to_phi:
             chooses if the discrete charge basis for the periodic variable
             needs to be changed to phi basis.
+        zero_calibrate: bool, optional
+            if True, colors are adjusted to use zero wavefunction amplitude as the neutral color in the palette
         **kwargs:
             plotting parameters
         """
@@ -2414,6 +2393,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     wavefunc,
                     0,
                     xlabel=r"$\theta_{{{}}}$".format(str(var_indices[0])),
+                    ylabel=r"$|\psi(\theta_{{{}}})|^2$".format(str(var_indices[0])),
                     **kwargs
                 )
 
@@ -2431,7 +2411,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             wavefunc = storage.WaveFunctionOnGrid(wavefunc_grid, wf_plot)
             plot.wavefunction2d(
                 wavefunc,
-                zero_calibrate=False,
+                zero_calibrate=zero_calibrate,
                 xlabel=r"$\theta_{{{}}}$".format(str(var_indices[0])),
                 ylabel=r"$\theta_{{{}}}$".format(str(var_indices[1])),
                 **kwargs
@@ -2516,16 +2496,26 @@ class Circuit(Subsystem):
         self.type_of_matrices: str = (
             "sparse"  # type of matrices used to construct the operators
         )
-
-        self.var_categories = symbolic_circuit.var_categories
-        self.external_fluxes = symbolic_circuit.external_fluxes
-        self.offset_charges = symbolic_circuit.offset_charges
-        self.symbolic_params = symbolic_circuit.symbolic_params
-        self.branches = symbolic_circuit.branches
-        self.nodes = symbolic_circuit.nodes
-        self.lagrangian_symbolic = symbolic_circuit.lagrangian_symbolic
-        self.hamiltonian_symbolic = symbolic_circuit.hamiltonian_symbolic
-        self.lagrangian_node_vars = symbolic_circuit.lagrangian_node_vars
+        # copying all the required attributes
+        required_attributes = [
+            "branches",
+            "closure_branches",
+            "external_fluxes",
+            "ground_node",
+            "hamiltonian_symbolic",
+            "input_string",
+            "is_grounded",
+            "lagrangian_node_vars",
+            "lagrangian_symbolic",
+            "nodes",
+            "offset_charges",
+            "potential_symbolic",
+            "symbolic_params",
+            "transformation_matrix",
+            "var_categories",
+        ]
+        for attr in required_attributes:
+            setattr(self, attr, getattr(self.symbolic_circuit, attr))
 
         self._sys_type = type(self).__name__
         self._id_str = self._autogenerate_id_str()
@@ -2537,68 +2527,16 @@ class Circuit(Subsystem):
     def __repr__(self) -> str:
         return self._id_str
 
-    def set_closure_branches(self, closure_branches=List[Branch]) -> None:
+    def clear_unnecessary_attribs(self):
         """
-        sets the closure branches, to which external flux is associated, to a given set
-        of branches. An external flux variable is created for each of the branches
-        listed in closure_branches.
-
-        Parameters
-        ----------
-
-        closure_branches:
-            List of Branch objects, to which external flux can be associated.
+        Clear all the attributes which are not part of the circuit description
         """
-
-        # clear the old external flux properties
-        for ext_flux in self.external_fluxes:
-            delattr(self, "_" + ext_flux.name)
-
-        # reconstruct the symbolic circuit
-        self.symbolic_circuit.initiate_symboliccircuit(
-            transformation_matrix=self.symbolic_circuit.transformation_matrix,
-            closure_branches=closure_branches,
-        )
-        # copying the required attributes
-        required_attributes = [
-            "closure_branches",
-            "external_fluxes",
-            "hamiltonian_symbolic",
-            "lagrangian_node_vars",
-            "lagrangian_symbolic",
-            "potential_symbolic",
-        ]
-        for attr in required_attributes:
-            setattr(self, attr, getattr(self.symbolic_circuit, attr))
-
-        # set the external fluxes
-        for flux in self.external_fluxes:
-            # setting the default to zero external flux
-            self._make_property(flux.name, 0.0, "update_external_flux_or_charge")
-
-        # setting the __init__params attribute
-        self._init_params = (
-            [param.name for param in self.symbolic_params]
-            + [flux.name for flux in self.external_fluxes]
-            + [offset_charge.name for offset_charge in self.offset_charges]
-            + self.cutoff_names
-            + ["input_string"]
-        )
-
-        if len(self.symbolic_circuit.nodes) > 3:
-            self.hamiltonian_symbolic = (
-                self.symbolic_circuit.generate_symbolic_hamiltonian(
-                    substitute_params=True
-                )
-            )
-
-        self.generate_hamiltonian_sym_for_numerics()
-
-        if self.hierarchical_diagonalization:
-            self.set_system_hierarchy(
-                system_hierarchy=self.system_hierarchy,
-                subsystem_trunc_dims=self.subsystem_trunc_dims,
-            )
+        necessary_attrib_names = self.cutoff_names + [flux_symbol.name for flux_symbol in self.external_fluxes] + [offset_charge_symbol.name for offset_charge_symbol in self.offset_charges] + ["cutoff_names"]
+        attrib_keys = list(self.__dict__.keys()).copy()
+        for attrib in attrib_keys:
+            if attrib[1:] not in necessary_attrib_names:
+                if "cutoff_n_" in attrib or "Φ" in attrib or "cutoff_ext_" in attrib or attrib[1:3] == "ng":
+                    delattr(self, attrib)
 
     def configure(
         self,
@@ -2633,14 +2571,19 @@ class Circuit(Subsystem):
         Exception
             when system_hierarchy is set and subsystem_trunc_dims is not set.
         """
+
         system_hierarchy = system_hierarchy or self.system_hierarchy
         subsystem_trunc_dims = subsystem_trunc_dims or self.subsystem_trunc_dims
+        closure_branches = closure_branches or self.closure_branches
+        if transformation_matrix is None:
+            if hasattr(self, "transformation_matrix"):
+                transformation_matrix = self.transformation_matrix
 
         self.hierarchical_diagonalization = (
             True if system_hierarchy is not None else False
         )
 
-        self.symbolic_circuit.initiate_symboliccircuit(
+        self.symbolic_circuit.configure(
             transformation_matrix=transformation_matrix,
             closure_branches=closure_branches,
         )
@@ -2665,61 +2608,53 @@ class Circuit(Subsystem):
         for attr in required_attributes:
             setattr(self, attr, getattr(self.symbolic_circuit, attr))
 
-        # removing any of the old cutoffs
-        old_cutoffs = []
-        for attr in self.__dict__:
-            if "_cutoff_" in attr:
-                old_cutoffs.append(attr)
-        for attr in old_cutoffs:
-            delattr(self, attr)
-
         # initiating the class properties
-        self.cutoff_names = []
+        if not hasattr(self, "cutoff_names"):
+            self.cutoff_names = []
         for var_type in self.var_categories.keys():
             if var_type == "periodic":
                 for idx, var_index in enumerate(self.var_categories["periodic"]):
-                    cutoff = (
-                        5
-                        if not hasattr(self, "parent")
-                        else getattr(self.parent, "cutoff_n_" + str(var_index))
-                    )
-                    self._make_property(
-                        "cutoff_n_" + str(var_index), cutoff, "update_cutoffs"
-                    )
-                    self.cutoff_names.append("cutoff_n_" + str(var_index))
+                    if not hasattr(self, "_" + "cutoff_n_" + str(var_index)):
+                        self._make_property(
+                            "cutoff_n_" + str(var_index), 5, "update_cutoffs"
+                        )
+                        self.cutoff_names.append("cutoff_n_" + str(var_index))
             if var_type == "extended":
                 for idx, var_index in enumerate(self.var_categories["extended"]):
-                    cutoff = (
-                        30
-                        if not hasattr(self, "parent")
-                        else getattr(self.parent, "cutoff_ext_" + str(var_index))
-                    )
-                    self._make_property(
-                        "cutoff_ext_" + str(var_index), cutoff, "update_cutoffs"
-                    )
-                    self.cutoff_names.append("cutoff_ext_" + str(var_index))
+                    if not hasattr(self, "_" + "cutoff_ext_" + str(var_index)):
+                        self._make_property(
+                            "cutoff_ext_" + str(var_index), 30, "update_cutoffs"
+                        )
+                        self.cutoff_names.append("cutoff_ext_" + str(var_index))
+        
         self.var_categories_list = flatten_list(list(self.var_categories.values()))
 
         # default values for the parameters
         for idx, param in enumerate(self.symbolic_params):
             # if harmonic oscillator basis is used, param vars become class properties.
-            self._make_property(
-                param.name, self.symbolic_params[param], "update_param_vars"
-            )
+            if not hasattr(self, param.name):
+                self._make_property(
+                    param.name, self.symbolic_params[param], "update_param_vars"
+                )
 
         # setting the ranges for flux ranges used for discrete phi vars
         for v in self.var_categories["extended"]:
-            self.discretized_phi_range[v] = (-6 * np.pi, 6 * np.pi)
-        # default values for the external flux vars
+            try:
+                self.discretized_phi_range[v] # check to see if this was defined
+            except:    
+                self.discretized_phi_range[v] = (-6 * np.pi, 6 * np.pi)
+        # external flux vars
         for flux in self.external_fluxes:
             # setting the default to zero external flux
-            self._make_property(flux.name, 0.0, "update_external_flux_or_charge")
-        # default values for the offset charge vars
+            if not hasattr(self, flux.name):
+                self._make_property(flux.name, 0.0, "update_external_flux_or_charge")
+        # offset charges
         for offset_charge in self.offset_charges:
             # default to zero offset charge
-            self._make_property(
-                offset_charge.name, 0.0, "update_external_flux_or_charge"
-            )
+            if not hasattr(self, offset_charge.name):
+                self._make_property(
+                    offset_charge.name, 0.0, "update_external_flux_or_charge"
+                )
 
         # changing the matrix type if necessary
         if (
@@ -2756,13 +2691,7 @@ class Circuit(Subsystem):
             self.generate_hamiltonian_sym_for_numerics()
             self.operators_by_name = self.set_operators()
         else:
-            if system_hierarchy is None:
-                self.system_hierarchy = [
-                    self.var_categories["periodic"] + self.var_categories["extended"]
-                ]
-            else:
-                self.system_hierarchy = system_hierarchy
-
+            self.system_hierarchy = system_hierarchy
             if subsystem_trunc_dims is None:
                 raise Exception(
                     "The truncated dimensions attribute for hierarchical "
@@ -2774,6 +2703,8 @@ class Circuit(Subsystem):
             self.generate_subsystems()
             self.operators_by_name = self.set_operators()
             self.build_hilbertspace()
+        # clear unnecesary attribs
+        self.clear_unnecessary_attribs()
 
     @classmethod
     def from_yaml(
@@ -2805,7 +2736,7 @@ class Circuit(Subsystem):
             phi or harmonic oscillator basis for extended variables,
             by default "discretized"
         basis_completion:
-            either "simple" or "standard", defines the matrix used for completing the
+            either "simple" or "canonical_basis_vectors", defines the matrix used for completing the
             transformation matrix. Sometimes used to change the variable transformation
             to result in a simpler symbolic Hamiltonian, by default "simple"
         initiate_sym_calc:
@@ -2824,6 +2755,9 @@ class Circuit(Subsystem):
         -------
             An instance of class `Circuit`
         """
+
+        if basis_completion not in ["simple", "canonical_basis_vectors"]:
+            raise Exception("Incorrect parameter set for basis_completion. It can either be 'simple' or 'canonical_basis_vectors'")
 
         symbolic_circuit = SymbolicCircuit.from_yaml(
             input_string,

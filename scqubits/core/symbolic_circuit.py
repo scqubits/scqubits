@@ -11,6 +11,7 @@
 
 import copy
 import itertools
+from nntplib import GroupInfo
 import warnings
 
 from symtable import Symbol
@@ -256,7 +257,7 @@ class SymbolicCircuit(serializers.Serializable):
     branches_list: List[Branch]
         List of branches connecting the above set of nodes.
     basis_completion: str
-        choices are: "simple" (default) or "standard"; selects type of basis for
+        choices are: "simple" (default) or "canonical_basis_vectors"; selects type of basis for
         completing the transformation matrix.
     ground_node:
         If the circuit is grounded, the ground node is treated separately and should be
@@ -316,12 +317,12 @@ class SymbolicCircuit(serializers.Serializable):
 
         # Calling the function to initiate the class variables
         if initiate_sym_calc:
-            self.initiate_symboliccircuit()
+            self.configure()
 
     def is_any_branch_parameter_symbolic(self):
         return True if len(self.symbolic_params) > 0 else False
 
-    def initiate_symboliccircuit(
+    def configure(
         self,
         transformation_matrix: ndarray = None,
         closure_branches: List[Branch] = None,
@@ -440,19 +441,26 @@ class SymbolicCircuit(serializers.Serializable):
         return np.intersect1d(node_array1, node_array2).size == 0
 
     @staticmethod
-    def _parse_nodes(num_nodes) -> List[Node]:
-        return [Node(idx, 0) for idx in range(1, num_nodes + 1)]
+    def _parse_nodes(branches_list) -> Tuple[Optional[Node], List[Node]]:
+        node_index_list = []
+        for branch_list_input in branches_list:
+            for idx in [1,2]:
+                node_idx = branch_list_input[idx]
+                if node_idx not in node_index_list:
+                    node_index_list.append(node_idx)
+        node_index_list.sort()
+        ground_node = None
+        if 0 in node_index_list:
+            ground_node = Node(0, 0)
+            node_index_list.remove(0)
+        return ground_node, [Node(idx, 0) for idx in node_index_list]
 
     @staticmethod
     def _parse_branches(
-        branches_list, nodes: List[Node]
+        branches_list, nodes: List[Node], ground_node: Optional[Node]
     ) -> Tuple[
         List[Branch], Optional[Node], Dict[Union[Any, Symbol], Union[Any, float]]
     ]:
-
-        node_count = len(nodes)
-        is_grounded = False
-        ground_node = None
 
         branches = []
         branch_var_dict = {}  # dict stores init values of all vars from input string
@@ -476,15 +484,6 @@ class SymbolicCircuit(serializers.Serializable):
                     "Incorrect number of parameters: specification of C or L "
                     "in line: " + str(branch_list_input)
                 )
-
-            if node_id1 * node_id2 == 0 and not is_grounded:
-                # Make a ground node when any of the branches in the input file has 0 as
-                # one of the nodes. This implies that ground node is included in the
-                # circuit.
-                # input file
-                node_count += 1
-                ground_node = Node(0, 0)
-                is_grounded = True
 
             branch_params, var_dict = parse_branch_parameters(
                 branch_list_input[3:], branch_type
@@ -529,7 +528,7 @@ class SymbolicCircuit(serializers.Serializable):
                         parameters,
                     )
                 )
-        return branches, ground_node, branch_var_dict
+        return branches, branch_var_dict
 
     @classmethod
     def from_yaml(
@@ -567,7 +566,7 @@ class SymbolicCircuit(serializers.Serializable):
             `input_string`, else the circuit graph description in YAML should be
             provided as a string.
         basis_completion:
-            choices: "simple" or "standard"; used to choose a type of basis
+            choices: "simple" or "canonical_basis_vectors"; used to choose a type of basis
             for completing the transformation matrix. Set to "simple" by default.
         initiate_sym_calc:
             set to True by default. Initiates the object attributes by calling
@@ -587,9 +586,10 @@ class SymbolicCircuit(serializers.Serializable):
 
         input_dictionary = yaml.load(circuit_desc, Loader=yaml.FullLoader)
 
-        nodes = cls._parse_nodes(input_dictionary["nodes"])
-        branches, ground_node, branch_var_dict = cls._parse_branches(
-            input_dictionary["branches"], nodes
+        ground_node, nodes = cls._parse_nodes(input_dictionary["branches"])
+
+        branches, branch_var_dict = cls._parse_branches(
+            input_dictionary["branches"], nodes, ground_node
         )
 
         circuit = cls(
@@ -960,7 +960,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         standard_basis = np.array(standard_basis)
 
-        if self.basis_completion == "standard":
+        if self.basis_completion == "canonical_basis_vectors":
             standard_basis = np.identity(len(self.nodes))
 
         new_basis = modes.copy()
