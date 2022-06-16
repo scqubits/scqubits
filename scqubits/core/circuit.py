@@ -21,6 +21,7 @@ from attr import has
 import numpy as np
 import qutip as qt
 import scipy as sp
+import scqubits as scq
 import scqubits.core.constants as constants
 import scqubits.core.discretization as discretization
 import scqubits.core.oscillator as osc
@@ -1994,7 +1995,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     get_trailing_number(list(sweep_vars.keys())[0])
                 )
             )
-            plt.ylabel("Potential energy in GHz")
+            plt.ylabel("Potential energy in " + scq.get_units())
 
         if len(sweep_vars) == 2:
             plot = plt.contourf(*(list(sweep_vars.values()) + [potential_energies]))
@@ -2004,7 +2005,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             plt.xlabel(r"$\theta_{{{}}}$".format(var_indices[0]))
             plt.ylabel(r"$\theta_{{{}}}$".format(var_indices[1]))
             cbar = plt.colorbar()
-            cbar.set_label("Potential energy in GHz")
+            cbar.set_label("Potential energy in " + scq.get_units())
         return plot
 
     # ****************************************************************
