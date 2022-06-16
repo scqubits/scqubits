@@ -124,7 +124,7 @@ def number_sparse(
 def a_plus_adag_sparse(
     dimension: int, prefactor: Union[float, complex, None] = None
 ) -> csc_matrix:
-    """Operator matrix for `prefactor`*(a+a^dag) of size dimension x dimension in
+    """Operator matrix for prefactor(a+a^dag) of size dimension x dimension in
     sparse matrix representation.
 
     Parameters
@@ -146,7 +146,7 @@ def a_plus_adag_sparse(
 def a_plus_adag(
     dimension: int, prefactor: Union[float, complex, None] = None
 ) -> ndarray:
-    """Operator matrix for `prefactor`*(a+a^dag) of size dimension x dimension in
+    """Operator matrix for prefactor(a+a^dag) of size dimension x dimension in
     sparse matrix representation.
 
     Parameters
@@ -159,7 +159,7 @@ def a_plus_adag(
 
     Returns
     -------
-        prefactor * (a + a^dag) as ndarray, size dimension x dimension
+        prefactor (a + a^dag) as ndarray, size dimension x dimension
     """
     return a_plus_adag_sparse(dimension, prefactor=prefactor).toarray()
 
@@ -167,7 +167,7 @@ def a_plus_adag(
 def ia_minus_iadag_sparse(
     dimension: int, prefactor: Union[float, complex, None] = None
 ) -> csc_matrix:
-    """Operator matrix for `prefactor`*(ia-ia^dag) of size dimension x dimension as
+    """Operator matrix for prefactor(ia-ia^dag) of size dimension x dimension as
     ndarray
 
     Parameters
@@ -180,7 +180,7 @@ def ia_minus_iadag_sparse(
 
     Returns
     -------
-        prefactor * (ia - ia^dag) as sparse operator matrix, size dimension x dimension
+        prefactor  (ia - ia^dag) as sparse operator matrix, size dimension x dimension
     """
     prefactor = prefactor if prefactor is not None else 1.0
     return prefactor * (
@@ -191,7 +191,7 @@ def ia_minus_iadag_sparse(
 def ia_minus_iadag(
     dimension: int, prefactor: Union[float, complex, None] = None
 ) -> ndarray:
-    """Operator matrix for `prefactor`*(ia-ia^dag) of size dimension x dimension as
+    """Operator matrix for prefactor(ia-ia^dag) of size dimension x dimension as
     ndarray
 
     Parameters
@@ -204,7 +204,7 @@ def ia_minus_iadag(
 
     Returns
     -------
-        prefactor * (ia - ia^dag) as ndarray, size dimension x dimension
+        prefactor  (ia - ia^dag) as ndarray, size dimension x dimension
     """
     return ia_minus_iadag_sparse(dimension, prefactor=prefactor).toarray()
 
