@@ -28,7 +28,6 @@ jobs:
         echo $CONDA/bin >> $GITHUB_PATH
     - name: Install dependencies
       run: |
-        conda activate foo
         conda install --file requirements.txt
     - name: Lint with flake8
       run: |
