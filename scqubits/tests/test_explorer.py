@@ -36,7 +36,7 @@ def test_explorer():
     hilbertspace = scq.HilbertSpace([tmon1, tmon2, resonator])
 
     g1 = 0.1  # coupling resonator-CPB1 (without charge matrix elements)
-    g2 = 0.2  # coupling resonator-CPB2 (without charge matrix }elements)
+    g2 = 0.2  # coupling resonator-CPB2 (without charge matrix elements)
 
     hilbertspace.add_interaction(
         g_strength=g1,
@@ -70,7 +70,8 @@ def test_explorer():
         tmon2.flux = area_ratio * flux
         tmon2.ng = ng
 
-    # dictionary with information on which subsystems are affected by changing parameters
+    # dictionary with information on which subsystems are affected by changing
+    # parameters
     subsys_update_info = {pname1: [tmon1, tmon2], pname2: [tmon2]}
 
     # create the ParameterSweep
