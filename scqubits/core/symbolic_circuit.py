@@ -774,7 +774,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         # *************************** Finding the Cyclic Modes ****************
         selected_branches = [branch for branch in self.branches if branch.type != "C"]
-        cyclic_modes = self._independent_modes(selected_branches)
+        free_modes = self._independent_modes(selected_branches)
 
         # ************************ Finding the extended Modes ****************
         # extended_modes = self.get_extended_modes()
@@ -792,11 +792,11 @@ class SymbolicCircuit(serializers.Serializable):
             else:
                 frozen_modes.append(Σ)
 
-        # *********** Adding periodic, cyclic and extended modes to frozen ************
+        # *********** Adding periodic, free and extended modes to frozen ************
         modes = []  # starting with the frozen modes
 
         for m in (
-            frozen_modes + cyclic_modes + periodic_modes + LC_modes  # + extended_modes
+            frozen_modes + free_modes + periodic_modes + LC_modes  # + extended_modes
         ):  # This order is important
             if not self._mode_in_subspace(m, modes):
                 modes.append(m)
@@ -809,7 +809,7 @@ class SymbolicCircuit(serializers.Serializable):
         var_categories_circuit: Dict[str, list] = {
             "periodic": [],
             "extended": [],
-            "cyclic": [],
+            "free": [],
             "frozen": [],
         }
 
@@ -822,8 +822,8 @@ class SymbolicCircuit(serializers.Serializable):
                 var_categories_circuit["frozen"].append(x + 1)
                 continue
 
-            if self._mode_in_subspace(mode, cyclic_modes):
-                var_categories_circuit["cyclic"].append(x + 1)
+            if self._mode_in_subspace(mode, free_modes):
+                var_categories_circuit["free"].append(x + 1)
                 continue
 
             if self._mode_in_subspace(mode, periodic_modes):
@@ -840,7 +840,7 @@ class SymbolicCircuit(serializers.Serializable):
         var_categories_user: Dict[str, list] = {
             "periodic": [],
             "extended": [],
-            "cyclic": [],
+            "free": [],
             "frozen": [],
         }
 
@@ -853,8 +853,8 @@ class SymbolicCircuit(serializers.Serializable):
                 var_categories_user["frozen"].append(x + 1)
                 continue
 
-            if self._mode_in_subspace(mode, cyclic_modes):
-                var_categories_user["cyclic"].append(x + 1)
+            if self._mode_in_subspace(mode, free_modes):
+                var_categories_user["free"].append(x + 1)
                 continue
 
             if self._mode_in_subspace(mode, periodic_modes):
@@ -866,7 +866,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         # comparing the modes in the user defined and the code generated transformation
 
-        mode_types = ["periodic", "extended", "cyclic", "frozen"]
+        mode_types = ["periodic", "extended", "free", "frozen"]
 
         for mode_type in mode_types:
             num_extra_modes = len(var_categories_circuit[mode_type]) - len(
@@ -905,7 +905,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         # **************** Finding the Cyclic Modes ****************
         selected_branches = [branch for branch in self.branches if branch.type != "C"]
-        cyclic_modes = self._independent_modes(selected_branches)
+        free_modes = self._independent_modes(selected_branches)
 
         # **************** Finding the extended Modes ****************
         # extended_modes = self.get_extended_modes()
@@ -926,11 +926,11 @@ class SymbolicCircuit(serializers.Serializable):
             selected_branches, single_nodes=False, basisvec_entries=[-1, 1]
         )
 
-        # **************** Adding frozen, cyclic, periodic , LC and extended modes ****
+        # **************** Adding frozen, free, periodic , LC and extended modes ****
         modes = []  # starting with an empty list
 
         for m in (
-            frozen_modes + cyclic_modes + periodic_modes + LC_modes  # + extended_modes
+            frozen_modes + free_modes + periodic_modes + LC_modes  # + extended_modes
         ):  # This order is important
             mat = np.array(modes + [m])
             if np.linalg.matrix_rank(mat) == len(mat):
@@ -973,31 +973,31 @@ class SymbolicCircuit(serializers.Serializable):
         new_basis = np.array(new_basis)
         # new_basis = np.array(modes)
 
-        # sorting the basis so that the cyclic, periodic and frozen variables occur at
+        # sorting the basis so that the free, periodic and frozen variables occur at
         # the beginning.
         if not self.is_grounded:
             pos_Σ = [i for i in range(len(new_basis)) if new_basis[i].tolist() == Σ]
         else:
             pos_Σ = []
 
-        pos_cyclic = [
+        pos_free = [
             i
             for i in range(len(new_basis))
             if i not in pos_Σ
-            if new_basis[i].tolist() in cyclic_modes
+            if new_basis[i].tolist() in free_modes
         ]
         pos_periodic = [
             i
             for i in range(len(new_basis))
             if i not in pos_Σ
-            if i not in pos_cyclic
+            if i not in pos_free
             if new_basis[i].tolist() in periodic_modes
         ]
         pos_frozen = [
             i
             for i in range(len(new_basis))
             if i not in pos_Σ
-            if i not in pos_cyclic
+            if i not in pos_free
             if i not in pos_periodic
             if new_basis[i].tolist() in frozen_modes
         ]
@@ -1005,11 +1005,11 @@ class SymbolicCircuit(serializers.Serializable):
             i
             for i in range(len(new_basis))
             if i not in pos_Σ
-            if i not in pos_cyclic
+            if i not in pos_free
             if i not in pos_periodic
             if i not in pos_frozen
         ]
-        pos_list = pos_periodic + pos_rest + pos_cyclic + pos_frozen + pos_Σ
+        pos_list = pos_periodic + pos_rest + pos_free + pos_frozen + pos_Σ
         # transforming the new_basis matrix
         new_basis = new_basis[pos_list].T
 
@@ -1021,8 +1021,8 @@ class SymbolicCircuit(serializers.Serializable):
             "extended": [
                 i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_rest
             ],
-            "cyclic": [
-                i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_cyclic
+            "free": [
+                i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_free
             ],
             "frozen": [
                 i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_frozen
@@ -1621,8 +1621,8 @@ class SymbolicCircuit(serializers.Serializable):
             )  # excluding the frozen modes
 
         p_θ_vars = [
-            symbols("Q" + str(i)) if i not in self.var_categories["cyclic"]
-            # replacing the cyclic charge with 0, as it would not affect the circuit
+            symbols("Q" + str(i)) if i not in self.var_categories["free"]
+            # replacing the free charge with 0, as it would not affect the circuit
             # Lagrangian.
             else 0
             for i in range(1, len(self.nodes) + 1 - num_frozen_modes)
