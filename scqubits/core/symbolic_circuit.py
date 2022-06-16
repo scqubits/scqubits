@@ -409,8 +409,7 @@ class SymbolicCircuit(serializers.Serializable):
                 L_old = L_old.subs(var, 1 / (8 * symbols("C" + str(index + 1))))
         return L, L_old
 
-    # TODO: what's going on here? - I thought something like this was necessary for
-    #  serialize to make sure we can store this object onto a file in the HDD.
+    # Serialize will not currently work for the Circuit class.
     @staticmethod
     def default_params() -> Dict[str, Any]:
         # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
