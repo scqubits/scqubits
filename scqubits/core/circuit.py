@@ -1274,23 +1274,23 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 osc_freqs[var_index] = (8 * ELi * ECi) ** 0.5
                 osc_lengths[var_index] = (8.0 * ECi / ELi) ** 0.25
                 nonwrapped_ops["position"] = functools.partial(
-                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2**0.5)
+                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2 ** 0.5)
                 )
                 nonwrapped_ops["sin"] = compose(
                     sp.linalg.sinm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
                     ),
                 )
                 nonwrapped_ops["cos"] = compose(
                     sp.linalg.cosm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
                     ),
                 )
                 nonwrapped_ops["momentum"] = functools.partial(
                     op.ia_minus_iadag_sparse,
-                    prefactor=1 / (osc_lengths[var_index] * 2**0.5),
+                    prefactor=1 / (osc_lengths[var_index] * 2 ** 0.5),
                 )
 
                 for short_op_name in nonwrapped_ops.keys():
@@ -2531,11 +2531,24 @@ class Circuit(Subsystem):
         """
         Clear all the attributes which are not part of the circuit description
         """
-        necessary_attrib_names = self.cutoff_names + [flux_symbol.name for flux_symbol in self.external_fluxes] + [offset_charge_symbol.name for offset_charge_symbol in self.offset_charges] + ["cutoff_names"]
+        necessary_attrib_names = (
+            self.cutoff_names
+            + [flux_symbol.name for flux_symbol in self.external_fluxes]
+            + [
+                offset_charge_symbol.name
+                for offset_charge_symbol in self.offset_charges
+            ]
+            + ["cutoff_names"]
+        )
         attrib_keys = list(self.__dict__.keys()).copy()
         for attrib in attrib_keys:
             if attrib[1:] not in necessary_attrib_names:
-                if "cutoff_n_" in attrib or "Φ" in attrib or "cutoff_ext_" in attrib or attrib[1:3] == "ng":
+                if (
+                    "cutoff_n_" in attrib
+                    or "Φ" in attrib
+                    or "cutoff_ext_" in attrib
+                    or attrib[1:3] == "ng"
+                ):
                     delattr(self, attrib)
 
     def configure(
@@ -2626,7 +2639,7 @@ class Circuit(Subsystem):
                             "cutoff_ext_" + str(var_index), 30, "update_cutoffs"
                         )
                         self.cutoff_names.append("cutoff_ext_" + str(var_index))
-        
+
         self.var_categories_list = flatten_list(list(self.var_categories.values()))
 
         # default values for the parameters
@@ -2640,8 +2653,8 @@ class Circuit(Subsystem):
         # setting the ranges for flux ranges used for discrete phi vars
         for v in self.var_categories["extended"]:
             try:
-                self.discretized_phi_range[v] # check to see if this was defined
-            except:    
+                self.discretized_phi_range[v]  # check to see if this was defined
+            except:
                 self.discretized_phi_range[v] = (-6 * np.pi, 6 * np.pi)
         # external flux vars
         for flux in self.external_fluxes:
@@ -2757,7 +2770,9 @@ class Circuit(Subsystem):
         """
 
         if basis_completion not in ["simple", "canonical_basis_vectors"]:
-            raise Exception("Incorrect parameter set for basis_completion. It can either be 'simple' or 'canonical_basis_vectors'")
+            raise Exception(
+                "Incorrect parameter set for basis_completion. It can either be 'simple' or 'canonical_basis_vectors'"
+            )
 
         symbolic_circuit = SymbolicCircuit.from_yaml(
             input_string,

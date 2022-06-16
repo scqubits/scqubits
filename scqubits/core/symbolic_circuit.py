@@ -444,7 +444,7 @@ class SymbolicCircuit(serializers.Serializable):
     def _parse_nodes(branches_list) -> Tuple[Optional[Node], List[Node]]:
         node_index_list = []
         for branch_list_input in branches_list:
-            for idx in [1,2]:
+            for idx in [1, 2]:
                 node_idx = branch_list_input[idx]
                 if node_idx not in node_index_list:
                     node_index_list.append(node_idx)
