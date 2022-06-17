@@ -1198,6 +1198,9 @@ class SymbolicCircuit(serializers.Serializable):
         return terms
 
     def _inductor_terms(self):
+        """
+        Returns Inductor for the given instance
+        """
         terms = 0
         for l_branch in [branch for branch in self.branches if branch.type == "L"]:
             # adding external flux
@@ -1233,7 +1236,7 @@ class SymbolicCircuit(serializers.Serializable):
 
     def _spanning_tree(self):
         r"""
-        returns a spanning tree for the given instance
+        Returns a spanning tree for the given instance
         """
 
         # making a deep copy to make sure that the original instance is unaffected

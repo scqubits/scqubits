@@ -493,6 +493,20 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         point_count: int = 50,
         num_cpus: Optional[int] = None,
     ) -> Tuple[ndarray, ndarray]:
+        """Computes Dispersion
+
+        Args:
+            dispersion_name (str): Specify Dispersion name.
+            param_name (str): Specify Parameter
+            param_vals (ndarray): Spefify Parameter Value
+            transitions_tuple (TransitionsTuple, optional): Define Transitions tuple. Defaults to ((0, 1),).
+            levels_tuple (Optional[LevelsTuple], optional): Define levels tuple . Defaults to None.
+            point_count (int, optional): Specify point_count. Defaults to 50.
+            num_cpus (Optional[int], optional): Define num_cpus. Defaults to None.
+
+        Returns:
+            Tuple[ndarray, ndarray]: Returns Dispersion
+        """
         if dispersion_name != "flux":
             return super()._compute_dispersion(
                 dispersion_name,
