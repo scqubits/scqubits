@@ -1098,6 +1098,64 @@ class SymbolicCircuit(serializers.Serializable):
                 )
         return terms
 
+    def _inductance_matrix(self, substitute_params: bool = False):
+        """
+        Generate a inductance matrix for the circuit
+
+        Parameters
+        ----------
+        substitute_params:
+            when set to True all the symbolic branch parameters are substituted with
+            their corresponding attributes in float, by default False
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
+        branches_with_inductance = [
+            branch for branch in self.branches if branch.type=="L"
+        ]
+
+
+        param_init_vals_dict = self.symbolic_params
+
+        # filling the non-diagonal entries
+        if not self.is_grounded:
+            num_nodes = len(self.nodes)
+            if not self.is_any_branch_parameter_symbolic() or substitute_params:
+                L_mat = np.zeros([num_nodes, num_nodes])
+            else:
+                L_mat = sympy.zeros(num_nodes)
+        else:
+            num_nodes = len(self.nodes) + 1
+            if not self.is_any_branch_parameter_symbolic() or substitute_params:
+                L_mat = np.zeros([num_nodes, num_nodes])
+            else:
+                L_mat = sympy.zeros(num_nodes)
+
+        for branch in branches_with_inductance:
+            if len(set(branch.nodes)) > 1:  # branch if shorted is not considered
+                inductance = branch.parameters["EL"]
+                if type(inductance) != float and substitute_params:
+                    inductance = param_init_vals_dict[inductance]
+                if self.is_grounded:
+                    L_mat[branch.nodes[0].id, branch.nodes[1].id] += -inductance
+                else:
+                    L_mat[branch.nodes[0].id - 1, branch.nodes[1].id - 1] += -inductance
+
+        if not self.is_any_branch_parameter_symbolic() or substitute_params:
+            L_mat = L_mat + L_mat.T - np.diag(L_mat.diagonal())
+        else:
+            L_mat = L_mat + L_mat.T - sympy.diag(*L_mat.diagonal())
+
+        for i in range(L_mat.shape[0]):  # filling the diagonal entries
+            L_mat[i, i] = -np.sum(L_mat[i, :])
+
+        if self.is_grounded:  # if grounded remove the 0th column and row from L_mat
+            L_mat = L_mat[1:, 1:]
+        return L_mat
+
     def _capacitance_matrix(self, substitute_params: bool = False):
         """
         Generate a capacitance matrix for the circuit
