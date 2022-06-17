@@ -856,6 +856,14 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         )
 
     def _evals_calc(self, evals_count) -> ndarray:
+        """_summary_
+
+        Args:
+            evals_count (integer): evaluation counts
+
+        Returns:
+            ndarray: array
+        """
         hamiltonian_mat = self.hamiltonian()
         evals = sparse.linalg.eigsh(
             hamiltonian_mat,
@@ -1101,6 +1109,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         )
 
     def d_hamiltonian_d_flux(self) -> csc_matrix:
+        """Returns: Hamiltonian of flux
+        """
         phi_flux_term = self._sin_phi_operator() * np.cos(
             self.flux * np.pi
         ) + self._cos_phi_operator() * np.sin(self.flux * np.pi)
@@ -1128,6 +1138,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return junction_mat + dis_junction_mat
 
     def d_hamiltonian_d_EJ(self) -> csc_matrix:
+        """Returns Hamiltonian
+        """
         phi_flux_term = self._cos_phi_operator() * np.cos(
             self.flux * np.pi
         ) - self._sin_phi_operator() * np.sin(self.flux * np.pi)
@@ -1148,6 +1160,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return junction_mat + dis_junction_mat
 
     def d_hamiltonian_d_ng(self) -> csc_matrix:
+        """Returns: Hamiltonian
+        """
         return (
             4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator()
             - 4
