@@ -254,6 +254,14 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         return name_prepend + output
 
     def parse_qutip_functions(self, string: str) -> str:
+        """Parse Qutip function
+
+        Args:
+            string (str):
+
+        Returns:
+            str: string
+        """
         for item, value in self.qutip_dict.items():
             if item in string:
                 string = string.replace(item, value)
@@ -990,6 +998,7 @@ class HilbertSpace(
             raise ValueError("Invalid Interaction Term")
 
     def _parse_interactiontermstr(self, **kwargs) -> InteractionTermStr:
+        """Returns Interaction term string"""
         expr = kwargs.pop("expr")
         add_hc = kwargs.pop("add_hc", False)
         const = kwargs.pop("const", None)
@@ -1003,6 +1012,7 @@ class HilbertSpace(
         return InteractionTermStr(expr, operator_list, const=const, add_hc=add_hc)
 
     def _parse_interactionterm(self, **kwargs) -> InteractionTerm:
+        """Returns Interaction term"""
         g = kwargs.pop("g", None)
         if g is None:
             g = kwargs.pop("g_strength")
@@ -1027,6 +1037,17 @@ class HilbertSpace(
     def _parse_op_by_name(
         self, op_by_name
     ) -> Tuple[int, str, Union[ndarray, csc_matrix, dia_matrix]]:
+        """_summary_
+
+        Args:
+            op_by_name (string): Operator by Name
+
+        Raises:
+            TypeError: If given operator name does not exist. 
+
+        Returns:
+            Tuple[int, str, Union[ndarray, csc_matrix, dia_matrix]]: Operator name
+        """
         if not isinstance(op_by_name, tuple):
             raise TypeError("Cannot interpret specified operator {}".format(op_by_name))
         if len(op_by_name) == 3:
@@ -1042,6 +1063,17 @@ class HilbertSpace(
     def _parse_op(
         self, op: Union[Callable, Tuple[Union[ndarray, csc_matrix], QuantumSys]]
     ) -> Tuple[int, Union[ndarray, csc_matrix]]:
+        """_summary_
+
+        Args:
+            op (Union[Callable, Tuple[Union[ndarray, csc_matrix], QuantumSys]]): Operator
+
+        Raises:
+            TypeError: If given operator name does not exist. 
+
+        Returns:
+            Tuple[int, Union[ndarray, csc_matrix]]: Operator Matrix 
+        """
         if callable(op):
             return self.get_subsys_index(op.__self__), op()  # type:ignore
         if not isinstance(op, tuple):
