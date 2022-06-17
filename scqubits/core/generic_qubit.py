@@ -57,6 +57,7 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
         return {"E": 5.0}
 
     def hamiltonian(self):
+        """Returns Hamiltonian"""
         return 0.5 * self.E * self.sz_operator()
 
     def hilbertdim(self) -> int:
@@ -64,11 +65,13 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
         return 2
 
     def eigenvals(self, evals_count: int = 2) -> ndarray:
+        """Returns Eigenvalues"""
         hamiltonian_mat = self.hamiltonian()
         evals = sp.linalg.eigh(hamiltonian_mat, eigvals_only=True)
         return np.sort(evals)
 
     def eigensys(self, evals_count: int = 2) -> Tuple[ndarray, ndarray]:
+        """Returns Eigen Vectors"""
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = sp.linalg.eigh(hamiltonian_mat, eigvals_only=False)
         evals, evecs = order_eigensystem(evals, evecs)
@@ -100,16 +103,21 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
         )
 
     def sx_operator(self):
+        """Returns Sigma X operator"""
         return operators.sigma_x()
 
     def sy_operator(self):
+        """Returns Sigma Y operator"""
         return operators.sigma_y()
 
     def sz_operator(self):
+        """Returns Sigma Z operator"""
         return operators.sigma_z()
 
     def sp_operator(self):
+        """Returns Sigma Plus operator"""
         return operators.sigma_plus()
 
     def sm_operator(self):
+        """Returns Sigma Minus operator"""
         return operators.sigma_minus()

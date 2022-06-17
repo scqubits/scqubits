@@ -537,10 +537,16 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         )
 
     def _n_operator(self) -> ndarray:
+        """Returns:
+            n operator
+        """
         diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex_)
         return np.diag(diag_elements)
 
     def _exp_i_phi_operator(self) -> ndarray:
+        """Returns:
+            exp(i \\phi) operator
+        """
         dim = 2 * self.ncut + 1
         off_diag_elements = np.ones(dim - 1, dtype=np.complex_)
         e_iphi_matrix = np.diag(off_diag_elements, k=1)
