@@ -447,6 +447,16 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         final_dressed: bool,
         transitions: List[Tuple[StateLabel, StateLabel]],
     ) -> List[str]:
+        """Generate Transition Labels
+
+        Args:
+            initial_dressed (bool)
+            final_dressed (bool)
+            transitions (List[Tuple[StateLabel, StateLabel]]): String
+
+        Returns:
+            List[str]: String
+        """
         identity_map = lambda x: x
         initial_label_func = (
             identity_map if initial_dressed else utils.tuple_to_short_str

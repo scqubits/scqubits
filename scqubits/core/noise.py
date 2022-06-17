@@ -1534,6 +1534,7 @@ class NoisySystem(ABC):
                 return Q_ind
 
         def spectral_density(omega):
+            """Returns Spectran Density of Omega"""
             therm_ratio = calc_therm_ratio(omega, T)
             s = (
                 2

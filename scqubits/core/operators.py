@@ -210,20 +210,25 @@ def ia_minus_iadag(
 
 
 def sigma_minus() -> np.ndarray:
+    """Retuns Sigma Minus"""
     return sigma_plus().T
 
 
 def sigma_plus() -> np.ndarray:
+    """Retuns Sigma Plus"""
     return np.asarray([[0.0, 1.0], [0.0, 0.0]])
 
 
 def sigma_x() -> np.ndarray:
+    """Retuns Sigma X"""
     return np.asarray([[0.0, 1.0], [1.0, 0.0]])
 
 
 def sigma_y() -> np.ndarray:
+    """Retuns Sigma Y"""
     return np.asarray([[0.0, -1j], [1j, 0.0]])
 
 
 def sigma_z() -> np.ndarray:
+    """Retuns Sigma Z"""
     return np.asarray([[1.0, 0.0], [0.0, -1.0]])
