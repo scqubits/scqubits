@@ -89,6 +89,44 @@ def wavefunction1d(
     return fig, axes
 
 
+def wavefunction1d_nopotential(
+    wavefuncs: Union["WaveFunction", "List[WaveFunction]"],
+    offset: Union[float, Iterable[float]] = 0,
+    **kwargs
+) -> Tuple[Figure, Axes]:
+    """
+    Plots the amplitude of a single real-valued 1d wave function, along with the
+    potential energy if provided.
+
+    Parameters
+    ----------
+    wavefuncs:
+        basis and amplitude data of wave function to be plotted
+    potential_vals:
+        potential energies, array length must match basis array of `wavefunc`
+    offset:
+        y-offset for the wave function (e.g., shift by eigenenergy)
+    scaling:
+        scaling factor for wave function amplitudes
+    **kwargs:
+        standard plotting option (see separate documentation)
+
+    Returns
+    -------
+        matplotlib objects for further editing
+    """
+    fig, axes = kwargs.get("fig_ax") or plt.subplots()
+
+    offset_list = utils.to_list(offset)
+    wavefunc_list: List[WaveFunction] = utils.to_list(wavefuncs)
+
+    for wavefunction, energy_offset in zip(wavefunc_list, offset_list):
+        plot_wavefunction_to_axes(axes, wavefunction, energy_offset, **kwargs)
+
+    _process_options(fig, axes, **kwargs)
+    return fig, axes
+
+
 def wavefunction1d_discrete(wavefunc: "WaveFunction", **kwargs) -> Tuple[Figure, Axes]:
     """
     Plots the amplitude of a real-valued 1d wave function in a discrete basis.
@@ -324,7 +362,11 @@ def matrix_skyscraper(
 
 
 def matrix2d(
-    matrix: np.ndarray, mode: str = "abs", show_numbers: bool = True, **kwargs
+    matrix: np.ndarray,
+    mode: str = "abs",
+    show_numbers: bool = True,
+    show_colorbar: bool = True,
+    **kwargs
 ) -> Tuple[Figure, Axes]:
     """Display a matrix as a color-coded 2d plot, optionally printing the numerical
     values of the matrix elements.
@@ -339,6 +381,8 @@ def matrix2d(
     show_numbers:
         determines whether matrix element values are printed on top of the plot
         (default: True)
+    show_colorbar:
+        switch whether to draw a color legend (default: True)
     **kwargs:
         standard plotting option (see separate documentation)
 
@@ -353,11 +397,15 @@ def matrix2d(
 
     min_zheight, max_zheight, nrm = color_normalize(zheight, mode)
 
-    axes.matshow(modefunction(matrix), cmap=plt.cm.viridis, interpolation=None)
-    cax, _ = mpl.colorbar.make_axes(
-        axes, shrink=0.75, pad=0.02
-    )  # add colorbar with normalized range
-    mpl.colorbar.ColorbarBase(cax, cmap=plt.cm.viridis, norm=nrm)
+    if show_colorbar:
+        # add colorbar with normalized range
+        fig.colorbar(
+            mpl.cm.ScalarMappable(norm=nrm, cmap=plt.cm.viridis),
+            ax=axes,
+            fraction=0.046,
+            pad=0.04,
+        )
+    cax = axes.matshow(modefunction(matrix), cmap=plt.cm.viridis, interpolation=None)
 
     if show_numbers:
         add_numbers_to_axes(axes, matrix, modefunction)
@@ -372,7 +420,7 @@ def matrix2d(
     axes.grid(False)
 
     _process_options(fig, axes, **kwargs)
-    axes.tick_params(axis="x", bottom=False, top=True, labelbottom=False, labeltop=True)
+    axes.tick_params(axis="x", bottom=True, top=False, labelbottom=True, labeltop=False)
 
     return fig, axes
 
@@ -383,7 +431,7 @@ def data_vs_paramvals(
     label_list: Union[List[str], List[int]] = None,
     **kwargs
 ) -> Tuple[Figure, Axes]:
-    """Plot of a set of yadata vs xdata.
+    """Plot of a set of ydata vs xdata.
     The individual points correspond to the a provided array of parameter values.
 
     Parameters
@@ -511,7 +559,7 @@ def matelem_vs_paramvals(
         "SpectrumData is missing matrix " "element data!"
     )
     fig, axes = kwargs.get("fig_ax") or plt.subplots()
-    x = specdata.param_vals
+    x_vals = specdata.param_vals
     modefunction = constants.MODE_FUNC_DICT[mode]
 
     if isinstance(select_elems, int):
@@ -522,10 +570,10 @@ def matelem_vs_paramvals(
         index_pairs = select_elems
 
     for (row, col) in index_pairs:
-        y = modefunction(specdata.matrixelem_table[:, row, col])
+        y_vals = modefunction(specdata.matrixelem_table[:, row, col])
         axes.plot(
-            x,
-            y,
+            x_vals,
+            y_vals,
             label=str(row) + "," + str(col),
             **_extract_kwargs_options(kwargs, "plot")
         )

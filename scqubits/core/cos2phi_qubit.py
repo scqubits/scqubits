@@ -128,7 +128,6 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
 
         elif callable(Q_ind):  # Q_ind is a function of omega
             q_ind_fun = Q_ind
-
         else:  # Q_ind is given as a number
 
             def q_ind_fun(omega):
@@ -432,8 +431,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     dEJ:
         disorder in junction energy
     flux:
-        external magnetic flux in angular units, 1 corresponds to one flux
-        quantum
+        external magnetic flux in units of one flux quantum
     ng:
         offset charge
     ncut:
@@ -561,14 +559,14 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
             inductive energy renormalized by with disorder"""
-        return self.EL / (1 - self.dL ** 2)
+        return self.EL / (1 - self.dL**2)
 
     def _disordered_ecj(self) -> float:
         """
         Returns
         -------
             junction capacitance energy renormalized by with disorder"""
-        return self.ECJ / (1 - self.dCJ ** 2)
+        return self.ECJ / (1 - self.dCJ**2)
 
     def phi_osc(self) -> float:
         """

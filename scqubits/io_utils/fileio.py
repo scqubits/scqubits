@@ -151,8 +151,8 @@ class FileIOFactory:
             "file type: {}".format(suffix, file_name, const.FILE_TYPES)
         )
 
+    @staticmethod
     def get_reader(
-        self,
         file_name: str,
         file_handle: "h5py.Group" = None,
         get_external_reader: Callable = None,
