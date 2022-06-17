@@ -856,9 +856,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         )
 
     def _evals_calc(self, evals_count) -> ndarray:
-        """_summary_
-
-        Args:
+        """Args:
             evals_count (integer): evaluation counts
 
         Returns:
