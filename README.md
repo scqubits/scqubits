@@ -25,9 +25,9 @@ appropriately acknowledged by citing:
 >  Quantum 5, 583 (2021).<br>
 >  https://quantum-journal.org/papers/q-2021-11-17-583/
 >
->  Sai Pavan Chitta, Tianpu Zhao, Ziwen Huang, Ian Mondragon-Shem, and Jens Koch
->  *Computer-aided quantization and numerical analysis of superconducting circuits*
->  arXiv:2206.08320 (2022).
+>  Sai Pavan Chitta, Tianpu Zhao, Ziwen Huang, Ian Mondragon-Shem, and Jens Koch,<br>
+>  *Computer-aided quantization and numerical analysis of superconducting circuits*,<br>
+>  arXiv:2206.08320 (2022).<br>
 >  https://arxiv.org/abs/2206.08320
 
 
