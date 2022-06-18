@@ -9,7 +9,7 @@ TESTDIR = os.path.join(TESTDIR, "tests", "")
 DATADIR = os.path.join(TESTDIR, "data", "")
 
 
-circ = scq.Circuit.from_yaml(
+circ = scq.Circuit(
     DATADIR + "circuit_zeropi.yaml", ext_basis="harmonic", initiate_sym_calc=False
 )
 system_hierarchy = [[1, 3], [2]]

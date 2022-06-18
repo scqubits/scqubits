@@ -15,12 +15,15 @@ import re
 
 from types import MethodType
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from debugpy import configure
 
 import numpy as np
 import qutip as qt
 import scipy as sp
 import scqubits as scq
-from scqubits.core import symbolic_circuit
+
+from scqubits.io_utils.fileio_serializers import dict_deserialize, dict_serialize
+
 import scqubits.core.constants as constants
 import scqubits.core.discretization as discretization
 import scqubits.core.oscillator as osc
@@ -245,6 +248,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         self._configure()
 
+    @staticmethod
+    def default_params() -> Dict[str, Any]:
+        # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
+        return {}
+
     def cutoffs_dict(self) -> Dict[int, int]:
         """
         Returns a dictionary, where each variable is associated with its respective cutoff.
@@ -446,13 +454,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             self._make_property(
                 cutoff_str, getattr(self.parent, cutoff_str), "update_cutoffs"
             )
-
-        self._init_params: List[str] = (
-            [param.name for param in self.symbolic_params]
-            + [flux.name for flux in self.external_fluxes]
-            + [offset_charge.name for offset_charge in self.offset_charges]
-            + self.cutoff_names
-        )
 
         self._set_vars()
         if self.hierarchical_diagonalization:
@@ -828,8 +829,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         result in the attribute _hamiltonian_sym_for_numerics.
         """
 
-        if self.is_purely_harmonic:
-            setattr(self, "_hamiltonian_sym_for_numerics", None)
+        # if isinstance(self, Circuit) and self.is_purely_harmonic:
+        #     setattr(self, "_hamiltonian_sym_for_numerics", None)
+        #     return
         
         hamiltonian = (
             self.hamiltonian_symbolic.expand()
@@ -1357,12 +1359,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             getattr(self, offset_charge.name) for offset_charge in self.offset_charges
         ]
 
-    @staticmethod
-    def default_params() -> Dict[str, Any]:
-        # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
-
-        return {}
-
     def set_operators(self) -> Dict[str, Callable]:
         """
         Creates the operator methods `<name>_operator` for the circuit.
@@ -1637,7 +1633,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         inductance_matrix = self.symbolic_circuit._inductance_matrix()
         capacitance_matrix = self.symbolic_circuit._capacitance_matrix()
 
-        # transforming the matrix to 
+        # transforming the matrix to new coordinates
         inductance_matrix = self.transformation_matrix.T @ inductance_matrix @ self.transformation_matrix
         capacitance_matrix = self.transformation_matrix.T @ capacitance_matrix @ self.transformation_matrix
         # truncating the matrices to remove frozen and cyclic modes
@@ -1676,7 +1672,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 return self._hamiltonian_for_harmonic_extended_vars()
             elif self.ext_basis == "discretized":
                 return self._hamiltonian_for_discretized_extended_vars()
-            elif self.is_purely_harmonic:
+            elif isinstance(self, Circuit) and self.is_purely_harmonic:
                 return self._hamiltonian_for_purely_harmonic_circuit()
 
         else:
@@ -1694,7 +1690,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # dimension of the hamiltonian
         hilbertdim = self.hilbertdim()
 
-        if self.is_purely_harmonic:
+        if isinstance(self, Circuit) and self.is_purely_harmonic:
             evals, _ = self._eigensys_for_purely_harmonic(evals_count=evals_count)
             return evals
 
@@ -1715,7 +1711,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         
-        if self.is_purely_harmonic:
+        if isinstance(self, Circuit) and self.is_purely_harmonic:
             return self._eigensys_for_purely_harmonic(evals_count=evals_count)
         
         # dimension of the hamiltonian
@@ -2499,23 +2495,29 @@ class Circuit(Subsystem):
 
     Parameters
     ----------
-    symbolic_circuit: SymbolicCircuit
-        an instance of the class `SymbolicCircuit`
+    input_string:
+        String describing the number of nodes and branches connecting then along
+        with their parameters
+    from_file:
+        Set to True by default, when a file name should be provided to
+        `input_string`, else the circuit graph description in YAML should be
+        provided as a string.
+    basis_completion:
+        either "heuristic" or "canonical", defines the matrix used for completing the
+        transformation matrix. Sometimes used to change the variable transformation
+        to result in a simpler symbolic Hamiltonian, by default "heuristic"
     ext_basis: str
         can be "discretized" or "harmonic" which chooses whether to use discretized
         phi or harmonic oscillator basis for extended variables,
         by default "discretized"
     initiate_sym_calc: bool
         attribute to initiate Circuit instance, by default `True`
-    system_hierarchy: list
-        A list of lists which is provided by the user to define subsystems,
-        by default `None`
-    subsystem_trunc_dims: list, optional
-        a dict object which can be generated for a specific system_hierarchy using
-        the method `truncation_template`, by default `None`
     truncated_dim: Optional[int]
         truncated dimension if the user wants to use this circuit instance in
         HilbertSpace, by default `None`
+    _modified_attributes:
+        parameter for internal use, where the circuit instance is modified by the user.
+        This parameter is used to store the circuit instance in file
 
     Returns
     -------
@@ -2525,21 +2527,35 @@ class Circuit(Subsystem):
 
     def __init__(
         self,
-        symbolic_circuit: SymbolicCircuit,
+        input_string: str,
+        from_file: bool = True,
+        basis_completion="heuristic",
         ext_basis: str = "discretized",
         initiate_sym_calc: bool = True,
-        system_hierarchy: list = None,
-        subsystem_trunc_dims: list = None,
         truncated_dim: int = None,
+        _modified_attributes: Dict = {"transformation_matrix": None, "system_hierarchy": None, "subsystem_trunc_dims": None, "closure_branches_data": []},
     ):
+
+        if basis_completion not in ["heuristic", "canonical"]:
+            raise Exception(
+                "Incorrect parameter set for basis_completion. It can either be 'heuristic' or 'canonical'"
+            )
+
+        symbolic_circuit = SymbolicCircuit.from_yaml(
+            input_string,
+            from_file=from_file,
+            basis_completion=basis_completion,
+            initiate_sym_calc=True,
+        )
+
         sm.init_printing(order="none")
         self.is_child = False
         self.symbolic_circuit: SymbolicCircuit = symbolic_circuit
 
         self.ext_basis: str = ext_basis
         self.truncated_dim: int = truncated_dim
-        self.system_hierarchy: list = system_hierarchy
-        self.subsystem_trunc_dims: list = subsystem_trunc_dims
+        self.system_hierarchy: list = None
+        self.subsystem_trunc_dims: list = None
 
         self.discretized_phi_range: Dict[int, Tuple[float, float]] = {}
         self.cutoff_names: List[str] = []
@@ -2576,9 +2592,72 @@ class Circuit(Subsystem):
         self._sys_type = type(self).__name__
         self._id_str = self._autogenerate_id_str()
 
-        # Hamiltonian function
+        # getting data from _modified_attribs
+        configure_attribs = ["transformation_matrix", "system_hierarchy", "subsystem_trunc_dims"]
+        closure_branches = [self._find_branch(*branch_data) for branch_data in _modified_attributes["closure_branches_data"]]
+        # removing parameters that are not defined
+        configure_attribs = [attrib for attrib in configure_attribs if attrib in _modified_attributes]
+
         if initiate_sym_calc:
-            self.configure()
+            self.configure(closure_branches=closure_branches, **{key: _modified_attributes[key] for key in configure_attribs})
+        # modifying the attributes if necessary
+        for attrib in _modified_attributes:
+            if attrib not in configure_attribs + ["closure_branches_data"]:
+                setattr(self, attrib, _modified_attributes[attrib])
+
+    def dict_for_serialization(self):
+        # setting the __init__params attribute
+        modified_attrib_keys = (
+            [param.name for param in self.symbolic_params]
+            + [flux.name for flux in self.external_fluxes]
+            + [offset_charge.name for offset_charge in self.offset_charges]
+            + self.cutoff_names
+            + ["system_hierarchy", "subsystem_trunc_dims", "transformation_matrix"]
+        )
+        modified_attrib_dict = {key:getattr(self, key) for key in modified_attrib_keys}
+        init_params_dict = {}
+        init_params_list = ["ext_basis", "input_string", "truncated_dim"]
+        
+        for param in init_params_list:
+            init_params_dict[param] = getattr(self, param)
+        init_params_dict["from_file"] = False
+        init_params_dict["basis_completion"] = self.symbolic_circuit.basis_completion
+
+        # storing which branches are used for closure_branches
+        closure_branches_data = []
+        for branch in self.closure_branches:
+            branch_data = [branch.nodes[0].id, branch.nodes[1].id, branch.type, branch.parameters]
+            closure_branches_data.append(branch_data)
+        modified_attrib_dict["closure_branches_data"] = closure_branches_data
+        
+        init_params_dict["_modified_attributes"] = modified_attrib_dict
+        return init_params_dict
+
+    def serialize(self):
+        iodata = dict_serialize(self.dict_for_serialization())
+        iodata.typename = type(self).__name__
+        return iodata
+
+    def _find_branch(self, node_id_1: int, node_id_2: int, branch_type: str, branch_params: dict):
+        for branch in self.symbolic_circuit.branches:
+            branch_node_ids = [node.id for node in branch.nodes]
+            if node_id_1 not in branch_node_ids or node_id_2 not in branch_node_ids:
+                continue
+            if branch.type != branch_type:
+                continue
+            if branch_params != branch.parameters:
+                continue
+            return branch
+        return None
+
+
+
+    @staticmethod
+    def default_params() -> Dict[str, Any]:
+        # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
+        input_string = self.input_string
+
+        return {}
 
     def __repr__(self) -> str:
         return self._id_str
@@ -2658,7 +2737,8 @@ class Circuit(Subsystem):
         )
 
         # checking to see if the system is purely harmonic
-        self.is_purely_harmonic: bool =  "JJ" or  "JJ2" not in [branch.type for branch in self.symbolic_circuit.branches]
+        branch_type_list = [branch.type for branch in self.symbolic_circuit.branches]
+        self.is_purely_harmonic: bool =  "JJ" not in branch_type_list and "JJ2" not in branch_type_list
 
         # copying all the required attributes
         required_attributes = [
@@ -2736,15 +2816,6 @@ class Circuit(Subsystem):
         ):
             self.type_of_matrices = "dense"
 
-        # setting the __init__params attribute
-        self._init_params = (
-            [param.name for param in self.symbolic_params]
-            + [flux.name for flux in self.external_fluxes]
-            + [offset_charge.name for offset_charge in self.offset_charges]
-            + self.cutoff_names
-            + ["input_string"]
-        )
-
         self._set_vars()  # setting the attribute vars to store operator symbols
 
 
@@ -2779,77 +2850,6 @@ class Circuit(Subsystem):
             self.build_hilbertspace()
         # clear unnecesary attribs
         self.clear_unnecessary_attribs()
-
-    @classmethod
-    def from_yaml(
-        cls,
-        input_string: str,
-        from_file: bool = True,
-        ext_basis="discretized",
-        basis_completion="heuristic",
-        initiate_sym_calc=True,
-        system_hierarchy: list = None,
-        subsystem_trunc_dims: list = None,
-        truncated_dim: int = None,
-    ):
-        """
-        Create a Circuit class instance from a circuit graph described in an input
-        string in YAML format.
-
-        Parameters
-        ----------
-        input_string:
-            String describing the number of nodes and branches connecting then along
-            with their parameters
-        from_file:
-            Set to True by default, when a file name should be provided to
-            `input_string`, else the circuit graph description in YAML should be
-            provided as a string.
-        ext_basis:
-            can be "discretized" or "harmonic" which chooses whether to use discretized
-            phi or harmonic oscillator basis for extended variables,
-            by default "discretized"
-        basis_completion:
-            either "heuristic" or "canonical", defines the matrix used for completing the
-            transformation matrix. Sometimes used to change the variable transformation
-            to result in a simpler symbolic Hamiltonian, by default "heuristic"
-        initiate_sym_calc:
-            attribute to initiate Circuit instance, by default `True`
-        system_hierarchy:
-            A list of lists which is provided by the user to define subsystems,
-            by default `None`
-        subsystem_trunc_dims:
-            a dict object which can be generated for a specific system_hierarchy using
-            the method `truncation_template`, by default `None`
-        truncated_dim:
-            truncated dimension if the user wants to use this circuit instance in
-            `HilbertSpace`, by default `None`
-
-        Returns
-        -------
-            An instance of class `Circuit`
-        """
-
-        if basis_completion not in ["heuristic", "canonical"]:
-            raise Exception(
-                "Incorrect parameter set for basis_completion. It can either be 'heuristic' or 'canonical'"
-            )
-
-        symbolic_circuit = SymbolicCircuit.from_yaml(
-            input_string,
-            from_file=from_file,
-            basis_completion=basis_completion,
-            initiate_sym_calc=True,
-        )
-
-        return cls(
-            symbolic_circuit,
-            initiate_sym_calc=initiate_sym_calc,
-            ext_basis=ext_basis,
-            system_hierarchy=system_hierarchy,
-            subsystem_trunc_dims=subsystem_trunc_dims,
-            truncated_dim=truncated_dim,
-        )
 
     def variable_transformation(self) -> List[sm.Equality]:
         """
