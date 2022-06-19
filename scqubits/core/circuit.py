@@ -2595,6 +2595,3 @@ class Circuit(Subsystem):
             )
             for ibranch in range(len(self.external_fluxes))
         }
-
-
-# example input strings

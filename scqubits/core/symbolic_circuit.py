@@ -1190,7 +1190,7 @@ class SymbolicCircuit(serializers.Serializable):
                     / (16 * c_branch.parameters[element_param[c_branch.type]])
                     * (
                         symbols(f"vφ{c_branch.nodes[1].id}")
-                        - symbols(f"vφ{c_branch.nodes[1].id}")
+                        - symbols(f"vφ{c_branch.nodes[0].id}")
                     )
                     ** 2
                 )
