@@ -914,7 +914,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         dim = self.hilbertdim()
         if self.type_of_matrices == "sparse":
             op = sparse.identity(dim)
-            return op()
+            return op
         elif self.type_of_matrices == "dense":
             return np.identity(dim)
 
