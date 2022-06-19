@@ -2345,7 +2345,7 @@ class Circuit(Subsystem):
 
         # setting the ranges for flux ranges used for discrete phi vars
         for var_index in self.var_categories["extended"]:
-            if var_index not in self.discretized_phi_range[var_index]:
+            if var_index not in self.discretized_phi_range:
                 self.discretized_phi_range[var_index] = (-6 * np.pi, 6 * np.pi)
         # external flux vars
         for flux in self.external_fluxes:
