@@ -270,7 +270,7 @@ class SymbolicCircuit(serializers.Serializable):
         self,
         nodes_list: List[Node],
         branches_list: List[Branch],
-        branch_var_dict: dict,
+        branch_var_dict: Dict[Union[Any, Symbol], Union[Any, float]],
         basis_completion: str = "heuristic",
         ground_node: Optional[Node] = None,
         initiate_sym_calc: bool = True,
@@ -457,7 +457,7 @@ class SymbolicCircuit(serializers.Serializable):
     def _parse_branches(
         branches_list, nodes: List[Node], ground_node: Optional[Node]
     ) -> Tuple[
-        List[Branch], Optional[Node], Dict[Union[Any, Symbol], Union[Any, float]]
+        List[Branch], Dict[Union[Any, Symbol], Union[Any, float]]
     ]:
 
         branches = []
@@ -606,7 +606,7 @@ class SymbolicCircuit(serializers.Serializable):
         self,
         branch_subset: List[Branch],
         single_nodes: bool = True,
-        basisvec_entries: List[int] = [1, 0],
+        basisvec_entries: Optional[List[int]] = None,
     ):
         """
         Returns the vectors which span a subspace where there is no generalized flux
@@ -617,6 +617,9 @@ class SymbolicCircuit(serializers.Serializable):
         single_nodes:
             if the single nodes are taken into consideration for basis vectors.
         """
+        if basisvec_entries is None:
+            basisvec_entries = [1, 0]
+
         nodes_copy = self.nodes.copy()  # copying self.nodes as it is being modified
 
         if self.is_grounded:  # needed as ground node is not included in self.nodes
@@ -800,7 +803,6 @@ class SymbolicCircuit(serializers.Serializable):
                 modes.append(m)
 
         for m in LC_modes:  # adding the LC modes to the basis
-            mat = np.array(modes + [m])
             if not self._mode_in_subspace(m, modes):
                 modes.append(m)
 
@@ -1403,10 +1405,6 @@ class SymbolicCircuit(serializers.Serializable):
             An integer for the generation number, a list of ancestor nodes, and a list
             of branches on the path
         """
-        # define root index
-        root = 1
-        if self.is_grounded:
-            root = 0
         # extract spanning tree node_sets (to determine the generation of the node)
         tree, superconducting_loop_branches, node_sets = self._spanning_tree()
         # find out the generation number of the node in the spanning tree
@@ -1422,8 +1420,8 @@ class SymbolicCircuit(serializers.Serializable):
         branch_path_to_root = []
         # looping over the parent generations
         for istep in range(generation - 1, -1, -1):
-            # finding the parent of the current_node, and the branch that links the parent and
-            # current_node
+            # finding the parent of the current_node, and the branch that links the
+            # parent and current_node
             for branch in tree:
                 nodes_id = [node.id for node in node_sets[istep]]
                 if (branch.nodes[1].id == current_node.id) and (
@@ -1501,7 +1499,7 @@ class SymbolicCircuit(serializers.Serializable):
 
     def generate_symbolic_lagrangian(
         self,
-    ) -> Tuple[sympy.Expr, sympy.Expr, sympy.Expr,]:
+    ) -> Tuple[sympy.Expr, sympy.Expr, sympy.Expr]:
         r"""
         Returns three symbolic expressions: lagrangian_θ, potential_θ, lagrangian_φ
         where θ represents the set of new variables and φ represents the set of node
@@ -1601,8 +1599,8 @@ class SymbolicCircuit(serializers.Serializable):
                 * self._capacitance_matrix()
                 * transformation_matrix
             )[
-                0 : num_nodes - num_frozen_modes,
-                0 : num_nodes - num_frozen_modes,
+                0: num_nodes - num_frozen_modes,
+                0: num_nodes - num_frozen_modes,
             ].inv()  # excluding the frozen modes
         else:
             C_mat_θ = np.linalg.inv(
@@ -1611,8 +1609,8 @@ class SymbolicCircuit(serializers.Serializable):
                     @ self._capacitance_matrix(substitute_params=substitute_params)
                     @ transformation_matrix
                 )[
-                    0 : num_nodes - num_frozen_modes,
-                    0 : num_nodes - num_frozen_modes,
+                    0: num_nodes - num_frozen_modes,
+                    0: num_nodes - num_frozen_modes,
                 ]
             )  # excluding the frozen modes
 
