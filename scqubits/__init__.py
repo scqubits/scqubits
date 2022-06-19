@@ -49,7 +49,7 @@ from scqubits.core.zeropi_full import FullZeroPi
 
 from scqubits.core.symbolic_circuit import SymbolicCircuit
 from scqubits.core.circuit import Circuit
-from core.circuit_utils import truncation_template
+from scqubits.core.circuit_utils import truncation_template
 
 # file IO
 from scqubits.io_utils.fileio import read, write

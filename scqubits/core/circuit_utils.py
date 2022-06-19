@@ -19,12 +19,12 @@ from numpy import ndarray
 from scipy import sparse
 from scipy.sparse import csc_matrix
 
-from core import discretization as discretization
+from scqubits.core import discretization as discretization
 from utils.misc import flatten_list_recursive
 
 
 if TYPE_CHECKING:
-    from core.circuit import Subsystem
+    from scqubits.core.circuit import Subsystem
 
 
 def truncation_template(

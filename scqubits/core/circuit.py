@@ -36,7 +36,7 @@ from numpy import ndarray
 from scipy import sparse, stats
 from scipy.sparse import csc_matrix
 
-from core.circuit_utils import (
+from scqubits.core.circuit_utils import (
     _cos_dia, _cos_dia_dense, _cos_phi,
     _cos_theta,
     _generate_symbols_list,
