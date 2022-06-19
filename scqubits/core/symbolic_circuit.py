@@ -203,7 +203,7 @@ class Branch:
 
     def set_parameters(self, parameters) -> None:
         if self.type in ["C", "L"]:
-            self.parameters = {"E{self.type}": parameters[0]}
+            self.parameters = {f"E{self.type}": parameters[0]}
         elif self.type in ["JJ", "JJ2"]:
             self.parameters = {"EJ": parameters[0], "ECJ": parameters[1]}
 

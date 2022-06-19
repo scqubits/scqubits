@@ -423,7 +423,7 @@ class HilbertSpace(
         output = "HilbertSpace:  subsystems\n"
         output += "-------------------------\n"
         for subsystem in self:
-            output += "\n{subsystem}\n"
+            output += f"\n{subsystem}\n"
         if self.interaction_list:
             output += "\n\n"
             output += "HilbertSpace:  interaction terms\n"
