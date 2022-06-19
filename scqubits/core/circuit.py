@@ -914,7 +914,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         dim = self.hilbertdim()
         if self.type_of_matrices == "sparse":
             op = sparse.identity(dim)
-            return op.tocsc()
+            return op()
         elif self.type_of_matrices == "dense":
             return np.identity(dim)
 
@@ -1070,7 +1070,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         return {}
 
-    def set_operators(self) -> Dict[str, Callable]:
+    def set_operators(self) -> Union[None, Dict[str, Callable[[], Union[csc_matrix,
+                                                                  ndarray]]]]:
         """
         Creates the operator methods `<name>_operator` for the circuit.
         """
@@ -1078,7 +1079,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         if self.hierarchical_diagonalization:
             for subsys in self.subsystems.values():
                 subsys.operators_by_name = subsys.set_operators()
-            return
+            return None
 
         op_func_by_name = self.circuit_operator_functions()
         for op_name, op_func in op_func_by_name.items():
@@ -1130,7 +1131,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             & set([get_trailing_number(str(i)) for i in term.free_symbols])
         ) and "*" in str(term)
 
-    def _replace_mat_mul_operator(self, term):
+    def _replace_mat_mul_operator(self, term: sm.Expr):
 
         if not self._is_mat_mul_replacement_necessary(term):
             return str(term)
@@ -1186,7 +1187,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         H_string = ""
         for idx, term in enumerate(terms_list):
             term_string = (
-                str(coeff_list[idx]) + "*" + self._replace_mat_mul_operator(term)
+                f"{coeff_list[idx]}*{self._replace_mat_mul_operator(term)}"
             )
             if float(coeff_list[idx]) > 0:
                 term_string = "+" + term_string
@@ -1212,7 +1213,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 )
         return H_string
 
-    def _hamiltonian_for_harmonic_extended_vars(self):
+    def _hamiltonian_for_harmonic_extended_vars(self) -> Union[csc_matrix, ndarray]:
         hamiltonian = self._hamiltonian_sym_for_numerics
         # substitute all parameter values
         all_sym_parameters = (
@@ -1262,7 +1263,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         ]
         external_flux_dict = dict(zip(external_flux_names, self.external_flux_values()))
 
-        replacement_dict = {
+        replacement_dict: Dict[str, Any] = {
             **self.operators_by_name,
             **offset_charge_dict,
             **external_flux_dict,
@@ -1283,7 +1284,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         return eval(H_str, replacement_dict)
 
-    def _hamiltonian_for_discretized_extended_vars(self):
+    def _hamiltonian_for_discretized_extended_vars(self) -> Union[csc_matrix, ndarray]:
         hamiltonian = self._hamiltonian_sym_for_numerics
         hamiltonian = hamiltonian.subs(
             [
@@ -1300,7 +1301,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         H_str = self._get_eval_hamiltonian_string(hamiltonian)
         self._H_str_sparse = H_str
 
-        replacement_dict = self.operators_by_name
+        replacement_dict: Dict[str, Any] = self.operators_by_name
 
         replacement_dict["cos"] = _cos_dia
         replacement_dict["sin"] = _sin_dia
@@ -1310,7 +1311,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         return eval(H_str, replacement_dict)
 
-    def hamiltonian(self):
+    def hamiltonian(self) -> Union[csc_matrix, ndarray]:
         """
         Returns the Hamiltonian of the Circuit.
         """
@@ -2395,6 +2396,7 @@ class Circuit(Subsystem):
             self.generate_hamiltonian_sym_for_numerics()
             self.operators_by_name = self.set_operators()
         else:
+            self.operators_by_name = None
             self.system_hierarchy = system_hierarchy
             if subsystem_trunc_dims is None:
                 raise Exception(
@@ -2407,7 +2409,7 @@ class Circuit(Subsystem):
             self.generate_subsystems()
             self.operators_by_name = self.set_operators()
             self.build_hilbertspace()
-        # clear unnecesary attribs
+        # clear unnecessary attribs
         self.clear_unnecessary_attribs()
 
     @classmethod
