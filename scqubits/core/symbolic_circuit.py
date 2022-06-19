@@ -11,7 +11,6 @@
 
 import copy
 import itertools
-from nntplib import GroupInfo
 import warnings
 
 from symtable import Symbol
@@ -204,7 +203,7 @@ class Branch:
 
     def set_parameters(self, parameters) -> None:
         if self.type in ["C", "L"]:
-            self.parameters = {"E" + self.type: parameters[0]}
+            self.parameters = {"E{self.type}": parameters[0]}
         elif self.type in ["JJ", "JJ2"]:
             self.parameters = {"EJ": parameters[0], "ECJ": parameters[1]}
 
@@ -405,8 +404,8 @@ class SymbolicCircuit(serializers.Serializable):
                         uniq_capacitances.append(b.parameters[element_param[b.type]])
 
             for index, var in enumerate(uniq_capacitances):
-                L = L.subs(var, 1 / (8 * symbols("C" + str(index + 1))))
-                L_old = L_old.subs(var, 1 / (8 * symbols("C" + str(index + 1))))
+                L = L.subs(var, 1 / (8 * symbols(f"C{index + 1}")))
+                L_old = L_old.subs(var, 1 / (8 * symbols(f"C{index + 1}")))
         return L, L_old
 
     # Serialize will not currently work for the Circuit class.
@@ -474,14 +473,14 @@ class SymbolicCircuit(serializers.Serializable):
             ) != 5:
                 raise Exception(
                     "Incorrect number of parameters: specification of JJ input in "
-                    "line: " + str(branch_list_input)
+                    f"line: {branch_list_input}"
                 )
             elif (branch_type == "L" or branch_type == "C") and len(
                 branch_list_input
             ) != 4:
                 raise Exception(
                     "Incorrect number of parameters: specification of C or L "
-                    "in line: " + str(branch_list_input)
+                    f"in line: {branch_list_input}"
                 )
 
             branch_params, var_dict = parse_branch_parameters(
@@ -1051,16 +1050,16 @@ class SymbolicCircuit(serializers.Serializable):
             # if loop to check for the presence of ground node
             if jj_branch.nodes[1].id == 0:
                 terms += -jj_branch.parameters["EJ"] * sympy.cos(
-                    -symbols("φ" + str(jj_branch.nodes[0].id)) + phi_ext
+                    -symbols(f"φ{jj_branch.nodes[0].id}") + phi_ext
                 )
             elif jj_branch.nodes[0].id == 0:
                 terms += -jj_branch.parameters["EJ"] * sympy.cos(
-                    symbols("φ" + str(jj_branch.nodes[1].id)) + phi_ext
+                    symbols(f"φ{jj_branch.nodes[1].id}") + phi_ext
                 )
             else:
                 terms += -jj_branch.parameters["EJ"] * sympy.cos(
-                    symbols("φ" + str(jj_branch.nodes[1].id))
-                    - symbols("φ" + str(jj_branch.nodes[0].id))
+                    symbols(f"φ{jj_branch.nodes[1].id}")
+                    - symbols(f"φ{jj_branch.nodes[0].id}")
                     + phi_ext
                 )
         return terms
@@ -1078,18 +1077,18 @@ class SymbolicCircuit(serializers.Serializable):
             # if loop to check for the presence of ground node
             if jj2_branch.nodes[1].id == 0:
                 terms += -jj2_branch.parameters["EJ"] * sympy.cos(
-                    2 * (-symbols("φ" + str(jj2_branch.nodes[0].id)) + phi_ext)
+                    2 * (-symbols(f"φ" + str(jj2_branch.nodes[0].id)) + phi_ext)
                 )
             elif jj2_branch.nodes[0].id == 0:
                 terms += -jj2_branch.parameters["EJ"] * sympy.cos(
-                    2 * (symbols("φ" + str(jj2_branch.nodes[1].id)) + phi_ext)
+                    2 * (symbols(f"φ{jj2_branch.nodes[1].id}") + phi_ext)
                 )
             else:
                 terms += -jj2_branch.parameters["EJ"] * sympy.cos(
                     2
                     * (
-                        symbols("φ" + str(jj2_branch.nodes[1].id))
-                        - symbols("φ" + str(jj2_branch.nodes[0].id))
+                        symbols(f"φ{jj2_branch.nodes[1].id}")
+                        - symbols(f"φ{jj2_branch.nodes[0].id}")
                         + phi_ext
                     )
                 )
@@ -1177,21 +1176,21 @@ class SymbolicCircuit(serializers.Serializable):
                 terms += (
                     1
                     / (16 * c_branch.parameters[element_param[c_branch.type]])
-                    * (symbols("vφ" + str(c_branch.nodes[0].id))) ** 2
+                    * (symbols(f"vφ{c_branch.nodes[0].id}")) ** 2
                 )
             elif c_branch.nodes[0].id == 0:
                 terms += (
                     1
                     / (16 * c_branch.parameters[element_param[c_branch.type]])
-                    * (-symbols("vφ" + str(c_branch.nodes[1].id))) ** 2
+                    * (-symbols(f"vφ{c_branch.nodes[1].id}")) ** 2
                 )
             else:
                 terms += (
                     1
                     / (16 * c_branch.parameters[element_param[c_branch.type]])
                     * (
-                        symbols("vφ" + str(c_branch.nodes[1].id))
-                        - symbols("vφ" + str(c_branch.nodes[0].id))
+                        symbols(f"vφ{c_branch.nodes[1].id}")
+                        - symbols(f"vφ{c_branch.nodes[1].id}")
                     )
                     ** 2
                 )
@@ -1210,21 +1209,21 @@ class SymbolicCircuit(serializers.Serializable):
                 terms += (
                     0.5
                     * l_branch.parameters["EL"]
-                    * (symbols("φ" + str(l_branch.nodes[1].id)) + phi_ext) ** 2
+                    * (symbols(f"φ{l_branch.nodes[1].id}") + phi_ext) ** 2
                 )
             elif l_branch.nodes[1].id == 0:
                 terms += (
                     0.5
                     * l_branch.parameters["EL"]
-                    * (-symbols("φ" + str(l_branch.nodes[0].id)) + phi_ext) ** 2
+                    * (-symbols(f"φ{l_branch.nodes[0].id}") + phi_ext) ** 2
                 )
             else:
                 terms += (
                     0.5
                     * l_branch.parameters["EL"]
                     * (
-                        symbols("φ" + str(l_branch.nodes[1].id))
-                        - symbols("φ" + str(l_branch.nodes[0].id))
+                        symbols(f"φ{l_branch.nodes[1].id}")
+                        - symbols(f"φ{l_branch.nodes[0].id}")
                         + phi_ext
                     )
                     ** 2
@@ -1498,7 +1497,7 @@ class SymbolicCircuit(serializers.Serializable):
         """
         self.offset_charges = []
         for p in self.var_categories["periodic"]:
-            self.offset_charges = self.offset_charges + [symbols("ng" + str(p))]
+            self.offset_charges = self.offset_charges + [symbols(f"ng{p}")]
 
     def generate_symbolic_lagrangian(
         self,
@@ -1514,12 +1513,12 @@ class SymbolicCircuit(serializers.Serializable):
         # circuit.py hamiltonian_function
 
         # defining the φ variables
-        φ_dot_vars = [symbols("vφ" + str(i)) for i in range(1, len(self.nodes) + 1)]
+        φ_dot_vars = [symbols(f"vφ{i}") for i in range(1, len(self.nodes) + 1)]
 
         # defining the θ variables
-        θ_vars = [symbols("θ" + str(i)) for i in range(1, len(self.nodes) + 1)]
+        θ_vars = [symbols(f"θ{i}") for i in range(1, len(self.nodes) + 1)]
         # defining the θ dot variables
-        θ_dot_vars = [symbols("vθ" + str(i)) for i in range(1, len(self.nodes) + 1)]
+        θ_dot_vars = [symbols(f"vθ{i}") for i in range(1, len(self.nodes) + 1)]
         # writing φ in terms of θ variables
         φ_vars_θ = transformation_matrix.dot(θ_vars)
         # writing φ dot vars in terms of θ variables
@@ -1555,17 +1554,17 @@ class SymbolicCircuit(serializers.Serializable):
 
         for index in range(len(self.nodes)):  # converting potential to new variables
             potential_θ = potential_θ.subs(
-                symbols("φ" + str(index + 1)), φ_vars_θ[index]
+                symbols(f"φ{index + 1}"), φ_vars_θ[index]
             )
 
         # eliminating the frozen variables
         for frozen_var_index in self.var_categories["frozen"]:
             sub = sympy.solve(
-                potential_θ.diff(symbols("θ" + str(frozen_var_index))),
-                symbols("θ" + str(frozen_var_index)),
+                potential_θ.diff(symbols(f"θ{frozen_var_index}")),
+                symbols(f"θ{frozen_var_index}"),
             )
             potential_θ = potential_θ.replace(
-                symbols("θ" + str(frozen_var_index)), sub[0]
+                symbols(f"θ{frozen_var_index}"), sub[0]
             )
 
         lagrangian_θ = C_terms_θ - potential_θ
@@ -1618,7 +1617,7 @@ class SymbolicCircuit(serializers.Serializable):
             )  # excluding the frozen modes
 
         p_θ_vars = [
-            symbols("Q" + str(i)) if i not in self.var_categories["free"]
+            symbols(f"Q{i}") if i not in self.var_categories["free"]
             # replacing the free charge with 0, as it would not affect the circuit
             # Lagrangian.
             else 0
@@ -1640,8 +1639,8 @@ class SymbolicCircuit(serializers.Serializable):
         # adding the offset charge variables
         for var_index in self.var_categories["periodic"]:
             hamiltonian_symbolic = hamiltonian_symbolic.subs(
-                symbols("Q" + str(var_index)),
-                symbols("n" + str(var_index)) + symbols("ng" + str(var_index)),
+                symbols(f"Q{var_index}"),
+                symbols(f"n{var_index}") + symbols(f"ng{var_index}"),
             )
 
         return hamiltonian_symbolic

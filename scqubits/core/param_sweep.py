@@ -1408,7 +1408,7 @@ def generator(sweep: "ParameterSweepBase", func: Callable, **kwargs) -> np.ndarr
                 itertools.product(*reduced_parameters.ranges),
             ),
             total=total_count,
-            desc="sweeping " + func_name,
+            desc=f"sweeping {func_name}",
             leave=False,
             disable=settings.PROGRESSBAR_DISABLED,
         )

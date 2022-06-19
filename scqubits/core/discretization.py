@@ -122,7 +122,7 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         for param_name, param_val in sorted(
             utils.drop_private_keys(self.__dict__).items()
         ):
-            output += str(param_name) + ": " + str(param_val) + ",  "
+            output += f"{param_name}: {param_val},  "
         output = output[:-3] + " ]"
         return output
 
@@ -248,7 +248,7 @@ class GridSpec(dispatch.DispatchClient, serializers.Serializable):
     def __str__(self) -> str:
         output = "    GridSpec ......"
         for param_name, param_val in sorted(self.__dict__.items()):
-            output += "\n" + str(param_name) + "\t: " + str(param_val)
+            output += f"\n{param_name}\t: {param_val}"
         return output
 
     def unwrap(self) -> Tuple[ndarray, ndarray, Union[List[int], ndarray], int]:

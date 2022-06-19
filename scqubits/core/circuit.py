@@ -203,10 +203,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         for var_type in self.var_categories.keys():
             if var_type == "periodic":
                 for var_index in self.var_categories["periodic"]:
-                    self.cutoff_names.append("cutoff_n_" + str(var_index))
+                    self.cutoff_names.append(f"cutoff_n_{var_index}")
             if var_type == "extended":
                 for var_index in self.var_categories["extended"]:
-                    self.cutoff_names.append("cutoff_ext_" + str(var_index))
+                    self.cutoff_names.append("cutoff_ext_{var_index}")
 
         self.discretized_phi_range: Dict[int, Tuple[float]] = {
             idx: self.parent.discretized_phi_range[idx]
@@ -223,10 +223,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         for i in self.var_categories_list:
             potential_symbolic = (
                 potential_symbolic.replace(
-                    sm.symbols("cosθ" + str(i)), sm.cos(1.0 * sm.symbols("θ" + str(i)))
+                    sm.symbols(f"cosθ{i}"), sm.cos(1.0 * sm.symbols(f"θ{i}"))
                 )
                 .replace(
-                    sm.symbols("sinθ" + str(i)), sm.sin(1.0 * sm.symbols("θ" + str(i)))
+                    sm.symbols(f"sinθ{i}"), sm.sin(1.0 * sm.symbols(f"θ{i}"))
                 )
                 .subs(sm.symbols("I"), 1 / (2 * np.pi))
             )
@@ -316,7 +316,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             The value to which the instance property is updated.
         """
         # update the attribute for the current instance
-        setattr(self, "_" + param_name, value)
+        setattr(self, f"_{param_name}", value)
         # update the attribute for the instance in symboliccircuit
         if not self.is_child and len(self.symbolic_circuit.nodes) > 3:
             self.symbolic_circuit.update_param_init_val(param_name, value)
@@ -347,7 +347,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
 
         # update the attribute for the current instance
-        setattr(self, "_" + param_name, value)
+        setattr(self, f"_{param_name}", value)
 
         # update all subsystem instances
         if self.hierarchical_diagonalization:
@@ -366,7 +366,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         value:
             The value to which the instance property is updated.
         """
-        setattr(self, "_" + param_name, value)
+        setattr(self, f"_{param_name}", value)
 
         # set operators and rebuild the HilbertSpace object
         if self.hierarchical_diagonalization:
@@ -395,10 +395,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         property_update_type:
             The string which sets the kind of setter used for this instance property.
         """
-        setattr(self, "_" + attrib_name, init_val)
+        setattr(self, f"_{attrib_name}", init_val)
 
         def getter(self, name=attrib_name):
-            return getattr(self, "_" + name)
+            return getattr(self, f"_{name}")
 
         if property_update_type == "update_param_vars":
 
@@ -609,9 +609,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             #   - substituting cos and sin operators with their own symbols
             for i in self.var_categories["extended"]:
                 interaction = interaction.replace(
-                    sm.cos(1.0 * sm.symbols("θ" + str(i))), sm.symbols("cosθ" + str(i))
+                    sm.cos(1.0 * sm.symbols(f"θ{i}")), sm.symbols(f"cosθ{i}")
                 ).replace(
-                    sm.sin(1.0 * sm.symbols("θ" + str(i))), sm.symbols("sinθ" + str(i))
+                    sm.sin(1.0 * sm.symbols(f"θ{i}")), sm.symbols(f"sinθ{i}")
                 )
 
             expr_dict = interaction.as_coefficients_dict()
@@ -709,34 +709,34 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 sm.symbols("Qs" + str(i)) for i in self.var_categories["extended"]
             ]
             sin_symbols = [
-                sm.symbols("sinθ" + str(i)) for i in self.var_categories["extended"]
+                sm.symbols(f"sinθ{i}") for i in self.var_categories["extended"]
             ]
             cos_symbols = [
-                sm.symbols("cosθ" + str(i)) for i in self.var_categories["extended"]
+                sm.symbols(f"cosθ{i}") for i in self.var_categories["extended"]
             ]
 
         elif self.ext_basis == "harmonic":
 
             a_symbols = [
-                sm.symbols("a" + str(i)) for i in self.var_categories["extended"]
+                sm.symbols(f"a{i}") for i in self.var_categories["extended"]
             ]
             ad_symbols = [
-                sm.symbols("ad" + str(i)) for i in self.var_categories["extended"]
+                sm.symbols(f"ad{i}") for i in self.var_categories["extended"]
             ]
             Nh_symbols = [
-                sm.symbols("Nh" + str(i)) for i in self.var_categories["extended"]
+                sm.symbols(f"Nh{i}") for i in self.var_categories["extended"]
             ]
             pos_symbols = [
-                sm.symbols("θ" + str(i)) for i in self.var_categories["extended"]
+                sm.symbols(f"θ{i}") for i in self.var_categories["extended"]
             ]
             sin_symbols = [
-                sm.symbols("sinθ" + str(i)) for i in self.var_categories["extended"]
+                sm.symbols(f"sinθ{i}") for i in self.var_categories["extended"]
             ]
             cos_symbols = [
-                sm.symbols("cosθ" + str(i)) for i in self.var_categories["extended"]
+                sm.symbols(f"cosθ{i}") for i in self.var_categories["extended"]
             ]
             momentum_symbols = [
-                sm.symbols("Q" + str(i)) for i in self.var_categories["extended"]
+                sm.symbols(f"Q{i}") for i in self.var_categories["extended"]
             ]
 
         # setting the attribute self.vars
@@ -772,18 +772,18 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # shifting the harmonic oscillator potential to the point of external fluxes
         flux_shift_vars = {}
         for var_index in self.var_categories["extended"]:
-            if hamiltonian.coeff("θ" + str(var_index)) != 0:
+            if hamiltonian.coeff(f"θ{var_index}") != 0:
                 flux_shift_vars[var_index] = sm.symbols("Δθ" + str(var_index))
                 hamiltonian = hamiltonian.replace(
-                    sm.symbols("θ" + str(var_index)),
-                    sm.symbols("θ" + str(var_index)) + flux_shift_vars[var_index],
+                    sm.symbols(f"θ{var_index}"),
+                    sm.symbols(f"θ{var_index}") + flux_shift_vars[var_index],
                 )  # substituting the flux offset variable offsets to collect the
                 # coefficients later
         hamiltonian = hamiltonian.expand()
 
         flux_shift_equations = [
-            hamiltonian.coeff("θ" + str(var_index)).subs(
-                [("θ" + str(i), 0) for i in self.var_categories["extended"]]
+            hamiltonian.coeff(f"θ{var_index}").subs(
+                [(f"θ{i}", 0) for i in self.var_categories["extended"]]
             )
             for var_index in flux_shift_vars.keys()
         ]  # finding the coefficients of the linear terms
@@ -841,9 +841,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         for i in self.var_categories["periodic"]:
             hamiltonian = hamiltonian.replace(
-                sm.cos(1.0 * sm.symbols("θ" + str(i))), sm.symbols("cosθ" + str(i))
+                sm.cos(1.0 * sm.symbols(f"θ{i}")), sm.symbols(f"cosθ{i}")
             ).replace(
-                sm.sin(1.0 * sm.symbols("θ" + str(i))), sm.symbols("sinθ" + str(i))
+                sm.sin(1.0 * sm.symbols(f"θ{i}")), sm.symbols(f"sinθ{i}")
             )
 
         if self.ext_basis == "discretized":
@@ -851,7 +851,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             # marking the squared momentum operators with a separate symbol
             for i in self.var_categories["extended"]:
                 hamiltonian = hamiltonian.replace(
-                    sm.symbols("Q" + str(i)) ** 2, sm.symbols("Qs" + str(i))
+                    sm.symbols(f"Q{i}") ** 2, sm.symbols("Qs" + str(i))
                 )
 
         elif self.ext_basis == "harmonic":
@@ -859,11 +859,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
             for i in self.var_categories["extended"]:
                 hamiltonian = hamiltonian.replace(
-                    sm.cos(1.0 * sm.symbols("θ" + str(i))),
-                    sm.symbols("cosθ" + str(i)),
+                    sm.cos(1.0 * sm.symbols(f"θ{i}")),
+                    sm.symbols(f"cosθ{i}"),
                 ).replace(
-                    sm.sin(1.0 * sm.symbols("θ" + str(i))),
-                    sm.symbols("sinθ" + str(i)),
+                    sm.sin(1.0 * sm.symbols(f"θ{i}")),
+                    sm.symbols(f"sinθ{i}"),
                 )
 
         # removing the constants from the Hamiltonian
@@ -1266,10 +1266,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
             for list_idx, var_index in enumerate(self.var_categories["extended"]):
                 ECi = (
-                    float(hamiltonian.coeff("Q" + str(var_index) + "**2").cancel()) / 4
+                    float(hamiltonian.coeff(f"Q{var_index}" + "**2").cancel()) / 4
                 )
                 ELi = (
-                    float(hamiltonian.coeff("θ" + str(var_index) + "**2").cancel()) * 2
+                    float(hamiltonian.coeff(f"θ{var_index}" + "**2").cancel()) * 2
                 )
                 osc_freqs[var_index] = (8 * ELi * ECi) ** 0.5
                 osc_lengths[var_index] = (8.0 * ECi / ELi) ** 0.25
@@ -1448,7 +1448,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 for idx, operator in enumerate(operators):
                     if get_trailing_number(operator) in self.var_categories["extended"]:
                         new_string_list.append(
-                            "matrix_power(" + operator + "," + exponents[idx] + ")"
+                            f"matrix_power({operator},{exponents[idx]})"
                         )
                     else:
                         new_string_list.append(operator + "**" + exponents[idx])
@@ -1546,14 +1546,14 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         # replace the extended degrees of freedom with harmonic oscillators
         for var_index in self.var_categories["extended"]:
-            ECi = float(hamiltonian.coeff("Q" + str(var_index) + "**2").cancel()) / 4
-            ELi = float(hamiltonian.coeff("θ" + str(var_index) + "**2").cancel()) * 2
+            ECi = float(hamiltonian.coeff(f"Q{var_index}" + "**2").cancel()) / 4
+            ELi = float(hamiltonian.coeff(f"θ{var_index}" + "**2").cancel()) * 2
             osc_freq = (8 * ELi * ECi) ** 0.5
             hamiltonian = (
                 (
                     hamiltonian
-                    - ECi * 4 * sm.symbols("Q" + str(var_index)) ** 2
-                    - ELi / 2 * sm.symbols("θ" + str(var_index)) ** 2
+                    - ECi * 4 * sm.symbols(f"Q{var_index}") ** 2
+                    - ELi / 2 * sm.symbols(f"θ{var_index}") ** 2
                     + osc_freq * (sm.symbols("Nh" + str(var_index)))
                 )
                 .cancel()
@@ -1715,25 +1715,25 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             # replace sinθ with sin(..) and similarly with cos
             expr_modified = (
                 expr_modified.replace(
-                    sm.symbols("cosθ" + str(var_index)),
-                    sm.cos(1.0 * sm.symbols("θ" + str(var_index))),
+                    sm.symbols(f"cosθ{var_index}"),
+                    sm.cos(1.0 * sm.symbols(f"θ{var_index}")),
                 )
                 .replace(
-                    sm.symbols("sinθ" + str(var_index)),
-                    sm.sin(1.0 * sm.symbols("θ" + str(var_index))),
+                    sm.symbols(f"sinθ{var_index}"),
+                    sm.sin(1.0 * sm.symbols(f"θ{var_index}")),
                 )
                 .replace(
-                    (1.0 * sm.symbols("θ" + str(var_index))),
-                    (sm.symbols("θ" + str(var_index))),
+                    (1.0 * sm.symbols(f"θ{var_index}")),
+                    (sm.symbols(f"θ{var_index}")),
                 )
                 .replace(
-                    (1.0 * sm.symbols("θ" + str(var_index))),
-                    (sm.symbols("θ" + str(var_index))),
+                    (1.0 * sm.symbols(f"θ{var_index}")),
+                    (sm.symbols(f"θ{var_index}")),
                 )
             )
             # replace Qs with Q^2 etc
             expr_modified = expr_modified.replace(
-                sm.symbols("Qs" + str(var_index)), sm.symbols("Q" + str(var_index)) ** 2
+                sm.symbols("Qs" + str(var_index)), sm.symbols(f"Q{var_index}") ** 2
             )
             expr_modified = expr_modified.replace(
                 sm.symbols("ng" + str(var_index)), sm.symbols("n_g" + str(var_index))
@@ -1903,7 +1903,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         # constructing the grids
         parameters = dict.fromkeys(
-            ["θ" + str(index) for index in var_categories]
+            [f"θ{index}" for index in var_categories]
             + [var.name for var in self.external_fluxes]
             + [var.name for var in self.symbolic_params]
         )
@@ -1925,7 +1925,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     for var in list(self.symbolic_params.keys()) + self.external_fluxes
                 ]:
                     parameters[var_name] = getattr(self, var_name)
-                elif var_name in ["θ" + str(index) for index in var_categories]:
+                elif var_name in [f"θ{index}" for index in var_categories]:
                     raise AttributeError(var_name + " is not set.")
 
         # creating a meshgrid for multiple dimensions
@@ -1965,7 +1965,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         # constructing the grids
         parameters = dict.fromkeys(
-            ["θ" + str(index) for index in var_categories]
+            [f"θ{index}" for index in var_categories]
             + [var.name for var in self.external_fluxes]
             + [var.name for var in self.symbolic_params]
         )
@@ -2803,11 +2803,11 @@ class Circuit(Subsystem):
         """
         trans_mat = self.transformation_matrix
         theta_vars = [
-            sm.symbols("θ" + str(index))
+            sm.symbols(f"θ{index}")
             for index in range(1, len(self.symbolic_circuit.nodes) + 1)
         ]
         node_vars = [
-            sm.symbols("φ" + str(index))
+            sm.symbols(f"φ{index}")
             for index in range(1, len(self.symbolic_circuit.nodes) + 1)
         ]
         node_var_eqns = []
@@ -2839,7 +2839,7 @@ class Circuit(Subsystem):
             # replace v\theta with \theta_dot
             for var_index in range(1, 1 + len(self.symbolic_circuit.nodes)):
                 lagrangian = lagrangian.replace(
-                    sm.symbols("vφ" + str(var_index)),
+                    sm.symbols(f"vφ{var_index}"),
                     sm.symbols("\\dot{φ_" + str(var_index) + "}"),
                 )
 
@@ -2848,7 +2848,7 @@ class Circuit(Subsystem):
             # replace v\theta with \theta_dot
             for var_index in self.var_categories_list:
                 lagrangian = lagrangian.replace(
-                    sm.symbols("vθ" + str(var_index)),
+                    sm.symbols(f"vθ{var_index}"),
                     sm.symbols("\\dot{θ_" + str(var_index) + "}"),
                 )
         if print_latex:
@@ -2868,11 +2868,11 @@ class Circuit(Subsystem):
         """
         trans_mat = self.transformation_matrix
         node_offset_charge_vars = [
-            sm.symbols("q_g" + str(index))
+            sm.symbols(f"q_g{index}")
             for index in range(1, len(self.symbolic_circuit.nodes) + 1)
         ]
         periodic_offset_charge_vars = [
-            sm.symbols("ng" + str(index))
+            sm.symbols(f"ng{index}")
             for index in self.symbolic_circuit.var_categories["periodic"]
         ]
         periodic_offset_charge_eqns = []

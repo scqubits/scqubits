@@ -574,7 +574,7 @@ def matelem_vs_paramvals(
         axes.plot(
             x_vals,
             y_vals,
-            label=str(row) + "," + str(col),
+            label=f"{row},{col}",
             **_extract_kwargs_options(kwargs, "plot")
         )
 

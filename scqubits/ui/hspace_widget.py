@@ -337,7 +337,7 @@ class HilbertSpaceUi:
                 operator_str_list,
             ):
                 try:
-                    instance = eval(subsys_str + "." + operator_str, main.__dict__)
+                    instance = eval(f"{subsys_str}.{operator_str}", main.__dict__)
                 except (AttributeError, SyntaxError, NameError):
                     with self.status_output:
                         print(
