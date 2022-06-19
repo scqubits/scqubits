@@ -334,7 +334,6 @@ class HilbertSpace(
 
     osc_subsys_list = descriptors.ReadOnlyProperty(OscillatorList)
     qbt_subsys_list = descriptors.ReadOnlyProperty(QubitList)
-    lookup = descriptors.ReadOnlyProperty(spec_lookup.SpectrumLookupAdapter)
     interaction_list = descriptors.WatchedProperty(
         Tuple[Union[InteractionTerm, InteractionTermStr], ...], "INTERACTIONLIST_UPDATE"
     )
