@@ -50,7 +50,7 @@ def wavefunction1d(
     potential_vals: np.ndarray,
     offset: Union[float, Iterable[float]] = 0,
     scaling: Optional[float] = None,
-    **kwargs
+    **kwargs,
 ) -> Tuple[Figure, Axes]:
     """
     Plots the amplitude of a single real-valued 1d wave function, along with the
@@ -92,7 +92,7 @@ def wavefunction1d(
 def wavefunction1d_nopotential(
     wavefuncs: Union["WaveFunction", "List[WaveFunction]"],
     offset: Union[float, Iterable[float]] = 0,
-    **kwargs
+    **kwargs,
 ) -> Tuple[Figure, Axes]:
     """
     Plots the amplitude of a single real-valued 1d wave function, along with the
@@ -199,7 +199,7 @@ def wavefunction2d(
         vmax=imshow_maxval,
         origin="lower",
         aspect="auto",
-        **_extract_kwargs_options(kwargs, "imshow")
+        **_extract_kwargs_options(kwargs, "imshow"),
     )
     divider = make_axes_locatable(axes)
     cax = divider.append_axes("right", size="2%", pad=0.05)
@@ -215,7 +215,7 @@ def contours(
     func: Callable,
     contour_vals: Union[List[float], np.ndarray] = None,
     show_colorbar: bool = True,
-    **kwargs
+    **kwargs,
 ) -> Tuple[Figure, Axes]:
     """Contour plot of a 2d function `func(x,y)`.
 
@@ -249,7 +249,7 @@ def contours(
         levels=contour_vals,
         cmap=plt.cm.viridis,
         origin="lower",
-        **_extract_kwargs_options(kwargs, "contourf")
+        **_extract_kwargs_options(kwargs, "contourf"),
     )
 
     if show_colorbar:
@@ -366,7 +366,7 @@ def matrix2d(
     mode: str = "abs",
     show_numbers: bool = True,
     show_colorbar: bool = True,
-    **kwargs
+    **kwargs,
 ) -> Tuple[Figure, Axes]:
     """Display a matrix as a color-coded 2d plot, optionally printing the numerical
     values of the matrix elements.
@@ -429,7 +429,7 @@ def data_vs_paramvals(
     xdata: np.ndarray,
     ydata: np.ndarray,
     label_list: Union[List[str], List[int]] = None,
-    **kwargs
+    **kwargs,
 ) -> Tuple[Figure, Axes]:
     """Plot of a set of ydata vs xdata.
     The individual points correspond to the a provided array of parameter values.
@@ -459,7 +459,7 @@ def data_vs_paramvals(
             xdata,
             ydataset,
             label=label_list[idx],
-            **_extract_kwargs_options(kwargs, "plot")
+            **_extract_kwargs_options(kwargs, "plot"),
         )
     if _LABELLINES_ENABLED:
         try:
@@ -488,7 +488,7 @@ def evals_vs_paramvals(
     which: Union[int, Iterable[int]] = -1,
     subtract_ground: bool = False,
     label_list: List[str] = None,
-    **kwargs
+    **kwargs,
 ) -> Tuple[Figure, Axes]:
     """Generates a simple plot of a set of eigenvalues as a function of one parameter.
     The individual points correspond to the a provided array of parameter values.
@@ -525,7 +525,7 @@ def evals_vs_paramvals(
         xdata,
         ydata,
         label_list=label_list,
-        **defaults.evals_vs_paramvals(specdata, **kwargs)
+        **defaults.evals_vs_paramvals(specdata, **kwargs),
     )
 
 
@@ -533,7 +533,7 @@ def matelem_vs_paramvals(
     specdata: "SpectrumData",
     select_elems: Union[int, List[Tuple[int, int]]] = 4,
     mode: str = "abs",
-    **kwargs
+    **kwargs,
 ) -> Tuple[Figure, Axes]:
     """Generates a simple plot of matrix elements as a function of one parameter.
     The individual points correspond to the a provided array of parameter values.
@@ -575,7 +575,7 @@ def matelem_vs_paramvals(
             x_vals,
             y_vals,
             label=f"{row},{col}",
-            **_extract_kwargs_options(kwargs, "plot")
+            **_extract_kwargs_options(kwargs, "plot"),
         )
 
     if _LABELLINES_ENABLED:

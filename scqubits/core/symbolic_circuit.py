@@ -456,9 +456,7 @@ class SymbolicCircuit(serializers.Serializable):
     @staticmethod
     def _parse_branches(
         branches_list, nodes: List[Node], ground_node: Optional[Node]
-    ) -> Tuple[
-        List[Branch], Dict[Union[Any, Symbol], Union[Any, float]]
-    ]:
+    ) -> Tuple[List[Branch], Dict[Union[Any, Symbol], Union[Any, float]]]:
 
         branches = []
         branch_var_dict = {}  # dict stores init values of all vars from input string
@@ -1551,9 +1549,7 @@ class SymbolicCircuit(serializers.Serializable):
         )  # copying the potential in terms of the old variables to make substitutions
 
         for index in range(len(self.nodes)):  # converting potential to new variables
-            potential_θ = potential_θ.subs(
-                symbols(f"φ{index + 1}"), φ_vars_θ[index]
-            )
+            potential_θ = potential_θ.subs(symbols(f"φ{index + 1}"), φ_vars_θ[index])
 
         # eliminating the frozen variables
         for frozen_var_index in self.var_categories["frozen"]:
@@ -1561,9 +1557,7 @@ class SymbolicCircuit(serializers.Serializable):
                 potential_θ.diff(symbols(f"θ{frozen_var_index}")),
                 symbols(f"θ{frozen_var_index}"),
             )
-            potential_θ = potential_θ.replace(
-                symbols(f"θ{frozen_var_index}"), sub[0]
-            )
+            potential_θ = potential_θ.replace(symbols(f"θ{frozen_var_index}"), sub[0])
 
         lagrangian_θ = C_terms_θ - potential_θ
 
@@ -1599,8 +1593,8 @@ class SymbolicCircuit(serializers.Serializable):
                 * self._capacitance_matrix()
                 * transformation_matrix
             )[
-                0: num_nodes - num_frozen_modes,
-                0: num_nodes - num_frozen_modes,
+                0 : num_nodes - num_frozen_modes,
+                0 : num_nodes - num_frozen_modes,
             ].inv()  # excluding the frozen modes
         else:
             C_mat_θ = np.linalg.inv(
@@ -1609,8 +1603,8 @@ class SymbolicCircuit(serializers.Serializable):
                     @ self._capacitance_matrix(substitute_params=substitute_params)
                     @ transformation_matrix
                 )[
-                    0: num_nodes - num_frozen_modes,
-                    0: num_nodes - num_frozen_modes,
+                    0 : num_nodes - num_frozen_modes,
+                    0 : num_nodes - num_frozen_modes,
                 ]
             )  # excluding the frozen modes
 

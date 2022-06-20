@@ -184,7 +184,7 @@ def plot_potential_to_axes(
     x_vals: ndarray,
     potential_vals: Union[ndarray, List[float]],
     offset_list: Union[ndarray, List[float]],
-    **kwargs
+    **kwargs,
 ) -> None:
     y_min = np.min(potential_vals)
     y_max = np.max(offset_list)
