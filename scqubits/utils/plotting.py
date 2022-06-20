@@ -409,7 +409,7 @@ def matrix2d(
 
     if show_numbers:
         fig_width, fig_height = fig.get_size_inches()
-        box_width_inches = fig_width / matrix.shape[1]  
+        box_width_inches = fig_width / matrix.shape[1]
         box_height_inches = fig_height / matrix.shape[0]
         font_size = min(box_width_inches, box_height_inches) * 12
         add_numbers_to_axes(axes, matrix, modefunction, fontsize=font_size)

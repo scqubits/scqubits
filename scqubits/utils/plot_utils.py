@@ -199,7 +199,9 @@ def plot_potential_to_axes(
     )
 
 
-def add_numbers_to_axes(axes: Axes, matrix: ndarray, modefunc: Callable, fontsize: int = 8) -> None:
+def add_numbers_to_axes(
+    axes: Axes, matrix: ndarray, modefunc: Callable, fontsize: int = 8
+) -> None:
     for y_index in range(matrix.shape[0]):
         for x_index in range(matrix.shape[1]):
             axes.text(
