@@ -364,7 +364,7 @@ def compose(f: Callable, g: Callable) -> Callable:
     return g_after_f
 
 
-def _cos_dia(x: ndarray) -> csc_matrix:
+def _cos_dia(x: csc_matrix) -> csc_matrix:
     """
     Take the diagonal of the array x, compute its cosine, and fill the result into
     the diagonal of a sparse matrix
@@ -372,7 +372,7 @@ def _cos_dia(x: ndarray) -> csc_matrix:
     return sparse.diags(np.cos(x.diagonal())).tocsc()
 
 
-def _sin_dia(x: ndarray) -> csc_matrix:
+def _sin_dia(x: csc_matrix) -> csc_matrix:
     """
     Take the diagonal of the array x, compute its sine, and fill the result into
     the diagonal of a sparse matrix.
@@ -395,5 +395,5 @@ def _cos_dia_dense(x: ndarray) -> ndarray:
 
 
 def matrix_power_sparse(dense_mat: ndarray, n: int) -> csc_matrix:
-    sparse_mat = sparse.dia_matrix(dense_mat).tocsc()
+    sparse_mat = sparse.csc_matrix(dense_mat)
     return sparse_mat ** n

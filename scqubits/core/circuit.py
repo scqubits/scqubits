@@ -913,7 +913,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             return None
         dim = self.hilbertdim()
         if self.type_of_matrices == "sparse":
-            op = sparse.identity(dim)
+            op = sparse.identity(dim, format="csc")
             return op
         elif self.type_of_matrices == "dense":
             return np.identity(dim)
@@ -1284,7 +1284,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         return eval(H_str, replacement_dict)
 
-    def _hamiltonian_for_discretized_extended_vars(self) -> Union[csc_matrix, ndarray]:
+    def _hamiltonian_for_discretized_extended_vars(self) -> csc_matrix:
         hamiltonian = self._hamiltonian_sym_for_numerics
         hamiltonian = hamiltonian.subs(
             [
