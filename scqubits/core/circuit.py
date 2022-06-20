@@ -37,21 +37,26 @@ from scipy import sparse, stats
 from scipy.sparse import csc_matrix
 
 from scqubits.core.circuit_utils import (
-    _cos_dia, _cos_dia_dense, _cos_phi,
+    _cos_dia,
+    _cos_dia_dense,
+    _cos_phi,
     _cos_theta,
     _generate_symbols_list,
     _i_d2_dphi2_operator,
     _i_d_dphi_operator,
     _n_theta_operator,
     _phi_operator,
-    _sin_dia, _sin_dia_dense, _sin_phi,
+    _sin_dia,
+    _sin_dia_dense,
+    _sin_phi,
     _sin_theta,
     compose,
     get_operator_number,
     get_trailing_number,
     grid_operator_func_factory,
     is_potential_term,
-    matrix_power_sparse, operator_func_factory,
+    matrix_power_sparse,
+    operator_func_factory,
 )
 from scqubits import HilbertSpace, settings
 from scqubits.core import operators as op
@@ -1070,8 +1075,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         return {}
 
-    def set_operators(self) -> Union[None, Dict[str, Callable[[], Union[csc_matrix,
-                                                                  ndarray]]]]:
+    def set_operators(
+        self,
+    ) -> Union[None, Dict[str, Callable[[], Union[csc_matrix, ndarray]]]]:
         """
         Creates the operator methods `<name>_operator` for the circuit.
         """
@@ -1186,9 +1192,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         H_string = ""
         for idx, term in enumerate(terms_list):
-            term_string = (
-                f"{coeff_list[idx]}*{self._replace_mat_mul_operator(term)}"
-            )
+            term_string = f"{coeff_list[idx]}*{self._replace_mat_mul_operator(term)}"
             if float(coeff_list[idx]) > 0:
                 term_string = "+" + term_string
             H_string += term_string

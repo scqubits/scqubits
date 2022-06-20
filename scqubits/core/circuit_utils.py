@@ -396,4 +396,4 @@ def _cos_dia_dense(x: ndarray) -> ndarray:
 
 def matrix_power_sparse(dense_mat: ndarray, n: int) -> csc_matrix:
     sparse_mat = sparse.csc_matrix(dense_mat)
-    return sparse_mat ** n
+    return sparse_mat**n
