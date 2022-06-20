@@ -408,7 +408,11 @@ def matrix2d(
     cax = axes.matshow(modefunction(matrix), cmap=plt.cm.viridis, interpolation=None)
 
     if show_numbers:
-        add_numbers_to_axes(axes, matrix, modefunction)
+        fig_width, fig_height = fig.get_size_inches()
+        box_width_inches = fig_width / matrix.shape[1]  
+        box_height_inches = fig_height / matrix.shape[0]
+        font_size = min(box_width_inches, box_height_inches) * 12
+        add_numbers_to_axes(axes, matrix, modefunction, fontsize=font_size)
 
     # shift the grid
     for axis, locs in [
