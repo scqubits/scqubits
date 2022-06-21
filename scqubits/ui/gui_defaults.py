@@ -140,7 +140,7 @@ grid_defaults = {
 }
 
 phi_grid_defaults = {
-    "grid_min_val": - np.pi,
+    "grid_min_val": -np.pi,
     "grid_max_val": np.pi,
     "grid_pt_count": 150,
 }
@@ -152,22 +152,22 @@ paramvals_from_papers = {
                 "EJ": 21.1,
                 "EC": 0.301,
             },
-            "link": "https://www.researchgate.net/publication/221745534_Observation_of_High_Coherence_in_Josephson_Junction_Qubits_Measured_in_a_Three-Dimensional_Circuit_QED_Architecture"
+            "link": "https://www.researchgate.net/publication/221745534_Observation_of_High_Coherence_in_Josephson_Junction_Qubits_Measured_in_a_Three-Dimensional_Circuit_QED_Architecture",
         },
         "ibm_manila Q1 (04/2022)": {
             "params": {
                 "EJ": 11.34,
                 "EC": 0.293,
             },
-            "link": ""
+            "link": "",
         },
         "[CPB] Bouchiat et al., Phys. Scr. 165 (1998)": {
             "params": {
                 "EJ": 4.167,
                 "EC": 52.09,
             },
-            "link": "https://www.researchgate.net/publication/231107577_Quantum_Coherence_with_a_Single_Cooper_Pair"
-        }
+            "link": "https://www.researchgate.net/publication/231107577_Quantum_Coherence_with_a_Single_Cooper_Pair",
+        },
     },
     "TunableTransmon": {
         "Arute et al. [mean], Nature 574, 505 (2019)": {
@@ -175,7 +175,7 @@ paramvals_from_papers = {
                 "EJmax": 32.7,
                 "EC": 0.195,
             },
-            "link": "https://www.researchgate.net/publication/336744162_Quantum_supremacy_using_a_programmable_superconducting_processor"
+            "link": "https://www.researchgate.net/publication/336744162_Quantum_supremacy_using_a_programmable_superconducting_processor",
         },
     },
     "Fluxonium": {
@@ -185,7 +185,7 @@ paramvals_from_papers = {
                 "EC": 2.5,
                 "EL": 0.52,
             },
-            "link": "https://www.science.org/doi/10.1126/science.1175552"
+            "link": "https://www.science.org/doi/10.1126/science.1175552",
         },
         "Zhang et al. [heavy], PRX 111, 011010 (2021)": {
             "params": {
@@ -193,7 +193,7 @@ paramvals_from_papers = {
                 "EC": 0.479,
                 "EL": 0.132,
             },
-            "link": "https://www.researchgate.net/publication/348531750_Universal_Fast-Flux_Control_of_a_Coherent_Low-Frequency_Qubit"
+            "link": "https://www.researchgate.net/publication/348531750_Universal_Fast-Flux_Control_of_a_Coherent_Low-Frequency_Qubit",
         },
         "Pechenezhskiy et al. [blochnium], Nature 585, 368 (2020)": {
             "params": {
@@ -201,7 +201,7 @@ paramvals_from_papers = {
                 "EC": 0.479,
                 "EL": 0.132,
             },
-            "link": "https://www.researchgate.net/publication/344280109_The_superconducting_quasicharge_qubit"
+            "link": "https://www.researchgate.net/publication/344280109_The_superconducting_quasicharge_qubit",
         },
     },
     "ZeroPi": {
@@ -212,7 +212,7 @@ paramvals_from_papers = {
                 "EC": 0.184,
                 "EL": 0.38,
             },
-            "link": "https://www.researchgate.net/publication/349840068_Experimental_Realization_of_a_Protected_Superconducting_Circuit_Derived_from_the_0_-_p_Qubit"
+            "link": "https://www.researchgate.net/publication/349840068_Experimental_Realization_of_a_Protected_Superconducting_Circuit_Derived_from_the_0_-_p_Qubit",
         },
         "Groszkowski et al. [set 1, deep], NJP 20, 043053 (2018)": {
             "params": {
@@ -221,16 +221,16 @@ paramvals_from_papers = {
                 "EC": 0.02,
                 "EL": 0.008,
             },
-            "link": "https://www.researchgate.net/publication/331293936_Control_and_Coherence_Time_Enhancement_of_the_0-p_Qubit"
+            "link": "https://www.researchgate.net/publication/331293936_Control_and_Coherence_Time_Enhancement_of_the_0-p_Qubit",
         },
         "Groszkowski et al. [set 2, soft],  NJP 20, 043053 (2018)": {
             "params": {
-            "EJ": 10.0,
-            "ECJ": 20.0,
-            "EC": 0.04,
-            "EL": 0.04,
+                "EJ": 10.0,
+                "ECJ": 20.0,
+                "EC": 0.04,
+                "EL": 0.04,
             },
-            "link": "https://www.researchgate.net/publication/331293936_Control_and_Coherence_Time_Enhancement_of_the_0-p_Qubit"
+            "link": "https://www.researchgate.net/publication/331293936_Control_and_Coherence_Time_Enhancement_of_the_0-p_Qubit",
         },
     },
 }
@@ -278,5 +278,5 @@ default_panels["Oscillator"] = []
 default_panels["KerrOscillator"] = []
 default_panels["Composite"] = ["Transitions"]
 
-PLOT_HEIGHT = '500px'
+PLOT_HEIGHT = "500px"
 FIG_WIDTH_INCHES = 6

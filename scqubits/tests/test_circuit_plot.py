@@ -1,4 +1,5 @@
-from scqubits.core.circuit import example_circuit, truncation_template
+from scqubits.core.circuit_utils import example_circuit
+from scqubits import truncation_template
 import scqubits as scq
 import numpy as np
 

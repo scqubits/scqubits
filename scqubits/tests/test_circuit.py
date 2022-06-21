@@ -20,8 +20,6 @@ TESTDIR = os.path.join(TESTDIR, "tests", "")
 DATADIR = os.path.join(TESTDIR, "data", "")
 
 
-
-
 def test_eigenvals_harmonic():
     ref_eigs = np.array(
         [0.0, 0.03559404, 0.05819727, 0.09378676, 4.39927874, 4.43488613]
@@ -56,6 +54,7 @@ def test_eigenvals_harmonic():
     eigs = DFC.eigenvals()
     generated_eigs = eigs - eigs[0]
     assert np.allclose(generated_eigs, ref_eigs)
+
 
 def test_eigenvals_discretized():
     ref_eigs = np.array([0.        , 0.03559217, 0.05819503, 0.09378266, 4.39921833,
