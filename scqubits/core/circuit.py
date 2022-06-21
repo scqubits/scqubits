@@ -37,7 +37,7 @@ import scqubits.utils.plotting as plot
 import sympy as sm
 
 from matplotlib import pyplot as plt
-from numpy import ndarray
+from numpy import ndarray, var
 from scipy import sparse, stats
 from scipy.sparse import csc_matrix
 from scqubits import HilbertSpace, settings
@@ -499,7 +499,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             subsys_index_list = flatten_list_recursive(subsys_index_list)
 
             hamitlonian_terms = hamiltonian.as_ordered_terms()
-            print(hamiltonian)
 
             H_sys = 0 * sm.symbols("x")
             H_int = 0 * sm.symbols("x")
@@ -601,62 +600,14 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             )
             #   - substituting Identity with 1
             interaction = interaction.subs("I", 1)
-            #   - substituting cos and sin operators with their own symbols
-            for i in self.var_categories["extended"]:
-                interaction = interaction.replace(
-                    sm.cos(1.0 * sm.symbols("θ" + str(i))), sm.symbols("cosθ" + str(i))
-                ).replace(
-                    sm.sin(1.0 * sm.symbols("θ" + str(i))), sm.symbols("sinθ" + str(i))
-                )
 
             expr_dict = interaction.as_coefficients_dict()
             interaction_terms = list(expr_dict.keys())
 
-            for i, term in enumerate(interaction_terms):
+            for idx, term in enumerate(interaction_terms):
                 coefficient_sympy = expr_dict[term]
-
-                # adding external flux, offset charge and branch parameters to
-                # coefficient
-                for var in term.free_symbols:
-                    if (
-                        "Φ" in str(var)
-                        or "ng" in str(var)
-                        or var in self.symbolic_params
-                    ):
-                        coefficient_sympy = coefficient_sympy * getattr(self, str(var))
-
-                operator_symbols = [
-                    var
-                    for var in term.free_symbols
-                    if (("Φ" not in str(var)) and ("ng" not in str(var)))
-                    and (var not in self.symbolic_params)
-                ]
-
-                sys_op_dict = {index: [] for index in range(len(self.system_hierarchy))}
-                for var in operator_symbols:
-                    var_index = get_trailing_number(str(var))
-                    subsystem_index = self.get_subsystem_index(var_index)
-                    if "I" not in str(var):
-                        operator = self.subsystems[
-                            subsystem_index
-                        ].get_operator_by_name(var.name)
-                        if isinstance(operator, qt.Qobj):
-                            operator = operator.full()
-
-                        sys_op_dict[subsystem_index].append(operator)
-                    else:
-                        sys_op_dict[0].append(self.subsystems[0]._identity())
-
-                operator_dict = {}
-
-                for index in range(len(self.system_hierarchy)):
-                    for op_index, operator in enumerate(sys_op_dict[index]):
-                        operator_dict["op" + str(len(operator_dict) + 1)] = (
-                            operator,
-                            self.subsystems[index],
-                        )
                 hilbert_space.add_interaction(
-                    g=float(coefficient_sympy), **operator_dict, check_validity=False
+                    qobj=float(coefficient_sympy)*self._interaction_operator_from_expression(term), check_validity=False
                 )
 
         self.hilbert_space = hilbert_space
@@ -664,32 +615,44 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     def _interaction_operator_from_expression(self, symbolic_interaction_term: sm.Expr):
         """
         Returns the matrix which has the hilbert dimension equal to the hilbert
-        dimension of the parent.
+        dimension of the parent. Note that this method cannot deal with a coefficient
+        which is different from 1. That should be dealt with externally. 
 
         Parameters
         ----------
         symbolic_interaction_term : sm.Expr
             The symbolic expression which has the interaction terms.
         """
-
-        non_operator_symbols = self.offset_charges + self.external_fluxes + list(self.symbolic_params.keys()) + [sm.symbols("I")]
-
-        if symbolic_interaction_term.has(sm.cos):
-            return self._
-
-        term_operator_indices = [get_trailing_number(var_sym.name) for var_sym in symbolic_interaction_term.free_symbols if var_sym not in non_operator_symbols]
-
-        subsystem_truncation_dims = [subsys.truncated_dim for subsys in self.subsystems]
-
-        interacting_subsystems = set([self.get_subsystem_index(idx) for idx in term_operator_indices])
-
-        operator_dict = dict(zip())
-
         
 
+        non_operator_symbols = self.offset_charges + self.external_fluxes + list(self.symbolic_params.keys())
 
+        # substitute all non_operator_symbols
+        for var_sym in non_operator_symbols:
+            symbolic_interaction_term = symbolic_interaction_term.subs(var_sym, getattr(self, var_sym.name))
 
+        if symbolic_interaction_term.has(sm.cos):
+            return self._evaluate_matrix_cosine_terms(symbolic_interaction_term, subsystem_list=list(self.subsystems.values()))
 
+        term_var_indices = [get_trailing_number(var_sym.name) for var_sym in symbolic_interaction_term.free_symbols if var_sym not in non_operator_symbols]
+
+        term_operator_syms = [var_sym for var_sym in symbolic_interaction_term.free_symbols if var_sym not in non_operator_symbols]
+
+        interacting_subsystem_indices = set([self.get_subsystem_index(idx) for idx in term_var_indices])
+        
+        operator_dict = dict.fromkeys([idx for idx, _ in enumerate(self.subsystems)])
+
+        for subsys_index in operator_dict:
+            operator_dict[subsys_index] = qt.identity(self.subsystems[subsys_index].truncated_dim)
+            if subsys_index in interacting_subsystem_indices:
+                for operator_sym in term_operator_syms:
+                    if self.get_subsystem_index(get_trailing_number(operator_sym.name)) == subsys_index:
+                        operator = self.subsystems[subsys_index].get_operator_by_name(operator_sym.name)
+                        operator_dict[subsys_index] *=  identity_wrap(operator, self.subsystems[subsys_index], [self.subsystems[subsys_index]])
+
+        operator_list = list(operator_dict.values())
+
+        return qt.tensor(operator_list)
 
     def _generate_symbols_list(
         self, var_str: str, iterable_list: List[int] or ndarray
@@ -852,10 +815,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         from the expression stored in the attribute hamiltonian_symbolic. Stores the
         result in the attribute _hamiltonian_sym_for_numerics.
         """
-
-        # if isinstance(self, Circuit) and self.is_purely_harmonic:
-        #     setattr(self, "_hamiltonian_sym_for_numerics", None)
-        #     return
         
         hamiltonian = (
             self.hamiltonian_symbolic.expand()
@@ -865,17 +824,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # shifting the potential to the point of external fluxes
         hamiltonian = self._shift_harmonic_oscillator_potential(hamiltonian)
 
-        # marking the sin and cos terms of the periodic variables with different symbols
-        # if len(self.var_categories["periodic"]) > 0:
-        #     hamiltonian = sm.expand_trig(hamiltonian).expand()
-
-        # for i in self.var_categories["periodic"]:
-        #     hamiltonian = hamiltonian.replace(
-        #         sm.cos(1.0 * sm.symbols("θ" + str(i))), sm.symbols("cosθ" + str(i))
-        #     ).replace(
-        #         sm.sin(1.0 * sm.symbols("θ" + str(i))), sm.symbols("sinθ" + str(i))
-        #     )
-
         if self.ext_basis == "discretized":
 
             # marking the squared momentum operators with a separate symbol
@@ -883,18 +831,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 hamiltonian = hamiltonian.replace(
                     sm.symbols("Q" + str(i)) ** 2, sm.symbols("Qs" + str(i))
                 )
-
-        # elif self.ext_basis == "harmonic":
-        #     hamiltonian = sm.expand_trig(hamiltonian).expand()
-
-        #     for i in self.var_categories["extended"]:
-        #         hamiltonian = hamiltonian.replace(
-        #             sm.cos(1.0 * sm.symbols("θ" + str(i))),
-        #             sm.symbols("cosθ" + str(i)),
-        #         ).replace(
-        #             sm.sin(1.0 * sm.symbols("θ" + str(i))),
-        #             sm.symbols("sinθ" + str(i)),
-        #         )
 
         # removing the constants from the Hamiltonian
         coeff_dict = hamiltonian.as_coefficients_dict()
@@ -1120,7 +1056,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         -------
             i*d/dphi operator in the discretized phi basis
         """
-        return grid.first_derivative_matrix(prefactor=-1j)
+        return grid.first_derivative_matrix(prefactor=-1j).tocsc()
 
     def _i_d2_dphi2_operator(self, grid: discretization.Grid1d) -> csc_matrix:
         """
@@ -1135,7 +1071,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         -------
             i*d2/dphi2 operator in the discretized phi basis
         """
-        return grid.second_derivative_matrix(prefactor=-1.0)
+        return grid.second_derivative_matrix(prefactor=-1.0).tocsc()
 
     def _cos_phi(self, grid: discretization.Grid1d) -> csc_matrix:
         """
@@ -1275,7 +1211,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 exp_i_theta =  self._exp_i_theta_operator_conjugate(self.cutoffs_dict()[var_index])
         elif var_index in self.var_categories["extended"]:
             if self.ext_basis == "discretized":
-                phi_grid = Grid1d(self.discretized_phi_range[var_index][0], self.discretized_phi_range[var_index][1], self.cutoffs_dict()[var_index])
+                phi_grid = discretization.Grid1d(self.discretized_phi_range[var_index][0], self.discretized_phi_range[var_index][1], self.cutoffs_dict()[var_index])
                 exp_i_theta = sp.sparse.csc_matrix((phi_grid.pt_count, phi_grid.pt_count))
                 exp_i_theta.setdiag(np.exp(phi_grid.make_linspace()*prefactor*1j))
             elif self.ext_basis == "harmonic":
@@ -1293,15 +1229,15 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         junction_potential_matrix = sparse.csc_matrix((self.hilbertdim(), self.hilbertdim()))
 
         if subsystem_list is not None:
-            junction_potential_matrix = qt.Qobj(junction_potential_matrix)
+            junction_potential_matrix = qt.tensor([qt.identity(subsystem.truncated_dim) for subsystem in subsystem_list])
 
         operator_dict = {}
         all_var_indices = np.sort(self.var_categories["periodic"] + self.var_categories["extended"])
 
         for cos_term in junction_potential.as_ordered_terms():
             coefficient = float(list(cos_term.as_coefficients_dict().values())[0])
-            
-            cos_argument_expr = [arg.args[0] for arg in cos_term.args if arg.has(sm.cos)][0]
+
+            cos_argument_expr = [arg.args[0] for arg in (1.0*cos_term).args if arg.has(sm.cos)][0]
 
             var_indices = [get_trailing_number(var_symbol.name) for var_symbol in cos_argument_expr.free_symbols]
 
@@ -1317,13 +1253,13 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 if len(term.free_symbols) == 0:
                     cos_argument_expr -= term
                     coefficient *= np.exp(float(term)*1j) 
-            
+
             for idx, var_symbol in enumerate(cos_argument_expr.free_symbols):
                 prefactor = float(cos_argument_expr.coeff(var_symbol))
                 operator_dict[get_trailing_number(var_symbol.name)] = self.exp_i_pos_operator(var_symbol, prefactor) if subsystem_list is None else identity_wrap(self.exp_i_pos_operator(var_symbol, prefactor), self.subsystems[self.get_subsystem_index(var_indices[idx])], subsystem_list)
 
             operator_list = [operator_dict[key] for key in (all_var_indices if subsystem_list is None else var_indices)]
-            
+
             if subsystem_list is not None:
                 cos_term_operator = coefficient * functools.reduce(operator.mul, operator_list)
 
@@ -1666,8 +1602,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         )
         hamiltonian = hamiltonian.subs(
             "I", 1
-        )  # does not make a difference as all the trigonometric expressions are
-        # expanded out.
+        )  # does not make a difference as all the trigonometric expressions are handled separately
         # remove constants from the Hamiltonian
         hamiltonian -= hamiltonian.as_coefficients_dict()[1]
         hamiltonian = hamiltonian.expand()
@@ -1737,6 +1672,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 + self.offset_charges
             ]
         )
+        hamiltonian = hamiltonian.subs("I", 1)
         # remove constants from the Hamiltonian
         hamiltonian -= hamiltonian.as_coefficients_dict()[1]
         hamiltonian = hamiltonian.expand()
@@ -2995,7 +2931,7 @@ class Circuit(Subsystem):
             self.generate_hamiltonian_sym_for_numerics()
             self.generate_subsystems()
             self.operators_by_name = self.set_operators()
-            self.build_hilbertspace()
+            # self.build_hilbertspace()
         # clear unnecesary attribs
         self.clear_unnecessary_attribs()
 
