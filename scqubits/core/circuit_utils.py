@@ -20,7 +20,7 @@ from scipy import sparse
 from scipy.sparse import csc_matrix
 
 from scqubits.core import discretization as discretization
-from utils.misc import flatten_list_recursive
+from scqubits.utils.misc import flatten_list_recursive
 
 
 if TYPE_CHECKING:
@@ -239,22 +239,22 @@ def _exp_i_theta_operator(ncut) -> csc_matrix:
     Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace.
     """
     dim_theta = 2 * ncut + 1
-    matrix = (
-        sparse.dia_matrix(([-1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta))
-    ).tocsc()
+    matrix = sparse.dia_matrix(
+            (np.ones(dim_theta), [1]),
+            shape=(dim_theta, dim_theta),
+        ).tocsc()
     return matrix
-
 
 def _exp_i_theta_operator_conjugate(ncut) -> csc_matrix:
     r"""
     Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace.
     """
     dim_theta = 2 * ncut + 1
-    matrix = (
-        sparse.dia_matrix(([-1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta))
-    ).tocsc()
+    matrix = sparse.dia_matrix(
+            (np.ones(dim_theta), [-1]),
+            shape=(dim_theta, dim_theta),
+        ).tocsc()
     return matrix
-
 
 def _cos_theta(ncut: int) -> csc_matrix:
     """Returns operator :math:`\\cos \\varphi` in the charge basis"""
