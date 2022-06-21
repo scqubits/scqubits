@@ -240,10 +240,10 @@ def _exp_i_theta_operator(ncut) -> csc_matrix:
     """
     dim_theta = 2 * ncut + 1
     matrix = sparse.dia_matrix(
-            (np.ones(dim_theta), [1]),
-            shape=(dim_theta, dim_theta),
-        ).tocsc()
+        (np.ones(dim_theta), [1]), shape=(dim_theta, dim_theta),
+    ).tocsc()
     return matrix
+
 
 def _exp_i_theta_operator_conjugate(ncut) -> csc_matrix:
     r"""
@@ -251,10 +251,10 @@ def _exp_i_theta_operator_conjugate(ncut) -> csc_matrix:
     """
     dim_theta = 2 * ncut + 1
     matrix = sparse.dia_matrix(
-            (np.ones(dim_theta), [-1]),
-            shape=(dim_theta, dim_theta),
-        ).tocsc()
+        (np.ones(dim_theta), [-1]), shape=(dim_theta, dim_theta),
+    ).tocsc()
     return matrix
+
 
 def _cos_theta(ncut: int) -> csc_matrix:
     """Returns operator :math:`\\cos \\varphi` in the charge basis"""
@@ -396,4 +396,4 @@ def _cos_dia_dense(x: ndarray) -> ndarray:
 
 def matrix_power_sparse(dense_mat: ndarray, n: int) -> csc_matrix:
     sparse_mat = sparse.csc_matrix(dense_mat)
-    return sparse_mat**n
+    return sparse_mat ** n
