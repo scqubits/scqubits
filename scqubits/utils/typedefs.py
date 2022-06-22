@@ -10,7 +10,9 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import TYPE_CHECKING, List, Tuple, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, List, NewType, Tuple, Union
 
 from numpy import ndarray
 from scipy.sparse import csc_matrix, dia_matrix

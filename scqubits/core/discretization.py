@@ -215,7 +215,7 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
 
         delta_x = self.grid_spacing()
         matrix_diagonals = [
-            coefficient * prefactor / delta_x ** 2
+            coefficient * prefactor / delta_x**2
             for coefficient in SECOND_STENCIL_COEFFS[settings.STENCIL]
         ]
         offset = [i - (settings.STENCIL - 1) // 2 for i in range(settings.STENCIL)]
