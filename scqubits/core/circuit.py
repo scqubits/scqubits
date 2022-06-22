@@ -45,6 +45,7 @@ from scqubits.core.circuit_utils import (
     _cos_dia_dense,
     _cos_phi,
     _cos_theta,
+    _identity_theta,
     _generate_symbols_list,
     _i_d2_dphi2_operator,
     _i_d_dphi_operator,
@@ -234,8 +235,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         example when the circuit is large and circuit parameters are changed).
         """
         if not self.is_child and len(self.symbolic_circuit.nodes) > 3:
-            self.hamiltonian_symbolic = self.symbolic_circuit.generate_symbolic_hamiltonian(
-                substitute_params=True
+            self.hamiltonian_symbolic = (
+                self.symbolic_circuit.generate_symbolic_hamiltonian(
+                    substitute_params=True
+                )
             )
             self.generate_hamiltonian_sym_for_numerics()
 
@@ -543,7 +546,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         Returns the matrix which has the hilbert dimension equal to the hilbert
         dimension of the parent. Note that this method cannot deal with a coefficient
-        which is different from 1. That should be dealt with externally. 
+        which is different from 1. That should be dealt with externally.
 
         Parameters
         ----------
@@ -587,23 +590,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         operator_dict = dict.fromkeys([idx for idx, _ in enumerate(self.subsystems)])
 
         for subsys_index in operator_dict:
-            operator_dict[subsys_index] = qt.identity(
-                self.subsystems[subsys_index].truncated_dim
-            )
+            operator_dict[subsys_index] = qt.identity(self.subsystems[subsys_index].truncated_dim)
             if subsys_index in interacting_subsystem_indices:
                 for operator_sym in term_operator_syms:
                     if (
                         self.get_subsystem_index(get_trailing_number(operator_sym.name))
                         == subsys_index
                     ):
-                        operator = self.subsystems[subsys_index].get_operator_by_name(
-                            operator_sym.name
-                        )
-                        operator_dict[subsys_index] *= identity_wrap(
-                            operator,
-                            self.subsystems[subsys_index],
-                            [self.subsystems[subsys_index]],
-                        )
+                        operator = self.subsystems[subsys_index].get_operator_by_name(operator_sym.name)
+                        op_in_eigenbasis = self.subsystems[subsys_index].hierarchical_diagonalization
+                        operator_dict[subsys_index] *= convert_matrix_to_qobj(operator, self.subsystems[subsys_index], op_in_eigenbasis=op_in_eigenbasis, evecs=None)
 
         operator_list = list(operator_dict.values())
 
@@ -938,6 +934,19 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             return sparse.csc_matrix(matrix)
         return matrix
 
+    def _identity_qobj(self):
+        """
+        Returns the Qobj of the identity matrix of the right dimensions
+        """
+        if not self.hierarchical_diagonalization:
+            return qt.identity(self.hilbertdim())
+
+        subsys_trunc_dims = [
+            subsys.truncated_dim for subsys in list(self.subsystems.values())
+        ]
+
+        return qt.tensor([qt.identity(truncdim) for truncdim in subsys_trunc_dims])
+
     def _identity(self):
         """
         Returns the Identity operator for the entire Hilber space of the circuit.
@@ -983,7 +992,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 exp_i_theta.setdiag(np.exp(phi_grid.make_linspace() * prefactor * 1j))
             elif self.ext_basis == "harmonic":
                 osc_length = self.osc_lengths[var_index]
-                pos_operator = (osc_length / 2 ** 0.5) * (
+                pos_operator = (osc_length / 2**0.5) * (
                     op.creation(self.cutoffs_dict()[var_index])
                     + op.annihilation(self.cutoffs_dict()[var_index])
                 )
@@ -993,22 +1002,23 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def _evaluate_matrix_cosine_terms(
         self, junction_potential: sm.Expr, subsystem_list=None
-    ) -> Union[ndarray, csc_matrix]:
-
-        if (
-            isinstance(junction_potential, (int, float))
-            or len(junction_potential.free_symbols) == 0
-        ):
-            return 0
-
-        junction_potential_matrix = sparse.csc_matrix(
-            (self.hilbertdim(), self.hilbertdim())
-        )
+    ) -> qt.Qobj:
 
         if subsystem_list is not None:
             junction_potential_matrix = qt.tensor(
                 [qt.identity(subsystem.truncated_dim) for subsystem in subsystem_list]
             )
+        else:
+            junction_potential_matrix = qt.tensor(
+                [qt.identity(self.cutoffs_dict()[var_index]*2+1) for var_index in self.var_categories["periodic"]] + 
+                [qt.identity(self.cutoffs_dict()[var_index]) for var_index in self.var_categories["extended"]]
+            )
+
+        if (
+            isinstance(junction_potential, (int, float))
+            or len(junction_potential.free_symbols) == 0
+        ):
+            return junction_potential_matrix
 
         operator_dict = {}
         all_var_indices = np.sort(
@@ -1031,13 +1041,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 if var_index in var_indices:
                     continue
                 if var_index in self.var_categories["periodic"]:
-                    operator_dict[var_index] = self._sparsity_adaptive(
-                        self._identity_theta(self.cutoffs_dict()[var_index])
-                    )
+                    operator_dict[var_index] = qt.identity(self.cutoffs_dict()[var_index]*2 + 1)
                 if var_index in self.var_categories["extended"]:
-                    operator_dict[var_index] = self._sparsity_adaptive(
-                        sparse.identity(self.cutoffs_dict()[var_index])
-                    )
+                    operator_dict[var_index] = qt.identity(self.cutoffs_dict()[var_index])
             # removing any constant terms
             for term in cos_argument_expr.as_ordered_terms():
                 if len(term.free_symbols) == 0:
@@ -1046,14 +1052,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
             for idx, var_symbol in enumerate(cos_argument_expr.free_symbols):
                 prefactor = float(cos_argument_expr.coeff(var_symbol))
-                operator_dict[get_trailing_number(var_symbol.name)] = (
-                    self.exp_i_pos_operator(var_symbol, prefactor)
-                    if subsystem_list is None
-                    else identity_wrap(
-                        self.exp_i_pos_operator(var_symbol, prefactor),
-                        self.subsystems[self.get_subsystem_index(var_indices[idx])],
-                        subsystem_list,
-                    )
+                operator_dict[
+                    get_trailing_number(var_symbol.name)
+                ] = self.identity_wrap_for_hd(
+                    self.exp_i_pos_operator(var_symbol, prefactor), var_indices[idx]
                 )
 
             operator_list = [
@@ -1061,26 +1063,13 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 for key in (all_var_indices if subsystem_list is None else var_indices)
             ]
 
-            if subsystem_list is not None:
-                cos_term_operator = coefficient * functools.reduce(
-                    operator.mul, operator_list
-                )
+            cos_term_operator = coefficient * functools.reduce(
+                operator.mul if self.hierarchical_diagonalization else qt.tensor, operator_list
+            )
 
-                junction_potential_matrix += (
-                    cos_term_operator + cos_term_operator.dag()
-                ) * 0.5
-            else:
-                kron_function = (
-                    sparse.kron if self.type_of_matrices == "sparse" else sp.linalg.kron
-                )
-
-                cos_term_operator = coefficient * functools.reduce(
-                    kron_function, operator_list
-                )
-
-                junction_potential_matrix += (
-                    cos_term_operator + cos_term_operator.conj().T
-                ) * 0.5
+            junction_potential_matrix += (
+                cos_term_operator + cos_term_operator.dag()
+            ) * 0.5
 
         return junction_potential_matrix
 
@@ -1151,23 +1140,23 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 osc_freqs[var_index] = (8 * ELi * ECi) ** 0.5
                 osc_lengths[var_index] = (8.0 * ECi / ELi) ** 0.25
                 nonwrapped_ops["position"] = functools.partial(
-                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2 ** 0.5)
+                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2**0.5)
                 )
                 nonwrapped_ops["sin"] = compose(
                     sp.linalg.sinm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
                     ),
                 )
                 nonwrapped_ops["cos"] = compose(
                     sp.linalg.cosm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
                     ),
                 )
                 nonwrapped_ops["momentum"] = functools.partial(
                     op.ia_minus_iadag_sparse,
-                    prefactor=1 / (osc_lengths[var_index] * 2 ** 0.5),
+                    prefactor=1 / (osc_lengths[var_index] * 2**0.5),
                 )
 
                 for short_op_name in nonwrapped_ops.keys():
@@ -1246,6 +1235,42 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         return op_func_by_name
 
+    def identity_wrap_for_hd(
+        self,
+        operator: Optional[Union[csc_matrix, ndarray]],
+        var_index: Optional[int] = None,
+    ) -> qt.Qobj:
+        """
+        Returns an identity wrapped operator whose size is equal to the `self.hilbertdim()`.
+
+        Parameters
+        ----------
+        operator :
+            operator in the form of csc_matrix, ndarray
+
+        Returns
+        -------
+        qt.Qobj
+            identity wrapped operator.
+        """
+        if not self.hierarchical_diagonalization:
+            return qt.Qobj(operator)
+
+        subsystem_index = self.get_subsystem_index(var_index)
+        subsystem = self.subsystems[subsystem_index]
+        operator = subsystem.identity_wrap_for_hd(operator, var_index=var_index)
+
+        if isinstance(operator, qt.Qobj):
+            operator = operator.full()
+
+        operator = convert_matrix_to_qobj(
+            operator,
+            subsystem,
+            op_in_eigenbasis=False,
+            evecs=None,
+        )
+        return identity_wrap(operator, subsystem, list(self.subsystems.values()))
+
     def get_operator_by_name(self, operator_name: str) -> qt.Qobj:
         """
         Returns the operator for the given operator symbol which has the same dimension
@@ -1259,7 +1284,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Returns
         -------
-            operator
+            operator identified by `operator_name`
         """
         if not self.hierarchical_diagonalization:
             return getattr(self, operator_name + "_operator")()
@@ -1274,7 +1299,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             operator = operator.full()
 
         operator = convert_matrix_to_qobj(
-            operator, subsystem, op_in_eigenbasis=False, evecs=None,
+            operator,
+            subsystem,
+            op_in_eigenbasis=False,
+            evecs=None,
         )
         return identity_wrap(operator, subsystem, list(self.subsystems.values()))
 
@@ -1443,9 +1471,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # adding self to the list
         replacement_dict["self"] = self
 
-        return eval(H_LC_str, replacement_dict) + self._evaluate_matrix_cosine_terms(
+        junction_potential_matrix = self._evaluate_matrix_cosine_terms(
             junction_potential
-        )
+        ).data.tocsc()
+
+        return eval(H_LC_str, replacement_dict) + junction_potential_matrix
 
     def _hamiltonian_for_discretized_extended_vars(self) -> csc_matrix:
         hamiltonian = self._hamiltonian_sym_for_numerics
@@ -1477,9 +1507,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # adding self to the list
         replacement_dict["self"] = self
 
-        return eval(H_LC_str, replacement_dict) + self._evaluate_matrix_cosine_terms(
+        junction_potential_matrix = self._evaluate_matrix_cosine_terms(
             junction_potential
-        )
+        ).data.tocsc()
+
+        return eval(H_LC_str, replacement_dict) + junction_potential_matrix
 
     def _eigensys_for_purely_harmonic(self, evals_count: int):
         """
@@ -1655,10 +1687,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     sm.sin(1.0 * sm.symbols(f"θ{var_index}")),
                 )
                 .replace(
-                    (1.0 * sm.symbols(f"θ{var_index}")), (sm.symbols(f"θ{var_index}")),
+                    (1.0 * sm.symbols(f"θ{var_index}")),
+                    (sm.symbols(f"θ{var_index}")),
                 )
                 .replace(
-                    (1.0 * sm.symbols(f"θ{var_index}")), (sm.symbols(f"θ{var_index}")),
+                    (1.0 * sm.symbols(f"θ{var_index}")),
+                    (sm.symbols(f"θ{var_index}")),
                 )
             )
             # replace Qs with Q^2 etc
@@ -1865,7 +1899,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 sweep_vars[var_name] = kwargs[var_name]
         if len(sweep_vars) > 1:
             sweep_vars.update(
-                zip(sweep_vars, np.meshgrid(*[grid for grid in sweep_vars.values()]),)
+                zip(
+                    sweep_vars,
+                    np.meshgrid(*[grid for grid in sweep_vars.values()]),
+                )
             )
             for var_name in sweep_vars:
                 parameters[var_name] = sweep_vars[var_name]
@@ -2212,7 +2249,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # by []
         else:
             dims_to_be_summed = self._dims_to_be_summed(var_indices, [])
-        wf_plot = np.sum(np.abs(wf_ext_basis) ** 2, axis=tuple(dims_to_be_summed),)
+        wf_plot = np.sum(
+            np.abs(wf_ext_basis) ** 2,
+            axis=tuple(dims_to_be_summed),
+        )
         # reorder the array according to the order in var_indices
         all_var_indices = (
             flatten_list_recursive(self.system_hierarchy)
@@ -2665,7 +2705,9 @@ class Circuit(Subsystem):
 
         # checking to see if the system is purely harmonic
         branch_type_list = [branch.type for branch in self.symbolic_circuit.branches]
-        self.is_purely_harmonic: bool = "JJ" not in branch_type_list and "JJ2" not in branch_type_list
+        self.is_purely_harmonic: bool = (
+            "JJ" not in branch_type_list and "JJ2" not in branch_type_list
+        )
 
         # copying all the required attributes
         required_attributes = [
@@ -2744,8 +2786,10 @@ class Circuit(Subsystem):
         self._set_vars()  # setting the attribute vars to store operator symbols
 
         if len(self.symbolic_circuit.nodes) > 3:
-            self.hamiltonian_symbolic = self.symbolic_circuit.generate_symbolic_hamiltonian(
-                substitute_params=True
+            self.hamiltonian_symbolic = (
+                self.symbolic_circuit.generate_symbolic_hamiltonian(
+                    substitute_params=True
+                )
             )
 
         if system_hierarchy is not None:
