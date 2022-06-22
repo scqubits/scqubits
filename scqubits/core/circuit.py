@@ -2584,8 +2584,6 @@ class Circuit(Subsystem):
     @staticmethod
     def default_params() -> Dict[str, Any]:
         # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
-        input_string = self.input_string
-
         return {}
 
     def __repr__(self) -> str:
