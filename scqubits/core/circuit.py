@@ -1007,12 +1007,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         if subsystem_list is not None:
             junction_potential_matrix = qt.tensor(
                 [qt.identity(subsystem.truncated_dim) for subsystem in subsystem_list]
-            )
+            )*0
         else:
             junction_potential_matrix = qt.tensor(
                 [qt.identity(self.cutoffs_dict()[var_index]*2+1) for var_index in self.var_categories["periodic"]] + 
                 [qt.identity(self.cutoffs_dict()[var_index]) for var_index in self.var_categories["extended"]]
-            )
+            )*0
 
         if (
             isinstance(junction_potential, (int, float))
@@ -1021,9 +1021,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             return junction_potential_matrix
 
         operator_dict = {}
-        all_var_indices = np.sort(
-            self.var_categories["periodic"] + self.var_categories["extended"]
-        )
+        all_var_indices = self.var_categories["periodic"] + self.var_categories["extended"]
 
         for cos_term in junction_potential.as_ordered_terms():
             coefficient = float(list(cos_term.as_coefficients_dict().values())[0])
@@ -2815,7 +2813,7 @@ class Circuit(Subsystem):
             self.generate_hamiltonian_sym_for_numerics()
             self.generate_subsystems()
             self.operators_by_name = self.set_operators()
-            # self.build_hilbertspace()
+            self.build_hilbertspace()
         # clear unnecesary attribs
         self.clear_unnecessary_attribs()
 
