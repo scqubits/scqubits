@@ -988,8 +988,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     self.discretized_phi_range[var_index][1],
                     self.cutoffs_dict()[var_index],
                 )
-                exp_i_theta = sparse.csc_matrix((phi_grid.pt_count, phi_grid.pt_count))
-                exp_i_theta.setdiag(np.exp(phi_grid.make_linspace() * prefactor * 1j))
+                diagonal = np.exp(phi_grid.make_linspace() * prefactor * 1j)
+                exp_i_theta = sparse.dia_matrix((diagonal, [0]), shape = (phi_grid.pt_count, phi_grid.pt_count)).tocsc()
             elif self.ext_basis == "harmonic":
                 osc_length = self.osc_lengths[var_index]
                 pos_operator = (osc_length / 2**0.5) * (
@@ -1294,7 +1294,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         operator = subsystem.get_operator_by_name(operator_name)
 
         if isinstance(operator, qt.Qobj):
-            operator = operator.full()
+            operator = operator.data.tocsc()
 
         operator = convert_matrix_to_qobj(
             operator,
