@@ -1233,9 +1233,27 @@ class SymbolicCircuit(serializers.Serializable):
 
     def _spanning_tree(self):
         r"""
-        returns a spanning tree for the given instance
-        """
+        Returns a spanning tree (as a list of branches) for the given instance. Notice that 
+        if the circuit contains multiple capacitive islands, the returned spanning tree will
+        not include the capacitive twig between two capacitive islands.
 
+        This function also returns all the branches that form superconducting loops, and a 
+        list of lists of nodes (node_sets), which keeps the generation info for nodes, e.g.,
+        for the following spanning tree:
+        
+                   /---Node(2)
+        Node(1)---'
+                   '---Node(3)---Node(4)
+        
+        has the node_sets returned as [[Node(1)], [Node(2),Node(3)], [Node(4)]]
+
+        Returns
+        -------
+            A spanning tree as a list of branches, which does not include capacitor branches,
+            a list of branches that forms superconducting loops, and a list of lists of nodes 
+            (node_sets), which keeps the generation info for nodes of branches on the path.
+        """
+        
         # making a deep copy to make sure that the original instance is unaffected
         circ_copy = SymbolicCircuit.from_yaml(
             self.input_string, from_file=False, initiate_sym_calc=False
@@ -1392,7 +1410,10 @@ class SymbolicCircuit(serializers.Serializable):
         Returns all the nodes and branches in the spanning tree path between the
         input node and the root of the spanning tree. Also returns the distance
         (generation) between the input node and the root node. The root of the spanning
-        tree  is node 0 if there is a physical ground node, otherwise it is node 1.
+        tree is node 0 if there is a physical ground node, otherwise it is node 1.
+
+        Notice that the branches that sit on the boundaries of capacitive islands are 
+        not included in the branch list.
 
         Parameters
         ----------
@@ -1463,8 +1484,8 @@ class SymbolicCircuit(serializers.Serializable):
         gen_1, ancestors_1, path_1 = self._find_path_to_root(closure_branch.nodes[0])
         gen_2, ancestors_2, path_2 = self._find_path_to_root(closure_branch.nodes[1])
         # find the first common ancestor of these two nodes
-        # start from the root node, find out the last sub-generation where two nodes have the
-        # same ancestor
+        # start from the root node, find out the last sub-generation (within the sub-circuit
+        # of the superconducting island) where two nodes have the same ancestor
         sub_gen_last_same_ancestor = -1
         for igen in range(min(len(ancestors_1), len(ancestors_2))):
             if ancestors_1[igen].id == ancestors_2[igen].id:
