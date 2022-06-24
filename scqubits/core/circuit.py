@@ -1767,14 +1767,14 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             )
         else:
             sym_hamiltonian = sm.Add(
-                sm.UnevaluatedExpr(
+                (
                     self._make_expr_human_readable(
                         self.hamiltonian_symbolic.expand()
                         - self.potential_symbolic.expand(),
                         float_round=float_round,
                     )
                 ),
-                sm.UnevaluatedExpr(
+                (
                     self._make_expr_human_readable(
                         self.potential_symbolic.expand(), float_round=float_round
                     )

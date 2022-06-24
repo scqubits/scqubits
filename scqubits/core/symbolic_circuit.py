@@ -1506,19 +1506,19 @@ class SymbolicCircuit(serializers.Serializable):
         gen_1, ancestors_1, path_1 = self._find_path_to_root(closure_branch.nodes[0])
         gen_2, ancestors_2, path_2 = self._find_path_to_root(closure_branch.nodes[1])
         # find the first common ancestor of these two nodes
-        # start from the root node, find out the last generation where two nodes have the
+        # start from the root node, find out the last sub-generation where two nodes have the
         # same ancestor
-        gen_last_same_ancestor = 0
-        for igen in range(min(gen_1, gen_2)):
+        sub_gen_last_same_ancestor = -1
+        for igen in range(min(len(ancestors_1), len(ancestors_2))):
             if ancestors_1[igen].id == ancestors_2[igen].id:
-                gen_last_same_ancestor = igen
+                sub_gen_last_same_ancestor = igen
             elif ancestors_1[igen].id != ancestors_2[igen].id:
                 break
         # get all the branches of the paths from the two nodes to the root, after the last
         # shared ancestor, and the closure branch itself
         loop = (
-            path_1[gen_last_same_ancestor:]
-            + path_2[gen_last_same_ancestor:]
+            path_1[sub_gen_last_same_ancestor+1:]
+            + path_2[sub_gen_last_same_ancestor+1:]
             + [closure_branch]
         )
         return loop
