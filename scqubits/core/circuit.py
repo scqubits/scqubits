@@ -568,8 +568,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         if symbolic_interaction_term.has(sm.cos):
             return self._evaluate_matrix_cosine_terms(
-                symbolic_interaction_term, subsystem_list=list(self.subsystems.values())
-            )
+                symbolic_interaction_term)
 
         term_var_indices = [
             get_trailing_number(var_sym.name)
@@ -590,20 +589,21 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         operator_dict = dict.fromkeys([idx for idx, _ in enumerate(self.subsystems)])
 
         for subsys_index in operator_dict:
-            operator_dict[subsys_index] = qt.identity(self.subsystems[subsys_index].truncated_dim)
+            operator_dict[subsys_index] = qt.tensor([qt.identity(subsys.truncated_dim) for subsys in list(self.subsystems.values())])
             if subsys_index in interacting_subsystem_indices:
                 for operator_sym in term_operator_syms:
                     if (
                         self.get_subsystem_index(get_trailing_number(operator_sym.name))
                         == subsys_index
                     ):
-                        operator = self.subsystems[subsys_index].get_operator_by_name(operator_sym.name)
-                        op_in_eigenbasis = self.subsystems[subsys_index].hierarchical_diagonalization
-                        operator_dict[subsys_index] *= convert_matrix_to_qobj(operator, self.subsystems[subsys_index], op_in_eigenbasis=op_in_eigenbasis, evecs=None)
+                        operator_matrix = self.subsystems[subsys_index].get_operator_by_name(operator_sym.name)
+                        if isinstance(operator_matrix, qt.Qobj):
+                            operator_matrix = operator_matrix.data.tocsc()
+                        operator_dict[subsys_index] *= identity_wrap(operator_matrix, self.subsystems[subsys_index], list(self.subsystems.values()), evecs=None)
 
         operator_list = list(operator_dict.values())
 
-        return qt.tensor(operator_list)
+        return functools.reduce(operator.mul, operator_list)
 
     def _generate_symbols_list(
         self, var_str: str, iterable_list: List[int] or ndarray
@@ -1001,10 +1001,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         return self._sparsity_adaptive(exp_i_theta)
 
     def _evaluate_matrix_cosine_terms(
-        self, junction_potential: sm.Expr, subsystem_list=None
-    ) -> qt.Qobj:
+        self, junction_potential: sm.Expr) -> qt.Qobj:
 
-        if subsystem_list is not None:
+        if self.hierarchical_diagonalization:
+            subsystem_list = list(self.subsystems.values())
             junction_potential_matrix = qt.tensor(
                 [qt.identity(subsystem.truncated_dim) for subsystem in subsystem_list]
             )*0
@@ -1058,7 +1058,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
             operator_list = [
                 operator_dict[key]
-                for key in (all_var_indices if subsystem_list is None else var_indices)
+                for key in (all_var_indices if not self.hierarchical_diagonalization else var_indices)
             ]
 
             cos_term_operator = coefficient * functools.reduce(

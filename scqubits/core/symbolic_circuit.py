@@ -919,7 +919,7 @@ class SymbolicCircuit(serializers.Serializable):
         modes = []  # starting with an empty list
 
         for m in (
-            frozen_modes + free_modes + periodic_modes  # + LC_modes  # + extended_modes
+            frozen_modes + free_modes + periodic_modes  + LC_modes  # + extended_modes
         ):  # This order is important
             mat = np.array(modes + [m])
             if np.linalg.matrix_rank(mat) == len(mat):

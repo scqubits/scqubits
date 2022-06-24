@@ -22,7 +22,7 @@ DATADIR = os.path.join(TESTDIR, "data", "")
 
 def test_eigenvals_harmonic():
     ref_eigs = np.array(
-        [0.0, 0.03587943, 0.05834966, 0.09426546, 4.39939479, 4.43523213]
+        [0.0, 0.03559404, 0.05819727, 0.09378676, 4.39927874, 4.43488613]
     )
     DFC = scq.Circuit(
         DATADIR + "circuit_DFC.yaml",
@@ -58,7 +58,8 @@ def test_eigenvals_harmonic():
 
 def test_eigenvals_discretized():
     ref_eigs = np.array(
-        [0.0, 0.03619643, 0.05916743, 0.09536388, 4.37895164, 4.41517064]
+        [0.        , 0.03613524, 0.05924472, 0.09538   , 4.37899011,
+       4.41520237]
     )
     DFC = scq.Circuit(
         DATADIR + "circuit_DFC.yaml",
