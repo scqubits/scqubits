@@ -24,6 +24,7 @@ import numpy as np
 
 from numpy import ndarray
 from scipy.sparse import csc_matrix
+from sympy import Expr
 from typing_extensions import Protocol, runtime_checkable
 
 import scqubits.utils.misc as utils
@@ -129,7 +130,7 @@ def _add_attribute(
     return attributes, ndarrays, objects
 
 
-TO_ATTRIBUTE = (str, Number, dict, OrderedDict, list, tuple, bool, np.bool_)
+TO_ATTRIBUTE = (Expr, str, Number, dict, OrderedDict, list, tuple, bool, np.bool_)
 TO_NDARRAY = (np.ndarray,)
 TO_OBJECT = (Serializable,)
 
@@ -149,6 +150,21 @@ def type_dispatch(entity: Serializable) -> Callable:
         return _add_ndarray
     # no match, try treating as object, though this may fail
     return _add_object
+
+
+def Expr_serialize(expr_instance: Expr) -> "IOData":
+    """
+    Create an IODate instance for a sympy expression via string conversion
+    """
+    attributes: Dict[str, Any] = {}
+    ndarrays: Dict[str, ndarray] = {}
+    objects: Dict[str, object] = {}
+    typename = "Expr"
+    # from sympy.parsing.sympy_parser import parse_expr
+    update_func = type_dispatch(Expr)
+    attributes, ndarrays, objects = update_func(
+        "Expr", str(expr_instance), attributes, ndarrays, objects
+    )
 
 
 def dict_serialize(dict_instance: Dict[str, Any]) -> "IOData":
@@ -275,6 +291,13 @@ def range_serialize(range_instance: range) -> "IOData":
     objects: Dict[str, object] = {}
     typename = type(range_instance).__name__
     return io.IOData(typename, attributes, ndarrays, objects)
+
+
+def Expr_deserialize(iodata: "IOData") -> Expr:
+    """Turn IOData instance back into a dict"""
+    from sympy import sympify
+
+    return sympify(iodata["Expr"])
 
 
 def dict_deserialize(iodata: "IOData") -> Dict[str, Any]:

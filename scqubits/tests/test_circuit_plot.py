@@ -1,4 +1,5 @@
-from scqubits.core.circuit import example_circuit, truncation_template
+from scqubits.core.circuit_utils import example_circuit
+from scqubits import truncation_template
 import scqubits as scq
 import numpy as np
 
@@ -9,7 +10,7 @@ TESTDIR = os.path.join(TESTDIR, "tests", "")
 DATADIR = os.path.join(TESTDIR, "data", "")
 
 
-circ = scq.Circuit.from_yaml(
+circ = scq.Circuit(
     DATADIR + "circuit_zeropi.yaml", ext_basis="harmonic", initiate_sym_calc=False
 )
 system_hierarchy = [[1, 3], [2]]

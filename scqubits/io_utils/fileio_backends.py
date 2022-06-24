@@ -93,13 +93,13 @@ class H5Writer(IOWriter):
             if isinstance(
                 attr_value, dict
             ):  # h5py does not serialize dicts automatically, so have to do it manually
-                group_name = "__dicts/" + attr_name
+                group_name = f"__dicts/{attr_name}"
                 h5file_group.create_group(group_name)
                 io.write(
                     attr_value, self.filename, file_handle=h5file_group[group_name]
                 )
             elif isinstance(attr_value, (list, tuple)):
-                group_name = "__lists/" + attr_name
+                group_name = f"__lists/{attr_name}"
                 h5file_group.create_group(group_name)
                 io.write(
                     attr_value, self.filename, file_handle=h5file_group[group_name]
@@ -189,12 +189,12 @@ class H5Reader:
         if "__dicts" in h5file_group:
             for dict_name in h5file_group["__dicts"]:
                 attributes[dict_name] = io.read(
-                    self.filename, h5file_group["__dicts/" + dict_name]
+                    self.filename, h5file_group[f"__dicts/{dict_name}"]
                 )
         if "__lists" in h5file_group:
             for list_name in h5file_group["__lists"]:
                 attributes[list_name] = io.read(
-                    self.filename, h5file_group["__lists/" + list_name]
+                    self.filename, h5file_group[f"__lists/{list_name}"]
                 )
         return attributes
 
@@ -266,13 +266,13 @@ class CSVWriter(IOWriter):
         dimensions are available in attributes CSV file."""
         for index, dataname in enumerate(self.io_data.ndarrays.keys()):
             data = self.io_data.ndarrays[dataname]
-            attributes["dataset" + str(index)] = dataname
+            attributes[f"dataset{index}"] = dataname
 
             if data.ndim == 3:
                 slice_count = len(data)
             else:
                 slice_count = 1
-            attributes["dataset" + str(index) + ".slices"] = slice_count
+            attributes[f"dataset{index}.slices"] = slice_count
         return attributes
 
     def write_attributes(self, filename: str):  # type: ignore
@@ -287,7 +287,7 @@ class CSVWriter(IOWriter):
     def write_ndarrays(self, filename: str):  # type: ignore
         filename_stub, _ = os.path.splitext(filename)
         for dataname, dataset in self.io_data.ndarrays.items():
-            filename = filename_stub + "_" + dataname + ".csv"
+            filename = f"{filename_stub}_{dataname}.csv"
             self.write_data(filename, dataset)
 
     def write_data(self, filename: str, dataset: ndarray):  # type: ignore
@@ -363,7 +363,7 @@ class CSVReader:
         filename_stub, _ = os.path.splitext(filename)
         ndarrays = {}
         for index, dataname in enumerate(data_names):
-            data_filename = filename_stub + "_" + dataname + ".csv"
+            data_filename = f"{filename_stub}_{dataname}.csv"
             slices = data_slices[index]
             ndarrays[dataname] = self.read_data(data_filename, slices)
 

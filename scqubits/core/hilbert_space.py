@@ -334,7 +334,6 @@ class HilbertSpace(
 
     osc_subsys_list = descriptors.ReadOnlyProperty(OscillatorList)
     qbt_subsys_list = descriptors.ReadOnlyProperty(QubitList)
-    lookup = descriptors.ReadOnlyProperty(spec_lookup.SpectrumLookupAdapter)
     interaction_list = descriptors.WatchedProperty(
         Tuple[Union[InteractionTerm, InteractionTermStr], ...], "INTERACTIONLIST_UPDATE"
     )
@@ -423,7 +422,7 @@ class HilbertSpace(
         output = "HilbertSpace:  subsystems\n"
         output += "-------------------------\n"
         for subsystem in self:
-            output += "\n" + str(subsystem) + "\n"
+            output += f"\n{subsystem}\n"
         if self.interaction_list:
             output += "\n\n"
             output += "HilbertSpace:  interaction terms\n"
@@ -432,7 +431,7 @@ class HilbertSpace(
             for id_str, interaction_term in self._interaction_term_by_id_str.items():
                 indent_length = 25
                 term_output = "InteractionTerm".ljust(indent_length, "-")
-                term_output += "| [{}]\n".format(id_str)
+                term_output += f"| [{id_str}]\n"
                 term_output += "\n".join(str(interaction_term).splitlines()[1:])
                 term_output += "\n\n"
                 output += term_output

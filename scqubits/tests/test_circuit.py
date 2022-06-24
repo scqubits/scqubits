@@ -24,7 +24,7 @@ def test_eigenvals_harmonic():
     ref_eigs = np.array(
         [0.0, 0.03559404, 0.05819727, 0.09378676, 4.39927874, 4.43488613]
     )
-    DFC = scq.Circuit.from_yaml(
+    DFC = scq.Circuit(
         DATADIR + "circuit_DFC.yaml",
         ext_basis="harmonic",
         initiate_sym_calc=False,
@@ -60,7 +60,7 @@ def test_eigenvals_discretized():
     ref_eigs = np.array(
         [0.0, 0.03559217, 0.05819503, 0.09378266, 4.39921833, 4.43482385]
     )
-    DFC = scq.Circuit.from_yaml(
+    DFC = scq.Circuit(
         DATADIR + "circuit_DFC.yaml",
         ext_basis="discretized",
         initiate_sym_calc=False,
