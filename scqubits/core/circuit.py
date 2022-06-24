@@ -1005,7 +1005,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 ).tocsc()
             elif self.ext_basis == "harmonic":
                 osc_length = self.osc_lengths[var_index]
-                pos_operator = (osc_length / 2**0.5) * (
+                pos_operator = (osc_length / 2 ** 0.5) * (
                     op.creation(self.cutoffs_dict()[var_index])
                     + op.annihilation(self.cutoffs_dict()[var_index])
                 )
@@ -1176,23 +1176,23 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 osc_freqs[var_index] = (8 * ELi * ECi) ** 0.5
                 osc_lengths[var_index] = (8.0 * ECi / ELi) ** 0.25
                 nonwrapped_ops["position"] = functools.partial(
-                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2**0.5)
+                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2 ** 0.5)
                 )
                 nonwrapped_ops["sin"] = compose(
                     sp.linalg.sinm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
                     ),
                 )
                 nonwrapped_ops["cos"] = compose(
                     sp.linalg.cosm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
                     ),
                 )
                 nonwrapped_ops["momentum"] = functools.partial(
                     op.ia_minus_iadag_sparse,
-                    prefactor=1 / (osc_lengths[var_index] * 2**0.5),
+                    prefactor=1 / (osc_lengths[var_index] * 2 ** 0.5),
                 )
 
                 for short_op_name in nonwrapped_ops.keys():
@@ -2606,6 +2606,65 @@ class Circuit(Subsystem):
             if attrib not in configure_attribs + ["closure_branches_data"]:
                 setattr(self, attrib, _modified_attributes[attrib])
 
+    def from_yaml(
+        input_string: str,
+        from_file: bool = True,
+        basis_completion="heuristic",
+        ext_basis: str = "discretized",
+        initiate_sym_calc: bool = True,
+        truncated_dim: int = None,
+        _modified_attributes: Dict = {
+            "transformation_matrix": None,
+            "system_hierarchy": None,
+            "subsystem_trunc_dims": None,
+            "closure_branches_data": [],
+        },
+    ):
+        """
+        Wrapper to Circuit __init__ to create a class instance. Will be deprecated in
+        the future release.
+
+        Parameters
+        ----------
+        input_string:
+            String describing the number of nodes and branches connecting then along
+            with their parameters
+        from_file:
+            Set to True by default, when a file name should be provided to
+            `input_string`, else the circuit graph description in YAML should be
+            provided as a string.
+        basis_completion:
+            either "heuristic" or "canonical", defines the matrix used for completing the
+            transformation matrix. Sometimes used to change the variable transformation
+            to result in a simpler symbolic Hamiltonian, by default "heuristic"
+        ext_basis: str
+            can be "discretized" or "harmonic" which chooses whether to use discretized
+            phi or harmonic oscillator basis for extended variables,
+            by default "discretized"
+        initiate_sym_calc: bool
+            attribute to initiate Circuit instance, by default `True`
+        truncated_dim: Optional[int]
+            truncated dimension if the user wants to use this circuit instance in
+            HilbertSpace, by default `None`
+        _modified_attributes:
+            parameter for internal use, where the circuit instance is modified by the user.
+            This parameter is used to store the circuit instance in file
+
+        Returns
+        -------
+        Circuit
+            An instance of class `Circuit`
+        """
+        return Circuit(
+            input_string=input_string,
+            from_file=from_file,
+            basis_completion=basis_completion,
+            ext_basis=ext_basis,
+            initiate_sym_calc=initiate_sym_calc,
+            truncated_dim=truncated_dim,
+            _modified_attributes=_modified_attributes,
+        )
+
     def dict_for_serialization(self):
         # setting the __init__params attribute
         modified_attrib_keys = (
@@ -2910,16 +2969,9 @@ class Circuit(Subsystem):
             # break down the lagrangian into kinetic and potential part, and rejoin
             # with evaluate=False to force the kinetic terms together and appear first
             lagrangian = sm.Add(
-            (
-                self._make_expr_human_readable(
-                    lagrangian + self.potential_node_vars
-                )
-            ),
-            (
-                self._make_expr_human_readable(-self.potential_node_vars
-                )
-            ),
-            evaluate=False,
+                (self._make_expr_human_readable(lagrangian + self.potential_node_vars)),
+                (self._make_expr_human_readable(-self.potential_node_vars)),
+                evaluate=False,
             )
 
         elif vars_type == "new":
@@ -2933,16 +2985,13 @@ class Circuit(Subsystem):
             # break down the lagrangian into kinetic and potential part, and rejoin
             # with evaluate=False to force the kinetic terms together and appear first
             lagrangian = sm.Add(
-            (
-                self._make_expr_human_readable(
-                    lagrangian + self.potential_symbolic.expand()
-                )
-            ),
-            (
-                self._make_expr_human_readable(-self.potential_symbolic.expand()
-                )
-            ),
-            evaluate=False,
+                (
+                    self._make_expr_human_readable(
+                        lagrangian + self.potential_symbolic.expand()
+                    )
+                ),
+                (self._make_expr_human_readable(-self.potential_symbolic.expand())),
+                evaluate=False,
             )
         if print_latex:
             print(latex(lagrangian))
