@@ -89,6 +89,44 @@ def wavefunction1d(
     return fig, axes
 
 
+def wavefunction1d_nopotential(
+    wavefuncs: Union["WaveFunction", "List[WaveFunction]"],
+    offset: Union[float, Iterable[float]] = 0,
+    **kwargs
+) -> Tuple[Figure, Axes]:
+    """
+    Plots the amplitude of a single real-valued 1d wave function, along with the
+    potential energy if provided.
+
+    Parameters
+    ----------
+    wavefuncs:
+        basis and amplitude data of wave function to be plotted
+    potential_vals:
+        potential energies, array length must match basis array of `wavefunc`
+    offset:
+        y-offset for the wave function (e.g., shift by eigenenergy)
+    scaling:
+        scaling factor for wave function amplitudes
+    **kwargs:
+        standard plotting option (see separate documentation)
+
+    Returns
+    -------
+        matplotlib objects for further editing
+    """
+    fig, axes = kwargs.get("fig_ax") or plt.subplots()
+
+    offset_list = utils.to_list(offset)
+    wavefunc_list: List[WaveFunction] = utils.to_list(wavefuncs)
+
+    for wavefunction, energy_offset in zip(wavefunc_list, offset_list):
+        plot_wavefunction_to_axes(axes, wavefunction, energy_offset, **kwargs)
+
+    _process_options(fig, axes, **kwargs)
+    return fig, axes
+
+
 def wavefunction1d_discrete(wavefunc: "WaveFunction", **kwargs) -> Tuple[Figure, Axes]:
     """
     Plots the amplitude of a real-valued 1d wave function in a discrete basis.
@@ -324,8 +362,11 @@ def matrix_skyscraper(
 
 
 def matrix2d(
-    matrix: np.ndarray, mode: str = "abs", show_numbers: bool = True,
-        show_colorbar: bool = True, **kwargs
+    matrix: np.ndarray,
+    mode: str = "abs",
+    show_numbers: bool = True,
+    show_colorbar: bool = True,
+    **kwargs
 ) -> Tuple[Figure, Axes]:
     """Display a matrix as a color-coded 2d plot, optionally printing the numerical
     values of the matrix elements.
@@ -367,7 +408,11 @@ def matrix2d(
     cax = axes.matshow(modefunction(matrix), cmap=plt.cm.viridis, interpolation=None)
 
     if show_numbers:
-        add_numbers_to_axes(axes, matrix, modefunction)
+        fig_width, fig_height = fig.get_size_inches()
+        box_width_inches = fig_width / matrix.shape[1]
+        box_height_inches = fig_height / matrix.shape[0]
+        font_size = min(box_width_inches, box_height_inches) * 12
+        add_numbers_to_axes(axes, matrix, modefunction, fontsize=font_size)
 
     # shift the grid
     for axis, locs in [

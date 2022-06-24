@@ -322,7 +322,7 @@ class SpectrumLookupMixin(MixinCompatible):
             max_position = (np.abs(overlap_matrix[dressed_index, :])).argmax()
             max_overlap = np.abs(overlap_matrix[dressed_index, max_position])
             if self._ignore_low_overlap or (
-                max_overlap ** 2 > settings.OVERLAP_THRESHOLD
+                max_overlap**2 > settings.OVERLAP_THRESHOLD
             ):
                 overlap_matrix[:, max_position] = 0
                 dressed_indices[int(max_position)] = dressed_index
@@ -586,7 +586,20 @@ class SpectrumLookupMixin(MixinCompatible):
             product_state_list.append(qt.basis(dim, state_index))
         return qt.tensor(*product_state_list)
 
-    def all_params_fixed(self, param_indices) -> bool:
+    def all_params_fixed(self, param_indices: Union[slice, tuple]) -> bool:
+        """
+        Checks whether the indices provided fix all the parameters.
+
+        Parameters
+        ----------
+        param_indices:
+            Tuple or slice fixing all or a subset of the parameters.
+
+        Returns
+        -------
+            True if all parameters are being fixed by `param_indices`.
+
+        """
         if isinstance(param_indices, slice):
             param_indices = (param_indices,)
         return len(self._parameters) == len(param_indices)

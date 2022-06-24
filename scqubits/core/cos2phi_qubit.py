@@ -23,8 +23,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
 from scipy import sparse
-from scipy.sparse.csc import csc_matrix
-from scipy.sparse.dia import dia_matrix
+from scipy.sparse import csc_matrix, dia_matrix
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
@@ -432,8 +431,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     dEJ:
         disorder in junction energy
     flux:
-        external magnetic flux in angular units, 1 corresponds to one flux
-        quantum
+        external magnetic flux in units of one flux quantum
     ng:
         offset charge
     ncut:
@@ -561,14 +559,14 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
             inductive energy renormalized by with disorder"""
-        return self.EL / (1 - self.dL ** 2)
+        return self.EL / (1 - self.dL**2)
 
     def _disordered_ecj(self) -> float:
         """
         Returns
         -------
             junction capacitance energy renormalized by with disorder"""
-        return self.ECJ / (1 - self.dCJ ** 2)
+        return self.ECJ / (1 - self.dCJ**2)
 
     def phi_osc(self) -> float:
         """

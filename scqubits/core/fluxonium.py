@@ -53,12 +53,12 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     EL: float
         inductive energy
     flux: float
-        external magnetic flux in angular units, 2pi corresponds to one flux quantum
+        external magnetic flux in units of one flux quantum
     cutoff: int
         number of harm. osc. basis states used in diagonalization
-    truncated_dim:
+    truncated_dim: int
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
-    id_str:
+    id_str: str
         optional string by which this instance can be referred to in `HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
@@ -131,11 +131,11 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         return (8.0 * self.EC / self.EL) ** 0.25  # LC oscillator length
 
-    def E_plasma(self) -> float:
+    def plasma_energy(self) -> float:
         """
         Returns
         -------
-            Returns the plasma oscillation frequency.
+            Returns the plasma oscillation frequency, sqrt(8*EL*EC).
         """
         return math.sqrt(8.0 * self.EL * self.EC)  # LC plasma oscillation energy
 
@@ -203,7 +203,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """Construct Hamiltonian matrix in harmonic-oscillator basis, following Zhu
         et al., PRB 87, 024510 (2013)"""
         dimension = self.hilbertdim()
-        diag_elements = [(i + 0.5) * self.E_plasma() for i in range(dimension)]
+        diag_elements = [(i + 0.5) * self.plasma_energy() for i in range(dimension)]
         lc_osc_matrix = np.diag(diag_elements)
 
         cos_matrix = self.cos_phi_operator(beta=2 * np.pi * self.flux)

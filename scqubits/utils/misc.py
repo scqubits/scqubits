@@ -66,9 +66,11 @@ def make_bare_labels(subsystem_count: int, *args) -> Tuple[int, ...]:
     *args:
         each argument is a tuple of the form (subsys_index, label)
 
-    Returns ------- Suppose there are 5 subsys_list in total. Let (subsys_index1=0,
-    label1=3), (subsys_index2=2, label2=1). Then the returned bare-state tuple is:
-    (3,0,1,0,0)
+    Returns
+    -------
+        Suppose there are 5 subsys_list in total. Let (subsys_index1=0,
+        label1=3), (subsys_index2=2, label2=1). Then the returned bare-state tuple is:
+        (3,0,1,0,0)
     """
     bare_labels = [0] * subsystem_count
     for subsys_index, label in args:
@@ -309,3 +311,53 @@ def cite(print_info=True):
         return None
     else:
         return fs.getvalue()
+
+
+def is_float_string(the_string: str) -> bool:
+    try:
+        float(the_string)
+        return True
+    except ValueError:
+        return False
+
+
+def list_intersection(list1: list, list2: list) -> list:
+    return list(set(list1) & set(list2))
+
+
+def flatten_list(nested_list):
+    """
+    Flattens a list of lists once, not recursive.
+
+    Parameters
+    ----------
+
+    nested_list:
+        A list of lists, which can hold any class instance.
+
+    Returns
+    -------
+    Flattened list of objects
+    """
+    return functools.reduce(lambda a, b: a + b, nested_list)
+
+
+def flatten_list_recursive(S):
+    """
+    Flattens a list of lists recursively.
+
+    Parameters
+    ----------
+
+    nested_list:
+        A list of lists, which can hold any class instance.
+
+    Returns
+    -------
+    Flattened list of objects
+    """
+    if S == []:
+        return S
+    if isinstance(S[0], list):
+        return flatten_list_recursive(S[0]) + flatten_list_recursive(S[1:])
+    return S[:1] + flatten_list_recursive(S[1:])

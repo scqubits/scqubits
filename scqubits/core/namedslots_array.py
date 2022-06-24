@@ -90,6 +90,20 @@ def idx_for_value(value: Union[int, float, complex], param_vals: ndarray) -> int
 def convert_to_std_npindex(
     index_tuple: ExtIndexTuple, parameters: "Parameters"
 ) -> NpIndexTuple:
+    """
+    converts name-based and value-based indexing to standard numpy indexing
+
+    Parameters
+    ----------
+    index_tuple:
+        the indexing object to be converted
+    parameters:
+        records the parameters associated with the indices
+
+    Returns
+    -------
+        standard numpy index tuple
+    """
     extindex_obj_tuple = tuple(
         ExtIndexObject(entry, parameters, slot=slot_index)
         for slot_index, entry in enumerate(index_tuple)
@@ -433,7 +447,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
     This class implements multi-dimensional arrays, for which the leading M dimensions
     are each associated with a slot name and a corresponding array of slot
     values (float or complex or str). All standard slicing of the multi-dimensional
-    array with integer-valued indices is supported as usual, e.g.
+    array with integer-valued indices is supported as usual, e.g.::
 
         some_array[0, 3:-1, -4, ::2]
 
@@ -447,12 +461,12 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
     element (as measured by the absolute value of the difference for numbers,
     and an exact match for str) in the set of slot values.
 
-    As an example, consider the situation of two named value sets
+    As an example, consider the situation of two named value sets::
 
         values_by_slotname = {'param1': np.asarray([-4.4, -0.1, 0.3, 10.0]),
                               'param2': np.asarray([0.1*1j, 3.0 - 4.0*1j, 25.0])}
 
-    Then, the following are examples of value-based slicing:
+    Then, the following are examples of value-based slicing::
 
         some_array[0.25, 0:2]                   -->     some_array[2, 0:2]
         some_array[-3.0, 0.0:(2.0 - 4.0*1j)]    -->     some_array[0, 0:1]
@@ -460,13 +474,13 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
 
     (2) Name-based slicing
     Sometimes, it is convenient to refer to one of the slots
-    by its name rather than its position within the multiple sets. As an example, let
+    by its name rather than its position within the multiple sets. As an example, let::
 
         values_by_slotname = {'ng': np.asarray([-0.1, 0.0, 0.1, 0.2]),
                              'flux': np.asarray([-1.0, -0.5, 0.0, 0.5, 1.0])}
 
     If we are interested in the slice of `some_array` obtained by setting 'flux' to a
-    value or the value associated with a given index, we can now use:
+    value or the value associated with a given index, we can now use::
 
         some_array['flux':0.5]            -->    some_array[:, 1]
         some_array['flux'::2, 'ng':-1]    -->    some_array[-1, :2]

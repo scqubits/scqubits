@@ -84,17 +84,17 @@ def show_supported_units() -> List[str]:
 def to_standard_units(value: float) -> float:
     r"""
     Converts `value` (a frequency or angular frequency) from currently set system units,
-    to standard units (`[Hz]` or  `2\pi / [s]`).
+    to standard units (Hz or  2pi/s).
 
     Parameters
     ----------
     value: float
         a frequency or angular frequency assumed to be in system units.
+
     Returns
     -------
     float:
-        frequency or angular frequency converted to `[Hz]` or `2pi/[s]
-
+        frequency or angular frequency converted to Hz or 2pi/s
     """
     return value * _units_factor[_current_units]
 

@@ -76,12 +76,14 @@ MATPLOTLIB_WIDGET_BACKEND = "module://ipympl.backend_nbagg"
 _HAS_WIDGET_BACKEND = get_matplotlib_backend() == MATPLOTLIB_WIDGET_BACKEND
 
 
+@utils.Required(ipywidgets=_HAS_IPYWIDGETS)
 def width(pixels: int, justify_content: Optional[str] = None) -> Layout:
     if justify_content:
         return Layout(width=str(pixels) + "px", justify_content=justify_content)
     return Layout(width=str(pixels) + "px")
 
 
+@utils.Required(ipywidgets=_HAS_IPYWIDGETS)
 def boxed(pixels: int = 900) -> Layout:
     return Layout(
         width=str(pixels) + "px",
@@ -91,14 +93,22 @@ def boxed(pixels: int = 900) -> Layout:
     )
 
 
-@utils.Required(ipywidgets=_HAS_IPYWIDGETS)
-class Explorer(ipywidgets.VBox):
-    """Class for setup of Explorer."""
+class Explorer:
+    """
+    Generates the UI for exploring `ParameterSweep` objects.
 
+    Parameters
+    ----------
+    sweep:
+        the `ParameterSweep` object to be visualized.
+    """
+
+    @utils.Required(ipywidgets=_HAS_IPYWIDGETS)
     def __init__(self, sweep: scq.ParameterSweep):
         """Set up all widget GUI elements and class attributes."""
-        super().__init__()
-
+        self.gui_display = ipywidgets.VBox()
+        self.gui_display.layout.width = "100%"
+        self.gui_display.layout.height = "1000px"
         if _HAS_WIDGET_BACKEND and StrictVersion(
             matplotlib.__version__
         ) < StrictVersion("3.5.1"):
@@ -148,22 +158,24 @@ class Explorer(ipywidgets.VBox):
 
         self.ui_main_tab = self.build_ui_main_tab()
         self.ui_hbox["main_display"] = self.build_ui_main_display()
-        self.children = [self.ui_main_tab, self.ui_hbox["main_display"]]
+        self.gui_display.children = [self.ui_main_tab, self.ui_hbox["main_display"]]
+        display(self.gui_display)
 
     def build_figure_and_axes_table(self) -> Tuple[Figure, np.ndarray]:
-        px = 1 / plt.rcParams["figure.dpi"]
+        # the %inline and %widget backends somehow scale differently; try to compensate
         if _HAS_WIDGET_BACKEND:
-            self.figwidth = 800 * px
-            self.figheight = 260 * px
+            self.figwidth = 6.5 * 1.2
+            self.figheight = 2.75 * 1.2
         else:
-            self.figwidth = 600 * px  # compensate for inline backend's scaling
-            self.figheight = 190 * px
+            self.figwidth = 6.5
+            self.figheight = 2.75
 
         plt.ioff()
         fig = plt.figure(figsize=(self.figwidth, self.figheight))
         fig.canvas.toolbar_position = "right"
         fig.canvas.header_visible = False
         fig.canvas.footer_visible = False
+
         plt.ion()
 
         axes_table = np.array([])
@@ -361,7 +373,7 @@ class Explorer(ipywidgets.VBox):
                 HTML("<br>"),
                 self.ui_hbox["panel_settings"],
             ],
-            layout=width(900),
+            layout=Layout(width="100%"),  # width(900),
         )
 
     # +--parameters_panel_left-----+

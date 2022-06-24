@@ -10,6 +10,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
 
 import functools
 import importlib
@@ -27,6 +28,7 @@ from typing import (
     Tuple,
     Union,
     cast,
+    overload,
 )
 
 import numpy as np
@@ -35,7 +37,6 @@ import qutip as qt
 from numpy import ndarray
 from qutip.qobj import Qobj
 from scipy.sparse import csc_matrix, dia_matrix
-from typing_extensions import overload
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
@@ -558,11 +559,13 @@ class HilbertSpace(
     def generate_lookup(self) -> None:
         bare_evals = np.empty((self.subsystem_count,), dtype=object)
         bare_evecs = np.empty((self.subsystem_count,), dtype=object)
+        bare_esys_dict = {}
 
         dummy_params = self._parameters.paramvals_by_name
 
         for subsys_index, subsys in enumerate(self):
             bare_esys = subsys.eigensys(evals_count=subsys.truncated_dim)
+            bare_esys_dict[subsys_index] = bare_esys
             bare_evals[subsys_index] = NamedSlotsNdarray(
                 np.asarray([bare_esys[0].tolist()]),
                 self._parameters.paramvals_by_name,
@@ -578,7 +581,9 @@ class HilbertSpace(
             bare_evecs, {"subsys": np.arange(self.subsystem_count)}
         )
 
-        evals, evecs = self.eigensys(evals_count=self.dimension)
+        evals, evecs = self.eigensys(
+            evals_count=self.dimension, bare_esys=bare_esys_dict
+        )
         # The following workaround ensures that eigenvectors maintain QutipEigenstates
         # view when getting placed inside an outer array
         evecs_wrapped = np.empty(shape=1, dtype=object)

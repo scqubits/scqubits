@@ -111,6 +111,7 @@ mpl.rcParams["font.sans-serif"] = "Roboto, Arial, Helvetica, DejaVu Sans"
 # mpl.rcParams["figure.dpi"] = 150
 mpl.rcParams["font.size"] = 11
 mpl.rcParams["axes.labelsize"] = 11
+mpl.rcParams["axes.titlesize"] = 11
 mpl.rcParams["xtick.labelsize"] = 10
 mpl.rcParams["ytick.labelsize"] = 10
 

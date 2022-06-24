@@ -21,8 +21,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
 from scipy import sparse
-from scipy.sparse.csc import csc_matrix
-from scipy.sparse.dia import dia_matrix
+from scipy.sparse import csc_matrix, dia_matrix
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.constants as constants
@@ -47,7 +46,7 @@ class NoisyZeroPi(NoisySystem):
     pass
 
 
-# -Symmetric 0-pi qubit, phi discretized, theta in charge basis---------------------------------------------------------
+# -Symmetric 0-pi qubit, phi discretized, theta in charge basis-------------------------
 
 
 class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
@@ -57,7 +56,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     | [2] Dempster et al., Phys. Rev. B, 90, 094518 (2014). http://doi.org/10.1103/PhysRevB.90.094518
     | [3] Groszkowski et al., New J. Phys. 20, 043053 (2018). https://doi.org/10.1088/1367-2630/aab7cd
 
-    Zero-Pi qubit without coupling to the `zeta` mode, i.e., no disorder in `EC` and 
+    Zero-Pi qubit without coupling to the `zeta` mode, i.e., no disorder in `EC` and
     `EL`, see Eq. (4) in Groszkowski et al., New J. Phys. 20, 043053 (2018),
 
     .. math::
@@ -67,7 +66,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
                -2E_\text{J}\cos\theta\cos(\phi-\varphi_\text{ext}/2)+E_L\phi^2\\
           &\qquad +2E_\text{J} + E_J dE_J \sin\theta\sin(\phi-\phi_\text{ext}/2).
 
-    Formulation of the Hamiltonian matrix proceeds by discretization of the `phi` 
+    Formulation of the Hamiltonian matrix proceeds by discretization of the `phi`
     variable, and using charge basis for the `theta` variable.
 
     Parameters
@@ -79,7 +78,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     ECJ:
         charging energy associated with the two junctions
     EC:
-        charging energy of the large shunting capacitances; set to `None` if `ECS` is 
+        charging energy of the large shunting capacitances; set to `None` if `ECS` is
         provided instead
     dEJ:
         relative disorder in EJ, i.e., (EJ1-EJ2)/EJavg
@@ -94,7 +93,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     ncut:
         charge number cutoff for `n_theta`,  `n_theta = -ncut, ..., ncut`
     ECS:
-        total charging energy including large shunting capacitances and junction 
+        total charging energy including large shunting capacitances and junction
         capacitances; may be provided instead of EC
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
@@ -273,7 +272,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         """
         return (
             -2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0)
-            + self.EL * phi ** 2
+            + self.EL * phi**2
             + 2.0 * self.EJ
             + self.EJ
             * self.dEJ
