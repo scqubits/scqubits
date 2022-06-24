@@ -2570,6 +2570,7 @@ class Circuit(Subsystem):
             "nodes",
             "offset_charges",
             "potential_symbolic",
+            "potential_node_vars",
             "symbolic_params",
             "transformation_matrix",
             "var_categories",
@@ -2759,6 +2760,7 @@ class Circuit(Subsystem):
             "nodes",
             "offset_charges",
             "potential_symbolic",
+            "potential_node_vars",
             "symbolic_params",
             "transformation_matrix",
             "var_categories",
@@ -2898,22 +2900,50 @@ class Circuit(Subsystem):
         Human readable form of the Lagrangian
         """
         if vars_type == "node":
-            lagrangian = self._make_expr_human_readable(self.lagrangian_node_vars)
+            lagrangian = self.lagrangian_node_vars
             # replace v\theta with \theta_dot
             for var_index in range(1, 1 + len(self.symbolic_circuit.nodes)):
                 lagrangian = lagrangian.replace(
                     sm.symbols(f"vφ{var_index}"),
                     sm.symbols("\\dot{φ_" + str(var_index) + "}"),
                 )
+            # break down the lagrangian into kinetic and potential part, and rejoin
+            # with evaluate=False to force the kinetic terms together and appear first
+            lagrangian = sm.Add(
+            (
+                self._make_expr_human_readable(
+                    lagrangian + self.potential_node_vars
+                )
+            ),
+            (
+                self._make_expr_human_readable(-self.potential_node_vars
+                )
+            ),
+            evaluate=False,
+            )
 
         elif vars_type == "new":
-            lagrangian = self._make_expr_human_readable(self.lagrangian_symbolic)
+            lagrangian = self.lagrangian_symbolic
             # replace v\theta with \theta_dot
             for var_index in self.var_categories_list:
                 lagrangian = lagrangian.replace(
                     sm.symbols(f"vθ{var_index}"),
                     sm.symbols("\\dot{θ_" + str(var_index) + "}"),
                 )
+            # break down the lagrangian into kinetic and potential part, and rejoin
+            # with evaluate=False to force the kinetic terms together and appear first
+            lagrangian = sm.Add(
+            (
+                self._make_expr_human_readable(
+                    lagrangian + self.potential_symbolic.expand()
+                )
+            ),
+            (
+                self._make_expr_human_readable(-self.potential_symbolic.expand()
+                )
+            ),
+            evaluate=False,
+            )
         if print_latex:
             print(latex(lagrangian))
         return lagrangian

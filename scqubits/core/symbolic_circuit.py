@@ -302,6 +302,7 @@ class SymbolicCircuit(serializers.Serializable):
         self.lagrangian_node_vars: Optional[sympy.Expr] = None
         # symbolic expression for potential energy
         self.potential_symbolic: Optional[sympy.Expr] = None
+        self.potential_node_vars: Optional[sympy.Expr] = None
 
         # parameters for grounding the circuit
         self.ground_node = ground_node
@@ -364,6 +365,7 @@ class SymbolicCircuit(serializers.Serializable):
             self._lagrangian_symbolic,
             self.potential_symbolic,
             self.lagrangian_node_vars,
+            self.potential_node_vars,
         ) = self.generate_symbolic_lagrangian()
 
         # replacing energies with capacitances in the kinetic energy of the Lagrangian
@@ -1576,11 +1578,11 @@ class SymbolicCircuit(serializers.Serializable):
 
     def generate_symbolic_lagrangian(
         self,
-    ) -> Tuple[sympy.Expr, sympy.Expr, sympy.Expr]:
+    ) -> Tuple[sympy.Expr, sympy.Expr, sympy.Expr, sympy.Expr]:
         r"""
-        Returns three symbolic expressions: lagrangian_θ, potential_θ, lagrangian_φ
-        where θ represents the set of new variables and φ represents the set of node
-        variables
+        Returns four symbolic expressions: lagrangian_θ, potential_θ, lagrangian_φ,
+        potential_φ, where θ represents the set of new variables and φ represents 
+        the set of node variables
         """
         transformation_matrix = (
             self.transformation_matrix
@@ -1640,7 +1642,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         lagrangian_θ = C_terms_θ - potential_θ
 
-        return lagrangian_θ, potential_θ, lagrangian_φ
+        return lagrangian_θ, potential_θ, lagrangian_φ, potential_φ 
 
     def generate_symbolic_hamiltonian(self, substitute_params=False) -> sympy.Expr:
         r"""
