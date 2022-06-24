@@ -500,11 +500,21 @@ class SymbolicCircuit(serializers.Serializable):
 
             if node_id1 == 0:
                 branches.append(
-                    Branch(ground_node, nodes[node_id2 - 1], branch_type, parameters,)
+                    Branch(
+                        ground_node,
+                        nodes[node_id2 - 1],
+                        branch_type,
+                        parameters,
+                    )
                 )
             elif node_id2 == 0:
                 branches.append(
-                    Branch(nodes[node_id1 - 1], ground_node, branch_type, parameters,)
+                    Branch(
+                        nodes[node_id1 - 1],
+                        ground_node,
+                        branch_type,
+                        parameters,
+                    )
                 )
             else:
                 branches.append(
@@ -919,7 +929,7 @@ class SymbolicCircuit(serializers.Serializable):
         modes = []  # starting with an empty list
 
         for m in (
-            frozen_modes + free_modes + periodic_modes  + LC_modes  # + extended_modes
+            frozen_modes + free_modes + periodic_modes + LC_modes  # + extended_modes
         ):  # This order is important
             mat = np.array(modes + [m])
             if np.linalg.matrix_rank(mat) == len(mat):
@@ -1517,8 +1527,8 @@ class SymbolicCircuit(serializers.Serializable):
         # get all the branches of the paths from the two nodes to the root, after the last
         # shared ancestor, and the closure branch itself
         loop = (
-            path_1[sub_gen_last_same_ancestor+1:]
-            + path_2[sub_gen_last_same_ancestor+1:]
+            path_1[sub_gen_last_same_ancestor + 1 :]
+            + path_2[sub_gen_last_same_ancestor + 1 :]
             + [closure_branch]
         )
         return loop
@@ -1580,9 +1590,10 @@ class SymbolicCircuit(serializers.Serializable):
                 0
             ] * 0.5  # in terms of node variables
             C_terms_θ = (
-                (sympy.Matrix(φ_dot_vars_θ).T * C_mat * sympy.Matrix(φ_dot_vars_θ))[0]
-                * 0.5
-            )  # in terms of new variables
+                sympy.Matrix(φ_dot_vars_θ).T * C_mat * sympy.Matrix(φ_dot_vars_θ)
+            )[
+                0
+            ] * 0.5  # in terms of new variables
 
         inductor_terms_φ = self._inductor_terms()
 
@@ -1640,7 +1651,8 @@ class SymbolicCircuit(serializers.Serializable):
                 * self._capacitance_matrix()
                 * transformation_matrix
             )[
-                0 : num_nodes - num_frozen_modes, 0 : num_nodes - num_frozen_modes,
+                0 : num_nodes - num_frozen_modes,
+                0 : num_nodes - num_frozen_modes,
             ].inv()  # excluding the frozen modes
         else:
             C_mat_θ = np.linalg.inv(
@@ -1649,7 +1661,8 @@ class SymbolicCircuit(serializers.Serializable):
                     @ self._capacitance_matrix(substitute_params=substitute_params)
                     @ transformation_matrix
                 )[
-                    0 : num_nodes - num_frozen_modes, 0 : num_nodes - num_frozen_modes,
+                    0 : num_nodes - num_frozen_modes,
+                    0 : num_nodes - num_frozen_modes,
                 ]
             )  # excluding the frozen modes
 

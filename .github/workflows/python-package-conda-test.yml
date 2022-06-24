@@ -32,7 +32,7 @@ jobs:
     - name: Attempt scqubits import
       run: python -c 'import scqubits'
     - name: Install optional dependencies
-      run: conda install --file optional-requirements.txt
+      run: conda install --file optional-requirements.txt -c conda-forge
     - name: Test with pytest
       run: |
         conda install pytest
