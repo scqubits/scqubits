@@ -1505,7 +1505,7 @@ class SymbolicCircuit(serializers.Serializable):
         if tree == []:
             closure_branches = []
         else:
-            closure_branches = list(set(superconducting_loop_branches) - set(tree))
+            closure_branches = [branch for branch in superconducting_loop_branches if branch not in tree]
         return closure_branches
 
     def _find_path_to_root(
