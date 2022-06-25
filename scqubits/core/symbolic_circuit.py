@@ -914,7 +914,7 @@ class SymbolicCircuit(serializers.Serializable):
                 var_categories_user[mode_type]
             )
             if num_extra_modes > 0 and enable_warnings:
-                enable_warnings.warn(
+                warnings.warn(
                     "Number of extra "
                     + mode_type
                     + " modes found: "

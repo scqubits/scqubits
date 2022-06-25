@@ -14,6 +14,7 @@ import functools
 import itertools
 import re
 import operator
+import warnings
 
 from types import MethodType
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -2838,6 +2839,11 @@ class Circuit(Subsystem):
         ]
         for attr in required_attributes:
             setattr(self, attr, getattr(self.symbolic_circuit, attr))
+
+        if self.is_purely_harmonic:
+            if self.ext_basis != "harmonic":
+                warnings.warn("Purely harmonic circuits need ext_basis to be set to 'harmonic'")
+                self.ext_basis = "harmonic"
 
         # initiating the class properties
         if not hasattr(self, "cutoff_names"):
