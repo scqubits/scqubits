@@ -90,3 +90,25 @@ def test_eigenvals_discretized():
     eigs = DFC.eigenvals()
     generated_eigs = eigs - eigs[0]
     assert np.allclose(generated_eigs, ref_eigs)
+
+
+def test_harmonic_oscillator():
+    lc_yaml = """# LC circuit
+branches:
+- [L, 0, 1, 1]
+- [C, 0, 2, 2]
+- [L, 0, 3, 4.56]
+- [C, 2, 3, 40]
+- [C, 2, 1, EJ=40]
+- [C, 4, 1, 10]
+- [L, 4, 2, 10]
+"""
+    circ = scq.Circuit(
+        lc_yaml, from_file=False, initiate_sym_calc=True, ext_basis="harmonic"
+    )
+    circ.EJ = 0.01
+    eigs_ref = np.array(
+        [0.0, 0.0, 0.0, 3.91284084443771, 7.82568168887542, 11.7385225333131]
+    )
+    eigs_test = circ.eigenvals()
+    assert np.allclose(eigs_test, eigs_ref)

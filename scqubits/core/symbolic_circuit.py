@@ -17,6 +17,7 @@ from symtable import Symbol
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
+import scipy as sp
 import scqubits.io_utils.fileio_serializers as serializers
 import sympy
 import yaml
@@ -323,6 +324,22 @@ class SymbolicCircuit(serializers.Serializable):
     def is_any_branch_parameter_symbolic(self):
         return True if len(self.symbolic_params) > 0 else False
 
+    def purely_harmonic_transformation(self) -> Tuple[ndarray, ndarray]:
+        c_mat = self._capacitance_matrix(substitute_params=True)
+        l_mat = self._inductance_matrix(substitute_params=True)
+        normal_mode_freqs, normal_mode_vecs = sp.linalg.eig(l_mat, c_mat)
+        # rearranging the vectors
+        idx = normal_mode_freqs.argsort()[::-1]
+        normal_mode_freqs = np.round(normal_mode_freqs[idx], 10)
+        normal_mode_vecs = normal_mode_vecs[:, idx]
+
+        return (
+            np.real(
+                np.sqrt([freq for freq in normal_mode_freqs if not np.isinf(freq)])
+            ),
+            normal_mode_vecs,
+        )
+
     def configure(
         self,
         transformation_matrix: ndarray = None,
@@ -340,10 +357,22 @@ class SymbolicCircuit(serializers.Serializable):
         closure_branches:
             List of branches for which the external flux variables will be defined.
         """
+        # if the circuit is purely harmonic, then store the eigenfrequencies
+        branch_type_list = [branch.type for branch in self.branches]
+        self.is_purely_harmonic = (
+            "JJ" not in branch_type_list and "JJ2" not in branch_type_list
+        )
+
+        if self.is_purely_harmonic:
+            (
+                self.normal_mode_freqs,
+                transformation_matrix,
+            ) = self.purely_harmonic_transformation()
+
         # if the user provides a transformation matrix
         if transformation_matrix is not None:
             self.var_categories = self.check_transformation_matrix(
-                transformation_matrix
+                transformation_matrix, enable_warnings=not self.is_purely_harmonic
             )
             self.transformation_matrix = transformation_matrix
         # calculate the transformation matrix and identify the boundary conditions if
@@ -667,6 +696,11 @@ class SymbolicCircuit(serializers.Serializable):
                 else:
                     node.marker = node_set_index + 1
 
+        # marking ground nodes seperately
+        for node in nodes_copy:
+            if node.is_ground():
+                node.marker = -1
+
         node_branch_set_indices = [
             node.marker for node in nodes_copy
         ]  # identifies which node belongs to which maximum connected subgraphs;
@@ -744,7 +778,9 @@ class SymbolicCircuit(serializers.Serializable):
         matrix = np.vstack([subspace, np.array(mode)])
         return np.linalg.matrix_rank(matrix) == len(subspace)
 
-    def check_transformation_matrix(self, transformation_matrix: ndarray):
+    def check_transformation_matrix(
+        self, transformation_matrix: ndarray, enable_warnings: bool = True
+    ):
         """
         Method to identify the different modes in the transformation matrix provided by
         the user.
@@ -754,6 +790,9 @@ class SymbolicCircuit(serializers.Serializable):
         transformation_matrix:
             numpy ndarray which is a square matrix having the dimensions of the number
             of nodes present in the circuit.
+        warnings:
+            If False, will not raise the warnings regarding any unidentified modes. It
+            is set to True by default.
 
         Returns
         -------
@@ -788,8 +827,9 @@ class SymbolicCircuit(serializers.Serializable):
         # ******************* including the Σ mode ****************
         Σ = [1] * len(self.nodes)
         if not self.is_grounded:  # only append if the circuit is not grounded
+            mat = np.array(frozen_modes + [Σ])
             # check to see if the vectors are still independent
-            if self._mode_in_subspace(Σ, frozen_modes):
+            if np.linalg.matrix_rank(mat) < len(frozen_modes) + 1:
                 frozen_modes = frozen_modes[1:] + [Σ]
             else:
                 frozen_modes.append(Σ)
@@ -873,8 +913,8 @@ class SymbolicCircuit(serializers.Serializable):
             num_extra_modes = len(var_categories_circuit[mode_type]) - len(
                 var_categories_user[mode_type]
             )
-            if num_extra_modes > 0:
-                warnings.warn(
+            if num_extra_modes > 0 and enable_warnings:
+                enable_warnings.warn(
                     "Number of extra "
                     + mode_type
                     + " modes found: "
@@ -1038,6 +1078,12 @@ class SymbolicCircuit(serializers.Serializable):
             if param_name == param.name:
                 self.symbolic_params[param] = value
                 break
+        if self.is_purely_harmonic:
+            (
+                self.normal_mode_freqs,
+                self.transformation_matrix,
+            ) = self.purely_harmonic_transformation()
+            self.configure()
 
     def _junction_terms(self):
         terms = 0
@@ -1292,27 +1338,27 @@ class SymbolicCircuit(serializers.Serializable):
 
     def _spanning_tree(self):
         r"""
-        Returns a spanning tree (as a list of branches) for the given instance. Notice that 
+        Returns a spanning tree (as a list of branches) for the given instance. Notice that
         if the circuit contains multiple capacitive islands, the returned spanning tree will
         not include the capacitive twig between two capacitive islands.
 
-        This function also returns all the branches that form superconducting loops, and a 
+        This function also returns all the branches that form superconducting loops, and a
         list of lists of nodes (node_sets), which keeps the generation info for nodes, e.g.,
         for the following spanning tree:
-        
+
                    /---Node(2)
         Node(1)---'
                    '---Node(3)---Node(4)
-        
+
         has the node_sets returned as [[Node(1)], [Node(2),Node(3)], [Node(4)]]
 
         Returns
         -------
             A spanning tree as a list of branches, which does not include capacitor branches,
-            a list of branches that forms superconducting loops, and a list of lists of nodes 
+            a list of branches that forms superconducting loops, and a list of lists of nodes
             (node_sets), which keeps the generation info for nodes of branches on the path.
         """
-        
+
         # making a deep copy to make sure that the original instance is unaffected
         circ_copy = SymbolicCircuit.from_yaml(
             self.input_string, from_file=False, initiate_sym_calc=False
@@ -1471,7 +1517,7 @@ class SymbolicCircuit(serializers.Serializable):
         (generation) between the input node and the root node. The root of the spanning
         tree is node 0 if there is a physical ground node, otherwise it is node 1.
 
-        Notice that the branches that sit on the boundaries of capacitive islands are 
+        Notice that the branches that sit on the boundaries of capacitive islands are
         not included in the branch list.
 
         Parameters
@@ -1581,7 +1627,7 @@ class SymbolicCircuit(serializers.Serializable):
     ) -> Tuple[sympy.Expr, sympy.Expr, sympy.Expr, sympy.Expr]:
         r"""
         Returns four symbolic expressions: lagrangian_θ, potential_θ, lagrangian_φ,
-        potential_φ, where θ represents the set of new variables and φ represents 
+        potential_φ, where θ represents the set of new variables and φ represents
         the set of node variables
         """
         transformation_matrix = (
@@ -1642,7 +1688,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         lagrangian_θ = C_terms_θ - potential_θ
 
-        return lagrangian_θ, potential_θ, lagrangian_φ, potential_φ 
+        return lagrangian_θ, potential_θ, lagrangian_φ, potential_φ
 
     def generate_symbolic_hamiltonian(self, substitute_params=False) -> sympy.Expr:
         r"""

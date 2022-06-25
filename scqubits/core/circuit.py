@@ -25,7 +25,6 @@ import scqubits as scq
 
 from scqubits.io_utils.fileio_serializers import dict_deserialize, dict_serialize
 
-import scqubits.core.constants as constants
 import scqubits.core.discretization as discretization
 import scqubits.core.oscillator as osc
 import scqubits.core.qubit_base as base
@@ -196,6 +195,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         else:
             self.type_of_matrices = "sparse"
 
+        # needs to be included to make sure that plot_evals_vs_paramvals works
+        self._init_params = []
+
+        # Creating the=is attribute to be used in future
+        self.is_purely_harmonic = False
+
         self._configure()
 
     @staticmethod
@@ -257,12 +262,21 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         # update the attribute for the current instance
         setattr(self, f"_{param_name}", value)
+
         # update the attribute for the instance in symboliccircuit
-        if not self.is_child and len(self.symbolic_circuit.nodes) > 3:
+        if (
+            not self.is_child and len(self.symbolic_circuit.nodes) > 3
+        ) or self.is_purely_harmonic:
             self.symbolic_circuit.update_param_init_val(param_name, value)
             self._regenerate_sym_hamiltonian()
 
         # update Circuit instance
+
+        # if purely harmonic the cirucit attributes should change
+        if self.is_purely_harmonic and isinstance(self, Circuit):
+            self.potential_symbolic = self.symbolic_circuit.potential_symbolic
+            self.transformation_matrix = self.symbolic_circuit.transformation_matrix
+
         # generate _hamiltonian_sym_for_numerics if not already generated, delayed for
         # large circuits
         if self.hierarchical_diagonalization:
@@ -1462,7 +1476,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     hamiltonian
                     - ECi * 4 * sm.symbols(f"Q{var_index}") ** 2
                     - ELi / 2 * sm.symbols(f"θ{var_index}") ** 2
-                    + osc_freq * (sm.symbols("Nh" + str(var_index)))
+                    + osc_freq
+                    * (sm.symbols("Nh" + str(var_index)) + 0.5 * sm.symbols("I"))
                 )
                 .cancel()
                 .expand()
@@ -1549,7 +1564,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         return eval(H_LC_str, replacement_dict) + junction_potential_matrix
 
-    def _eigensys_for_purely_harmonic(self, evals_count: int):
+    def _eigenvals_for_purely_harmonic(self, evals_count: int):
         """
         Returns Hamiltonian for purely harmonic circuits. Hierarchical diagonalization
         is disabled for such circuits.
@@ -1559,56 +1574,24 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         evals_count : int
             Number of eigenenergies
         """
-        inductance_matrix = self.symbolic_circuit._inductance_matrix()
-        capacitance_matrix = self.symbolic_circuit._capacitance_matrix()
-
-        # transforming the matrix to new coordinates
-        inductance_matrix = (
-            self.transformation_matrix.T
-            @ inductance_matrix
-            @ self.transformation_matrix
-        )
-        capacitance_matrix = (
-            self.transformation_matrix.T
-            @ capacitance_matrix
-            @ self.transformation_matrix
-        )
-        # truncating the matrices to remove frozen and cyclic modes
-        number_of_non_dynamical_modes = (
-            len(self.var_categories["frozen"]) + len(self.var_categories["free"]) + 1
-            if not self.symbolic_circuit.is_grounded
-            else 0
-        )
-        # the last step in the above command is to add sigma mode
-        inductance_matrix = inductance_matrix[
-            :-number_of_non_dynamical_modes, :-number_of_non_dynamical_modes
-        ]
-        capacitance_matrix = capacitance_matrix[
-            :-number_of_non_dynamical_modes, :-number_of_non_dynamical_modes
-        ]
-
-        # find all the frequencies
-        eigen_freqs, eigen_vecs = sp.linalg.eigh(
-            np.linalg.inv(capacitance_matrix) @ inductance_matrix,
-            subset_by_index=(0, len(self.var_categories["extended"]) - 1),
-        )
+        normal_mode_freqs = np.real(self.symbolic_circuit.normal_mode_freqs)
 
         evals_collect = []
-        for freq in eigen_freqs:
+        for freq in [mode_freq for mode_freq in normal_mode_freqs if mode_freq != 0]:
             evals_collect += [freq * n for n in range(evals_count)]
         evals_collect.sort()
-        # storing the eigen frequencies
-        self.osc_freqs = eigen_freqs
 
-        return evals_collect[:evals_count], eigen_vecs
+        return evals_collect[:evals_count]
 
     def _hamiltonian_for_purely_harmonic_circuit(self):
         """
         Returns the diagonal hamiltonian
         """
-        eigen_freqs, _ = self._eigensys_for_purely_harmonic()
+        eigen_freqs = self._eigenvals_for_purely_harmonic(evals_count=self.hilbertdim())
 
-        return sparse.identity(eigen_freqs, format="csc")
+        return sparse.dia_matrix(
+            (eigen_freqs, [0]), shape=(len(eigen_freqs), len(eigen_freqs))
+        ).tocsc()
 
     def hamiltonian(self) -> Union[csc_matrix, ndarray]:
         """
@@ -1616,12 +1599,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
 
         if not self.hierarchical_diagonalization:
-            if self.ext_basis == "harmonic":
+            if isinstance(self, Circuit) and self.is_purely_harmonic:
+                return self._hamiltonian_for_purely_harmonic_circuit()
+            elif self.ext_basis == "harmonic":
                 return self._hamiltonian_for_harmonic_extended_vars()
             elif self.ext_basis == "discretized":
                 return self._hamiltonian_for_discretized_extended_vars()
-            elif isinstance(self, Circuit) and self.is_purely_harmonic:
-                return self._hamiltonian_for_purely_harmonic_circuit()
 
         else:
             bare_esys = {
@@ -1639,8 +1622,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         hilbertdim = self.hilbertdim()
 
         if isinstance(self, Circuit) and self.is_purely_harmonic:
-            evals, _ = self._eigensys_for_purely_harmonic(evals_count=evals_count)
-            return evals
+            return self._eigenvals_for_purely_harmonic(evals_count=evals_count)
 
         hamiltonian_mat = self.hamiltonian()
         if self.type_of_matrices == "sparse":
@@ -1660,7 +1642,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
 
         if isinstance(self, Circuit) and self.is_purely_harmonic:
-            return self._eigensys_for_purely_harmonic(evals_count=evals_count)
+            return (
+                self._evals_calc(evals_count=evals_count),
+                np.identity(self.hilbertdim())[:, 0:evals_count],
+            )
 
         # dimension of the hamiltonian
         hilbertdim = self.hilbertdim()
@@ -2213,7 +2198,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         # checking to see if eigensys needs to be generated
         if eigensys is None:
-            _, wfs = self.eigensys()
+            evals_count = 6 if which < 6 else which
+            _, wfs = self.eigensys(evals_count= which+1)
         else:
             _, wfs = eigensys
 
@@ -2606,6 +2592,9 @@ class Circuit(Subsystem):
             if attrib not in configure_attribs + ["closure_branches_data"]:
                 setattr(self, attrib, _modified_attributes[attrib])
 
+        # needs to be included to make sure that plot_evals_vs_paramvals works
+        self._init_params = []
+
     def from_yaml(
         input_string: str,
         from_file: bool = True,
@@ -2787,7 +2776,9 @@ class Circuit(Subsystem):
         subsystem_trunc_dims = subsystem_trunc_dims or self.subsystem_trunc_dims
         closure_branches = closure_branches or self.closure_branches
         if transformation_matrix is None:
-            if hasattr(self, "transformation_matrix"):
+            if hasattr(
+                self, "transformation_matrix"
+            ):  # checking to see if configure is being called outside of init
                 transformation_matrix = self.transformation_matrix
 
         self.hierarchical_diagonalization = (
@@ -2797,12 +2788,6 @@ class Circuit(Subsystem):
         self.symbolic_circuit.configure(
             transformation_matrix=transformation_matrix,
             closure_branches=closure_branches,
-        )
-
-        # checking to see if the system is purely harmonic
-        branch_type_list = [branch.type for branch in self.symbolic_circuit.branches]
-        self.is_purely_harmonic: bool = (
-            "JJ" not in branch_type_list and "JJ2" not in branch_type_list
         )
 
         # copying all the required attributes
@@ -2823,6 +2808,7 @@ class Circuit(Subsystem):
             "symbolic_params",
             "transformation_matrix",
             "var_categories",
+            "is_purely_harmonic",
         ]
         for attr in required_attributes:
             setattr(self, attr, getattr(self.symbolic_circuit, attr))
@@ -2850,7 +2836,6 @@ class Circuit(Subsystem):
 
         # default values for the parameters
         for idx, param in enumerate(self.symbolic_params):
-            # if harmonic oscillator basis is used, param vars become class properties.
             if not hasattr(self, param.name):
                 self._make_property(
                     param.name, self.symbolic_params[param], "update_param_vars"
@@ -2890,10 +2875,13 @@ class Circuit(Subsystem):
             )
 
         if system_hierarchy is not None:
+            if self.is_purely_harmonic:
+                raise Exception(
+                    "Hierarchical diagonalization cannot be used when the circuit is purely harmonic."
+                )
             self.hierarchical_diagonalization = (
                 system_hierarchy != []
                 and system_hierarchy != flatten_list_recursive(system_hierarchy)
-                and not self.is_purely_harmonic  # no HD for purely harmonic case
             )
 
         if not self.hierarchical_diagonalization:
