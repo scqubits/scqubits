@@ -29,6 +29,7 @@ circ.cutoff_n_1 = 10
 circ.cutoff_ext_2 = 40
 circ.cutoff_ext_3 = 40
 
+
 def test_plot_wf():
     circ.plot_wavefunction(which=0, var_indices=(2, 3))
 
