@@ -1305,7 +1305,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             identity wrapped operator.
         """
         if not self.hierarchical_diagonalization:
-            return qt.Qobj(operator)
+            return qt.Qobj(self._kron_operator(operator, var_index))
 
         subsystem_index = self.get_subsystem_index(var_index)
         subsystem = self.subsystems[subsystem_index]
@@ -2622,6 +2622,23 @@ class Circuit(Subsystem):
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
 
+    def set_discretized_phi_range(self, var_indices: Tuple[int], phi_range: Tuple[float]) -> None:
+        """
+        Sets the flux range for discretized phi basis when ext_basis is set to 'discretized'. 
+
+        Parameters
+        ----------
+        var_index : Union[int, List[int]]
+            var_index or list of var_indices
+        """
+        if self.ext_basis != "discretized":
+            raise Exception("Discretized phi range is only used when ext_basis is set to 'discretized'.")
+        for var_index in var_indices:
+            if var_index not in self.var_categories["extended"]:
+                raise Exception(f"Variable index {var_index}, is not an extended variable.")
+            self.discretized_phi_range[var_index] = phi_range
+        self.operators_by_name = self.set_operators()
+        
     def from_yaml(
         input_string: str,
         from_file: bool = True,
