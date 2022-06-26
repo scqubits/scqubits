@@ -1043,29 +1043,17 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             )
         else:
             junction_potential_matrix = (
-                qt.tensor(
-                    [
-                        qt.identity(self.cutoffs_dict()[var_index] * 2 + 1)
-                        for var_index in self.var_categories["periodic"]
-                    ]
-                    + [
-                        qt.identity(self.cutoffs_dict()[var_index])
-                        for var_index in self.var_categories["extended"]
-                    ]
-                )
+                qt.identity(self.hilbertdim())
                 * 0
             )
-
+            
         if (
             isinstance(junction_potential, (int, float))
             or len(junction_potential.free_symbols) == 0
         ):
             return junction_potential_matrix
 
-        operator_dict = {}
-        all_var_indices = (
-            self.var_categories["periodic"] + self.var_categories["extended"]
-        )
+        operator_list = []
 
         for cos_term in junction_potential.as_ordered_terms():
             coefficient = float(list(cos_term.as_coefficients_dict().values())[0])
@@ -1079,17 +1067,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 for var_symbol in cos_argument_expr.free_symbols
             ]
 
-            for var_index in all_var_indices:
-                if var_index in var_indices:
-                    continue
-                if var_index in self.var_categories["periodic"]:
-                    operator_dict[var_index] = qt.identity(
-                        self.cutoffs_dict()[var_index] * 2 + 1
-                    )
-                if var_index in self.var_categories["extended"]:
-                    operator_dict[var_index] = qt.identity(
-                        self.cutoffs_dict()[var_index]
-                    )
             # removing any constant terms
             for term in cos_argument_expr.as_ordered_terms():
                 if len(term.free_symbols) == 0:
@@ -1098,24 +1075,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
             for idx, var_symbol in enumerate(cos_argument_expr.free_symbols):
                 prefactor = float(cos_argument_expr.coeff(var_symbol))
-                operator_dict[
-                    get_trailing_number(var_symbol.name)
-                ] = self.identity_wrap_for_hd(
+                operator_list.append(self.identity_wrap_for_hd(
                     self.exp_i_pos_operator(var_symbol, prefactor), var_indices[idx]
-                )
-
-            operator_list = [
-                operator_dict[key]
-                for key in (
-                    all_var_indices
-                    if not self.hierarchical_diagonalization
-                    else var_indices
-                )
-            ]
+                ))
 
             cos_term_operator = coefficient * functools.reduce(
-                operator.mul if self.hierarchical_diagonalization else qt.tensor,
-                operator_list,
+                operator.mul, operator_list,
             )
 
             junction_potential_matrix += (
