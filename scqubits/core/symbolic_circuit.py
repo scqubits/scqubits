@@ -1596,8 +1596,8 @@ class SymbolicCircuit(serializers.Serializable):
         # get all the branches of the paths from the two nodes to the root, after the last
         # shared ancestor, and the closure branch itself
         loop = (
-            path_1[sub_gen_last_same_ancestor + 1 :]
-            + path_2[sub_gen_last_same_ancestor + 1 :]
+            path_1[sub_gen_last_same_ancestor :]
+            + path_2[sub_gen_last_same_ancestor :]
             + [closure_branch]
         )
         return loop
