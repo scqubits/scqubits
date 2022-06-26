@@ -1042,11 +1042,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 * 0
             )
         else:
-            junction_potential_matrix = (
-                qt.identity(self.hilbertdim())
-                * 0
-            )
-            
+            junction_potential_matrix = qt.identity(self.hilbertdim()) * 0
+
         if (
             isinstance(junction_potential, (int, float))
             or len(junction_potential.free_symbols) == 0
@@ -1075,12 +1072,15 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
             for idx, var_symbol in enumerate(cos_argument_expr.free_symbols):
                 prefactor = float(cos_argument_expr.coeff(var_symbol))
-                operator_list.append(self.identity_wrap_for_hd(
-                    self.exp_i_pos_operator(var_symbol, prefactor), var_indices[idx]
-                ))
+                operator_list.append(
+                    self.identity_wrap_for_hd(
+                        self.exp_i_pos_operator(var_symbol, prefactor), var_indices[idx]
+                    )
+                )
 
             cos_term_operator = coefficient * functools.reduce(
-                operator.mul, operator_list,
+                operator.mul,
+                operator_list,
             )
 
             junction_potential_matrix += (
@@ -1691,7 +1691,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             )
             # replace I by 1
             expr_modified = expr_modified.replace(sm.symbols("I"), 1)
-        for ext_flux_var in self.external_fluxes:  
+        for ext_flux_var in self.external_fluxes:
             # removing 1.0 decimals from flux vars
             expr_modified = expr_modified.replace(1.0 * ext_flux_var, ext_flux_var)
         return expr_modified
@@ -1757,14 +1757,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             # create PE symbolic expressions
             sym_hamiltonian_PE = self._make_expr_human_readable(
                 self.subsystems[subsystem_index].potential_symbolic.expand(),
-                float_round=float_round
+                float_round=float_round,
             )
             # add a numerical 2pi coefficient in front of externa fluxes, in order to obtain the KE term
             # correctly; the subsystem hamiltonian has 2pi in front of external fluxes, but the potential
             # does not.
             for external_flux in self.external_fluxes:
                 sym_hamiltonian_PE = self._make_expr_human_readable(
-                    sym_hamiltonian_PE.replace(external_flux, 2*np.pi*external_flux),
+                    sym_hamiltonian_PE.replace(
+                        external_flux, 2 * np.pi * external_flux
+                    ),
                     float_round=float_round,
                 )
             # obtain the KE of hamiltonian
@@ -1773,28 +1775,37 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             # replace the numerical 2pi by a symbolic 2pi
             for external_flux in self.external_fluxes:
                 sym_hamiltonian_PE = self._make_expr_human_readable(
-                    sym_hamiltonian_PE.replace(external_flux, sm.symbols("2π")*external_flux/(round(2*np.pi,float_round))),
+                    sym_hamiltonian_PE.replace(
+                        external_flux,
+                        sm.symbols("2π")
+                        * external_flux
+                        / (round(2 * np.pi, float_round)),
+                    ),
                     float_round=float_round,
                 )
             # obtain system symbolic hamiltonian by glueing KE and PE
-            sym_hamiltonian = sm.Add(sym_hamiltonian_KE, sym_hamiltonian_PE, evaluate=False)
+            sym_hamiltonian = sm.Add(
+                sym_hamiltonian_KE, sym_hamiltonian_PE, evaluate=False
+            )
         else:
             # create KE and PE symbolic expressions
             sym_hamiltonian_KE = self._make_expr_human_readable(
-                self.hamiltonian_symbolic.expand() - 
-                self.potential_symbolic.expand(),
+                self.hamiltonian_symbolic.expand() - self.potential_symbolic.expand(),
                 float_round=float_round,
             )
             sym_hamiltonian_PE = self._make_expr_human_readable(
-                self.potential_symbolic.expand(),
-                float_round=float_round
+                self.potential_symbolic.expand(), float_round=float_round
             )
             # add a 2pi coefficient in front of externa fluxes, since the the external fluxes are measured in
             # 2pi numerically
             for external_flux in self.external_fluxes:
-                sym_hamiltonian_PE = sym_hamiltonian_PE.replace(external_flux, sm.symbols("2π")*external_flux)
+                sym_hamiltonian_PE = sym_hamiltonian_PE.replace(
+                    external_flux, sm.symbols("2π") * external_flux
+                )
             # add the KE and PE and supress the evaluation
-            sym_hamiltonian = sm.Add(sym_hamiltonian_KE, sym_hamiltonian_PE, evaluate=False)
+            sym_hamiltonian = sm.Add(
+                sym_hamiltonian_KE, sym_hamiltonian_PE, evaluate=False
+            )
         if print_latex:
             print(latex(sym_hamiltonian))
         return sym_hamiltonian
@@ -1846,7 +1857,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     np.sort(interaction_var_indices), np.sort(subsystem_indices)
                 ):
                     interaction += term
-        # 
+        #
         interaction = self._make_expr_human_readable(
             interaction, float_round=float_round
         )
@@ -2191,7 +2202,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # checking to see if eigensys needs to be generated
         if eigensys is None:
             evals_count = 6 if which < 6 else which
-            _, wfs = self.eigensys(evals_count= which+1)
+            _, wfs = self.eigensys(evals_count=which + 1)
         else:
             _, wfs = eigensys
 
@@ -2587,9 +2598,11 @@ class Circuit(Subsystem):
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
 
-    def set_discretized_phi_range(self, var_indices: Tuple[int], phi_range: Tuple[float]) -> None:
+    def set_discretized_phi_range(
+        self, var_indices: Tuple[int], phi_range: Tuple[float]
+    ) -> None:
         """
-        Sets the flux range for discretized phi basis when ext_basis is set to 'discretized'. 
+        Sets the flux range for discretized phi basis when ext_basis is set to 'discretized'.
 
         Parameters
         ----------
@@ -2597,13 +2610,17 @@ class Circuit(Subsystem):
             var_index or list of var_indices
         """
         if self.ext_basis != "discretized":
-            raise Exception("Discretized phi range is only used when ext_basis is set to 'discretized'.")
+            raise Exception(
+                "Discretized phi range is only used when ext_basis is set to 'discretized'."
+            )
         for var_index in var_indices:
             if var_index not in self.var_categories["extended"]:
-                raise Exception(f"Variable index {var_index}, is not an extended variable.")
+                raise Exception(
+                    f"Variable index {var_index}, is not an extended variable."
+                )
             self.discretized_phi_range[var_index] = phi_range
         self.operators_by_name = self.set_operators()
-        
+
     def from_yaml(
         input_string: str,
         from_file: bool = True,
@@ -2824,7 +2841,9 @@ class Circuit(Subsystem):
 
         if self.is_purely_harmonic:
             if self.ext_basis != "harmonic":
-                warnings.warn("Purely harmonic circuits need ext_basis to be set to 'harmonic'")
+                warnings.warn(
+                    "Purely harmonic circuits need ext_basis to be set to 'harmonic'"
+                )
                 self.ext_basis = "harmonic"
 
         # initiating the class properties
@@ -2972,7 +2991,9 @@ class Circuit(Subsystem):
             # with evaluate=False to force the kinetic terms together and appear first
             sym_lagrangian_PE_node_vars = self.potential_node_vars
             for external_flux in self.external_fluxes:
-                sym_lagrangian_PE_node_vars = sym_lagrangian_PE_node_vars.replace(external_flux, sm.symbols("2π")*external_flux)
+                sym_lagrangian_PE_node_vars = sym_lagrangian_PE_node_vars.replace(
+                    external_flux, sm.symbols("2π") * external_flux
+                )
             lagrangian = sm.Add(
                 (self._make_expr_human_readable(lagrangian + self.potential_node_vars)),
                 (self._make_expr_human_readable(-sym_lagrangian_PE_node_vars)),
@@ -2991,7 +3012,9 @@ class Circuit(Subsystem):
             # with evaluate=False to force the kinetic terms together and appear first
             sym_lagrangian_PE_new = self.potential_symbolic.expand()
             for external_flux in self.external_fluxes:
-                sym_lagrangian_PE_new = sym_lagrangian_PE_new.replace(external_flux, sm.symbols("2π")*external_flux)
+                sym_lagrangian_PE_new = sym_lagrangian_PE_new.replace(
+                    external_flux, sm.symbols("2π") * external_flux
+                )
             lagrangian = sm.Add(
                 (
                     self._make_expr_human_readable(

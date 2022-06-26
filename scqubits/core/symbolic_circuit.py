@@ -1505,7 +1505,9 @@ class SymbolicCircuit(serializers.Serializable):
         if tree == []:
             closure_branches = []
         else:
-            closure_branches = [branch for branch in superconducting_loop_branches if branch not in tree]
+            closure_branches = [
+                branch for branch in superconducting_loop_branches if branch not in tree
+            ]
         return closure_branches
 
     def _find_path_to_root(
@@ -1585,7 +1587,11 @@ class SymbolicCircuit(serializers.Serializable):
         gen_1, ancestors_1, path_1 = self._find_path_to_root(closure_branch.nodes[0])
         gen_2, ancestors_2, path_2 = self._find_path_to_root(closure_branch.nodes[1])
         # find branches that are not common in the paths, and then add the closure branch to form the loop
-        loop = list(set(path_1) - set(path_2)) + list(set(path_2) - set(path_1))  + [closure_branch]
+        loop = (
+            list(set(path_1) - set(path_2))
+            + list(set(path_2) - set(path_1))
+            + [closure_branch]
+        )
         return loop
 
     def _set_external_fluxes(self, closure_branches: List[Branch] = None):
