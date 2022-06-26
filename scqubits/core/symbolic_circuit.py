@@ -1584,22 +1584,8 @@ class SymbolicCircuit(serializers.Serializable):
         # closure branch
         gen_1, ancestors_1, path_1 = self._find_path_to_root(closure_branch.nodes[0])
         gen_2, ancestors_2, path_2 = self._find_path_to_root(closure_branch.nodes[1])
-        # find the first common ancestor of these two nodes
-        # start from the root node, find out the last sub-generation (within the sub-circuit
-        # of the superconducting island) where two nodes have the same ancestor
-        sub_gen_last_same_ancestor = -1
-        for igen in range(min(len(ancestors_1), len(ancestors_2))):
-            if ancestors_1[igen].id == ancestors_2[igen].id:
-                sub_gen_last_same_ancestor = igen
-            elif ancestors_1[igen].id != ancestors_2[igen].id:
-                break
-        # get all the branches of the paths from the two nodes to the root, after the last
-        # shared ancestor, and the closure branch itself
-        loop = (
-            path_1[sub_gen_last_same_ancestor :]
-            + path_2[sub_gen_last_same_ancestor :]
-            + [closure_branch]
-        )
+        # find branches that are not common in the paths, and then add the closure branch to form the loop
+        loop = list(set(path_1) - set(path_2)) + list(set(path_2) - set(path_1))  + [closure_branch]
         return loop
 
     def _set_external_fluxes(self, closure_branches: List[Branch] = None):
