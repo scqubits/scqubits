@@ -1305,7 +1305,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             identity wrapped operator.
         """
         if not self.hierarchical_diagonalization:
-            return qt.Qobj(operator)
+            return qt.Qobj(self._kron_operator(operator, var_index))
 
         subsystem_index = self.get_subsystem_index(var_index)
         subsystem = self.subsystems[subsystem_index]
