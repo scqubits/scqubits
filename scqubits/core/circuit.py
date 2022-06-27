@@ -1542,15 +1542,22 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
         excitations = [np.arange(evals_count) for i in self.var_categories["extended"]]
-        energy_array = sum([(grid + 0.5)*normal_mode_freqs[idx] for idx,grid in enumerate(np.meshgrid(*excitations))])
+        energy_array = sum(
+            [
+                (grid + 0.5) * normal_mode_freqs[idx]
+                for idx, grid in enumerate(np.meshgrid(*excitations))
+            ]
+        )
         excitation_indices = []
         energies = []
         num_oscs = len(self.var_categories["extended"])
         for energy in np.unique(energy_array.flatten()):
-            indices = np.where(energy_array== energy)
+            indices = np.where(energy_array == energy)
             if energy not in energies:
                 for idx in range(len(indices[0])):
-                    configuration = [indices[osc_index][idx] for osc_index in range(num_oscs)]
+                    configuration = [
+                        indices[osc_index][idx] for osc_index in range(num_oscs)
+                    ]
                     excitation_indices.append(configuration)
                     energies.append(energy)
                     if len(excitation_indices) == evals_count:
@@ -1561,7 +1568,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         return energies, excitation_indices
 
     def _eigensys_for_purely_harmonic(self, evals_count: int):
-        eigenvals, excitation_numbers = self._eigenvals_for_purely_harmonic(evals_count=evals_count)
+        eigenvals, excitation_numbers = self._eigenvals_for_purely_harmonic(
+            evals_count=evals_count
+        )
         eigen_vectors = []
         for eig_idx, energy in enumerate(eigenvals):
             eigen_vector = []

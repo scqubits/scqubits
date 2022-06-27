@@ -326,17 +326,27 @@ class SymbolicCircuit(serializers.Serializable):
 
     def purely_harmonic_transformation(self) -> Tuple[ndarray, ndarray]:
 
-        trans_mat,_ = self.variable_transformation_matrix()
-        c_mat = trans_mat.T @ self._capacitance_matrix(substitute_params=True) @ trans_mat
-        l_mat = trans_mat.T @ self._inductance_matrix(substitute_params=True) @ trans_mat
+        trans_mat, _ = self.variable_transformation_matrix()
+        c_mat = (
+            trans_mat.T @ self._capacitance_matrix(substitute_params=True) @ trans_mat
+        )
+        l_mat = (
+            trans_mat.T @ self._inductance_matrix(substitute_params=True) @ trans_mat
+        )
         if not self.is_grounded:
-            c_mat = c_mat[:-1,:-1]
+            c_mat = c_mat[:-1, :-1]
             l_mat = l_mat[:-1, :-1]
         normal_mode_freqs, normal_mode_vecs = sp.linalg.eig(l_mat, c_mat)
-        normal_mode_freqs = normal_mode_freqs.round(10) # rounding to the tenth digit to remove numerical errors in eig calculation
+        normal_mode_freqs = normal_mode_freqs.round(
+            10
+        )  # rounding to the tenth digit to remove numerical errors in eig calculation
         # rearranging the vectors
         idx = normal_mode_freqs.argsort()
-        normal_freq_ids = [id for id in idx if normal_mode_freqs[id] != 0 and not np.isinf(normal_mode_freqs[id])]
+        normal_freq_ids = [
+            id
+            for id in idx
+            if normal_mode_freqs[id] != 0 and not np.isinf(normal_mode_freqs[id])
+        ]
         zero_freq_ids = [id for id in idx if normal_mode_freqs[id] == 0]
         inf_freq_ids = [id for id in idx if np.isinf(normal_mode_freqs[id])]
         idx = normal_freq_ids + zero_freq_ids + inf_freq_ids
@@ -347,11 +357,17 @@ class SymbolicCircuit(serializers.Serializable):
 
         # constructing the new transformation
         trans_mat_new = trans_mat.copy()
-        trans_mat_new[:, :len(c_mat)] = trans_mat[:, :len(c_mat)] @ normal_mode_vecs
-        
+        trans_mat_new[:, : len(c_mat)] = trans_mat[:, : len(c_mat)] @ normal_mode_vecs
+
         return (
             np.real(
-                np.sqrt([freq for freq in normal_mode_freqs if not np.isinf(freq) and freq != 0])
+                np.sqrt(
+                    [
+                        freq
+                        for freq in normal_mode_freqs
+                        if not np.isinf(freq) and freq != 0
+                    ]
+                )
             ),
             trans_mat_new,
         )
