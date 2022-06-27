@@ -1760,14 +1760,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             # correctly; the subsystem hamiltonian has 2pi in front of external fluxes, but the potential
             # does not.
             for external_flux in self.external_fluxes:
-                sym_hamiltonian_PE = self._make_expr_human_readable(
-                    sym_hamiltonian_PE.replace(
-                        external_flux, 2 * np.pi * external_flux
-                    ),
-                    float_round=float_round,
-                )
+                sym_hamiltonian_PE = sym_hamiltonian_PE.replace(
+                        external_flux, round(2 * np.pi, float_round) * external_flux)
             # obtain the KE of hamiltonian
-            sym_hamiltonian_KE = sym_hamiltonian - sym_hamiltonian_PE
+            sym_hamiltonian_KE = self._make_expr_human_readable(sym_hamiltonian - sym_hamiltonian_PE)
 
             # replace the numerical 2pi by a symbolic 2pi
             for external_flux in self.external_fluxes:
