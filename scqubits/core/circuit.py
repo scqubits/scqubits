@@ -1677,10 +1677,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     (1.0 * sm.symbols(f"θ{var_index}")),
                     (sm.symbols(f"θ{var_index}")),
                 )
-                .replace(
-                    (1.0 * sm.symbols(f"θ{var_index}")),
-                    (sm.symbols(f"θ{var_index}")),
-                )
             )
             # replace Qs with Q^2 etc
             expr_modified = expr_modified.replace(
@@ -1752,7 +1748,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 )
             # start with the raw system hamiltonian
             sym_hamiltonian = self._make_expr_human_readable(
-                self.subsystems[subsystem_index].hamiltonian_symbolic.expand()
+                self.subsystems[subsystem_index].hamiltonian_symbolic.expand(),
+                float_round=float_round,
             )
             # create PE symbolic expressions
             sym_hamiltonian_PE = self._make_expr_human_readable(
@@ -1777,7 +1774,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 sym_hamiltonian_PE = self._make_expr_human_readable(
                     sym_hamiltonian_PE.replace(
                         external_flux,
-                        sm.symbols("2π")
+                        sm.symbols("(2π)")
                         * external_flux
                         / (round(2 * np.pi, float_round)),
                     ),
