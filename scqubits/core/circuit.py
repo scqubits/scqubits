@@ -1540,20 +1540,43 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         evals_count : int
             Number of eigenenergies
         """
-        normal_mode_freqs = np.real(self.symbolic_circuit.normal_mode_freqs)
+        normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
+        excitations = [np.arange(evals_count) for i in self.var_categories["extended"]]
+        energy_array = sum([(grid + 0.5)*normal_mode_freqs[idx] for idx,grid in enumerate(np.meshgrid(*excitations))])
+        excitation_indices = []
+        energies = []
+        num_oscs = len(self.var_categories["extended"])
+        for energy in np.unique(energy_array.flatten()):
+            indices = np.where(energy_array== energy)
+            if energy not in energies:
+                for idx in range(len(indices[0])):
+                    configuration = [indices[osc_index][idx] for osc_index in range(num_oscs)]
+                    excitation_indices.append(configuration)
+                    energies.append(energy)
+                    if len(excitation_indices) == evals_count:
+                        break
+            if len(excitation_indices) >= evals_count:
+                break
 
-        evals_collect = []
-        for freq in [mode_freq for mode_freq in normal_mode_freqs if mode_freq != 0]:
-            evals_collect += [freq * n for n in range(evals_count)]
-        evals_collect.sort()
+        return energies, excitation_indices
 
-        return evals_collect[:evals_count]
+    def _eigensys_for_purely_harmonic(self, evals_count: int):
+        eigenvals, excitation_numbers = self._eigenvals_for_purely_harmonic(evals_count=evals_count)
+        eigen_vectors = []
+        for eig_idx, energy in enumerate(eigenvals):
+            eigen_vector = []
+            for osc_idx, var_index in enumerate(self.var_categories["extended"]):
+                evec = np.zeros(self.cutoffs_dict()[var_index])
+                evec[excitation_numbers[eig_idx][osc_idx]] = 1
+                eigen_vector.append(evec)
+            eigen_vectors.append(functools.reduce(np.kron, eigen_vector))
+        return eigenvals, np.array(eigen_vectors)
 
     def _hamiltonian_for_purely_harmonic_circuit(self):
         """
         Returns the diagonal hamiltonian
         """
-        eigen_freqs = self._eigenvals_for_purely_harmonic(evals_count=self.hilbertdim())
+        eigen_freqs, _ = self._eigenvals_for_purely_harmonic(evals_count=self.hilbertdim())
 
         return sparse.dia_matrix(
             (eigen_freqs, [0]), shape=(len(eigen_freqs), len(eigen_freqs))
@@ -1588,7 +1611,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         hilbertdim = self.hilbertdim()
 
         if isinstance(self, Circuit) and self.is_purely_harmonic:
-            return self._eigenvals_for_purely_harmonic(evals_count=evals_count)
+            return self._eigenvals_for_purely_harmonic(evals_count=evals_count)[0]
 
         hamiltonian_mat = self.hamiltonian()
         if self.type_of_matrices == "sparse":

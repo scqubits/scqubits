@@ -325,19 +325,28 @@ class SymbolicCircuit(serializers.Serializable):
         return True if len(self.symbolic_params) > 0 else False
 
     def purely_harmonic_transformation(self) -> Tuple[ndarray, ndarray]:
-        c_mat = self._capacitance_matrix(substitute_params=True)
-        l_mat = self._inductance_matrix(substitute_params=True)
+
+        trans_mat,_ = self.variable_transformation_matrix()
+        c_mat = trans_mat.T @ self._capacitance_matrix(substitute_params=True) @ trans_mat
+        l_mat = trans_mat.T @ self._inductance_matrix(substitute_params=True) @ trans_mat
+        if not self.is_grounded:
+            c_mat = c_mat[:-1,:-1]
+            l_mat = l_mat[:-1, :-1]
         normal_mode_freqs, normal_mode_vecs = sp.linalg.eig(l_mat, c_mat)
         # rearranging the vectors
-        idx = normal_mode_freqs.argsort()[::-1]
+        idx = normal_mode_freqs.argsort()
         normal_mode_freqs = np.round(normal_mode_freqs[idx], 10)
         normal_mode_vecs = normal_mode_vecs[:, idx]
 
+        # constructing the new transformation
+        trans_mat_new = trans_mat.copy()
+        trans_mat_new[:, :len(c_mat)] = trans_mat[:, :len(c_mat)] @ normal_mode_vecs
+        
         return (
             np.real(
                 np.sqrt([freq for freq in normal_mode_freqs if not np.isinf(freq)])
             ),
-            normal_mode_vecs,
+            trans_mat_new,
         )
 
     def configure(
