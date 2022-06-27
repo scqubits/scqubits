@@ -1570,26 +1570,15 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 evec[excitation_numbers[eig_idx][osc_idx]] = 1
                 eigen_vector.append(evec)
             eigen_vectors.append(functools.reduce(np.kron, eigen_vector))
-        return eigenvals, np.array(eigen_vectors)
-
-    def _hamiltonian_for_purely_harmonic_circuit(self):
-        """
-        Returns the diagonal hamiltonian
-        """
-        eigen_freqs, _ = self._eigenvals_for_purely_harmonic(evals_count=self.hilbertdim())
-
-        return sparse.dia_matrix(
-            (eigen_freqs, [0]), shape=(len(eigen_freqs), len(eigen_freqs))
-        ).tocsc()
+        return eigenvals, np.array(eigen_vectors).T
 
     def hamiltonian(self) -> Union[csc_matrix, ndarray]:
         """
         Returns the Hamiltonian of the Circuit.
         """
-
         if not self.hierarchical_diagonalization:
             if isinstance(self, Circuit) and self.is_purely_harmonic:
-                return self._hamiltonian_for_purely_harmonic_circuit()
+                return self._hamiltonian_for_harmonic_extended_vars()
             elif self.ext_basis == "harmonic":
                 return self._hamiltonian_for_harmonic_extended_vars()
             elif self.ext_basis == "discretized":
@@ -1631,10 +1620,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
 
         if isinstance(self, Circuit) and self.is_purely_harmonic:
-            return (
-                self._evals_calc(evals_count=evals_count),
-                np.identity(self.hilbertdim())[:, 0:evals_count],
-            )
+            return self._eigensys_for_purely_harmonic(evals_count=evals_count)
 
         # dimension of the hamiltonian
         hilbertdim = self.hilbertdim()

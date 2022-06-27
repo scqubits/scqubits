@@ -333,8 +333,15 @@ class SymbolicCircuit(serializers.Serializable):
             c_mat = c_mat[:-1,:-1]
             l_mat = l_mat[:-1, :-1]
         normal_mode_freqs, normal_mode_vecs = sp.linalg.eig(l_mat, c_mat)
+        normal_mode_freqs = normal_mode_freqs.round(10) # rounding to the tenth digit to remove numerical errors in eig calculation
         # rearranging the vectors
         idx = normal_mode_freqs.argsort()
+        normal_freq_ids = [id for id in idx if normal_mode_freqs[id] != 0 and not np.isinf(normal_mode_freqs[id])]
+        zero_freq_ids = [id for id in idx if normal_mode_freqs[id] == 0]
+        inf_freq_ids = [id for id in idx if np.isinf(normal_mode_freqs[id])]
+        idx = normal_freq_ids + zero_freq_ids + inf_freq_ids
+        # sorting so that all the zero frequencies show up at the end
+
         normal_mode_freqs = np.round(normal_mode_freqs[idx], 10)
         normal_mode_vecs = normal_mode_vecs[:, idx]
 
@@ -344,7 +351,7 @@ class SymbolicCircuit(serializers.Serializable):
         
         return (
             np.real(
-                np.sqrt([freq for freq in normal_mode_freqs if not np.isinf(freq)])
+                np.sqrt([freq for freq in normal_mode_freqs if not np.isinf(freq) and freq != 0])
             ),
             trans_mat_new,
         )
@@ -1623,6 +1630,14 @@ class SymbolicCircuit(serializers.Serializable):
         for p in self.var_categories["periodic"]:
             self.offset_charges = self.offset_charges + [symbols(f"ng{p}")]
 
+    @staticmethod
+    def round_symbolic_expr(expr: sympy.Expr, number_of_digits: int) -> sympy.Expr:
+        rounded_expr = expr.expand()
+        for term in sympy.preorder_traversal(expr.expand()):
+            if isinstance(term, sympy.Float):
+                rounded_expr = rounded_expr.subs(term, round(term, number_of_digits))
+        return rounded_expr
+
     def generate_symbolic_lagrangian(
         self,
     ) -> Tuple[sympy.Expr, sympy.Expr, sympy.Expr, sympy.Expr]:
@@ -1687,6 +1702,7 @@ class SymbolicCircuit(serializers.Serializable):
             )
             potential_θ = potential_θ.replace(symbols(f"θ{frozen_var_index}"), sub[0])
 
+        potential_θ = self.round_symbolic_expr(potential_θ, 10)
         lagrangian_θ = C_terms_θ - potential_θ
 
         return lagrangian_θ, potential_θ, lagrangian_φ, potential_φ
@@ -1762,5 +1778,6 @@ class SymbolicCircuit(serializers.Serializable):
                 symbols(f"Q{var_index}"),
                 symbols(f"n{var_index}") + symbols(f"ng{var_index}"),
             )
-
-        return hamiltonian_symbolic
+        # rounding the decimals
+        hamiltonian_rounded = self.round_symbolic_expr(hamiltonian_symbolic, 10)
+        return hamiltonian_rounded
