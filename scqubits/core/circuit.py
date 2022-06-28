@@ -1067,7 +1067,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 if len(term.free_symbols) == 0:
                     cos_argument_expr -= term
                     coefficient *= np.exp(float(term) * 1j)
-            
+
             operator_list = []
             for idx, var_symbol in enumerate(cos_argument_expr.free_symbols):
                 prefactor = float(cos_argument_expr.coeff(var_symbol))
@@ -1711,7 +1711,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def sym_potential(self, float_round: int = 3, print_latex: bool = False) -> sm.Expr:
         """
-        Method returns a user readable symbolic Lagrangian for the current instance
+        Method returns a user readable symbolic potential for the current instance
 
         Parameters
         ----------
@@ -1727,6 +1727,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         potential = self._make_expr_human_readable(
             self.potential_symbolic, float_round=float_round
         )
+
+        for external_flux in self.external_fluxes:
+            potential = potential.replace(
+                external_flux,
+                sm.symbols("(2π)") * external_flux,
+            )
 
         if print_latex:
             print(latex(potential))
@@ -1814,7 +1820,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             # 2pi numerically
             for external_flux in self.external_fluxes:
                 sym_hamiltonian_PE = sym_hamiltonian_PE.replace(
-                    external_flux, sm.symbols("2π") * external_flux
+                    external_flux, sm.symbols("(2π)") * external_flux
                 )
             # add the KE and PE and supress the evaluation
             sym_hamiltonian = sm.Add(
