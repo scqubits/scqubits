@@ -1693,7 +1693,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     # ***** Functions for pretty display of symbolic expressions *****
     # ****************************************************************
 
-    def _make_expr_human_readable(self, expr: sm.Expr, float_round: int = 3) -> sm.Expr:
+    def _make_expr_human_readable(self, expr: sm.Expr, float_round: int = 6) -> sm.Expr:
         """
         Method returns a user readable symbolic expression for the current instance
 
@@ -1747,9 +1747,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             expr_modified = expr_modified.replace(1.0 * ext_flux_var, ext_flux_var)
         return expr_modified
 
-    def sym_potential(self, float_round: int = 3, print_latex: bool = False) -> sm.Expr:
+    def sym_potential(self, float_round: int = 6, print_latex: bool = False) -> sm.Expr:
         """
-        Method returns a user readable symbolic Lagrangian for the current instance
+        Method returns a user readable symbolic potential for the current instance
 
         Parameters
         ----------
@@ -1766,6 +1766,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             self.potential_symbolic, float_round=float_round
         )
 
+        for external_flux in self.external_fluxes:
+            potential = potential.replace(
+                external_flux,
+                sm.symbols("(2π)") * external_flux,
+            )
+
         if print_latex:
             print(latex(potential))
         return potential
@@ -1773,7 +1779,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     def sym_hamiltonian(
         self,
         subsystem_index: Optional[int] = None,
-        float_round: int = 3,
+        float_round: int = 6,
         print_latex: bool = False,
     ) -> sm.Expr:
         """
@@ -1852,7 +1858,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             # 2pi numerically
             for external_flux in self.external_fluxes:
                 sym_hamiltonian_PE = sym_hamiltonian_PE.replace(
-                    external_flux, sm.symbols("2π") * external_flux
+                    external_flux, sm.symbols("(2π)") * external_flux
                 )
             # add the KE and PE and supress the evaluation
             sym_hamiltonian = sm.Add(
@@ -1865,7 +1871,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     def sym_interaction(
         self,
         subsystem_indices: Tuple[int],
-        float_round: int = 3,
+        float_round: int = 6,
         print_latex: bool = False,
     ) -> sm.Expr:
         """
@@ -3044,7 +3050,7 @@ class Circuit(Subsystem):
             sym_lagrangian_PE_node_vars = self.potential_node_vars
             for external_flux in self.external_fluxes:
                 sym_lagrangian_PE_node_vars = sym_lagrangian_PE_node_vars.replace(
-                    external_flux, sm.symbols("2π") * external_flux
+                    external_flux, sm.symbols("(2π)") * external_flux
                 )
             lagrangian = sm.Add(
                 (self._make_expr_human_readable(lagrangian + self.potential_node_vars)),
@@ -3065,7 +3071,7 @@ class Circuit(Subsystem):
             sym_lagrangian_PE_new = self.potential_symbolic.expand()
             for external_flux in self.external_fluxes:
                 sym_lagrangian_PE_new = sym_lagrangian_PE_new.replace(
-                    external_flux, sm.symbols("2π") * external_flux
+                    external_flux, sm.symbols("(2π)") * external_flux
                 )
             lagrangian = sm.Add(
                 (
