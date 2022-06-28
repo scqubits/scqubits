@@ -398,8 +398,10 @@ class SymbolicCircuit(serializers.Serializable):
         if self.is_purely_harmonic:
             (
                 self.normal_mode_freqs,
-                transformation_matrix,
+                transformation_matrix_normal_mode,
             ) = self.purely_harmonic_transformation()
+            if transformation_matrix is None:
+                transformation_matrix = transformation_matrix_normal_mode
 
         # if the user provides a transformation matrix
         if transformation_matrix is not None:
