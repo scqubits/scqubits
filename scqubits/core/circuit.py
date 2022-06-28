@@ -463,6 +463,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         hamiltonian = self._hamiltonian_sym_for_numerics
         # collecting constants
         constants = self._list_of_constants_from_expr(hamiltonian)
+        self._constant_terms_in_hamiltonian = constants
         for const in constants:
             hamiltonian -= const
 
@@ -1100,11 +1101,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         ):
             return junction_potential_matrix
 
-        cos_coefficient_list = []
-
         for cos_term in junction_potential.as_ordered_terms():
             coefficient = float(list(cos_term.as_coefficients_dict().values())[0])
-            cos_coefficient_list.append(coefficient)
             cos_argument_expr = [
                 arg.args[0] for arg in (1.0 * cos_term).args if arg.has(sm.cos)
             ][0]
@@ -1138,7 +1136,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 cos_term_operator + cos_term_operator.dag()
             ) * 0.5
 
-        return junction_potential_matrix - np.sum(cos_coefficient_list) * identity
+        return junction_potential_matrix
 
     def circuit_operator_functions(self) -> Dict[str, Callable]:
         """
