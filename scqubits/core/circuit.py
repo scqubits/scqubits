@@ -1050,8 +1050,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         ):
             return junction_potential_matrix
 
-        operator_list = []
-
         for cos_term in junction_potential.as_ordered_terms():
             coefficient = float(list(cos_term.as_coefficients_dict().values())[0])
 
@@ -1069,7 +1067,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 if len(term.free_symbols) == 0:
                     cos_argument_expr -= term
                     coefficient *= np.exp(float(term) * 1j)
-
+            
+            operator_list = []
             for idx, var_symbol in enumerate(cos_argument_expr.free_symbols):
                 prefactor = float(cos_argument_expr.coeff(var_symbol))
                 operator_list.append(
