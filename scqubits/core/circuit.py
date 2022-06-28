@@ -1655,7 +1655,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     # ***** Functions for pretty display of symbolic expressions *****
     # ****************************************************************
 
-    def _make_expr_human_readable(self, expr: sm.Expr, float_round: int = 3) -> sm.Expr:
+    def _make_expr_human_readable(self, expr: sm.Expr, float_round: int = 6) -> sm.Expr:
         """
         Method returns a user readable symbolic expression for the current instance
 
@@ -1709,7 +1709,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             expr_modified = expr_modified.replace(1.0 * ext_flux_var, ext_flux_var)
         return expr_modified
 
-    def sym_potential(self, float_round: int = 3, print_latex: bool = False) -> sm.Expr:
+    def sym_potential(self, float_round: int = 6, print_latex: bool = False) -> sm.Expr:
         """
         Method returns a user readable symbolic potential for the current instance
 
@@ -1741,7 +1741,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     def sym_hamiltonian(
         self,
         subsystem_index: Optional[int] = None,
-        float_round: int = 3,
+        float_round: int = 6,
         print_latex: bool = False,
     ) -> sm.Expr:
         """
@@ -1833,7 +1833,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     def sym_interaction(
         self,
         subsystem_indices: Tuple[int],
-        float_round: int = 3,
+        float_round: int = 6,
         print_latex: bool = False,
     ) -> sm.Expr:
         """
