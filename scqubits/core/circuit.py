@@ -1577,7 +1577,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         evals_count : int
             Number of eigenenergies
         """
-        normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
+        normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs[::-1]
         excitations = [np.arange(evals_count) for i in self.var_categories["extended"]]
         energy_array = sum(
             [
@@ -1589,8 +1589,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         energies = []
         num_oscs = len(self.var_categories["extended"])
         for energy in np.unique(energy_array.flatten()):
-            indices = np.where(energy_array == energy)
             if energy not in energies:
+                indices = np.where(energy_array == energy)
                 for idx in range(len(indices[0])):
                     configuration = [
                         indices[osc_index][idx] for osc_index in range(num_oscs)
