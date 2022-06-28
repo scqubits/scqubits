@@ -414,12 +414,46 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     # **** Functions to construct the operators for the Hamiltonian ****
     # *****************************************************************
 
+    def _constants_in_subsys(self, H_sys: sm.Expr) -> sm.Expr:
+        """
+        Returns an expresion of constants that belong to the subsystem with the
+        Hamiltonian H_sys
+
+        Parameters
+        ----------
+        H_sys : sm.Expr
+            subsystem hamiltonian
+
+        Returns
+        -------
+            expression of constants belonging to the subsystem 
+        """
+        constant_expr = 0
+        subsys_free_symbols = set(H_sys.free_symbols)
+        constant_terms = self._constant_terms_in_hamiltonian.copy()
+        for term in constant_terms:
+            if set(term.free_symbols) & subsys_free_symbols == set(term.free_symbols):
+                constant_expr += term
+                self._constant_terms_in_hamiltonian.remove(term)
+        return constant_expr
+
     def generate_subsystems(self):
         """
         Generates the subsystems (child instances of Circuit) depending on the attribute
         `self.system_hierarchy`
         """
         hamiltonian = self._hamiltonian_sym_for_numerics
+        # collecting constants
+        ordered_terms = hamiltonian.as_ordered_terms()
+        constants = [
+            term
+            for term in ordered_terms
+            if (set(self.external_fluxes + self.offset_charges + list(self.symbolic_params.keys()) + [sm.symbols("I")]) &
+            set(term.free_symbols)) == set(term.free_symbols)
+        ]
+        self._constant_terms_in_hamiltonian = constants
+        for const in constants:
+            hamiltonian -= const
 
         systems_sym = []
         interaction_sym = []
@@ -456,10 +490,13 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 ):
                     H_int += term
 
-            systems_sym.append(H_sys)
+            # adding constants
+            systems_sym.append(H_sys + self._constants_in_subsys(H_sys))
             interaction_sym.append(H_int)
             hamiltonian -= H_sys + H_int  # removing the terms added to a subsystem
 
+        if len(self._constant_terms_in_hamiltonian) > 0:
+            systems_sym[0] += sum(self._constant_terms_in_hamiltonian)
         # storing data in class attributes
         self.subsystem_hamiltonians: Dict[int, sm.Expr] = dict(
             zip(
@@ -802,18 +839,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 )
 
         # removing the constants from the Hamiltonian
-        coeff_dict = hamiltonian.as_coefficients_dict()
+        ordered_terms = hamiltonian.as_ordered_terms()
         constants = [
-            i
-            for i in coeff_dict
-            if "Q" not in str(i)
-            and "θ" not in str(i)
-            and "n" not in str(i)
-            and "a" not in str(i)
-            and "Nh" not in str(i)
+            term
+            for term in ordered_terms
+            if (set(self.external_fluxes + self.offset_charges + list(self.symbolic_params.keys()) + [sm.symbols("I")]) &
+            set(term.free_symbols)) == set(term.free_symbols)
         ]
-        for cnst in constants:
-            hamiltonian -= cnst * coeff_dict[cnst]
+        self._constant_terms_in_hamiltonian = constants
+        for const in constants:
+            hamiltonian -= const
 
         # associate an identity matrix with the external flux vars
         for ext_flux in self.external_fluxes:
@@ -1032,17 +1067,18 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         if self.hierarchical_diagonalization:
             subsystem_list = list(self.subsystems.values())
-            junction_potential_matrix = (
+            identity = (
                 qt.tensor(
                     [
                         qt.identity(subsystem.truncated_dim)
                         for subsystem in subsystem_list
                     ]
                 )
-                * 0
             )
         else:
-            junction_potential_matrix = qt.identity(self.hilbertdim()) * 0
+            identity = qt.identity(self.hilbertdim())
+
+        junction_potential_matrix = identity * 0
 
         if (
             isinstance(junction_potential, (int, float))
@@ -1050,9 +1086,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         ):
             return junction_potential_matrix
 
+        cos_coefficient_list = []
+
         for cos_term in junction_potential.as_ordered_terms():
             coefficient = float(list(cos_term.as_coefficients_dict().values())[0])
-
+            cos_coefficient_list.append(coefficient)
             cos_argument_expr = [
                 arg.args[0] for arg in (1.0 * cos_term).args if arg.has(sm.cos)
             ][0]
@@ -1086,7 +1124,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 cos_term_operator + cos_term_operator.dag()
             ) * 0.5
 
-        return junction_potential_matrix
+        return junction_potential_matrix - np.sum(cos_coefficient_list)*identity
 
     def circuit_operator_functions(self) -> Dict[str, Callable]:
         """
@@ -1424,12 +1462,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 for sym_param in all_sym_parameters
             ]
         )
-        hamiltonian = hamiltonian.subs(
-            "I", 1
-        )  # does not make a difference as all the trigonometric expressions are handled separately
+        hamiltonian = hamiltonian.subs("I", 1)
         # remove constants from the Hamiltonian
+        constant = float(hamiltonian.as_coefficients_dict()[1])
         hamiltonian -= hamiltonian.as_coefficients_dict()[1]
-        hamiltonian = hamiltonian.expand()
+        hamiltonian = hamiltonian.expand() + constant*sm.symbols("I")
 
         # replace the extended degrees of freedom with harmonic oscillators
         for var_index in self.var_categories["extended"]:
@@ -1504,9 +1541,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             ]
         )
         hamiltonian = hamiltonian.subs("I", 1)
-        # remove constants from the Hamiltonian
+        # # remove constants from the Hamiltonian
+        constant = float(hamiltonian.as_coefficients_dict()[1])
         hamiltonian -= hamiltonian.as_coefficients_dict()[1]
-        hamiltonian = hamiltonian.expand()
+        hamiltonian = hamiltonian.expand() + constant*sm.symbols("I")
 
         junction_potential = sum(
             [term for term in hamiltonian.as_ordered_terms() if "cos" in str(term)]

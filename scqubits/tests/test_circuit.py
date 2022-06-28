@@ -45,7 +45,7 @@ def test_zero_pi_discertized():
     eigensys = sym_zp.eigensys()
     eigs = eigensys[0]
     eigs_ref = np.array(
-        [-3.69090429, -3.69049138, -2.89704215, -2.89659842, -2.77231275, -2.76823373]
+        [16.30909571, 16.30950862, 17.10295785, 17.10340158, 17.22768726, 17.23176627]
     )
 
     assert np.allclose(eigs, eigs_ref)
@@ -74,7 +74,7 @@ def test_zero_pi_harmonic():
     eigensys = sym_zp.eigensys()
     eigs = eigensys[0]
     eig_ref = np.array(
-        [-3.69858244, -3.69261899, -2.90463196, -2.89989473, -2.81204032, -2.81003324]
+        [16.30141756, 16.30738101, 17.09536804, 17.10010527, 17.18795968, 17.18996676]
     )
     assert np.allclose(eigs, eig_ref)
 
