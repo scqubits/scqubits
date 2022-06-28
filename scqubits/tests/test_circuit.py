@@ -19,6 +19,7 @@ TESTDIR, _ = os.path.split(scq.__file__)
 TESTDIR = os.path.join(TESTDIR, "tests", "")
 DATADIR = os.path.join(TESTDIR, "data", "")
 
+
 def test_zero_pi_discertized():
     """
     Test for symmetric zero-pi in discretized phi basis.
@@ -37,15 +38,18 @@ def test_zero_pi_discertized():
     circ_d.cutoff_n_1 = 30
     circ_d.cutoff_ext_2 = 30
     circ_d.cutoff_ext_3 = 80
-    circ_d.configure(system_hierarchy=[[1,3], [2]], subsystem_trunc_dims=[30, 20])
+    circ_d.configure(system_hierarchy=[[1, 3], [2]], subsystem_trunc_dims=[30, 20])
 
     circ_d.cutoff_ext_3 = 200
     sym_zp = circ_d.subsystems[0]
     eigensys = sym_zp.eigensys()
     eigs = eigensys[0]
-    eigs_ref = np.array([-3.69090429, -3.69049138, -2.89704215, -2.89659842, -2.77231275, -2.76823373])
+    eigs_ref = np.array(
+        [-3.69090429, -3.69049138, -2.89704215, -2.89659842, -2.77231275, -2.76823373]
+    )
 
     assert np.allclose(eigs, eigs_ref)
+
 
 def test_zero_pi_harmonic():
     """
@@ -64,14 +68,16 @@ def test_zero_pi_harmonic():
     circ.cutoff_n_1 = 30
     circ.cutoff_ext_2 = 30
     circ.cutoff_ext_3 = 80
-    circ.configure(system_hierarchy=[[1,3], [2]], subsystem_trunc_dims=[30, 20])
+    circ.configure(system_hierarchy=[[1, 3], [2]], subsystem_trunc_dims=[30, 20])
     circ.cutoff_ext_3 = 200
     sym_zp = circ.subsystems[0]
     eigensys = sym_zp.eigensys()
     eigs = eigensys[0]
-    eig_ref = np.array([-3.69858244, -3.69261899, -2.90463196, -2.89989473, -2.81204032,
-       -2.81003324])
+    eig_ref = np.array(
+        [-3.69858244, -3.69261899, -2.90463196, -2.89989473, -2.81204032, -2.81003324]
+    )
     assert np.allclose(eigs, eig_ref)
+
 
 def test_eigenvals_harmonic():
     ref_eigs = np.array(
