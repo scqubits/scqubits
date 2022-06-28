@@ -3012,7 +3012,7 @@ class Circuit(Subsystem):
             sym_lagrangian_PE_node_vars = self.potential_node_vars
             for external_flux in self.external_fluxes:
                 sym_lagrangian_PE_node_vars = sym_lagrangian_PE_node_vars.replace(
-                    external_flux, sm.symbols("2π") * external_flux
+                    external_flux, sm.symbols("(2π)") * external_flux
                 )
             lagrangian = sm.Add(
                 (self._make_expr_human_readable(lagrangian + self.potential_node_vars)),
@@ -3033,7 +3033,7 @@ class Circuit(Subsystem):
             sym_lagrangian_PE_new = self.potential_symbolic.expand()
             for external_flux in self.external_fluxes:
                 sym_lagrangian_PE_new = sym_lagrangian_PE_new.replace(
-                    external_flux, sm.symbols("2π") * external_flux
+                    external_flux, sm.symbols("(2π)") * external_flux
                 )
             lagrangian = sm.Add(
                 (
