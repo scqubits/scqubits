@@ -17,7 +17,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.figure import Axes, Figure
-from scipy.fftpack import hilbert
 
 from scqubits.core.discretization import Grid1d
 from scqubits.core.flux_qubit import FluxQubit
@@ -400,14 +399,14 @@ class GUI:
                     layout=range_text_layout,
                 )
             elif isinstance(widget, SelectMultiple):
-                min = widget.options[0]
-                max = widget.options[-1]
+                min_val = widget.options[0]
+                max_val = widget.options[-1]
 
                 widget_min_text = IntText(
-                    value=min, description="min=", layout=range_text_layout,
+                    value=min_val, description="min=", layout=range_text_layout,
                 )
                 widget_max_text = IntText(
-                    value=max, description="max=", layout=range_text_layout,
+                    value=max_val, description="max=", layout=range_text_layout,
                 )
             else:
                 continue

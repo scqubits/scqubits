@@ -32,3 +32,5 @@
 /.ipynb_checkpoints/
 /.pytest_cache/
 /example/
+scqubits/ui/test.ipynb
+scqubits/ui/.ipynb_checkpoints/test-checkpoint.ipynb
