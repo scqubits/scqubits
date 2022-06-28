@@ -437,14 +437,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 self._constant_terms_in_hamiltonian.remove(term)
         return constant_expr
 
-    def generate_subsystems(self):
-        """
-        Generates the subsystems (child instances of Circuit) depending on the attribute
-        `self.system_hierarchy`
-        """
-        hamiltonian = self._hamiltonian_sym_for_numerics
-        # collecting constants
-        ordered_terms = hamiltonian.as_ordered_terms()
+    def _list_of_constants_from_expr(self, expr: sm.Expr) -> List[sm.Expr]:
+        ordered_terms = expr.as_ordered_terms()
         constants = [
             term
             for term in ordered_terms
@@ -459,7 +453,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             )
             == set(term.free_symbols)
         ]
-        self._constant_terms_in_hamiltonian = constants
+        return constants
+
+    def generate_subsystems(self):
+        """
+        Generates the subsystems (child instances of Circuit) depending on the attribute
+        `self.system_hierarchy`
+        """
+        hamiltonian = self._hamiltonian_sym_for_numerics
+        # collecting constants
+        constants = self._list_of_constants_from_expr(hamiltonian)
         for const in constants:
             hamiltonian -= const
 
@@ -503,8 +506,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             interaction_sym.append(H_int)
             hamiltonian -= H_sys + H_int  # removing the terms added to a subsystem
 
-        if len(self._constant_terms_in_hamiltonian) > 0:
-            systems_sym[0] += sum(self._constant_terms_in_hamiltonian)
+        if len(constants) > 0:
+            systems_sym[0] += sum(constants)
         # storing data in class attributes
         self.subsystem_hamiltonians: Dict[int, sm.Expr] = dict(
             zip(
