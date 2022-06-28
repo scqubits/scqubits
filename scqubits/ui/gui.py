@@ -82,7 +82,7 @@ class GUI:
         # Display Elements
         self.fig: Figure
         self.plot_output: Output = Output(
-            layout={"width": "100%", "align_content": "center"}
+            layout={"width": "100%"}
         )
         self.tab_widget: Tab = Tab(layout=Layout(width="95%"))
 
@@ -739,10 +739,13 @@ class GUI:
 
     # Eventhandler Methods -------------------------------------------------------------
     def qubit_change(self, change) -> None:
+        new_qubit = change["new"]
+        if new_qubit in gui_defaults.slow_qubits:
+            self.manual_update_and_save_widgets["manual_update_checkbox"].value = True
         self.unobserve_ranges()
         self.unobserve_widgets()
         self.unobserve_plot_refresh()
-        self.set_qubit(change["new"])
+        self.set_qubit(new_qubit)
         self.initialize_tab_widget()
         self.observe_ranges()
         self.observe_widgets()
@@ -754,12 +757,18 @@ class GUI:
         self.qubit_params_widgets[change.new].disabled = True
 
     def plot_option_layout_refresh(self, change) -> None:
+        self.unobserve_ranges()
+        self.unobserve_widgets()
+        self.unobserve_plot_refresh()
         self.current_plot_option_refresh = self.get_plot_option_refresh()
         new_plot_option = self.plot_option_layout()
 
         self.tab_widget.children[0].children[0].children = tuple(
             new_plot_option.children
         )
+        self.observe_ranges()
+        self.observe_widgets()
+        self.observe_plot_refresh()
         self.plot_refresh(None)
 
     def manual_scale_tf(self, change) -> None:
@@ -774,6 +783,7 @@ class GUI:
         if change["new"]:
             self.manual_update_and_save_widgets["update_button"].disabled = False
             self.unobserve_plot_refresh()
+            self.plot_output.clear_output()
             self.manual_update_bool = True
         else:
             self.manual_update_and_save_widgets["update_button"].disabled = True
@@ -907,7 +917,8 @@ class GUI:
 
     def plot_refresh(self, change):
         self.update_params()
-
+        
+        self.plot_output.clear_output()
         if not self.manual_update_and_save_widgets[
             "manual_update_checkbox"
         ].get_interact_value():

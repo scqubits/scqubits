@@ -279,4 +279,4 @@ default_panels["KerrOscillator"] = []
 default_panels["Composite"] = ["Transitions"]
 
 PLOT_HEIGHT = '500px'
-FIG_WIDTH_INCHES = 6
+FIG_WIDTH_INCHES = 8
