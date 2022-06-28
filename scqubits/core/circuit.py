@@ -426,7 +426,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Returns
         -------
-            expression of constants belonging to the subsystem 
+            expression of constants belonging to the subsystem
         """
         constant_expr = 0
         subsys_free_symbols = set(H_sys.free_symbols)
@@ -448,8 +448,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         constants = [
             term
             for term in ordered_terms
-            if (set(self.external_fluxes + self.offset_charges + list(self.symbolic_params.keys()) + [sm.symbols("I")]) &
-            set(term.free_symbols)) == set(term.free_symbols)
+            if (
+                set(
+                    self.external_fluxes
+                    + self.offset_charges
+                    + list(self.symbolic_params.keys())
+                    + [sm.symbols("I")]
+                )
+                & set(term.free_symbols)
+            )
+            == set(term.free_symbols)
         ]
         self._constant_terms_in_hamiltonian = constants
         for const in constants:
@@ -843,8 +851,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         constants = [
             term
             for term in ordered_terms
-            if (set(self.external_fluxes + self.offset_charges + list(self.symbolic_params.keys()) + [sm.symbols("I")]) &
-            set(term.free_symbols)) == set(term.free_symbols)
+            if (
+                set(
+                    self.external_fluxes
+                    + self.offset_charges
+                    + list(self.symbolic_params.keys())
+                    + [sm.symbols("I")]
+                )
+                & set(term.free_symbols)
+            )
+            == set(term.free_symbols)
         ]
         self._constant_terms_in_hamiltonian = constants
         for const in constants:
@@ -1055,7 +1071,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 ).tocsc()
             elif self.ext_basis == "harmonic":
                 osc_length = self.osc_lengths[var_index]
-                pos_operator = (osc_length / 2 ** 0.5) * (
+                pos_operator = (osc_length / 2**0.5) * (
                     op.creation(self.cutoffs_dict()[var_index])
                     + op.annihilation(self.cutoffs_dict()[var_index])
                 )
@@ -1067,13 +1083,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         if self.hierarchical_diagonalization:
             subsystem_list = list(self.subsystems.values())
-            identity = (
-                qt.tensor(
-                    [
-                        qt.identity(subsystem.truncated_dim)
-                        for subsystem in subsystem_list
-                    ]
-                )
+            identity = qt.tensor(
+                [qt.identity(subsystem.truncated_dim) for subsystem in subsystem_list]
             )
         else:
             identity = qt.identity(self.hilbertdim())
@@ -1124,7 +1135,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 cos_term_operator + cos_term_operator.dag()
             ) * 0.5
 
-        return junction_potential_matrix - np.sum(cos_coefficient_list)*identity
+        return junction_potential_matrix - np.sum(cos_coefficient_list) * identity
 
     def circuit_operator_functions(self) -> Dict[str, Callable]:
         """
@@ -1193,23 +1204,23 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 osc_freqs[var_index] = (8 * ELi * ECi) ** 0.5
                 osc_lengths[var_index] = (8.0 * ECi / ELi) ** 0.25
                 nonwrapped_ops["position"] = functools.partial(
-                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2 ** 0.5)
+                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2**0.5)
                 )
                 nonwrapped_ops["sin"] = compose(
                     sp.linalg.sinm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
                     ),
                 )
                 nonwrapped_ops["cos"] = compose(
                     sp.linalg.cosm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
                     ),
                 )
                 nonwrapped_ops["momentum"] = functools.partial(
                     op.ia_minus_iadag_sparse,
-                    prefactor=1 / (osc_lengths[var_index] * 2 ** 0.5),
+                    prefactor=1 / (osc_lengths[var_index] * 2**0.5),
                 )
 
                 for short_op_name in nonwrapped_ops.keys():
@@ -1466,7 +1477,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # remove constants from the Hamiltonian
         constant = float(hamiltonian.as_coefficients_dict()[1])
         hamiltonian -= hamiltonian.as_coefficients_dict()[1]
-        hamiltonian = hamiltonian.expand() + constant*sm.symbols("I")
+        hamiltonian = hamiltonian.expand() + constant * sm.symbols("I")
 
         # replace the extended degrees of freedom with harmonic oscillators
         for var_index in self.var_categories["extended"]:
@@ -1544,7 +1555,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # # remove constants from the Hamiltonian
         constant = float(hamiltonian.as_coefficients_dict()[1])
         hamiltonian -= hamiltonian.as_coefficients_dict()[1]
-        hamiltonian = hamiltonian.expand() + constant*sm.symbols("I")
+        hamiltonian = hamiltonian.expand() + constant * sm.symbols("I")
 
         junction_potential = sum(
             [term for term in hamiltonian.as_ordered_terms() if "cos" in str(term)]
