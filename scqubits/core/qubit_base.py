@@ -273,7 +273,10 @@ class QubitBaseClass(QuantumSystem, ABC):
 
     @overload
     def eigenvals(
-        self, evals_count: int, filename: str, return_spectrumdata: "Literal[True]",
+        self,
+        evals_count: int,
+        filename: str,
+        return_spectrumdata: "Literal[True]",
     ) -> SpectrumData:
         ...
 
@@ -902,10 +905,16 @@ class QubitBaseClass(QuantumSystem, ABC):
         assert isinstance(matrixelem_array, np.ndarray)
         if not show3d:
             return plot.matrix2d(
-                matrixelem_array, mode=mode, show_numbers=show_numbers, **kwargs,
+                matrixelem_array,
+                mode=mode,
+                show_numbers=show_numbers,
+                **kwargs,
             )
         return plot.matrix(
-            matrixelem_array, mode=mode, show_numbers=show_numbers, **kwargs,
+            matrixelem_array,
+            mode=mode,
+            show_numbers=show_numbers,
+            **kwargs,
         )
 
     def plot_matelem_vs_paramvals(

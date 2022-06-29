@@ -566,10 +566,12 @@ class HilbertSpace(
             bare_esys = subsys.eigensys(evals_count=subsys.truncated_dim)
             bare_esys_dict[subsys_index] = bare_esys
             bare_evals[subsys_index] = NamedSlotsNdarray(
-                np.asarray([bare_esys[0].tolist()]), self._parameters.paramvals_by_name,
+                np.asarray([bare_esys[0].tolist()]),
+                self._parameters.paramvals_by_name,
             )
             bare_evecs[subsys_index] = NamedSlotsNdarray(
-                np.asarray([bare_esys[1].tolist()]), self._parameters.paramvals_by_name,
+                np.asarray([bare_esys[1].tolist()]),
+                self._parameters.paramvals_by_name,
             )
         self._data["bare_evals"] = NamedSlotsNdarray(
             bare_evals, {"subsys": np.arange(self.subsystem_count)}
@@ -664,7 +666,10 @@ class HilbertSpace(
     # HilbertSpace: Hamiltonian (bare, interaction, full)
     #######################################################
 
-    def hamiltonian(self, bare_esys: Optional[Dict[int, ndarray]] = None,) -> Qobj:
+    def hamiltonian(
+        self,
+        bare_esys: Optional[Dict[int, ndarray]] = None,
+    ) -> Qobj:
         """
         Parameters
         ----------

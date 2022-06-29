@@ -293,7 +293,10 @@ class SpectrumLookupMixin(MixinCompatible):
         parameter_dict = self._parameters.ordered_dict.copy()
         return NamedSlotsNdarray(dressed_indices, parameter_dict)
 
-    def _generate_single_mapping(self, param_indices: Tuple[int, ...],) -> ndarray:
+    def _generate_single_mapping(
+        self,
+        param_indices: Tuple[int, ...],
+    ) -> ndarray:
         """
         For a single set of parameter values, specified by a tuple of indices
         ``param_indices``, create an array of the dressed-state indices in an order
@@ -319,7 +322,7 @@ class SpectrumLookupMixin(MixinCompatible):
             max_position = (np.abs(overlap_matrix[dressed_index, :])).argmax()
             max_overlap = np.abs(overlap_matrix[dressed_index, max_position])
             if self._ignore_low_overlap or (
-                max_overlap ** 2 > settings.OVERLAP_THRESHOLD
+                max_overlap**2 > settings.OVERLAP_THRESHOLD
             ):
                 overlap_matrix[:, max_position] = 0
                 dressed_indices[int(max_position)] = dressed_index
@@ -336,7 +339,9 @@ class SpectrumLookupMixin(MixinCompatible):
 
     @utils.check_sync_status
     def dressed_index(
-        self, bare_labels: Tuple[int, ...], param_indices: Optional[NpIndices] = None,
+        self,
+        bare_labels: Tuple[int, ...],
+        param_indices: Optional[NpIndices] = None,
     ) -> Union[ndarray, int, None]:
         """
         For given bare product state return the corresponding dressed-state index.
@@ -361,7 +366,9 @@ class SpectrumLookupMixin(MixinCompatible):
 
     @utils.check_sync_status
     def bare_index(
-        self, dressed_index: int, param_indices: Optional[Tuple[int, ...]] = None,
+        self,
+        dressed_index: int,
+        param_indices: Optional[Tuple[int, ...]] = None,
     ) -> Union[Tuple[int, ...], None]:
         """
         For given dressed index, look up the corresponding bare index.
@@ -391,7 +398,10 @@ class SpectrumLookupMixin(MixinCompatible):
         return basis_labels
 
     @utils.check_sync_status
-    def eigensys(self, param_indices: Optional[Tuple[int, ...]] = None,) -> ndarray:
+    def eigensys(
+        self,
+        param_indices: Optional[Tuple[int, ...]] = None,
+    ) -> ndarray:
         """
         Return the list of dressed eigenvectors
 
@@ -409,7 +419,10 @@ class SpectrumLookupMixin(MixinCompatible):
         return self._data["evecs"][param_index_tuple]
 
     @utils.check_sync_status
-    def eigenvals(self, param_indices: Optional[Tuple[int, ...]] = None,) -> ndarray:
+    def eigenvals(
+        self,
+        param_indices: Optional[Tuple[int, ...]] = None,
+    ) -> ndarray:
         """
         Return the array of dressed eigenenergies - primarily for running the sweep
 
@@ -508,7 +521,9 @@ class SpectrumLookupMixin(MixinCompatible):
 
     @utils.check_sync_status
     def bare_eigenstates(
-        self, subsys: "QuantumSys", param_indices: Optional[Tuple[int, ...]] = None,
+        self,
+        subsys: "QuantumSys",
+        param_indices: Optional[Tuple[int, ...]] = None,
     ) -> NamedSlotsNdarray:
         """
         Return ndarray of bare eigenstates for given subsystems and parameter index.
@@ -522,7 +537,9 @@ class SpectrumLookupMixin(MixinCompatible):
 
     @utils.check_sync_status
     def bare_eigenvals(
-        self, subsys: "QuantumSys", param_indices: Optional[Tuple[int, ...]] = None,
+        self,
+        subsys: "QuantumSys",
+        param_indices: Optional[Tuple[int, ...]] = None,
     ) -> NamedSlotsNdarray:
         """
         Return `NamedSlotsNdarray` of bare eigenenergies for given subsystem, usually
@@ -545,7 +562,10 @@ class SpectrumLookupMixin(MixinCompatible):
         self._current_param_indices = slice(None, None, None)
         return self["bare_evals"][subsys_index][param_indices_tuple]
 
-    def bare_productstate(self, bare_index: Tuple[int, ...],) -> Qobj:
+    def bare_productstate(
+        self,
+        bare_index: Tuple[int, ...],
+    ) -> Qobj:
         """
         Return the bare product state specified by `bare_index`. Note: no parameter
         dependence here, since the Hamiltonian is always represented in the bare

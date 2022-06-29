@@ -221,7 +221,10 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         self.K: float = K  # type:ignore
 
         super().__init__(
-            E_osc=E_osc, l_osc=l_osc, truncated_dim=truncated_dim, id_str=id_str,
+            E_osc=E_osc,
+            l_osc=l_osc,
+            truncated_dim=truncated_dim,
+            id_str=id_str,
         )
 
         self._image_filename = os.path.join(
@@ -246,6 +249,6 @@ class KerrOscillator(Oscillator, serializers.Serializable):
             number of desired eigenvalues (default value = 6)
         """
         evals = [
-            (self.E_osc + self.K) * n - self.K * n ** 2 for n in range(evals_count)
+            (self.E_osc + self.K) * n - self.K * n**2 for n in range(evals_count)
         ]
         return np.asarray(evals)

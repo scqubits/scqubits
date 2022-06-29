@@ -272,7 +272,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         """
         return (
             -2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0)
-            + self.EL * phi ** 2
+            + self.EL * phi**2
             + 2.0 * self.EJ
             + self.EJ
             * self.dEJ

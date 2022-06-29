@@ -466,7 +466,11 @@ class Explorer:
             panels.display_bare_wavefunctions(self.sweep, subsys, param_slice, fig_ax)
         elif panel_name == "Matrix elements" and isinstance(subsys, QubitBaseClass):
             panel_widgets = self.ui["subsys_panel_settings"][subsys_name][panel_name]
-            (opname_dropdown, matrixscan_toggle, mode_dropdown,) = panel_widgets
+            (
+                opname_dropdown,
+                matrixscan_toggle,
+                mode_dropdown,
+            ) = panel_widgets
             if matrixscan_toggle.value == "fixed":
                 panels.display_matrixelements(
                     sweep=self.sweep,
@@ -518,7 +522,10 @@ class Explorer:
             )
         elif panel_name == "Self-Kerr":
             panels.display_self_kerr(
-                sweep=self.sweep, subsys=subsys, param_slice=param_slice, fig_ax=fig_ax,
+                sweep=self.sweep,
+                subsys=subsys,
+                param_slice=param_slice,
+                fig_ax=fig_ax,
             )
         elif panel_name == "Cross-Kerr, ac-Stark":
             panels.display_cross_kerr(
@@ -661,7 +668,9 @@ class Explorer:
         plt.ioff()
         if len(panels) > 0:
             self.axes_table = self.fig.subplots(
-                ncols=self.ncols, nrows=nrows, squeeze=False,
+                ncols=self.ncols,
+                nrows=nrows,
+                squeeze=False,
             )
             self.fig.set_size_inches(1.1 * self.figwidth, self.figheight * nrows)
 
@@ -746,18 +755,21 @@ class Explorer:
                     options=list(range(subsys.truncated_dim)), rows=6
                 )
             self.ui["mode_dropdown"] = Dropdown(
-                options=mode_dropdown_list, description="Plot as:",
+                options=mode_dropdown_list,
+                description="Plot as:",
             )
             return [self.ui["wavefunction_selector"], self.ui["mode_dropdown"]]
 
         if panel_name == "Matrix elements":
             ui_mode_dropdown = Dropdown(
-                options=mode_dropdown_list, description="Plot as:",
+                options=mode_dropdown_list,
+                description="Plot as:",
             )
             ui_matrixscan_toggle = ToggleButtons(options=["fixed", "sweep"])
             ui_matrixscan_toggle.style.button_width = "55px"
             ui_operator_dropdown = Dropdown(
-                options=subsys.get_operator_names(), description="Operator",
+                options=subsys.get_operator_names(),
+                description="Operator",
             )
             ui_mode_dropdown.observe(self.update_plots, "value")
             ui_operator_dropdown.observe(self.update_plots, "value")

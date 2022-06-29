@@ -241,8 +241,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         example when the circuit is large and circuit parameters are changed).
         """
         if not self.is_child and len(self.symbolic_circuit.nodes) > 3:
-            self.hamiltonian_symbolic = self.symbolic_circuit.generate_symbolic_hamiltonian(
-                substitute_params=True
+            self.hamiltonian_symbolic = (
+                self.symbolic_circuit.generate_symbolic_hamiltonian(
+                    substitute_params=True
+                )
             )
             self.generate_hamiltonian_sym_for_numerics()
 
@@ -1083,7 +1085,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 ).tocsc()
             elif self.ext_basis == "harmonic":
                 osc_length = self.osc_lengths[var_index]
-                pos_operator = (osc_length / 2 ** 0.5) * (
+                pos_operator = (osc_length / 2**0.5) * (
                     op.creation(self.cutoffs_dict()[var_index])
                     + op.annihilation(self.cutoffs_dict()[var_index])
                 )
@@ -1136,7 +1138,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 )
 
             cos_term_operator = coefficient * functools.reduce(
-                operator.mul, operator_list,
+                operator.mul,
+                operator_list,
             )
 
             junction_potential_matrix += (
@@ -1212,23 +1215,23 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 osc_freqs[var_index] = (8 * ELi * ECi) ** 0.5
                 osc_lengths[var_index] = (8.0 * ECi / ELi) ** 0.25
                 nonwrapped_ops["position"] = functools.partial(
-                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2 ** 0.5)
+                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2**0.5)
                 )
                 nonwrapped_ops["sin"] = compose(
                     sp.linalg.sinm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
                     ),
                 )
                 nonwrapped_ops["cos"] = compose(
                     sp.linalg.cosm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
                     ),
                 )
                 nonwrapped_ops["momentum"] = functools.partial(
                     op.ia_minus_iadag_sparse,
-                    prefactor=1 / (osc_lengths[var_index] * 2 ** 0.5),
+                    prefactor=1 / (osc_lengths[var_index] * 2**0.5),
                 )
 
                 for short_op_name in nonwrapped_ops.keys():
@@ -1336,7 +1339,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             operator = operator.full()
 
         operator = convert_matrix_to_qobj(
-            operator, subsystem, op_in_eigenbasis=False, evecs=None,
+            operator,
+            subsystem,
+            op_in_eigenbasis=False,
+            evecs=None,
         )
         return identity_wrap(operator, subsystem, list(self.subsystems.values()))
 
@@ -1368,7 +1374,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             operator = operator.data.tocsc()
 
         operator = convert_matrix_to_qobj(
-            operator, subsystem, op_in_eigenbasis=False, evecs=None,
+            operator,
+            subsystem,
+            op_in_eigenbasis=False,
+            evecs=None,
         )
         return identity_wrap(operator, subsystem, list(self.subsystems.values()))
 
@@ -1750,7 +1759,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     sm.sin(1.0 * sm.symbols(f"θ{var_index}")),
                 )
                 .replace(
-                    (1.0 * sm.symbols(f"θ{var_index}")), (sm.symbols(f"θ{var_index}")),
+                    (1.0 * sm.symbols(f"θ{var_index}")),
+                    (sm.symbols(f"θ{var_index}")),
                 )
             )
             # replace Qs with Q^2 etc
@@ -1877,7 +1887,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         else:
             # create KE and PE symbolic expressions
             sym_hamiltonian = self._make_expr_human_readable(
-                self.hamiltonian_symbolic.expand(), float_round=float_round,
+                self.hamiltonian_symbolic.expand(),
+                float_round=float_round,
             )
             pot_symbols = (
                 self.external_fluxes
@@ -2030,7 +2041,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 sweep_vars[var_name] = kwargs[var_name]
         if len(sweep_vars) > 1:
             sweep_vars.update(
-                zip(sweep_vars, np.meshgrid(*[grid for grid in sweep_vars.values()]),)
+                zip(
+                    sweep_vars,
+                    np.meshgrid(*[grid for grid in sweep_vars.values()]),
+                )
             )
             for var_name in sweep_vars:
                 parameters[var_name] = sweep_vars[var_name]
@@ -2378,7 +2392,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # by []
         else:
             dims_to_be_summed = self._dims_to_be_summed(var_indices, [])
-        wf_plot = np.sum(np.abs(wf_ext_basis) ** 2, axis=tuple(dims_to_be_summed),)
+        wf_plot = np.sum(
+            np.abs(wf_ext_basis) ** 2,
+            axis=tuple(dims_to_be_summed),
+        )
         # reorder the array according to the order in var_indices
         all_var_indices = (
             flatten_list_recursive(self.system_hierarchy)
@@ -3003,8 +3020,10 @@ class Circuit(Subsystem):
         self._set_vars()  # setting the attribute vars to store operator symbols
 
         if len(self.symbolic_circuit.nodes) > 3:
-            self.hamiltonian_symbolic = self.symbolic_circuit.generate_symbolic_hamiltonian(
-                substitute_params=True
+            self.hamiltonian_symbolic = (
+                self.symbolic_circuit.generate_symbolic_hamiltonian(
+                    substitute_params=True
+                )
             )
 
         if system_hierarchy is not None:
@@ -3012,8 +3031,9 @@ class Circuit(Subsystem):
             #     raise Exception(
             #         "Hierarchical diagonalization cannot be used when the circuit is purely harmonic."
             #     )
-            self.hierarchical_diagonalization = system_hierarchy != [] and system_hierarchy != flatten_list_recursive(
-                system_hierarchy
+            self.hierarchical_diagonalization = (
+                system_hierarchy != []
+                and system_hierarchy != flatten_list_recursive(system_hierarchy)
             )
 
         if not self.hierarchical_diagonalization:

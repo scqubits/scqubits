@@ -259,7 +259,11 @@ class GUI:
                 layout=std_layout,
             ),
             "state_slider": IntSlider(
-                min=1, max=10, value=5, continuous_update=False, layout=std_layout,
+                min=1,
+                max=10,
+                value=5,
+                continuous_update=False,
+                layout=std_layout,
             ),
             "show_numbers_checkbox": Checkbox(
                 value=False, description="Show values", disabled=False, indent=False
@@ -369,10 +373,14 @@ class GUI:
 
             if isinstance(widget, IntSlider):
                 widget_min_text = IntText(
-                    value=widget.min, description="min=", layout=range_text_layout,
+                    value=widget.min,
+                    description="min=",
+                    layout=range_text_layout,
                 )
                 widget_max_text = IntText(
-                    value=widget.max, description="max=", layout=range_text_layout,
+                    value=widget.max,
+                    description="max=",
+                    layout=range_text_layout,
                 )
             elif isinstance(widget, FloatSlider):
                 widget_min_text = FloatText(
@@ -392,10 +400,14 @@ class GUI:
                 max = widget.options[-1]
 
                 widget_min_text = IntText(
-                    value=min, description="min=", layout=range_text_layout,
+                    value=min,
+                    description="min=",
+                    layout=range_text_layout,
                 )
                 widget_max_text = IntText(
-                    value=max, description="max=", layout=range_text_layout,
+                    value=max,
+                    description="max=",
+                    layout=range_text_layout,
                 )
             else:
                 continue
@@ -962,7 +974,10 @@ class GUI:
         )
 
         manual_update_and_save_HBox = HBox(
-            [manual_update_HBox, save_HBox,],
+            [
+                manual_update_HBox,
+                save_HBox,
+            ],
             layout=Layout(width="95%", justify_content="space-between"),
         )
 

@@ -338,7 +338,9 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         return final_state_list
 
     def _complete_state(
-        self, partial_state: BareLabel, subsys_list: List[QuantumSystem],
+        self,
+        partial_state: BareLabel,
+        subsys_list: List[QuantumSystem],
     ) -> BareLabel:
         """A partial state only includes entries for active subsystems. Complete this
         state by inserting 0 entries for all inactive subsystems."""
@@ -360,7 +362,9 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         raise TypeError("Argument `subsystems` has invalid type.")
 
     def _process_initial_option(
-        self, initial: Union[None, StateLabel], subsys_list: List[QuantumSystem],
+        self,
+        initial: Union[None, StateLabel],
+        subsys_list: List[QuantumSystem],
     ) -> Tuple[bool, Callable, StateLabel]:
         if isinstance(initial, DressedLabel):
             initial_dressed = True
@@ -798,11 +802,14 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         """
         if isinstance(operator, str):
             operator_func = functools.partial(
-                sweeps.bare_matrixelement, operator_name=operator, subsystem=subsystem,
+                sweeps.bare_matrixelement,
+                operator_name=operator,
+                subsystem=subsystem,
             )
         elif isinstance(operator, Qobj):
             operator_func = functools.partial(
-                sweeps.dressed_matrixelement, operator=operator,
+                sweeps.dressed_matrixelement,
+                operator=operator,
             )
         else:
             raise TypeError(
@@ -810,7 +817,10 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
                 "expected: str or Qobj."
             )
 
-        matrix_element_data = generator(self, operator_func,)
+        matrix_element_data = generator(
+            self,
+            operator_func,
+        )
         self._data[sweep_name] = matrix_element_data
 
 
@@ -1125,7 +1135,9 @@ class ParameterSweep(  # type:ignore
         esys_array[1] = evecs
         return esys_array
 
-    def _dressed_spectrum_sweep(self,) -> Tuple[NamedSlotsNdarray, NamedSlotsNdarray]:
+    def _dressed_spectrum_sweep(
+        self,
+    ) -> Tuple[NamedSlotsNdarray, NamedSlotsNdarray]:
         """
 
         Returns
@@ -1388,7 +1400,11 @@ def generator(sweep: "ParameterSweepBase", func: Callable, **kwargs) -> np.ndarr
     data_array = list(
         tqdm(
             map(
-                functools.partial(func_effective, params=reduced_parameters, **kwargs,),
+                functools.partial(
+                    func_effective,
+                    params=reduced_parameters,
+                    **kwargs,
+                ),
                 itertools.product(*reduced_parameters.ranges),
             ),
             total=total_count,

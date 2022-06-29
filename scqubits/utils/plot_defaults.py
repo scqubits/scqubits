@@ -43,7 +43,8 @@ def recast_name(raw_name: Union[str, None]) -> str:
 
 
 def set_wavefunction_scaling(
-    wavefunctions: "List[WaveFunction]", potential_vals: np.ndarray,
+    wavefunctions: "List[WaveFunction]",
+    potential_vals: np.ndarray,
 ) -> float:
     """
     Sets the scaling parameter for 1d wavefunctions

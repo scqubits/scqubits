@@ -94,7 +94,7 @@ NOISE_PARAMS = {
     "T": 0.015,  # Typical temperature for a superconducting circuit experiment. Units: K
     "M": 400,  # Mutual inductance between qubit and a flux line. Units: \Phi_0 / Ampere
     "R_k": sp.constants.h
-    / sp.constants.e ** 2.0,  # Normal quantum resistance, aka Klitzing constant.
+    / sp.constants.e**2.0,  # Normal quantum resistance, aka Klitzing constant.
     # Note, in some papers a superconducting quantum
     # resistance is used, and defined as: h/(2e)^2
 }
@@ -1434,7 +1434,7 @@ class NoisySystem(ABC):
             s = (
                 2
                 * (2 * np.pi) ** 2
-                * M ** 2
+                * M**2
                 * omega
                 * sp.constants.hbar
                 / complex(Z_fun(omega)).real
