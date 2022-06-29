@@ -199,8 +199,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
 
-        # Creating the=is attribute to be used in future
-        self.is_purely_harmonic = False
+        # attributes for purely harmonic
+        self.normal_mode_freqs = []
 
         self._configure()
 
@@ -277,6 +277,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         if self.is_purely_harmonic and isinstance(self, Circuit):
             self.potential_symbolic = self.symbolic_circuit.potential_symbolic
             self.transformation_matrix = self.symbolic_circuit.transformation_matrix
+            self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
 
         # generate _hamiltonian_sym_for_numerics if not already generated, delayed for
         # large circuits
@@ -401,6 +402,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             self._make_property(
                 cutoff_str, getattr(self.parent, cutoff_str), "update_cutoffs"
             )
+
+        # Creating the attributes for purely harmonic circuits
+        self.is_purely_harmonic = self.parent.is_purely_harmonic
+        if self.is_purely_harmonic: # assuming that the parent has only extended variables and are ordered starting from 1, 2, 3, ...
+            self.normal_mode_freqs = self.parent.normal_mode_freqs[[var_idx-1 for var_idx in self.var_categories["extended"]]]
 
         self._set_vars()
         if self.hierarchical_diagonalization:
@@ -2979,10 +2985,10 @@ class Circuit(Subsystem):
             )
 
         if system_hierarchy is not None:
-            if self.is_purely_harmonic:
-                raise Exception(
-                    "Hierarchical diagonalization cannot be used when the circuit is purely harmonic."
-                )
+            # if self.is_purely_harmonic:
+            #     raise Exception(
+            #         "Hierarchical diagonalization cannot be used when the circuit is purely harmonic."
+            #     )
             self.hierarchical_diagonalization = (
                 system_hierarchy != []
                 and system_hierarchy != flatten_list_recursive(system_hierarchy)
