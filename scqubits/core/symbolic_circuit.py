@@ -324,6 +324,43 @@ class SymbolicCircuit(serializers.Serializable):
     def is_any_branch_parameter_symbolic(self):
         return True if len(self.symbolic_params) > 0 else False
 
+    @staticmethod
+    def _gram_schmidt(initial_vecs:ndarray, metric:ndarray) -> ndarray:
+        def inner_product(u,v, metric):
+            return u @ metric @ v
+
+        def projection(u,v, metric):
+            """
+            Projection of u on v
+
+            Parameters
+            ----------
+            u : ndarray
+            v : ndarray
+            """
+            return v*inner_product(v,u, metric)/inner_product(v,v, metric)
+
+        orthogonal_vecs = [initial_vecs[0]]
+        for i in range(1, len(initial_vecs)):
+            vec = initial_vecs[i]
+            projection_on_orthovecs = sum([projection(vec, ortho_vec, metric) for ortho_vec in orthogonal_vecs])
+            orthogonal_vecs.append(vec - projection_on_orthovecs)
+        return np.array(orthogonal_vecs).T
+
+    def _orthoganalize_degenerate_eigen_vecs(self, evecs: ndarray, eigs: ndarray, relevant_eig_indices, cap_matrix: ndarray) -> ndarray:
+        relevant_eigs = eigs[relevant_eig_indices]
+        unique_eigs = np.unique(np.round(relevant_eigs, 10))
+        close_eigs = [list(np.where(np.abs(eigs - eig) < 1e-10)[0]) for eig in unique_eigs]
+        degenerate_indices_list = [indices for indices in close_eigs if len(indices) > 1]
+
+        trans_mat = evecs.copy()
+
+        for degenerate_set in degenerate_indices_list:
+            trans_mat[:,degenerate_set] = self._gram_schmidt(evecs[:,degenerate_set].T, metric=cap_matrix)
+
+        return trans_mat
+
+
     def purely_harmonic_transformation(self) -> Tuple[ndarray, ndarray]:
 
         trans_mat, _ = self.variable_transformation_matrix()
@@ -337,9 +374,8 @@ class SymbolicCircuit(serializers.Serializable):
             c_mat = c_mat[:-1, :-1]
             l_mat = l_mat[:-1, :-1]
         normal_mode_freqs, normal_mode_vecs = sp.linalg.eig(l_mat, c_mat)
-        normal_mode_freqs = normal_mode_freqs.round(
-            10
-        )  # rounding to the tenth digit to remove numerical errors in eig calculation
+        normal_mode_freqs = normal_mode_freqs.round(10)  
+        # rounding to the tenth digit to remove numerical errors in eig calculation
         # rearranging the vectors
         idx = normal_mode_freqs.argsort()
         normal_freq_ids = [
@@ -352,12 +388,14 @@ class SymbolicCircuit(serializers.Serializable):
         idx = normal_freq_ids + zero_freq_ids + inf_freq_ids
         # sorting so that all the zero frequencies show up at the end
 
-        normal_mode_freqs = np.round(normal_mode_freqs[idx], 10)
+        normal_mode_freqs = normal_mode_freqs[idx]
         normal_mode_vecs = normal_mode_vecs[:, idx]
+
+        orthoganalized_normal_mode_vecs = self._orthoganalize_degenerate_eigen_vecs(normal_mode_vecs, normal_mode_freqs, range(len(normal_freq_ids)), c_mat)
 
         # constructing the new transformation
         trans_mat_new = trans_mat.copy()
-        trans_mat_new[:, : len(c_mat)] = trans_mat[:, : len(c_mat)] @ normal_mode_vecs
+        trans_mat_new[:, : len(c_mat)] = trans_mat[:, : len(c_mat)] @ orthoganalized_normal_mode_vecs
 
         return (
             np.real(
@@ -1630,6 +1668,11 @@ class SymbolicCircuit(serializers.Serializable):
 
     def _set_external_fluxes(self, closure_branches: List[Branch] = None):
         # setting the class properties
+
+        if self.is_purely_harmonic:
+            self.external_fluxes = []
+            self.closure_branches = []
+            return 0
 
         closure_branches = closure_branches or self._closure_branches()
         closure_branches = [branch for branch in closure_branches if branch.type != "C"]
