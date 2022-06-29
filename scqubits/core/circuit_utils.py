@@ -11,17 +11,18 @@
 ############################################################################
 
 import re
-from typing import Any, Callable, Dict, List, TYPE_CHECKING, Union
+
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union
 
 import numpy as np
 import sympy as sm
+
 from numpy import ndarray
 from scipy import sparse
 from scipy.sparse import csc_matrix
 
 from scqubits.core import discretization as discretization
-from utils.misc import flatten_list_recursive
-
+from scqubits.utils.misc import flatten_list_recursive
 
 if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem
