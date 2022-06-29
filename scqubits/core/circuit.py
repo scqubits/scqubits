@@ -1589,12 +1589,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         evals_count : int
             Number of eigenenergies
         """
-        normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs[::-1]
+        normal_mode_freqs = self.normal_mode_freqs
         excitations = [np.arange(evals_count) for i in self.var_categories["extended"]]
         energy_array = sum(
             [
                 (grid + 0.5) * normal_mode_freqs[idx]
-                for idx, grid in enumerate(np.meshgrid(*excitations))
+                for idx, grid in enumerate(np.meshgrid(*excitations, indexing="ij"))
             ]
         )
         excitation_indices = []
