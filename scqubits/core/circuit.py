@@ -2910,8 +2910,8 @@ class Circuit(Subsystem):
             setattr(self, attr, getattr(self.symbolic_circuit, attr))
 
         if self.is_purely_harmonic:
+            self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
             if self.ext_basis != "harmonic":
-                self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
                 warnings.warn(
                     "Purely harmonic circuits need ext_basis to be set to 'harmonic'"
                 )
