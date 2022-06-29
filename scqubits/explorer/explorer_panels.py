@@ -48,9 +48,7 @@ def display_bare_spectrum(
         bare_evals = bare_evals - bare_evals[:, 0, np.newaxis]
 
     fig, axes = bare_evals[:, 0:evals_count].plot(  # type:ignore
-        title=title,
-        ylabel="energy [{}]".format(units.get_units()),
-        fig_ax=fig_ax,
+        title=title, ylabel="energy [{}]".format(units.get_units()), fig_ax=fig_ax,
     )
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
 
@@ -123,11 +121,7 @@ def display_matrixelement_sweep(
     paramvals_count = len(param_vals)
 
     specdata = SpectrumData(
-        evals,
-        {},
-        param_slice.param_name,
-        param_vals,
-        state_table=evecs,
+        evals, {}, param_slice.param_name, param_vals, state_table=evecs,
     )
 
     matelem_table = np.empty(
