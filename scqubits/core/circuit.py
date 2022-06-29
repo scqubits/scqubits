@@ -1799,7 +1799,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         for external_flux in self.external_fluxes:
             potential = potential.replace(
                 external_flux,
-                sm.symbols("(2π)") * external_flux,
+                sm.symbols(
+                    "(2π" + "Φ_{" + str(get_trailing_number(str(external_flux))) + "})"
+                ),
             )
 
         if print_latex:
@@ -1869,7 +1871,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 sym_hamiltonian_PE = self._make_expr_human_readable(
                     sym_hamiltonian_PE.replace(
                         external_flux,
-                        sm.symbols("(2π)") * external_flux,
+                        sm.symbols(
+                            "(2π"
+                            + "Φ_{"
+                            + str(get_trailing_number(str(external_flux)))
+                            + "})"
+                        ),
                     ),
                     float_round=float_round,
                 )
@@ -1905,7 +1912,13 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             # 2pi numerically
             for external_flux in self.external_fluxes:
                 sym_hamiltonian_PE = sym_hamiltonian_PE.replace(
-                    external_flux, sm.symbols("(2π)") * external_flux
+                    external_flux,
+                    sm.symbols(
+                        "(2π"
+                        + "Φ_{"
+                        + str(get_trailing_number(str(external_flux)))
+                        + "})"
+                    ),
                 )
             # add the KE and PE and supress the evaluation
             sym_hamiltonian = sm.Add(
@@ -3098,7 +3111,13 @@ class Circuit(Subsystem):
             sym_lagrangian_PE_node_vars = self.potential_node_vars
             for external_flux in self.external_fluxes:
                 sym_lagrangian_PE_node_vars = sym_lagrangian_PE_node_vars.replace(
-                    external_flux, sm.symbols("(2π)") * external_flux
+                    external_flux,
+                    sm.symbols(
+                        "(2π"
+                        + "Φ_{"
+                        + str(get_trailing_number(str(external_flux)))
+                        + "})"
+                    ),
                 )
             lagrangian = sm.Add(
                 (self._make_expr_human_readable(lagrangian + self.potential_node_vars)),
@@ -3119,7 +3138,13 @@ class Circuit(Subsystem):
             sym_lagrangian_PE_new = self.potential_symbolic.expand()
             for external_flux in self.external_fluxes:
                 sym_lagrangian_PE_new = sym_lagrangian_PE_new.replace(
-                    external_flux, sm.symbols("(2π)") * external_flux
+                    external_flux,
+                    sm.symbols(
+                        "(2π"
+                        + "Φ_{"
+                        + str(get_trailing_number(str(external_flux)))
+                        + "})"
+                    ),
                 )
             lagrangian = sm.Add(
                 (
