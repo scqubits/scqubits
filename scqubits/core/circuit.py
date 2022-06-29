@@ -405,8 +405,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         # Creating the attributes for purely harmonic circuits
         self.is_purely_harmonic = self.parent.is_purely_harmonic
-        if self.is_purely_harmonic: # assuming that the parent has only extended variables and are ordered starting from 1, 2, 3, ...
-            self.normal_mode_freqs = self.parent.normal_mode_freqs[[var_idx-1 for var_idx in self.var_categories["extended"]]]
+        if (
+            self.is_purely_harmonic
+        ):  # assuming that the parent has only extended variables and are ordered starting from 1, 2, 3, ...
+            self.normal_mode_freqs = self.parent.normal_mode_freqs[
+                [var_idx - 1 for var_idx in self.var_categories["extended"]]
+            ]
 
         self._set_vars()
         if self.hierarchical_diagonalization:
@@ -1663,7 +1667,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # dimension of the hamiltonian
         hilbertdim = self.hilbertdim()
 
-        if isinstance(self, Circuit) and self.is_purely_harmonic and not self.hierarchical_diagonalization:
+        if (
+            isinstance(self, Circuit)
+            and self.is_purely_harmonic
+            and not self.hierarchical_diagonalization
+        ):
             return self._eigenvals_for_purely_harmonic(evals_count=evals_count)[0]
 
         hamiltonian_mat = self.hamiltonian()
@@ -1683,7 +1691,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
 
-        if isinstance(self, Circuit) and self.is_purely_harmonic and not self.hierarchical_diagonalization:
+        if (
+            isinstance(self, Circuit)
+            and self.is_purely_harmonic
+            and not self.hierarchical_diagonalization
+        ):
             return self._eigensys_for_purely_harmonic(evals_count=evals_count)
 
         # dimension of the hamiltonian
@@ -1835,27 +1847,29 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 self.subsystems[subsystem_index].potential_symbolic.expand(),
                 float_round=float_round,
             )
-            # add a numerical 2pi coefficient in front of externa fluxes, in order to obtain the KE term
-            # correctly; the subsystem hamiltonian has 2pi in front of external fluxes, but the potential
-            # does not.
-            for external_flux in self.external_fluxes:
-                sym_hamiltonian_PE = sym_hamiltonian_PE.replace(
-                    external_flux, round(2 * np.pi, float_round) * external_flux
-                )
             # obtain the KE of hamiltonian
-            sym_hamiltonian_KE = self._make_expr_human_readable(
-                sym_hamiltonian - sym_hamiltonian_PE,
-                float_round=float_round,
+            pot_symbols = (
+                self.external_fluxes
+                + [
+                    sm.symbols("θ" + str(idx))
+                    for idx in self.var_categories["extended"]
+                ]
+                + [
+                    sm.symbols("θ" + str(idx))
+                    for idx in self.var_categories["periodic"]
+                ]
             )
+            sym_hamiltonian_KE = 0 * sm.Symbol("x")
+            for term in sym_hamiltonian.args:
+                if term.free_symbols.isdisjoint(pot_symbols) == True:
+                    sym_hamiltonian_KE = sm.Add(sym_hamiltonian_KE, term)
 
-            # replace the numerical 2pi by a symbolic 2pi
+            # add a symbolic 2pi
             for external_flux in self.external_fluxes:
                 sym_hamiltonian_PE = self._make_expr_human_readable(
                     sym_hamiltonian_PE.replace(
                         external_flux,
-                        sm.symbols("(2π)")
-                        * external_flux
-                        / (round(2 * np.pi, float_round)),
+                        sm.symbols("(2π)") * external_flux,
                     ),
                     float_round=float_round,
                 )
@@ -1865,10 +1879,25 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             )
         else:
             # create KE and PE symbolic expressions
-            sym_hamiltonian_KE = self._make_expr_human_readable(
-                self.hamiltonian_symbolic.expand() - self.potential_symbolic.expand(),
+            sym_hamiltonian = self._make_expr_human_readable(
+                self.hamiltonian_symbolic.expand(),
                 float_round=float_round,
             )
+            pot_symbols = (
+                self.external_fluxes
+                + [
+                    sm.symbols("θ" + str(idx))
+                    for idx in self.var_categories["extended"]
+                ]
+                + [
+                    sm.symbols("θ" + str(idx))
+                    for idx in self.var_categories["periodic"]
+                ]
+            )
+            sym_hamiltonian_KE = 0 * sm.Symbol("x")
+            for term in sym_hamiltonian.args:
+                if term.free_symbols.isdisjoint(pot_symbols) == True:
+                    sym_hamiltonian_KE = sm.Add(sym_hamiltonian_KE, term)
             sym_hamiltonian_PE = self._make_expr_human_readable(
                 self.potential_symbolic.expand(), float_round=float_round
             )
