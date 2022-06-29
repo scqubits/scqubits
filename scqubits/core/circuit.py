@@ -405,8 +405,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         # Creating the attributes for purely harmonic circuits
         self.is_purely_harmonic = self.parent.is_purely_harmonic
-        if self.is_purely_harmonic: # assuming that the parent has only extended variables and are ordered starting from 1, 2, 3, ...
-            self.normal_mode_freqs = self.parent.normal_mode_freqs[[var_idx-1 for var_idx in self.var_categories["extended"]]]
+        if (
+            self.is_purely_harmonic
+        ):  # assuming that the parent has only extended variables and are ordered starting from 1, 2, 3, ...
+            self.normal_mode_freqs = self.parent.normal_mode_freqs[
+                [var_idx - 1 for var_idx in self.var_categories["extended"]]
+            ]
 
         self._set_vars()
         if self.hierarchical_diagonalization:
@@ -1663,7 +1667,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # dimension of the hamiltonian
         hilbertdim = self.hilbertdim()
 
-        if isinstance(self, Circuit) and self.is_purely_harmonic and not self.hierarchical_diagonalization:
+        if (
+            isinstance(self, Circuit)
+            and self.is_purely_harmonic
+            and not self.hierarchical_diagonalization
+        ):
             return self._eigenvals_for_purely_harmonic(evals_count=evals_count)[0]
 
         hamiltonian_mat = self.hamiltonian()
@@ -1683,7 +1691,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
 
-        if isinstance(self, Circuit) and self.is_purely_harmonic and not self.hierarchical_diagonalization:
+        if (
+            isinstance(self, Circuit)
+            and self.is_purely_harmonic
+            and not self.hierarchical_diagonalization
+        ):
             return self._eigensys_for_purely_harmonic(evals_count=evals_count)
 
         # dimension of the hamiltonian
