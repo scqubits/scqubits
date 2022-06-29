@@ -1075,7 +1075,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 ).tocsc()
             elif self.ext_basis == "harmonic":
                 osc_length = self.osc_lengths[var_index]
-                pos_operator = (osc_length / 2**0.5) * (
+                pos_operator = (osc_length / 2 ** 0.5) * (
                     op.creation(self.cutoffs_dict()[var_index])
                     + op.annihilation(self.cutoffs_dict()[var_index])
                 )
@@ -1205,23 +1205,23 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 osc_freqs[var_index] = (8 * ELi * ECi) ** 0.5
                 osc_lengths[var_index] = (8.0 * ECi / ELi) ** 0.25
                 nonwrapped_ops["position"] = functools.partial(
-                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2**0.5)
+                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2 ** 0.5)
                 )
                 nonwrapped_ops["sin"] = compose(
                     sp.linalg.sinm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
                     ),
                 )
                 nonwrapped_ops["cos"] = compose(
                     sp.linalg.cosm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
                     ),
                 )
                 nonwrapped_ops["momentum"] = functools.partial(
                     op.ia_minus_iadag_sparse,
-                    prefactor=1 / (osc_lengths[var_index] * 2**0.5),
+                    prefactor=1 / (osc_lengths[var_index] * 2 ** 0.5),
                 )
 
                 for short_op_name in nonwrapped_ops.keys():
@@ -2911,6 +2911,7 @@ class Circuit(Subsystem):
 
         if self.is_purely_harmonic:
             if self.ext_basis != "harmonic":
+                self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
                 warnings.warn(
                     "Purely harmonic circuits need ext_basis to be set to 'harmonic'"
                 )
