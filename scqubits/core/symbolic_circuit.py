@@ -361,14 +361,14 @@ class SymbolicCircuit(serializers.Serializable):
             indices for indices in close_eigs if len(indices) > 1
         ]
 
-        trans_mat = evecs.copy()
+        orthogonal_evecs = evecs.copy()
 
         for degenerate_set in degenerate_indices_list:
-            trans_mat[:, degenerate_set] = self._gram_schmidt(
+            orthogonal_evecs[:, degenerate_set] = self._gram_schmidt(
                 evecs[:, degenerate_set].T, metric=cap_matrix
             )
 
-        return trans_mat
+        return orthogonal_evecs
 
     def purely_harmonic_transformation(self) -> Tuple[ndarray, ndarray]:
 
