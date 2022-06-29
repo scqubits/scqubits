@@ -1663,7 +1663,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # dimension of the hamiltonian
         hilbertdim = self.hilbertdim()
 
-        if isinstance(self, Circuit) and self.is_purely_harmonic:
+        if isinstance(self, Circuit) and self.is_purely_harmonic and not self.hierarchical_diagonalization:
             return self._eigenvals_for_purely_harmonic(evals_count=evals_count)[0]
 
         hamiltonian_mat = self.hamiltonian()
@@ -1683,7 +1683,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
 
-        if isinstance(self, Circuit) and self.is_purely_harmonic:
+        if isinstance(self, Circuit) and self.is_purely_harmonic and not self.hierarchical_diagonalization:
             return self._eigensys_for_purely_harmonic(evals_count=evals_count)
 
         # dimension of the hamiltonian
