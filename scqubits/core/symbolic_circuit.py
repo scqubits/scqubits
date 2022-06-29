@@ -902,9 +902,6 @@ class SymbolicCircuit(serializers.Serializable):
         selected_branches = [branch for branch in self.branches if branch.type != "C"]
         free_modes = self._independent_modes(selected_branches)
 
-        # ************************ Finding the extended Modes ****************
-        # extended_modes = self.get_extended_modes()
-
         # ***************************# Finding the LC Modes ****************
         selected_branches = [branch for branch in self.branches if branch.type == "JJ"]
         LC_modes = self._independent_modes(selected_branches, single_nodes=False)
@@ -1033,9 +1030,6 @@ class SymbolicCircuit(serializers.Serializable):
         selected_branches = [branch for branch in self.branches if branch.type != "C"]
         free_modes = self._independent_modes(selected_branches)
 
-        # **************** Finding the extended Modes ****************
-        # extended_modes = self.get_extended_modes()
-
         # ****************  including the Σ mode ****************
         Σ = [1] * len(self.nodes)
         if not self.is_grounded:  # only append if the circuit is not grounded
@@ -1097,7 +1091,6 @@ class SymbolicCircuit(serializers.Serializable):
                 new_basis.append(m)
 
         new_basis = np.array(new_basis)
-        # new_basis = np.array(modes)
 
         # sorting the basis so that the free, periodic and frozen variables occur at
         # the beginning.
@@ -1720,10 +1713,7 @@ class SymbolicCircuit(serializers.Serializable):
         potential_φ, where θ represents the set of new variables and φ represents
         the set of node variables
         """
-        transformation_matrix = (
-            self.transformation_matrix
-        )  # .astype(int) allowing for fractional transformations needs revamp in
-        # circuit.py hamiltonian_function
+        transformation_matrix = self.transformation_matrix
 
         # defining the φ variables
         φ_dot_vars = [symbols(f"vφ{i}") for i in range(1, len(self.nodes) + 1)]
@@ -1794,7 +1784,6 @@ class SymbolicCircuit(serializers.Serializable):
         """
 
         transformation_matrix = self.transformation_matrix
-        # basis_inv = np.linalg.inv(basis)[0 : N - n, 0 : N - n]
 
         # Excluding the frozen modes based on how they are organized in the method
         # variable_transformation_matrix
