@@ -284,7 +284,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         phi_basis_labels = phi_grid.make_linspace()
         phi_wavefunc_amplitudes = np.empty(phi_grid.pt_count, dtype=np.complex_)
         for k in range(phi_grid.pt_count):
-            phi_wavefunc_amplitudes[k] = (1j**which / math.sqrt(2 * np.pi)) * np.sum(
+            phi_wavefunc_amplitudes[k] = (1j ** which / math.sqrt(2 * np.pi)) * np.sum(
                 n_wavefunc.amplitudes
                 * np.exp(1j * phi_basis_labels[k] * n_wavefunc.basis_labels)
             )
@@ -440,7 +440,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         of EJ in the parent class `Transmon`"""
         return self.EJmax * np.sqrt(
             np.cos(np.pi * self.flux) ** 2
-            + self.d**2 * np.sin(np.pi * self.flux) ** 2
+            + self.d ** 2 * np.sin(np.pi * self.flux) ** 2
         )
 
     @staticmethod
@@ -475,10 +475,10 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
             * self.EJmax
             * np.cos(np.pi * self.flux)
             * np.sin(np.pi * self.flux)
-            * (self.d**2 - 1)
+            * (self.d ** 2 - 1)
             / np.sqrt(
                 np.cos(np.pi * self.flux) ** 2
-                + self.d**2 * np.sin(np.pi * self.flux) ** 2
+                + self.d ** 2 * np.sin(np.pi * self.flux) ** 2
             )
             * self.cos_phi_operator()
         )
