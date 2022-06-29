@@ -1975,10 +1975,17 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     np.sort(interaction_var_indices), np.sort(subsystem_indices)
                 ):
                     interaction += term
-        #
-        interaction = self._make_expr_human_readable(
-            interaction, float_round=float_round
-        )
+        for external_flux in self.external_fluxes:
+            interaction = self._make_expr_human_readable(
+                interaction.replace(external_flux, external_flux / (2 * np.pi)),
+                float_round=float_round,
+            )
+            interaction = interaction.replace(
+                external_flux,
+                sm.symbols(
+                    "(2π" + "Φ_{" + str(get_trailing_number(str(external_flux))) + "})"
+                ),
+            )
         if print_latex:
             print(latex(interaction))
         return interaction
