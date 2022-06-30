@@ -2542,9 +2542,14 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     -getattr(self, "cutoff_n_" + str(var_index)),
                     getattr(self, "cutoff_n_" + str(var_index)) + 1,
                 )
-                plot.wavefunction1d_discrete(wavefunc, **kwargs)
+                fig, axes = plot.wavefunction1d_discrete(wavefunc, **kwargs)
+                # changing the tick frequency for axes
+                if getattr(self, "cutoff_n_" + str(var_index)) >= 7:
+                    axes.xaxis.set_major_locator(plt.MaxNLocator(15,integer=True))
+                else:
+                    axes.xaxis.set_major_locator(plt.MaxNLocator(1+2*getattr(self, "cutoff_n_" + str(var_index), integer=True)))
             else:
-                plot.wavefunction1d_nopotential(
+                fig, axes = plot.wavefunction1d_nopotential(
                     wavefunc,
                     0,
                     xlabel=r"$\theta_{{{}}}$".format(str(var_indices[0])),
@@ -2554,31 +2559,54 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         elif len(var_indices) == 2:
 
-            wavefunc_grid = discretization.GridSpec(
-                np.asarray(
-                    [
-                        list(
-                            grids_per_varindex_dict[var_indices[1]]
-                            .get_initdata()
-                            .values()
-                        ),
-                        list(
-                            grids_per_varindex_dict[var_indices[0]]
-                            .get_initdata()
-                            .values()
-                        ),
+            # check if each variable is periodic
+            grids = []
+            labels = []
+            for index_order in [1,0]:
+                if not change_discrete_charge_to_phi and (var_indices[index_order] in self.var_categories["periodic"]):
+                    grids.append([
+                        -getattr(self, "cutoff_n_" + str(var_indices[index_order])),
+                        getattr(self, "cutoff_n_" + str(var_indices[index_order])),
+                        2*getattr(self, "cutoff_n_" + str(var_indices[index_order]))+1,
                     ]
-                )
+                    )
+                    labels.append(r"$n_{{{}}}$".format(str(var_indices[index_order])))
+                else:
+                    grids.append(list(
+                        grids_per_varindex_dict[var_indices[index_order]]
+                        .get_initdata()
+                        .values()
+                    ),
+                    )
+                    labels.append(r"$\theta_{{{}}}$".format(str(var_indices[index_order])))
+            wavefunc_grid = discretization.GridSpec(
+                np.asarray(grids)
             )
 
             wavefunc = storage.WaveFunctionOnGrid(wavefunc_grid, wf_plot)
-            plot.wavefunction2d(
+            # obtain fig and axes from 
+            fig, axes = plot.wavefunction2d(
                 wavefunc,
                 zero_calibrate=zero_calibrate,
-                xlabel=r"$\theta_{{{}}}$".format(str(var_indices[1])),
-                ylabel=r"$\theta_{{{}}}$".format(str(var_indices[0])),
+                ylabel=labels[1],
+                xlabel=labels[0],
                 **kwargs,
             )
+            # change frequency of tick mark for variables in charge basis
+            # also force the tick marks to be integers
+            if not change_discrete_charge_to_phi:
+                if var_indices[0] in self.var_categories["periodic"]:
+                    if getattr(self, "cutoff_n_" + str(var_indices[0])) >= 6:
+                        axes.yaxis.set_major_locator(plt.MaxNLocator(13,integer=True))
+                    else:
+                        axes.yaxis.set_major_locator(plt.MaxNLocator(1+2*getattr(self, "cutoff_n_" + str(var_indices[0])), integer=True))
+                if var_indices[1] in self.var_categories["periodic"]:
+                    if getattr(self, "cutoff_n_" + str(var_indices[1])) >= 15:
+                        axes.xaxis.set_major_locator(plt.MaxNLocator(31, integer=True))
+                    else:
+                        axes.xaxis.set_major_locator(plt.MaxNLocator(1+2*getattr(self, "cutoff_n_" + str(var_indices[1])), integer=True))
+
+        return fig, axes
 
     def _get_cutoff_value(self, var_index: int) -> int:
         """Return the cutoff value associated with the variable with integer index
