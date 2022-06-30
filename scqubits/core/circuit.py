@@ -25,7 +25,7 @@ import scipy as sp
 import sympy as sm
 
 from matplotlib import pyplot as plt
-from numpy import ndarray, var
+from numpy import ndarray
 from scipy import sparse, stats
 from scipy.sparse import csc_matrix
 from sympy import latex
