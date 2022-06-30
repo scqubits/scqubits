@@ -2558,12 +2558,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 np.asarray(
                     [
                         list(
-                            grids_per_varindex_dict[var_indices[0]]
+                            grids_per_varindex_dict[var_indices[1]]
                             .get_initdata()
                             .values()
                         ),
                         list(
-                            grids_per_varindex_dict[var_indices[1]]
+                            grids_per_varindex_dict[var_indices[0]]
                             .get_initdata()
                             .values()
                         ),
@@ -2575,8 +2575,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             plot.wavefunction2d(
                 wavefunc,
                 zero_calibrate=zero_calibrate,
-                xlabel=r"$\theta_{{{}}}$".format(str(var_indices[0])),
-                ylabel=r"$\theta_{{{}}}$".format(str(var_indices[1])),
+                xlabel=r"$\theta_{{{}}}$".format(str(var_indices[1])),
+                ylabel=r"$\theta_{{{}}}$".format(str(var_indices[0])),
                 **kwargs,
             )
 
