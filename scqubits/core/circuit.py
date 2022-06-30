@@ -472,10 +472,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         if not self.hierarchical_diagonalization:
             return
-        
+
         for subsystem_idx, subsystem in self.subsystems.items():
             if subsystem.truncated_dim >= subsystem.hilbertdim() - 1:
-                raise Exception(f"The truncation index for subsystem {subsystem_idx} is too big. It should be lower than {subsystem.hilbertdim() - 1}.")
+                raise Exception(
+                    f"The truncation index for subsystem {subsystem_idx} is too big. It should be lower than {subsystem.hilbertdim() - 1}."
+                )
 
     def generate_subsystems(self):
         """
