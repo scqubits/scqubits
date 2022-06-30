@@ -2134,7 +2134,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             axes.set_ylabel("Potential energy in " + scq.get_units())
 
         if len(sweep_vars) == 2:
-            contourset = axes.contourf(*(list(sweep_vars.values()) + [potential_energies]))
+            contourset = axes.contourf(
+                *(list(sweep_vars.values()) + [potential_energies])
+            )
             var_indices = [
                 get_trailing_number(var_name) for var_name in list(sweep_vars.keys())
             ]
@@ -2556,9 +2558,15 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 fig, axes = plot.wavefunction1d_discrete(wavefunc, **kwargs)
                 # changing the tick frequency for axes
                 if getattr(self, "cutoff_n_" + str(var_index)) >= 7:
-                    axes.xaxis.set_major_locator(plt.MaxNLocator(15,integer=True))
+                    axes.xaxis.set_major_locator(plt.MaxNLocator(15, integer=True))
                 else:
-                    axes.xaxis.set_major_locator(plt.MaxNLocator(1+2*getattr(self, "cutoff_n_" + str(var_index), integer=True)))
+                    axes.xaxis.set_major_locator(
+                        plt.MaxNLocator(
+                            1
+                            + 2
+                            * getattr(self, "cutoff_n_" + str(var_index), integer=True)
+                        )
+                    )
             else:
                 fig, axes = plot.wavefunction1d_nopotential(
                     wavefunc,
@@ -2573,29 +2581,35 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             # check if each variable is periodic
             grids = []
             labels = []
-            for index_order in [1,0]:
-                if not change_discrete_charge_to_phi and (var_indices[index_order] in self.var_categories["periodic"]):
-                    grids.append([
-                        -getattr(self, "cutoff_n_" + str(var_indices[index_order])),
-                        getattr(self, "cutoff_n_" + str(var_indices[index_order])),
-                        2*getattr(self, "cutoff_n_" + str(var_indices[index_order]))+1,
-                    ]
+            for index_order in [1, 0]:
+                if not change_discrete_charge_to_phi and (
+                    var_indices[index_order] in self.var_categories["periodic"]
+                ):
+                    grids.append(
+                        [
+                            -getattr(self, "cutoff_n_" + str(var_indices[index_order])),
+                            getattr(self, "cutoff_n_" + str(var_indices[index_order])),
+                            2
+                            * getattr(self, "cutoff_n_" + str(var_indices[index_order]))
+                            + 1,
+                        ]
                     )
                     labels.append(r"$n_{{{}}}$".format(str(var_indices[index_order])))
                 else:
-                    grids.append(list(
-                        grids_per_varindex_dict[var_indices[index_order]]
-                        .get_initdata()
-                        .values()
-                    ),
+                    grids.append(
+                        list(
+                            grids_per_varindex_dict[var_indices[index_order]]
+                            .get_initdata()
+                            .values()
+                        ),
                     )
-                    labels.append(r"$\theta_{{{}}}$".format(str(var_indices[index_order])))
-            wavefunc_grid = discretization.GridSpec(
-                np.asarray(grids)
-            )
+                    labels.append(
+                        r"$\theta_{{{}}}$".format(str(var_indices[index_order]))
+                    )
+            wavefunc_grid = discretization.GridSpec(np.asarray(grids))
 
             wavefunc = storage.WaveFunctionOnGrid(wavefunc_grid, wf_plot)
-            # obtain fig and axes from 
+            # obtain fig and axes from
             fig, axes = plot.wavefunction2d(
                 wavefunc,
                 zero_calibrate=zero_calibrate,
@@ -2608,14 +2622,26 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             if not change_discrete_charge_to_phi:
                 if var_indices[0] in self.var_categories["periodic"]:
                     if getattr(self, "cutoff_n_" + str(var_indices[0])) >= 6:
-                        axes.yaxis.set_major_locator(plt.MaxNLocator(13,integer=True))
+                        axes.yaxis.set_major_locator(plt.MaxNLocator(13, integer=True))
                     else:
-                        axes.yaxis.set_major_locator(plt.MaxNLocator(1+2*getattr(self, "cutoff_n_" + str(var_indices[0])), integer=True))
+                        axes.yaxis.set_major_locator(
+                            plt.MaxNLocator(
+                                1
+                                + 2 * getattr(self, "cutoff_n_" + str(var_indices[0])),
+                                integer=True,
+                            )
+                        )
                 if var_indices[1] in self.var_categories["periodic"]:
                     if getattr(self, "cutoff_n_" + str(var_indices[1])) >= 15:
                         axes.xaxis.set_major_locator(plt.MaxNLocator(31, integer=True))
                     else:
-                        axes.xaxis.set_major_locator(plt.MaxNLocator(1+2*getattr(self, "cutoff_n_" + str(var_indices[1])), integer=True))
+                        axes.xaxis.set_major_locator(
+                            plt.MaxNLocator(
+                                1
+                                + 2 * getattr(self, "cutoff_n_" + str(var_indices[1])),
+                                integer=True,
+                            )
+                        )
 
         return fig, axes
 
