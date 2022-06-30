@@ -145,6 +145,7 @@ class GUI:
                 options=gui_defaults.plot_choices,
                 description="Plot:",
                 button_style="info",
+                value="Wavefunctions"
             ),
         }
 
@@ -789,7 +790,7 @@ class GUI:
         if change["new"]:
             self.manual_update_and_save_widgets["update_button"].disabled = False
             self.unobserve_plot_refresh()
-            self.plot_output.clear_output()
+            self.plot_output.clear_output(wait=True)
             self.manual_update_bool = True
         else:
             self.manual_update_and_save_widgets["update_button"].disabled = True
@@ -924,7 +925,6 @@ class GUI:
     def plot_refresh(self, change):
         self.update_params()
 
-        self.plot_output.clear_output()
         if not self.manual_update_and_save_widgets[
             "manual_update_checkbox"
         ].get_interact_value():
@@ -954,7 +954,7 @@ class GUI:
         ].get_interact_value()
         scan_slider = self.qubit_params_widgets[scan_dropdown_value]
 
-        self.plot_output.clear_output()
+        self.plot_output.clear_output(wait=True)
         value_dict = {
             "scan_value": self.qubit_plot_options_widgets[
                 "scan_dropdown"
@@ -971,7 +971,7 @@ class GUI:
         self.evals_vs_paramvals_plot(**value_dict)
 
     def wavefunctions_plot_refresh(self, change) -> None:
-        self.plot_output.clear_output()
+        self.plot_output.clear_output(wait=True)
         value_dict = {
             "mode_value": self.qubit_plot_options_widgets[
                 "mode_dropdown"
@@ -1015,7 +1015,7 @@ class GUI:
         ].get_interact_value()
         scan_slider = self.qubit_params_widgets[scan_dropdown_value]
 
-        self.plot_output.clear_output()
+        self.plot_output.clear_output(wait=True)
         value_dict = {
             "scan_value": self.qubit_plot_options_widgets[
                 "scan_dropdown"
@@ -1035,7 +1035,7 @@ class GUI:
         self.matelem_vs_paramvals_plot(**value_dict)
 
     def matrixelements_plot_refresh(self, change) -> None:
-        self.plot_output.clear_output()
+        self.plot_output.clear_output(wait=True)
         value_dict = {
             "operator_value": self.qubit_plot_options_widgets[
                 "operator_dropdown"
