@@ -12,8 +12,8 @@
 
 import functools
 import itertools
-import re
 import operator
+import re
 import warnings
 
 from types import MethodType
@@ -22,10 +22,15 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import numpy as np
 import qutip as qt
 import scipy as sp
+import sympy as sm
+
+from matplotlib import pyplot as plt
+from numpy import ndarray, var
+from scipy import sparse, stats
+from scipy.sparse import csc_matrix
+from sympy import latex
+
 import scqubits as scq
-
-from scqubits.io_utils.fileio_serializers import dict_deserialize, dict_serialize
-
 import scqubits.core.discretization as discretization
 import scqubits.core.oscillator as osc
 import scqubits.core.qubit_base as base
@@ -33,22 +38,20 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
-import sympy as sm
 
-from matplotlib import pyplot as plt
-from numpy import ndarray, var
-from scipy import sparse, stats
-from scipy.sparse import csc_matrix
-
+from scqubits import HilbertSpace, settings
+from scqubits.core import operators as op
 from scqubits.core.circuit_utils import (
     _cos_dia,
     _cos_dia_dense,
     _cos_phi,
     _cos_theta,
-    _identity_theta,
+    _exp_i_theta_operator,
+    _exp_i_theta_operator_conjugate,
     _generate_symbols_list,
     _i_d2_dphi2_operator,
     _i_d_dphi_operator,
+    _identity_theta,
     _n_theta_operator,
     _phi_operator,
     _sin_dia,
@@ -62,19 +65,15 @@ from scqubits.core.circuit_utils import (
     is_potential_term,
     matrix_power_sparse,
     operator_func_factory,
-    _exp_i_theta_operator,
-    _exp_i_theta_operator_conjugate,
 )
-from scqubits import HilbertSpace, settings
-from scqubits.core import operators as op
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
+from scqubits.io_utils.fileio_serializers import dict_deserialize, dict_serialize
 from scqubits.utils.misc import flatten_list, flatten_list_recursive, list_intersection
 from scqubits.utils.spectrum_utils import (
     convert_matrix_to_qobj,
     identity_wrap,
     order_eigensystem,
 )
-from sympy import latex
 
 
 class Subsystem(base.QubitBaseClass, serializers.Serializable):
