@@ -156,6 +156,8 @@ def Expr_serialize(expr_instance: Expr) -> "IOData":
     """
     Create an IODate instance for a sympy expression via string conversion
     """
+    import scqubits.io_utils.fileio as io
+
     attributes: Dict[str, Any] = {}
     ndarrays: Dict[str, ndarray] = {}
     objects: Dict[str, object] = {}
