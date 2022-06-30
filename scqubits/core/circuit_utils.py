@@ -343,8 +343,10 @@ def grid_operator_func_factory(
     inner_op: Callable, index: int, grids_dict: Dict[int, discretization.Grid1d]
 ) -> Callable:
     def operator_func(self: "Subsystem"):
-        return self._kron_operator(inner_op(grids_dict[index]), index)
-
+        if not self.hierarchical_diagonalization:
+            return self._kron_operator(inner_op(grids_dict[index]), index)
+        else:
+            return self.identity_wrap_for_hd(inner_op(grids_dict[index]), index).data.tocsc()
     return operator_func
 
 
@@ -352,7 +354,10 @@ def operator_func_factory(
     inner_op: Callable, cutoffs_dict: dict, index: int
 ) -> Callable:
     def operator_func(self):
-        return self._kron_operator(inner_op(cutoffs_dict[index]), index)
+        if not self.hierarchical_diagonalization:
+            return self._kron_operator(inner_op(cutoffs_dict[index]), index)
+        else:
+            return self.identity_wrap_for_hd(inner_op(cutoffs_dict[index]), index).data.tocsc()
 
     return operator_func
 

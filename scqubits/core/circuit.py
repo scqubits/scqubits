@@ -1316,7 +1316,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         if self.hierarchical_diagonalization:
             for subsys in self.subsystems.values():
                 subsys.operators_by_name = subsys.set_operators()
-            return None
 
         op_func_by_name = self.circuit_operator_functions()
         for op_name, op_func in op_func_by_name.items():
