@@ -81,9 +81,7 @@ class GUI:
 
         # Display Elements
         self.fig: Figure
-        self.plot_output: Output = Output(
-            layout={"width": "100%"}
-        )
+        self.plot_output: Output = Output(layout={"width": "100%"})
         self.tab_widget: Tab = Tab(layout=Layout(width="95%"))
 
         self.active_qubit: QubitBaseClass
@@ -145,7 +143,7 @@ class GUI:
                 options=gui_defaults.plot_choices,
                 description="Plot:",
                 button_style="info",
-                value="Wavefunctions"
+                value="Wavefunctions",
             ),
         }
 
@@ -458,7 +456,7 @@ class GUI:
             qubit_plot_tab,
             qubit_info_tab,
             common_qubit_params_tab,
-            param_ranges_tab
+            param_ranges_tab,
         ]
 
         for title_index in range(len(self.tab_widget.children)):
