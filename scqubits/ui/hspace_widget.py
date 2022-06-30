@@ -337,7 +337,7 @@ class HilbertSpaceUi:
                 operator_str_list,
             ):
                 try:
-                    instance = eval(subsys_str + "." + operator_str, main.__dict__)
+                    instance = eval(f"{subsys_str}.{operator_str}", main.__dict__)
                 except (AttributeError, SyntaxError, NameError):
                     with self.status_output:
                         print(
@@ -356,8 +356,8 @@ class HilbertSpaceUi:
 
             subsys1_index = subsysname_list.index(interaction_term["subsys1"])
             subsys2_index = subsysname_list.index(interaction_term["subsys2"])
-            op1_str = interaction_term["subsys1"] + "." + operator_str_list[0]
-            op2_str = interaction_term["subsys2"] + "." + operator_str_list[1]
+            op1_str = f"""{interaction_term["subsys1"]}.{operator_str_list[0]}"""
+            op2_str = f"""{interaction_term["subsys2"]}.{operator_str_list[1]}"""
             op1 = eval(op1_str, main.__dict__)
             op2 = eval(op2_str, main.__dict__)
 
