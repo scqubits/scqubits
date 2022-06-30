@@ -160,9 +160,10 @@ def Expr_serialize(expr_instance: Expr) -> "IOData":
     ndarrays: Dict[str, ndarray] = {}
     objects: Dict[str, object] = {}
     typename = "Expr"
-    # from sympy.parsing.sympy_parser import parse_expr
+    item = str(expr_instance)
+    update_func = type_dispatch(item)
     attributes, ndarrays, objects = update_func(
-        "Expr", str(expr_instance), attributes, ndarrays, objects
+        "Expr", item, attributes, ndarrays, objects
     )
     return io.IOData(typename, attributes, ndarrays, objects)
 
