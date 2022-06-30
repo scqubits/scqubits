@@ -21,7 +21,7 @@ TESTDIR = os.path.join(TESTDIR, "tests", "")
 DATADIR = os.path.join(TESTDIR, "data", "")
 
 
-def test_zero_pi_discertized():
+def test_zero_pi_discretized():
     """
     Test for symmetric zero-pi in discretized phi basis.
     """
