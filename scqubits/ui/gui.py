@@ -1372,6 +1372,7 @@ class GUI:
             )
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
+            self.fig.dpi = gui_defaults.FIG_DPI
             plt.close(1)
             plt.show()
         GUI.fig_ax = self.fig, ax
@@ -1420,6 +1421,7 @@ class GUI:
                 )
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
+            self.fig.dpi = gui_defaults.FIG_DPI
             plt.close(1)
             plt.show()
         GUI.fig_ax = self.fig, ax
@@ -1469,6 +1471,7 @@ class GUI:
             )
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
+            self.fig.dpi = gui_defaults.FIG_DPI
             plt.close(1)
             plt.show()
         GUI.fig_ax = self.fig, ax
@@ -1517,6 +1520,7 @@ class GUI:
             )
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
+            self.fig.dpi = gui_defaults.FIG_DPI
             plt.close(1)
             plt.show()
         GUI.fig_ax = self.fig, ax
