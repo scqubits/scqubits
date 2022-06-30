@@ -28,7 +28,6 @@ from scqubits.core.zeropi_full import FullZeroPi
 
 try:
     from ipywidgets import (
-        HTML,
         Box,
         Button,
         Checkbox,
@@ -37,6 +36,7 @@ try:
         FloatSlider,
         FloatText,
         HBox,
+        HTML,
         Image,
         IntSlider,
         IntText,
@@ -82,7 +82,7 @@ class GUI:
         # Display Elements
         self.fig: Figure
         self.plot_output: Output = Output(
-            layout={"width": "100%", "align_content": "center"}
+            layout={"width": "100%"}
         )
         self.tab_widget: Tab = Tab(layout=Layout(width="95%"))
 
@@ -379,6 +379,9 @@ class GUI:
         total_dict = {**self.qubit_plot_options_widgets, **self.qubit_params_widgets}
 
         for widget_name, widget in total_dict.items():
+            widget_min_text = None
+            widget_max_text = None
+
             if isinstance(widget, IntSlider):
                 widget_min_text = IntText(
                     value=widget.min,
@@ -462,7 +465,7 @@ class GUI:
             qubit_plot_tab,
             qubit_info_tab,
             common_qubit_params_tab,
-            param_ranges_tab,
+            param_ranges_tab
         ]
 
         for title_index in range(len(self.tab_widget.children)):
@@ -1372,6 +1375,7 @@ class GUI:
             )
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
+            self.fig.dpi = gui_defaults.FIG_DPI
             plt.close(1)
             plt.show()
         GUI.fig_ax = self.fig, ax
@@ -1414,6 +1418,7 @@ class GUI:
                 )
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
+            self.fig.dpi = gui_defaults.FIG_DPI
             plt.close(1)
             plt.show()
         GUI.fig_ax = self.fig, ax
@@ -1456,6 +1461,7 @@ class GUI:
             )
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
+            self.fig.dpi = gui_defaults.FIG_DPI
             plt.close(1)
             plt.show()
         GUI.fig_ax = self.fig, ax
@@ -1497,6 +1503,7 @@ class GUI:
             )
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
+            self.fig.dpi = gui_defaults.FIG_DPI
             plt.close(1)
             plt.show()
         GUI.fig_ax = self.fig, ax
