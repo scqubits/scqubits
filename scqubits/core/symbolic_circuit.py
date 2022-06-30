@@ -23,8 +23,11 @@ import sympy
 import yaml
 
 from numpy import ndarray
-from scqubits.utils.misc import flatten_list, is_float_string
 from sympy import symbols
+
+import scqubits.io_utils.fileio_serializers as serializers
+
+from scqubits.utils.misc import flatten_list, is_float_string
 
 
 def process_word(word: str) -> Union[float, symbols]:

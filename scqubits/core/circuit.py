@@ -22,6 +22,14 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import numpy as np
 import qutip as qt
 import scipy as sp
+import sympy as sm
+
+from matplotlib import pyplot as plt
+from numpy import ndarray
+from scipy import sparse, stats
+from scipy.sparse import csc_matrix
+from sympy import latex
+
 import scqubits as scq
 
 from scqubits.io_utils.fileio_serializers import dict_deserialize, dict_serialize
@@ -34,13 +42,9 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
-import sympy as sm
 
-from matplotlib import pyplot as plt
-from numpy import ndarray, var
-from scipy import sparse, stats
-from scipy.sparse import csc_matrix
-
+from scqubits import HilbertSpace, settings
+from scqubits.core import operators as op
 from scqubits.core.circuit_utils import (
     _cos_dia,
     _cos_dia_dense,
@@ -66,8 +70,6 @@ from scqubits.core.circuit_utils import (
     _exp_i_theta_operator,
     _exp_i_theta_operator_conjugate,
 )
-from scqubits import HilbertSpace, settings
-from scqubits.core import operators as op
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
 from scqubits.utils.misc import flatten_list, flatten_list_recursive, list_intersection
 from scqubits.utils.spectrum_utils import (
@@ -75,7 +77,6 @@ from scqubits.utils.spectrum_utils import (
     identity_wrap,
     order_eigensystem,
 )
-from sympy import latex
 
 
 class Subsystem(base.QubitBaseClass, serializers.Serializable):
