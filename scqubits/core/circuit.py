@@ -25,6 +25,7 @@ import scipy as sp
 import scqubits as scq
 
 from scqubits.io_utils.fileio_serializers import dict_deserialize, dict_serialize
+from scqubits.utils.plot_utils import _process_options
 
 import scqubits.core.discretization as discretization
 import scqubits.core.oscillator as osc
@@ -2096,6 +2097,14 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             + [var.name for var in self.symbolic_params]
         )
 
+        # filtering the plotting options
+        plot_kwargs = {}
+        list_of_keys = list(kwargs.keys())
+        for key in list_of_keys:
+            if key not in parameters:
+                plot_kwargs[key] = kwargs[key]
+                del kwargs[key]
+
         sweep_vars = {}
         for var_name in kwargs:
             if isinstance(kwargs[var_name], np.ndarray):
@@ -2113,25 +2122,28 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         potential_energies = self.potential_energy(**kwargs)
 
+        fig, axes = kwargs.get("fig_ax") or plt.subplots()
+
         if len(sweep_vars) == 1:
-            plot = plt.plot(*(list(sweep_vars.values()) + [potential_energies]))
-            plt.xlabel(
+            axes.plot(*(list(sweep_vars.values()) + [potential_energies]))
+            axes.set_xlabel(
                 r"$\theta_{{{}}}$".format(
                     get_trailing_number(list(sweep_vars.keys())[0])
                 )
             )
-            plt.ylabel("Potential energy in " + scq.get_units())
+            axes.set_ylabel("Potential energy in " + scq.get_units())
 
         if len(sweep_vars) == 2:
-            plot = plt.contourf(*(list(sweep_vars.values()) + [potential_energies]))
+            contourset = axes.contourf(*(list(sweep_vars.values()) + [potential_energies]))
             var_indices = [
                 get_trailing_number(var_name) for var_name in list(sweep_vars.keys())
             ]
-            plt.xlabel(r"$\theta_{{{}}}$".format(var_indices[0]))
-            plt.ylabel(r"$\theta_{{{}}}$".format(var_indices[1]))
-            cbar = plt.colorbar()
+            axes.set_xlabel(r"$\theta_{{{}}}$".format(var_indices[0]))
+            axes.set_ylabel(r"$\theta_{{{}}}$".format(var_indices[1]))
+            cbar = plt.colorbar(contourset, ax=axes)
             cbar.set_label("Potential energy in " + scq.get_units())
-        return plot
+        _process_options(fig, axes, **plot_kwargs)
+        return fig, axes
 
     # ****************************************************************
     # ************* Functions for plotting wave function *************
@@ -2541,9 +2553,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     -getattr(self, "cutoff_n_" + str(var_index)),
                     getattr(self, "cutoff_n_" + str(var_index)) + 1,
                 )
-                plot.wavefunction1d_discrete(wavefunc, **kwargs)
+                return plot.wavefunction1d_discrete(wavefunc, **kwargs)
             else:
-                plot.wavefunction1d_nopotential(
+                return plot.wavefunction1d_nopotential(
                     wavefunc,
                     0,
                     xlabel=r"$\theta_{{{}}}$".format(str(var_indices[0])),
@@ -2571,7 +2583,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             )
 
             wavefunc = storage.WaveFunctionOnGrid(wavefunc_grid, wf_plot)
-            plot.wavefunction2d(
+            return plot.wavefunction2d(
                 wavefunc,
                 zero_calibrate=zero_calibrate,
                 xlabel=r"$\theta_{{{}}}$".format(str(var_indices[1])),
