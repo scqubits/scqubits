@@ -415,6 +415,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         self._set_vars()
         if self.hierarchical_diagonalization:
             self.generate_subsystems()
+            self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
             self.build_hilbertspace()
         else:
@@ -464,6 +465,17 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             == set(term.free_symbols)
         ]
         return constants
+
+    def _check_truncation_indices(self):
+        """
+        Checks to see if the truncation indices for subsystems are not out of the range.
+        """
+        if not self.hierarchical_diagonalization:
+            return
+        
+        for subsystem_idx, subsystem in self.subsystems.items():
+            if subsystem.truncated_dim >= subsystem.hilbertdim() - 1:
+                raise Exception(f"The truncation index for subsystem {subsystem_idx} is too big. It should be lower than {subsystem.hilbertdim() - 1}.")
 
     def generate_subsystems(self):
         """
@@ -3034,10 +3046,6 @@ class Circuit(Subsystem):
             )
 
         if system_hierarchy is not None:
-            # if self.is_purely_harmonic:
-            #     raise Exception(
-            #         "Hierarchical diagonalization cannot be used when the circuit is purely harmonic."
-            #     )
             self.hierarchical_diagonalization = (
                 system_hierarchy != []
                 and system_hierarchy != flatten_list_recursive(system_hierarchy)
@@ -3058,6 +3066,7 @@ class Circuit(Subsystem):
             self.subsystem_trunc_dims = subsystem_trunc_dims
             self.generate_hamiltonian_sym_for_numerics()
             self.generate_subsystems()
+            self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
             self.build_hilbertspace()
         # clear unnecesary attribs
