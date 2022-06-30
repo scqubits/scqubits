@@ -419,14 +419,17 @@ class GUI:
         if isinstance(
             self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)
         ):
+            min_val = self.active_qubit._default_grid.min_val
+            max_val = self.active_qubit._default_grid.max_val 
+
             widget_min_text = FloatText(
-                value=gui_defaults.phi_grid_defaults["grid_min_val"],
+                value=min_val,
                 description="min=",
                 step=0.01,
                 layout=range_text_layout,
             )
             widget_max_text = FloatText(
-                value=gui_defaults.phi_grid_defaults["grid_max_val"],
+                value=max_val,
                 description="max=",
                 step=0.01,
                 layout=range_text_layout,
@@ -998,7 +1001,7 @@ class GUI:
             value_dict["phi_grid"] = Grid1d(
                 min_val=self.ranges_widgets["Wavefunction"]["min"].get_interact_value(),
                 max_val=self.ranges_widgets["Wavefunction"]["max"].get_interact_value(),
-                pt_count=gui_defaults.phi_grid_defaults["grid_pt_count"],
+                pt_count=self.active_qubit._default_grid.pt_count,
             )
 
         self.wavefunctions_plot(**value_dict)
