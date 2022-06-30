@@ -176,10 +176,6 @@ class GUI:
         """Sets up the chosen qubit to be the active qubit
         and updates the activedefaults and widget dictionaries
         accordingly.
-
-        Parameters
-        ----------
-        qubit_name:
         """
         if qubit_name in gui_defaults.slow_qubits:
             scq.settings.PROGRESSBAR_DISABLED = False
@@ -196,10 +192,6 @@ class GUI:
     def initialize_qubit(self, qubit_name: str) -> None:
         """Initializes self.active_qubit to the user's choice
         using the chosen qubit's default parameters.
-
-        Parameters
-        ----------
-        qubit_name:
         """
         QubitClass = getattr(scq, qubit_name)
         init_params = QubitClass.default_params()
@@ -584,16 +576,16 @@ class GUI:
 
         Parameters
         ----------
-        new_min
+        new_min:
             The current value of the minimum IntText/FloatText
-        new_max
+        new_max:
            The current value of the maximum IntText/FloatText
-        widget_name
+        widget_name:
             The name of the corresponding parameter/qubit plot option
-        text_widget
+        text_widget:
             A dictionary that contains the minimum and maximum
             IntText/FloatText widgets
-        changed_widget_key
+        changed_widget_key:
             A string that encodes whether the minimum or maximum IntText/FloatText
             widget has been changed
 
@@ -638,13 +630,13 @@ class GUI:
 
         Parameters
         ----------
-        new_min
+        new_min:
             The current value of the minimum IntText/FloatText
-        new_max
+        new_max:
            The current value of the maximum IntText/FloatText
-        widget_name
+        widget_name:
             The name of the corresponding parameter/qubit plot option
-        text_widget
+        text_widget:
             A dictionary that contains the minimum and maximum
             IntText/FloatText widgets
         """
