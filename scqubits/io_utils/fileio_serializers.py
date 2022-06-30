@@ -156,15 +156,18 @@ def Expr_serialize(expr_instance: Expr) -> "IOData":
     """
     Create an IODate instance for a sympy expression via string conversion
     """
+    import scqubits.io_utils.fileio as io
+
     attributes: Dict[str, Any] = {}
     ndarrays: Dict[str, ndarray] = {}
     objects: Dict[str, object] = {}
     typename = "Expr"
-    # from sympy.parsing.sympy_parser import parse_expr
-    update_func = type_dispatch(Expr)
+    item = str(expr_instance)
+    update_func = type_dispatch(item)
     attributes, ndarrays, objects = update_func(
-        "Expr", str(expr_instance), attributes, ndarrays, objects
+        "Expr", item, attributes, ndarrays, objects
     )
+    return io.IOData(typename, attributes, ndarrays, objects)
 
 
 def dict_serialize(dict_instance: Dict[str, Any]) -> "IOData":

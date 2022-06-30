@@ -27,7 +27,7 @@ from scqubits.utils.misc import tuple_to_short_str
 
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSlice, ParameterSweep
-    from scqubits.core.qubit_base import QubitBaseClass, QubitBaseClass1d, QuantumSystem
+    from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass, QubitBaseClass1d
 
 
 def display_bare_spectrum(
@@ -57,7 +57,7 @@ def display_bare_spectrum(
 
 def display_anharmonicity(
     sweep: "ParameterSweep",
-    subsys: "QubitBaseClass1d",
+    subsys: "QubitBaseClass",
     param_slice: "ParameterSlice",
     fig_ax: Tuple[Figure, Axes],
 ) -> None:
@@ -78,7 +78,7 @@ def display_anharmonicity(
 def display_matrixelements(
     sweep: "ParameterSweep",
     operator_name: str,
-    subsys: "QubitBaseClass1d",
+    subsys: "QubitBaseClass",
     param_slice: "ParameterSlice",
     mode_str: str,
     fig_ax: Tuple[Figure, Axes],
@@ -106,7 +106,7 @@ def display_matrixelements(
 def display_matrixelement_sweep(
     sweep: "ParameterSweep",
     operator_name: str,
-    subsys: "QubitBaseClass1d",
+    subsys: "QubitBaseClass",
     param_slice: "ParameterSlice",
     mode_str: str,
     fig_ax: Tuple[Figure, Axes],
@@ -151,7 +151,7 @@ def display_matrixelement_sweep(
 
 def display_bare_wavefunctions(
     sweep: "ParameterSweep",
-    subsys: "QubitBaseClass1d",
+    subsys: "QubitBaseClass",
     param_slice: "ParameterSlice",
     fig_ax: Tuple[Figure, Axes],
 ) -> None:

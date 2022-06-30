@@ -11,9 +11,10 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import scqubits as scq
-import numpy as np
 import os
+import numpy as np
+
+import scqubits as scq
 
 TESTDIR, _ = os.path.split(scq.__file__)
 TESTDIR = os.path.join(TESTDIR, "tests", "")

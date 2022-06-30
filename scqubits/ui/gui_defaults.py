@@ -139,12 +139,6 @@ grid_defaults = {
     "grid_pt_count": 50,
 }
 
-phi_grid_defaults = {
-    "grid_min_val": -np.pi,
-    "grid_max_val": np.pi,
-    "grid_pt_count": 150,
-}
-
 paramvals_from_papers = {
     "Transmon": {
         "Paik et al. [J1, 3d], PRL 107, 240501, 1779 (2011)": {
@@ -159,7 +153,7 @@ paramvals_from_papers = {
                 "EJ": 11.34,
                 "EC": 0.293,
             },
-            "link": "",
+            "link": "https://quantum-computing.ibm.com/",
         },
         "[CPB] Bouchiat et al., Phys. Scr. 165 (1998)": {
             "params": {
@@ -280,3 +274,4 @@ default_panels["Composite"] = ["Transitions"]
 
 PLOT_HEIGHT = "500px"
 FIG_WIDTH_INCHES = 6
+FIG_DPI = 150
