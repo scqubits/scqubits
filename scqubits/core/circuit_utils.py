@@ -240,8 +240,9 @@ def _exp_i_theta_operator(ncut) -> csc_matrix:
     Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace.
     """
     dim_theta = 2 * ncut + 1
-    matrix = (
-        sparse.dia_matrix(([-1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta))
+    matrix = sparse.dia_matrix(
+        (np.ones(dim_theta), [1]),
+        shape=(dim_theta, dim_theta),
     ).tocsc()
     return matrix
 
@@ -251,8 +252,9 @@ def _exp_i_theta_operator_conjugate(ncut) -> csc_matrix:
     Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace.
     """
     dim_theta = 2 * ncut + 1
-    matrix = (
-        sparse.dia_matrix(([-1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta))
+    matrix = sparse.dia_matrix(
+        (np.ones(dim_theta), [-1]),
+        shape=(dim_theta, dim_theta),
     ).tocsc()
     return matrix
 
@@ -342,7 +344,12 @@ def grid_operator_func_factory(
     inner_op: Callable, index: int, grids_dict: Dict[int, discretization.Grid1d]
 ) -> Callable:
     def operator_func(self: "Subsystem"):
-        return self._kron_operator(inner_op(grids_dict[index]), index)
+        if not self.hierarchical_diagonalization:
+            return self._kron_operator(inner_op(grids_dict[index]), index)
+        else:
+            return self.identity_wrap_for_hd(
+                inner_op(grids_dict[index]), index
+            ).data.tocsc()
 
     return operator_func
 
@@ -351,7 +358,12 @@ def operator_func_factory(
     inner_op: Callable, cutoffs_dict: dict, index: int
 ) -> Callable:
     def operator_func(self):
-        return self._kron_operator(inner_op(cutoffs_dict[index]), index)
+        if not self.hierarchical_diagonalization:
+            return self._kron_operator(inner_op(cutoffs_dict[index]), index)
+        else:
+            return self.identity_wrap_for_hd(
+                inner_op(cutoffs_dict[index]), index
+            ).data.tocsc()
 
     return operator_func
 
