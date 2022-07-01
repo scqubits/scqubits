@@ -22,14 +22,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import numpy as np
 import qutip as qt
 import scipy as sp
-import sympy as sm
-
-from matplotlib import pyplot as plt
-from numpy import ndarray
-from scipy import sparse, stats
-from scipy.sparse import csc_matrix
-from sympy import latex
-
 import scqubits as scq
 import scqubits.core.discretization as discretization
 import scqubits.core.oscillator as osc
@@ -38,10 +30,14 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
+import sympy as sm
 
+from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-
+from numpy import ndarray
+from scipy import sparse, stats
+from scipy.sparse import csc_matrix
 from scqubits import HilbertSpace, settings
 from scqubits.core import operators as op
 from scqubits.core.circuit_utils import (
@@ -70,6 +66,7 @@ from scqubits.core.circuit_utils import (
     operator_func_factory,
 )
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
+from scqubits.io_utils.fileio import IOData
 from scqubits.io_utils.fileio_serializers import dict_deserialize, dict_serialize
 from scqubits.utils.misc import (
     flatten_list,
@@ -82,6 +79,7 @@ from scqubits.utils.spectrum_utils import (
     identity_wrap,
     order_eigensystem,
 )
+from sympy import latex
 
 
 class Subsystem(base.QubitBaseClass, serializers.Serializable):
