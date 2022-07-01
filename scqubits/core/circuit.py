@@ -2841,7 +2841,6 @@ class Circuit(Subsystem):
             ext_basis=ext_basis,
             initiate_sym_calc=initiate_sym_calc,
             truncated_dim=truncated_dim,
-            _modified_attributes=_modified_attributes,
         )
 
     def dict_for_serialization(self):
