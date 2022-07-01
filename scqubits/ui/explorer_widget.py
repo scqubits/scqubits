@@ -12,19 +12,22 @@
 
 
 import warnings
-from typing import Any, Dict, List, Optional, TYPE_CHECKING, Tuple
+
 from distutils.version import StrictVersion
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+
+from matplotlib import get_backend as get_matplotlib_backend
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from matplotlib import get_backend as get_matplotlib_backend
 
 import scqubits as scq
-from scqubits.core.qubit_base import QubitBaseClass
+
 from scqubits.core.param_sweep import ParameterSlice
+from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.explorer import explorer_panels as panels
 from scqubits.ui.gui_defaults import (
     composite_panel_names,
@@ -51,23 +54,23 @@ except ImportError:
 else:
     _HAS_IPYWIDGETS = True
     from ipywidgets import (
+        HTML,
         BoundedIntText,
         Button,
         Checkbox,
+        Dropdown,
+        FloatSlider,
+        HBox,
         IntSlider,
         Label,
+        Layout,
         Output,
+        Select,
+        SelectionSlider,
         SelectMultiple,
         Tab,
         ToggleButtons,
-        Layout,
-        Select,
-        SelectionSlider,
-        Dropdown,
-        HBox,
         VBox,
-        HTML,
-        FloatSlider,
     )
 
 

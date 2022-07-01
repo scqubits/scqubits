@@ -51,7 +51,7 @@ warnings.formatwarning = warning_on_one_line
 
 # Function checking whether code is run from a jupyter notebook or inside ipython
 def executed_in_ipython():
-    try:
+    try:  # inside ipython, the function get_ipython is always in globals()
         shell = get_ipython().__class__.__name__
         if shell in ["ZMQInteractiveShell", "TerminalInteractiveShell"]:
             return True  # Jupyter notebook or qtconsole of IPython
