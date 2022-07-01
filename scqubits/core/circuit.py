@@ -2671,14 +2671,14 @@ class Circuit(Subsystem):
 
     Parameters
     ----------
-    input_string:
+    input_string: str
         String describing the number of nodes and branches connecting then along
         with their parameters
-    from_file:
+    from_file: bool
         Set to True by default, when a file name should be provided to
         `input_string`, else the circuit graph description in YAML should be
         provided as a string.
-    basis_completion:
+    basis_completion: str
         either "heuristic" or "canonical", defines the matrix used for completing the
         transformation matrix. Sometimes used to change the variable transformation
         to result in a simpler symbolic Hamiltonian, by default "heuristic"
@@ -2691,14 +2691,6 @@ class Circuit(Subsystem):
     truncated_dim: Optional[int]
         truncated dimension if the user wants to use this circuit instance in
         HilbertSpace, by default `None`
-    _modified_attributes:
-        parameter for internal use, where the circuit instance is modified by the user.
-        This parameter is used to store the circuit instance in file
-
-    Returns
-    -------
-    Circuit
-        An instance of class `Circuit`
     """
 
     def __init__(
@@ -2709,12 +2701,6 @@ class Circuit(Subsystem):
         ext_basis: str = "discretized",
         initiate_sym_calc: bool = True,
         truncated_dim: int = None,
-        _modified_attributes: Dict = {
-            "transformation_matrix": None,
-            "system_hierarchy": None,
-            "subsystem_trunc_dims": None,
-            "closure_branches_data": [],
-        },
     ):
 
         if basis_completion not in ["heuristic", "canonical"]:
@@ -2774,30 +2760,8 @@ class Circuit(Subsystem):
         self._sys_type = type(self).__name__
         self._id_str = self._autogenerate_id_str()
 
-        # getting data from _modified_attribs
-        configure_attribs = [
-            "transformation_matrix",
-            "system_hierarchy",
-            "subsystem_trunc_dims",
-        ]
-        closure_branches = [
-            self._find_branch(*branch_data)
-            for branch_data in _modified_attributes["closure_branches_data"]
-        ]
-        # removing parameters that are not defined
-        configure_attribs = [
-            attrib for attrib in configure_attribs if attrib in _modified_attributes
-        ]
-
         if initiate_sym_calc:
-            self.configure(
-                closure_branches=closure_branches,
-                **{key: _modified_attributes[key] for key in configure_attribs},
-            )
-        # modifying the attributes if necessary
-        for attrib in _modified_attributes:
-            if attrib not in configure_attribs + ["closure_branches_data"]:
-                setattr(self, attrib, _modified_attributes[attrib])
+            self.configure()
 
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
@@ -2825,19 +2789,15 @@ class Circuit(Subsystem):
             self.discretized_phi_range[var_index] = phi_range
         self.operators_by_name = self.set_operators()
 
+    @classmethod
     def from_yaml(
+        cls,
         input_string: str,
         from_file: bool = True,
         basis_completion="heuristic",
         ext_basis: str = "discretized",
         initiate_sym_calc: bool = True,
         truncated_dim: int = None,
-        _modified_attributes: Dict = {
-            "transformation_matrix": None,
-            "system_hierarchy": None,
-            "subsystem_trunc_dims": None,
-            "closure_branches_data": [],
-        },
     ):
         """
         Wrapper to Circuit __init__ to create a class instance. Will be deprecated in
@@ -2904,12 +2864,16 @@ class Circuit(Subsystem):
 
         # storing which branches are used for closure_branches
         closure_branches_data = []
-        for branch in self.closure_branches:
+        for branch in self.closure_branches: # store symbolic param as string
+            branch_params = branch.parameters.copy()
+            for param in branch_params:
+                if isinstance(branch_params[param], sm.Symbol):
+                    branch_params[param] = branch_params[param].name
             branch_data = [
                 branch.nodes[0].id,
                 branch.nodes[1].id,
                 branch.type,
-                branch.parameters,
+                branch_params,
             ]
             closure_branches_data.append(branch_data)
         modified_attrib_dict["closure_branches_data"] = closure_branches_data
@@ -2922,16 +2886,66 @@ class Circuit(Subsystem):
         iodata.typename = type(self).__name__
         return iodata
 
+    @classmethod
+    def deserialize(cls, iodata: "IOData") -> "Circuit":
+        """
+        Take the given IOData and return an instance of the described class, initialized
+        with the data stored in io_data.
+
+        Parameters
+        ----------
+        iodata: IOData
+
+        Returns
+        -------
+        StoredSweep
+        """
+        init_params = iodata.as_kwargs()
+        _modified_attributes = init_params.pop("_modified_attributes")
+
+        circuit = cls(**init_params)
+
+        closure_branches = [
+            circuit._find_branch(*branch_data)
+            for branch_data in _modified_attributes["closure_branches_data"]
+        ]
+        del _modified_attributes["closure_branches_data"]
+
+        # removing parameters that are not defined
+        configure_attribs = [
+            "transformation_matrix",
+            "system_hierarchy",
+            "subsystem_trunc_dims",
+        ]
+        configure_attribs = [
+            attrib for attrib in configure_attribs if attrib in _modified_attributes
+        ]
+
+        # modifying the attributes if necessary
+        for attrib in _modified_attributes:
+            if attrib not in configure_attribs:
+                setattr(circuit, attrib, _modified_attributes[attrib])
+        
+        circuit.aha = _modified_attributes["system_hierarchy"]
+        circuit.configure(
+            closure_branches=closure_branches, **{key: _modified_attributes[key] for key in configure_attribs}
+        )
+        return circuit
+
     def _find_branch(
         self, node_id_1: int, node_id_2: int, branch_type: str, branch_params: dict
     ):
         for branch in self.symbolic_circuit.branches:
             branch_node_ids = [node.id for node in branch.nodes]
+            branch_params_circ = branch.parameters.copy()
+            for param in branch_params_circ:
+                if isinstance(branch_params_circ[param], sm.Symbol):
+                    branch_params_circ[param] = branch_params_circ[param].name
             if node_id_1 not in branch_node_ids or node_id_2 not in branch_node_ids:
                 continue
             if branch.type != branch_type:
                 continue
-            if branch_params != branch.parameters:
+            if branch_params != branch_params_circ:
                 continue
             return branch
         return None
