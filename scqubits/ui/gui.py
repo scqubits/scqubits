@@ -81,9 +81,7 @@ class GUI:
 
         # Display Elements
         self.fig: Figure
-        self.plot_output: Output = Output(
-            layout={"width": "100%"}
-        )
+        self.plot_output: Output = Output(layout={"width": "100%"})
         self.tab_widget: Tab = Tab(layout=Layout(width="95%"))
 
         self.active_qubit: QubitBaseClass
@@ -420,19 +418,13 @@ class GUI:
             self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)
         ):
             min_val = self.active_qubit._default_grid.min_val
-            max_val = self.active_qubit._default_grid.max_val 
+            max_val = self.active_qubit._default_grid.max_val
 
             widget_min_text = FloatText(
-                value=min_val,
-                description="min=",
-                step=0.01,
-                layout=range_text_layout,
+                value=min_val, description="min=", step=0.01, layout=range_text_layout,
             )
             widget_max_text = FloatText(
-                value=max_val,
-                description="max=",
-                step=0.01,
-                layout=range_text_layout,
+                value=max_val, description="max=", step=0.01, layout=range_text_layout,
             )
             self.ranges_widgets["Wavefunction"] = {
                 "min": widget_min_text,
@@ -742,7 +734,7 @@ class GUI:
 
     # Eventhandler Methods -------------------------------------------------------------
     def qubit_change(self, change) -> None:
-        self.plot_output.clear_output()
+        self.plot_output.clear_output(wait=True)
         new_qubit = change["new"]
         if new_qubit in gui_defaults.slow_qubits:
             self.manual_update_and_save_widgets["manual_update_checkbox"].value = True
@@ -920,7 +912,7 @@ class GUI:
 
     def plot_refresh(self, change):
         self.update_params()
-        
+
         if not self.manual_update_and_save_widgets[
             "manual_update_checkbox"
         ].get_interact_value():
@@ -950,7 +942,7 @@ class GUI:
         ].get_interact_value()
         scan_slider = self.qubit_params_widgets[scan_dropdown_value]
 
-        self.plot_output.clear_output()
+        self.plot_output.clear_output(wait=True)
         value_dict = {
             "scan_value": self.qubit_plot_options_widgets[
                 "scan_dropdown"
@@ -967,7 +959,7 @@ class GUI:
         self.evals_vs_paramvals_plot(**value_dict)
 
     def wavefunctions_plot_refresh(self, change) -> None:
-        self.plot_output.clear_output()
+        self.plot_output.clear_output(wait=True)
         value_dict = {
             "mode_value": self.qubit_plot_options_widgets[
                 "mode_dropdown"
@@ -1011,7 +1003,7 @@ class GUI:
         ].get_interact_value()
         scan_slider = self.qubit_params_widgets[scan_dropdown_value]
 
-        self.plot_output.clear_output()
+        self.plot_output.clear_output(wait=True)
         value_dict = {
             "scan_value": self.qubit_plot_options_widgets[
                 "scan_dropdown"
@@ -1031,7 +1023,7 @@ class GUI:
         self.matelem_vs_paramvals_plot(**value_dict)
 
     def matrixelements_plot_refresh(self, change) -> None:
-        self.plot_output.clear_output()
+        self.plot_output.clear_output(wait=True)
         value_dict = {
             "operator_value": self.qubit_plot_options_widgets[
                 "operator_dropdown"
