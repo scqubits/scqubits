@@ -734,7 +734,7 @@ class GUI:
 
     # Eventhandler Methods -------------------------------------------------------------
     def qubit_change(self, change) -> None:
-        self.plot_output.clear_output(wait=True)
+        self.plot_output.clear_output()
         new_qubit = change["new"]
         if new_qubit in gui_defaults.slow_qubits:
             self.manual_update_and_save_widgets["manual_update_checkbox"].value = True
