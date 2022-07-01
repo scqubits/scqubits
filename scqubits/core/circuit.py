@@ -439,7 +439,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Parameters
         ----------
-        H_sys :
+        H_sys:
             subsystem hamiltonian
 
         Returns
@@ -645,7 +645,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Parameters
         ----------
-        symbolic_interaction_term :
+        symbolic_interaction_term:
             The symbolic expression which has the interaction terms.
         """
 
@@ -1341,7 +1341,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Parameters
         ----------
-        operator :
+        operator:
             operator in the form of csc_matrix, ndarray
 
         Returns
@@ -1617,7 +1617,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Parameters
         ----------
-        evals_count :
+        evals_count:
             Number of eigenenergies
         """
         normal_mode_freqs = self.normal_mode_freqs
@@ -1754,9 +1754,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             A symbolic sympy expression
         float_round:
             Number of digits after the decimal to which floats are rounded
+
         Returns
         -------
-        hamiltonian
             Sympy expression which is simplified to make it human readable.
         """
         expr_modified = expr
@@ -1811,7 +1811,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Returns
         -------
-        Human readable form of the Lagrangian
+            Human readable form of the potential
         """
         potential = self._make_expr_human_readable(
             self.potential_symbolic, float_round=float_round
@@ -2091,9 +2091,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         ----------
         θ<index>:
             value(s) for the variable :math:`\theta_i` occurring in the potential.
+
         Returns
         -------
-        Returns a axes and figure for further editing.
+            Returns a axes and figure for further editing.
         """
 
         periodic_indices = self.var_categories["periodic"]
@@ -2464,7 +2465,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         zero_calibrate: bool = True,
         grids_dict: Dict[int, discretization.Grid1d] = {},
         **kwargs,
-    )->Tuple[Figure, Axes]:
+    ) -> Tuple[Figure, Axes]:
         """
         Returns the plot of the probability density of the wave function in the
         requested variables for the current Circuit instance.
@@ -2490,9 +2491,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             the plot.
         **kwargs:
             plotting parameters
+
         Returns
         -------
-        Returns a axes and figure for further editing.
+            Returns a axes and figure for further editing.
         """
         if len(var_indices) > 2:
             raise AttributeError(
@@ -2787,7 +2789,7 @@ class Circuit(Subsystem):
 
         Parameters
         ----------
-        var_indices :
+        var_indices:
             list of var_indices whose range needs to be changed
         phi_range:
             The desired range for each of the discretized phi variables
@@ -2831,13 +2833,13 @@ class Circuit(Subsystem):
             either "heuristic" or "canonical", defines the matrix used for completing the
             transformation matrix. Sometimes used to change the variable transformation
             to result in a simpler symbolic Hamiltonian, by default "heuristic"
-        ext_basis: 
+        ext_basis:
             can be "discretized" or "harmonic" which chooses whether to use discretized
             phi or harmonic oscillator basis for extended variables,
             by default "discretized"
-        initiate_sym_calc: 
+        initiate_sym_calc:
             attribute to initiate Circuit instance, by default `True`
-        truncated_dim: 
+        truncated_dim:
             truncated dimension if the user wants to use this circuit instance in
             HilbertSpace, by default `None`
         """
@@ -2900,11 +2902,11 @@ class Circuit(Subsystem):
 
         Parameters
         ----------
-        iodata: IOData
+        iodata:
 
         Returns
         -------
-        StoredSweep
+            Circuit instance
         """
         init_params = iodata.as_kwargs()
         _modified_attributes = init_params.pop("_modified_attributes")
@@ -3166,8 +3168,7 @@ class Circuit(Subsystem):
 
         Returns
         -------
-        sm.Expr
-            _description_
+            Expressions of transformed variables in terms of node variables
         """
         trans_mat = self.transformation_matrix
         theta_vars = [
@@ -3200,7 +3201,7 @@ class Circuit(Subsystem):
 
         Returns
         -------
-        Human readable form of the Lagrangian
+            Human readable form of the Lagrangian
         """
         if vars_type == "node":
             lagrangian = self.lagrangian_node_vars
@@ -3270,7 +3271,6 @@ class Circuit(Subsystem):
 
         Returns
         -------
-        sm.Expr
             Human readable form of expressions of offset charges in terms of node offset
             charges
         """
