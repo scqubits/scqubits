@@ -31,10 +31,6 @@ from scipy.sparse import csc_matrix
 from sympy import latex
 
 import scqubits as scq
-
-from scqubits.io_utils.fileio_serializers import dict_deserialize, dict_serialize
-from scqubits.utils.plot_utils import _process_options
-
 import scqubits.core.discretization as discretization
 import scqubits.core.oscillator as osc
 import scqubits.core.qubit_base as base
@@ -50,10 +46,12 @@ from scqubits.core.circuit_utils import (
     _cos_dia_dense,
     _cos_phi,
     _cos_theta,
-    _identity_theta,
+    _exp_i_theta_operator,
+    _exp_i_theta_operator_conjugate,
     _generate_symbols_list,
     _i_d2_dphi2_operator,
     _i_d_dphi_operator,
+    _identity_theta,
     _n_theta_operator,
     _phi_operator,
     _sin_dia,
@@ -67,11 +65,11 @@ from scqubits.core.circuit_utils import (
     is_potential_term,
     matrix_power_sparse,
     operator_func_factory,
-    _exp_i_theta_operator,
-    _exp_i_theta_operator_conjugate,
 )
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
+from scqubits.io_utils.fileio_serializers import dict_deserialize, dict_serialize
 from scqubits.utils.misc import flatten_list, flatten_list_recursive, list_intersection
+from scqubits.utils.plot_utils import _process_options
 from scqubits.utils.spectrum_utils import (
     convert_matrix_to_qobj,
     identity_wrap,

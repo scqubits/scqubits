@@ -11,7 +11,8 @@
 ############################################################################
 
 import re
-from typing import Any, Callable, Dict, List, TYPE_CHECKING, Union
+
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union
 
 import numpy as np
 import sympy as sm
