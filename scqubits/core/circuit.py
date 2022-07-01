@@ -31,6 +31,10 @@ from scipy.sparse import csc_matrix
 from sympy import latex
 
 import scqubits as scq
+
+from scqubits.io_utils.fileio_serializers import dict_deserialize, dict_serialize
+from scqubits.utils.plot_utils import _process_options
+
 import scqubits.core.discretization as discretization
 import scqubits.core.oscillator as osc
 import scqubits.core.qubit_base as base
@@ -46,12 +50,10 @@ from scqubits.core.circuit_utils import (
     _cos_dia_dense,
     _cos_phi,
     _cos_theta,
-    _exp_i_theta_operator,
-    _exp_i_theta_operator_conjugate,
+    _identity_theta,
     _generate_symbols_list,
     _i_d2_dphi2_operator,
     _i_d_dphi_operator,
-    _identity_theta,
     _n_theta_operator,
     _phi_operator,
     _sin_dia,
@@ -65,9 +67,10 @@ from scqubits.core.circuit_utils import (
     is_potential_term,
     matrix_power_sparse,
     operator_func_factory,
+    _exp_i_theta_operator,
+    _exp_i_theta_operator_conjugate,
 )
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
-from scqubits.io_utils.fileio_serializers import dict_deserialize, dict_serialize
 from scqubits.utils.misc import flatten_list, flatten_list_recursive, list_intersection
 from scqubits.utils.spectrum_utils import (
     convert_matrix_to_qobj,
@@ -2096,6 +2099,14 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             + [var.name for var in self.symbolic_params]
         )
 
+        # filtering the plotting options
+        plot_kwargs = {}
+        list_of_keys = list(kwargs.keys())
+        for key in list_of_keys:
+            if key not in parameters:
+                plot_kwargs[key] = kwargs[key]
+                del kwargs[key]
+
         sweep_vars = {}
         for var_name in kwargs:
             if isinstance(kwargs[var_name], np.ndarray):
@@ -2113,25 +2124,30 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         potential_energies = self.potential_energy(**kwargs)
 
+        fig, axes = kwargs.get("fig_ax") or plt.subplots()
+
         if len(sweep_vars) == 1:
-            plot = plt.plot(*(list(sweep_vars.values()) + [potential_energies]))
-            plt.xlabel(
+            axes.plot(*(list(sweep_vars.values()) + [potential_energies]))
+            axes.set_xlabel(
                 r"$\theta_{{{}}}$".format(
                     get_trailing_number(list(sweep_vars.keys())[0])
                 )
             )
-            plt.ylabel("Potential energy in " + scq.get_units())
+            axes.set_ylabel("Potential energy in " + scq.get_units())
 
         if len(sweep_vars) == 2:
-            plot = plt.contourf(*(list(sweep_vars.values()) + [potential_energies]))
+            contourset = axes.contourf(
+                *(list(sweep_vars.values()) + [potential_energies])
+            )
             var_indices = [
                 get_trailing_number(var_name) for var_name in list(sweep_vars.keys())
             ]
-            plt.xlabel(r"$\theta_{{{}}}$".format(var_indices[0]))
-            plt.ylabel(r"$\theta_{{{}}}$".format(var_indices[1]))
-            cbar = plt.colorbar()
+            axes.set_xlabel(r"$\theta_{{{}}}$".format(var_indices[0]))
+            axes.set_ylabel(r"$\theta_{{{}}}$".format(var_indices[1]))
+            cbar = plt.colorbar(contourset, ax=axes)
             cbar.set_label("Potential energy in " + scq.get_units())
-        return plot
+        _process_options(fig, axes, **plot_kwargs)
+        return fig, axes
 
     # ****************************************************************
     # ************* Functions for plotting wave function *************
@@ -2541,9 +2557,20 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     -getattr(self, "cutoff_n_" + str(var_index)),
                     getattr(self, "cutoff_n_" + str(var_index)) + 1,
                 )
-                plot.wavefunction1d_discrete(wavefunc, **kwargs)
+                fig, axes = plot.wavefunction1d_discrete(wavefunc, **kwargs)
+                # changing the tick frequency for axes
+                if getattr(self, "cutoff_n_" + str(var_index)) >= 7:
+                    axes.xaxis.set_major_locator(plt.MaxNLocator(15, integer=True))
+                else:
+                    axes.xaxis.set_major_locator(
+                        plt.MaxNLocator(
+                            1
+                            + 2
+                            * getattr(self, "cutoff_n_" + str(var_index), integer=True)
+                        )
+                    )
             else:
-                plot.wavefunction1d_nopotential(
+                fig, axes = plot.wavefunction1d_nopotential(
                     wavefunc,
                     0,
                     xlabel=r"$\theta_{{{}}}$".format(str(var_indices[0])),
@@ -2553,31 +2580,72 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         elif len(var_indices) == 2:
 
-            wavefunc_grid = discretization.GridSpec(
-                np.asarray(
-                    [
+            # check if each variable is periodic
+            grids = []
+            labels = []
+            for index_order in [1, 0]:
+                if not change_discrete_charge_to_phi and (
+                    var_indices[index_order] in self.var_categories["periodic"]
+                ):
+                    grids.append(
+                        [
+                            -getattr(self, "cutoff_n_" + str(var_indices[index_order])),
+                            getattr(self, "cutoff_n_" + str(var_indices[index_order])),
+                            2
+                            * getattr(self, "cutoff_n_" + str(var_indices[index_order]))
+                            + 1,
+                        ]
+                    )
+                    labels.append(r"$n_{{{}}}$".format(str(var_indices[index_order])))
+                else:
+                    grids.append(
                         list(
-                            grids_per_varindex_dict[var_indices[0]]
+                            grids_per_varindex_dict[var_indices[index_order]]
                             .get_initdata()
                             .values()
                         ),
-                        list(
-                            grids_per_varindex_dict[var_indices[1]]
-                            .get_initdata()
-                            .values()
-                        ),
-                    ]
-                )
-            )
+                    )
+                    labels.append(
+                        r"$\theta_{{{}}}$".format(str(var_indices[index_order]))
+                    )
+            wavefunc_grid = discretization.GridSpec(np.asarray(grids))
 
             wavefunc = storage.WaveFunctionOnGrid(wavefunc_grid, wf_plot)
-            plot.wavefunction2d(
+            # obtain fig and axes from
+            fig, axes = plot.wavefunction2d(
                 wavefunc,
                 zero_calibrate=zero_calibrate,
-                xlabel=r"$\theta_{{{}}}$".format(str(var_indices[0])),
-                ylabel=r"$\theta_{{{}}}$".format(str(var_indices[1])),
+                ylabel=labels[1],
+                xlabel=labels[0],
                 **kwargs,
             )
+            # change frequency of tick mark for variables in charge basis
+            # also force the tick marks to be integers
+            if not change_discrete_charge_to_phi:
+                if var_indices[0] in self.var_categories["periodic"]:
+                    if getattr(self, "cutoff_n_" + str(var_indices[0])) >= 6:
+                        axes.yaxis.set_major_locator(plt.MaxNLocator(13, integer=True))
+                    else:
+                        axes.yaxis.set_major_locator(
+                            plt.MaxNLocator(
+                                1
+                                + 2 * getattr(self, "cutoff_n_" + str(var_indices[0])),
+                                integer=True,
+                            )
+                        )
+                if var_indices[1] in self.var_categories["periodic"]:
+                    if getattr(self, "cutoff_n_" + str(var_indices[1])) >= 15:
+                        axes.xaxis.set_major_locator(plt.MaxNLocator(31, integer=True))
+                    else:
+                        axes.xaxis.set_major_locator(
+                            plt.MaxNLocator(
+                                1
+                                + 2 * getattr(self, "cutoff_n_" + str(var_indices[1])),
+                                integer=True,
+                            )
+                        )
+
+        return fig, axes
 
     def _get_cutoff_value(self, var_index: int) -> int:
         """Return the cutoff value associated with the variable with integer index
