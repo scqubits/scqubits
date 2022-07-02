@@ -22,14 +22,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import numpy as np
 import qutip as qt
 import scipy as sp
-import sympy as sm
-
-from matplotlib import pyplot as plt
-from numpy import ndarray
-from scipy import sparse, stats
-from scipy.sparse import csc_matrix
-from sympy import latex
-
 import scqubits as scq
 import scqubits.core.discretization as discretization
 import scqubits.core.oscillator as osc
@@ -38,7 +30,14 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
+import sympy as sm
 
+from matplotlib import pyplot as plt
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+from numpy import ndarray
+from scipy import sparse, stats
+from scipy.sparse import csc_matrix
 from scqubits import HilbertSpace, settings
 from scqubits.core import operators as op
 from scqubits.core.circuit_utils import (
@@ -67,14 +66,20 @@ from scqubits.core.circuit_utils import (
     operator_func_factory,
 )
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
+from scqubits.io_utils.fileio import IOData
 from scqubits.io_utils.fileio_serializers import dict_deserialize, dict_serialize
-from scqubits.utils.misc import flatten_list, flatten_list_recursive, list_intersection
+from scqubits.utils.misc import (
+    flatten_list,
+    flatten_list_recursive,
+    number_of_lists_in_list,
+)
 from scqubits.utils.plot_utils import _process_options
 from scqubits.utils.spectrum_utils import (
     convert_matrix_to_qobj,
     identity_wrap,
     order_eigensystem,
 )
+from sympy import latex
 
 
 class Subsystem(base.QubitBaseClass, serializers.Serializable):
@@ -187,8 +192,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         self.potential_symbolic = potential_symbolic
 
         self.hierarchical_diagonalization: bool = (
-            system_hierarchy != []
-            and system_hierarchy != flatten_list_recursive(system_hierarchy)
+            system_hierarchy != [] and number_of_lists_in_list(system_hierarchy) > 0
         )
 
         if len(self.var_categories_list) == 1 and self.ext_basis == "harmonic":
@@ -310,6 +314,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             for subsys in self.subsystems.values():
                 if hasattr(subsys, param_name):
                     setattr(subsys, param_name, value)
+            self.build_hilbertspace()
 
     def _set_property_and_update_cutoffs(self, param_name: str, value: int) -> None:
         """
@@ -432,7 +437,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Parameters
         ----------
-        H_sys : sm.Expr
+        H_sys:
             subsystem hamiltonian
 
         Returns
@@ -638,7 +643,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Parameters
         ----------
-        symbolic_interaction_term : sm.Expr
+        symbolic_interaction_term:
             The symbolic expression which has the interaction terms.
         """
 
@@ -1316,7 +1321,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         if self.hierarchical_diagonalization:
             for subsys in self.subsystems.values():
                 subsys.operators_by_name = subsys.set_operators()
-            return None
 
         op_func_by_name = self.circuit_operator_functions()
         for op_name, op_func in op_func_by_name.items():
@@ -1334,7 +1338,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Parameters
         ----------
-        operator :
+        operator:
             operator in the form of csc_matrix, ndarray
 
         Returns
@@ -1610,7 +1614,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Parameters
         ----------
-        evals_count : int
+        evals_count:
             Number of eigenenergies
         """
         normal_mode_freqs = self.normal_mode_freqs
@@ -1747,9 +1751,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             A symbolic sympy expression
         float_round:
             Number of digits after the decimal to which floats are rounded
+
         Returns
         -------
-        hamiltonian
             Sympy expression which is simplified to make it human readable.
         """
         expr_modified = expr
@@ -1804,7 +1808,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Returns
         -------
-        Human readable form of the Lagrangian
+            Human readable form of the potential
         """
         potential = self._make_expr_human_readable(
             self.potential_symbolic, float_round=float_round
@@ -2074,7 +2078,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         return potential_func(*parameters.values())
 
-    def plot_potential(self, **kwargs):
+    def plot_potential(self, **kwargs) -> Tuple[Figure, Axes]:
         r"""
         Returns the plot of the potential for the circuit instance. Make sure to not set
         more than two variables in the instance.potential to a Numpy array, as the the
@@ -2082,8 +2086,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Parameters
         ----------
-        θ<index>: Union[ndarray, float]
+        θ<index>:
             value(s) for the variable :math:`\theta_i` occurring in the potential.
+
+        Returns
+        -------
+            Returns a axes and figure for further editing.
         """
 
         periodic_indices = self.var_categories["periodic"]
@@ -2454,7 +2462,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         zero_calibrate: bool = True,
         grids_dict: Dict[int, discretization.Grid1d] = {},
         **kwargs,
-    ):
+    ) -> Tuple[Figure, Axes]:
         """
         Returns the plot of the probability density of the wave function in the
         requested variables for the current Circuit instance.
@@ -2480,6 +2488,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             the plot.
         **kwargs:
             plotting parameters
+
+        Returns
+        -------
+            Returns a axes and figure for further editing.
         """
         if len(var_indices) > 2:
             raise AttributeError(
@@ -2671,14 +2683,14 @@ class Circuit(Subsystem):
 
     Parameters
     ----------
-    input_string:
+    input_string: str
         String describing the number of nodes and branches connecting then along
         with their parameters
-    from_file:
+    from_file: bool
         Set to True by default, when a file name should be provided to
         `input_string`, else the circuit graph description in YAML should be
         provided as a string.
-    basis_completion:
+    basis_completion: str
         either "heuristic" or "canonical", defines the matrix used for completing the
         transformation matrix. Sometimes used to change the variable transformation
         to result in a simpler symbolic Hamiltonian, by default "heuristic"
@@ -2691,14 +2703,6 @@ class Circuit(Subsystem):
     truncated_dim: Optional[int]
         truncated dimension if the user wants to use this circuit instance in
         HilbertSpace, by default `None`
-    _modified_attributes:
-        parameter for internal use, where the circuit instance is modified by the user.
-        This parameter is used to store the circuit instance in file
-
-    Returns
-    -------
-    Circuit
-        An instance of class `Circuit`
     """
 
     def __init__(
@@ -2709,12 +2713,6 @@ class Circuit(Subsystem):
         ext_basis: str = "discretized",
         initiate_sym_calc: bool = True,
         truncated_dim: int = None,
-        _modified_attributes: Dict = {
-            "transformation_matrix": None,
-            "system_hierarchy": None,
-            "subsystem_trunc_dims": None,
-            "closure_branches_data": [],
-        },
     ):
 
         if basis_completion not in ["heuristic", "canonical"]:
@@ -2774,30 +2772,8 @@ class Circuit(Subsystem):
         self._sys_type = type(self).__name__
         self._id_str = self._autogenerate_id_str()
 
-        # getting data from _modified_attribs
-        configure_attribs = [
-            "transformation_matrix",
-            "system_hierarchy",
-            "subsystem_trunc_dims",
-        ]
-        closure_branches = [
-            self._find_branch(*branch_data)
-            for branch_data in _modified_attributes["closure_branches_data"]
-        ]
-        # removing parameters that are not defined
-        configure_attribs = [
-            attrib for attrib in configure_attribs if attrib in _modified_attributes
-        ]
-
         if initiate_sym_calc:
-            self.configure(
-                closure_branches=closure_branches,
-                **{key: _modified_attributes[key] for key in configure_attribs},
-            )
-        # modifying the attributes if necessary
-        for attrib in _modified_attributes:
-            if attrib not in configure_attribs + ["closure_branches_data"]:
-                setattr(self, attrib, _modified_attributes[attrib])
+            self.configure()
 
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
@@ -2810,8 +2786,10 @@ class Circuit(Subsystem):
 
         Parameters
         ----------
-        var_index : Union[int, List[int]]
-            var_index or list of var_indices
+        var_indices:
+            list of var_indices whose range needs to be changed
+        phi_range:
+            The desired range for each of the discretized phi variables
         """
         if self.ext_basis != "discretized":
             raise Exception(
@@ -2825,19 +2803,15 @@ class Circuit(Subsystem):
             self.discretized_phi_range[var_index] = phi_range
         self.operators_by_name = self.set_operators()
 
+    @classmethod
     def from_yaml(
+        cls,
         input_string: str,
         from_file: bool = True,
         basis_completion="heuristic",
         ext_basis: str = "discretized",
         initiate_sym_calc: bool = True,
         truncated_dim: int = None,
-        _modified_attributes: Dict = {
-            "transformation_matrix": None,
-            "system_hierarchy": None,
-            "subsystem_trunc_dims": None,
-            "closure_branches_data": [],
-        },
     ):
         """
         Wrapper to Circuit __init__ to create a class instance. Will be deprecated in
@@ -2856,23 +2830,15 @@ class Circuit(Subsystem):
             either "heuristic" or "canonical", defines the matrix used for completing the
             transformation matrix. Sometimes used to change the variable transformation
             to result in a simpler symbolic Hamiltonian, by default "heuristic"
-        ext_basis: str
+        ext_basis:
             can be "discretized" or "harmonic" which chooses whether to use discretized
             phi or harmonic oscillator basis for extended variables,
             by default "discretized"
-        initiate_sym_calc: bool
+        initiate_sym_calc:
             attribute to initiate Circuit instance, by default `True`
-        truncated_dim: Optional[int]
+        truncated_dim:
             truncated dimension if the user wants to use this circuit instance in
             HilbertSpace, by default `None`
-        _modified_attributes:
-            parameter for internal use, where the circuit instance is modified by the user.
-            This parameter is used to store the circuit instance in file
-
-        Returns
-        -------
-        Circuit
-            An instance of class `Circuit`
         """
         return Circuit(
             input_string=input_string,
@@ -2881,7 +2847,6 @@ class Circuit(Subsystem):
             ext_basis=ext_basis,
             initiate_sym_calc=initiate_sym_calc,
             truncated_dim=truncated_dim,
-            _modified_attributes=_modified_attributes,
         )
 
     def dict_for_serialization(self):
@@ -2904,12 +2869,16 @@ class Circuit(Subsystem):
 
         # storing which branches are used for closure_branches
         closure_branches_data = []
-        for branch in self.closure_branches:
+        for branch in self.closure_branches:  # store symbolic param as string
+            branch_params = branch.parameters.copy()
+            for param in branch_params:
+                if isinstance(branch_params[param], sm.Symbol):
+                    branch_params[param] = branch_params[param].name
             branch_data = [
                 branch.nodes[0].id,
                 branch.nodes[1].id,
                 branch.type,
-                branch.parameters,
+                branch_params,
             ]
             closure_branches_data.append(branch_data)
         modified_attrib_dict["closure_branches_data"] = closure_branches_data
@@ -2922,16 +2891,68 @@ class Circuit(Subsystem):
         iodata.typename = type(self).__name__
         return iodata
 
+    @classmethod
+    def deserialize(cls, iodata: "IOData") -> "Circuit":
+        """
+        Take the given IOData and return an instance of the described class, initialized
+        with the data stored in io_data.
+
+        Parameters
+        ----------
+        iodata:
+
+        Returns
+        -------
+            Circuit instance
+        """
+        init_params = iodata.as_kwargs()
+        _modified_attributes = init_params.pop("_modified_attributes")
+
+        circuit = cls(**init_params)
+
+        closure_branches = [
+            circuit._find_branch(*branch_data)
+            for branch_data in _modified_attributes["closure_branches_data"]
+        ]
+        del _modified_attributes["closure_branches_data"]
+
+        # removing parameters that are not defined
+        configure_attribs = [
+            # "transformation_matrix",
+            "system_hierarchy",
+            "subsystem_trunc_dims",
+        ]
+        configure_attribs = [
+            attrib for attrib in configure_attribs if attrib in _modified_attributes
+        ]
+
+        circuit.configure(
+            closure_branches=closure_branches,
+            **{key: _modified_attributes[key] for key in configure_attribs},
+        )
+        # modifying the attributes if necessary
+        for attrib in _modified_attributes:
+            if attrib not in configure_attribs:
+                setattr(circuit, "_" + attrib, _modified_attributes[attrib])
+        if circuit.hierarchical_diagonalization:
+            circuit.generate_subsystems()
+            circuit.build_hilbertspace()
+        return circuit
+
     def _find_branch(
         self, node_id_1: int, node_id_2: int, branch_type: str, branch_params: dict
     ):
         for branch in self.symbolic_circuit.branches:
             branch_node_ids = [node.id for node in branch.nodes]
+            branch_params_circ = branch.parameters.copy()
+            for param in branch_params_circ:
+                if isinstance(branch_params_circ[param], sm.Symbol):
+                    branch_params_circ[param] = branch_params_circ[param].name
             if node_id_1 not in branch_node_ids or node_id_2 not in branch_node_ids:
                 continue
             if branch.type != branch_type:
                 continue
-            if branch_params != branch.parameters:
+            if branch_params != branch_params_circ:
                 continue
             return branch
         return None
@@ -3114,8 +3135,7 @@ class Circuit(Subsystem):
 
         if system_hierarchy is not None:
             self.hierarchical_diagonalization = (
-                system_hierarchy != []
-                and system_hierarchy != flatten_list_recursive(system_hierarchy)
+                system_hierarchy != [] and number_of_lists_in_list(system_hierarchy) > 0
             )
 
         if not self.hierarchical_diagonalization:
@@ -3145,8 +3165,7 @@ class Circuit(Subsystem):
 
         Returns
         -------
-        sm.Expr
-            _description_
+            Expressions of transformed variables in terms of node variables
         """
         trans_mat = self.transformation_matrix
         theta_vars = [
@@ -3179,7 +3198,7 @@ class Circuit(Subsystem):
 
         Returns
         -------
-        Human readable form of the Lagrangian
+            Human readable form of the Lagrangian
         """
         if vars_type == "node":
             lagrangian = self.lagrangian_node_vars
@@ -3249,7 +3268,6 @@ class Circuit(Subsystem):
 
         Returns
         -------
-        sm.Expr
             Human readable form of expressions of offset charges in terms of node offset
             charges
         """
