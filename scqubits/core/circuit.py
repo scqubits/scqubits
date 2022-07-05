@@ -103,6 +103,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     truncated_dim: Optional[int], optional
         sets the truncated dimension for the current subsystem, by default 10
     """
+    # switch used in protecting the class from erroneous addition of new attributes
+    __frozen = False
 
     def __init__(
         self,
@@ -123,6 +125,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         self.hamiltonian_symbolic = hamiltonian_symbolic
         self._hamiltonian_sym_for_numerics = hamiltonian_symbolic
         self._default_grid_phi = self.parent._default_grid_phi
+
+        self.junction_potential = None
+        self._H_LC_str_harmonic = None
 
         self.ext_basis: str = self.parent.ext_basis
         self.external_fluxes = [
@@ -207,6 +212,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         self.normal_mode_freqs = []
 
         self._configure()
+        self.__frozen = True
+
+    def __setattr__(self, name, value):
+        if not self.__frozen or name in dir(self):
+            super().__setattr__(name, value)
+        else:
+            raise Exception("Creating new attributes is disabled.")
+
+    def __repr__(self) -> str:
+        return self._id_str
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
@@ -235,9 +250,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     if str(var_index) in cutoff_name:
                         cutoffs_dict[var_index] = getattr(self, cutoff_name)
         return cutoffs_dict
-
-    def __repr__(self) -> str:
-        return self._id_str
 
     def _regenerate_sym_hamiltonian(self) -> None:
         """
@@ -412,7 +424,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         self.is_purely_harmonic = self.parent.is_purely_harmonic
         if (
             self.is_purely_harmonic
-        ):  # assuming that the parent has only extended variables and are ordered starting from 1, 2, 3, ...
+        ):  # assuming that the parent has only extended variables and are ordered
+            # starting from 1, 2, 3, ...
             self.normal_mode_freqs = self.parent.normal_mode_freqs[
                 [var_idx - 1 for var_idx in self.var_categories["extended"]]
             ]
@@ -481,7 +494,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         for subsystem_idx, subsystem in self.subsystems.items():
             if subsystem.truncated_dim >= subsystem.hilbertdim() - 1:
                 raise Exception(
-                    f"The truncation index for subsystem {subsystem_idx} is too big. It should be lower than {subsystem.hilbertdim() - 1}."
+                    f"The truncation index for subsystem {subsystem_idx} is too big. "
+                    f"It should be lower than {subsystem.hilbertdim() - 1}."
                 )
 
     def generate_subsystems(self):
@@ -1000,7 +1014,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 )
             if index < var_index_list[-1]:
                 identity_right = sparse.identity(
-                    np.prod(cutoff_names[var_index_list.index(index) + 1 :]),
+                    np.prod(cutoff_names[var_index_list.index(index) + 1:]),
                     format=matrix_format,
                 )
 
@@ -1077,8 +1091,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         self, var_sym: sm.Symbol, prefactor: float
     ) -> Union[csc_matrix, ndarray]:
         """
-        Returns the bare operator exp(i*\theta*prefactor), without the kron product. Needs the oscillator
-        lengths to be set in the attribute, `osc_lengths`, when `ext_basis` is set to "harmonic".
+        Returns the bare operator exp(i*\theta*prefactor), without the kron product.
+        Needs the oscillator lengths to be set in the attribute, `osc_lengths`,
+        when `ext_basis` is set to "harmonic".
         """
         var_index = get_trailing_number(var_sym.name)
 
@@ -1347,7 +1362,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Returns
         -------
-        qt.Qobj
             identity wrapped operator.
         """
         if not self.hierarchical_diagonalization:
@@ -1885,7 +1899,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             )
             sym_hamiltonian_KE = 0 * sm.Symbol("x")
             for term in sym_hamiltonian.args:
-                if term.free_symbols.isdisjoint(pot_symbols) == True:
+                if term.free_symbols.isdisjoint(pot_symbols):
                     sym_hamiltonian_KE = sm.Add(sym_hamiltonian_KE, term)
 
             # add a symbolic 2pi
@@ -1925,13 +1939,13 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             )
             sym_hamiltonian_KE = 0 * sm.Symbol("x")
             for term in sym_hamiltonian.args:
-                if term.free_symbols.isdisjoint(pot_symbols) == True:
+                if term.free_symbols.isdisjoint(pot_symbols):
                     sym_hamiltonian_KE = sm.Add(sym_hamiltonian_KE, term)
             sym_hamiltonian_PE = self._make_expr_human_readable(
                 self.potential_symbolic.expand(), float_round=float_round
             )
-            # add a 2pi coefficient in front of externa fluxes, since the the external fluxes are measured in
-            # 2pi numerically
+            # add a 2pi coefficient in front of externa fluxes, since the the external
+            # fluxes are measured in 2pi numerically
             for external_flux in self.external_fluxes:
                 sym_hamiltonian_PE = sym_hamiltonian_PE.replace(
                     external_flux,
@@ -2708,6 +2722,8 @@ class Circuit(Subsystem):
         truncated dimension if the user wants to use this circuit instance in
         HilbertSpace, by default `None`
     """
+    # switch used in protecting the class from erroneous addition of new attributes
+    __frozen = False
 
     def __init__(
         self,
@@ -2718,10 +2734,11 @@ class Circuit(Subsystem):
         initiate_sym_calc: bool = True,
         truncated_dim: int = None,
     ):
-
+        base.QuantumSystem.__init__(self, id_str=None)
         if basis_completion not in ["heuristic", "canonical"]:
             raise Exception(
-                "Incorrect parameter set for basis_completion. It can either be 'heuristic' or 'canonical'"
+                "Incorrect parameter set for basis_completion. It can either be "
+                "'heuristic' or 'canonical'"
             )
 
         symbolic_circuit = SymbolicCircuit.from_yaml(
@@ -2739,6 +2756,7 @@ class Circuit(Subsystem):
         self.truncated_dim: int = truncated_dim
         self.system_hierarchy: list = None
         self.subsystem_trunc_dims: list = None
+        self.operators_by_name = None
 
         self.discretized_phi_range: Dict[int, Tuple[float, float]] = {}
         self.cutoff_names: List[str] = []
@@ -2782,11 +2800,20 @@ class Circuit(Subsystem):
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
 
+        self.__frozen = True
+
+    def __setattr__(self, name, value):
+        if not self.__frozen or name in dir(self):
+            super().__setattr__(name, value)
+        else:
+            raise Exception("Creating new attributes is disabled.")
+
     def set_discretized_phi_range(
         self, var_indices: Tuple[int], phi_range: Tuple[float]
     ) -> None:
         """
-        Sets the flux range for discretized phi basis when ext_basis is set to 'discretized'.
+        Sets the flux range for discretized phi basis when ext_basis is set to
+        'discretized'.
 
         Parameters
         ----------
@@ -2797,7 +2824,8 @@ class Circuit(Subsystem):
         """
         if self.ext_basis != "discretized":
             raise Exception(
-                "Discretized phi range is only used when ext_basis is set to 'discretized'."
+                "Discretized phi range is only used when ext_basis is set to "
+                "'discretized'."
             )
         for var_index in var_indices:
             if var_index not in self.var_categories["extended"]:
@@ -2831,9 +2859,10 @@ class Circuit(Subsystem):
             `input_string`, else the circuit graph description in YAML should be
             provided as a string.
         basis_completion:
-            either "heuristic" or "canonical", defines the matrix used for completing the
-            transformation matrix. Sometimes used to change the variable transformation
-            to result in a simpler symbolic Hamiltonian, by default "heuristic"
+            either "heuristic" or "canonical", defines the matrix used for completing
+            the transformation matrix. Sometimes used to change the variable
+            transformation to result in a simpler symbolic Hamiltonian, by default
+            "heuristic"
         ext_basis:
             can be "discretized" or "harmonic" which chooses whether to use discretized
             phi or harmonic oscillator basis for extended variables,
@@ -3026,7 +3055,7 @@ class Circuit(Subsystem):
         Exception
             when system_hierarchy is set and subsystem_trunc_dims is not set.
         """
-
+        self.__frozen = False
         system_hierarchy = system_hierarchy or self.system_hierarchy
         subsystem_trunc_dims = subsystem_trunc_dims or self.subsystem_trunc_dims
         closure_branches = closure_branches or self.closure_branches
@@ -3162,6 +3191,7 @@ class Circuit(Subsystem):
             self.build_hilbertspace()
         # clear unnecesary attribs
         self.clear_unnecessary_attribs()
+        self.__frozen = True
 
     def variable_transformation(self) -> List[sm.Equality]:
         """
