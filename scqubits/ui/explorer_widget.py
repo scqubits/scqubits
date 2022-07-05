@@ -166,12 +166,8 @@ class Explorer:
 
     def build_figure_and_axes_table(self) -> Tuple[Figure, np.ndarray]:
         # the %inline and %widget backends somehow scale differently; try to compensate
-        if _HAS_WIDGET_BACKEND:
-            self.figwidth = 6.5 * 1.2
-            self.figheight = 2.75 * 1.2
-        else:
-            self.figwidth = 6.5
-            self.figheight = 2.75
+        self.figwidth = 6.4
+        self.figheight = 2.6
 
         plt.ioff()
         fig = plt.figure(figsize=(self.figwidth, self.figheight))
@@ -675,7 +671,7 @@ class Explorer:
                 nrows=nrows,
                 squeeze=False,
             )
-            self.fig.set_size_inches(1.1 * self.figwidth, self.figheight * nrows)
+            self.fig.set_size_inches(1.1 * self.figwidth, 0.9 * self.figheight * nrows)
 
         unfilled_cols_in_last_row = (self.ncols - len(panels) % self.ncols) % self.ncols
         if unfilled_cols_in_last_row != 0:
