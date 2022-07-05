@@ -71,7 +71,7 @@ else:
 
 # use vector graphics display in jupyter
 if executed_in_ipython():
-    matplotlib_inline.backend_inline.set_matplotlib_formats('pdf', 'svg')
+    matplotlib_inline.backend_inline.set_matplotlib_formats("pdf", "svg")
 
 
 # run ParameterSweep directly upon initialization
