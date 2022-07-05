@@ -494,6 +494,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         for subsystem_idx, subsystem in self.subsystems.items():
             if subsystem.truncated_dim >= subsystem.hilbertdim() - 1:
+                self.hierarchical_diagonalization = False
                 raise Exception(
                     f"The truncation index for subsystem {subsystem_idx} is too big. "
                     f"It should be lower than {subsystem.hilbertdim() - 1}."
@@ -2848,8 +2849,8 @@ class Circuit(Subsystem):
         truncated_dim: int = None,
     ):
         """
-        Wrapper to Circuit __init__ to create a class instance. Will be deprecated in
-        the future release.
+        Wrapper to Circuit __init__ to create a class instance. This is deprecated and 
+        will not be supported in the future release.
 
         Parameters
         ----------
@@ -2875,6 +2876,10 @@ class Circuit(Subsystem):
             truncated dimension if the user wants to use this circuit instance in
             HilbertSpace, by default `None`
         """
+        warnings.warn("""Initializing Circuit instances with `from_yaml` will not be supported in future. \
+            Use `Circuit` to initialize a Circuit instance.""",
+            np.VisibleDeprecationWarning,
+        )
         return Circuit(
             input_string=input_string,
             from_file=from_file,
