@@ -2719,6 +2719,9 @@ class Circuit(Subsystem):
         truncated dimension if the user wants to use this circuit instance in
         HilbertSpace, by default `None`
     """
+    # switch used in protecting the class from erroneous addition of new attributes
+    __frozen = False
+
     def __init__(
         self,
         input_string: str,
@@ -2795,6 +2798,12 @@ class Circuit(Subsystem):
         self._init_params = []
 
         self.__frozen = True
+
+    def __setattr__(self, name, value):
+        if not self.__frozen or name in dir(self):
+            super().__setattr__(name, value)
+        else:
+            raise Exception("Creating new attributes is disabled.")
 
     def set_discretized_phi_range(
         self, var_indices: Tuple[int], phi_range: Tuple[float]
@@ -3043,7 +3052,7 @@ class Circuit(Subsystem):
         Exception
             when system_hierarchy is set and subsystem_trunc_dims is not set.
         """
-
+        self.__frozen = False
         system_hierarchy = system_hierarchy or self.system_hierarchy
         subsystem_trunc_dims = subsystem_trunc_dims or self.subsystem_trunc_dims
         closure_branches = closure_branches or self.closure_branches
@@ -3179,6 +3188,7 @@ class Circuit(Subsystem):
             self.build_hilbertspace()
         # clear unnecesary attribs
         self.clear_unnecessary_attribs()
+        self.__frozen = True
 
     def variable_transformation(self) -> List[sm.Equality]:
         """
