@@ -30,6 +30,7 @@ import warnings
 from typing import Any, Type, Union
 
 import matplotlib as mpl
+import matplotlib_inline.backend_inline
 import numpy as np
 
 from cycler import cycler
@@ -67,6 +68,10 @@ if executed_in_ipython():
 else:
     PROGRESSBAR_DISABLED = True
     IN_IPYTHON = False
+
+# use vector graphics display in jupyter
+if executed_in_ipython():
+    matplotlib_inline.backend_inline.set_matplotlib_formats('pdf', 'svg')
 
 
 # run ParameterSweep directly upon initialization
