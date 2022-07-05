@@ -2879,8 +2879,8 @@ class Circuit(Subsystem):
                 if isinstance(branch_params[param], sm.Symbol):
                     branch_params[param] = branch_params[param].name
             branch_data = [
-                branch.nodes[0].id,
-                branch.nodes[1].id,
+                branch.nodes[0].index,
+                branch.nodes[1].index,
                 branch.type,
                 branch_params,
             ]
@@ -2947,7 +2947,7 @@ class Circuit(Subsystem):
         self, node_id_1: int, node_id_2: int, branch_type: str, branch_params: dict
     ):
         for branch in self.symbolic_circuit.branches:
-            branch_node_ids = [node.id for node in branch.nodes]
+            branch_node_ids = [node.index for node in branch.nodes]
             branch_params_circ = branch.parameters.copy()
             for param in branch_params_circ:
                 if isinstance(branch_params_circ[param], sm.Symbol):
