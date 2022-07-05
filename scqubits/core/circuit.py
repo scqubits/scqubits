@@ -103,6 +103,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     truncated_dim: Optional[int], optional
         sets the truncated dimension for the current subsystem, by default 10
     """
+
     # switch used in protecting the class from erroneous addition of new attributes
     __frozen = False
 
@@ -1014,7 +1015,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 )
             if index < var_index_list[-1]:
                 identity_right = sparse.identity(
-                    np.prod(cutoff_names[var_index_list.index(index) + 1:]),
+                    np.prod(cutoff_names[var_index_list.index(index) + 1 :]),
                     format=matrix_format,
                 )
 
@@ -2722,6 +2723,7 @@ class Circuit(Subsystem):
         truncated dimension if the user wants to use this circuit instance in
         HilbertSpace, by default `None`
     """
+
     # switch used in protecting the class from erroneous addition of new attributes
     __frozen = False
 

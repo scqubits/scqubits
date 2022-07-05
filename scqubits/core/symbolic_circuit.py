@@ -621,7 +621,7 @@ class SymbolicCircuit(serializers.Serializable):
                         nodes[node_id2 - 1],
                         branch_type,
                         parameters,
-                        id_str=str(len(branches))
+                        id_str=str(len(branches)),
                     )
                 )
             elif node_id2 == 0:
@@ -631,7 +631,7 @@ class SymbolicCircuit(serializers.Serializable):
                         ground_node,
                         branch_type,
                         parameters,
-                        id_str=str(len(branches))
+                        id_str=str(len(branches)),
                     )
                 )
             else:
@@ -641,7 +641,7 @@ class SymbolicCircuit(serializers.Serializable):
                         nodes[node_id2 - 1],
                         branch_type,
                         parameters,
-                        id_str=str(len(branches))
+                        id_str=str(len(branches)),
                     )
                 )
         return branches, branch_var_dict
@@ -1267,7 +1267,9 @@ class SymbolicCircuit(serializers.Serializable):
                 if self.is_grounded:
                     L_mat[branch.nodes[0].index, branch.nodes[1].index] += -inductance
                 else:
-                    L_mat[branch.nodes[0].index - 1, branch.nodes[1].index - 1] += -inductance
+                    L_mat[
+                        branch.nodes[0].index - 1, branch.nodes[1].index - 1
+                    ] += -inductance
 
         if not self.is_any_branch_parameter_symbolic() or substitute_params:
             L_mat = L_mat + L_mat.T - np.diag(L_mat.diagonal())
@@ -1333,9 +1335,9 @@ class SymbolicCircuit(serializers.Serializable):
                         capacitance * 8
                     )
                 else:
-                    C_mat[branch.nodes[0].index - 1, branch.nodes[1].index - 1] += -1 / (
-                        capacitance * 8
-                    )
+                    C_mat[
+                        branch.nodes[0].index - 1, branch.nodes[1].index - 1
+                    ] += -1 / (capacitance * 8)
 
         if not self.is_any_branch_parameter_symbolic() or substitute_params:
             C_mat = C_mat + C_mat.T - np.diag(C_mat.diagonal())
@@ -1559,7 +1561,11 @@ class SymbolicCircuit(serializers.Serializable):
         # superconducting loops would be in circ_copy.
         superconducting_loop_branches = []
         for branch_copy in circ_copy.branches:
-            superconducting_loop_branches += [branch for branch in self.branches if is_same_branch(branch, branch_copy)]
+            superconducting_loop_branches += [
+                branch
+                for branch in self.branches
+                if is_same_branch(branch, branch_copy)
+            ]
 
         return tree, superconducting_loop_branches, node_sets
 
