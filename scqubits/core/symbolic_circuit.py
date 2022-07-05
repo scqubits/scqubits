@@ -174,10 +174,12 @@ class Branch:
         n_f: Node,
         branch_type: str,
         parameters: Optional[Dict[str, float]] = None,
+        id: int = None,
     ):
         self.nodes = (n_i, n_f)
         self.type = branch_type
         self.parameters = parameters
+        self.id = id
         # store info of current branch inside the provided nodes
         # setting the parameters if it is provided
         if parameters is not None:
@@ -199,9 +201,7 @@ class Branch:
         )
 
     def __repr__(self) -> str:
-        return "Branch({}, {}, {})".format(
-            self.type, self.nodes[0].id, self.nodes[1].id
-        )
+        return f"Branch({self.type}, {self.nodes[0].id}, {self.nodes[1].id}, id: {self.id})"
 
     def set_parameters(self, parameters) -> None:
         if self.type in ["C", "L"]:
@@ -621,6 +621,7 @@ class SymbolicCircuit(serializers.Serializable):
                         nodes[node_id2 - 1],
                         branch_type,
                         parameters,
+                        id=len(branches) +1
                     )
                 )
             elif node_id2 == 0:
@@ -630,6 +631,7 @@ class SymbolicCircuit(serializers.Serializable):
                         ground_node,
                         branch_type,
                         parameters,
+                        id=len(branches) +1
                     )
                 )
             else:
@@ -639,6 +641,7 @@ class SymbolicCircuit(serializers.Serializable):
                         nodes[node_id2 - 1],
                         branch_type,
                         parameters,
+                        id=len(branches) +1
                     )
                 )
         return branches, branch_var_dict
@@ -1544,34 +1547,19 @@ class SymbolicCircuit(serializers.Serializable):
                         break
 
         # ************* selecting the appropriate branches from circ as from circ_copy #
-        def is_same_branch(branch_1: Branch, branch_2: Branch):
-            branch_1_dict = branch_1.__dict__
-            branch_2_dict = branch_2.__dict__
-            if (
-                branch_1_dict["type"] == branch_2_dict["type"]
-                and branch_1_dict["parameters"] == branch_2_dict["parameters"]
-            ):
-                if [i.id for i in branch_1_dict["nodes"]] == [
-                    i.id for i in branch_2_dict["nodes"]
-                ]:
-                    return True
-                else:
-                    return False
-            else:
-                return False
+        def is_same_branch(branch_1, branch_2):
+            return branch_1.id == branch_2.id
 
         tree = []  # tree having branches of the current instance
         for c_branch in tree_copy:
-            tree += [b for b in self.branches if is_same_branch(c_branch, b)]
+            tree += [b for b in self.branches if is_same_branch(b, c_branch)]
 
         # as the capacitors are removed to form the spanning tree, and as a result
         # floating branches as well, the set of all branches which form the
         # superconducting loops would be in circ_copy.
         superconducting_loop_branches = []
         for branch_copy in circ_copy.branches:
-            for branch in self.branches:
-                if is_same_branch(branch, branch_copy):
-                    superconducting_loop_branches.append(branch)
+            superconducting_loop_branches += [branch for branch in self.branches if is_same_branch(branch, branch_copy)]
 
         return tree, superconducting_loop_branches, node_sets
 

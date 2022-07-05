@@ -1334,12 +1334,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         var_index: Optional[int] = None,
     ) -> qt.Qobj:
         """
-        Returns an identity wrapped operator whose size is equal to the `self.hilbertdim()`.
+        Returns an identity wrapped operator whose size is equal to the
+        `self.hilbertdim()`. Only converts operator which belongs to a specific variable
+        index. For example, operator Q_1 or cos(\theta_1). But not, Q1*Q2.
 
         Parameters
         ----------
         operator:
             operator in the form of csc_matrix, ndarray
+        var_index:
+            integer which represents which variable index the given operator belongs to
 
         Returns
         -------
