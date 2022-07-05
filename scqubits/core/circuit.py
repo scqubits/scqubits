@@ -495,8 +495,27 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         for subsystem_idx, subsystem in self.subsystems.items():
             if subsystem.truncated_dim >= subsystem.hilbertdim() - 1:
                 self.hierarchical_diagonalization = False
+                # delete the subsystems attribute
+                delattr(self, "subsystems")
+                subsystem.subsystem_trunc_dims = None
+                subsystem.system_hierarchy = None
+                # find the correct position of the subsystem where the truncation index is too big
+                subsystem_position = f"subsystem {subsystem_idx} "
+                parent = subsystem.parent
+                while parent.is_child:
+                    grandparent = parent.parent
+                    # find the subsystem position of the parent system
+                    subsystem_position += f"of subsystem {grandparent.get_subsystem_index(parent.var_categories_list[0])} "
+                    parent.subsystem_trunc_dims = None
+                    parent.system_hierarchy = None
+                    parent = grandparent
+                # reset the attributes of the ancestor system to None
+                parent.subsystem_trunc_dims = None
+                parent.system_hierarchy = None
                 raise Exception(
-                    f"The truncation index for subsystem {subsystem_idx} is too big. "
+                    f"The truncation index for " + 
+                    subsystem_position +
+                    f"is too big. "
                     f"It should be lower than {subsystem.hilbertdim() - 1}."
                 )
 
@@ -2876,8 +2895,8 @@ class Circuit(Subsystem):
             truncated dimension if the user wants to use this circuit instance in
             HilbertSpace, by default `None`
         """
-        warnings.warn("""Initializing Circuit instances with `from_yaml` will not be supported in future. \
-            Use `Circuit` to initialize a Circuit instance.""",
+        warnings.warn("Initializing Circuit instances with `from_yaml` will not be " 
+            "supported in future. Use `Circuit` to initialize a Circuit instance.",
             np.VisibleDeprecationWarning,
         )
         return Circuit(
