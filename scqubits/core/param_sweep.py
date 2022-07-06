@@ -1276,7 +1276,7 @@ class ParameterSweep(  # type:ignore
                     chi_data[subsys_index1, subsys_index2] = np.asarray([])
                 # ac Stark shifts
                 else:
-                    if subsys1 in self.qbt_subsys_list:
+                    if subsys1 in self.osc_subsys_list:
                         chi_data[subsys_index1, subsys_index2] = NamedSlotsNdarray(
                             kerr_subsys1_subsys2_all_l1_l2[..., 1, :],
                             self._parameters.paramvals_by_name,
