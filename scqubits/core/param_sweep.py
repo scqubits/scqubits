@@ -992,6 +992,7 @@ class ParameterSweep(  # type:ignore
                 self._data["lamb"],
                 self._data["chi"],
                 self._data["kerr"],
+                self._data["chi_prime"],
             ) = self._dispersive_coefficients()
         if self._deepcopy:
             self._hilbertspace = stored_hilbertspace  # restore original state
@@ -1220,6 +1221,7 @@ class ParameterSweep(  # type:ignore
         lamb_data = np.empty(self.subsystem_count, dtype=object)
         kerr_data = np.empty((self.subsystem_count, self.subsystem_count), dtype=object)
         chi_data = np.empty((self.subsystem_count, self.subsystem_count), dtype=object)
+        chi_prime_data = np.empty((self.subsystem_count, self.subsystem_count), dtype=object)
 
         # Lamb shifts
         for subsys_index1, subsys1 in enumerate(self.hilbertspace):
@@ -1265,6 +1267,7 @@ class ParameterSweep(  # type:ignore
                         self._parameters.paramvals_by_name,
                     )
                     chi_data[subsys_index1, subsys_index2] = np.asarray([])
+                    chi_prime_data[subsys_index1, subsys_index2] = np.asarray([])
                 # self-Kerr and cross-Kerr: qubit modes
                 elif (
                     subsys1 in self.qbt_subsys_list and subsys2 in self.qbt_subsys_list
@@ -1274,6 +1277,7 @@ class ParameterSweep(  # type:ignore
                         self._parameters.paramvals_by_name,
                     )
                     chi_data[subsys_index1, subsys_index2] = np.asarray([])
+                    chi_prime_data[subsys_index1, subsys_index2] = np.asarray([])
                 # ac Stark shifts
                 else:
                     if subsys1 in self.osc_subsys_list:
@@ -1281,12 +1285,23 @@ class ParameterSweep(  # type:ignore
                             kerr_subsys1_subsys2_all_l1_l2[..., 1, :],
                             self._parameters.paramvals_by_name,
                         )
+                        chi_prime = (
+                            kerr_subsys1_subsys2_all_l1_l2[..., 2, :]
+                            - 2 * kerr_subsys1_subsys2_all_l1_l2[..., 1, :]
+                        ) / 2
+
                     else:
                         chi_data[subsys_index1, subsys_index2] = NamedSlotsNdarray(
                             kerr_subsys1_subsys2_all_l1_l2[..., :, 1],
                             self._parameters.paramvals_by_name,
                         )
+                        chi_prime = (
+                            kerr_subsys1_subsys2_all_l1_l2[..., :, 2]
+                            - 2 * kerr_subsys1_subsys2_all_l1_l2[..., :, 1]
+                        ) / 2
                     kerr_data[subsys_index1, subsys_index2] = np.asarray([])
+                    chi_prime_data[subsys_index1, subsys_index2] = chi_prime
+
 
         sys_indices = np.arange(self.subsystem_count)
         lamb_data = NamedSlotsNdarray(lamb_data, {"subsys": sys_indices})
@@ -1296,8 +1311,11 @@ class ParameterSweep(  # type:ignore
         chi_data = NamedSlotsNdarray(
             chi_data, {"subsys1": sys_indices, "subsys2": sys_indices}
         )
+        chi_prime_data = NamedSlotsNdarray(
+            chi_prime_data, {"subsys1": sys_indices, "subsys2": sys_indices}
+        )
 
-        return lamb_data, chi_data, kerr_data
+        return lamb_data, chi_data, kerr_data, chi_prime_data
 
 
 class StoredSweep(
