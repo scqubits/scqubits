@@ -1225,25 +1225,19 @@ class ParameterSweep(  # type:ignore
         for subsys_index1, subsys1 in enumerate(self.hilbertspace):
             energy_subsys1_all_l1 = self._energies_1(subsys1)
             bare_energy_subsys1_all_l1 = self["bare_evals"][subsys_index1].toarray()
+            lamb_subsys1_all_l1 = (
+                energy_subsys1_all_l1
+                - energy_0[..., None]
+                - bare_energy_subsys1_all_l1
+                + bare_energy_subsys1_all_l1[..., 0][..., None]
+            )
             # Lamb shifts for oscillator modes
             if subsys1 in self.osc_subsys_list:
-                lamb_subsys1_all_l1 = (
-                    energy_subsys1_all_l1[..., 1]
-                    - energy_0
-                    - bare_energy_subsys1_all_l1[..., 1]
-                    + bare_energy_subsys1_all_l1[..., 0]
-                )
                 lamb_data[subsys_index1] = NamedSlotsNdarray(
-                    lamb_subsys1_all_l1, self._parameters.paramvals_by_name
+                    lamb_subsys1_all_l1[..., 1], self._parameters.paramvals_by_name
                 )
             # Lamb shifts for qubit modes
             else:
-                lamb_subsys1_all_l1 = (
-                    energy_subsys1_all_l1
-                    - energy_0[..., None]
-                    - bare_energy_subsys1_all_l1
-                    + bare_energy_subsys1_all_l1[..., 0][..., None]
-                )
                 lamb_data[subsys_index1] = NamedSlotsNdarray(
                     lamb_subsys1_all_l1, self._parameters.paramvals_by_name
                 )
