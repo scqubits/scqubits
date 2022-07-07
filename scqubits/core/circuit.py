@@ -495,8 +495,18 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         for subsystem_idx, subsystem in self.subsystems.items():
             if subsystem.truncated_dim >= subsystem.hilbertdim() - 1:
                 self.hierarchical_diagonalization = False
+                # find the correct position of the subsystem where the truncation index is too big
+                subsystem_position = f"subsystem {subsystem_idx} "
+                parent = subsystem.parent
+                while parent.is_child:
+                    grandparent = parent.parent
+                    # find the subsystem position of the parent system
+                    subsystem_position += f"of subsystem {grandparent.get_subsystem_index(parent.var_categories_list[0])} "
+                    parent = grandparent
                 raise Exception(
-                    f"The truncation index for subsystem {subsystem_idx} is too big. "
+                    f"The truncation index for " + 
+                    subsystem_position +
+                    f"is too big. "
                     f"It should be lower than {subsystem.hilbertdim() - 1}."
                 )
 
@@ -3030,6 +3040,57 @@ class Circuit(Subsystem):
                     delattr(self, attrib)
 
     def configure(
+        self,
+        transformation_matrix: ndarray = None,
+        system_hierarchy: list = None,
+        subsystem_trunc_dims: list = None,
+        closure_branches: List[Branch] = None,
+    ):
+        """
+        Method which re-initializes a circuit instance to update, hierarchical
+        diagonalization parameters or closure branches or the variable transformation
+        used to describe the circuit.
+
+        Parameters
+        ----------
+        transformation_matrix:
+            A user defined variable transformation which has the dimensions of the
+            number nodes (not counting the ground node), by default `None`
+        system_hierarchy:
+            A list of lists which is provided by the user to define subsystems,
+            by default `None`
+        subsystem_trunc_dims:
+            dict object which can be generated for a specific system_hierarchy using the
+            method `truncation_template`, by default `None`
+        closure_branches:
+            List of branches where external flux variables will be specified, by default
+            `None` which then chooses closure branches by an internally generated
+            spanning tree.
+
+        Raises
+        ------
+        Exception
+            when system_hierarchy is set and subsystem_trunc_dims is not set.
+        """
+
+        old_transformation_matrix = self.transformation_matrix
+        old_system_hierarchy = self.system_hierarchy
+        old_subsystem_trunc_dims = self.subsystem_trunc_dims
+        old_closure_branches = self.closure_branches
+        print(old_system_hierarchy, old_subsystem_trunc_dims)
+        try:
+            self._configure(transformation_matrix=transformation_matrix, system_hierarchy=system_hierarchy, subsystem_trunc_dims=subsystem_trunc_dims, closure_branches=closure_branches)
+        except:
+            # resetting the necessary attributes
+            self.system_hierarchy = old_system_hierarchy
+            self.subsystem_trunc_dims = old_subsystem_trunc_dims
+            self.transformation_matrix = old_transformation_matrix
+            self.closure_branches = old_closure_branches
+            # Calling configure
+            self._configure(transformation_matrix=old_transformation_matrix, system_hierarchy=old_system_hierarchy, subsystem_trunc_dims=old_subsystem_trunc_dims, closure_branches=old_closure_branches)
+            raise Exception("Configure failed, incorrect parameters used. Please check the above exception.")
+    
+    def _configure(
         self,
         transformation_matrix: ndarray = None,
         system_hierarchy: list = None,
