@@ -1562,7 +1562,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         hamiltonian_LC = hamiltonian - junction_potential
 
         H_LC_str = self._get_eval_hamiltonian_string(hamiltonian_LC)
-        self._H_LC_str_harmonic = H_LC_str
 
         offset_charge_names = [
             offset_charge.name for offset_charge in self.offset_charges
@@ -1622,7 +1621,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         hamiltonian_LC = hamiltonian - junction_potential
 
         H_LC_str = self._get_eval_hamiltonian_string(hamiltonian_LC)
-        self._H_LC_str_harmonic = H_LC_str
 
         replacement_dict: Dict[str, Any] = self.operators_by_name
 
