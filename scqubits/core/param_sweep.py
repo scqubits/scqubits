@@ -1287,7 +1287,8 @@ class ParameterSweep(  # type:ignore
                         )
                         chi_prime_data[subsys_index1, subsys_index2] = NamedSlotsNdarray(
                             kerr_subsys1_subsys2_all_l1_l2[..., 2, :]
-                            - 2 * kerr_subsys1_subsys2_all_l1_l2[..., 1, :]
+                            - 2 * kerr_subsys1_subsys2_all_l1_l2[..., 1, :],
+                            self._parameters.paramvals_by_name,
                         ) / 2
 
                     else:
@@ -1297,7 +1298,8 @@ class ParameterSweep(  # type:ignore
                         )
                         chi_prime_data[subsys_index1, subsys_index2] = NamedSlotsNdarray(
                             kerr_subsys1_subsys2_all_l1_l2[..., :, 2]
-                            - 2 * kerr_subsys1_subsys2_all_l1_l2[..., :, 1]
+                            - 2 * kerr_subsys1_subsys2_all_l1_l2[..., :, 1],
+                            self._parameters.paramvals_by_name,
                         ) / 2
                     kerr_data[subsys_index1, subsys_index2] = np.asarray([])
 
