@@ -30,7 +30,6 @@ import warnings
 from typing import Any, Type, Union
 
 import matplotlib as mpl
-import matplotlib_inline.backend_inline
 import numpy as np
 
 from cycler import cycler
@@ -71,6 +70,7 @@ else:
 
 # use vector graphics display in jupyter
 if executed_in_ipython():
+    import matplotlib_inline.backend_inline
     matplotlib_inline.backend_inline.set_matplotlib_formats('pdf', 'svg')
 
 
