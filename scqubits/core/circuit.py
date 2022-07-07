@@ -504,9 +504,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     subsystem_position += f"of subsystem {grandparent.get_subsystem_index(parent.var_categories_list[0])} "
                     parent = grandparent
                 raise Exception(
-                    f"The truncation index for " + 
-                    subsystem_position +
-                    f"is too big. "
+                    f"The truncation index for " + subsystem_position + f"is too big. "
                     f"It should be lower than {subsystem.hilbertdim() - 1}."
                 )
 
@@ -2859,7 +2857,7 @@ class Circuit(Subsystem):
         truncated_dim: int = None,
     ):
         """
-        Wrapper to Circuit __init__ to create a class instance. This is deprecated and 
+        Wrapper to Circuit __init__ to create a class instance. This is deprecated and
         will not be supported in the future release.
 
         Parameters
@@ -2886,7 +2884,8 @@ class Circuit(Subsystem):
             truncated dimension if the user wants to use this circuit instance in
             HilbertSpace, by default `None`
         """
-        warnings.warn("Initializing Circuit instances with `from_yaml` will not be " 
+        warnings.warn(
+            "Initializing Circuit instances with `from_yaml` will not be "
             "supported in future. Use `Circuit` to initialize a Circuit instance.",
             np.VisibleDeprecationWarning,
         )
@@ -3077,9 +3076,13 @@ class Circuit(Subsystem):
         old_system_hierarchy = self.system_hierarchy
         old_subsystem_trunc_dims = self.subsystem_trunc_dims
         old_closure_branches = self.closure_branches
-        print(old_system_hierarchy, old_subsystem_trunc_dims)
         try:
-            self._configure(transformation_matrix=transformation_matrix, system_hierarchy=system_hierarchy, subsystem_trunc_dims=subsystem_trunc_dims, closure_branches=closure_branches)
+            self._configure(
+                transformation_matrix=transformation_matrix,
+                system_hierarchy=system_hierarchy,
+                subsystem_trunc_dims=subsystem_trunc_dims,
+                closure_branches=closure_branches,
+            )
         except:
             # resetting the necessary attributes
             self.system_hierarchy = old_system_hierarchy
@@ -3087,9 +3090,16 @@ class Circuit(Subsystem):
             self.transformation_matrix = old_transformation_matrix
             self.closure_branches = old_closure_branches
             # Calling configure
-            self._configure(transformation_matrix=old_transformation_matrix, system_hierarchy=old_system_hierarchy, subsystem_trunc_dims=old_subsystem_trunc_dims, closure_branches=old_closure_branches)
-            raise Exception("Configure failed, incorrect parameters used. Please check the above exception.")
-    
+            self._configure(
+                transformation_matrix=old_transformation_matrix,
+                system_hierarchy=old_system_hierarchy,
+                subsystem_trunc_dims=old_subsystem_trunc_dims,
+                closure_branches=old_closure_branches,
+            )
+            raise Exception(
+                "Configure failed, incorrect parameters used. Please check the above exception."
+            )
+
     def _configure(
         self,
         transformation_matrix: ndarray = None,
