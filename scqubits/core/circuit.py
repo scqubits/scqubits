@@ -2876,8 +2876,8 @@ class Circuit(Subsystem):
             truncated dimension if the user wants to use this circuit instance in
             HilbertSpace, by default `None`
         """
-        warnings.warn("""Initializing Circuit instances with `from_yaml` will not be supported in future. \
-            Use `Circuit` to initialize a Circuit instance.""",
+        warnings.warn("Initializing Circuit instances with `from_yaml` will not be " 
+            "supported in future. Use `Circuit` to initialize a Circuit instance.",
             np.VisibleDeprecationWarning,
         )
         return Circuit(
