@@ -1285,7 +1285,7 @@ class ParameterSweep(  # type:ignore
                             kerr_subsys1_subsys2_all_l1_l2[..., 1, :],
                             self._parameters.paramvals_by_name,
                         )
-                        chi_prime = (
+                        chi_prime_data[subsys_index1, subsys_index2] = NamedSlotsNdarray(
                             kerr_subsys1_subsys2_all_l1_l2[..., 2, :]
                             - 2 * kerr_subsys1_subsys2_all_l1_l2[..., 1, :]
                         ) / 2
@@ -1295,12 +1295,11 @@ class ParameterSweep(  # type:ignore
                             kerr_subsys1_subsys2_all_l1_l2[..., :, 1],
                             self._parameters.paramvals_by_name,
                         )
-                        chi_prime = (
+                        chi_prime_data[subsys_index1, subsys_index2] = NamedSlotsNdarray(
                             kerr_subsys1_subsys2_all_l1_l2[..., :, 2]
                             - 2 * kerr_subsys1_subsys2_all_l1_l2[..., :, 1]
                         ) / 2
                     kerr_data[subsys_index1, subsys_index2] = np.asarray([])
-                    chi_prime_data[subsys_index1, subsys_index2] = chi_prime
 
 
         sys_indices = np.arange(self.subsystem_count)
