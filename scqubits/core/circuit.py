@@ -72,6 +72,7 @@ from scqubits.utils.misc import (
     flatten_list,
     flatten_list_recursive,
     number_of_lists_in_list,
+    list_intersection
 )
 from scqubits.utils.plot_utils import _process_options
 from scqubits.utils.spectrum_utils import (
@@ -2310,51 +2311,33 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def _get_var_dim_for_reshaped_wf(self, wf_var_indices, var_index):
         wf_dim = 0
-        system_hierarchy_for_vars_chosen = list(
-            set([self.get_subsystem_index(index) for index in np.sort(wf_var_indices)])
-        )
-        for subsys_index in self.subsystems:
-            if subsys_index not in system_hierarchy_for_vars_chosen:
-                wf_dim += 1
-            if subsys_index in system_hierarchy_for_vars_chosen:
-                subsys_var_index_list = self.subsystems[
-                    subsys_index
-                ].var_categories_list
-                if var_index not in subsys_var_index_list:
-                    wf_dim += len(subsys_var_index_list)
+        for subsys in self.subsystems.values():
+            intersection = list_intersection(subsys.var_categories_list, wf_var_indices)
+            if len(intersection) > 0 and var_index not in intersection:
+                if subsys.hierarchical_diagonalization:
+                    wf_dim += subsys._get_var_dim_for_reshaped_wf(wf_var_indices, var_index)
                 else:
-                    wf_dim += subsys_var_index_list.index(var_index)
-                    break
+                    wf_dim += len(subsys.var_categories_list)
+            elif len(intersection) > 0 and var_index in intersection:
+                if subsys.hierarchical_diagonalization:
+                    wf_dim += subsys._get_var_dim_for_reshaped_wf(wf_var_indices, var_index)
+                else:
+                    wf_dim += subsys.var_categories_list.index(var_index)
+                break
+            else:
+                wf_dim += 1
         return wf_dim
 
     def _dims_to_be_summed(
-        self, var_indices: List[int], system_hierarchy_for_vars_chosen
+        self, var_indices: List[int], num_wf_dims
     ) -> List[int]:
-        dims_to_be_summed = []
-        num_wf_dims = 0
-        if self.hierarchical_diagonalization:
-            for subsys_index in self.subsystems:
-                if subsys_index in system_hierarchy_for_vars_chosen:
-                    for index, var_index in enumerate(
-                        self.subsystems[subsys_index].var_categories_list
-                    ):
-                        if var_index not in var_indices:
-                            dims_to_be_summed += [num_wf_dims + index]
-                    num_wf_dims += len(
-                        self.subsystems[subsys_index].var_categories_list
-                    )
-                else:
-                    dims_to_be_summed += [num_wf_dims]
-                    num_wf_dims += 1
 
-        else:
-            dims_to_be_summed = [
-                var_index - 1
-                for var_index in self.var_categories["periodic"]
-                + self.var_categories["extended"]
-                if var_index not in var_indices
-            ]
-        return dims_to_be_summed
+        all_var_indices = self.var_categories_list
+        non_summed_dims = []
+        for var_index in all_var_indices:
+            if var_index in var_indices:
+                non_summed_dims.append(self._get_var_dim_for_reshaped_wf(var_indices, var_index))
+        return [dim for dim in range(num_wf_dims) if dim not in non_summed_dims]
 
     def generate_wf_plot_data(
         self,
@@ -2453,13 +2436,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # the ones in var_categories
         if self.hierarchical_diagonalization:
             dims_to_be_summed = self._dims_to_be_summed(
-                var_indices, system_hierarchy_for_vars_chosen
+                var_indices, len(wf_ext_basis.shape)
             )
-        # since system_hierarchy_for_vars_chosen is not defined for a circuit without HD
-        # replace the argument system_hierarchy_for_vars_chosen for _dims_to_be_summed
-        # by []
+
         else:
-            dims_to_be_summed = self._dims_to_be_summed(var_indices, [])
+            dims_to_be_summed = self._dims_to_be_summed(var_indices, len(wf_ext_basis.shape))
         wf_plot = np.sum(
             np.abs(wf_ext_basis) ** 2,
             axis=tuple(dims_to_be_summed),
@@ -2534,8 +2515,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             var_index = get_trailing_number(cutoff_attrib)
             if "cutoff_n" in cutoff_attrib:
                 grids_per_varindex_dict[var_index] = (
-                    grids_dict[var_index]
-                    if var_index in grids_dict
+                    grids_per_varindex_dict[var_index]
+                    if var_index in grids_per_varindex_dict
                     else discretization.Grid1d(
                         -np.pi, np.pi, self._default_grid_phi.pt_count
                     )
@@ -2544,8 +2525,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 var_index_dims_dict[var_index] = getattr(self, cutoff_attrib)
                 if self.ext_basis == "harmonic":
                     grid = (
-                        grids_dict[var_index]
-                        if var_index in grids_dict
+                        grids_per_varindex_dict[var_index]
+                        if var_index in grids_per_varindex_dict
                         else self._default_grid_phi
                     )
                 elif self.ext_basis == "discretized":
