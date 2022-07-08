@@ -1,6 +1,7 @@
 # hspace_widget.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -173,13 +174,13 @@ class HilbertSpaceUi:
         self.connect_ui()
 
     @staticmethod
-    def possible_operators(subsystem: QuantumSys) -> List[str]:
+    def possible_operators(subsystem: str) -> List[str]:
         if subsystem is None:
             return []
         main = importlib.import_module("__main__")
         return [
             method_name + "()"
-            for method_name in dir(main.__dict__[subsystem])
+            for method_name in dir(main.__dict__[subsystem])  # type:ignore
             if "_operator" in method_name and method_name[0] != "_"
         ]
 

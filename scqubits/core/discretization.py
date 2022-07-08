@@ -1,6 +1,7 @@
 # discretization.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -61,6 +62,8 @@ def band_matrix(
     band_offsets:
         offsets specifying the positions of the (off-)diagonals dim: dimension of
         the matrix
+    dim:
+        (linear) dimension of the matrix
     dtype:
         if not specified, dtype is inferred from the dtype of `band_vecs`
     has_corners:
@@ -101,9 +104,9 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         number of grid points
     """
 
-    min_val = descriptors.WatchedProperty("GRID_UPDATE")
-    max_val = descriptors.WatchedProperty("GRID_UPDATE")
-    pt_count = descriptors.WatchedProperty("GRID_UPDATE")
+    min_val = descriptors.WatchedProperty(float, "GRID_UPDATE")
+    max_val = descriptors.WatchedProperty(float, "GRID_UPDATE")
+    pt_count = descriptors.WatchedProperty(int, "GRID_UPDATE")
 
     def __init__(self, min_val: float, max_val: float, pt_count: int) -> None:
         self.min_val = min_val
@@ -231,18 +234,16 @@ class GridSpec(dispatch.DispatchClient, serializers.Serializable):
         array of with entries [minvalue, maxvalue, number of points]
     """
 
-    min_vals = descriptors.WatchedProperty("GRID_UPDATE")
-    max_vals = descriptors.WatchedProperty("GRID_UPDATE")
-    var_count = descriptors.WatchedProperty("GRID_UPDATE")
-    pt_counts = descriptors.WatchedProperty("GRID_UPDATE")
+    min_vals = descriptors.WatchedProperty(ndarray, "GRID_UPDATE")
+    max_vals = descriptors.WatchedProperty(ndarray, "GRID_UPDATE")
+    var_count = descriptors.WatchedProperty(int, "GRID_UPDATE")
+    pt_counts = descriptors.WatchedProperty(ndarray, "GRID_UPDATE")
 
     def __init__(self, minmaxpts_array: ndarray) -> None:
         self.min_vals = minmaxpts_array[:, 0]
         self.max_vals = minmaxpts_array[:, 1]
         self.var_count = len(self.min_vals)
-        self.pt_counts = minmaxpts_array[:, 2].astype(
-            np.int
-        )  # these are used as indices; need to be whole numbers.
+        self.pt_counts = minmaxpts_array[:, 2].astype(int)  # used as int indices
 
     def __str__(self) -> str:
         output = "    GridSpec ......"

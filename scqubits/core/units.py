@@ -1,6 +1,7 @@
 # units.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -81,7 +82,7 @@ def show_supported_units() -> List[str]:
 
 def to_standard_units(value: float) -> float:
     r"""
-    Converts `value` (a frequency or angular frequency) from system units,
+    Converts `value` (a frequency or angular frequency) from currently set system units,
     to standard units (`[Hz]` or  `2\pi / [s]`).
 
     Parameters
@@ -100,7 +101,7 @@ def to_standard_units(value: float) -> float:
 def from_standard_units(value: float) -> float:
     r"""
     Converts `value` (a frequency or angular frequency) from standard units (`[Hz]` or  `2\pi / [s]`)
-    to system units.
+    to currently set system units.
 
     Parameters
     ----------

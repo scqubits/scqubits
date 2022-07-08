@@ -1,6 +1,7 @@
 # qubit_base.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -16,7 +17,17 @@ import functools
 import inspect
 
 from abc import ABC, ABCMeta, abstractmethod
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Union,
+    overload,
+)
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,17 +36,23 @@ import scipy as sp
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
+from scipy import sparse
+from scipy.sparse.csc import csc_matrix
+from scipy.sparse.dia import dia_matrix
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
+import scqubits.core.discretization as discretization
+import scqubits.core.storage as storage
 import scqubits.core.units as units
 import scqubits.settings as settings
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.plotting as plot
+import scqubits.utils.spectrum_utils as spec_utils
 
 from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
-from scqubits.core.storage import DataStore, SpectrumData
+from scqubits.core.storage import DataStore, SpectrumData, WaveFunctionOnGrid
 from scqubits.settings import IN_IPYTHON
 from scqubits.utils.cpu_switch import get_map_method
 from scqubits.utils.misc import InfoBar, process_which
@@ -51,6 +68,16 @@ if IN_IPYTHON:
 else:
     from tqdm import tqdm
 
+if TYPE_CHECKING:
+    from typing_extensions import Literal
+
+    from scqubits.core.storage import WaveFunction
+
+
+LevelsTuple = Tuple[int, ...]
+Transition = Tuple[int, int]
+TransitionsTuple = Tuple[Transition, ...]
+
 
 # —Generic quantum system container and Qubit base class——————————————————————————————
 
@@ -58,20 +85,28 @@ else:
 class QuantumSystem(DispatchClient, ABC):
     """Generic quantum system class"""
 
-    truncated_dim = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    truncated_dim = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
     _init_params: List[str]
     _image_filename: str
-    _evec_dtype: type
     _sys_type: str
 
     # To facilitate warnings in set_units, introduce a counter keeping track of the
     # number of QuantumSystem instances
     _quantumsystem_counter: int = 0
+    # To enable autogeneration of id_str, keep a record of all subclass types and
+    # corresponding counts of instances
+    _instance_counter: Dict[str, int] = {}
 
     subclasses: List[ABCMeta] = []
 
     def __new__(cls, *args, **kwargs) -> "QuantumSystem":
         QuantumSystem._quantumsystem_counter += 1
+
+        if cls.__name__ not in QuantumSystem._instance_counter:
+            QuantumSystem._instance_counter[cls.__name__] = 1
+        else:
+            QuantumSystem._instance_counter[cls.__name__] += 1
+
         return super().__new__(cls)
 
     def __del__(self) -> None:
@@ -83,6 +118,10 @@ class QuantumSystem(DispatchClient, ABC):
             QuantumSystem._quantumsystem_counter -= 1
         except (NameError, AttributeError):
             pass
+
+    def __init__(self, id_str: Union[str, None]):
+        self._sys_type = type(self).__name__
+        self._id_str = id_str or self._autogenerate_id_str()
 
     def __init_subclass__(cls):
         """Used to register all non-abstract subclasses as a list in
@@ -101,7 +140,9 @@ class QuantumSystem(DispatchClient, ABC):
 
     def __str__(self) -> str:
         indent_length = 20
-        name_prepend = self._sys_type.ljust(indent_length, "-") + "|\n"
+        name_prepend = self._sys_type.ljust(indent_length, "-") + "| [{}]\n".format(
+            self._id_str
+        )
 
         output = ""
         for param_name in self.default_params().keys():
@@ -120,6 +161,14 @@ class QuantumSystem(DispatchClient, ABC):
 
     def __hash__(self):
         return super().__hash__()
+
+    def _autogenerate_id_str(self):
+        name = self._sys_type
+        return "{}_{}".format(name, QuantumSystem._instance_counter[name])
+
+    @property
+    def id_str(self):
+        return self._id_str
 
     def get_initdata(self) -> Dict[str, Any]:
         """Returns dict appropriate for creating/initializing a new Serializable
@@ -141,6 +190,7 @@ class QuantumSystem(DispatchClient, ABC):
     def widget(self, params: Dict[str, Any] = None):
         """Use ipywidgets to modify parameters of class instance"""
         init_params = params or self.get_initdata()
+        init_params.pop("id_str", None)
         ui.create_widget(
             self.set_params, init_params, image_filename=self._image_filename
         )
@@ -175,9 +225,8 @@ class QubitBaseClass(QuantumSystem, ABC):
     """
 
     # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
-    truncated_dim: int
+    truncated_dim: int  # type:ignore
     _default_grid: Grid1d
-    _evec_dtype: type
     _sys_type: str
     _init_params: list
 
@@ -200,12 +249,30 @@ class QubitBaseClass(QuantumSystem, ABC):
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
 
+    @overload
+    def eigenvals(
+        self,
+        evals_count: int = 6,
+        filename: str = None,
+        return_spectrumdata: "Literal[False]" = False,
+    ) -> ndarray:
+        ...
+
+    @overload
+    def eigenvals(
+        self,
+        evals_count: int,
+        filename: str,
+        return_spectrumdata: "Literal[True]",
+    ) -> SpectrumData:
+        ...
+
     def eigenvals(
         self,
         evals_count: int = 6,
         filename: str = None,
         return_spectrumdata: bool = False,
-    ) -> ndarray:
+    ) -> Union[SpectrumData, ndarray]:
         """Calculates eigenvalues using `scipy.linalg.eigh`, returns numpy array of
         eigenvalues.
 
@@ -233,12 +300,30 @@ class QubitBaseClass(QuantumSystem, ABC):
             specdata.filewrite(filename)
         return specdata if return_spectrumdata else evals
 
+    @overload
+    def eigensys(
+        self,
+        evals_count: int = 6,
+        filename: str = None,
+        return_spectrumdata: "Literal[False]" = False,
+    ) -> Tuple[ndarray, ndarray]:
+        ...
+
+    @overload
+    def eigensys(
+        self,
+        evals_count: int,
+        filename: Optional[str],
+        return_spectrumdata: "Literal[True]",
+    ) -> SpectrumData:
+        ...
+
     def eigensys(
         self,
         evals_count: int = 6,
         filename: str = None,
         return_spectrumdata: bool = False,
-    ) -> Tuple[ndarray, ndarray]:
+    ) -> Union[Tuple[ndarray, ndarray], SpectrumData]:
         """Calculates eigenvalues and corresponding eigenvectors using
         `scipy.linalg.eigh`. Returns two numpy arrays containing the eigenvalues and
         eigenvectors, respectively.
@@ -265,7 +350,29 @@ class QubitBaseClass(QuantumSystem, ABC):
             )
         if filename:
             specdata.filewrite(filename)
-        return specdata if return_spectrumdata else (evals, evecs)  # type: ignore
+        return specdata if return_spectrumdata else (evals, evecs)
+
+    @overload
+    def matrixelement_table(
+        self,
+        operator: str,
+        evecs: ndarray = None,
+        evals_count: int = 6,
+        filename: str = None,
+        return_datastore: "Literal[False]" = False,
+    ) -> ndarray:
+        ...
+
+    @overload
+    def matrixelement_table(
+        self,
+        operator: str,
+        evecs: ndarray,
+        evals_count: int,
+        filename: Optional[str],
+        return_datastore: "Literal[True]",
+    ) -> DataStore:
+        ...
 
     def matrixelement_table(
         self,
@@ -274,7 +381,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         evals_count: int = 6,
         filename: str = None,
         return_datastore: bool = False,
-    ) -> ndarray:
+    ) -> Union[DataStore, ndarray]:
         """Returns table of matrix elements for `operator` with respect to the
         eigenstates of the qubit. The operator is given as a string matching a class
         method returning an operator matrix. E.g., for an instance `trm` of Transmon,
@@ -312,9 +419,9 @@ class QubitBaseClass(QuantumSystem, ABC):
 
     def _esys_for_paramval(
         self, paramval: float, param_name: str, evals_count: int
-    ) -> Union[Tuple[ndarray, ndarray], SpectrumData]:
+    ) -> Tuple[ndarray, ndarray]:
         setattr(self, param_name, paramval)
-        return self.eigensys(evals_count)
+        return self.eigensys(evals_count=evals_count)
 
     def _evals_for_paramval(
         self, paramval: float, param_name: str, evals_count: int
@@ -363,28 +470,29 @@ class QubitBaseClass(QuantumSystem, ABC):
 
         target_map = get_map_method(num_cpus)
         if not get_eigenstates:
-            func = functools.partial(
+            func_evals = functools.partial(
                 self._evals_for_paramval, param_name=param_name, evals_count=evals_count
             )
             with InfoBar(
                 "Parallel computation of eigensystems [num_cpus={}]".format(num_cpus),
                 num_cpus,
             ):
-                eigenvalue_table = list(
-                    target_map(
-                        func,
-                        tqdm(
-                            param_vals,
-                            desc="Spectral data",
-                            leave=False,
-                            disable=tqdm_disable,
-                        ),
+                eigenvalue_table = np.asarray(
+                    list(
+                        target_map(
+                            func_evals,
+                            tqdm(
+                                param_vals,
+                                desc="Spectral data",
+                                leave=False,
+                                disable=tqdm_disable,
+                            ),
+                        )
                     )
                 )
-            eigenvalue_table = np.asarray(eigenvalue_table)
             eigenstate_table = None
         else:
-            func = functools.partial(
+            func_esys = functools.partial(
                 self._esys_for_paramval, param_name=param_name, evals_count=evals_count
             )
             with InfoBar(
@@ -396,7 +504,7 @@ class QubitBaseClass(QuantumSystem, ABC):
                 # dimension can vary with paramvals
                 eigensystem_mapdata = list(
                     target_map(
-                        func,
+                        func_esys,
                         tqdm(
                             param_vals,
                             desc="Spectral data",
@@ -437,8 +545,8 @@ class QubitBaseClass(QuantumSystem, ABC):
         dispersion_name: str,
         param_name: str,
         param_vals: ndarray,
-        transitions: Union[Tuple[int], Tuple[Tuple[int], ...]] = (0, 1),
-        levels: Optional[Union[int, Tuple[int]]] = None,
+        transitions_tuple: TransitionsTuple = ((0, 1),),
+        levels_tuple: Optional[LevelsTuple] = None,
         point_count: int = 50,
         num_cpus: Optional[int] = None,
     ) -> Tuple[ndarray, ndarray]:
@@ -457,7 +565,9 @@ class QubitBaseClass(QuantumSystem, ABC):
 
         previous_dispval = getattr(self, dispersion_name)
         previous_paramval = getattr(self, param_name)
-        max_level = np.max(transitions) if not levels else np.max(levels)
+        max_level = (
+            np.max(transitions_tuple) if not levels_tuple else np.max(levels_tuple)
+        )
         sweep = ParameterSweep(
             hilbertspace,
             paramvals_by_name,
@@ -466,24 +576,23 @@ class QubitBaseClass(QuantumSystem, ABC):
             bare_only=True,
             num_cpus=num_cpus,
         )
-        setattr(self, param_name, previous_paramval)
-        setattr(self, dispersion_name, previous_dispval)
+        eigenenergies = sweep["bare_evals"]["subsys":0].toarray()  # type:ignore
 
-        eigenenergies = sweep["bare_esys"][0, :, :, 0].toarray()
-
-        if levels is None:
-            dispersions = np.empty((len(transitions), len(param_vals)))
-            for index, (i, j) in enumerate(transitions):
+        if levels_tuple is None:
+            dispersions = np.empty((len(transitions_tuple), len(param_vals)))
+            for index, (i, j) in enumerate(transitions_tuple):
                 energy_ij = eigenenergies[:, :, i] - eigenenergies[:, :, j]
                 dispersions[index] = np.max(energy_ij, axis=0) - np.min(
                     energy_ij, axis=0
                 )
         else:
-            dispersions = np.empty((len(levels), len(param_vals)))
-            for index, j in enumerate(levels):
+            dispersions = np.empty((len(levels_tuple), len(param_vals)))
+            for index, j in enumerate(levels_tuple):
                 energy_j = eigenenergies[:, :, j]
                 dispersions[index] = np.max(energy_j, axis=0) - np.min(energy_j, axis=0)
 
+        setattr(self, param_name, previous_paramval)
+        setattr(self, dispersion_name, previous_dispval)
         return eigenenergies, dispersions
 
     def get_dispersion_vs_paramvals(
@@ -492,8 +601,8 @@ class QubitBaseClass(QuantumSystem, ABC):
         param_name: str,
         param_vals: ndarray,
         ref_param: Optional[str] = None,
-        transitions: Union[Tuple[int], Tuple[Tuple[int], ...]] = (0, 1),
-        levels: Optional[Union[int, Tuple[int]]] = None,
+        transitions: Union[Transition, TransitionsTuple] = (0, 1),
+        levels: Optional[Union[int, LevelsTuple]] = None,
         point_count: int = 50,
         num_cpus: Optional[int] = None,
     ) -> SpectrumData:
@@ -529,18 +638,42 @@ class QubitBaseClass(QuantumSystem, ABC):
             number of cores to be used for computation
             (default value: settings.NUM_CPUS)
         """
-
-        if isinstance(levels, int):
-            levels = (levels,)
+        if levels is not None:
+            if isinstance(levels, int):
+                # presence of levels argument will overwrite `transitions`;
+                # here: single level
+                levels_tuple: Optional[LevelsTuple] = (levels,)
+                transitions_tuple: TransitionsTuple = (transitions,)  # type:ignore
+            elif isinstance(levels, tuple):
+                # presence of levels argument will overwrite `transitions`;
+                # here: multiple levels
+                levels_tuple: Optional[LevelsTuple] = levels
+                transitions_tuple: TransitionsTuple = (transitions,)  # type:ignore
+            else:
+                raise ValueError(
+                    "Invalid `levels` specification: expect int or tuple " "of int"
+                )
         elif isinstance(transitions[0], int):
-            transitions = (transitions,)
+            # transitions is inferred to be of form (i, j), so only a single one
+            transitions_tuple = (transitions,)  # type:ignore
+            levels_tuple = None
+        elif isinstance(transitions[0], tuple):
+            # transitions is inferred to be of form ((i1, j1), ...) ,
+            # there are multiple transitions
+            transitions_tuple = transitions
+            levels_tuple = None
+        else:
+            raise ValueError(
+                "Invalid `transitions` specification: expect either ("
+                "int, int)  or ((int, int), ...)"
+            )
 
         eigenenergies, dispersion = self._compute_dispersion(
             dispersion_name,
             param_name,
             param_vals,
-            transitions=transitions,
-            levels=levels,
+            transitions_tuple=transitions_tuple,
+            levels_tuple=levels_tuple,
             point_count=point_count,
             num_cpus=num_cpus,
         )
@@ -554,7 +687,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             self.get_initdata(),
             param_name,
             param_vals,
-            labels=levels or transitions,
+            labels=levels_tuple or transitions_tuple,
             dispersion=dispersion.T,
         )
         return specdata
@@ -599,13 +732,14 @@ class QubitBaseClass(QuantumSystem, ABC):
             shape=(paramvals_count, evals_count, evals_count), dtype=np.complex_
         )
 
+        assert spectrumdata.state_table is not None
         for index, paramval in tqdm(
             enumerate(param_vals),
             total=len(param_vals),
             disable=settings.PROGRESSBAR_DISABLED,
             leave=False,
         ):
-            evecs = spectrumdata.state_table[index]  # type: ignore
+            evecs = spectrumdata.state_table[index]
             matelem_table[index] = self.matrixelement_table(
                 operator, evecs=evecs, evals_count=evals_count
             )
@@ -660,8 +794,8 @@ class QubitBaseClass(QuantumSystem, ABC):
         param_name: str,
         param_vals: ndarray,
         ref_param: Optional[str] = None,
-        transitions: Union[Tuple[int], Tuple[Tuple[int], ...]] = (0, 1),
-        levels: Optional[Union[int, Tuple[int]]] = None,
+        transitions: Union[Transition, TransitionsTuple] = (0, 1),
+        levels: Optional[Union[int, LevelsTuple]] = None,
         point_count: int = 50,
         num_cpus: Optional[int] = None,
         **kwargs,
@@ -709,17 +843,19 @@ class QubitBaseClass(QuantumSystem, ABC):
             num_cpus=num_cpus,
         )
         if levels is not None:
-            if isinstance(levels, int):
-                levels = (levels,)
-            label_list = [str(j) for j in levels]
+            levels_tuple = levels if isinstance(levels, tuple) else (levels,)
+            label_list = [str(j) for j in levels_tuple]
         else:
-            if isinstance(transitions[0], int):
-                transitions = (transitions,)
-            label_list = ["{}{}".format(i, j) for i, j in transitions]
+            transitions_tuple: TransitionsTuple = (
+                transitions  # type:ignore
+                if isinstance(transitions[0], tuple)
+                else (transitions,)
+            )
+            label_list = ["{}{}".format(i, j) for i, j in transitions_tuple]
 
         return plot.data_vs_paramvals(
-            xdata=specdata.param_vals,
-            ydata=specdata.dispersion,
+            xdata=specdata.param_vals,  # type:ignore
+            ydata=specdata.dispersion,  # type:ignore
             label_list=label_list,
             xlabel=specdata.param_name,
             ylabel="energy dispersion [{}]".format(units.get_units()),
@@ -765,6 +901,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             standard plotting option (see separate documentation)
         """
         matrixelem_array = self.matrixelement_table(operator, evecs, evals_count)
+        assert isinstance(matrixelem_array, np.ndarray)
         if not show3d:
             return plot.matrix2d(
                 matrixelem_array, mode=mode, show_numbers=show_numbers, **kwargs
@@ -860,14 +997,18 @@ class QubitBaseClass1d(QubitBaseClass):
 
     # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
     _default_grid: Grid1d
-    _evec_dtype = np.float_
 
     @abstractmethod
     def potential(self, phi: Union[float, ndarray]) -> Union[float, ndarray]:
         pass
 
     @abstractmethod
-    def wavefunction(self, esys: ndarray, which: int = 0, phi_grid: Grid1d = None):
+    def wavefunction(
+        self,
+        esys: Optional[Tuple[ndarray, ndarray]],
+        which: int = 0,
+        phi_grid: Grid1d = None,
+    ) -> "WaveFunction":
         pass
 
     def wavefunction1d_defaults(
@@ -947,7 +1088,7 @@ class QubitBaseClass1d(QubitBaseClass):
         kwargs["fig_ax"] = fig_ax
         kwargs = {
             **self.wavefunction1d_defaults(
-                mode, evals, wavefunc_count=len(wavefunc_indices)
+                mode, evals, wavefunc_count=len(wavefunc_indices)  # type:ignore
             ),
             **kwargs,
         }
@@ -956,9 +1097,339 @@ class QubitBaseClass1d(QubitBaseClass):
 
         plot.wavefunction1d(
             wavefunctions,
-            potential_vals=potential_vals,
+            potential_vals=potential_vals,  # type:ignore
             offset=energies,
             scaling=scaling,
             **kwargs,
         )
         return fig_ax
+
+
+class QubitBaseClass2dExtPer(QubitBaseClass, ABC):
+    """Base class for superconducting qubit objects with two degrees of freedom,
+    one of them extended, the other one periodic.
+    """
+
+    grid: Grid1d
+    ncut: int
+
+    @classmethod
+    def create(cls) -> "QubitBaseClass2dExtPer":
+        phi_grid = discretization.Grid1d(-19.0, 19.0, 200)
+        init_params = cls.default_params()
+        init_params["grid"] = phi_grid
+        new_qubit = cls(**init_params)
+        new_qubit.widget()
+        return new_qubit
+
+    @classmethod
+    def supported_noise_channels(cls) -> List[str]:
+        """Return a list of supported noise channels"""
+        return [
+            "tphi_1_over_f_cc",
+            "tphi_1_over_f_flux",
+            "t1_flux_bias_line",
+            # 't1_capacitive',
+            "t1_inductive",
+        ]
+
+    def widget(self, params: Dict[str, Any] = None) -> None:
+        init_params = params or self.get_initdata()
+        del init_params["grid"]
+        init_params.pop("id_str", None)
+        init_params["grid_max_val"] = self.grid.max_val
+        init_params["grid_min_val"] = self.grid.min_val
+        init_params["grid_pt_count"] = self.grid.pt_count
+        ui.create_widget(
+            self.set_params, init_params, image_filename=self._image_filename
+        )
+
+    def set_params(self, **kwargs) -> None:
+        phi_grid = discretization.Grid1d(
+            kwargs.pop("grid_min_val"),
+            kwargs.pop("grid_max_val"),
+            kwargs.pop("grid_pt_count"),
+        )
+        self.grid = phi_grid
+        for param_name, param_val in kwargs.items():
+            setattr(self, param_name, param_val)
+
+    def receive(self, event: str, sender: object, **kwargs):
+        if sender is self.grid:
+            self.broadcast("QUANTUMSYSTEM_UPDATE")
+
+    def _evals_calc(self, evals_count: int) -> ndarray:
+        hamiltonian_mat = self.hamiltonian()
+        evals = sparse.linalg.eigsh(
+            hamiltonian_mat,
+            k=evals_count,
+            sigma=0.0,
+            which="LM",
+            return_eigenvectors=False,
+        )
+        return np.sort(evals)
+
+    def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
+        hamiltonian_mat = self.hamiltonian()
+        evals, evecs = sparse.linalg.eigsh(
+            hamiltonian_mat,
+            k=evals_count,
+            sigma=0.0,
+            which="LM",
+            return_eigenvectors=True,
+            v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
+        )
+        evals, evecs = spec_utils.order_eigensystem(evals, evecs)
+        return evals, evecs
+
+    def hilbertdim(self) -> int:
+        """Returns Hilbert space dimension"""
+        return self.grid.pt_count * (2 * self.ncut + 1)
+
+    def potential(self, phi: ndarray, theta: ndarray) -> ndarray:
+        pass
+
+    def _identity_phi(self) -> csc_matrix:
+        r"""
+        Identity operator acting only on the `\phi` Hilbert subspace.
+        """
+        pt_count = self.grid.pt_count
+        return sparse.identity(pt_count, format="csc")
+
+    def _identity_theta(self) -> csc_matrix:
+        r"""
+        Identity operator acting only on the `\theta` Hilbert subspace.
+        """
+        dim_theta = 2 * self.ncut + 1
+        return sparse.identity(dim_theta, format="csc")
+
+    def i_d_dphi_operator(self) -> csc_matrix:
+        r"""
+        Operator :math:`i d/d\phi`.
+        """
+        return sparse.kron(
+            self.grid.first_derivative_matrix(prefactor=1j),
+            self._identity_theta(),
+            format="csc",
+        )
+
+    def _phi_operator(self) -> dia_matrix:
+        r"""
+        Operator :math:`\phi`, acting only on the `\phi` Hilbert subspace.
+        """
+        pt_count = self.grid.pt_count
+
+        phi_matrix = sparse.dia_matrix((pt_count, pt_count))
+        diag_elements = self.grid.make_linspace()
+        phi_matrix.setdiag(diag_elements)
+        return phi_matrix
+
+    def phi_operator(self) -> csc_matrix:
+        r"""
+        Operator :math:`\phi`.
+        """
+        return sparse.kron(self._phi_operator(), self._identity_theta(), format="csc")
+
+    def n_theta_operator(self) -> csc_matrix:
+        r"""
+        Operator :math:`n_\theta`.
+        """
+        dim_theta = 2 * self.ncut + 1
+        diag_elements = np.arange(-self.ncut, self.ncut + 1)
+        n_theta_matrix = sparse.dia_matrix(
+            (diag_elements, [0]), shape=(dim_theta, dim_theta)
+        ).tocsc()
+        return sparse.kron(self._identity_phi(), n_theta_matrix, format="csc")
+
+    def _sin_phi_operator(self, x: float = 0) -> csc_matrix:
+        r"""
+        Operator :math:`\sin(\phi + x)`, acting only on the `\phi` Hilbert subspace.x
+        """
+        pt_count = self.grid.pt_count
+
+        vals = np.sin(self.grid.make_linspace() + x)
+        sin_phi_matrix = sparse.dia_matrix(
+            (vals, [0]), shape=(pt_count, pt_count)
+        ).tocsc()
+        return sin_phi_matrix
+
+    def _cos_phi_operator(self, x: float = 0) -> csc_matrix:
+        r"""
+        Operator :math:`\cos(\phi + x)`, acting only on the `\phi` Hilbert subspace.
+        """
+        pt_count = self.grid.pt_count
+
+        vals = np.cos(self.grid.make_linspace() + x)
+        cos_phi_matrix = sparse.dia_matrix(
+            (vals, [0]), shape=(pt_count, pt_count)
+        ).tocsc()
+        return cos_phi_matrix
+
+    def _cos_theta_operator(self) -> csc_matrix:
+        r"""
+        Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace.
+        """
+        dim_theta = 2 * self.ncut + 1
+        cos_theta_matrix = (
+            0.5
+            * (
+                sparse.dia_matrix(
+                    ([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta)
+                )
+                + sparse.dia_matrix(
+                    ([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)
+                )
+            ).tocsc()
+        )
+        return cos_theta_matrix
+
+    def cos_theta_operator(self) -> csc_matrix:
+        r"""
+        Operator :math:`\cos(\theta)`.
+        """
+        return sparse.kron(
+            self._identity_phi(), self._cos_theta_operator(), format="csc"
+        )
+
+    def _sin_theta_operator(self) -> csc_matrix:
+        r"""
+        Operator :math:`\sin(\theta)`, acting only on the `\theta` Hilbert space.
+        """
+        dim_theta = 2 * self.ncut + 1
+        sin_theta_matrix = (
+            -0.5
+            * 1j
+            * (
+                sparse.dia_matrix(
+                    ([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)
+                )
+                - sparse.dia_matrix(
+                    ([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta)
+                )
+            ).tocsc()
+        )
+        return sin_theta_matrix
+
+    def sin_theta_operator(self) -> csc_matrix:
+        r"""
+        Operator :math:`\sin(\theta)`.
+        """
+        return sparse.kron(
+            self._identity_phi(), self._sin_theta_operator(), format="csc"
+        )
+
+    def plot_potential(
+        self,
+        theta_grid: Grid1d = None,
+        contour_vals: Union[List[float], ndarray] = None,
+        **kwargs,
+    ) -> Tuple[Figure, Axes]:
+        """Draw contour plot of the potential energy.
+
+        Parameters
+        ----------
+        theta_grid:
+            used for setting a custom grid for theta; if None use self._default_grid
+        contour_vals:
+        **kwargs:
+            plotting parameters
+        """
+        theta_grid = theta_grid or self._default_grid
+
+        x_vals = self.grid.make_linspace()
+        y_vals = theta_grid.make_linspace()
+        return plot.contours(
+            x_vals,
+            y_vals,
+            self.potential,
+            contour_vals=contour_vals,
+            xlabel=r"$\phi$",
+            ylabel=r"$\theta$",
+            **kwargs,
+        )
+
+    def wavefunction(
+        self,
+        esys: Tuple[ndarray, ndarray] = None,
+        which: int = 0,
+        theta_grid: Grid1d = None,
+    ) -> WaveFunctionOnGrid:
+        """Returns a zero-pi-like wave function in `phi`, `theta` basis
+
+        Parameters
+        ----------
+        esys:
+            eigenvalues, eigenvectors
+        which:
+             index of desired wave function (default value = 0)
+        theta_grid:
+            used for setting a custom grid for theta; if None use self._default_grid
+        """
+        evals_count = max(which + 1, 3)
+        if esys is None:
+            _, evecs = self.eigensys(evals_count=evals_count)
+        else:
+            _, evecs = esys
+
+        theta_grid = theta_grid or self._default_grid
+        dim_theta = 2 * self.ncut + 1
+        state_amplitudes = evecs[:, which].reshape(self.grid.pt_count, dim_theta)
+
+        # Calculate psi_{phi, theta} = sum_n state_amplitudes_{phi, n} A_{n, theta}
+        # where a_{n, theta} = 1/sqrt(2 pi) e^{i n theta}
+        n_vec = np.arange(-self.ncut, self.ncut + 1)
+        theta_vec = theta_grid.make_linspace()
+        a_n_theta = np.exp(1j * np.outer(n_vec, theta_vec)) / (2 * np.pi) ** 0.5
+        wavefunc_amplitudes = np.matmul(state_amplitudes, a_n_theta).T
+        wavefunc_amplitudes = spec_utils.standardize_phases(wavefunc_amplitudes)
+
+        grid2d = discretization.GridSpec(
+            np.asarray(
+                [
+                    [self.grid.min_val, self.grid.max_val, self.grid.pt_count],
+                    [theta_grid.min_val, theta_grid.max_val, theta_grid.pt_count],
+                ]
+            )
+        )
+        return storage.WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
+
+    def plot_wavefunction(
+        self,
+        esys: Tuple[ndarray, ndarray] = None,
+        which: int = 0,
+        theta_grid: Grid1d = None,
+        mode: str = "abs",
+        zero_calibrate: bool = True,
+        **kwargs,
+    ) -> Tuple[Figure, Axes]:
+        """Plots 2d phase-basis wave function.
+
+        Parameters
+        ----------
+        esys:
+            eigenvalues, eigenvectors as obtained from `.eigensystem()`
+        which:
+            index of wave function to be plotted (default value = (0)
+        theta_grid:
+            used for setting a custom grid for theta; if None use self._default_grid
+        mode:
+            choices as specified in `constants.MODE_FUNC_DICT`
+            (default value = 'abs_sqr')
+        zero_calibrate:
+            if True, colors are adjusted to use zero wavefunction amplitude as the
+            neutral color in the palette
+        **kwargs:
+            plot options
+        """
+        theta_grid = theta_grid or self._default_grid
+
+        amplitude_modifier = constants.MODE_FUNC_DICT[mode]
+        wavefunc = self.wavefunction(esys, theta_grid=theta_grid, which=which)
+        wavefunc.amplitudes = amplitude_modifier(wavefunc.amplitudes)
+        return plot.wavefunction2d(
+            wavefunc,
+            zero_calibrate=zero_calibrate,
+            xlabel=r"$\phi$",
+            ylabel=r"$\theta$",
+            **kwargs,
+        )

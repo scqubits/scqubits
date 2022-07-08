@@ -1,6 +1,7 @@
 # fileio_serializers.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -14,7 +15,7 @@ Helper classes for writing data to files.
 
 import inspect
 
-from abc import ABC, ABCMeta
+from abc import ABCMeta
 from collections import OrderedDict
 from numbers import Number
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Tuple, Union
@@ -23,6 +24,7 @@ import numpy as np
 
 from numpy import ndarray
 from scipy.sparse import csc_matrix
+from typing_extensions import Protocol, runtime_checkable
 
 import scqubits.utils.misc as utils
 
@@ -33,7 +35,8 @@ if TYPE_CHECKING:
 SERIALIZABLE_REGISTRY = {}
 
 
-class Serializable(ABC):
+@runtime_checkable
+class Serializable(Protocol):
     """Mix-in class that makes descendant classes serializable."""
 
     _subclasses: List[ABCMeta] = []
@@ -65,6 +68,8 @@ class Serializable(ABC):
         Convert the content of the current class instance into IOData format.
         """
         initdata = {name: getattr(self, name) for name in self._init_params}
+        if hasattr(self, "_id_str"):
+            initdata["id_str"] = self._id_str  # type:ignore
         iodata = dict_serialize(initdata)
         iodata.typename = type(self).__name__
         return iodata
@@ -325,4 +330,6 @@ def get_init_params(obj: Serializable) -> List[str]:
         init_params.remove("self")
     if "kwargs" in init_params:
         init_params.remove("kwargs")
+    # if "id_str" in init_params:
+    #     init_params.remove("id_str")
     return init_params

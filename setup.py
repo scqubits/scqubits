@@ -7,6 +7,13 @@ external parameters, calculate matrix elements etc. The library further provides
 easy to work with composite Hilbert spaces consisting of coupled superconducting qubits and harmonic modes.
 Internally, numerics within scqubits is carried out with the help of Numpy and Scipy; plotting capabilities rely on
 Matplotlib.
+
+If scqubits is helpful to you in your research, please support its continued
+development and maintenance. Use of scqubits in research publications is
+appropriately acknowledged by citing:
+
+Peter Groszkowski and Jens Koch, 'scqubits:  a Python package for superconducting qubits',
+Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 """
 #
 # This file is part of scqubits.
@@ -43,8 +50,8 @@ EXTRA_KWARGS = {}
 
 # version information about scqubits goes here
 MAJOR = 2
-MINOR = 0
-MICRO = 0
+MINOR = 2
+MICRO = 2
 ISRELEASED = True
 
 VERSION = "%d.%d.%d" % (MAJOR, MINOR, MICRO)
@@ -71,6 +78,7 @@ PACKAGES = [
     "scqubits/utils",
     "scqubits/ui",
     "scqubits/io_utils",
+    "scqubits/explorer",
 ]
 
 PYTHON_VERSION = ">=3.6"

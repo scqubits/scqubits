@@ -1,6 +1,7 @@
 # fileio.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -16,14 +17,14 @@ import os
 
 from typing import TYPE_CHECKING, Any, Callable, Dict, Union
 
-import h5py
-
 from numpy import ndarray
 
 import scqubits.core.constants as const
 import scqubits.io_utils.fileio_serializers as io_serializers
 
 if TYPE_CHECKING:
+    import h5py
+
     from scqubits.io_utils.fileio_backends import CSVReader, H5Reader, IOWriter
     from scqubits.io_utils.fileio_serializers import Serializable
 
@@ -36,8 +37,8 @@ class IOData:
     def __init__(
         self,
         typename: str,
-        attributes: Dict[str, Any],
-        ndarrays: Dict[str, ndarray],
+        attributes: Union[Dict[str, Any], None],
+        ndarrays: Union[Dict[str, ndarray], None],
         objects: Any = None,
     ) -> None:
         self.typename = typename
@@ -46,7 +47,8 @@ class IOData:
         self.objects = objects or {}
 
     def as_kwargs(self) -> Dict[str, Any]:
-        """Return a joint dictionary of attributes, ndarrays, and objects, as used in __init__ calls"""
+        """Return a joint dictionary of attributes, ndarrays, and objects, as used in
+        __init__ calls"""
         return {**self.attributes, **self.ndarrays, **self.objects}
 
 
@@ -88,10 +90,10 @@ def deserialize(iodata: IOData) -> Any:
     )
 
 
-def write(the_object: Any, filename: str, file_handle: h5py.Group = None) -> None:
+def write(the_object: Any, filename: str, file_handle: "h5py.Group" = None) -> None:
     """
-    Write `the_object` to a file with name `filename`. The optional `file_handle` parameter is used as a group name
-    in case of h5 files.
+    Write `the_object` to a file with name `filename`. The optional `file_handle`
+    parameter is used as a group name in case of h5 files.
 
     Parameters
     ----------
@@ -107,7 +109,7 @@ def write(the_object: Any, filename: str, file_handle: h5py.Group = None) -> Non
     writer.to_file(iodata, file_handle=file_handle)
 
 
-def read(filename: str, file_handle: h5py.Group = None) -> Any:
+def read(filename: str, file_handle: "h5py.Group" = None) -> Any:
     """
     Read a Serializable object from file.
 
@@ -130,9 +132,12 @@ def read(filename: str, file_handle: h5py.Group = None) -> Any:
 class FileIOFactory:
     """Factory method for choosing reader/writer according to given format"""
 
-    def get_writer(self, file_name: str, file_handle: h5py.Group = None) -> "IOWriter":
+    def get_writer(
+        self, file_name: str, file_handle: "h5py.Group" = None
+    ) -> "IOWriter":
         """
-        Based on the extension of the provided file name, return the appropriate writer engine.
+        Based on the extension of the provided file name, return the appropriate
+        writer engine.
         """
         import scqubits.io_utils.fileio_backends as io_backends
 
@@ -149,11 +154,12 @@ class FileIOFactory:
     def get_reader(
         self,
         file_name: str,
-        file_handle: h5py.Group = None,
+        file_handle: "h5py.Group" = None,
         get_external_reader: Callable = None,
     ) -> Union["CSVReader", "H5Reader"]:
         """
-        Based on the extension of the provided file name, return the appropriate reader engine.
+        Based on the extension of the provided file name, return the appropriate
+        reader engine.
         """
         if get_external_reader:
             return get_external_reader(file_name, file_handle=file_handle)

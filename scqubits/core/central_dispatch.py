@@ -1,6 +1,7 @@
 # central_dispatch.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -14,7 +15,7 @@ import logging
 import warnings
 import weakref
 
-from typing import Callable
+from types import MethodType
 from weakref import WeakKeyDictionary
 
 import scqubits.settings as settings
@@ -68,7 +69,7 @@ class CentralDispatch:
         return self.clients_dict[event]
 
     def register(
-        self, event: str, who: "DispatchClient", callback: Callable = None
+        self, event: str, who: "DispatchClient", callback: MethodType = None
     ) -> None:
         """
         Register object `who` for event `event`. (This modifies `clients_dict`.)
@@ -140,11 +141,9 @@ class CentralDispatch:
                     type(client).__name__, event
                 )
             )
-
+            # Using WeakMethod references:
             callback_ref()(event, sender=sender, **kwargs)
-            # When using WeakMethod references, this should rather be:
-            # callback_ref()(event, sender=sender, **kwargs)
-            #
+
             # Workaround if pickling fails, in conjunction with changes eliminating
             # weakrefs:
             # callback_ref(event, sender=sender, **kwargs)

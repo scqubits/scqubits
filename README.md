@@ -1,6 +1,11 @@
 scqubits: superconducting qubits in Python
 ===========================================
 
+[![Anaconda-Server Badge](https://anaconda.org/conda-forge/scqubits/badges/downloads.svg)](https://anaconda.org/conda-forge/scqubits)
+[![CodeFactor](https://www.codefactor.io/repository/github/scqubits/scqubits/badge)](https://www.codefactor.io/repository/github/scqubits/scqubits)
+[![codecov](https://codecov.io/gh/scqubits/scqubits/branch/master/graph/badge.svg?token=PUBXSHF6HU)](https://codecov.io/gh/scqubits/scqubits)
+
+
 [J. Koch](https://github.com/jkochNU), [P. Groszkowski](https://github.com/petergthatsme)
 
 
@@ -11,25 +16,30 @@ easy to work with composite Hilbert spaces consisting of coupled superconducting
 Internally, numerics within scqubits is carried out with the help of Numpy and Scipy; plotting capabilities rely on
 Matplotlib.
 
-[![CodeFactor](https://www.codefactor.io/repository/github/scqubits/scqubits/badge)](https://www.codefactor.io/repository/github/scqubits/scqubits)
-[![codecov](https://codecov.io/gh/scqubits/scqubits/branch/master/graph/badge.svg?token=PUBXSHF6HU)](https://codecov.io/gh/scqubits/scqubits)
+If scqubits is helpful to you in your research, please support its continued 
+development and maintenance. Use of scqubits in research publications is 
+appropriately acknowledged by citing:
+
+>  Peter Groszkowski and Jens Koch,<br> 
+>  *scqubits:  a Python package for superconducting qubits*,<br>
+>  Quantum 5, 583 (2021).<br>
+>  https://quantum-journal.org/papers/q-2021-11-17-583/
+
+
 
 
 Download and Installation
 -------------------------
-
-[![Anaconda-Server Badge](https://anaconda.org/conda-forge/scqubits/badges/downloads.svg)](https://anaconda.org/conda-forge/scqubits)
 
 For Python 3.6, 3.7 and 3.8, installation via conda is supported. 
 ```
 conda install -c conda-forge scqubits
 ```
 
-Alternatively, you can install scqubits via pip.
+Alternatively, scqubits can be installed via pip (although it should be noted that installing via pip under a conda environment is strongly discouraged, and is not guaranteed to work - see conda documentation).
 ```
 pip install scqubits
 ```
-
 
 
 
@@ -38,6 +48,14 @@ Documentation
 
 The documentation for scqubits is available at: https://scqubits.readthedocs.io
 
+
+Related Packages
+----------------
+
+There are two related packages on github:
+
+documentation source code: https://github.com/scqubits/scqubits-doc   
+example notebooks: https://github.com/scqubits/scqubits-examples  
 
 
 Contribute

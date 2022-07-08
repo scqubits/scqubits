@@ -1,6 +1,7 @@
 # fluxonium.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -13,14 +14,13 @@ import cmath
 import math
 import os
 
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import scipy as sp
 
 from numpy import ndarray
 
-import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
 import scqubits.core.operators as op
@@ -33,9 +33,6 @@ from scqubits.core.noise import NoisySystem
 
 if TYPE_CHECKING:
     from scqubits.core.discretization import Grid1d
-
-
-# —Fluxonium qubit ————————————————————————
 
 
 class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
@@ -61,12 +58,15 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         number of harm. osc. basis states used in diagonalization
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
     """
-    EJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    EC = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    EL = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    flux = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    cutoff = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    EJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EC = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EL = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    flux = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    cutoff = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,
@@ -76,15 +76,15 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         flux: float,
         cutoff: int,
         truncated_dim: int = 6,
+        id_str: Optional[str] = None,
     ) -> None:
+        base.QuantumSystem.__init__(self, id_str=id_str)
         self.EJ = EJ
         self.EC = EC
         self.EL = EL
         self.flux = flux
         self.cutoff = cutoff
         self.truncated_dim = truncated_dim
-        self._sys_type = type(self).__name__
-        self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-4.5 * np.pi, 4.5 * np.pi, 151)
         self._image_filename = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "qubit_img/fluxonium.jpg"
@@ -101,7 +101,8 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             "truncated_dim": 10,
         }
 
-    def supported_noise_channels(self) -> List[str]:
+    @classmethod
+    def supported_noise_channels(cls) -> List[str]:
         """Return a list of supported noise channels"""
         return [
             "tphi_1_over_f_cc",
@@ -112,6 +113,13 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             "t1_inductive",
             "t1_quasiparticle_tunneling",
         ]
+
+    @classmethod
+    def effective_noise_channels(cls) -> List[str]:
+        """Return a default list of channels used when calculating effective t1 and t2 nosie."""
+        noise_channels = cls.supported_noise_channels()
+        noise_channels.remove("t1_charge_impedance")
+        return noise_channels
 
     def phi_osc(self) -> float:
         """
@@ -161,7 +169,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         Returns
         -------
-            Returns the :math:`e^{i (\\alpha \\phi + \beta) }` operator in the
+            Returns the :math:`e^{i (\\alpha \\phi + \\beta) }` operator in the
             LC harmonic oscillator basis,
             with :math:`\\alpha` and :math:`\\beta` being numbers
         """
@@ -176,8 +184,8 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             harmonic oscillator basis,
             with :math:`\\alpha` and :math:`\\beta` being numbers
         """
-        exp_matrix = self.exp_i_phi_operator(alpha, beta)
-        return 0.5 * (exp_matrix + exp_matrix.conjugate().T)
+        argument = alpha * self.phi_operator() + beta * np.eye(self.hilbertdim())
+        return sp.linalg.cosm(argument)
 
     def sin_phi_operator(self, alpha: float = 1.0, beta: float = 0.0) -> ndarray:
         """
@@ -187,24 +195,20 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             LC harmonic oscillator basis
             with :math:`\\alpha` and :math:`\\beta` being numbers
         """
-        exp_matrix = self.exp_i_phi_operator(alpha, beta)
-        return -1j * 0.5 * (exp_matrix - exp_matrix.conjugate().T)
+        argument = alpha * self.phi_operator() + beta * np.eye(self.hilbertdim())
+        return sp.linalg.sinm(argument)
 
     def hamiltonian(self) -> ndarray:  # follow Zhu et al., PRB 87, 024510 (2013)
         """Construct Hamiltonian matrix in harmonic-oscillator basis, following Zhu
         et al., PRB 87, 024510 (2013)"""
         dimension = self.hilbertdim()
-        diag_elements = [i * self.E_plasma() for i in range(dimension)]
+        diag_elements = [(i + 0.5) * self.E_plasma() for i in range(dimension)]
         lc_osc_matrix = np.diag(diag_elements)
 
-        exp_matrix = self.exp_i_phi_operator() * cmath.exp(1j * 2 * np.pi * self.flux)
-        cos_matrix = 0.5 * (exp_matrix + exp_matrix.conjugate().T)
+        cos_matrix = self.cos_phi_operator(beta=2 * np.pi * self.flux)
 
         hamiltonian_mat = lc_osc_matrix - self.EJ * cos_matrix
-        return np.real(
-            hamiltonian_mat
-        )  # use np.real to remove rounding errors from matrix exponential,
-        # fluxonium Hamiltonian in harm. osc. basis is real-valued
+        return hamiltonian_mat
 
     def d_hamiltonian_d_EJ(self) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect
@@ -245,7 +249,10 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         )
 
     def wavefunction(
-        self, esys: Tuple[ndarray, ndarray], which: int = 0, phi_grid: "Grid1d" = None
+        self,
+        esys: Optional[Tuple[ndarray, ndarray]],
+        which: int = 0,
+        phi_grid: "Grid1d" = None,
     ) -> storage.WaveFunction:
         """Returns a fluxonium wave function in `phi` basis
 
@@ -260,7 +267,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         if esys is None:
             evals_count = max(which + 1, 3)
-            evals, evecs = self.eigensys(evals_count)
+            evals, evecs = self.eigensys(evals_count=evals_count)
         else:
             evals, evecs = esys
         dim = self.hilbertdim()
