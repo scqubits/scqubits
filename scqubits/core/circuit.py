@@ -74,7 +74,7 @@ from scqubits.utils.misc import (
     flatten_list,
     flatten_list_recursive,
     number_of_lists_in_list,
-    list_intersection
+    list_intersection,
 )
 from scqubits.utils.plot_utils import _process_options
 from scqubits.utils.spectrum_utils import (
@@ -324,7 +324,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         # update the attribute for the current instance
         setattr(self, f"_{param_name}", value)
-        
+
         relevant_subsystem_indices = []
         # update all subsystem instances
         if self.hierarchical_diagonalization:
@@ -332,7 +332,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 if hasattr(subsys, param_name):
                     relevant_subsystem_indices.append(subsys_idx)
                     setattr(subsys, param_name, value)
-            self.build_hilbertspace(relevant_subsystem_indices=relevant_subsystem_indices)
+            self.build_hilbertspace(
+                relevant_subsystem_indices=relevant_subsystem_indices
+            )
 
     def _set_property_and_update_cutoffs(self, param_name: str, value: int) -> None:
         """
@@ -354,7 +356,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 if hasattr(subsys, param_name):
                     relevant_subsystem_indices.append(subsys_idx)
                     setattr(subsys, param_name, value)
-            self.build_hilbertspace(relevant_subsystem_indices=relevant_subsystem_indices)
+            self.build_hilbertspace(
+                relevant_subsystem_indices=relevant_subsystem_indices
+            )
 
     def _make_property(
         self, attrib_name: str, init_val: Union[int, float], property_update_type: str
@@ -610,12 +614,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 ],
             )
         )
-        
+
         self.hilbert_space = HilbertSpace(
             [self.subsystems[i] for i in range(len(self.system_hierarchy))]
         )
 
-    def generate_hilbertspace_lookup(self, subsystem_indices = None) -> None:
+    def generate_hilbertspace_lookup(self, subsystem_indices=None) -> None:
         hilbert_space = self.hilbert_space
         bare_evals = np.empty((hilbert_space.subsystem_count,), dtype=object)
         bare_evecs = np.empty((hilbert_space.subsystem_count,), dtype=object)
@@ -628,7 +632,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             if subsys_index in subsystem_indices:
                 bare_esys = subsys.eigensys(evals_count=subsys.truncated_dim)
             else:
-                bare_esys = hilbert_space["bare_evals"][subsys_index][0], hilbert_space["bare_evecs"][subsys_index][0]
+                bare_esys = (
+                    hilbert_space["bare_evals"][subsys_index][0],
+                    hilbert_space["bare_evecs"][subsys_index][0],
+                )
             bare_esys_dict[subsys_index] = bare_esys
             bare_evals[subsys_index] = NamedSlotsNdarray(
                 np.asarray([bare_esys[0].tolist()]),
@@ -657,7 +664,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 return self.parent.hilbert_space["bare_evecs"][subsys_index][0]
         else:
             return self.eigensys()[1]
-    
+
     def get_subsystem_index(self, var_index: int) -> int:
         """
         Returns the subsystem index for the subsystem to which the given var_index
@@ -680,7 +687,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             f"The var_index={var_index} could not be identified with any " "subsystem."
         )
 
-    def build_hilbertspace(self, relevant_subsystem_indices: Optional[List[int]]=None):
+    def build_hilbertspace(
+        self, relevant_subsystem_indices: Optional[List[int]] = None
+    ):
         """
         Builds the HilbertSpace object for the `Circuit` instance if
         `hierarchical_diagonalization` is set to true.
@@ -1350,9 +1359,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             for sym_variable in periodic_vars[short_op_name]:
                 index = get_operator_number(sym_variable.name)
                 op_name = sym_variable.name + "_operator"
-                periodic_operators[op_name] = operator_func_factory(
-                    op_func, index
-                )
+                periodic_operators[op_name] = operator_func_factory(op_func, index)
 
         return {
             **periodic_operators,
@@ -1440,7 +1447,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             op_in_eigenbasis=False,
             evecs=subsystem.get_eigenstates(),
         )
-        return identity_wrap(operator, subsystem, list(self.subsystems.values()), evecs=subsystem.get_eigenstates())
+        return identity_wrap(
+            operator,
+            subsystem,
+            list(self.subsystems.values()),
+            evecs=subsystem.get_eigenstates(),
+        )
 
     def get_operator_by_name(self, operator_name: str) -> qt.Qobj:
         """
@@ -1475,7 +1487,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             op_in_eigenbasis=False,
             evecs=subsystem.get_eigenstates(),
         )
-        return identity_wrap(operator, subsystem, list(self.subsystems.values()), evecs=subsystem.get_eigenstates())
+        return identity_wrap(
+            operator,
+            subsystem,
+            list(self.subsystems.values()),
+            evecs=subsystem.get_eigenstates(),
+        )
 
     # #################################################################
     # ############ Functions for eigenvalues and matrices ############
@@ -1748,7 +1765,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         else:
             bare_esys = {
-                sys_index: (self.hilbert_space["bare_evals"][sys_index][0], self.hilbert_space["bare_evecs"][sys_index][0])
+                sys_index: (
+                    self.hilbert_space["bare_evals"][sys_index][0],
+                    self.hilbert_space["bare_evecs"][sys_index][0],
+                )
                 for sys_index, sys in enumerate(self.hilbert_space.subsys_list)
             }
             hamiltonian = self.hilbert_space.hamiltonian(bare_esys=bare_esys)
@@ -2274,7 +2294,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             the initial basis
 
         """
-        U_subsys = subsystem.get_eigenstates()#eigensys(evals_count=subsystem.truncated_dim)
+        U_subsys = (
+            subsystem.get_eigenstates()
+        )  # eigensys(evals_count=subsystem.truncated_dim)
         wf_sublist = list(range(len(wf_reshaped.shape)))
         U_sublist = [wf_dim, len(wf_sublist)]
         target_sublist = wf_sublist.copy()
@@ -2367,12 +2389,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             intersection = list_intersection(subsys.var_categories_list, wf_var_indices)
             if len(intersection) > 0 and var_index not in intersection:
                 if subsys.hierarchical_diagonalization:
-                    wf_dim += subsys._get_var_dim_for_reshaped_wf(wf_var_indices, var_index)
+                    wf_dim += subsys._get_var_dim_for_reshaped_wf(
+                        wf_var_indices, var_index
+                    )
                 else:
                     wf_dim += len(subsys.var_categories_list)
             elif len(intersection) > 0 and var_index in intersection:
                 if subsys.hierarchical_diagonalization:
-                    wf_dim += subsys._get_var_dim_for_reshaped_wf(wf_var_indices, var_index)
+                    wf_dim += subsys._get_var_dim_for_reshaped_wf(
+                        wf_var_indices, var_index
+                    )
                 else:
                     wf_dim += subsys.var_categories_list.index(var_index)
                 break
@@ -2380,15 +2406,15 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 wf_dim += 1
         return wf_dim
 
-    def _dims_to_be_summed(
-        self, var_indices: List[int], num_wf_dims
-    ) -> List[int]:
+    def _dims_to_be_summed(self, var_indices: List[int], num_wf_dims) -> List[int]:
 
         all_var_indices = self.var_categories_list
         non_summed_dims = []
         for var_index in all_var_indices:
             if var_index in var_indices:
-                non_summed_dims.append(self._get_var_dim_for_reshaped_wf(var_indices, var_index))
+                non_summed_dims.append(
+                    self._get_var_dim_for_reshaped_wf(var_indices, var_index)
+                )
         return [dim for dim in range(num_wf_dims) if dim not in non_summed_dims]
 
     def generate_wf_plot_data(
@@ -2478,7 +2504,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 wf_ext_basis = self._basis_change_harm_osc_to_phi(
                     wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
                 )
-            if var_index in self.var_categories["periodic"] and change_discrete_charge_to_phi:
+            if (
+                var_index in self.var_categories["periodic"]
+                and change_discrete_charge_to_phi
+            ):
                 wf_ext_basis = self._basis_change_n_to_phi(
                     wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
                 )
@@ -2491,7 +2520,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             )
 
         else:
-            dims_to_be_summed = self._dims_to_be_summed(var_indices, len(wf_ext_basis.shape))
+            dims_to_be_summed = self._dims_to_be_summed(
+                var_indices, len(wf_ext_basis.shape)
+            )
         wf_plot = np.sum(
             np.abs(wf_ext_basis) ** 2,
             axis=tuple(dims_to_be_summed),
