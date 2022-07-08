@@ -2311,6 +2311,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def _get_var_dim_for_reshaped_wf(self, wf_var_indices, var_index):
         wf_dim = 0
+        if not self.hierarchical_diagonalization:
+            return self.var_categories_list.index(var_index)
         for subsys in self.subsystems.values():
             intersection = list_intersection(subsys.var_categories_list, wf_var_indices)
             if len(intersection) > 0 and var_index not in intersection:
@@ -2378,8 +2380,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         wf = wfs[:, which]
         if self.hierarchical_diagonalization:
             system_hierarchy_for_vars_chosen = list(
-                set([self.get_subsystem_index(index) for index in np.sort(var_indices)])
-            )  # getting the subsystem index for each of the index dimension
+                set([self.get_subsystem_index(index) for index in var_indices])
+            )  # getting the subsystem index for each of the variable indices
 
             subsys_trunc_dims = [sys.truncated_dim for sys in self.subsystems.values()]
             # reshaping the wave functions to truncated dims of subsystems
@@ -2426,11 +2428,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 wf_ext_basis = self._basis_change_harm_osc_to_phi(
                     wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
                 )
-            if change_discrete_charge_to_phi:
-                if var_index in self.var_categories["periodic"]:
-                    wf_ext_basis = self._basis_change_n_to_phi(
-                        wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
-                    )
+            if var_index in self.var_categories["periodic"] and change_discrete_charge_to_phi:
+                wf_ext_basis = self._basis_change_n_to_phi(
+                    wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
+                )
 
         # if a probability plot is requested, sum over the dimesnsions not relevant to
         # the ones in var_categories
@@ -2445,19 +2446,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             np.abs(wf_ext_basis) ** 2,
             axis=tuple(dims_to_be_summed),
         )
-        # reorder the array according to the order in var_indices
-        all_var_indices = (
-            flatten_list_recursive(self.system_hierarchy)
-            if self.hierarchical_diagonalization
-            else self.var_categories_list
-        )
-        var_index_order = [
-            all_var_indices.index(var_index) for var_index in var_indices
-        ]
-        var_index_dims = (stats.rankdata(var_index_order) - 1).astype(int)
-        dims_reshape = np.array(wf_plot.shape)[var_index_dims]
-        wf_plot = wf_plot.reshape(*dims_reshape)
-
         return wf_plot
 
     def plot_wavefunction(
