@@ -1804,7 +1804,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
-        print("esys called: ", self.var_categories_list)
 
         if (
             isinstance(self, Circuit)
