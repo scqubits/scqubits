@@ -103,8 +103,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     truncated_dim: Optional[int], optional
         sets the truncated dimension for the current subsystem, by default 10
     """
+
     # switch used in protecting the class from erroneous addition of new attributes
-    __frozen = False
+    _frozen = False
 
     def __init__(
         self,
@@ -212,10 +213,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         self.normal_mode_freqs = []
 
         self._configure()
-        self.__frozen = True
+        self._frozen = True
 
     def __setattr__(self, name, value):
-        if not self.__frozen or name in dir(self):
+        if not self._frozen or name in dir(self):
             super().__setattr__(name, value)
         else:
             raise Exception("Creating new attributes is disabled.")
@@ -235,7 +236,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Returns
         -------
-        Dict[int, int]
             Cutoffs dictionary; {var_index: cutoff}
         """
         cutoffs_dict = {}
@@ -1014,7 +1014,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 )
             if index < var_index_list[-1]:
                 identity_right = sparse.identity(
-                    np.prod(cutoff_names[var_index_list.index(index) + 1:]),
+                    np.prod(cutoff_names[var_index_list.index(index) + 1 :]),
                     format=matrix_format,
                 )
 
@@ -2719,8 +2719,9 @@ class Circuit(Subsystem):
         truncated dimension if the user wants to use this circuit instance in
         HilbertSpace, by default `None`
     """
+
     # switch used in protecting the class from erroneous addition of new attributes
-    __frozen = False
+    _frozen = False
 
     def __init__(
         self,
@@ -2796,14 +2797,28 @@ class Circuit(Subsystem):
 
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
-
-        self.__frozen = True
+        self._frozen = True
 
     def __setattr__(self, name, value):
-        if not self.__frozen or name in dir(self):
+        if not self._frozen or name in dir(self):
             super().__setattr__(name, value)
         else:
-            raise Exception("Creating new attributes is disabled.")
+            raise Exception(f"Creating new attributes is disabled [{name}, {value}].")
+
+    def __reduce__(self):
+        # needed for multiprocessing / proper pickling
+        pickle_func, pickle_args, pickled_state = super().__reduce__()
+        new_pickled_state = {
+            key: value for key, value in pickled_state.items() if "_operator" not in key
+        }
+        new_pickled_state["_frozen"] = False
+        return pickle_func, pickle_args, new_pickled_state
+
+    def __setstate__(self, state):
+        # needed for multiprocessing / proper unpickling
+        self._frozen = False
+        self.__dict__.update(state)
+        self.operators_by_name = self.set_operators()
 
     def set_discretized_phi_range(
         self, var_indices: Tuple[int], phi_range: Tuple[float]
@@ -3052,7 +3067,7 @@ class Circuit(Subsystem):
         Exception
             when system_hierarchy is set and subsystem_trunc_dims is not set.
         """
-        self.__frozen = False
+        self._frozen = False
         system_hierarchy = system_hierarchy or self.system_hierarchy
         subsystem_trunc_dims = subsystem_trunc_dims or self.subsystem_trunc_dims
         closure_branches = closure_branches or self.closure_branches
@@ -3186,9 +3201,9 @@ class Circuit(Subsystem):
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
             self.build_hilbertspace()
-        # clear unnecesary attribs
+        # clear unnecessary attributes
         self.clear_unnecessary_attribs()
-        self.__frozen = True
+        self._frozen = True
 
     def variable_transformation(self) -> List[sm.Equality]:
         """
