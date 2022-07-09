@@ -68,6 +68,12 @@ else:
     PROGRESSBAR_DISABLED = True
     IN_IPYTHON = False
 
+# use vector graphics display in jupyter
+if executed_in_ipython():
+    import matplotlib_inline.backend_inline
+
+    matplotlib_inline.backend_inline.set_matplotlib_formats("pdf", "svg")
+
 
 # run ParameterSweep directly upon initialization
 AUTORUN_SWEEP = True

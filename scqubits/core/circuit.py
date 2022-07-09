@@ -24,6 +24,8 @@ import qutip as qt
 import scipy as sp
 import scqubits as scq
 import scqubits.core.discretization as discretization
+from scqubits.core.namedslots_array import NamedSlotsNdarray
+import scqubits.core.spec_lookup as spec_lookup
 import scqubits.core.oscillator as osc
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
@@ -72,6 +74,7 @@ from scqubits.utils.misc import (
     flatten_list,
     flatten_list_recursive,
     number_of_lists_in_list,
+    list_intersection,
 )
 from scqubits.utils.plot_utils import _process_options
 from scqubits.utils.spectrum_utils import (
@@ -104,6 +107,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         sets the truncated dimension for the current subsystem, by default 10
     """
 
+    # switch used in protecting the class from erroneous addition of new attributes
+    _frozen = False
+
     def __init__(
         self,
         parent: "Subsystem",
@@ -123,6 +129,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         self.hamiltonian_symbolic = hamiltonian_symbolic
         self._hamiltonian_sym_for_numerics = hamiltonian_symbolic
         self._default_grid_phi = self.parent._default_grid_phi
+
+        self.junction_potential = None
+        self._H_LC_str_harmonic = None
 
         self.ext_basis: str = self.parent.ext_basis
         self.external_fluxes = [
@@ -207,6 +216,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         self.normal_mode_freqs = []
 
         self._configure()
+        self._frozen = True
+
+    def __setattr__(self, name, value):
+        if not self._frozen or name in dir(self):
+            super().__setattr__(name, value)
+        else:
+            raise Exception("Creating new attributes is disabled.")
+
+    def __repr__(self) -> str:
+        return self._id_str
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
@@ -235,9 +254,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     if str(var_index) in cutoff_name:
                         cutoffs_dict[var_index] = getattr(self, cutoff_name)
         return cutoffs_dict
-
-    def __repr__(self) -> str:
-        return self._id_str
 
     def _regenerate_sym_hamiltonian(self) -> None:
         """
@@ -269,6 +285,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         setattr(self, f"_{param_name}", value)
 
         # update the attribute for the instance in symboliccircuit
+        # generate _hamiltonian_sym_for_numerics if not already generated, delayed for
+        # large circuits
         if (
             not self.is_child and len(self.symbolic_circuit.nodes) > 3
         ) or self.is_purely_harmonic:
@@ -283,8 +301,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             self.transformation_matrix = self.symbolic_circuit.transformation_matrix
             self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
 
-        # generate _hamiltonian_sym_for_numerics if not already generated, delayed for
-        # large circuits
         if self.hierarchical_diagonalization:
             self.generate_subsystems()
             self.build_hilbertspace()
@@ -309,12 +325,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # update the attribute for the current instance
         setattr(self, f"_{param_name}", value)
 
+        relevant_subsystem_indices = []
         # update all subsystem instances
         if self.hierarchical_diagonalization:
-            for subsys in self.subsystems.values():
+            for subsys_idx, subsys in enumerate(self.subsystems.values()):
                 if hasattr(subsys, param_name):
+                    relevant_subsystem_indices.append(subsys_idx)
                     setattr(subsys, param_name, value)
-            self.build_hilbertspace()
+            self.build_hilbertspace(
+                relevant_subsystem_indices=relevant_subsystem_indices
+            )
 
     def _set_property_and_update_cutoffs(self, param_name: str, value: int) -> None:
         """
@@ -329,15 +349,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         setattr(self, f"_{param_name}", value)
 
+        relevant_subsystem_indices = []
         # set operators and rebuild the HilbertSpace object
         if self.hierarchical_diagonalization:
-            for subsys in self.subsystems.values():
+            for subsys_idx, subsys in enumerate(self.subsystems.values()):
                 if hasattr(subsys, param_name):
+                    relevant_subsystem_indices.append(subsys_idx)
                     setattr(subsys, param_name, value)
-            self.operators_by_name = self.set_operators()
-            self.build_hilbertspace()
-        else:
-            self.operators_by_name = self.set_operators()
+            self.build_hilbertspace(
+                relevant_subsystem_indices=relevant_subsystem_indices
+            )
 
     def _make_property(
         self, attrib_name: str, init_val: Union[int, float], property_update_type: str
@@ -412,7 +433,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         self.is_purely_harmonic = self.parent.is_purely_harmonic
         if (
             self.is_purely_harmonic
-        ):  # assuming that the parent has only extended variables and are ordered starting from 1, 2, 3, ...
+        ):  # assuming that the parent has only extended variables and are ordered
+            # starting from 1, 2, 3, ...
             self.normal_mode_freqs = self.parent.normal_mode_freqs[
                 [var_idx - 1 for var_idx in self.var_categories["extended"]]
             ]
@@ -429,6 +451,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     # *****************************************************************
     # **** Functions to construct the operators for the Hamiltonian ****
     # *****************************************************************
+    def grids_dict(self):
+        cutoffs_dict = self.cutoffs_dict()
+        grids = {}
+        for i in self.var_categories["extended"]:
+            grids[i] = discretization.Grid1d(
+                self.discretized_phi_range[i][0],
+                self.discretized_phi_range[i][1],
+                cutoffs_dict[i],
+            )
+        return grids
 
     def _constants_in_subsys(self, H_sys: sm.Expr) -> sm.Expr:
         """
@@ -480,8 +512,18 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         for subsystem_idx, subsystem in self.subsystems.items():
             if subsystem.truncated_dim >= subsystem.hilbertdim() - 1:
+                self.hierarchical_diagonalization = False
+                # find the correct position of the subsystem where the truncation index is too big
+                subsystem_position = f"subsystem {subsystem_idx} "
+                parent = subsystem.parent
+                while parent.is_child:
+                    grandparent = parent.parent
+                    # find the subsystem position of the parent system
+                    subsystem_position += f"of subsystem {grandparent.get_subsystem_index(parent.var_categories_list[0])} "
+                    parent = grandparent
                 raise Exception(
-                    f"The truncation index for subsystem {subsystem_idx} is too big. It should be lower than {subsystem.hilbertdim() - 1}."
+                    f"The truncation index for " + subsystem_position + f"is too big. "
+                    f"It should be lower than {subsystem.hilbertdim() - 1}."
                 )
 
     def generate_subsystems(self):
@@ -573,6 +615,56 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             )
         )
 
+        self.hilbert_space = HilbertSpace(
+            [self.subsystems[i] for i in range(len(self.system_hierarchy))]
+        )
+
+    def generate_hilbertspace_lookup(self, subsystem_indices=None) -> None:
+        hilbert_space = self.hilbert_space
+        bare_evals = np.empty((hilbert_space.subsystem_count,), dtype=object)
+        bare_evecs = np.empty((hilbert_space.subsystem_count,), dtype=object)
+        bare_esys_dict = {}
+
+        if subsystem_indices is None:
+            subsystem_indices = list(range(hilbert_space.subsystem_count))
+
+        for subsys_index, subsys in enumerate(hilbert_space):
+            if subsys_index in subsystem_indices:
+                bare_esys = subsys.eigensys(evals_count=subsys.truncated_dim)
+            else:
+                bare_esys = (
+                    hilbert_space["bare_evals"][subsys_index][0],
+                    hilbert_space["bare_evecs"][subsys_index][0],
+                )
+            bare_esys_dict[subsys_index] = bare_esys
+            bare_evals[subsys_index] = NamedSlotsNdarray(
+                np.asarray([bare_esys[0].tolist()]),
+                hilbert_space._parameters.paramvals_by_name,
+            )
+            bare_evecs[subsys_index] = NamedSlotsNdarray(
+                np.asarray([bare_esys[1].tolist()]),
+                hilbert_space._parameters.paramvals_by_name,
+            )
+        hilbert_space._data["bare_evals"] = NamedSlotsNdarray(
+            bare_evals, {"subsys": np.arange(hilbert_space.subsystem_count)}
+        )
+        hilbert_space._data["bare_evecs"] = NamedSlotsNdarray(
+            bare_evecs, {"subsys": np.arange(hilbert_space.subsystem_count)}
+        )
+
+        hilbert_space._lookup = spec_lookup.SpectrumLookupAdapter(hilbert_space)
+
+    def get_eigenstates(self) -> ndarray:
+        """
+        Returns the eigenstates for the SubSystem instance
+        """
+        if self.is_child:
+            subsys_index = self.parent.hilbert_space.subsys_list.index(self)
+            if self.parent.hilbert_space._lookup is not None:
+                return self.parent.hilbert_space["bare_evecs"][subsys_index][0]
+        else:
+            return self.eigensys()[1]
+
     def get_subsystem_index(self, var_index: int) -> int:
         """
         Returns the subsystem index for the subsystem to which the given var_index
@@ -595,14 +687,17 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             f"The var_index={var_index} could not be identified with any " "subsystem."
         )
 
-    def build_hilbertspace(self):
+    def build_hilbertspace(
+        self, relevant_subsystem_indices: Optional[List[int]] = None
+    ):
         """
         Builds the HilbertSpace object for the `Circuit` instance if
         `hierarchical_diagonalization` is set to true.
         """
-        hilbert_space = HilbertSpace(
-            [self.subsystems[i] for i in range(len(self.system_hierarchy))]
-        )
+        # generate lookup table in HilbertSpace
+        self.generate_hilbertspace_lookup(subsystem_indices=relevant_subsystem_indices)
+
+        self.hilbert_space.interaction_list = []
 
         # Adding interactions using the symbolic interaction term
         for sys_index in range(len(self.system_hierarchy)):
@@ -627,13 +722,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
             for idx, term in enumerate(interaction_terms):
                 coefficient_sympy = expr_dict[term]
-                hilbert_space.add_interaction(
+                self.hilbert_space.add_interaction(
                     qobj=float(coefficient_sympy)
                     * self._interaction_operator_from_expression(term),
                     check_validity=False,
                 )
-
-        self.hilbert_space = hilbert_space
 
     def _interaction_operator_from_expression(self, symbolic_interaction_term: sm.Expr):
         """
@@ -702,7 +795,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                             operator_matrix,
                             self.subsystems[subsys_index],
                             list(self.subsystems.values()),
-                            evecs=None,
+                            evecs=self.subsystems[subsys_index].get_eigenstates(),
                         )
 
         operator_list = list(operator_dict.values())
@@ -1077,8 +1170,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         self, var_sym: sm.Symbol, prefactor: float
     ) -> Union[csc_matrix, ndarray]:
         """
-        Returns the bare operator exp(i*\theta*prefactor), without the kron product. Needs the oscillator
-        lengths to be set in the attribute, `osc_lengths`, when `ext_basis` is set to "harmonic".
+        Returns the bare operator exp(i*\theta*prefactor), without the kron product.
+        Needs the oscillator lengths to be set in the attribute, `osc_lengths`,
+        when `ext_basis` is set to "harmonic".
         """
         var_index = get_trailing_number(var_sym.name)
 
@@ -1174,18 +1268,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         periodic_vars = self.vars["periodic"]
         extended_vars = self.vars["extended"]
-        cutoffs_dict = self.cutoffs_dict()
-
-        grids = {}
-        for i in self.var_categories["extended"]:
-            grids[i] = discretization.Grid1d(
-                self.discretized_phi_range[i][0],
-                self.discretized_phi_range[i][1],
-                cutoffs_dict[i],
-            )
 
         # constructing the operators for extended variables
-
         extended_operators = {}
         if self.ext_basis == "discretized":
             nonwrapped_ops = {
@@ -1201,7 +1285,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     op_func = nonwrapped_ops[short_op_name]
                     op_name = sym_variable.name + "_operator"
                     extended_operators[op_name] = grid_operator_func_factory(
-                        op_func, index, grids
+                        op_func, index
                     )
 
         else:  # expect that self.ext_basis is "harmonic":
@@ -1258,7 +1342,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     sym_variable = extended_vars[short_op_name][list_idx]
                     op_name = sym_variable.name + "_operator"
                     extended_operators[op_name] = operator_func_factory(
-                        op_func, cutoffs_dict, var_index
+                        op_func, var_index
                     )
 
             self.osc_lengths = osc_lengths
@@ -1275,9 +1359,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             for sym_variable in periodic_vars[short_op_name]:
                 index = get_operator_number(sym_variable.name)
                 op_name = sym_variable.name + "_operator"
-                periodic_operators[op_name] = operator_func_factory(
-                    op_func, cutoffs_dict, index
-                )
+                periodic_operators[op_name] = operator_func_factory(op_func, index)
 
         return {
             **periodic_operators,
@@ -1334,16 +1416,19 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         var_index: Optional[int] = None,
     ) -> qt.Qobj:
         """
-        Returns an identity wrapped operator whose size is equal to the `self.hilbertdim()`.
+        Returns an identity wrapped operator whose size is equal to the
+        `self.hilbertdim()`. Only converts operator which belongs to a specific variable
+        index. For example, operator Q_1 or cos(\theta_1). But not, Q1*Q2.
 
         Parameters
         ----------
         operator:
             operator in the form of csc_matrix, ndarray
+        var_index:
+            integer which represents which variable index the given operator belongs to
 
         Returns
         -------
-        qt.Qobj
             identity wrapped operator.
         """
         if not self.hierarchical_diagonalization:
@@ -1360,9 +1445,14 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             operator,
             subsystem,
             op_in_eigenbasis=False,
-            evecs=None,
+            evecs=subsystem.get_eigenstates(),
         )
-        return identity_wrap(operator, subsystem, list(self.subsystems.values()))
+        return identity_wrap(
+            operator,
+            subsystem,
+            list(self.subsystems.values()),
+            evecs=subsystem.get_eigenstates(),
+        )
 
     def get_operator_by_name(self, operator_name: str) -> qt.Qobj:
         """
@@ -1395,9 +1485,14 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             operator,
             subsystem,
             op_in_eigenbasis=False,
-            evecs=None,
+            evecs=subsystem.get_eigenstates(),
         )
-        return identity_wrap(operator, subsystem, list(self.subsystems.values()))
+        return identity_wrap(
+            operator,
+            subsystem,
+            list(self.subsystems.values()),
+            evecs=subsystem.get_eigenstates(),
+        )
 
     # #################################################################
     # ############ Functions for eigenvalues and matrices ############
@@ -1534,7 +1629,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         hamiltonian_LC = hamiltonian - junction_potential
 
         H_LC_str = self._get_eval_hamiltonian_string(hamiltonian_LC)
-        self._H_LC_str_harmonic = H_LC_str
 
         offset_charge_names = [
             offset_charge.name for offset_charge in self.offset_charges
@@ -1594,7 +1688,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         hamiltonian_LC = hamiltonian - junction_potential
 
         H_LC_str = self._get_eval_hamiltonian_string(hamiltonian_LC)
-        self._H_LC_str_harmonic = H_LC_str
 
         replacement_dict: Dict[str, Any] = self.operators_by_name
 
@@ -1672,7 +1765,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         else:
             bare_esys = {
-                sys_index: sys.eigensys(evals_count=sys.truncated_dim)
+                sys_index: (
+                    self.hilbert_space["bare_evals"][sys_index][0],
+                    self.hilbert_space["bare_evecs"][sys_index][0],
+                )
                 for sys_index, sys in enumerate(self.hilbert_space.subsys_list)
             }
             hamiltonian = self.hilbert_space.hamiltonian(bare_esys=bare_esys)
@@ -1881,7 +1977,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             )
             sym_hamiltonian_KE = 0 * sm.Symbol("x")
             for term in sym_hamiltonian.args:
-                if term.free_symbols.isdisjoint(pot_symbols) == True:
+                if term.free_symbols.isdisjoint(pot_symbols):
                     sym_hamiltonian_KE = sm.Add(sym_hamiltonian_KE, term)
 
             # add a symbolic 2pi
@@ -1921,13 +2017,13 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             )
             sym_hamiltonian_KE = 0 * sm.Symbol("x")
             for term in sym_hamiltonian.args:
-                if term.free_symbols.isdisjoint(pot_symbols) == True:
+                if term.free_symbols.isdisjoint(pot_symbols):
                     sym_hamiltonian_KE = sm.Add(sym_hamiltonian_KE, term)
             sym_hamiltonian_PE = self._make_expr_human_readable(
                 self.potential_symbolic.expand(), float_round=float_round
             )
-            # add a 2pi coefficient in front of externa fluxes, since the the external fluxes are measured in
-            # 2pi numerically
+            # add a 2pi coefficient in front of externa fluxes, since the the external
+            # fluxes are measured in 2pi numerically
             for external_flux in self.external_fluxes:
                 sym_hamiltonian_PE = sym_hamiltonian_PE.replace(
                     external_flux,
@@ -2197,7 +2293,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             the initial basis
 
         """
-        _, U_subsys = subsystem.eigensys(evals_count=subsystem.truncated_dim)
+        U_subsys = (
+            subsystem.get_eigenstates()
+        )  # eigensys(evals_count=subsystem.truncated_dim)
         wf_sublist = list(range(len(wf_reshaped.shape)))
         U_sublist = [wf_dim, len(wf_sublist)]
         target_sublist = wf_sublist.copy()
@@ -2284,51 +2382,39 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def _get_var_dim_for_reshaped_wf(self, wf_var_indices, var_index):
         wf_dim = 0
-        system_hierarchy_for_vars_chosen = list(
-            set([self.get_subsystem_index(index) for index in np.sort(wf_var_indices)])
-        )
-        for subsys_index in self.subsystems:
-            if subsys_index not in system_hierarchy_for_vars_chosen:
-                wf_dim += 1
-            if subsys_index in system_hierarchy_for_vars_chosen:
-                subsys_var_index_list = self.subsystems[
-                    subsys_index
-                ].var_categories_list
-                if var_index not in subsys_var_index_list:
-                    wf_dim += len(subsys_var_index_list)
-                else:
-                    wf_dim += subsys_var_index_list.index(var_index)
-                    break
-        return wf_dim
-
-    def _dims_to_be_summed(
-        self, var_indices: List[int], system_hierarchy_for_vars_chosen
-    ) -> List[int]:
-        dims_to_be_summed = []
-        num_wf_dims = 0
-        if self.hierarchical_diagonalization:
-            for subsys_index in self.subsystems:
-                if subsys_index in system_hierarchy_for_vars_chosen:
-                    for index, var_index in enumerate(
-                        self.subsystems[subsys_index].var_categories_list
-                    ):
-                        if var_index not in var_indices:
-                            dims_to_be_summed += [num_wf_dims + index]
-                    num_wf_dims += len(
-                        self.subsystems[subsys_index].var_categories_list
+        if not self.hierarchical_diagonalization:
+            return self.var_categories_list.index(var_index)
+        for subsys in self.subsystems.values():
+            intersection = list_intersection(subsys.var_categories_list, wf_var_indices)
+            if len(intersection) > 0 and var_index not in intersection:
+                if subsys.hierarchical_diagonalization:
+                    wf_dim += subsys._get_var_dim_for_reshaped_wf(
+                        wf_var_indices, var_index
                     )
                 else:
-                    dims_to_be_summed += [num_wf_dims]
-                    num_wf_dims += 1
+                    wf_dim += len(subsys.var_categories_list)
+            elif len(intersection) > 0 and var_index in intersection:
+                if subsys.hierarchical_diagonalization:
+                    wf_dim += subsys._get_var_dim_for_reshaped_wf(
+                        wf_var_indices, var_index
+                    )
+                else:
+                    wf_dim += subsys.var_categories_list.index(var_index)
+                break
+            else:
+                wf_dim += 1
+        return wf_dim
 
-        else:
-            dims_to_be_summed = [
-                var_index - 1
-                for var_index in self.var_categories["periodic"]
-                + self.var_categories["extended"]
-                if var_index not in var_indices
-            ]
-        return dims_to_be_summed
+    def _dims_to_be_summed(self, var_indices: List[int], num_wf_dims) -> List[int]:
+
+        all_var_indices = self.var_categories_list
+        non_summed_dims = []
+        for var_index in all_var_indices:
+            if var_index in var_indices:
+                non_summed_dims.append(
+                    self._get_var_dim_for_reshaped_wf(var_indices, var_index)
+                )
+        return [dim for dim in range(num_wf_dims) if dim not in non_summed_dims]
 
     def generate_wf_plot_data(
         self,
@@ -2369,8 +2455,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         wf = wfs[:, which]
         if self.hierarchical_diagonalization:
             system_hierarchy_for_vars_chosen = list(
-                set([self.get_subsystem_index(index) for index in np.sort(var_indices)])
-            )  # getting the subsystem index for each of the index dimension
+                set([self.get_subsystem_index(index) for index in var_indices])
+            )  # getting the subsystem index for each of the variable indices
 
             subsys_trunc_dims = [sys.truncated_dim for sys in self.subsystems.values()]
             # reshaping the wave functions to truncated dims of subsystems
@@ -2417,40 +2503,29 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 wf_ext_basis = self._basis_change_harm_osc_to_phi(
                     wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
                 )
-            if change_discrete_charge_to_phi:
-                if var_index in self.var_categories["periodic"]:
-                    wf_ext_basis = self._basis_change_n_to_phi(
-                        wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
-                    )
+            if (
+                var_index in self.var_categories["periodic"]
+                and change_discrete_charge_to_phi
+            ):
+                wf_ext_basis = self._basis_change_n_to_phi(
+                    wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
+                )
 
         # if a probability plot is requested, sum over the dimesnsions not relevant to
         # the ones in var_categories
         if self.hierarchical_diagonalization:
             dims_to_be_summed = self._dims_to_be_summed(
-                var_indices, system_hierarchy_for_vars_chosen
+                var_indices, len(wf_ext_basis.shape)
             )
-        # since system_hierarchy_for_vars_chosen is not defined for a circuit without HD
-        # replace the argument system_hierarchy_for_vars_chosen for _dims_to_be_summed
-        # by []
+
         else:
-            dims_to_be_summed = self._dims_to_be_summed(var_indices, [])
+            dims_to_be_summed = self._dims_to_be_summed(
+                var_indices, len(wf_ext_basis.shape)
+            )
         wf_plot = np.sum(
             np.abs(wf_ext_basis) ** 2,
             axis=tuple(dims_to_be_summed),
         )
-        # reorder the array according to the order in var_indices
-        all_var_indices = (
-            flatten_list_recursive(self.system_hierarchy)
-            if self.hierarchical_diagonalization
-            else self.var_categories_list
-        )
-        var_index_order = [
-            all_var_indices.index(var_index) for var_index in var_indices
-        ]
-        var_index_dims = (stats.rankdata(var_index_order) - 1).astype(int)
-        dims_reshape = np.array(wf_plot.shape)[var_index_dims]
-        wf_plot = wf_plot.reshape(*dims_reshape)
-
         return wf_plot
 
     def plot_wavefunction(
@@ -2508,8 +2583,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             var_index = get_trailing_number(cutoff_attrib)
             if "cutoff_n" in cutoff_attrib:
                 grids_per_varindex_dict[var_index] = (
-                    grids_dict[var_index]
-                    if var_index in grids_dict
+                    grids_per_varindex_dict[var_index]
+                    if var_index in grids_per_varindex_dict
                     else discretization.Grid1d(
                         -np.pi, np.pi, self._default_grid_phi.pt_count
                     )
@@ -2518,8 +2593,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 var_index_dims_dict[var_index] = getattr(self, cutoff_attrib)
                 if self.ext_basis == "harmonic":
                     grid = (
-                        grids_dict[var_index]
-                        if var_index in grids_dict
+                        grids_per_varindex_dict[var_index]
+                        if var_index in grids_per_varindex_dict
                         else self._default_grid_phi
                     )
                 elif self.ext_basis == "discretized":
@@ -2705,6 +2780,9 @@ class Circuit(Subsystem):
         HilbertSpace, by default `None`
     """
 
+    # switch used in protecting the class from erroneous addition of new attributes
+    _frozen = False
+
     def __init__(
         self,
         input_string: str,
@@ -2714,10 +2792,11 @@ class Circuit(Subsystem):
         initiate_sym_calc: bool = True,
         truncated_dim: int = None,
     ):
-
+        base.QuantumSystem.__init__(self, id_str=None)
         if basis_completion not in ["heuristic", "canonical"]:
             raise Exception(
-                "Incorrect parameter set for basis_completion. It can either be 'heuristic' or 'canonical'"
+                "Incorrect parameter set for basis_completion. It can either be "
+                "'heuristic' or 'canonical'"
             )
 
         symbolic_circuit = SymbolicCircuit.from_yaml(
@@ -2735,6 +2814,7 @@ class Circuit(Subsystem):
         self.truncated_dim: int = truncated_dim
         self.system_hierarchy: list = None
         self.subsystem_trunc_dims: list = None
+        self.operators_by_name = None
 
         self.discretized_phi_range: Dict[int, Tuple[float, float]] = {}
         self.cutoff_names: List[str] = []
@@ -2778,11 +2858,20 @@ class Circuit(Subsystem):
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
 
+        self._frozen = True
+
+    def __setattr__(self, name, value):
+        if not self._frozen or name in dir(self):
+            super().__setattr__(name, value)
+        else:
+            raise Exception("Creating new attributes is disabled.")
+
     def set_discretized_phi_range(
         self, var_indices: Tuple[int], phi_range: Tuple[float]
     ) -> None:
         """
-        Sets the flux range for discretized phi basis when ext_basis is set to 'discretized'.
+        Sets the flux range for discretized phi basis when ext_basis is set to
+        'discretized'.
 
         Parameters
         ----------
@@ -2793,7 +2882,8 @@ class Circuit(Subsystem):
         """
         if self.ext_basis != "discretized":
             raise Exception(
-                "Discretized phi range is only used when ext_basis is set to 'discretized'."
+                "Discretized phi range is only used when ext_basis is set to "
+                "'discretized'."
             )
         for var_index in var_indices:
             if var_index not in self.var_categories["extended"]:
@@ -2814,8 +2904,8 @@ class Circuit(Subsystem):
         truncated_dim: int = None,
     ):
         """
-        Wrapper to Circuit __init__ to create a class instance. Will be deprecated in
-        the future release.
+        Wrapper to Circuit __init__ to create a class instance. This is deprecated and
+        will not be supported in the future release.
 
         Parameters
         ----------
@@ -2827,9 +2917,10 @@ class Circuit(Subsystem):
             `input_string`, else the circuit graph description in YAML should be
             provided as a string.
         basis_completion:
-            either "heuristic" or "canonical", defines the matrix used for completing the
-            transformation matrix. Sometimes used to change the variable transformation
-            to result in a simpler symbolic Hamiltonian, by default "heuristic"
+            either "heuristic" or "canonical", defines the matrix used for completing
+            the transformation matrix. Sometimes used to change the variable
+            transformation to result in a simpler symbolic Hamiltonian, by default
+            "heuristic"
         ext_basis:
             can be "discretized" or "harmonic" which chooses whether to use discretized
             phi or harmonic oscillator basis for extended variables,
@@ -2840,6 +2931,11 @@ class Circuit(Subsystem):
             truncated dimension if the user wants to use this circuit instance in
             HilbertSpace, by default `None`
         """
+        warnings.warn(
+            "Initializing Circuit instances with `from_yaml` will not be "
+            "supported in future. Use `Circuit` to initialize a Circuit instance.",
+            np.VisibleDeprecationWarning,
+        )
         return Circuit(
             input_string=input_string,
             from_file=from_file,
@@ -2875,8 +2971,8 @@ class Circuit(Subsystem):
                 if isinstance(branch_params[param], sm.Symbol):
                     branch_params[param] = branch_params[param].name
             branch_data = [
-                branch.nodes[0].id,
-                branch.nodes[1].id,
+                branch.nodes[0].index,
+                branch.nodes[1].index,
                 branch.type,
                 branch_params,
             ]
@@ -2943,7 +3039,7 @@ class Circuit(Subsystem):
         self, node_id_1: int, node_id_2: int, branch_type: str, branch_params: dict
     ):
         for branch in self.symbolic_circuit.branches:
-            branch_node_ids = [node.id for node in branch.nodes]
+            branch_node_ids = [node.index for node in branch.nodes]
             branch_params_circ = branch.parameters.copy()
             for param in branch_params_circ:
                 if isinstance(branch_params_circ[param], sm.Symbol):
@@ -3023,6 +3119,68 @@ class Circuit(Subsystem):
             when system_hierarchy is set and subsystem_trunc_dims is not set.
         """
 
+        old_transformation_matrix = self.transformation_matrix
+        old_system_hierarchy = self.system_hierarchy
+        old_subsystem_trunc_dims = self.subsystem_trunc_dims
+        old_closure_branches = self.closure_branches
+        try:
+            self._configure(
+                transformation_matrix=transformation_matrix,
+                system_hierarchy=system_hierarchy,
+                subsystem_trunc_dims=subsystem_trunc_dims,
+                closure_branches=closure_branches,
+            )
+        except:
+            # resetting the necessary attributes
+            self.system_hierarchy = old_system_hierarchy
+            self.subsystem_trunc_dims = old_subsystem_trunc_dims
+            self.transformation_matrix = old_transformation_matrix
+            self.closure_branches = old_closure_branches
+            # Calling configure
+            self._configure(
+                transformation_matrix=old_transformation_matrix,
+                system_hierarchy=old_system_hierarchy,
+                subsystem_trunc_dims=old_subsystem_trunc_dims,
+                closure_branches=old_closure_branches,
+            )
+            raise Exception(
+                "Configure failed, incorrect parameters used. Please check the above exception."
+            )
+
+    def _configure(
+        self,
+        transformation_matrix: ndarray = None,
+        system_hierarchy: list = None,
+        subsystem_trunc_dims: list = None,
+        closure_branches: List[Branch] = None,
+    ):
+        """
+        Method which re-initializes a circuit instance to update, hierarchical
+        diagonalization parameters or closure branches or the variable transformation
+        used to describe the circuit.
+
+        Parameters
+        ----------
+        transformation_matrix:
+            A user defined variable transformation which has the dimensions of the
+            number nodes (not counting the ground node), by default `None`
+        system_hierarchy:
+            A list of lists which is provided by the user to define subsystems,
+            by default `None`
+        subsystem_trunc_dims:
+            dict object which can be generated for a specific system_hierarchy using the
+            method `truncation_template`, by default `None`
+        closure_branches:
+            List of branches where external flux variables will be specified, by default
+            `None` which then chooses closure branches by an internally generated
+            spanning tree.
+
+        Raises
+        ------
+        Exception
+            when system_hierarchy is set and subsystem_trunc_dims is not set.
+        """
+        self._frozen = False
         system_hierarchy = system_hierarchy or self.system_hierarchy
         subsystem_trunc_dims = subsystem_trunc_dims or self.subsystem_trunc_dims
         closure_branches = closure_branches or self.closure_branches
@@ -3158,6 +3316,7 @@ class Circuit(Subsystem):
             self.build_hilbertspace()
         # clear unnecesary attribs
         self.clear_unnecessary_attribs()
+        self._frozen = True
 
     def variable_transformation(self) -> List[sm.Equality]:
         """

@@ -205,10 +205,8 @@ def display_cross_kerr(
     subsys2_index = sweep.get_subsys_index(subsys2)
     type_list = [type(sys) for sys in [subsys1, subsys2]]
     if type_list.count(Oscillator) == 1:
-        title = r"ac Stark: {} <-> {}".format(subsys1.id_str, subsys2.id_str)
-        ylabel = r"ac Stark shift $\chi^{{{},{}}}_l$".format(
-            subsys1_index, subsys2_index
-        )
+        title = f"ac Stark: {subsys1.id_str} + {subsys2.id_str}"
+        ylabel = f"ac Stark shift $\chi^{{{subsys1_index},{subsys2_index}}}_l$"
         level_pairs = [(1, 1), (2, 2)]
         kerr_data = sweep["chi"][subsys1_index, subsys2_index][param_slice.fixed]
         label_list = [tuple_to_short_str(pair) for pair in level_pairs]
