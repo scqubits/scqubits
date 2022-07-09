@@ -108,7 +108,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     """
 
     # switch used in protecting the class from erroneous addition of new attributes
-    __frozen = False
+    _frozen = False
 
     def __init__(
         self,
@@ -216,10 +216,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         self.normal_mode_freqs = []
 
         self._configure()
-        self.__frozen = True
+        self._frozen = True
 
     def __setattr__(self, name, value):
-        if not self.__frozen or name in dir(self):
+        if not self._frozen or name in dir(self):
             super().__setattr__(name, value)
         else:
             raise Exception("Creating new attributes is disabled.")
@@ -2781,7 +2781,7 @@ class Circuit(Subsystem):
     """
 
     # switch used in protecting the class from erroneous addition of new attributes
-    __frozen = False
+    _frozen = False
 
     def __init__(
         self,
@@ -2858,10 +2858,10 @@ class Circuit(Subsystem):
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
 
-        self.__frozen = True
+        self._frozen = True
 
     def __setattr__(self, name, value):
-        if not self.__frozen or name in dir(self):
+        if not self._frozen or name in dir(self):
             super().__setattr__(name, value)
         else:
             raise Exception("Creating new attributes is disabled.")
@@ -3180,7 +3180,7 @@ class Circuit(Subsystem):
         Exception
             when system_hierarchy is set and subsystem_trunc_dims is not set.
         """
-        self.__frozen = False
+        self._frozen = False
         system_hierarchy = system_hierarchy or self.system_hierarchy
         subsystem_trunc_dims = subsystem_trunc_dims or self.subsystem_trunc_dims
         closure_branches = closure_branches or self.closure_branches
@@ -3316,7 +3316,7 @@ class Circuit(Subsystem):
             self.build_hilbertspace()
         # clear unnecesary attribs
         self.clear_unnecessary_attribs()
-        self.__frozen = True
+        self._frozen = True
 
     def variable_transformation(self) -> List[sm.Equality]:
         """
