@@ -763,6 +763,7 @@ class Explorer:
             ui_mode_dropdown = Dropdown(
                 options=mode_dropdown_list,
                 description="Plot as:",
+                value="abs"
             )
             ui_matrixscan_toggle = ToggleButtons(options=["fixed", "sweep"])
             ui_matrixscan_toggle.style.button_width = "55px"
