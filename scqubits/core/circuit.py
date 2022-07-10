@@ -12,7 +12,7 @@
 
 import functools
 import itertools
-import operator
+import operator as builtin_op
 import re
 import warnings
 
@@ -22,16 +22,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import numpy as np
 import qutip as qt
 import scipy as sp
-import scqubits as scq
-import scqubits.core.discretization as discretization
-from scqubits.core.namedslots_array import NamedSlotsNdarray
-import scqubits.core.spec_lookup as spec_lookup
-import scqubits.core.oscillator as osc
-import scqubits.core.qubit_base as base
-import scqubits.core.storage as storage
-import scqubits.io_utils.fileio_serializers as serializers
-import scqubits.utils.plot_defaults as defaults
-import scqubits.utils.plotting as plot
 import sympy as sm
 
 from matplotlib import pyplot as plt
@@ -40,6 +30,18 @@ from matplotlib.figure import Figure
 from numpy import ndarray
 from scipy import sparse, stats
 from scipy.sparse import csc_matrix
+from sympy import latex
+
+import scqubits as scq
+import scqubits.core.discretization as discretization
+import scqubits.core.oscillator as osc
+import scqubits.core.qubit_base as base
+import scqubits.core.spec_lookup as spec_lookup
+import scqubits.core.storage as storage
+import scqubits.io_utils.fileio_serializers as serializers
+import scqubits.utils.plot_defaults as defaults
+import scqubits.utils.plotting as plot
+
 from scqubits import HilbertSpace, settings
 from scqubits.core import operators as op
 from scqubits.core.circuit_utils import (
@@ -67,14 +69,15 @@ from scqubits.core.circuit_utils import (
     matrix_power_sparse,
     operator_func_factory,
 )
+from scqubits.core.namedslots_array import NamedSlotsNdarray
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
 from scqubits.io_utils.fileio import IOData
 from scqubits.io_utils.fileio_serializers import dict_deserialize, dict_serialize
 from scqubits.utils.misc import (
     flatten_list,
     flatten_list_recursive,
-    number_of_lists_in_list,
     list_intersection,
+    number_of_lists_in_list,
 )
 from scqubits.utils.plot_utils import _process_options
 from scqubits.utils.spectrum_utils import (
@@ -82,7 +85,6 @@ from scqubits.utils.spectrum_utils import (
     identity_wrap,
     order_eigensystem,
 )
-from sympy import latex
 
 
 class Subsystem(base.QubitBaseClass, serializers.Serializable):
@@ -106,6 +108,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     truncated_dim: Optional[int], optional
         sets the truncated dimension for the current subsystem, by default 10
     """
+
     # switch used in protecting the class from erroneous addition of new attributes
     _frozen = False
 
@@ -282,7 +285,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # update the attribute for the current instance
         setattr(self, f"_{param_name}", value)
 
-        # update the attribute for the instance in symboliccircuit
+        # update the attribute for the instance in symbolic_circuit
         # generate _hamiltonian_sym_for_numerics if not already generated, delayed for
         # large circuits
         if (
@@ -293,7 +296,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         # update Circuit instance
 
-        # if purely harmonic the cirucit attributes should change
+        # if purely harmonic the circuit attributes should change
         if self.is_purely_harmonic and isinstance(self, Circuit):
             self.potential_symbolic = self.symbolic_circuit.potential_symbolic
             self.transformation_matrix = self.symbolic_circuit.transformation_matrix
@@ -377,23 +380,23 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         setattr(self, f"_{attrib_name}", init_val)
 
-        def getter(self, name=attrib_name):
-            return getattr(self, f"_{name}")
+        def getter(obj, name=attrib_name):
+            return getattr(obj, f"_{name}")
 
         if property_update_type == "update_param_vars":
 
-            def setter(self, value, name=attrib_name):
-                return self._set_property_and_update_param_vars(name, value)
+            def setter(obj, value, name=attrib_name):
+                return obj._set_property_and_update_param_vars(name, value)
 
         elif property_update_type == "update_external_flux_or_charge":
 
-            def setter(self, value, name=attrib_name):
-                return self._set_property_and_update_ext_flux_or_charge(name, value)
+            def setter(obj, value, name=attrib_name):
+                return obj._set_property_and_update_ext_flux_or_charge(name, value)
 
         elif property_update_type == "update_cutoffs":
 
-            def setter(self, value, name=attrib_name):
-                return self._set_property_and_update_cutoffs(name, value)
+            def setter(obj, value, name=attrib_name):
+                return obj._set_property_and_update_cutoffs(name, value)
 
         setattr(self.__class__, attrib_name, property(fget=getter, fset=setter))
 
@@ -511,7 +514,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         for subsystem_idx, subsystem in self.subsystems.items():
             if subsystem.truncated_dim >= subsystem.hilbertdim() - 1:
                 self.hierarchical_diagonalization = False
-                # find the correct position of the subsystem where the truncation index is too big
+                # find the correct position of the subsystem where the truncation
+                # index  is too big
                 subsystem_position = f"subsystem {subsystem_idx} "
                 parent = subsystem.parent
                 while parent.is_child:
@@ -795,10 +799,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                             list(self.subsystems.values()),
                             evecs=self.subsystems[subsys_index].get_eigenstates(),
                         )
-
         operator_list = list(operator_dict.values())
-
-        return functools.reduce(operator.mul, operator_list)
+        return functools.reduce(builtin_op.mul, operator_list)
 
     def _generate_symbols_list(
         self, var_str: str, iterable_list: List[int] or ndarray
@@ -1249,7 +1251,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 )
 
             cos_term_operator = coefficient * functools.reduce(
-                operator.mul,
+                builtin_op.mul,
                 operator_list,
             )
 
@@ -2777,6 +2779,7 @@ class Circuit(Subsystem):
         truncated dimension if the user wants to use this circuit instance in
         HilbertSpace, by default `None`
     """
+
     # switch used in protecting the class from erroneous addition of new attributes
     _frozen = False
 
@@ -2846,9 +2849,6 @@ class Circuit(Subsystem):
         for attr in required_attributes:
             setattr(self, attr, getattr(self.symbolic_circuit, attr))
 
-        self._sys_type = type(self).__name__
-        self._id_str = self._autogenerate_id_str()
-
         if initiate_sym_calc:
             self.configure()
 
@@ -2869,13 +2869,25 @@ class Circuit(Subsystem):
             key: value for key, value in pickled_state.items() if "_operator" not in key
         }
         new_pickled_state["_frozen"] = False
-        return pickle_func, pickle_args, new_pickled_state
+
+        pickled_properties = {
+            property_name: property_obj
+            for property_name, property_obj in self.__class__.__dict__.items()
+            if isinstance(property_obj, property)
+        }
+
+        return pickle_func, pickle_args, (new_pickled_state, pickled_properties)
 
     def __setstate__(self, state):
         # needed for multiprocessing / proper unpickling
+        pickled_attribs, pickled_properties = state
         self._frozen = False
-        self.__dict__.update(state)
+
+        self.__dict__.update(pickled_attribs)
         self.operators_by_name = self.set_operators()
+
+        for property_name, property_obj in pickled_properties.items():
+            setattr(self.__class__, property_name, property_obj)
 
     def set_discretized_phi_range(
         self, var_indices: Tuple[int], phi_range: Tuple[float]
@@ -3085,6 +3097,7 @@ class Circuit(Subsystem):
             ]
             + ["cutoff_names"]
         )
+        print("necessary:", necessary_attrib_names)
         attrib_keys = list(self.__dict__.keys()).copy()
         for attrib in attrib_keys:
             if attrib[1:] not in necessary_attrib_names:
@@ -3094,6 +3107,7 @@ class Circuit(Subsystem):
                     or "cutoff_ext_" in attrib
                     or attrib[1:3] == "ng"
                 ):
+                    print("remove ", attrib)
                     delattr(self, attrib)
 
     def configure(
@@ -3246,18 +3260,18 @@ class Circuit(Subsystem):
         for var_type in self.var_categories.keys():
             if var_type == "periodic":
                 for idx, var_index in enumerate(self.var_categories["periodic"]):
-                    if not hasattr(self, "_" + "cutoff_n_" + str(var_index)):
+                    if not hasattr(self, f"_cutoff_n_{var_index}"):
                         self._make_property(
-                            "cutoff_n_" + str(var_index), 5, "update_cutoffs"
+                            f"cutoff_n_{var_index}", 5, "update_cutoffs"
                         )
-                        self.cutoff_names.append("cutoff_n_" + str(var_index))
+                        self.cutoff_names.append(f"cutoff_n_{var_index}")
             if var_type == "extended":
                 for idx, var_index in enumerate(self.var_categories["extended"]):
-                    if not hasattr(self, "_" + "cutoff_ext_" + str(var_index)):
+                    if not hasattr(self, f"_cutoff_ext_{var_index}"):
                         self._make_property(
-                            "cutoff_ext_" + str(var_index), 30, "update_cutoffs"
+                            f"cutoff_ext_{var_index}", 30, "update_cutoffs"
                         )
-                        self.cutoff_names.append("cutoff_ext_" + str(var_index))
+                        self.cutoff_names.append(f"cutoff_ext_{var_index}")
 
         self.var_categories_list = flatten_list(list(self.var_categories.values()))
 
