@@ -1442,7 +1442,8 @@ class SymbolicCircuit(serializers.Serializable):
             (node_sets), which keeps the generation info for nodes of branches on the path.
         """
 
-        # making a deep copy to make sure that the original instance is unaffected
+        # Make a copy of self; do not need symbolic expressions etc., so do a minimal
+        # initialization only
         circ_copy = SymbolicCircuit.from_yaml(
             self.input_string, from_file=False, initiate_sym_calc=False
         )
