@@ -3078,11 +3078,34 @@ class Circuit(Subsystem):
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
-        # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
         return {}
 
     def __repr__(self) -> str:
         return self._id_str
+
+    def clear_unnecessary_attribs(self):
+        """
+        Clear all the attributes which are not part of the circuit description
+        """
+        necessary_attrib_names = (
+            self.cutoff_names
+            + [flux_symbol.name for flux_symbol in self.external_fluxes]
+            + [
+                offset_charge_symbol.name
+                for offset_charge_symbol in self.offset_charges
+            ]
+            + ["cutoff_names"]
+        )
+        attrib_keys = list(self.__dict__.keys()).copy()
+        for attrib in attrib_keys:
+            if attrib[1:] not in necessary_attrib_names:
+                if (
+                    "cutoff_n_" in attrib
+                    or "Φ" in attrib
+                    or "cutoff_ext_" in attrib
+                    or attrib[1:3] == "ng"
+                ):
+                    delattr(self, attrib)
 
     def configure(
         self,
@@ -3312,7 +3335,8 @@ class Circuit(Subsystem):
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
             self.build_hilbertspace()
-
+        # clear unnecessary attribs
+        self.clear_unnecessary_attribs()
         self._frozen = True
 
     def variable_transformation(self) -> List[sm.Equality]:
