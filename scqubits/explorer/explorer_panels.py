@@ -183,7 +183,8 @@ def display_transitions(
         title = r"{}-photon {} transitions".format(photon_number, subsys_list[0].id_str)
     else:
         title = r"{}-photon transitions".format(photon_number)
-    fig, axes = sweep[param_slice.fixed].plot_transitions(
+    sliced_sweep = sweep if param_slice.fixed == tuple() else sweep[param_slice.fixed]
+    fig, axes = sliced_sweep.plot_transitions(
         subsystems=subsys_list,
         initial=initial,
         photon_number=photon_number,
@@ -206,28 +207,37 @@ def display_cross_kerr(
     type_list = [type(sys) for sys in [subsys1, subsys2]]
     if type_list.count(Oscillator) == 1:
         title = f"ac Stark: {subsys1.id_str} + {subsys2.id_str}"
-        ylabel = f"ac Stark shift $\chi^{{{subsys1_index},{subsys2_index}}}_l$"
-        level_pairs = [(1, 1), (2, 2)]
-        kerr_data = sweep["chi"][subsys1_index, subsys2_index][param_slice.fixed]
-        label_list = [tuple_to_short_str(pair) for pair in level_pairs]
+        ylabel = f"ac Stark shift $\chi^{{{subsys1_index},{subsys2_index}}}$"
+        levels_list = [1]
+        kerr_data = sweep["chi"][subsys1_index, subsys2_index]
+        if param_slice.fixed != tuple():
+            kerr_data = kerr_data[param_slice.fixed]
+        label_list = []
+        kerr_datasets = [kerr_data[..., level] for level in levels_list]
     elif type_list.count(Oscillator) == 2:
-        title = r"cross-Kerr: {} <-> {}".format(subsys1.id_str, subsys2.id_str)
+        title = r"cross-Kerr: {} - {}".format(subsys1.id_str, subsys2.id_str)
         ylabel = r"Kerr coefficient $K_{{},{}}$".format(subsys1_index, subsys2_index)
         level_pairs = [(1, 1)]
-        kerr_data = sweep["kerr"][subsys1_index, subsys2_index][param_slice.fixed]
+        kerr_data = sweep["kerr"][subsys1_index, subsys2_index]
+        if param_slice.fixed != tuple():
+            kerr_data = kerr_data[param_slice.fixed]
         label_list = []
+        kerr_datasets = [
+            kerr_data[..., level1, level2] for level1, level2 in level_pairs
+        ]
     else:
         title = "cross-Kerr: {} \u2194 {}".format(subsys1.id_str, subsys2.id_str)
         ylabel = r"Kerr coefficient $\Lambda^{{{},{}}}_{{ll'}}$".format(
             subsys1_index, subsys2_index
         )
         level_pairs = [(0, 1), (1, 0), (1, 1), (1, 2), (2, 1), (2, 2)]
-        kerr_data = sweep["kerr"][subsys1_index, subsys2_index][param_slice.fixed]
+        kerr_data = sweep["kerr"][subsys1_index, subsys2_index]
+        if param_slice.fixed != tuple():
+            kerr_data = kerr_data[param_slice.fixed]
         label_list = [tuple_to_short_str(pair) for pair in level_pairs]
-
-    kerr_datasets = []
-    for level1, level2 in level_pairs:
-        kerr_datasets.append(kerr_data[..., level1, level2])
+        kerr_datasets = [
+            kerr_data[..., level1, level2] for level1, level2 in level_pairs
+        ]
 
     kerr_datasets = np.asarray(kerr_datasets).T
     kerr_namedarray = NamedSlotsNdarray(kerr_datasets, kerr_data.param_info)
@@ -255,7 +265,9 @@ def display_self_kerr(
             subsys_index, subsys_index
         )
 
-    kerr_data = sweep["kerr"][subsys_index, subsys_index][param_slice.fixed]
+    kerr_data = sweep["kerr"][subsys_index, subsys_index]
+    if param_slice.fixed != tuple():
+        kerr_data = kerr_data[param_slice.fixed]
 
     level_pairs = [(1, 1), (2, 2)]
 
