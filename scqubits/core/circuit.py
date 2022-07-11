@@ -304,6 +304,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         if self.hierarchical_diagonalization:
             self.generate_subsystems()
+            self.operators_by_name = self.set_operators()
             self.build_hilbertspace()
         else:
             self.operators_by_name = self.set_operators()
@@ -326,16 +327,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # update the attribute for the current instance
         setattr(self, f"_{param_name}", value)
 
-        relevant_subsystem_indices = []
         # update all subsystem instances
         if self.hierarchical_diagonalization:
             for subsys_idx, subsys in enumerate(self.subsystems.values()):
                 if hasattr(subsys, param_name):
-                    relevant_subsystem_indices.append(subsys_idx)
+                    self._store_updated_subsystem_index(subsys_idx)
                     setattr(subsys, param_name, value)
-            self.build_hilbertspace(
-                relevant_subsystem_indices=relevant_subsystem_indices
-            )
 
     def _set_property_and_update_cutoffs(self, param_name: str, value: int) -> None:
         """
@@ -350,16 +347,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         setattr(self, f"_{param_name}", value)
 
-        relevant_subsystem_indices = []
         # set operators and rebuild the HilbertSpace object
         if self.hierarchical_diagonalization:
             for subsys_idx, subsys in enumerate(self.subsystems.values()):
                 if hasattr(subsys, param_name):
-                    relevant_subsystem_indices.append(subsys_idx)
+                    self._store_updated_subsystem_index(subsys_idx)
                     setattr(subsys, param_name, value)
-            self.build_hilbertspace(
-                relevant_subsystem_indices=relevant_subsystem_indices
-            )
 
     def _make_property(
         self, attrib_name: str, init_val: Union[int, float], property_update_type: str
@@ -442,6 +435,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         self._set_vars()
         if self.hierarchical_diagonalization:
+            # attribute to note updated subsystem indices
+            self.updated_subsystem_indices = []
+
             self.generate_subsystems()
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
@@ -449,6 +445,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         else:
             self.operators_by_name = self.set_operators()
 
+    def _store_updated_subsystem_index(self, index: int) -> None:
+        if not self.hierarchical_diagonalization:
+            raise Exception(f"The subsystem provided to self has no subsystems.")
+        if index not in self.updated_subsystem_indices:
+            self.updated_subsystem_indices.append(index)
     # *****************************************************************
     # **** Functions to construct the operators for the Hamiltonian ****
     # *****************************************************************
@@ -621,17 +622,27 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             [self.subsystems[i] for i in range(len(self.system_hierarchy))]
         )
 
-    def generate_hilbertspace_lookup(self, subsystem_indices=None) -> None:
+    def generate_hilbertspace_lookup(self, update_subsystem_indices=None) -> None:
+        """
+        Generates or updates the SpectrumLookup table for all the subsystems where
+        hierarchical diagonalization is used, depending on the parameter `update_subsystem_indices`.
+
+        Parameters
+        ----------
+        update_subsystem_indices:
+            List of subsystem indices which need to be updated. If set to None, all the
+           are updated.
+        """
         hilbert_space = self.hilbert_space
         bare_evals = np.empty((hilbert_space.subsystem_count,), dtype=object)
         bare_evecs = np.empty((hilbert_space.subsystem_count,), dtype=object)
         bare_esys_dict = {}
 
-        if subsystem_indices is None:
-            subsystem_indices = list(range(hilbert_space.subsystem_count))
+        if update_subsystem_indices is None:
+            update_subsystem_indices = list(range(hilbert_space.subsystem_count))
 
         for subsys_index, subsys in enumerate(hilbert_space):
-            if subsys_index in subsystem_indices:
+            if subsys_index in update_subsystem_indices:
                 bare_esys = subsys.eigensys(evals_count=subsys.truncated_dim)
             else:
                 bare_esys = (
@@ -690,14 +701,20 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         )
 
     def build_hilbertspace(
-        self, relevant_subsystem_indices: Optional[List[int]] = None
-    ):
+        self, update_subsystem_indices: Optional[List[int]] = None
+    ) -> None:
         """
         Builds the HilbertSpace object for the `Circuit` instance if
         `hierarchical_diagonalization` is set to true.
+
+        Parameters
+        ----------
+        update_subsystem_indices:
+            List of subsystem indices which need to be updated. If set to None, all the
+           are updated.
         """
         # generate lookup table in HilbertSpace
-        self.generate_hilbertspace_lookup(subsystem_indices=relevant_subsystem_indices)
+        self.generate_hilbertspace_lookup(update_subsystem_indices=update_subsystem_indices)
 
         self.hilbert_space.interaction_list = []
 
@@ -1764,6 +1781,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 return self._hamiltonian_for_discretized_extended_vars()
 
         else:
+            # update the hilbertspace
+            self.build_hilbertspace(
+                update_subsystem_indices=self.updated_subsystem_indices
+            )
+            self.updated_subsystem_indices = []
+
             bare_esys = {
                 sys_index: (
                     self.hilbert_space["bare_evals"][sys_index][0],
@@ -3321,6 +3344,8 @@ class Circuit(Subsystem):
             self.generate_hamiltonian_sym_for_numerics()
             self.operators_by_name = self.set_operators()
         else:
+            # list for updating necessary subsystems when calling build hilbertspace
+            self.updated_subsystem_indices = []
             self.operators_by_name = None
             self.system_hierarchy = system_hierarchy
             if subsystem_trunc_dims is None:
