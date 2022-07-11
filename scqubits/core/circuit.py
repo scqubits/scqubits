@@ -158,7 +158,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             var_index = get_trailing_number(var_name)
             if var_index not in self.var_categories_list and var_index is not None:
                 self.var_categories_list.append(var_index)
-                cutoffs += [self.cutoffs_dict()[var_index]]
+                cutoffs += [self.parent.cutoffs_dict()[var_index]]
 
         self.var_categories_list.sort()
 
@@ -246,14 +246,14 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         cutoffs_dict = {}
 
         for var_index in self.var_categories_list:
-            if self.is_child:
-                for cutoff_name in self.parent.cutoff_names:
-                    if str(var_index) in cutoff_name:
-                        cutoffs_dict[var_index] = getattr(self.parent, cutoff_name)
-            else:
-                for cutoff_name in self.cutoff_names:
-                    if str(var_index) in cutoff_name:
-                        cutoffs_dict[var_index] = getattr(self, cutoff_name)
+            # if self.is_child:
+            #     for cutoff_name in self.parent.cutoff_names:
+            #         if str(var_index) in cutoff_name:
+            #             cutoffs_dict[var_index] = getattr(self.parent, cutoff_name)
+            # else:
+            for cutoff_name in self.cutoff_names:
+                if str(var_index) in cutoff_name:
+                    cutoffs_dict[var_index] = getattr(self, cutoff_name)
         return cutoffs_dict
 
     def _regenerate_sym_hamiltonian(self) -> None:
