@@ -180,6 +180,7 @@ branches:
     eigs_test = circ.eigenvals()
     assert np.allclose(eigs_test, eigs_ref)
 
+
 def test_param_sweep():
     DFC = scq.Circuit(
         DATADIR + "circuit_DFC.yaml",
@@ -209,4 +210,4 @@ def test_param_sweep():
 
     DFC.EJ = 4.6
 
-    DFC.get_spectrum_vs_paramvals("Φ1", np.linspace(0,1,11))
+    DFC.get_spectrum_vs_paramvals("Φ1", np.linspace(0, 1, 11))

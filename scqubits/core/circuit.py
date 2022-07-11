@@ -450,6 +450,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             raise Exception(f"The subsystem provided to self has no subsystems.")
         if index not in self.updated_subsystem_indices:
             self.updated_subsystem_indices.append(index)
+
     # *****************************************************************
     # **** Functions to construct the operators for the Hamiltonian ****
     # *****************************************************************
@@ -714,7 +715,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
            are updated.
         """
         # generate lookup table in HilbertSpace
-        self.generate_hilbertspace_lookup(update_subsystem_indices=update_subsystem_indices)
+        self.generate_hilbertspace_lookup(
+            update_subsystem_indices=update_subsystem_indices
+        )
 
         self.hilbert_space.interaction_list = []
 
