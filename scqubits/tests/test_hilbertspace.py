@@ -211,7 +211,7 @@ class TestHilbertSpace:
         )
         return hilbertspace.hamiltonian()
 
-    def test_HilbertSpace_hamiltonian_is_hermitean(self):
+    def test_HilbertSpace_hamiltonian_is_hermitian(self):
         hamiltonian = self.hilbertspace_initialize().hamiltonian()
         assert hamiltonian.isherm
         hamiltonian = self.hamiltonian_use_addhc()

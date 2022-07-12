@@ -465,7 +465,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def _constants_in_subsys(self, H_sys: sm.Expr) -> sm.Expr:
         """
-        Returns an expresion of constants that belong to the subsystem with the
+        Returns an expression of constants that belong to the subsystem with the
         Hamiltonian H_sys
 
         Parameters
@@ -553,11 +553,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         for subsys_index_list in self.system_hierarchy:
             subsys_index_list = flatten_list_recursive(subsys_index_list)
 
-            hamitlonian_terms = hamiltonian.as_ordered_terms()
+            hamiltonian_terms = hamiltonian.as_ordered_terms()
 
             H_sys = 0 * sm.symbols("x")
             H_int = 0 * sm.symbols("x")
-            for term in hamitlonian_terms:
+            for term in hamiltonian_terms:
                 term_operator_indices = [
                     get_trailing_number(var_sym.name)
                     for var_sym in term.free_symbols
@@ -1620,7 +1620,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 .expand()
             )
 
-        # seperating cosine and LC part of the Hamiltonian
+        # separating cosine and LC part of the Hamiltonian
         junction_potential = sum(
             [term for term in hamiltonian.as_ordered_terms() if "cos" in str(term)]
         )
@@ -2034,7 +2034,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                         + "})"
                     ),
                 )
-            # add the KE and PE and supress the evaluation
+            # add the KE and PE and suppress the evaluation
             sym_hamiltonian = sm.Add(
                 sym_hamiltonian_KE, sym_hamiltonian_PE, evaluate=False
             )
@@ -2511,7 +2511,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
                 )
 
-        # if a probability plot is requested, sum over the dimesnsions not relevant to
+        # if a probability plot is requested, sum over the dimensions not relevant to
         # the ones in var_categories
         if self.hierarchical_diagonalization:
             dims_to_be_summed = self._dims_to_be_summed(

@@ -54,7 +54,7 @@ def test_zero_pi_discretized():
 
 def test_zero_pi_harmonic():
     """
-    Test for symmmetric zero-pi in harmonic oscillator basis.
+    Test for symmetric zero-pi in harmonic oscillator basis.
     """
     zp_yaml = """# zero-pi circuit
     branches:
