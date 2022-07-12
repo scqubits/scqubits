@@ -546,7 +546,7 @@ class SymbolicCircuit(serializers.Serializable):
         branch_list1:
             first list of branches
         branch_list2:
-            second list of brannches
+            second list of branches
 
         Returns
         -------
@@ -786,7 +786,7 @@ class SymbolicCircuit(serializers.Serializable):
                 else:
                     node.marker = node_set_index + 1
 
-        # marking ground nodes seperately
+        # marking ground nodes separately
         for node in nodes_copy:
             if node.is_ground():
                 node.marker = -1
@@ -1444,7 +1444,8 @@ class SymbolicCircuit(serializers.Serializable):
             (node_sets), which keeps the generation info for nodes of branches on the path.
         """
 
-        # making a deep copy to make sure that the original instance is unaffected
+        # Make a copy of self; do not need symbolic expressions etc., so do a minimal
+        # initialization only
         circ_copy = SymbolicCircuit.from_yaml(
             self.input_string, from_file=False, initiate_sym_calc=False
         )
