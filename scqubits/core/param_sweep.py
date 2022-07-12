@@ -1093,7 +1093,7 @@ class ParameterSweep(  # type:ignore
                 total=total_count,
                 desc="Bare spectra",
                 leave=False,
-                disable=multi_cpu,
+                disable=self.tqdm_disabled,
             )
 
         bare_eigendata = np.asarray(list(bare_eigendata), dtype=object)
@@ -1168,7 +1168,7 @@ class ParameterSweep(  # type:ignore
                     total=total_count,
                     desc="Dressed spectrum",
                     leave=False,
-                    disable=multi_cpu,
+                    disable=self.tqdm_disabled,
                 )
             )
 
