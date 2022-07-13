@@ -490,7 +490,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         # calculating the Hamiltonian directly when the number of nodes is less than 3
         if (
-            len(self.nodes) <= 3
+            len(self.nodes) + self.is_grounded <= 3
         ):  # only calculate the symbolic hamiltonian when the number of nodes is less
             # than 3. Else, the calculation will be skipped to the end when numerical
             # Hamiltonian of the circuit is requested.
