@@ -544,7 +544,7 @@ class SymbolicCircuit(serializers.Serializable):
         branch_list1:
             first list of branches
         branch_list2:
-            second list of brannches
+            second list of branches
 
         Returns
         -------
@@ -784,7 +784,7 @@ class SymbolicCircuit(serializers.Serializable):
                 else:
                     node.marker = node_set_index + 1
 
-        # marking ground nodes seperately
+        # marking ground nodes separately
         for node in nodes_copy:
             if node.is_ground():
                 node.marker = -1

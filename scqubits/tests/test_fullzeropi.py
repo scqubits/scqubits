@@ -28,7 +28,7 @@ class TestFullZeroPi(BaseTest):
         cls.qbt_type = FullZeroPi
         cls.file_str = "fullzeropi"
 
-    def test_hamiltonian_is_hermitean(self, io_type):
+    def test_hamiltonian_is_hermitian(self, io_type):
         testname = self.file_str + "_1." + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type(**specdata.system_params)

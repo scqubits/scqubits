@@ -9,7 +9,7 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
-
+import copy
 import functools
 import itertools
 import operator as builtin_op
@@ -41,6 +41,7 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
+import scqubits.utils.spectrum_utils as utils
 
 from scqubits import HilbertSpace, settings
 from scqubits.core import operators as op
@@ -462,7 +463,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def _constants_in_subsys(self, H_sys: sm.Expr) -> sm.Expr:
         """
-        Returns an expresion of constants that belong to the subsystem with the
+        Returns an expression of constants that belong to the subsystem with the
         Hamiltonian H_sys
 
         Parameters
@@ -550,11 +551,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         for subsys_index_list in self.system_hierarchy:
             subsys_index_list = flatten_list_recursive(subsys_index_list)
 
-            hamitlonian_terms = hamiltonian.as_ordered_terms()
+            hamiltonian_terms = hamiltonian.as_ordered_terms()
 
             H_sys = 0 * sm.symbols("x")
             H_int = 0 * sm.symbols("x")
-            for term in hamitlonian_terms:
+            for term in hamiltonian_terms:
                 term_operator_indices = [
                     get_trailing_number(var_sym.name)
                     for var_sym in term.free_symbols
@@ -1635,7 +1636,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 .expand()
             )
 
-        # seperating cosine and LC part of the Hamiltonian
+        # separating cosine and LC part of the Hamiltonian
         junction_potential = sum(
             [term for term in hamiltonian.as_ordered_terms() if "cos" in str(term)]
         )
@@ -1704,7 +1705,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         H_LC_str = self._get_eval_hamiltonian_string(hamiltonian_LC)
 
-        replacement_dict: Dict[str, Any] = self.operators_by_name
+        replacement_dict: Dict[str, Any] = copy.deepcopy(self.operators_by_name)
 
         # adding self to the list
         replacement_dict["self"] = self
@@ -1811,11 +1812,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         hamiltonian_mat = self.hamiltonian()
         if self.type_of_matrices == "sparse":
-            evals = sparse.linalg.eigsh(
+            evals = utils.eigsh_safe(
                 hamiltonian_mat,
                 return_eigenvectors=False,
                 k=evals_count,
-                v0=settings.RANDOM_ARRAY[:hilbertdim],
                 which="SA",
             )
         elif self.type_of_matrices == "dense":
@@ -1838,12 +1838,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         hamiltonian_mat = self.hamiltonian()
         if self.type_of_matrices == "sparse":
-            evals, evecs = sparse.linalg.eigsh(
+            evals, evecs = utils.eigsh_safe(
                 hamiltonian_mat,
                 return_eigenvectors=True,
                 k=evals_count,
                 which="SA",
-                v0=settings.RANDOM_ARRAY[:hilbertdim],
             )
         elif self.type_of_matrices == "dense":
             evals, evecs = sp.linalg.eigh(
@@ -2055,7 +2054,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                         + "})"
                     ),
                 )
-            # add the KE and PE and supress the evaluation
+            # add the KE and PE and suppress the evaluation
             sym_hamiltonian = sm.Add(
                 sym_hamiltonian_KE, sym_hamiltonian_PE, evaluate=False
             )
@@ -2532,7 +2531,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
                 )
 
-        # if a probability plot is requested, sum over the dimesnsions not relevant to
+        # if a probability plot is requested, sum over the dimensions not relevant to
         # the ones in var_categories
         if self.hierarchical_diagonalization:
             dims_to_be_summed = self._dims_to_be_summed(
