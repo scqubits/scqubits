@@ -488,9 +488,11 @@ class SymbolicCircuit(serializers.Serializable):
             self.lagrangian_node_vars,
         ) = self._replace_energies_with_capacitances_L()
 
-        # calculating the Hamiltonian directly when the number of nodes is less than 3
+        # calculating the Hamiltonian directly when the number of nodes is less than
+        # or equal to 3 when the circuit is not grounded, less than or equal to 2 when
+        # the circuit is grounded.
         if (
-            len(self.nodes) <= 3
+            len(self.nodes) + self.is_grounded <= 3
         ):  # only calculate the symbolic hamiltonian when the number of nodes is less
             # than 3. Else, the calculation will be skipped to the end when numerical
             # Hamiltonian of the circuit is requested.

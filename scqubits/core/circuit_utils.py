@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 
 def truncation_template(
-    system_hierarchy: list, individual_trunc_dim: int = 6, combined_trunc_dim: int = 50
+    system_hierarchy: list, individual_trunc_dim: int = 6, combined_trunc_dim: int = 30
 ) -> list:
     """
     Function to generate a template for defining the truncated dimensions for subsystems
@@ -44,7 +44,7 @@ def truncation_template(
         use hierarchical diagonalization, by default 6
     combined_trunc_dim:
         The default used to set the truncated dim for subsystems which use hierarchical
-        diagonalization, by default 50
+        diagonalization, by default 30
 
     Returns
     -------

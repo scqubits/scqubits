@@ -12,7 +12,7 @@
 import copy
 import functools
 import itertools
-import operator as builtin_op
+import operator
 import re
 import warnings
 
@@ -22,6 +22,16 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import numpy as np
 import qutip as qt
 import scipy as sp
+import scqubits as scq
+import scqubits.core.discretization as discretization
+from scqubits.core.namedslots_array import NamedSlotsNdarray
+import scqubits.core.spec_lookup as spec_lookup
+import scqubits.core.oscillator as osc
+import scqubits.core.qubit_base as base
+import scqubits.core.storage as storage
+import scqubits.io_utils.fileio_serializers as serializers
+import scqubits.utils.plot_defaults as defaults
+import scqubits.utils.plotting as plot
 import sympy as sm
 
 from matplotlib import pyplot as plt
@@ -70,15 +80,14 @@ from scqubits.core.circuit_utils import (
     matrix_power_sparse,
     operator_func_factory,
 )
-from scqubits.core.namedslots_array import NamedSlotsNdarray
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
 from scqubits.io_utils.fileio import IOData
 from scqubits.io_utils.fileio_serializers import dict_deserialize, dict_serialize
 from scqubits.utils.misc import (
     flatten_list,
     flatten_list_recursive,
-    list_intersection,
     number_of_lists_in_list,
+    list_intersection,
 )
 from scqubits.utils.plot_utils import _process_options
 from scqubits.utils.spectrum_utils import (
@@ -86,6 +95,7 @@ from scqubits.utils.spectrum_utils import (
     identity_wrap,
     order_eigensystem,
 )
+from sympy import latex
 
 
 class Subsystem(base.QubitBaseClass, serializers.Serializable):
@@ -111,7 +121,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     """
 
     # switch used in protecting the class from erroneous addition of new attributes
-    _frozen = False
+    __frozen = False
 
     def __init__(
         self,
@@ -219,10 +229,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         self.normal_mode_freqs = []
 
         self._configure()
-        self._frozen = True
+        self.__frozen = True
 
     def __setattr__(self, name, value):
-        if not self._frozen or name in dir(self):
+        if not self.__frozen or name in dir(self):
             super().__setattr__(name, value)
         else:
             raise Exception("Creating new attributes is disabled.")
@@ -242,6 +252,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Returns
         -------
+        Dict[int, int]
             Cutoffs dictionary; {var_index: cutoff}
         """
         cutoffs_dict = {}
@@ -257,7 +268,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         Regenerates the system Hamiltonian from the symbolic circuit when needed (for
         example when the circuit is large and circuit parameters are changed).
         """
-        if not self.is_child and len(self.symbolic_circuit.nodes) > 3:
+        if (
+            not self.is_child
+            and len(self.symbolic_circuit.nodes) + self.symbolic_circuit.is_grounded > 3
+        ):
             self.hamiltonian_symbolic = (
                 self.symbolic_circuit.generate_symbolic_hamiltonian(
                     substitute_params=True
@@ -281,18 +295,19 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # update the attribute for the current instance
         setattr(self, f"_{param_name}", value)
 
-        # update the attribute for the instance in symbolic_circuit
+        # update the attribute for the instance in symboliccircuit
         # generate _hamiltonian_sym_for_numerics if not already generated, delayed for
         # large circuits
         if (
-            not self.is_child and len(self.symbolic_circuit.nodes) > 3
+            not self.is_child
+            and len(self.symbolic_circuit.nodes) + self.symbolic_circuit.is_grounded > 3
         ) or self.is_purely_harmonic:
             self.symbolic_circuit.update_param_init_val(param_name, value)
             self._regenerate_sym_hamiltonian()
 
         # update Circuit instance
 
-        # if purely harmonic the circuit attributes should change
+        # if purely harmonic the cirucit attributes should change
         if self.is_purely_harmonic and isinstance(self, Circuit):
             self.potential_symbolic = self.symbolic_circuit.potential_symbolic
             self.transformation_matrix = self.symbolic_circuit.transformation_matrix
@@ -369,23 +384,23 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         setattr(self, f"_{attrib_name}", init_val)
 
-        def getter(obj, name=attrib_name):
-            return getattr(obj, f"_{name}")
+        def getter(self, name=attrib_name):
+            return getattr(self, f"_{name}")
 
         if property_update_type == "update_param_vars":
 
-            def setter(obj, value, name=attrib_name):
-                return obj._set_property_and_update_param_vars(name, value)
+            def setter(self, value, name=attrib_name):
+                return self._set_property_and_update_param_vars(name, value)
 
         elif property_update_type == "update_external_flux_or_charge":
 
-            def setter(obj, value, name=attrib_name):
-                return obj._set_property_and_update_ext_flux_or_charge(name, value)
+            def setter(self, value, name=attrib_name):
+                return self._set_property_and_update_ext_flux_or_charge(name, value)
 
         elif property_update_type == "update_cutoffs":
 
-            def setter(obj, value, name=attrib_name):
-                return obj._set_property_and_update_cutoffs(name, value)
+            def setter(self, value, name=attrib_name):
+                return self._set_property_and_update_cutoffs(name, value)
 
         setattr(self.__class__, attrib_name, property(fget=getter, fset=setter))
 
@@ -463,7 +478,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def _constants_in_subsys(self, H_sys: sm.Expr) -> sm.Expr:
         """
-        Returns an expression of constants that belong to the subsystem with the
+        Returns an expresion of constants that belong to the subsystem with the
         Hamiltonian H_sys
 
         Parameters
@@ -512,8 +527,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         for subsystem_idx, subsystem in self.subsystems.items():
             if subsystem.truncated_dim >= subsystem.hilbertdim() - 1:
                 self.hierarchical_diagonalization = False
-                # find the correct position of the subsystem where the truncation
-                # index  is too big
+                # find the correct position of the subsystem where the truncation index is too big
                 subsystem_position = f"subsystem {subsystem_idx} "
                 parent = subsystem.parent
                 while parent.is_child:
@@ -551,11 +565,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         for subsys_index_list in self.system_hierarchy:
             subsys_index_list = flatten_list_recursive(subsys_index_list)
 
-            hamiltonian_terms = hamiltonian.as_ordered_terms()
+            hamitlonian_terms = hamiltonian.as_ordered_terms()
 
             H_sys = 0 * sm.symbols("x")
             H_int = 0 * sm.symbols("x")
-            for term in hamiltonian_terms:
+            for term in hamitlonian_terms:
                 term_operator_indices = [
                     get_trailing_number(var_sym.name)
                     for var_sym in term.free_symbols
@@ -815,8 +829,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                             list(self.subsystems.values()),
                             evecs=self.subsystems[subsys_index].get_eigenstates(),
                         )
+
         operator_list = list(operator_dict.values())
-        return functools.reduce(builtin_op.mul, operator_list)
+
+        return functools.reduce(operator.mul, operator_list)
 
     def _generate_symbols_list(
         self, var_str: str, iterable_list: List[int] or ndarray
@@ -1267,7 +1283,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 )
 
             cos_term_operator = coefficient * functools.reduce(
-                builtin_op.mul,
+                operator.mul,
                 operator_list,
             )
 
@@ -1636,7 +1652,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 .expand()
             )
 
-        # separating cosine and LC part of the Hamiltonian
+        # seperating cosine and LC part of the Hamiltonian
         junction_potential = sum(
             [term for term in hamiltonian.as_ordered_terms() if "cos" in str(term)]
         )
@@ -2054,7 +2070,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                         + "})"
                     ),
                 )
-            # add the KE and PE and suppress the evaluation
+            # add the KE and PE and supress the evaluation
             sym_hamiltonian = sm.Add(
                 sym_hamiltonian_KE, sym_hamiltonian_PE, evaluate=False
             )
@@ -2849,7 +2865,7 @@ class Circuit(Subsystem):
     """
 
     # switch used in protecting the class from erroneous addition of new attributes
-    _frozen = False
+    __frozen = False
 
     def __init__(
         self,
@@ -2917,45 +2933,22 @@ class Circuit(Subsystem):
         for attr in required_attributes:
             setattr(self, attr, getattr(self.symbolic_circuit, attr))
 
+        self._sys_type = type(self).__name__
+        self._id_str = self._autogenerate_id_str()
+
         if initiate_sym_calc:
             self.configure()
 
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
-        self._frozen = True
+
+        self.__frozen = True
 
     def __setattr__(self, name, value):
-        if not self._frozen or name in dir(self):
+        if not self.__frozen or name in dir(self):
             super().__setattr__(name, value)
         else:
-            raise Exception(f"Creating new attributes is disabled [{name}, {value}].")
-
-    def __reduce__(self):
-        # needed for multiprocessing / proper pickling
-        pickle_func, pickle_args, pickled_state = super().__reduce__()
-        new_pickled_state = {
-            key: value for key, value in pickled_state.items() if "_operator" not in key
-        }
-        new_pickled_state["_frozen"] = False
-
-        pickled_properties = {
-            property_name: property_obj
-            for property_name, property_obj in self.__class__.__dict__.items()
-            if isinstance(property_obj, property)
-        }
-
-        return pickle_func, pickle_args, (new_pickled_state, pickled_properties)
-
-    def __setstate__(self, state):
-        # needed for multiprocessing / proper unpickling
-        pickled_attribs, pickled_properties = state
-        self._frozen = False
-
-        self.__dict__.update(pickled_attribs)
-        self.operators_by_name = self.set_operators()
-
-        for property_name, property_obj in pickled_properties.items():
-            setattr(self.__class__, property_name, property_obj)
+            raise Exception("Creating new attributes is disabled.")
 
     def set_discretized_phi_range(
         self, var_indices: Tuple[int], phi_range: Tuple[float]
@@ -2996,7 +2989,7 @@ class Circuit(Subsystem):
     ):
         """
         Wrapper to Circuit __init__ to create a class instance. This is deprecated and
-        will not be supported in future releases.
+        will not be supported in the future release.
 
         Parameters
         ----------
@@ -3024,7 +3017,7 @@ class Circuit(Subsystem):
         """
         warnings.warn(
             "Initializing Circuit instances with `from_yaml` will not be "
-            "supported in the future. Use `Circuit` to initialize a Circuit instance.",
+            "supported in future. Use `Circuit` to initialize a Circuit instance.",
             np.VisibleDeprecationWarning,
         )
         return Circuit(
@@ -3146,6 +3139,7 @@ class Circuit(Subsystem):
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
+        # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
         return {}
 
     def __repr__(self) -> str:
@@ -3208,6 +3202,7 @@ class Circuit(Subsystem):
         Exception
             when system_hierarchy is set and subsystem_trunc_dims is not set.
         """
+
         old_transformation_matrix = self.transformation_matrix
         old_system_hierarchy = self.system_hierarchy
         old_subsystem_trunc_dims = self.subsystem_trunc_dims
@@ -3269,7 +3264,7 @@ class Circuit(Subsystem):
         Exception
             when system_hierarchy is set and subsystem_trunc_dims is not set.
         """
-        self._frozen = False
+        self.__frozen = False
         system_hierarchy = system_hierarchy or self.system_hierarchy
         subsystem_trunc_dims = subsystem_trunc_dims or self.subsystem_trunc_dims
         closure_branches = closure_branches or self.closure_branches
@@ -3325,18 +3320,18 @@ class Circuit(Subsystem):
         for var_type in self.var_categories.keys():
             if var_type == "periodic":
                 for idx, var_index in enumerate(self.var_categories["periodic"]):
-                    if not hasattr(self, f"_cutoff_n_{var_index}"):
+                    if not hasattr(self, "_" + "cutoff_n_" + str(var_index)):
                         self._make_property(
-                            f"cutoff_n_{var_index}", 5, "update_cutoffs"
+                            "cutoff_n_" + str(var_index), 5, "update_cutoffs"
                         )
-                        self.cutoff_names.append(f"cutoff_n_{var_index}")
+                        self.cutoff_names.append("cutoff_n_" + str(var_index))
             if var_type == "extended":
                 for idx, var_index in enumerate(self.var_categories["extended"]):
-                    if not hasattr(self, f"_cutoff_ext_{var_index}"):
+                    if not hasattr(self, "_" + "cutoff_ext_" + str(var_index)):
                         self._make_property(
-                            f"cutoff_ext_{var_index}", 30, "update_cutoffs"
+                            "cutoff_ext_" + str(var_index), 30, "update_cutoffs"
                         )
-                        self.cutoff_names.append(f"cutoff_ext_{var_index}")
+                        self.cutoff_names.append("cutoff_ext_" + str(var_index))
 
         self.var_categories_list = flatten_list(list(self.var_categories.values()))
 
@@ -3373,7 +3368,7 @@ class Circuit(Subsystem):
 
         self._set_vars()  # setting the attribute vars to store operator symbols
 
-        if len(self.symbolic_circuit.nodes) > 3:
+        if len(self.symbolic_circuit.nodes) + self.symbolic_circuit.is_grounded > 3:
             self.hamiltonian_symbolic = (
                 self.symbolic_circuit.generate_symbolic_hamiltonian(
                     substitute_params=True
@@ -3404,10 +3399,10 @@ class Circuit(Subsystem):
             self.generate_subsystems()
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
-            self.updated_subsystem_indices = list(range(len(self.subsystems)))
-        # clear unnecessary attribs
+            self.build_hilbertspace()
+        # clear unnecesary attribs
         self.clear_unnecessary_attribs()
-        self._frozen = True
+        self.__frozen = True
 
     def variable_transformation(self) -> List[sm.Equality]:
         """
