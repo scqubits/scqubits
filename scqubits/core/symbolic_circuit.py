@@ -173,7 +173,7 @@ class Branch:
         n_i: Node,
         n_f: Node,
         branch_type: str,
-        parameters: Optional[Dict[str, float]] = None,
+        parameters: Optional[List[Union[float, Symbol, int]]] = None,
         id_str: str = None,
     ):
         self.nodes = (n_i, n_f)

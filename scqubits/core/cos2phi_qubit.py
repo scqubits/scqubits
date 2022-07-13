@@ -36,7 +36,7 @@ import scqubits.core.units as units
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 import scqubits.utils.plotting as plot
-import scqubits.utils.spectrum_utils as spec_utils
+import scqubits.utils.spectrum_utils as utils
 
 from scqubits.core.noise import NOISE_PARAMS, NoisySystem, calc_therm_ratio
 from scqubits.core.storage import WaveFunctionOnGrid
@@ -855,27 +855,25 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
     def _evals_calc(self, evals_count) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
-        evals = sparse.linalg.eigsh(
+        evals = utils.eigsh_safe(
             hamiltonian_mat,
             k=evals_count,
             return_eigenvectors=False,
             sigma=0.0,
             which="LM",
-            v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
         )
         return np.sort(evals)
 
     def _esys_calc(self, evals_count) -> Tuple[ndarray, ndarray]:
         hamiltonian_mat = self.hamiltonian()
-        evals, evecs = sparse.linalg.eigsh(
+        evals, evecs = utils.eigsh_safe(
             hamiltonian_mat,
             k=evals_count,
             return_eigenvectors=True,
             sigma=0.0,
             which="LM",
-            v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
         )
-        evals, evecs = spec_utils.order_eigensystem(evals, evecs)
+        evals, evecs = utils.order_eigensystem(evals, evecs)
         return evals, evecs
 
     def potential(self, phi, zeta, theta) -> float:
@@ -1065,7 +1063,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         )
         wavefunc.amplitudes = np.transpose(
             amplitude_modifier(
-                spec_utils.standardize_phases(
+                utils.standardize_phases(
                     wavefunc.amplitudes.reshape(phi_grid.pt_count, theta_grid.pt_count)
                 )
             )

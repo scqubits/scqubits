@@ -448,13 +448,12 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
     ) -> ndarray:
         if hamiltonian_mat is None:
             hamiltonian_mat = self.hamiltonian()
-        evals = sparse.linalg.eigsh(
+        evals = spec_utils.eigsh_safe(
             hamiltonian_mat,
             k=evals_count,
             sigma=0.0,
             which="LM",
             return_eigenvectors=False,
-            v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
         )
         return np.sort(evals)
 
@@ -463,13 +462,12 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
     ) -> Tuple[ndarray, ndarray]:
         if hamiltonian_mat is None:
             hamiltonian_mat = self.hamiltonian()
-        evals, evecs = sparse.linalg.eigsh(
+        evals, evecs = spec_utils.eigsh_safe(
             hamiltonian_mat,
             k=evals_count,
             sigma=0.0,
             which="LM",
             return_eigenvectors=True,
-            v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
         )
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
         return evals, evecs
@@ -486,8 +484,9 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         )
 
     def g_theta_coupling_matrix(self, zeropi_states: ndarray) -> ndarray:
-        """Returns a matrix of coupling strengths i*g^\\theta_{ll'} [cmp. Dempster et al., Eq. (17)], using the states
-        from the list 'zeropi_states'.
+        """Returns a matrix of coupling strengths i*g^\\theta_{ll'}
+        [cmp. Dempster et al., Eq. (17)], using the states from the list
+        'zeropi_states'.
         """
         prefactor = 1j * self.ECS * (self.dC / 2.0) * (32.0 * self.EL / self.EC) ** 0.25
         return prefactor * spec_utils.get_matrixelement_table(
