@@ -23,6 +23,7 @@ import numpy as np
 import qutip as qt
 import scipy as sp
 
+import scqubits as scq
 from scqubits.settings import IN_IPYTHON
 
 if IN_IPYTHON:
@@ -102,8 +103,7 @@ class InfoBar:
     def __enter__(self) -> None:
         self.tqdm_bar = tqdm(
             total=0,
-            # disable=(self.num_cpus == 1),
-            disable=True,
+            disable=((self.num_cpus == 1) or scq.settings.INFOBAR_DISABLED),
             leave=False,
             desc=self.desc,
             bar_format="{desc}",
