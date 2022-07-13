@@ -301,7 +301,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         if self.hierarchical_diagonalization:
             self.generate_subsystems()
             self.operators_by_name = self.set_operators()
-            self.build_hilbertspace()
+            self.updated_subsystem_indices = list(range(len(self.subsystems)))
         else:
             self.operators_by_name = self.set_operators()
 
@@ -1429,7 +1429,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     def identity_wrap_for_hd(
         self,
         operator: Optional[Union[csc_matrix, ndarray]],
-        var_index: Optional[int] = None,
+        var_index: int,
     ) -> qt.Qobj:
         """
         Returns an identity wrapped operator whose size is equal to the
@@ -3404,7 +3404,7 @@ class Circuit(Subsystem):
             self.generate_subsystems()
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
-            self.build_hilbertspace()
+            self.updated_subsystem_indices = list(range(len(self.subsystems)))
         # clear unnecessary attribs
         self.clear_unnecessary_attribs()
         self._frozen = True
