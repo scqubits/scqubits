@@ -103,7 +103,7 @@ class InfoBar:
     def __enter__(self) -> None:
         self.tqdm_bar = tqdm(
             total=0,
-            disable=((self.num_cpus == 1) or scq.settings.INFOBAR_DISABLED),
+            disable=(self.num_cpus == 1 or scq.settings.INFOBAR_DISABLED),
             leave=False,
             desc=self.desc,
             bar_format="{desc}",
