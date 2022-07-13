@@ -246,11 +246,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         cutoffs_dict = {}
 
         for var_index in self.var_categories_list:
-            # if self.is_child:
-            #     for cutoff_name in self.parent.cutoff_names:
-            #         if str(var_index) in cutoff_name:
-            #             cutoffs_dict[var_index] = getattr(self.parent, cutoff_name)
-            # else:
             for cutoff_name in self.cutoff_names:
                 if str(var_index) in cutoff_name:
                     cutoffs_dict[var_index] = getattr(self, cutoff_name)
