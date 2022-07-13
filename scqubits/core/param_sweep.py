@@ -1093,7 +1093,7 @@ class ParameterSweep(  # type:ignore
                 total=total_count,
                 desc="Bare spectra",
                 leave=False,
-                disable=self.tqdm_disabled,
+                disable=(num_cpus > 1 or settings.PROGRESSBAR_DISABLED),
             )
 
         bare_eigendata = np.asarray(list(bare_eigendata), dtype=object)
@@ -1168,7 +1168,7 @@ class ParameterSweep(  # type:ignore
                     total=total_count,
                     desc="Dressed spectrum",
                     leave=False,
-                    disable=self.tqdm_disabled,
+                    disable=(num_cpus > 1 or settings.PROGRESSBAR_DISABLED),
                 )
             )
 
@@ -1436,7 +1436,7 @@ def generator(sweep: "ParameterSweepBase", func: Callable, **kwargs) -> np.ndarr
             total=total_count,
             desc="sweeping " + func_name,
             leave=False,
-            disable=settings.PROGRESSBAR_DISABLED,
+            disable=(num_cpus > 1 or settings.PROGRESSBAR_DISABLED),
         )
     )
     element_shape: Tuple[int, ...] = tuple()

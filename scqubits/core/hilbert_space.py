@@ -868,7 +868,7 @@ class HilbertSpace(
                             param_vals,
                             desc="Spectral data",
                             leave=False,
-                            disable=(num_cpus > 1),
+                            disable=(num_cpus > 1 or settings.PROGRESSBAR_DISABLED),
                         ),
                     )
                 )
@@ -893,7 +893,7 @@ class HilbertSpace(
                                 param_vals,
                                 desc="Spectral data",
                                 leave=False,
-                                disable=(num_cpus > 1),
+                                disable=(num_cpus > 1 or settings.PROGRESSBAR_DISABLED),
                             ),
                         )
                     )

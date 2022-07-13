@@ -67,7 +67,6 @@ if executed_in_ipython():
 else:
     PROGRESSBAR_DISABLED = True
     IN_IPYTHON = False
-INFOBAR_DISABLED = False
 
 
 # run ParameterSweep directly upon initialization
