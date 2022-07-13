@@ -450,7 +450,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     # *****************************************************************
     # **** Functions to construct the operators for the Hamiltonian ****
     # *****************************************************************
-    def grids_dict(self):
+    def grids_dict_for_discretized_extended_vars(self):
         cutoffs_dict = self.cutoffs_dict()
         grids = {}
         for i in self.var_categories["extended"]:
@@ -2141,7 +2141,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         discretized_ext_indices = self.var_categories["extended"]
         var_categories = discretized_ext_indices + periodic_indices
 
-        # method to concatenate sublists
+        # substituting the parameters
         potential_sym = self.potential_symbolic.subs("I", 1)
         for ext_flux in self.external_fluxes:
             potential_sym = potential_sym.subs(ext_flux, ext_flux * 2 * np.pi)
@@ -2425,7 +2425,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 wf_dim += 1
         return wf_dim
 
-    def _dims_to_be_summed(self, var_indices: List[int], num_wf_dims) -> List[int]:
+    def _dims_to_be_summed(self, var_indices: Tuple[int], num_wf_dims) -> List[int]:
 
         all_var_indices = self.var_categories_list
         non_summed_dims = []
@@ -2435,6 +2435,75 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     self._get_var_dim_for_reshaped_wf(var_indices, var_index)
                 )
         return [dim for dim in range(num_wf_dims) if dim not in non_summed_dims]
+
+    def _reshape_and_change_to_variable_basis(
+        self, wf: ndarray, var_indices: Tuple[int]
+    ) -> ndarray:
+        if self.hierarchical_diagonalization:
+            system_hierarchy_for_vars_chosen = list(
+                set([self.get_subsystem_index(index) for index in var_indices])
+            )  # getting the subsystem index for each of the variable indices
+
+            subsys_trunc_dims = [sys.truncated_dim for sys in self.subsystems.values()]
+            # reshaping the wave functions to truncated dims of subsystems
+            wf_hd_reshaped = wf.reshape(*subsys_trunc_dims)
+
+            # **** Converting to the basis in which the variables are defined *****
+            wf_original_basis = wf_hd_reshaped
+            for subsys_index in system_hierarchy_for_vars_chosen:
+                wf_dim = 0
+                for sys_index in range(subsys_index):
+                    if sys_index in system_hierarchy_for_vars_chosen:
+                        wf_dim += len(self.subsystems[sys_index].var_categories_list)
+                    else:
+                        wf_dim += 1
+                wf_original_basis = self._recursive_basis_change(
+                    wf_original_basis,
+                    wf_dim,
+                    self.subsystems[subsys_index],
+                    relevant_indices=var_indices,
+                )
+        else:
+            wf_original_basis = wf.reshape(
+                *[
+                    getattr(self, cutoff_attrib)
+                    if "ext" in cutoff_attrib
+                    else (2 * getattr(self, cutoff_attrib) + 1)
+                    for cutoff_attrib in self.cutoff_names
+                ]
+            )
+        return wf_original_basis
+
+    def _change_to_phi_basis(
+        self,
+        wf_original_basis: ndarray,
+        var_indices: Tuple[int],
+        grids_dict: Dict[int, Union[discretization.Grid1d, ndarray]],
+        change_discrete_charge_to_phi: bool,
+    ):
+        wf_ext_basis = wf_original_basis
+        for var_index in var_indices:
+            # finding the dimension corresponding to the var_index
+            if not self.hierarchical_diagonalization:
+                wf_dim = self.var_categories_list.index(var_index)
+            else:
+                wf_dim = self._get_var_dim_for_reshaped_wf(var_indices, var_index)
+
+            if (
+                var_index in self.var_categories["extended"]
+                and self.ext_basis == "harmonic"
+            ):
+                wf_ext_basis = self._basis_change_harm_osc_to_phi(
+                    wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
+                )
+            if (
+                var_index in self.var_categories["periodic"]
+                and change_discrete_charge_to_phi
+            ):
+                wf_ext_basis = self._basis_change_n_to_phi(
+                    wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
+                )
+        return wf_ext_basis
 
     def generate_wf_plot_data(
         self,
@@ -2473,75 +2542,25 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             _, wfs = eigensys
 
         wf = wfs[:, which]
-        if self.hierarchical_diagonalization:
-            system_hierarchy_for_vars_chosen = list(
-                set([self.get_subsystem_index(index) for index in var_indices])
-            )  # getting the subsystem index for each of the variable indices
-
-            subsys_trunc_dims = [sys.truncated_dim for sys in self.subsystems.values()]
-            # reshaping the wave functions to truncated dims of subsystems
-            wf_hd_reshaped = wf.reshape(*subsys_trunc_dims)
-
-            # **** Converting to the basis in which the variables are defined *****
-            wf_original_basis = wf_hd_reshaped
-            for subsys_index in system_hierarchy_for_vars_chosen:
-                wf_dim = 0
-                for sys_index in range(subsys_index):
-                    if sys_index in system_hierarchy_for_vars_chosen:
-                        wf_dim += len(self.subsystems[sys_index].var_categories_list)
-                    else:
-                        wf_dim += 1
-                wf_original_basis = self._recursive_basis_change(
-                    wf_original_basis,
-                    wf_dim,
-                    self.subsystems[subsys_index],
-                    relevant_indices=var_indices,
-                )
-        else:
-            wf_original_basis = wf.reshape(
-                *[
-                    getattr(self, cutoff_attrib)
-                    if "ext" in cutoff_attrib
-                    else (2 * getattr(self, cutoff_attrib) + 1)
-                    for cutoff_attrib in self.cutoff_names
-                ]
-            )
+        # change the wf to the basis in which the variables were initially defined
+        wf_original_basis = self._reshape_and_change_to_variable_basis(
+            wf=wf, var_indices=var_indices
+        )
 
         # making a basis change to phi for every var_index
-        wf_ext_basis = wf_original_basis
-        for var_index in var_indices:
-            # finding the dimension corresponding to the var_index
-            if not self.hierarchical_diagonalization:
-                wf_dim = self.var_categories_list.index(var_index)
-            else:
-                wf_dim = self._get_var_dim_for_reshaped_wf(var_indices, var_index)
+        wf_ext_basis = self._change_to_phi_basis(
+            wf_original_basis,
+            var_indices=var_indices,
+            grids_dict=grids_dict,
+            change_discrete_charge_to_phi=change_discrete_charge_to_phi,
+        )
 
-            if (
-                var_index in self.var_categories["extended"]
-                and self.ext_basis == "harmonic"
-            ):
-                wf_ext_basis = self._basis_change_harm_osc_to_phi(
-                    wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
-                )
-            if (
-                var_index in self.var_categories["periodic"]
-                and change_discrete_charge_to_phi
-            ):
-                wf_ext_basis = self._basis_change_n_to_phi(
-                    wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
-                )
-
-        # if a probability plot is requested, sum over the dimensions not relevant to
-        # the ones in var_categories
-        if self.hierarchical_diagonalization:
-            dims_to_be_summed = self._dims_to_be_summed(
-                var_indices, len(wf_ext_basis.shape)
-            )
-
-        else:
-            dims_to_be_summed = self._dims_to_be_summed(
-                var_indices, len(wf_ext_basis.shape)
-            )
+        # sum over the dimensions not relevant to the ones in var_indices
+        # finding the dimensions which needs to be summed over
+        dims_to_be_summed = self._dims_to_be_summed(
+            var_indices, len(wf_ext_basis.shape)
+        )
+        # summing over the dimensions
         wf_plot = np.sum(
             np.abs(wf_ext_basis) ** 2,
             axis=tuple(dims_to_be_summed),
@@ -2645,111 +2664,140 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 var_types.append("Dimensionless flux, variable:")
 
         if len(var_indices) == 1:
-
-            wavefunc = storage.WaveFunction(
-                basis_labels=grids_per_varindex_dict[var_indices[0]].make_linspace(),
-                amplitudes=wf_plot,
+            return self._plot_wavefunction_1D(
+                wf_plot,
+                var_indices,
+                grids_per_varindex_dict,
+                change_discrete_charge_to_phi,
+                kwargs,
             )
 
+        elif len(var_indices) == 2:
+            return self._plot_wavefunction_2D(
+                wf_plot,
+                var_indices,
+                grids_per_varindex_dict,
+                change_discrete_charge_to_phi,
+                zero_calibrate=zero_calibrate,
+                kwargs=kwargs,
+            )
+
+    def _plot_wavefunction_2D(
+        self,
+        wf_plot: ndarray,
+        var_indices,
+        grids_per_varindex_dict,
+        change_discrete_charge_to_phi: bool,
+        zero_calibrate: bool,
+        kwargs,
+    ) -> Tuple[Figure, Axes]:
+        # check if each variable is periodic
+        grids = []
+        labels = []
+        for index_order in [1, 0]:
             if not change_discrete_charge_to_phi and (
-                var_indices[0] in self.var_categories["periodic"]
+                var_indices[index_order] in self.var_categories["periodic"]
             ):
-                kwargs = {
-                    **defaults.wavefunction1d_discrete("abs_sqr"),
-                    **kwargs,
-                }
-                wavefunc.basis_labels = np.arange(
-                    -getattr(self, "cutoff_n_" + str(var_index)),
-                    getattr(self, "cutoff_n_" + str(var_index)) + 1,
+                grids.append(
+                    [
+                        -getattr(self, "cutoff_n_" + str(var_indices[index_order])),
+                        getattr(self, "cutoff_n_" + str(var_indices[index_order])),
+                        2 * getattr(self, "cutoff_n_" + str(var_indices[index_order]))
+                        + 1,
+                    ]
                 )
-                fig, axes = plot.wavefunction1d_discrete(wavefunc, **kwargs)
-                # changing the tick frequency for axes
-                if getattr(self, "cutoff_n_" + str(var_index)) >= 7:
-                    axes.xaxis.set_major_locator(plt.MaxNLocator(15, integer=True))
+                labels.append(r"$n_{{{}}}$".format(str(var_indices[index_order])))
+            else:
+                grids.append(
+                    list(
+                        grids_per_varindex_dict[var_indices[index_order]]
+                        .get_initdata()
+                        .values()
+                    ),
+                )
+                labels.append(r"$\theta_{{{}}}$".format(str(var_indices[index_order])))
+        wavefunc_grid = discretization.GridSpec(np.asarray(grids))
+
+        wavefunc = storage.WaveFunctionOnGrid(wavefunc_grid, wf_plot)
+        # obtain fig and axes from
+        fig, axes = plot.wavefunction2d(
+            wavefunc,
+            zero_calibrate=zero_calibrate,
+            ylabel=labels[1],
+            xlabel=labels[0],
+            **kwargs,
+        )
+        # change frequency of tick mark for variables in charge basis
+        # also force the tick marks to be integers
+        if not change_discrete_charge_to_phi:
+            if var_indices[0] in self.var_categories["periodic"]:
+                if getattr(self, "cutoff_n_" + str(var_indices[0])) >= 6:
+                    axes.yaxis.set_major_locator(plt.MaxNLocator(13, integer=True))
+                else:
+                    axes.yaxis.set_major_locator(
+                        plt.MaxNLocator(
+                            1 + 2 * getattr(self, "cutoff_n_" + str(var_indices[0])),
+                            integer=True,
+                        )
+                    )
+            if var_indices[1] in self.var_categories["periodic"]:
+                if getattr(self, "cutoff_n_" + str(var_indices[1])) >= 15:
+                    axes.xaxis.set_major_locator(plt.MaxNLocator(31, integer=True))
                 else:
                     axes.xaxis.set_major_locator(
                         plt.MaxNLocator(
-                            1
-                            + 2
-                            * getattr(self, "cutoff_n_" + str(var_index), integer=True)
+                            1 + 2 * getattr(self, "cutoff_n_" + str(var_indices[1])),
+                            integer=True,
                         )
                     )
+
+        return fig, axes
+
+    def _plot_wavefunction_1D(
+        self,
+        wf_plot: ndarray,
+        var_indices,
+        grids_per_varindex_dict,
+        change_discrete_charge_to_phi: bool,
+        kwargs,
+    ) -> Tuple[Figure, Axes]:
+
+        var_index = var_indices[0]
+        wavefunc = storage.WaveFunction(
+            basis_labels=grids_per_varindex_dict[var_indices[0]].make_linspace(),
+            amplitudes=wf_plot,
+        )
+
+        if not change_discrete_charge_to_phi and (
+            var_indices[0] in self.var_categories["periodic"]
+        ):
+            kwargs = {
+                **defaults.wavefunction1d_discrete("abs_sqr"),
+                **kwargs,
+            }
+            wavefunc.basis_labels = np.arange(
+                -getattr(self, "cutoff_n_" + str(var_index)),
+                getattr(self, "cutoff_n_" + str(var_index)) + 1,
+            )
+            fig, axes = plot.wavefunction1d_discrete(wavefunc, **kwargs)
+            # changing the tick frequency for axes
+            if getattr(self, "cutoff_n_" + str(var_index)) >= 7:
+                axes.xaxis.set_major_locator(plt.MaxNLocator(15, integer=True))
             else:
-                fig, axes = plot.wavefunction1d_nopotential(
-                    wavefunc,
-                    0,
-                    xlabel=r"$\theta_{{{}}}$".format(str(var_indices[0])),
-                    ylabel=r"$|\psi(\theta_{{{}}})|^2$".format(str(var_indices[0])),
-                    **kwargs,
+                axes.xaxis.set_major_locator(
+                    plt.MaxNLocator(
+                        1
+                        + 2 * getattr(self, "cutoff_n_" + str(var_index), integer=True)
+                    )
                 )
-
-        elif len(var_indices) == 2:
-
-            # check if each variable is periodic
-            grids = []
-            labels = []
-            for index_order in [1, 0]:
-                if not change_discrete_charge_to_phi and (
-                    var_indices[index_order] in self.var_categories["periodic"]
-                ):
-                    grids.append(
-                        [
-                            -getattr(self, "cutoff_n_" + str(var_indices[index_order])),
-                            getattr(self, "cutoff_n_" + str(var_indices[index_order])),
-                            2
-                            * getattr(self, "cutoff_n_" + str(var_indices[index_order]))
-                            + 1,
-                        ]
-                    )
-                    labels.append(r"$n_{{{}}}$".format(str(var_indices[index_order])))
-                else:
-                    grids.append(
-                        list(
-                            grids_per_varindex_dict[var_indices[index_order]]
-                            .get_initdata()
-                            .values()
-                        ),
-                    )
-                    labels.append(
-                        r"$\theta_{{{}}}$".format(str(var_indices[index_order]))
-                    )
-            wavefunc_grid = discretization.GridSpec(np.asarray(grids))
-
-            wavefunc = storage.WaveFunctionOnGrid(wavefunc_grid, wf_plot)
-            # obtain fig and axes from
-            fig, axes = plot.wavefunction2d(
+        else:
+            fig, axes = plot.wavefunction1d_nopotential(
                 wavefunc,
-                zero_calibrate=zero_calibrate,
-                ylabel=labels[1],
-                xlabel=labels[0],
+                0,
+                xlabel=r"$\theta_{{{}}}$".format(str(var_indices[0])),
+                ylabel=r"$|\psi(\theta_{{{}}})|^2$".format(str(var_indices[0])),
                 **kwargs,
             )
-            # change frequency of tick mark for variables in charge basis
-            # also force the tick marks to be integers
-            if not change_discrete_charge_to_phi:
-                if var_indices[0] in self.var_categories["periodic"]:
-                    if getattr(self, "cutoff_n_" + str(var_indices[0])) >= 6:
-                        axes.yaxis.set_major_locator(plt.MaxNLocator(13, integer=True))
-                    else:
-                        axes.yaxis.set_major_locator(
-                            plt.MaxNLocator(
-                                1
-                                + 2 * getattr(self, "cutoff_n_" + str(var_indices[0])),
-                                integer=True,
-                            )
-                        )
-                if var_indices[1] in self.var_categories["periodic"]:
-                    if getattr(self, "cutoff_n_" + str(var_indices[1])) >= 15:
-                        axes.xaxis.set_major_locator(plt.MaxNLocator(31, integer=True))
-                    else:
-                        axes.xaxis.set_major_locator(
-                            plt.MaxNLocator(
-                                1
-                                + 2 * getattr(self, "cutoff_n_" + str(var_indices[1])),
-                                integer=True,
-                            )
-                        )
-
         return fig, axes
 
     def _get_cutoff_value(self, var_index: int) -> int:
