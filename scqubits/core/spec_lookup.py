@@ -12,15 +12,7 @@
 
 import itertools
 
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    List,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import qutip as qt
@@ -29,9 +21,9 @@ from numpy import ndarray
 from qutip import Qobj
 from typing_extensions import Protocol
 
+import scqubits.settings as settings
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
-import scqubits.settings as settings
 
 from scqubits.core.namedslots_array import NamedSlotsNdarray
 from scqubits.utils.typedefs import NpIndexTuple, NpIndices

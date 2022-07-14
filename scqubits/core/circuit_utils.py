@@ -11,10 +11,12 @@
 ############################################################################
 
 import re
-from typing import Any, Callable, Dict, List, TYPE_CHECKING, Union
+
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union
 
 import numpy as np
 import sympy as sm
+
 from numpy import ndarray
 from scipy import sparse
 from scipy.sparse import csc_matrix
@@ -22,13 +24,12 @@ from scipy.sparse import csc_matrix
 from scqubits.core import discretization as discretization
 from scqubits.utils.misc import flatten_list_recursive
 
-
 if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem
 
 
 def truncation_template(
-    system_hierarchy: list, individual_trunc_dim: int = 6, combined_trunc_dim: int = 50
+    system_hierarchy: list, individual_trunc_dim: int = 6, combined_trunc_dim: int = 30
 ) -> list:
     """
     Function to generate a template for defining the truncated dimensions for subsystems
@@ -43,7 +44,7 @@ def truncation_template(
         use hierarchical diagonalization, by default 6
     combined_trunc_dim:
         The default used to set the truncated dim for subsystems which use hierarchical
-        diagonalization, by default 50
+        diagonalization, by default 30
 
     Returns
     -------
@@ -339,20 +340,28 @@ def example_circuit(qubit: str) -> str:
         raise AttributeError("Qubit not available or invalid input.")
 
 
-def grid_operator_func_factory(
-    inner_op: Callable, index: int, grids_dict: Dict[int, discretization.Grid1d]
-) -> Callable:
+def grid_operator_func_factory(inner_op: Callable, index: int) -> Callable:
     def operator_func(self: "Subsystem"):
-        return self._kron_operator(inner_op(grids_dict[index]), index)
+        if not self.hierarchical_diagonalization:
+            return self._kron_operator(
+                inner_op(self.grids_dict_for_discretized_extended_vars()[index]), index
+            )
+        else:
+            return self.identity_wrap_for_hd(
+                inner_op(self.grids_dict_for_discretized_extended_vars()[index]), index
+            ).data.tocsc()
 
     return operator_func
 
 
-def operator_func_factory(
-    inner_op: Callable, cutoffs_dict: dict, index: int
-) -> Callable:
+def operator_func_factory(inner_op: Callable, index: int) -> Callable:
     def operator_func(self):
-        return self._kron_operator(inner_op(cutoffs_dict[index]), index)
+        if not self.hierarchical_diagonalization:
+            return self._kron_operator(inner_op(self.cutoffs_dict()[index]), index)
+        else:
+            return self.identity_wrap_for_hd(
+                inner_op(self.cutoffs_dict()[index]), index
+            ).data.tocsc()
 
     return operator_func
 

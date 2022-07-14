@@ -16,10 +16,13 @@ from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import numpy as np
 import qutip as qt
+import scipy as sp
 
 from numpy import ndarray
 from qutip import Qobj
 from scipy.sparse import csc_matrix, dia_matrix
+
+import scqubits.settings as settings
 
 if TYPE_CHECKING:
     from scqubits import Oscillator, ParameterSweep, SpectrumData
@@ -27,6 +30,31 @@ if TYPE_CHECKING:
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
 from scqubits.utils.typedefs import QuantumSys
+
+
+def eigsh_safe(*args, **kwargs):
+    """Wrapper method for scipy.sparse.linalg.eigsh
+    This ensures:
+    1. Always use the same "random" starting vector v0. Otherwise results show
+       random behavior (small deviations between different runs, problem for pytests)
+    2. Test for degenerate eigenvalues. If there are any, need to orthogonalize the
+        eigenvectors properly."""
+    mat_size = args[0].shape[0]
+    kwargs["v0"] = settings.RANDOM_ARRAY[:mat_size]
+
+    if kwargs.get("return_eigenvectors"):
+        evals, evecs = sp.sparse.linalg.eigsh(*args, **kwargs)
+        if has_degeneracy(evals):
+            evecs, _ = sp.linalg.qr(evecs, mode="economic")
+        return evals, evecs
+    return sp.sparse.linalg.eigsh(*args, **kwargs)
+
+
+def has_degeneracy(evals: ndarray) -> bool:
+    evals_rightpad = np.pad(evals, (0, 1))
+    evals_leftpad = np.pad(evals, (1, 0))
+    evals_neighbor_diffs = evals_leftpad - evals_rightpad
+    return np.isclose(np.min(np.abs(evals_neighbor_diffs)), 0)
 
 
 def order_eigensystem(
@@ -136,11 +164,7 @@ def matrix_element(
     else:
         vec2 = state2
 
-    if isinstance(op_matrix, np.ndarray):  # Is operator given in dense form?
-        # Yes - use numpy's 'vdot' and 'dot'.
-        return np.vdot(vec1, np.dot(operator, vec2))
-    # No, operator is sparse. Must use its own 'dot' method.
-    return np.vdot(vec1, op_matrix.dot(vec2))
+    return vec1.conj().T @ op_matrix @ vec2
 
 
 def get_matrixelement_table(
@@ -162,20 +186,12 @@ def get_matrixelement_table(
         table of matrix elements
     """
     if isinstance(operator, qt.Qobj):
-        state_list = state_table
+        states_in_columns = state_table.T
     else:
-        state_list = state_table.T
+        states_in_columns = state_table
 
-    tablesize = len(state_list)
-    mtable = [
-        [
-            matrix_element(state_list[n], operator, state_list[m])
-            for m in range(tablesize)
-        ]
-        for n in range(tablesize)
-    ]
-
-    return np.asarray(mtable)
+    mtable = states_in_columns.conj().T @ operator @ states_in_columns
+    return mtable
 
 
 def closest_dressed_energy(

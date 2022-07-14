@@ -12,19 +12,22 @@
 
 
 import warnings
-from typing import Any, Dict, List, Optional, TYPE_CHECKING, Tuple
+
 from distutils.version import StrictVersion
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+
+from matplotlib import get_backend as get_matplotlib_backend
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from matplotlib import get_backend as get_matplotlib_backend
 
 import scqubits as scq
-from scqubits.core.qubit_base import QubitBaseClass
+
 from scqubits.core.param_sweep import ParameterSlice
+from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.explorer import explorer_panels as panels
 from scqubits.ui.gui_defaults import (
     composite_panel_names,
@@ -51,23 +54,23 @@ except ImportError:
 else:
     _HAS_IPYWIDGETS = True
     from ipywidgets import (
+        HTML,
         BoundedIntText,
         Button,
         Checkbox,
+        Dropdown,
+        FloatSlider,
+        HBox,
         IntSlider,
         Label,
+        Layout,
         Output,
+        Select,
+        SelectionSlider,
         SelectMultiple,
         Tab,
         ToggleButtons,
-        Layout,
-        Select,
-        SelectionSlider,
-        Dropdown,
-        HBox,
         VBox,
-        HTML,
-        FloatSlider,
     )
 
 
@@ -163,12 +166,8 @@ class Explorer:
 
     def build_figure_and_axes_table(self) -> Tuple[Figure, np.ndarray]:
         # the %inline and %widget backends somehow scale differently; try to compensate
-        if _HAS_WIDGET_BACKEND:
-            self.figwidth = 6.5 * 1.2
-            self.figheight = 2.75 * 1.2
-        else:
-            self.figwidth = 6.5
-            self.figheight = 2.75
+        self.figwidth = 6.4
+        self.figheight = 2.6
 
         plt.ioff()
         fig = plt.figure(figsize=(self.figwidth, self.figheight))
@@ -672,7 +671,7 @@ class Explorer:
                 nrows=nrows,
                 squeeze=False,
             )
-            self.fig.set_size_inches(1.1 * self.figwidth, self.figheight * nrows)
+            self.fig.set_size_inches(1.1 * self.figwidth, 0.9 * self.figheight * nrows)
 
         unfilled_cols_in_last_row = (self.ncols - len(panels) % self.ncols) % self.ncols
         if unfilled_cols_in_last_row != 0:
@@ -762,8 +761,7 @@ class Explorer:
 
         if panel_name == "Matrix elements":
             ui_mode_dropdown = Dropdown(
-                options=mode_dropdown_list,
-                description="Plot as:",
+                options=mode_dropdown_list, description="Plot as:", value="abs"
             )
             ui_matrixscan_toggle = ToggleButtons(options=["fixed", "sweep"])
             ui_matrixscan_toggle.style.button_width = "55px"

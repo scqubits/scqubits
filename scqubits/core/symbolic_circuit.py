@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 import numpy as np
 import scipy as sp
 import scqubits.io_utils.fileio_serializers as serializers
+import scqubits.settings as settings
 import sympy
 import yaml
 
@@ -98,17 +99,17 @@ class Node:
         method independent_modes.
     """
 
-    def __init__(self, id: int, marker: int):
-        self.id = id
+    def __init__(self, index: int, marker: int):
+        self.index = index
         self.marker = marker
-        self._init_params = {"id": self.id, "marker": self.marker}
+        self._init_params = {"id": self.index, "marker": self.marker}
         self.branches: List[Branch] = []
 
     def __str__(self) -> str:
-        return "Node {}".format(self.id)
+        return "Node {}".format(self.index)
 
     def __repr__(self) -> str:
-        return "Node({})".format(self.id)
+        return "Node({})".format(self.index)
 
     def connected_nodes(self, branch_type: str) -> List["Node"]:
         """
@@ -125,7 +126,7 @@ class Node:
                 branch for branch in self.branches if branch.type == branch_type
             ]
         for branch in branch_list:
-            if branch.nodes[0].id == self.id:
+            if branch.nodes[0].index == self.index:
                 result.append(branch.nodes[1])
             else:
                 result.append(branch.nodes[0])
@@ -135,7 +136,7 @@ class Node:
         """
         Returns a bool if the node is a ground node. It is ground if the id is set to 0.
         """
-        return True if self.id == 0 else False
+        return True if self.index == 0 else False
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -173,11 +174,13 @@ class Branch:
         n_i: Node,
         n_f: Node,
         branch_type: str,
-        parameters: Optional[Dict[str, float]] = None,
+        parameters: Optional[List[Union[float, Symbol, int]]] = None,
+        id_str: str = None,
     ):
         self.nodes = (n_i, n_f)
         self.type = branch_type
         self.parameters = parameters
+        self.id_str = id_str
         # store info of current branch inside the provided nodes
         # setting the parameters if it is provided
         if parameters is not None:
@@ -191,17 +194,15 @@ class Branch:
             "Branch "
             + self.type
             + " connecting nodes: ("
-            + str(self.nodes[0].id)
+            + str(self.nodes[0].index)
             + ","
-            + str(self.nodes[1].id)
+            + str(self.nodes[1].index)
             + "); "
             + str(self.parameters)
         )
 
     def __repr__(self) -> str:
-        return "Branch({}, {}, {})".format(
-            self.type, self.nodes[0].id, self.nodes[1].id
-        )
+        return f"Branch({self.type}, {self.nodes[0].index}, {self.nodes[1].index}, id_str: {self.id_str})"
 
     def set_parameters(self, parameters) -> None:
         if self.type in ["C", "L"]:
@@ -210,7 +211,7 @@ class Branch:
             self.parameters = {"EJ": parameters[0], "ECJ": parameters[1]}
 
     def node_ids(self) -> Tuple[int, int]:
-        return self.nodes[0].id, self.nodes[1].id
+        return self.nodes[0].index, self.nodes[1].index
 
     def is_connected(self, branch) -> bool:
         """Returns a boolean indicating whether the current branch is
@@ -349,7 +350,7 @@ class SymbolicCircuit(serializers.Serializable):
             orthogonal_vecs.append(vec - projection_on_orthovecs)
         return np.array(orthogonal_vecs).T
 
-    def _orthoganalize_degenerate_eigen_vecs(
+    def _orthogonalize_degenerate_eigen_vecs(
         self, evecs: ndarray, eigs: ndarray, relevant_eig_indices, cap_matrix: ndarray
     ) -> ndarray:
         relevant_eigs = eigs[relevant_eig_indices]
@@ -400,14 +401,14 @@ class SymbolicCircuit(serializers.Serializable):
         normal_mode_freqs = normal_mode_freqs[idx]
         normal_mode_vecs = normal_mode_vecs[:, idx]
 
-        orthoganalized_normal_mode_vecs = self._orthoganalize_degenerate_eigen_vecs(
+        orthogonalized_normal_mode_vecs = self._orthogonalize_degenerate_eigen_vecs(
             normal_mode_vecs, normal_mode_freqs, range(len(normal_freq_ids)), c_mat
         )
 
         # constructing the new transformation
         trans_mat_new = trans_mat.copy()
         trans_mat_new[:, : len(c_mat)] = (
-            trans_mat[:, : len(c_mat)] @ orthoganalized_normal_mode_vecs
+            trans_mat[:, : len(c_mat)] @ orthogonalized_normal_mode_vecs
         )
 
         return (
@@ -490,7 +491,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         # calculating the Hamiltonian directly when the number of nodes is less than 3
         if (
-            len(self.nodes) <= 3
+            len(self.nodes) + self.is_grounded <= settings.SYM_MATRIX_INV_THRESHOLD
         ):  # only calculate the symbolic hamiltonian when the number of nodes is less
             # than 3. Else, the calculation will be skipped to the end when numerical
             # Hamiltonian of the circuit is requested.
@@ -544,7 +545,7 @@ class SymbolicCircuit(serializers.Serializable):
         branch_list1:
             first list of branches
         branch_list2:
-            second list of brannches
+            second list of branches
 
         Returns
         -------
@@ -621,6 +622,7 @@ class SymbolicCircuit(serializers.Serializable):
                         nodes[node_id2 - 1],
                         branch_type,
                         parameters,
+                        id_str=str(len(branches)),
                     )
                 )
             elif node_id2 == 0:
@@ -630,6 +632,7 @@ class SymbolicCircuit(serializers.Serializable):
                         ground_node,
                         branch_type,
                         parameters,
+                        id_str=str(len(branches)),
                     )
                 )
             else:
@@ -639,6 +642,7 @@ class SymbolicCircuit(serializers.Serializable):
                         nodes[node_id2 - 1],
                         branch_type,
                         parameters,
+                        id_str=str(len(branches)),
                     )
                 )
         return branches, branch_var_dict
@@ -781,7 +785,7 @@ class SymbolicCircuit(serializers.Serializable):
                 else:
                     node.marker = node_set_index + 1
 
-        # marking ground nodes seperately
+        # marking ground nodes separately
         for node in nodes_copy:
             if node.is_ground():
                 node.marker = -1
@@ -1175,18 +1179,18 @@ class SymbolicCircuit(serializers.Serializable):
                 phi_ext += self.external_fluxes[index]
 
             # if loop to check for the presence of ground node
-            if jj_branch.nodes[1].id == 0:
+            if jj_branch.nodes[1].index == 0:
                 terms += -jj_branch.parameters["EJ"] * sympy.cos(
-                    -symbols(f"φ{jj_branch.nodes[0].id}") + phi_ext
+                    -symbols(f"φ{jj_branch.nodes[0].index}") + phi_ext
                 )
-            elif jj_branch.nodes[0].id == 0:
+            elif jj_branch.nodes[0].index == 0:
                 terms += -jj_branch.parameters["EJ"] * sympy.cos(
-                    symbols(f"φ{jj_branch.nodes[1].id}") + phi_ext
+                    symbols(f"φ{jj_branch.nodes[1].index}") + phi_ext
                 )
             else:
                 terms += -jj_branch.parameters["EJ"] * sympy.cos(
-                    symbols(f"φ{jj_branch.nodes[1].id}")
-                    - symbols(f"φ{jj_branch.nodes[0].id}")
+                    symbols(f"φ{jj_branch.nodes[1].index}")
+                    - symbols(f"φ{jj_branch.nodes[0].index}")
                     + phi_ext
                 )
         return terms
@@ -1202,20 +1206,20 @@ class SymbolicCircuit(serializers.Serializable):
                 phi_ext += self.external_fluxes[index]
 
             # if loop to check for the presence of ground node
-            if jj2_branch.nodes[1].id == 0:
+            if jj2_branch.nodes[1].index == 0:
                 terms += -jj2_branch.parameters["EJ"] * sympy.cos(
-                    2 * (-symbols(f"φ" + str(jj2_branch.nodes[0].id)) + phi_ext)
+                    2 * (-symbols(f"φ" + str(jj2_branch.nodes[0].index)) + phi_ext)
                 )
-            elif jj2_branch.nodes[0].id == 0:
+            elif jj2_branch.nodes[0].index == 0:
                 terms += -jj2_branch.parameters["EJ"] * sympy.cos(
-                    2 * (symbols(f"φ{jj2_branch.nodes[1].id}") + phi_ext)
+                    2 * (symbols(f"φ{jj2_branch.nodes[1].index}") + phi_ext)
                 )
             else:
                 terms += -jj2_branch.parameters["EJ"] * sympy.cos(
                     2
                     * (
-                        symbols(f"φ{jj2_branch.nodes[1].id}")
-                        - symbols(f"φ{jj2_branch.nodes[0].id}")
+                        symbols(f"φ{jj2_branch.nodes[1].index}")
+                        - symbols(f"φ{jj2_branch.nodes[0].index}")
                         + phi_ext
                     )
                 )
@@ -1262,9 +1266,11 @@ class SymbolicCircuit(serializers.Serializable):
                 if type(inductance) != float and substitute_params:
                     inductance = param_init_vals_dict[inductance]
                 if self.is_grounded:
-                    L_mat[branch.nodes[0].id, branch.nodes[1].id] += -inductance
+                    L_mat[branch.nodes[0].index, branch.nodes[1].index] += -inductance
                 else:
-                    L_mat[branch.nodes[0].id - 1, branch.nodes[1].id - 1] += -inductance
+                    L_mat[
+                        branch.nodes[0].index - 1, branch.nodes[1].index - 1
+                    ] += -inductance
 
         if not self.is_any_branch_parameter_symbolic() or substitute_params:
             L_mat = L_mat + L_mat.T - np.diag(L_mat.diagonal())
@@ -1326,13 +1332,13 @@ class SymbolicCircuit(serializers.Serializable):
                 if type(capacitance) != float and substitute_params:
                     capacitance = param_init_vals_dict[capacitance]
                 if self.is_grounded:
-                    C_mat[branch.nodes[0].id, branch.nodes[1].id] += -1 / (
+                    C_mat[branch.nodes[0].index, branch.nodes[1].index] += -1 / (
                         capacitance * 8
                     )
                 else:
-                    C_mat[branch.nodes[0].id - 1, branch.nodes[1].id - 1] += -1 / (
-                        capacitance * 8
-                    )
+                    C_mat[
+                        branch.nodes[0].index - 1, branch.nodes[1].index - 1
+                    ] += -1 / (capacitance * 8)
 
         if not self.is_any_branch_parameter_symbolic() or substitute_params:
             C_mat = C_mat + C_mat.T - np.diag(C_mat.diagonal())
@@ -1356,25 +1362,25 @@ class SymbolicCircuit(serializers.Serializable):
         for c_branch in branches_with_capacitance:
             element_param = {"C": "EC", "JJ": "ECJ", "JJ2": "ECJ"}
 
-            if c_branch.nodes[1].id == 0:
+            if c_branch.nodes[1].index == 0:
                 terms += (
                     1
                     / (16 * c_branch.parameters[element_param[c_branch.type]])
-                    * (symbols(f"vφ{c_branch.nodes[0].id}")) ** 2
+                    * (symbols(f"vφ{c_branch.nodes[0].index}")) ** 2
                 )
-            elif c_branch.nodes[0].id == 0:
+            elif c_branch.nodes[0].index == 0:
                 terms += (
                     1
                     / (16 * c_branch.parameters[element_param[c_branch.type]])
-                    * (-symbols(f"vφ{c_branch.nodes[1].id}")) ** 2
+                    * (-symbols(f"vφ{c_branch.nodes[1].index}")) ** 2
                 )
             else:
                 terms += (
                     1
                     / (16 * c_branch.parameters[element_param[c_branch.type]])
                     * (
-                        symbols(f"vφ{c_branch.nodes[1].id}")
-                        - symbols(f"vφ{c_branch.nodes[0].id}")
+                        symbols(f"vφ{c_branch.nodes[1].index}")
+                        - symbols(f"vφ{c_branch.nodes[0].index}")
                     )
                     ** 2
                 )
@@ -1389,25 +1395,25 @@ class SymbolicCircuit(serializers.Serializable):
                 index = self.closure_branches.index(l_branch)
                 phi_ext += self.external_fluxes[index]
 
-            if l_branch.nodes[0].id == 0:
+            if l_branch.nodes[0].index == 0:
                 terms += (
                     0.5
                     * l_branch.parameters["EL"]
-                    * (symbols(f"φ{l_branch.nodes[1].id}") + phi_ext) ** 2
+                    * (symbols(f"φ{l_branch.nodes[1].index}") + phi_ext) ** 2
                 )
-            elif l_branch.nodes[1].id == 0:
+            elif l_branch.nodes[1].index == 0:
                 terms += (
                     0.5
                     * l_branch.parameters["EL"]
-                    * (-symbols(f"φ{l_branch.nodes[0].id}") + phi_ext) ** 2
+                    * (-symbols(f"φ{l_branch.nodes[0].index}") + phi_ext) ** 2
                 )
             else:
                 terms += (
                     0.5
                     * l_branch.parameters["EL"]
                     * (
-                        symbols(f"φ{l_branch.nodes[1].id}")
-                        - symbols(f"φ{l_branch.nodes[0].id}")
+                        symbols(f"φ{l_branch.nodes[1].index}")
+                        - symbols(f"φ{l_branch.nodes[0].index}")
                         + phi_ext
                     )
                     ** 2
@@ -1437,7 +1443,8 @@ class SymbolicCircuit(serializers.Serializable):
             (node_sets), which keeps the generation info for nodes of branches on the path.
         """
 
-        # making a deep copy to make sure that the original instance is unaffected
+        # Make a copy of self; do not need symbolic expressions etc., so do a minimal
+        # initialization only
         circ_copy = SymbolicCircuit.from_yaml(
             self.input_string, from_file=False, initiate_sym_calc=False
         )
@@ -1518,10 +1525,10 @@ class SymbolicCircuit(serializers.Serializable):
             node_set = [
                 x
                 for x in list(set(node_set))
-                if x not in [q for p in node_sets[: node_set_index + 1] for q in p]
+                if x not in flatten_list(node_sets[: node_set_index + 1])
             ]
             if node_set:
-                node_set.sort(key=lambda x: x.id)
+                node_set.sort(key=lambda node: node.index)
 
             node_sets.append(node_set)
             node_set_index += 1
@@ -1545,33 +1552,22 @@ class SymbolicCircuit(serializers.Serializable):
 
         # ************* selecting the appropriate branches from circ as from circ_copy #
         def is_same_branch(branch_1: Branch, branch_2: Branch):
-            branch_1_dict = branch_1.__dict__
-            branch_2_dict = branch_2.__dict__
-            if (
-                branch_1_dict["type"] == branch_2_dict["type"]
-                and branch_1_dict["parameters"] == branch_2_dict["parameters"]
-            ):
-                if [i.id for i in branch_1_dict["nodes"]] == [
-                    i.id for i in branch_2_dict["nodes"]
-                ]:
-                    return True
-                else:
-                    return False
-            else:
-                return False
+            return branch_1.id_str == branch_2.id_str
 
         tree = []  # tree having branches of the current instance
         for c_branch in tree_copy:
-            tree += [b for b in self.branches if is_same_branch(c_branch, b)]
+            tree += [b for b in self.branches if is_same_branch(b, c_branch)]
 
         # as the capacitors are removed to form the spanning tree, and as a result
         # floating branches as well, the set of all branches which form the
         # superconducting loops would be in circ_copy.
         superconducting_loop_branches = []
         for branch_copy in circ_copy.branches:
-            for branch in self.branches:
-                if is_same_branch(branch, branch_copy):
-                    superconducting_loop_branches.append(branch)
+            superconducting_loop_branches += [
+                branch
+                for branch in self.branches
+                if is_same_branch(branch, branch_copy)
+            ]
 
         return tree, superconducting_loop_branches, node_sets
 
@@ -1615,8 +1611,8 @@ class SymbolicCircuit(serializers.Serializable):
         # find out the generation number of the node in the spanning tree
         # generation number begins from 0
         for igen, nodes in enumerate(node_sets):
-            nodes_id = [node.id for node in nodes]
-            if node.id in nodes_id:
+            nodes_id = [node.index for node in nodes]
+            if node.index in nodes_id:
                 generation = igen
                 break
         # find out the path from the node to the root
@@ -1628,16 +1624,16 @@ class SymbolicCircuit(serializers.Serializable):
             # finding the parent of the current_node, and the branch that links the
             # parent and current_node
             for branch in tree:
-                nodes_id = [node.id for node in node_sets[istep]]
-                if (branch.nodes[1].id == current_node.id) and (
-                    branch.nodes[0].id in nodes_id
+                nodes_id = [node.index for node in node_sets[istep]]
+                if (branch.nodes[1].index == current_node.index) and (
+                    branch.nodes[0].index in nodes_id
                 ):
                     ancestor_nodes_list.append(branch.nodes[0])
                     branch_path_to_root.append(branch)
                     current_node = branch.nodes[0]
                     break
-                elif (branch.nodes[0].id == current_node.id) and (
-                    branch.nodes[1].id in nodes_id
+                elif (branch.nodes[0].index == current_node.index) and (
+                    branch.nodes[1].index in nodes_id
                 ):
                     ancestor_nodes_list.append(branch.nodes[1])
                     branch_path_to_root.append(branch)

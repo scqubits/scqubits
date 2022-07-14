@@ -29,7 +29,6 @@ from typing import (
     Union,
     overload,
 )
-from typing_extensions import Literal
 
 import numpy as np
 
@@ -37,6 +36,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
 from qutip import Qobj
+from typing_extensions import Literal
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
@@ -74,6 +74,23 @@ StateLabel = Union[DressedLabel, BareLabel]
 
 
 class ParameterSlice:
+    """
+    Stores information about a 1d slice of a (possibly) multi-dimensional parameter
+    sweep.
+
+    Parameters
+    ----------
+    param_name:
+        name of the single parameter which is being swept
+    param_val:
+        single selected value of the parameter (as used, e.g., in the Explorer)
+    fixed_params:
+        dictionary giving the names of the fixed parameters and their corresponding
+        values
+    params_ordered:
+        list of all parameter names, giving their ordering
+    """
+
     def __init__(
         self,
         param_name: str,

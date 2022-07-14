@@ -16,7 +16,6 @@ import functools
 import importlib
 import re
 
-
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -50,8 +49,8 @@ import scqubits.ui.hspace_widget
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
-from scqubits.core.namedslots_array import NamedSlotsNdarray, Parameters
 
+from scqubits.core.namedslots_array import NamedSlotsNdarray, Parameters
 from scqubits.core.storage import SpectrumData
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
@@ -67,8 +66,8 @@ from scqubits.utils.typedefs import OscillatorList, QuantumSys, QubitList
 
 
 def has_duplicate_id_str(subsystem_list: List[QuantumSys]):
-    id_str_list = [obj._id_str for obj in subsystem_list]
-    id_str_set = set(obj._id_str for obj in subsystem_list)
+    id_str_list = [obj.id_str for obj in subsystem_list]
+    id_str_set = set(obj.id_str for obj in subsystem_list)
     return len(id_str_set) != len(id_str_list)
 
 
@@ -356,7 +355,7 @@ class HilbertSpace(
         if interaction_list:
             self.interaction_list = interaction_list
         else:
-            self.interaction_list: Tuple[InteractionTerm, ...] = []
+            self.interaction_list: List[InteractionTerm] = []
         self._interaction_term_by_id_str = {
             "InteractionTerm_{}".format(index): interaction_term
             for index, interaction_term in enumerate(self.interaction_list)
@@ -555,15 +554,46 @@ class HilbertSpace(
     ###################################################################################
     # HilbertSpace: generate SpectrumLookup
     ###################################################################################
-    def generate_lookup(self) -> None:
+    def generate_lookup(self, update_subsystem_indices: List[int] = None) -> None:
+
+        bare_esys_dict = self.generate_bare_esys(
+            update_subsystem_indices=update_subsystem_indices
+        )
+        dummy_params = self._parameters.paramvals_by_name
+
+        evals, evecs = self.eigensys(
+            evals_count=self.dimension, bare_esys=bare_esys_dict
+        )
+        # The following workaround ensures that eigenvectors maintain QutipEigenstates
+        # view when getting placed inside an outer array
+        evecs_wrapped = np.empty(shape=1, dtype=object)
+        evecs_wrapped[0] = evecs
+
+        self._data["evals"] = NamedSlotsNdarray(np.array([evals]), dummy_params)
+        self._data["evecs"] = NamedSlotsNdarray(evecs_wrapped, dummy_params)
+        self._data["dressed_indices"] = spec_lookup.SpectrumLookupMixin.generate_lookup(
+            self
+        )
+        self._lookup = spec_lookup.SpectrumLookupAdapter(self)
+
+    def generate_bare_esys(self, update_subsystem_indices: List[int] = None) -> None:
+        # update all the subsystems when update_subsystem_indices is set to None
+        if update_subsystem_indices is None:
+            update_subsystem_indices = list(range(self.subsystem_count))
+
         bare_evals = np.empty((self.subsystem_count,), dtype=object)
         bare_evecs = np.empty((self.subsystem_count,), dtype=object)
         bare_esys_dict = {}
 
-        dummy_params = self._parameters.paramvals_by_name
-
         for subsys_index, subsys in enumerate(self):
-            bare_esys = subsys.eigensys(evals_count=subsys.truncated_dim)
+            # diagonalizing only those subsystems present in update_subsystem_indices
+            if subsys_index in update_subsystem_indices:
+                bare_esys = subsys.eigensys(evals_count=subsys.truncated_dim)
+            else:
+                bare_esys = (
+                    self["bare_evals"][subsys_index][0],
+                    self["bare_evecs"][subsys_index][0],
+                )
             bare_esys_dict[subsys_index] = bare_esys
             bare_evals[subsys_index] = NamedSlotsNdarray(
                 np.asarray([bare_esys[0].tolist()]),
@@ -580,20 +610,7 @@ class HilbertSpace(
             bare_evecs, {"subsys": np.arange(self.subsystem_count)}
         )
 
-        evals, evecs = self.eigensys(
-            evals_count=self.dimension, bare_esys=bare_esys_dict
-        )
-        # The following workaround ensures that eigenvectors maintain QutipEigenstates
-        # view when getting placed inside an outer array
-        evecs_wrapped = np.empty(shape=1, dtype=object)
-        evecs_wrapped[0] = evecs
-
-        self._data["evals"] = NamedSlotsNdarray(np.array([evals]), dummy_params)
-        self._data["evecs"] = NamedSlotsNdarray(evecs_wrapped, dummy_params)
-        self._data["dressed_indices"] = spec_lookup.SpectrumLookupMixin.generate_lookup(
-            self
-        )
-        self._lookup = spec_lookup.SpectrumLookupAdapter(self)
+        return bare_esys_dict
 
     ###################################################################################
     # HilbertSpace: energy spectrum
@@ -699,7 +716,7 @@ class HilbertSpace(
             composite Hamiltonian composed of bare Hamiltonians of subsys_list
             independent of the external parameter
         """
-        bare_hamiltonian = 0
+        bare_hamiltonian = Qobj(0)
         for subsys_index, subsys in enumerate(self):
             if bare_esys is not None and subsys_index in bare_esys:
                 evals = bare_esys[subsys_index][0]
@@ -726,7 +743,7 @@ class HilbertSpace(
             interaction Hamiltonian
         """
         if not self.interaction_list:
-            return 0
+            return Qobj(0)
 
         operator_list = []
         for term in self.interaction_list:

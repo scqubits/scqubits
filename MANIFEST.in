@@ -3,5 +3,6 @@ include LICENSE
 include requirements.txt
 include optional-requirements.txt
 recursive-include scqubits/tests/data *.hdf5
+recursive-include scqubits/tests/data *.h5
 graft scqubits/tests/data
 graft scqubits/core/qubit_img
