@@ -743,7 +743,9 @@ class SymbolicCircuit(serializers.Serializable):
         if basisvec_entries is None:
             basisvec_entries = [1, 0]
 
-        nodes_copy = self._node_list_without_ground.copy()  # copying self.nodes as it is being modified
+        nodes_copy = (
+            self._node_list_without_ground.copy()
+        )  # copying self.nodes as it is being modified
 
         if self.is_grounded:  # needed as ground node is not included in self.nodes
             nodes_copy.append(self.ground_node)
@@ -1708,12 +1710,18 @@ class SymbolicCircuit(serializers.Serializable):
         transformation_matrix = self.transformation_matrix
 
         # defining the φ variables
-        φ_dot_vars = [symbols(f"vφ{i}") for i in range(1, len(self._node_list_without_ground) + 1)]
+        φ_dot_vars = [
+            symbols(f"vφ{i}") for i in range(1, len(self._node_list_without_ground) + 1)
+        ]
 
         # defining the θ variables
-        θ_vars = [symbols(f"θ{i}") for i in range(1, len(self._node_list_without_ground) + 1)]
+        θ_vars = [
+            symbols(f"θ{i}") for i in range(1, len(self._node_list_without_ground) + 1)
+        ]
         # defining the θ dot variables
-        θ_dot_vars = [symbols(f"vθ{i}") for i in range(1, len(self._node_list_without_ground) + 1)]
+        θ_dot_vars = [
+            symbols(f"vθ{i}") for i in range(1, len(self._node_list_without_ground) + 1)
+        ]
         # writing φ in terms of θ variables
         φ_vars_θ = transformation_matrix.dot(θ_vars)
         # writing φ dot vars in terms of θ variables
@@ -1747,7 +1755,9 @@ class SymbolicCircuit(serializers.Serializable):
             potential_φ.copy()
         )  # copying the potential in terms of the old variables to make substitutions
 
-        for index in range(len(self._node_list_without_ground)):  # converting potential to new variables
+        for index in range(
+            len(self._node_list_without_ground)
+        ):  # converting potential to new variables
             potential_θ = potential_θ.subs(symbols(f"φ{index + 1}"), φ_vars_θ[index])
 
         # eliminating the frozen variables
@@ -1812,7 +1822,9 @@ class SymbolicCircuit(serializers.Serializable):
             # replacing the free charge with 0, as it would not affect the circuit
             # Lagrangian.
             else 0
-            for i in range(1, len(self._node_list_without_ground) + 1 - num_frozen_modes)
+            for i in range(
+                1, len(self._node_list_without_ground) + 1 - num_frozen_modes
+            )
         ]  # defining the momentum variables
 
         # generating the kinetic energy terms for the Hamiltonian

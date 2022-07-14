@@ -3338,8 +3338,7 @@ class Circuit(Subsystem):
 
         self._set_vars()  # setting the attribute vars to store operator symbols
 
-        if (
-            len(self.symbolic_circuit.nodes)) > settings.SYM_MATRIX_INV_THRESHOLD:
+        if (len(self.symbolic_circuit.nodes)) > settings.SYM_MATRIX_INV_THRESHOLD:
             self.hamiltonian_symbolic = (
                 self.symbolic_circuit.generate_symbolic_hamiltonian(
                     substitute_params=True
@@ -3386,11 +3385,15 @@ class Circuit(Subsystem):
         trans_mat = self.transformation_matrix
         theta_vars = [
             sm.symbols(f"θ{index}")
-            for index in range(1, len(self.symbolic_circuit._node_list_without_ground) + 1)
+            for index in range(
+                1, len(self.symbolic_circuit._node_list_without_ground) + 1
+            )
         ]
         node_vars = [
             sm.symbols(f"φ{index}")
-            for index in range(1, len(self.symbolic_circuit._node_list_without_ground) + 1)
+            for index in range(
+                1, len(self.symbolic_circuit._node_list_without_ground) + 1
+            )
         ]
         node_var_eqns = []
         for idx, node_var in enumerate(node_vars):
@@ -3419,7 +3422,9 @@ class Circuit(Subsystem):
         if vars_type == "node":
             lagrangian = self.lagrangian_node_vars
             # replace v\theta with \theta_dot
-            for var_index in range(1, 1 + len(self.symbolic_circuit._node_list_without_ground)):
+            for var_index in range(
+                1, 1 + len(self.symbolic_circuit._node_list_without_ground)
+            ):
                 lagrangian = lagrangian.replace(
                     sm.symbols(f"vφ{var_index}"),
                     sm.symbols("\\dot{φ_" + str(var_index) + "}"),
@@ -3490,7 +3495,9 @@ class Circuit(Subsystem):
         trans_mat = self.transformation_matrix
         node_offset_charge_vars = [
             sm.symbols(f"q_g{index}")
-            for index in range(1, len(self.symbolic_circuit._node_list_without_ground) + 1)
+            for index in range(
+                1, len(self.symbolic_circuit._node_list_without_ground) + 1
+            )
         ]
         periodic_offset_charge_vars = [
             sm.symbols(f"ng{index}")
