@@ -283,6 +283,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             The value to which the instance property is updated.
         """
         # update the attribute for the current instance
+        # first check if the input value is valid.
+        if value < 0.0:
+            raise AttributeError("Circuit parameters must be positive")
         setattr(self, f"_{param_name}", value)
 
         # update the attribute for the instance in symbolic_circuit
@@ -347,6 +350,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         value:
             The value to which the instance property is updated.
         """
+        if (value < 1) or (not isinstance(value, int)):
+            raise AttributeError("Cutoffs can only be positive integers.")
+
         setattr(self, f"_{param_name}", value)
 
         # set operators and rebuild the HilbertSpace object
@@ -531,6 +537,15 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     f"The truncation index for " + subsystem_position + f"is too big. "
                     f"It should be lower than {subsystem.hilbertdim() - 1}."
                 )
+            elif (subsystem.truncated_dim < 1) or (
+                not isinstance(subsystem.truncated_dim, int)
+            ):
+                self.hierarchical_diagonalization = False
+                # find the correct position of the subsystem where the truncation
+                # index  is too big
+                subsystem_position = f"subsystem {subsystem_idx} "
+                parent = subsystem.parent
+                raise Exception("The truncation index must be a positive integer.")
 
     def generate_subsystems(self):
         """
@@ -1535,7 +1550,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         expr_dict = H.as_coefficients_dict()
         # removing zero terms
-        expr_dict = {key:expr_dict[key] for key in expr_dict if expr_dict[key] != 0}
+        expr_dict = {key: expr_dict[key] for key in expr_dict if expr_dict[key] != 0}
         terms_list = list(expr_dict.keys())
         coeff_list = list(expr_dict.values())
 
