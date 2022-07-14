@@ -282,6 +282,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             The value to which the instance property is updated.
         """
         # update the attribute for the current instance
+        # first check if the input value is valid.
+        if not (np.isrealobj(value) and value > 0):
+            raise AttributeError(f"'{value}' is invalid. Branch parameters must be positive and real.")
         setattr(self, f"_{param_name}", value)
 
         # update the attribute for the instance in symbolic_circuit
@@ -323,6 +326,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         value:
             The value to which the instance property is updated.
         """
+        # first check if the input value is valid.
+        if not np.isrealobj(value):
+            raise AttributeError(f"'{value}' is invalid. External flux and offset charges must be real valued.")
 
         # update the attribute for the current instance
         setattr(self, f"_{param_name}", value)
@@ -345,6 +351,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         value:
             The value to which the instance property is updated.
         """
+        if not (isinstance(value, int) and value > 0):
+            raise AttributeError(f"{value} is invalid. Basis cutoffs can only be positive integers.")
+
         setattr(self, f"_{param_name}", value)
 
         # set operators and rebuild the HilbertSpace object
@@ -515,7 +524,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         for subsystem_idx, subsystem in self.subsystems.items():
             if subsystem.truncated_dim >= subsystem.hilbertdim() - 1:
-                self.hierarchical_diagonalization = False
                 # find the correct position of the subsystem where the truncation
                 # index  is too big
                 subsystem_position = f"subsystem {subsystem_idx} "
@@ -529,6 +537,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     f"The truncation index for " + subsystem_position + f"is too big. "
                     f"It should be lower than {subsystem.hilbertdim() - 1}."
                 )
+            elif not (isinstance(subsystem.truncated_dim, int) and (subsystem.truncated_dim > 0)):
+                raise Exception("Invalid value encountered in subsystem_trunc_dims. Truncated dimension should be a positive integer.")
 
     def generate_subsystems(self):
         """
