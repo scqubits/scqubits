@@ -3381,7 +3381,9 @@ class Circuit(Subsystem):
 
         self._set_vars()  # setting the attribute vars to store operator symbols
 
-        if (len(self.symbolic_circuit.nodes) + self.symbolic_circuit.is_grounded) > settings.SYM_MATRIX_INV_THRESHOLD:
+        if (
+            len(self.symbolic_circuit.nodes) + self.symbolic_circuit.is_grounded
+        ) > settings.SYM_MATRIX_INV_THRESHOLD:
             self.hamiltonian_symbolic = (
                 self.symbolic_circuit.generate_symbolic_hamiltonian(
                     substitute_params=True
