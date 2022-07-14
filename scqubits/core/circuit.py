@@ -9,7 +9,7 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
-
+import copy
 import functools
 import itertools
 import operator as builtin_op
@@ -41,6 +41,7 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
+import scqubits.utils.spectrum_utils as utils
 
 from scqubits import HilbertSpace, settings
 from scqubits.core import operators as op
@@ -1689,7 +1690,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         H_LC_str = self._get_eval_hamiltonian_string(hamiltonian_LC)
 
-        replacement_dict: Dict[str, Any] = self.operators_by_name
+        replacement_dict: Dict[str, Any] = copy.deepcopy(self.operators_by_name)
 
         # adding self to the list
         replacement_dict["self"] = self
@@ -1790,11 +1791,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         hamiltonian_mat = self.hamiltonian()
         if self.type_of_matrices == "sparse":
-            evals = sparse.linalg.eigsh(
+            evals = utils.eigsh_safe(
                 hamiltonian_mat,
                 return_eigenvectors=False,
                 k=evals_count,
-                v0=settings.RANDOM_ARRAY[:hilbertdim],
                 which="SA",
             )
         elif self.type_of_matrices == "dense":
@@ -1817,12 +1817,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         hamiltonian_mat = self.hamiltonian()
         if self.type_of_matrices == "sparse":
-            evals, evecs = sparse.linalg.eigsh(
+            evals, evecs = utils.eigsh_safe(
                 hamiltonian_mat,
                 return_eigenvectors=True,
                 k=evals_count,
                 which="SA",
-                v0=settings.RANDOM_ARRAY[:hilbertdim],
             )
         elif self.type_of_matrices == "dense":
             evals, evecs = sp.linalg.eigh(
