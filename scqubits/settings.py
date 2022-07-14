@@ -142,3 +142,6 @@ T1_DEFAULT_WARNING = True
 # Overlap threshold in establishing a map between dressed states and bare product states
 # (lookups need to be manually regenerated for a change by the user to take effect
 OVERLAP_THRESHOLD = 0.5
+
+# settings for Circuit and SymbolicCircuit class
+SYM_MATRIX_INV_THRESHOLD = 3

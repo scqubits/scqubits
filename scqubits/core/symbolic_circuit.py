@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 import numpy as np
 import scipy as sp
 import scqubits.io_utils.fileio_serializers as serializers
+import scqubits.settings as settings
 import sympy
 import yaml
 
@@ -490,7 +491,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         # calculating the Hamiltonian directly when the number of nodes is less than 3
         if (
-            len(self.nodes) <= 3
+            len(self.nodes) + self.is_grounded <= settings.SYM_MATRIX_INV_THRESHOLD
         ):  # only calculate the symbolic hamiltonian when the number of nodes is less
             # than 3. Else, the calculation will be skipped to the end when numerical
             # Hamiltonian of the circuit is requested.
