@@ -554,30 +554,10 @@ class HilbertSpace(
     ###################################################################################
     # HilbertSpace: generate SpectrumLookup
     ###################################################################################
-    def generate_lookup(self) -> None:
-        bare_evals = np.empty((self.subsystem_count,), dtype=object)
-        bare_evecs = np.empty((self.subsystem_count,), dtype=object)
-        bare_esys_dict = {}
+    def generate_lookup(self, update_subsystem_indices: List[int] = None) -> None:
 
+        bare_esys_dict = self.generate_bare_esys(update_subsystem_indices=update_subsystem_indices)
         dummy_params = self._parameters.paramvals_by_name
-
-        for subsys_index, subsys in enumerate(self):
-            bare_esys = subsys.eigensys(evals_count=subsys.truncated_dim)
-            bare_esys_dict[subsys_index] = bare_esys
-            bare_evals[subsys_index] = NamedSlotsNdarray(
-                np.asarray([bare_esys[0].tolist()]),
-                self._parameters.paramvals_by_name,
-            )
-            bare_evecs[subsys_index] = NamedSlotsNdarray(
-                np.asarray([bare_esys[1].tolist()]),
-                self._parameters.paramvals_by_name,
-            )
-        self._data["bare_evals"] = NamedSlotsNdarray(
-            bare_evals, {"subsys": np.arange(self.subsystem_count)}
-        )
-        self._data["bare_evecs"] = NamedSlotsNdarray(
-            bare_evecs, {"subsys": np.arange(self.subsystem_count)}
-        )
 
         evals, evecs = self.eigensys(
             evals_count=self.dimension, bare_esys=bare_esys_dict
@@ -593,6 +573,42 @@ class HilbertSpace(
             self
         )
         self._lookup = spec_lookup.SpectrumLookupAdapter(self)
+
+    def generate_bare_esys(self, update_subsystem_indices: List[int] = None) -> None:
+        # update all the subsystems when update_subsystem_indices is set to None
+        if update_subsystem_indices is None:
+            update_subsystem_indices = list(range(self.subsystem_count))
+
+        bare_evals = np.empty((self.subsystem_count,), dtype=object)
+        bare_evecs = np.empty((self.subsystem_count,), dtype=object)
+        bare_esys_dict = {}
+
+        for subsys_index, subsys in enumerate(self):
+            # diagonalizing only those subsystems present in update_subsystem_indices
+            if subsys_index in update_subsystem_indices:
+                bare_esys = subsys.eigensys(evals_count=subsys.truncated_dim)
+            else:
+                bare_esys = (
+                    self["bare_evals"][subsys_index][0],
+                    self["bare_evecs"][subsys_index][0],
+                )
+            bare_esys_dict[subsys_index] = bare_esys
+            bare_evals[subsys_index] = NamedSlotsNdarray(
+                np.asarray([bare_esys[0].tolist()]),
+                self._parameters.paramvals_by_name,
+            )
+            bare_evecs[subsys_index] = NamedSlotsNdarray(
+                np.asarray([bare_esys[1].tolist()]),
+                self._parameters.paramvals_by_name,
+            )
+        self._data["bare_evals"] = NamedSlotsNdarray(
+            bare_evals, {"subsys": np.arange(self.subsystem_count)}
+        )
+        self._data["bare_evecs"] = NamedSlotsNdarray(
+            bare_evecs, {"subsys": np.arange(self.subsystem_count)}
+        )
+        
+        return bare_esys_dict
 
     ###################################################################################
     # HilbertSpace: energy spectrum

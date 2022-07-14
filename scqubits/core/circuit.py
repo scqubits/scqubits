@@ -627,59 +627,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             [self.subsystems[i] for i in range(len(self.system_hierarchy))]
         )
 
-    def generate_hilbertspace_lookup(self, update_subsystem_indices=None) -> None:
-        """
-        Generates or updates the SpectrumLookup table for all the subsystems where
-        hierarchical diagonalization is used, depending on the parameter `update_subsystem_indices`.
-
-        Parameters
-        ----------
-        update_subsystem_indices:
-            List of subsystem indices which need to be updated. If set to None, all the
-           are updated.
-        """
-        hilbert_space = self.hilbert_space
-        bare_evals = np.empty((hilbert_space.subsystem_count,), dtype=object)
-        bare_evecs = np.empty((hilbert_space.subsystem_count,), dtype=object)
-        bare_esys_dict = {}
-
-        if update_subsystem_indices is None:
-            update_subsystem_indices = list(range(hilbert_space.subsystem_count))
-
-        for subsys_index, subsys in enumerate(hilbert_space):
-            if subsys_index in update_subsystem_indices:
-                bare_esys = subsys.eigensys(evals_count=subsys.truncated_dim)
-            else:
-                bare_esys = (
-                    hilbert_space["bare_evals"][subsys_index][0],
-                    hilbert_space["bare_evecs"][subsys_index][0],
-                )
-            bare_esys_dict[subsys_index] = bare_esys
-            bare_evals[subsys_index] = NamedSlotsNdarray(
-                np.asarray([bare_esys[0].tolist()]),
-                hilbert_space._parameters.paramvals_by_name,
-            )
-            bare_evecs[subsys_index] = NamedSlotsNdarray(
-                np.asarray([bare_esys[1].tolist()]),
-                hilbert_space._parameters.paramvals_by_name,
-            )
-        hilbert_space._data["bare_evals"] = NamedSlotsNdarray(
-            bare_evals, {"subsys": np.arange(hilbert_space.subsystem_count)}
-        )
-        hilbert_space._data["bare_evecs"] = NamedSlotsNdarray(
-            bare_evecs, {"subsys": np.arange(hilbert_space.subsystem_count)}
-        )
-
-        hilbert_space._lookup = spec_lookup.SpectrumLookupAdapter(hilbert_space)
-
     def get_eigenstates(self) -> ndarray:
         """
         Returns the eigenstates for the SubSystem instance
         """
         if self.is_child:
             subsys_index = self.parent.hilbert_space.subsys_list.index(self)
-            if self.parent.hilbert_space._lookup is not None:
+            if "bare_evecs" in self.parent.hilbert_space._data:
                 return self.parent.hilbert_space["bare_evecs"][subsys_index][0]
+            else:
+                raise Exception("The bare eigenvectors have not been generated in the parent's hilbertspace.")
         else:
             return self.eigensys()[1]
 
@@ -704,7 +661,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         raise Exception(
             f"The var_index={var_index} could not be identified with any " "subsystem."
         )
-
+    
     def build_hilbertspace(
         self, update_subsystem_indices: Optional[List[int]] = None
     ) -> None:
@@ -719,7 +676,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
            are updated.
         """
         # generate lookup table in HilbertSpace
-        self.generate_hilbertspace_lookup(
+        _ = self.hilbert_space.generate_bare_esys(
             update_subsystem_indices=update_subsystem_indices
         )
 
