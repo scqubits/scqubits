@@ -42,8 +42,6 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as utils
-import scqubits.settings as settings
-
 
 from scqubits import HilbertSpace, settings
 from scqubits.core import operators as op
@@ -445,7 +443,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             self.generate_subsystems()
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
-            self.build_hilbertspace()
+            self.updated_subsystem_indices = list(range(len(self.subsystems)))
         else:
             self.operators_by_name = self.set_operators()
 
