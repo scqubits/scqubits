@@ -556,7 +556,9 @@ class HilbertSpace(
     ###################################################################################
     def generate_lookup(self, update_subsystem_indices: List[int] = None) -> None:
 
-        bare_esys_dict = self.generate_bare_esys(update_subsystem_indices=update_subsystem_indices)
+        bare_esys_dict = self.generate_bare_esys(
+            update_subsystem_indices=update_subsystem_indices
+        )
         dummy_params = self._parameters.paramvals_by_name
 
         evals, evecs = self.eigensys(
@@ -607,7 +609,7 @@ class HilbertSpace(
         self._data["bare_evecs"] = NamedSlotsNdarray(
             bare_evecs, {"subsys": np.arange(self.subsystem_count)}
         )
-        
+
         return bare_esys_dict
 
     ###################################################################################

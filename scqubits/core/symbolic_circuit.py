@@ -350,7 +350,7 @@ class SymbolicCircuit(serializers.Serializable):
             orthogonal_vecs.append(vec - projection_on_orthovecs)
         return np.array(orthogonal_vecs).T
 
-    def _orthoganalize_degenerate_eigen_vecs(
+    def _orthogonalize_degenerate_eigen_vecs(
         self, evecs: ndarray, eigs: ndarray, relevant_eig_indices, cap_matrix: ndarray
     ) -> ndarray:
         relevant_eigs = eigs[relevant_eig_indices]
@@ -401,14 +401,14 @@ class SymbolicCircuit(serializers.Serializable):
         normal_mode_freqs = normal_mode_freqs[idx]
         normal_mode_vecs = normal_mode_vecs[:, idx]
 
-        orthoganalized_normal_mode_vecs = self._orthoganalize_degenerate_eigen_vecs(
+        orthogonalized_normal_mode_vecs = self._orthogonalize_degenerate_eigen_vecs(
             normal_mode_vecs, normal_mode_freqs, range(len(normal_freq_ids)), c_mat
         )
 
         # constructing the new transformation
         trans_mat_new = trans_mat.copy()
         trans_mat_new[:, : len(c_mat)] = (
-            trans_mat[:, : len(c_mat)] @ orthoganalized_normal_mode_vecs
+            trans_mat[:, : len(c_mat)] @ orthogonalized_normal_mode_vecs
         )
 
         return (

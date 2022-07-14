@@ -636,7 +636,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             if "bare_evecs" in self.parent.hilbert_space._data:
                 return self.parent.hilbert_space["bare_evecs"][subsys_index][0]
             else:
-                raise Exception("The bare eigenvectors have not been generated in the parent's hilbertspace.")
+                raise Exception(
+                    "The bare eigenvectors have not been generated in the parent's hilbertspace."
+                )
         else:
             return self.eigensys()[1]
 
@@ -661,7 +663,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         raise Exception(
             f"The var_index={var_index} could not be identified with any " "subsystem."
         )
-    
+
     def build_hilbertspace(
         self, update_subsystem_indices: Optional[List[int]] = None
     ) -> None:
@@ -1133,7 +1135,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def _identity(self):
         """
-        Returns the Identity operator for the entire Hilber space of the circuit.
+        Returns the Identity operator for the entire Hilbert space of the circuit.
         """
         if (
             hasattr(self, "hierarchical_diagonalization")
@@ -2007,7 +2009,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             sym_hamiltonian_PE = self._make_expr_human_readable(
                 self.potential_symbolic.expand(), float_round=float_round
             )
-            # add a 2pi coefficient in front of externa fluxes, since the the external
+            # add a 2pi coefficient in front of external fluxes, since the the external
             # fluxes are measured in 2pi numerically
             for external_flux in self.external_fluxes:
                 sym_hamiltonian_PE = sym_hamiltonian_PE.replace(
