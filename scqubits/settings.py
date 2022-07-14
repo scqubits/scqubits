@@ -145,4 +145,4 @@ OVERLAP_THRESHOLD = 0.5
 
 # settings for Circuit and SymbolicCircuit class
 ## sets the threshold of the number of nodes above which the symbolic capacitance matrix inversion is skipped
-SYM_MATRIX_INV_THRESHOLD = 3
+SYM_INVERSION_MAX_NODES = 3

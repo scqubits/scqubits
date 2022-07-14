@@ -495,7 +495,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         # calculating the Hamiltonian directly when the number of nodes is less than 3
         if (
-            len(self.nodes) <= settings.SYM_MATRIX_INV_THRESHOLD
+            len(self.nodes) <= settings.SYM_INVERSION_MAX_NODES
         ):  # only calculate the symbolic hamiltonian when the number of nodes is less
             # than 3. Else, the calculation will be skipped to the end when numerical
             # Hamiltonian of the circuit is requested.

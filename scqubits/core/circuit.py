@@ -259,7 +259,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         if (
             not self.is_child
-            and (len(self.symbolic_circuit.nodes)) > settings.SYM_MATRIX_INV_THRESHOLD
+            and (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES
         ):
             self.hamiltonian_symbolic = (
                 self.symbolic_circuit.generate_symbolic_hamiltonian(
@@ -294,7 +294,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # large circuits
         if (
             not self.is_child
-            and (len(self.symbolic_circuit.nodes)) > settings.SYM_MATRIX_INV_THRESHOLD
+            and (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES
         ) or self.is_purely_harmonic:
             self.symbolic_circuit.update_param_init_val(param_name, value)
             self._regenerate_sym_hamiltonian()
@@ -3359,7 +3359,7 @@ class Circuit(Subsystem):
 
         self._set_vars()  # setting the attribute vars to store operator symbols
 
-        if (len(self.symbolic_circuit.nodes)) > settings.SYM_MATRIX_INV_THRESHOLD:
+        if (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES:
             self.hamiltonian_symbolic = (
                 self.symbolic_circuit.generate_symbolic_hamiltonian(
                     substitute_params=True
