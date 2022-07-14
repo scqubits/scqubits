@@ -1535,7 +1535,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         expr_dict = H.as_coefficients_dict()
         # removing zero terms
-        expr_dict = {key:expr_dict[key] for key in expr_dict if expr_dict[key] != 0}
+        expr_dict = {key: expr_dict[key] for key in expr_dict if expr_dict[key] != 0}
         terms_list = list(expr_dict.keys())
         coeff_list = list(expr_dict.values())
 
