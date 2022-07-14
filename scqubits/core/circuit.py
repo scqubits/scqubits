@@ -284,7 +284,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # update the attribute for the current instance
         # first check if the input value is valid.
         if not (np.isrealobj(value) and value > 0):
-            raise AttributeError(f"'{value}' is invalid. Branch parameters must be positive and real.")
+            raise AttributeError(
+                f"'{value}' is invalid. Branch parameters must be positive and real."
+            )
         setattr(self, f"_{param_name}", value)
 
         # update the attribute for the instance in symbolic_circuit
@@ -328,7 +330,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         # first check if the input value is valid.
         if not np.isrealobj(value):
-            raise AttributeError(f"'{value}' is invalid. External flux and offset charges must be real valued.")
+            raise AttributeError(
+                f"'{value}' is invalid. External flux and offset charges must be real valued."
+            )
 
         # update the attribute for the current instance
         setattr(self, f"_{param_name}", value)
@@ -352,7 +356,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             The value to which the instance property is updated.
         """
         if not (isinstance(value, int) and value > 0):
-            raise AttributeError(f"{value} is invalid. Basis cutoffs can only be positive integers.")
+            raise AttributeError(
+                f"{value} is invalid. Basis cutoffs can only be positive integers."
+            )
 
         setattr(self, f"_{param_name}", value)
 
@@ -537,8 +543,13 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     f"The truncation index for " + subsystem_position + f"is too big. "
                     f"It should be lower than {subsystem.hilbertdim() - 1}."
                 )
-            elif not (isinstance(subsystem.truncated_dim, int) and (subsystem.truncated_dim > 0)):
-                raise Exception("Invalid value encountered in subsystem_trunc_dims. Truncated dimension should be a positive integer.")
+            elif not (
+                isinstance(subsystem.truncated_dim, int)
+                and (subsystem.truncated_dim > 0)
+            ):
+                raise Exception(
+                    "Invalid value encountered in subsystem_trunc_dims. Truncated dimension should be a positive integer."
+                )
 
     def generate_subsystems(self):
         """
