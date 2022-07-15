@@ -228,7 +228,7 @@ class GUI:
         current_qubit = self.qubit_and_plot_ToggleButtons[
             "qubit_buttons"
         ].get_interact_value()
-        operator_dropdown_list = self.get_operators()
+        operator_dropdown_list = self.active_qubit.get_operator_names()
         scan_dropdown_list = self.qubit_scan_params.keys()
         file = open(self.active_qubit._image_filename, "rb")
         image = file.read()
@@ -257,6 +257,8 @@ class GUI:
                 disabled=False,
                 layout=std_layout,
             ),
+            # Create a highest_state_slider and a wavefunction_slider
+            # This way, we can get the correct ground states for slower qubits
             "state_slider": IntSlider(
                 min=1,
                 max=10,
@@ -497,20 +499,6 @@ class GUI:
         self.observe_plot_refresh()
 
     # Retrieval Methods------------------------------------------------------------------
-    def get_operators(self) -> List[str]:
-        """Obtains the operators for the active qubit.
-        Note that this list omits any operators that start with "_".
-
-        Returns
-        -------
-            List of operators for the active_qubit
-        """
-        operator_list = []
-        for name, val in inspect.getmembers(self.active_qubit):
-            if "operator" in name and name[0] != "_":
-                operator_list.append(name)
-        return operator_list
-
     def get_current_values(self) -> Dict[str, Union[int, float]]:
         """Obtains the current values from each of the qubit parameter
         sliders.
