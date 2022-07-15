@@ -237,6 +237,33 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     def __repr__(self) -> str:
         return self._id_str
 
+    def __reduce__(self):
+        # needed for multiprocessing / proper pickling
+        pickle_func, pickle_args, pickled_state = super().__reduce__()
+        new_pickled_state = {
+            key: value for key, value in pickled_state.items() if "_operator" not in key
+        }
+        new_pickled_state["_frozen"] = False
+
+        pickled_properties = {
+            property_name: property_obj
+            for property_name, property_obj in self.__class__.__dict__.items()
+            if isinstance(property_obj, property)
+        }
+
+        return pickle_func, pickle_args, (new_pickled_state, pickled_properties)
+
+    def __setstate__(self, state):
+        # needed for multiprocessing / proper unpickling
+        pickled_attribs, pickled_properties = state
+        self._frozen = False
+
+        self.__dict__.update(pickled_attribs)
+        self.operators_by_name = self.set_operators()
+
+        for property_name, property_obj in pickled_properties.items():
+            setattr(self.__class__, property_name, property_obj)
+
     @staticmethod
     def default_params() -> Dict[str, Any]:
         # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
@@ -469,7 +496,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def _store_updated_subsystem_index(self, index: int) -> None:
         if not self.hierarchical_diagonalization:
-            raise Exception(f"The subsystem provided to self has no subsystems.")
+            raise Exception(f"The subsystem provided to {self} has no subsystems.")
         if index not in self.updated_subsystem_indices:
             self.updated_subsystem_indices.append(index)
 
@@ -547,15 +574,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     subsystem_position += f"of subsystem {grandparent.get_subsystem_index(parent.var_categories_list[0])} "
                     parent = grandparent
                 raise Exception(
-                    f"The truncation index for " + subsystem_position + f"is too big. "
-                    f"It should be lower than {subsystem.hilbertdim() - 1}."
+                    f"The truncation index for {subsystem_position} exceeds the maximum"
+                    f" size of {subsystem.hilbertdim() - 1}."
                 )
             elif not (
                 isinstance(subsystem.truncated_dim, int)
                 and (subsystem.truncated_dim > 0)
             ):
                 raise Exception(
-                    "Invalid value encountered in subsystem_trunc_dims. Truncated dimension should be a positive integer."
+                    "Invalid value encountered in subsystem_trunc_dims. "
+                    "Truncated dimension must be a positive integer."
                 )
 
     def generate_subsystems(self):
@@ -657,12 +685,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         if self.is_child:
             subsys_index = self.parent.hilbert_space.subsys_list.index(self)
-            if "bare_evecs" in self.parent.hilbert_space._data:
-                return self.parent.hilbert_space["bare_evecs"][subsys_index][0]
-            else:
-                raise Exception(
-                    "The bare eigenvectors have not been generated in the parent's hilbertspace."
-                )
+            return self.parent.hilbert_space["bare_evecs"][subsys_index][0]
         else:
             return self.eigensys()[1]
 
@@ -685,7 +708,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             if var_index in flatten_list_recursive(system_hierarchy):
                 return index
         raise Exception(
-            f"The var_index={var_index} could not be identified with any " "subsystem."
+            f"The var_index={var_index} could not be identified with any subsystem."
         )
 
     def build_hilbertspace(
@@ -1974,9 +1997,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         if subsystem_index is not None:
             if not self.hierarchical_diagonalization:
                 raise Exception(
-                    "Current instance does not have any subsystems as hierarchical "
-                    "diagonalization is not utilized. If so, do not set subsystem_index"
-                    " keyword argument."
+                    "Hierarchical diagonalization was not enabled. Hence there "
+                    "are no identified subsystems addressable by "
+                    "subsystem_index."
                 )
             # start with the raw system hamiltonian
             sym_hamiltonian = self._make_expr_human_readable(
@@ -2868,8 +2891,8 @@ class Circuit(Subsystem):
         base.QuantumSystem.__init__(self, id_str=None)
         if basis_completion not in ["heuristic", "canonical"]:
             raise Exception(
-                "Incorrect parameter set for basis_completion. It can either be "
-                "'heuristic' or 'canonical'"
+                "Invalid choice for basis_completion: must be 'heuristic' or "
+                "'canonical'."
             )
 
         symbolic_circuit = SymbolicCircuit.from_yaml(
@@ -2935,33 +2958,6 @@ class Circuit(Subsystem):
         else:
             raise Exception(f"Creating new attributes is disabled [{name}, {value}].")
 
-    def __reduce__(self):
-        # needed for multiprocessing / proper pickling
-        pickle_func, pickle_args, pickled_state = super().__reduce__()
-        new_pickled_state = {
-            key: value for key, value in pickled_state.items() if "_operator" not in key
-        }
-        new_pickled_state["_frozen"] = False
-
-        pickled_properties = {
-            property_name: property_obj
-            for property_name, property_obj in self.__class__.__dict__.items()
-            if isinstance(property_obj, property)
-        }
-
-        return pickle_func, pickle_args, (new_pickled_state, pickled_properties)
-
-    def __setstate__(self, state):
-        # needed for multiprocessing / proper unpickling
-        pickled_attribs, pickled_properties = state
-        self._frozen = False
-
-        self.__dict__.update(pickled_attribs)
-        self.operators_by_name = self.set_operators()
-
-        for property_name, property_obj in pickled_properties.items():
-            setattr(self.__class__, property_name, property_obj)
-
     def set_discretized_phi_range(
         self, var_indices: Tuple[int], phi_range: Tuple[float]
     ) -> None:
@@ -2984,7 +2980,7 @@ class Circuit(Subsystem):
         for var_index in var_indices:
             if var_index not in self.var_categories["extended"]:
                 raise Exception(
-                    f"Variable index {var_index}, is not an extended variable."
+                    f"Variable with index {var_index} is not an extended variable."
                 )
             self.discretized_phi_range[var_index] = phi_range
         self.operators_by_name = self.set_operators()
@@ -3237,9 +3233,7 @@ class Circuit(Subsystem):
                 subsystem_trunc_dims=old_subsystem_trunc_dims,
                 closure_branches=old_closure_branches,
             )
-            raise Exception(
-                "Configure failed, incorrect parameters used. Please check the above exception."
-            )
+            raise Exception("Configure failed due to incorrect parameters.")
 
     def _configure(
         self,
