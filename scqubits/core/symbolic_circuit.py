@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 import numpy as np
 import scipy as sp
 import scqubits.io_utils.fileio_serializers as serializers
+import scqubits.settings as settings
 import sympy
 import yaml
 
@@ -173,7 +174,7 @@ class Branch:
         n_i: Node,
         n_f: Node,
         branch_type: str,
-        parameters: Optional[Dict[str, float]] = None,
+        parameters: Optional[List[Union[float, Symbol, int]]] = None,
         id_str: str = None,
     ):
         self.nodes = (n_i, n_f)
@@ -270,7 +271,7 @@ class SymbolicCircuit(serializers.Serializable):
 
     def __init__(
         self,
-        nodes_list: List[Node],
+        nodes_list_without_ground: List[Node],
         branches_list: List[Branch],
         branch_var_dict: Dict[Union[Any, Symbol], Union[Any, float]],
         basis_completion: str = "heuristic",
@@ -279,7 +280,8 @@ class SymbolicCircuit(serializers.Serializable):
         input_string: str = "",
     ):
         self.branches = branches_list
-        self.nodes = nodes_list
+        self._node_list_without_ground = nodes_list_without_ground
+        self.nodes = nodes_list_without_ground
         self.input_string = input_string
 
         self._sys_type = type(self).__name__  # for object description
@@ -308,6 +310,9 @@ class SymbolicCircuit(serializers.Serializable):
         # parameters for grounding the circuit
         self.ground_node = ground_node
         self.is_grounded = bool(self.ground_node)
+
+        if self.is_grounded:
+            self.nodes = [self.ground_node] + self.nodes
 
         # parameter for choosing matrix used for basis completion in the variable
         # transformation matrix
@@ -349,7 +354,7 @@ class SymbolicCircuit(serializers.Serializable):
             orthogonal_vecs.append(vec - projection_on_orthovecs)
         return np.array(orthogonal_vecs).T
 
-    def _orthoganalize_degenerate_eigen_vecs(
+    def _orthogonalize_degenerate_eigen_vecs(
         self, evecs: ndarray, eigs: ndarray, relevant_eig_indices, cap_matrix: ndarray
     ) -> ndarray:
         relevant_eigs = eigs[relevant_eig_indices]
@@ -400,14 +405,14 @@ class SymbolicCircuit(serializers.Serializable):
         normal_mode_freqs = normal_mode_freqs[idx]
         normal_mode_vecs = normal_mode_vecs[:, idx]
 
-        orthoganalized_normal_mode_vecs = self._orthoganalize_degenerate_eigen_vecs(
+        orthogonalized_normal_mode_vecs = self._orthogonalize_degenerate_eigen_vecs(
             normal_mode_vecs, normal_mode_freqs, range(len(normal_freq_ids)), c_mat
         )
 
         # constructing the new transformation
         trans_mat_new = trans_mat.copy()
         trans_mat_new[:, : len(c_mat)] = (
-            trans_mat[:, : len(c_mat)] @ orthoganalized_normal_mode_vecs
+            trans_mat[:, : len(c_mat)] @ orthogonalized_normal_mode_vecs
         )
 
         return (
@@ -490,7 +495,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         # calculating the Hamiltonian directly when the number of nodes is less than 3
         if (
-            len(self.nodes) <= 3
+            len(self.nodes) <= settings.SYM_INVERSION_MAX_NODES
         ):  # only calculate the symbolic hamiltonian when the number of nodes is less
             # than 3. Else, the calculation will be skipped to the end when numerical
             # Hamiltonian of the circuit is requested.
@@ -738,7 +743,9 @@ class SymbolicCircuit(serializers.Serializable):
         if basisvec_entries is None:
             basisvec_entries = [1, 0]
 
-        nodes_copy = self.nodes.copy()  # copying self.nodes as it is being modified
+        nodes_copy = (
+            self._node_list_without_ground.copy()
+        )  # copying self.nodes as it is being modified
 
         if self.is_grounded:  # needed as ground node is not included in self.nodes
             nodes_copy.append(self.ground_node)
@@ -910,7 +917,7 @@ class SymbolicCircuit(serializers.Serializable):
         LC_modes = self._independent_modes(selected_branches, single_nodes=False)
 
         # ******************* including the Σ mode ****************
-        Σ = [1] * len(self.nodes)
+        Σ = [1] * len(self._node_list_without_ground)
         if not self.is_grounded:  # only append if the circuit is not grounded
             mat = np.array(frozen_modes + [Σ])
             # check to see if the vectors are still independent
@@ -1034,7 +1041,7 @@ class SymbolicCircuit(serializers.Serializable):
         free_modes = self._independent_modes(selected_branches)
 
         # ****************  including the Σ mode ****************
-        Σ = [1] * len(self.nodes)
+        Σ = [1] * len(self._node_list_without_ground)
         if not self.is_grounded:  # only append if the circuit is not grounded
             mat = np.array(frozen_modes + [Σ])
             # check to see if the vectors are still independent
@@ -1063,7 +1070,7 @@ class SymbolicCircuit(serializers.Serializable):
         # step 4: construct the new set of basis vectors
 
         # constructing a standard basis
-        node_count = len(self.nodes)
+        node_count = len(self._node_list_without_ground)
         standard_basis = [np.ones(node_count)]
 
         vector_ref = np.zeros(node_count)
@@ -1084,7 +1091,7 @@ class SymbolicCircuit(serializers.Serializable):
         standard_basis = np.array(standard_basis)
 
         if self.basis_completion == "canonical":
-            standard_basis = np.identity(len(self.nodes))
+            standard_basis = np.identity(len(self._node_list_without_ground))
 
         new_basis = modes.copy()
 
@@ -1247,17 +1254,13 @@ class SymbolicCircuit(serializers.Serializable):
 
         # filling the non-diagonal entries
         if not self.is_grounded:
-            num_nodes = len(self.nodes)
-            if not self.is_any_branch_parameter_symbolic() or substitute_params:
-                L_mat = np.zeros([num_nodes, num_nodes])
-            else:
-                L_mat = sympy.zeros(num_nodes)
+            num_nodes = len(self._node_list_without_ground)
         else:
-            num_nodes = len(self.nodes) + 1
-            if not self.is_any_branch_parameter_symbolic() or substitute_params:
-                L_mat = np.zeros([num_nodes, num_nodes])
-            else:
-                L_mat = sympy.zeros(num_nodes)
+            num_nodes = len(self._node_list_without_ground) + 1
+        if not self.is_any_branch_parameter_symbolic() or substitute_params:
+            L_mat = np.zeros([num_nodes, num_nodes])
+        else:
+            L_mat = sympy.zeros(num_nodes)
 
         for branch in branches_with_inductance:
             if len(set(branch.nodes)) > 1:  # branch if shorted is not considered
@@ -1311,17 +1314,13 @@ class SymbolicCircuit(serializers.Serializable):
 
         # filling the non-diagonal entries
         if not self.is_grounded:
-            num_nodes = len(self.nodes)
-            if not self.is_any_branch_parameter_symbolic() or substitute_params:
-                C_mat = np.zeros([num_nodes, num_nodes])
-            else:
-                C_mat = sympy.zeros(num_nodes)
+            num_nodes = len(self._node_list_without_ground)
         else:
-            num_nodes = len(self.nodes) + 1
-            if not self.is_any_branch_parameter_symbolic() or substitute_params:
-                C_mat = np.zeros([num_nodes, num_nodes])
-            else:
-                C_mat = sympy.zeros(num_nodes)
+            num_nodes = len(self._node_list_without_ground) + 1
+        if not self.is_any_branch_parameter_symbolic() or substitute_params:
+            C_mat = np.zeros([num_nodes, num_nodes])
+        else:
+            C_mat = sympy.zeros(num_nodes)
 
         for branch in branches_with_capacitance:
             if len(set(branch.nodes)) > 1:  # branch if shorted is not considered
@@ -1466,9 +1465,9 @@ class SymbolicCircuit(serializers.Serializable):
         num_float_nodes = 1
         while num_float_nodes > 0:  # breaks when no floating nodes are detected
             num_float_nodes = 0  # setting
-            for node in circ_copy.nodes:
+            for node in circ_copy._node_list_without_ground:
                 if len(node.branches) == 0:
-                    circ_copy.nodes.remove(node)
+                    circ_copy._node_list_without_ground.remove(node)
                     num_float_nodes += 1
                     continue
                 if len(node.branches) == 1:
@@ -1484,9 +1483,9 @@ class SymbolicCircuit(serializers.Serializable):
                             num_float_nodes += 1
                             continue
                         else:
-                            circ_copy.nodes.remove(node)
+                            circ_copy._node_list_without_ground.remove(node)
 
-        if circ_copy.nodes == []:
+        if circ_copy._node_list_without_ground == []:
             return [], [], []
         # *****************************************************************************
 
@@ -1495,10 +1494,10 @@ class SymbolicCircuit(serializers.Serializable):
             node_sets = [[circ_copy.ground_node]]
         else:
             node_sets = [
-                [circ_copy.nodes[0]]
+                [circ_copy._node_list_without_ground[0]]
             ]  # starting with the first set that has the first node as the only element
 
-        num_nodes = len(circ_copy.nodes)
+        num_nodes = len(circ_copy._node_list_without_ground)
         # this needs to be done as the ground node is not included in self.nodes
         if circ_copy.is_grounded:
             num_nodes += 1
@@ -1513,7 +1512,7 @@ class SymbolicCircuit(serializers.Serializable):
 
             # code to handle two different capacitive islands in the circuit.
             if node_sets[node_set_index] == []:
-                for node in circ_copy.nodes:
+                for node in circ_copy._node_list_without_ground:
                     if node not in flatten_list(node_sets):
                         node_sets[node_set_index].append(node)
                         break
@@ -1711,12 +1710,18 @@ class SymbolicCircuit(serializers.Serializable):
         transformation_matrix = self.transformation_matrix
 
         # defining the φ variables
-        φ_dot_vars = [symbols(f"vφ{i}") for i in range(1, len(self.nodes) + 1)]
+        φ_dot_vars = [
+            symbols(f"vφ{i}") for i in range(1, len(self._node_list_without_ground) + 1)
+        ]
 
         # defining the θ variables
-        θ_vars = [symbols(f"θ{i}") for i in range(1, len(self.nodes) + 1)]
+        θ_vars = [
+            symbols(f"θ{i}") for i in range(1, len(self._node_list_without_ground) + 1)
+        ]
         # defining the θ dot variables
-        θ_dot_vars = [symbols(f"vθ{i}") for i in range(1, len(self.nodes) + 1)]
+        θ_dot_vars = [
+            symbols(f"vθ{i}") for i in range(1, len(self._node_list_without_ground) + 1)
+        ]
         # writing φ in terms of θ variables
         φ_vars_θ = transformation_matrix.dot(θ_vars)
         # writing φ dot vars in terms of θ variables
@@ -1750,7 +1755,9 @@ class SymbolicCircuit(serializers.Serializable):
             potential_φ.copy()
         )  # copying the potential in terms of the old variables to make substitutions
 
-        for index in range(len(self.nodes)):  # converting potential to new variables
+        for index in range(
+            len(self._node_list_without_ground)
+        ):  # converting potential to new variables
             potential_θ = potential_θ.subs(symbols(f"φ{index + 1}"), φ_vars_θ[index])
 
         # eliminating the frozen variables
@@ -1786,7 +1793,7 @@ class SymbolicCircuit(serializers.Serializable):
             num_frozen_modes = len(self.var_categories["frozen"])
         else:
             num_frozen_modes = len(self.var_categories["frozen"]) + 1
-        num_nodes = len(self.nodes)
+        num_nodes = len(self._node_list_without_ground)
 
         # generating the C_mat_θ by inverting the capacitance matrix
         if self.is_any_branch_parameter_symbolic() and not substitute_params:
@@ -1815,7 +1822,9 @@ class SymbolicCircuit(serializers.Serializable):
             # replacing the free charge with 0, as it would not affect the circuit
             # Lagrangian.
             else 0
-            for i in range(1, len(self.nodes) + 1 - num_frozen_modes)
+            for i in range(
+                1, len(self._node_list_without_ground) + 1 - num_frozen_modes
+            )
         ]  # defining the momentum variables
 
         # generating the kinetic energy terms for the Hamiltonian

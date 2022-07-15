@@ -159,7 +159,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             var_index = get_trailing_number(var_name)
             if var_index not in self.var_categories_list and var_index is not None:
                 self.var_categories_list.append(var_index)
-                cutoffs += [self.cutoffs_dict()[var_index]]
+                cutoffs += [self.parent.cutoffs_dict()[var_index]]
 
         self.var_categories_list.sort()
 
@@ -230,6 +230,33 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     def __repr__(self) -> str:
         return self._id_str
 
+    def __reduce__(self):
+        # needed for multiprocessing / proper pickling
+        pickle_func, pickle_args, pickled_state = super().__reduce__()
+        new_pickled_state = {
+            key: value for key, value in pickled_state.items() if "_operator" not in key
+        }
+        new_pickled_state["_frozen"] = False
+
+        pickled_properties = {
+            property_name: property_obj
+            for property_name, property_obj in self.__class__.__dict__.items()
+            if isinstance(property_obj, property)
+        }
+
+        return pickle_func, pickle_args, (new_pickled_state, pickled_properties)
+
+    def __setstate__(self, state):
+        # needed for multiprocessing / proper unpickling
+        pickled_attribs, pickled_properties = state
+        self._frozen = False
+
+        self.__dict__.update(pickled_attribs)
+        self.operators_by_name = self.set_operators()
+
+        for property_name, property_obj in pickled_properties.items():
+            setattr(self.__class__, property_name, property_obj)
+
     @staticmethod
     def default_params() -> Dict[str, Any]:
         # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
@@ -247,14 +274,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         cutoffs_dict = {}
 
         for var_index in self.var_categories_list:
-            if self.is_child:
-                for cutoff_name in self.parent.cutoff_names:
-                    if str(var_index) in cutoff_name:
-                        cutoffs_dict[var_index] = getattr(self.parent, cutoff_name)
-            else:
-                for cutoff_name in self.cutoff_names:
-                    if str(var_index) in cutoff_name:
-                        cutoffs_dict[var_index] = getattr(self, cutoff_name)
+            for cutoff_name in self.cutoff_names:
+                if str(var_index) in cutoff_name:
+                    cutoffs_dict[var_index] = getattr(self, cutoff_name)
         return cutoffs_dict
 
     def _regenerate_sym_hamiltonian(self) -> None:
@@ -262,7 +284,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         Regenerates the system Hamiltonian from the symbolic circuit when needed (for
         example when the circuit is large and circuit parameters are changed).
         """
-        if not self.is_child and len(self.symbolic_circuit.nodes) > 3:
+        if (
+            not self.is_child
+            and (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES
+        ):
             self.hamiltonian_symbolic = (
                 self.symbolic_circuit.generate_symbolic_hamiltonian(
                     substitute_params=True
@@ -284,13 +309,19 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             The value to which the instance property is updated.
         """
         # update the attribute for the current instance
+        # first check if the input value is valid.
+        if not (np.isrealobj(value) and value > 0):
+            raise AttributeError(
+                f"'{value}' is invalid. Branch parameters must be positive and real."
+            )
         setattr(self, f"_{param_name}", value)
 
         # update the attribute for the instance in symbolic_circuit
         # generate _hamiltonian_sym_for_numerics if not already generated, delayed for
         # large circuits
         if (
-            not self.is_child and len(self.symbolic_circuit.nodes) > 3
+            not self.is_child
+            and (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES
         ) or self.is_purely_harmonic:
             self.symbolic_circuit.update_param_init_val(param_name, value)
             self._regenerate_sym_hamiltonian()
@@ -305,7 +336,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         if self.hierarchical_diagonalization:
             self.generate_subsystems()
-            self.build_hilbertspace()
+            self.operators_by_name = self.set_operators()
+            self.updated_subsystem_indices = list(range(len(self.subsystems)))
         else:
             self.operators_by_name = self.set_operators()
 
@@ -323,20 +355,21 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         value:
             The value to which the instance property is updated.
         """
+        # first check if the input value is valid.
+        if not np.isrealobj(value):
+            raise AttributeError(
+                f"'{value}' is invalid. External flux and offset charges must be real valued."
+            )
 
         # update the attribute for the current instance
         setattr(self, f"_{param_name}", value)
 
-        relevant_subsystem_indices = []
         # update all subsystem instances
         if self.hierarchical_diagonalization:
             for subsys_idx, subsys in enumerate(self.subsystems.values()):
                 if hasattr(subsys, param_name):
-                    relevant_subsystem_indices.append(subsys_idx)
+                    self._store_updated_subsystem_index(subsys_idx)
                     setattr(subsys, param_name, value)
-            self.build_hilbertspace(
-                relevant_subsystem_indices=relevant_subsystem_indices
-            )
 
     def _set_property_and_update_cutoffs(self, param_name: str, value: int) -> None:
         """
@@ -349,18 +382,19 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         value:
             The value to which the instance property is updated.
         """
+        if not (isinstance(value, int) and value > 0):
+            raise AttributeError(
+                f"{value} is invalid. Basis cutoffs can only be positive integers."
+            )
+
         setattr(self, f"_{param_name}", value)
 
-        relevant_subsystem_indices = []
         # set operators and rebuild the HilbertSpace object
         if self.hierarchical_diagonalization:
             for subsys_idx, subsys in enumerate(self.subsystems.values()):
                 if hasattr(subsys, param_name):
-                    relevant_subsystem_indices.append(subsys_idx)
+                    self._store_updated_subsystem_index(subsys_idx)
                     setattr(subsys, param_name, value)
-            self.build_hilbertspace(
-                relevant_subsystem_indices=relevant_subsystem_indices
-            )
 
     def _make_property(
         self, attrib_name: str, init_val: Union[int, float], property_update_type: str
@@ -443,17 +477,26 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         self._set_vars()
         if self.hierarchical_diagonalization:
+            # attribute to note updated subsystem indices
+            self.updated_subsystem_indices = []
+
             self.generate_subsystems()
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
-            self.build_hilbertspace()
+            self.updated_subsystem_indices = list(range(len(self.subsystems)))
         else:
             self.operators_by_name = self.set_operators()
+
+    def _store_updated_subsystem_index(self, index: int) -> None:
+        if not self.hierarchical_diagonalization:
+            raise Exception(f"The subsystem provided to {self} has no subsystems.")
+        if index not in self.updated_subsystem_indices:
+            self.updated_subsystem_indices.append(index)
 
     # *****************************************************************
     # **** Functions to construct the operators for the Hamiltonian ****
     # *****************************************************************
-    def grids_dict(self):
+    def grids_dict_for_discretized_extended_vars(self):
         cutoffs_dict = self.cutoffs_dict()
         grids = {}
         for i in self.var_categories["extended"]:
@@ -514,7 +557,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         for subsystem_idx, subsystem in self.subsystems.items():
             if subsystem.truncated_dim >= subsystem.hilbertdim() - 1:
-                self.hierarchical_diagonalization = False
                 # find the correct position of the subsystem where the truncation
                 # index  is too big
                 subsystem_position = f"subsystem {subsystem_idx} "
@@ -525,8 +567,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     subsystem_position += f"of subsystem {grandparent.get_subsystem_index(parent.var_categories_list[0])} "
                     parent = grandparent
                 raise Exception(
-                    f"The truncation index for " + subsystem_position + f"is too big. "
-                    f"It should be lower than {subsystem.hilbertdim() - 1}."
+                    f"The truncation index for {subsystem_position} exceeds the maximum"
+                    f" size of {subsystem.hilbertdim() - 1}."
+                )
+            elif not (
+                isinstance(subsystem.truncated_dim, int)
+                and (subsystem.truncated_dim > 0)
+            ):
+                raise Exception(
+                    "Invalid value encountered in subsystem_trunc_dims. "
+                    "Truncated dimension must be a positive integer."
                 )
 
     def generate_subsystems(self):
@@ -622,49 +672,13 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             [self.subsystems[i] for i in range(len(self.system_hierarchy))]
         )
 
-    def generate_hilbertspace_lookup(self, subsystem_indices=None) -> None:
-        hilbert_space = self.hilbert_space
-        bare_evals = np.empty((hilbert_space.subsystem_count,), dtype=object)
-        bare_evecs = np.empty((hilbert_space.subsystem_count,), dtype=object)
-        bare_esys_dict = {}
-
-        if subsystem_indices is None:
-            subsystem_indices = list(range(hilbert_space.subsystem_count))
-
-        for subsys_index, subsys in enumerate(hilbert_space):
-            if subsys_index in subsystem_indices:
-                bare_esys = subsys.eigensys(evals_count=subsys.truncated_dim)
-            else:
-                bare_esys = (
-                    hilbert_space["bare_evals"][subsys_index][0],
-                    hilbert_space["bare_evecs"][subsys_index][0],
-                )
-            bare_esys_dict[subsys_index] = bare_esys
-            bare_evals[subsys_index] = NamedSlotsNdarray(
-                np.asarray([bare_esys[0].tolist()]),
-                hilbert_space._parameters.paramvals_by_name,
-            )
-            bare_evecs[subsys_index] = NamedSlotsNdarray(
-                np.asarray([bare_esys[1].tolist()]),
-                hilbert_space._parameters.paramvals_by_name,
-            )
-        hilbert_space._data["bare_evals"] = NamedSlotsNdarray(
-            bare_evals, {"subsys": np.arange(hilbert_space.subsystem_count)}
-        )
-        hilbert_space._data["bare_evecs"] = NamedSlotsNdarray(
-            bare_evecs, {"subsys": np.arange(hilbert_space.subsystem_count)}
-        )
-
-        hilbert_space._lookup = spec_lookup.SpectrumLookupAdapter(hilbert_space)
-
     def get_eigenstates(self) -> ndarray:
         """
         Returns the eigenstates for the SubSystem instance
         """
         if self.is_child:
             subsys_index = self.parent.hilbert_space.subsys_list.index(self)
-            if self.parent.hilbert_space._lookup is not None:
-                return self.parent.hilbert_space["bare_evecs"][subsys_index][0]
+            return self.parent.hilbert_space["bare_evecs"][subsys_index][0]
         else:
             return self.eigensys()[1]
 
@@ -687,18 +701,26 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             if var_index in flatten_list_recursive(system_hierarchy):
                 return index
         raise Exception(
-            f"The var_index={var_index} could not be identified with any " "subsystem."
+            f"The var_index={var_index} could not be identified with any subsystem."
         )
 
     def build_hilbertspace(
-        self, relevant_subsystem_indices: Optional[List[int]] = None
-    ):
+        self, update_subsystem_indices: Optional[List[int]] = None
+    ) -> None:
         """
         Builds the HilbertSpace object for the `Circuit` instance if
         `hierarchical_diagonalization` is set to true.
+
+        Parameters
+        ----------
+        update_subsystem_indices:
+            List of subsystem indices which need to be updated. If set to None, all the
+           are updated.
         """
         # generate lookup table in HilbertSpace
-        self.generate_hilbertspace_lookup(subsystem_indices=relevant_subsystem_indices)
+        _ = self.hilbert_space.generate_bare_esys(
+            update_subsystem_indices=update_subsystem_indices
+        )
 
         self.hilbert_space.interaction_list = []
 
@@ -1153,7 +1175,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def _identity(self):
         """
-        Returns the Identity operator for the entire Hilber space of the circuit.
+        Returns the Identity operator for the entire Hilbert space of the circuit.
         """
         if (
             hasattr(self, "hierarchical_diagonalization")
@@ -1414,7 +1436,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     def identity_wrap_for_hd(
         self,
         operator: Optional[Union[csc_matrix, ndarray]],
-        var_index: Optional[int] = None,
+        var_index: int,
     ) -> qt.Qobj:
         """
         Returns an identity wrapped operator whose size is equal to the
@@ -1554,6 +1576,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         oscillator basis
         """
         expr_dict = H.as_coefficients_dict()
+        # removing zero terms
+        expr_dict = {key: expr_dict[key] for key in expr_dict if expr_dict[key] != 0}
         terms_list = list(expr_dict.keys())
         coeff_list = list(expr_dict.values())
 
@@ -1765,6 +1789,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 return self._hamiltonian_for_discretized_extended_vars()
 
         else:
+            # update the hilbertspace
+            self.build_hilbertspace(
+                update_subsystem_indices=self.updated_subsystem_indices
+            )
+            self.updated_subsystem_indices = []
+
             bare_esys = {
                 sys_index: (
                     self.hilbert_space["bare_evals"][sys_index][0],
@@ -1948,9 +1978,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         if subsystem_index is not None:
             if not self.hierarchical_diagonalization:
                 raise Exception(
-                    "Current instance does not have any subsystems as hierarchical "
-                    "diagonalization is not utilized. If so, do not set subsystem_index"
-                    " keyword argument."
+                    "Hierarchical diagonalization was not enabled. Hence there "
+                    "are no identified subsystems addressable by "
+                    "subsystem_index."
                 )
             # start with the raw system hamiltonian
             sym_hamiltonian = self._make_expr_human_readable(
@@ -2021,7 +2051,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             sym_hamiltonian_PE = self._make_expr_human_readable(
                 self.potential_symbolic.expand(), float_round=float_round
             )
-            # add a 2pi coefficient in front of externa fluxes, since the the external
+            # add a 2pi coefficient in front of external fluxes, since the the external
             # fluxes are measured in 2pi numerically
             for external_flux in self.external_fluxes:
                 sym_hamiltonian_PE = sym_hamiltonian_PE.replace(
@@ -2120,7 +2150,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         discretized_ext_indices = self.var_categories["extended"]
         var_categories = discretized_ext_indices + periodic_indices
 
-        # method to concatenate sublists
+        # substituting the parameters
         potential_sym = self.potential_symbolic.subs("I", 1)
         for ext_flux in self.external_fluxes:
             potential_sym = potential_sym.subs(ext_flux, ext_flux * 2 * np.pi)
@@ -2404,7 +2434,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 wf_dim += 1
         return wf_dim
 
-    def _dims_to_be_summed(self, var_indices: List[int], num_wf_dims) -> List[int]:
+    def _dims_to_be_summed(self, var_indices: Tuple[int], num_wf_dims) -> List[int]:
 
         all_var_indices = self.var_categories_list
         non_summed_dims = []
@@ -2414,6 +2444,75 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     self._get_var_dim_for_reshaped_wf(var_indices, var_index)
                 )
         return [dim for dim in range(num_wf_dims) if dim not in non_summed_dims]
+
+    def _reshape_and_change_to_variable_basis(
+        self, wf: ndarray, var_indices: Tuple[int]
+    ) -> ndarray:
+        if self.hierarchical_diagonalization:
+            system_hierarchy_for_vars_chosen = list(
+                set([self.get_subsystem_index(index) for index in var_indices])
+            )  # getting the subsystem index for each of the variable indices
+
+            subsys_trunc_dims = [sys.truncated_dim for sys in self.subsystems.values()]
+            # reshaping the wave functions to truncated dims of subsystems
+            wf_hd_reshaped = wf.reshape(*subsys_trunc_dims)
+
+            # **** Converting to the basis in which the variables are defined *****
+            wf_original_basis = wf_hd_reshaped
+            for subsys_index in system_hierarchy_for_vars_chosen:
+                wf_dim = 0
+                for sys_index in range(subsys_index):
+                    if sys_index in system_hierarchy_for_vars_chosen:
+                        wf_dim += len(self.subsystems[sys_index].var_categories_list)
+                    else:
+                        wf_dim += 1
+                wf_original_basis = self._recursive_basis_change(
+                    wf_original_basis,
+                    wf_dim,
+                    self.subsystems[subsys_index],
+                    relevant_indices=var_indices,
+                )
+        else:
+            wf_original_basis = wf.reshape(
+                *[
+                    getattr(self, cutoff_attrib)
+                    if "ext" in cutoff_attrib
+                    else (2 * getattr(self, cutoff_attrib) + 1)
+                    for cutoff_attrib in self.cutoff_names
+                ]
+            )
+        return wf_original_basis
+
+    def _change_to_phi_basis(
+        self,
+        wf_original_basis: ndarray,
+        var_indices: Tuple[int],
+        grids_dict: Dict[int, Union[discretization.Grid1d, ndarray]],
+        change_discrete_charge_to_phi: bool,
+    ):
+        wf_ext_basis = wf_original_basis
+        for var_index in var_indices:
+            # finding the dimension corresponding to the var_index
+            if not self.hierarchical_diagonalization:
+                wf_dim = self.var_categories_list.index(var_index)
+            else:
+                wf_dim = self._get_var_dim_for_reshaped_wf(var_indices, var_index)
+
+            if (
+                var_index in self.var_categories["extended"]
+                and self.ext_basis == "harmonic"
+            ):
+                wf_ext_basis = self._basis_change_harm_osc_to_phi(
+                    wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
+                )
+            if (
+                var_index in self.var_categories["periodic"]
+                and change_discrete_charge_to_phi
+            ):
+                wf_ext_basis = self._basis_change_n_to_phi(
+                    wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
+                )
+        return wf_ext_basis
 
     def generate_wf_plot_data(
         self,
@@ -2452,75 +2551,25 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             _, wfs = eigensys
 
         wf = wfs[:, which]
-        if self.hierarchical_diagonalization:
-            system_hierarchy_for_vars_chosen = list(
-                set([self.get_subsystem_index(index) for index in var_indices])
-            )  # getting the subsystem index for each of the variable indices
-
-            subsys_trunc_dims = [sys.truncated_dim for sys in self.subsystems.values()]
-            # reshaping the wave functions to truncated dims of subsystems
-            wf_hd_reshaped = wf.reshape(*subsys_trunc_dims)
-
-            # **** Converting to the basis in which the variables are defined *****
-            wf_original_basis = wf_hd_reshaped
-            for subsys_index in system_hierarchy_for_vars_chosen:
-                wf_dim = 0
-                for sys_index in range(subsys_index):
-                    if sys_index in system_hierarchy_for_vars_chosen:
-                        wf_dim += len(self.subsystems[sys_index].var_categories_list)
-                    else:
-                        wf_dim += 1
-                wf_original_basis = self._recursive_basis_change(
-                    wf_original_basis,
-                    wf_dim,
-                    self.subsystems[subsys_index],
-                    relevant_indices=var_indices,
-                )
-        else:
-            wf_original_basis = wf.reshape(
-                *[
-                    getattr(self, cutoff_attrib)
-                    if "ext" in cutoff_attrib
-                    else (2 * getattr(self, cutoff_attrib) + 1)
-                    for cutoff_attrib in self.cutoff_names
-                ]
-            )
+        # change the wf to the basis in which the variables were initially defined
+        wf_original_basis = self._reshape_and_change_to_variable_basis(
+            wf=wf, var_indices=var_indices
+        )
 
         # making a basis change to phi for every var_index
-        wf_ext_basis = wf_original_basis
-        for var_index in var_indices:
-            # finding the dimension corresponding to the var_index
-            if not self.hierarchical_diagonalization:
-                wf_dim = self.var_categories_list.index(var_index)
-            else:
-                wf_dim = self._get_var_dim_for_reshaped_wf(var_indices, var_index)
+        wf_ext_basis = self._change_to_phi_basis(
+            wf_original_basis,
+            var_indices=var_indices,
+            grids_dict=grids_dict,
+            change_discrete_charge_to_phi=change_discrete_charge_to_phi,
+        )
 
-            if (
-                var_index in self.var_categories["extended"]
-                and self.ext_basis == "harmonic"
-            ):
-                wf_ext_basis = self._basis_change_harm_osc_to_phi(
-                    wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
-                )
-            if (
-                var_index in self.var_categories["periodic"]
-                and change_discrete_charge_to_phi
-            ):
-                wf_ext_basis = self._basis_change_n_to_phi(
-                    wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
-                )
-
-        # if a probability plot is requested, sum over the dimensions not relevant to
-        # the ones in var_categories
-        if self.hierarchical_diagonalization:
-            dims_to_be_summed = self._dims_to_be_summed(
-                var_indices, len(wf_ext_basis.shape)
-            )
-
-        else:
-            dims_to_be_summed = self._dims_to_be_summed(
-                var_indices, len(wf_ext_basis.shape)
-            )
+        # sum over the dimensions not relevant to the ones in var_indices
+        # finding the dimensions which needs to be summed over
+        dims_to_be_summed = self._dims_to_be_summed(
+            var_indices, len(wf_ext_basis.shape)
+        )
+        # summing over the dimensions
         wf_plot = np.sum(
             np.abs(wf_ext_basis) ** 2,
             axis=tuple(dims_to_be_summed),
@@ -2624,111 +2673,140 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 var_types.append("Dimensionless flux, variable:")
 
         if len(var_indices) == 1:
-
-            wavefunc = storage.WaveFunction(
-                basis_labels=grids_per_varindex_dict[var_indices[0]].make_linspace(),
-                amplitudes=wf_plot,
+            return self._plot_wavefunction_1D(
+                wf_plot,
+                var_indices,
+                grids_per_varindex_dict,
+                change_discrete_charge_to_phi,
+                kwargs,
             )
 
+        elif len(var_indices) == 2:
+            return self._plot_wavefunction_2D(
+                wf_plot,
+                var_indices,
+                grids_per_varindex_dict,
+                change_discrete_charge_to_phi,
+                zero_calibrate=zero_calibrate,
+                kwargs=kwargs,
+            )
+
+    def _plot_wavefunction_2D(
+        self,
+        wf_plot: ndarray,
+        var_indices,
+        grids_per_varindex_dict,
+        change_discrete_charge_to_phi: bool,
+        zero_calibrate: bool,
+        kwargs,
+    ) -> Tuple[Figure, Axes]:
+        # check if each variable is periodic
+        grids = []
+        labels = []
+        for index_order in [1, 0]:
             if not change_discrete_charge_to_phi and (
-                var_indices[0] in self.var_categories["periodic"]
+                var_indices[index_order] in self.var_categories["periodic"]
             ):
-                kwargs = {
-                    **defaults.wavefunction1d_discrete("abs_sqr"),
-                    **kwargs,
-                }
-                wavefunc.basis_labels = np.arange(
-                    -getattr(self, "cutoff_n_" + str(var_index)),
-                    getattr(self, "cutoff_n_" + str(var_index)) + 1,
+                grids.append(
+                    [
+                        -getattr(self, "cutoff_n_" + str(var_indices[index_order])),
+                        getattr(self, "cutoff_n_" + str(var_indices[index_order])),
+                        2 * getattr(self, "cutoff_n_" + str(var_indices[index_order]))
+                        + 1,
+                    ]
                 )
-                fig, axes = plot.wavefunction1d_discrete(wavefunc, **kwargs)
-                # changing the tick frequency for axes
-                if getattr(self, "cutoff_n_" + str(var_index)) >= 7:
-                    axes.xaxis.set_major_locator(plt.MaxNLocator(15, integer=True))
+                labels.append(r"$n_{{{}}}$".format(str(var_indices[index_order])))
+            else:
+                grids.append(
+                    list(
+                        grids_per_varindex_dict[var_indices[index_order]]
+                        .get_initdata()
+                        .values()
+                    ),
+                )
+                labels.append(r"$\theta_{{{}}}$".format(str(var_indices[index_order])))
+        wavefunc_grid = discretization.GridSpec(np.asarray(grids))
+
+        wavefunc = storage.WaveFunctionOnGrid(wavefunc_grid, wf_plot)
+        # obtain fig and axes from
+        fig, axes = plot.wavefunction2d(
+            wavefunc,
+            zero_calibrate=zero_calibrate,
+            ylabel=labels[1],
+            xlabel=labels[0],
+            **kwargs,
+        )
+        # change frequency of tick mark for variables in charge basis
+        # also force the tick marks to be integers
+        if not change_discrete_charge_to_phi:
+            if var_indices[0] in self.var_categories["periodic"]:
+                if getattr(self, "cutoff_n_" + str(var_indices[0])) >= 6:
+                    axes.yaxis.set_major_locator(plt.MaxNLocator(13, integer=True))
+                else:
+                    axes.yaxis.set_major_locator(
+                        plt.MaxNLocator(
+                            1 + 2 * getattr(self, "cutoff_n_" + str(var_indices[0])),
+                            integer=True,
+                        )
+                    )
+            if var_indices[1] in self.var_categories["periodic"]:
+                if getattr(self, "cutoff_n_" + str(var_indices[1])) >= 15:
+                    axes.xaxis.set_major_locator(plt.MaxNLocator(31, integer=True))
                 else:
                     axes.xaxis.set_major_locator(
                         plt.MaxNLocator(
-                            1
-                            + 2
-                            * getattr(self, "cutoff_n_" + str(var_index), integer=True)
+                            1 + 2 * getattr(self, "cutoff_n_" + str(var_indices[1])),
+                            integer=True,
                         )
                     )
+
+        return fig, axes
+
+    def _plot_wavefunction_1D(
+        self,
+        wf_plot: ndarray,
+        var_indices,
+        grids_per_varindex_dict,
+        change_discrete_charge_to_phi: bool,
+        kwargs,
+    ) -> Tuple[Figure, Axes]:
+
+        var_index = var_indices[0]
+        wavefunc = storage.WaveFunction(
+            basis_labels=grids_per_varindex_dict[var_indices[0]].make_linspace(),
+            amplitudes=wf_plot,
+        )
+
+        if not change_discrete_charge_to_phi and (
+            var_indices[0] in self.var_categories["periodic"]
+        ):
+            kwargs = {
+                **defaults.wavefunction1d_discrete("abs_sqr"),
+                **kwargs,
+            }
+            wavefunc.basis_labels = np.arange(
+                -getattr(self, "cutoff_n_" + str(var_index)),
+                getattr(self, "cutoff_n_" + str(var_index)) + 1,
+            )
+            fig, axes = plot.wavefunction1d_discrete(wavefunc, **kwargs)
+            # changing the tick frequency for axes
+            if getattr(self, "cutoff_n_" + str(var_index)) >= 7:
+                axes.xaxis.set_major_locator(plt.MaxNLocator(15, integer=True))
             else:
-                fig, axes = plot.wavefunction1d_nopotential(
-                    wavefunc,
-                    0,
-                    xlabel=r"$\theta_{{{}}}$".format(str(var_indices[0])),
-                    ylabel=r"$|\psi(\theta_{{{}}})|^2$".format(str(var_indices[0])),
-                    **kwargs,
+                axes.xaxis.set_major_locator(
+                    plt.MaxNLocator(
+                        1
+                        + 2 * getattr(self, "cutoff_n_" + str(var_index), integer=True)
+                    )
                 )
-
-        elif len(var_indices) == 2:
-
-            # check if each variable is periodic
-            grids = []
-            labels = []
-            for index_order in [1, 0]:
-                if not change_discrete_charge_to_phi and (
-                    var_indices[index_order] in self.var_categories["periodic"]
-                ):
-                    grids.append(
-                        [
-                            -getattr(self, "cutoff_n_" + str(var_indices[index_order])),
-                            getattr(self, "cutoff_n_" + str(var_indices[index_order])),
-                            2
-                            * getattr(self, "cutoff_n_" + str(var_indices[index_order]))
-                            + 1,
-                        ]
-                    )
-                    labels.append(r"$n_{{{}}}$".format(str(var_indices[index_order])))
-                else:
-                    grids.append(
-                        list(
-                            grids_per_varindex_dict[var_indices[index_order]]
-                            .get_initdata()
-                            .values()
-                        ),
-                    )
-                    labels.append(
-                        r"$\theta_{{{}}}$".format(str(var_indices[index_order]))
-                    )
-            wavefunc_grid = discretization.GridSpec(np.asarray(grids))
-
-            wavefunc = storage.WaveFunctionOnGrid(wavefunc_grid, wf_plot)
-            # obtain fig and axes from
-            fig, axes = plot.wavefunction2d(
+        else:
+            fig, axes = plot.wavefunction1d_nopotential(
                 wavefunc,
-                zero_calibrate=zero_calibrate,
-                ylabel=labels[1],
-                xlabel=labels[0],
+                0,
+                xlabel=r"$\theta_{{{}}}$".format(str(var_indices[0])),
+                ylabel=r"$|\psi(\theta_{{{}}})|^2$".format(str(var_indices[0])),
                 **kwargs,
             )
-            # change frequency of tick mark for variables in charge basis
-            # also force the tick marks to be integers
-            if not change_discrete_charge_to_phi:
-                if var_indices[0] in self.var_categories["periodic"]:
-                    if getattr(self, "cutoff_n_" + str(var_indices[0])) >= 6:
-                        axes.yaxis.set_major_locator(plt.MaxNLocator(13, integer=True))
-                    else:
-                        axes.yaxis.set_major_locator(
-                            plt.MaxNLocator(
-                                1
-                                + 2 * getattr(self, "cutoff_n_" + str(var_indices[0])),
-                                integer=True,
-                            )
-                        )
-                if var_indices[1] in self.var_categories["periodic"]:
-                    if getattr(self, "cutoff_n_" + str(var_indices[1])) >= 15:
-                        axes.xaxis.set_major_locator(plt.MaxNLocator(31, integer=True))
-                    else:
-                        axes.xaxis.set_major_locator(
-                            plt.MaxNLocator(
-                                1
-                                + 2 * getattr(self, "cutoff_n_" + str(var_indices[1])),
-                                integer=True,
-                            )
-                        )
-
         return fig, axes
 
     def _get_cutoff_value(self, var_index: int) -> int:
@@ -2794,8 +2872,8 @@ class Circuit(Subsystem):
         base.QuantumSystem.__init__(self, id_str=None)
         if basis_completion not in ["heuristic", "canonical"]:
             raise Exception(
-                "Incorrect parameter set for basis_completion. It can either be "
-                "'heuristic' or 'canonical'"
+                "Invalid choice for basis_completion: must be 'heuristic' or "
+                "'canonical'."
             )
 
         symbolic_circuit = SymbolicCircuit.from_yaml(
@@ -2861,33 +2939,6 @@ class Circuit(Subsystem):
         else:
             raise Exception(f"Creating new attributes is disabled [{name}, {value}].")
 
-    def __reduce__(self):
-        # needed for multiprocessing / proper pickling
-        pickle_func, pickle_args, pickled_state = super().__reduce__()
-        new_pickled_state = {
-            key: value for key, value in pickled_state.items() if "_operator" not in key
-        }
-        new_pickled_state["_frozen"] = False
-
-        pickled_properties = {
-            property_name: property_obj
-            for property_name, property_obj in self.__class__.__dict__.items()
-            if isinstance(property_obj, property)
-        }
-
-        return pickle_func, pickle_args, (new_pickled_state, pickled_properties)
-
-    def __setstate__(self, state):
-        # needed for multiprocessing / proper unpickling
-        pickled_attribs, pickled_properties = state
-        self._frozen = False
-
-        self.__dict__.update(pickled_attribs)
-        self.operators_by_name = self.set_operators()
-
-        for property_name, property_obj in pickled_properties.items():
-            setattr(self.__class__, property_name, property_obj)
-
     def set_discretized_phi_range(
         self, var_indices: Tuple[int], phi_range: Tuple[float]
     ) -> None:
@@ -2910,7 +2961,7 @@ class Circuit(Subsystem):
         for var_index in var_indices:
             if var_index not in self.var_categories["extended"]:
                 raise Exception(
-                    f"Variable index {var_index}, is not an extended variable."
+                    f"Variable with index {var_index} is not an extended variable."
                 )
             self.discretized_phi_range[var_index] = phi_range
         self.operators_by_name = self.set_operators()
@@ -3163,9 +3214,7 @@ class Circuit(Subsystem):
                 subsystem_trunc_dims=old_subsystem_trunc_dims,
                 closure_branches=old_closure_branches,
             )
-            raise Exception(
-                "Configure failed, incorrect parameters used. Please check the above exception."
-            )
+            raise Exception("Configure failed due to incorrect parameters.")
 
     def _configure(
         self,
@@ -3304,7 +3353,7 @@ class Circuit(Subsystem):
 
         self._set_vars()  # setting the attribute vars to store operator symbols
 
-        if len(self.symbolic_circuit.nodes) > 3:
+        if (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES:
             self.hamiltonian_symbolic = (
                 self.symbolic_circuit.generate_symbolic_hamiltonian(
                     substitute_params=True
@@ -3320,6 +3369,8 @@ class Circuit(Subsystem):
             self.generate_hamiltonian_sym_for_numerics()
             self.operators_by_name = self.set_operators()
         else:
+            # list for updating necessary subsystems when calling build hilbertspace
+            self.updated_subsystem_indices = []
             self.operators_by_name = None
             self.system_hierarchy = system_hierarchy
             if subsystem_trunc_dims is None:
@@ -3333,7 +3384,7 @@ class Circuit(Subsystem):
             self.generate_subsystems()
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
-            self.build_hilbertspace()
+            self.updated_subsystem_indices = list(range(len(self.subsystems)))
         # clear unnecessary attribs
         self.clear_unnecessary_attribs()
         self._frozen = True
@@ -3349,11 +3400,15 @@ class Circuit(Subsystem):
         trans_mat = self.transformation_matrix
         theta_vars = [
             sm.symbols(f"θ{index}")
-            for index in range(1, len(self.symbolic_circuit.nodes) + 1)
+            for index in range(
+                1, len(self.symbolic_circuit._node_list_without_ground) + 1
+            )
         ]
         node_vars = [
             sm.symbols(f"φ{index}")
-            for index in range(1, len(self.symbolic_circuit.nodes) + 1)
+            for index in range(
+                1, len(self.symbolic_circuit._node_list_without_ground) + 1
+            )
         ]
         node_var_eqns = []
         for idx, node_var in enumerate(node_vars):
@@ -3382,7 +3437,9 @@ class Circuit(Subsystem):
         if vars_type == "node":
             lagrangian = self.lagrangian_node_vars
             # replace v\theta with \theta_dot
-            for var_index in range(1, 1 + len(self.symbolic_circuit.nodes)):
+            for var_index in range(
+                1, 1 + len(self.symbolic_circuit._node_list_without_ground)
+            ):
                 lagrangian = lagrangian.replace(
                     sm.symbols(f"vφ{var_index}"),
                     sm.symbols("\\dot{φ_" + str(var_index) + "}"),
@@ -3453,7 +3510,9 @@ class Circuit(Subsystem):
         trans_mat = self.transformation_matrix
         node_offset_charge_vars = [
             sm.symbols(f"q_g{index}")
-            for index in range(1, len(self.symbolic_circuit.nodes) + 1)
+            for index in range(
+                1, len(self.symbolic_circuit._node_list_without_ground) + 1
+            )
         ]
         periodic_offset_charge_vars = [
             sm.symbols(f"ng{index}")
