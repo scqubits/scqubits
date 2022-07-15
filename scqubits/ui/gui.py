@@ -507,7 +507,7 @@ class GUI:
         """
         operator_list = []
         for name, val in inspect.getmembers(self.active_qubit):
-            if "operator" in name and name[0] != "_":
+            if "operator" in name and name[0] != "_" and name != "get_operator_names":
                 operator_list.append(name)
         return operator_list
 
