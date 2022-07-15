@@ -734,11 +734,23 @@ class GUI:
     def qubit_change(self, change) -> None:
         self.plot_output.clear_output()
         new_qubit = change["new"]
-        if new_qubit in gui_defaults.slow_qubits:
-            self.manual_update_and_save_widgets["manual_update_checkbox"].value = True
         self.unobserve_ranges()
         self.unobserve_widgets()
         self.unobserve_plot_refresh()
+        self.manual_update_and_save_widgets["manual_update_checkbox"].unobserve(
+            self.manual_update_checkbox, names="value"
+        )
+        if new_qubit in gui_defaults.slow_qubits:
+            self.manual_update_and_save_widgets["manual_update_checkbox"].value = True
+            self.manual_update_and_save_widgets["update_button"].disabled = False
+            self.manual_update_bool = True
+        else:
+            self.manual_update_and_save_widgets["manual_update_checkbox"].value = False
+            self.manual_update_and_save_widgets["update_button"].disabled = True
+            self.manual_update_bool = False
+        self.manual_update_and_save_widgets["manual_update_checkbox"].observe(
+            self.manual_update_checkbox, names="value"
+        )
         self.set_qubit(new_qubit)
         self.initialize_tab_widget()
         self.observe_ranges()
@@ -941,9 +953,7 @@ class GUI:
     def plot_refresh(self, change):
         self.update_params()
 
-        if not self.manual_update_and_save_widgets[
-            "manual_update_checkbox"
-        ].get_interact_value():
+        if not self.manual_update_bool:
             self.current_plot_option_refresh(None)
 
     def common_params_dropdown_link_refresh(self, change) -> None:
