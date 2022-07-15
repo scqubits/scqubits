@@ -2071,7 +2071,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         subsystem_indices: Tuple[int],
         float_round: int = 6,
         print_latex: bool = False,
-    ) -> sm.Expr:
+    ) -> None:
         """
         Print the interaction between any set of subsystems for the current instance.
         It would print the interaction terms having operators from all the subsystems
