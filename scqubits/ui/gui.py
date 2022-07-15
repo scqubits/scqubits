@@ -765,6 +765,7 @@ class GUI:
         self.unobserve_ranges()
         self.unobserve_widgets()
         self.unobserve_plot_refresh()
+        self.plot_output.clear_output()
         self.current_plot_option_refresh = self.get_plot_option_refresh()
         new_plot_option = self.plot_option_layout()
 
@@ -788,7 +789,7 @@ class GUI:
         if change["new"]:
             self.manual_update_and_save_widgets["update_button"].disabled = False
             self.unobserve_plot_refresh()
-            self.plot_output.clear_output(wait=True)
+            self.plot_output.clear_output()
             self.manual_update_bool = True
         else:
             self.manual_update_and_save_widgets["update_button"].disabled = True
@@ -1356,7 +1357,6 @@ class GUI:
         scan_min, scan_max = scan_range
         np_list = np.linspace(scan_min, scan_max, self.active_defaults["num_sample"])
         with self.plot_output:
-            plt.cla()
             self.fig, ax = self.active_qubit.plot_evals_vs_paramvals(
                 scan_value,
                 np_list,
@@ -1366,7 +1366,6 @@ class GUI:
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
             self.fig.dpi = gui_defaults.FIG_DPI
-            plt.close(1)
             plt.show()
         GUI.fig_ax = self.fig, ax
 
@@ -1392,7 +1391,6 @@ class GUI:
             Specifies the domain over which the wavefunction will be plotted.
         """
         with self.plot_output:
-            plt.cla()
             if isinstance(
                 self.active_qubit, (scq.FluxQubit, scq.ZeroPi, scq.Cos2PhiQubit)
             ):
@@ -1409,7 +1407,6 @@ class GUI:
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
             self.fig.dpi = gui_defaults.FIG_DPI
-            plt.close(1)
             plt.show()
         GUI.fig_ax = self.fig, ax
 
@@ -1441,7 +1438,6 @@ class GUI:
         scan_min, scan_max = scan_range
         np_list = np.linspace(scan_min, scan_max, self.active_defaults["num_sample"])
         with self.plot_output:
-            plt.cla()
             self.fig, ax = self.active_qubit.plot_matelem_vs_paramvals(
                 operator_value,
                 scan_value,
@@ -1452,7 +1448,6 @@ class GUI:
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
             self.fig.dpi = gui_defaults.FIG_DPI
-            plt.close(1)
             plt.show()
         GUI.fig_ax = self.fig, ax
 
@@ -1483,7 +1478,6 @@ class GUI:
             Initially set to True.
         """
         with self.plot_output:
-            plt.cla()
             self.fig, ax = self.active_qubit.plot_matrixelements(
                 operator_value,
                 evals_count=eigenvalue_state_value,
@@ -1494,6 +1488,5 @@ class GUI:
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
             self.fig.dpi = gui_defaults.FIG_DPI
-            plt.close(1)
             plt.show()
         GUI.fig_ax = self.fig, ax
