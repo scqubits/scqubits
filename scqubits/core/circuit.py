@@ -32,6 +32,13 @@ from scipy import sparse, stats
 from scipy.sparse import csc_matrix
 from sympy import latex
 
+try:
+    from IPython.display import display, Latex
+except ImportError:
+    _HAS_IPYTHON = False
+else:
+    _HAS_IPYTHON = True
+
 import scqubits as scq
 import scqubits.core.discretization as discretization
 import scqubits.core.oscillator as osc
@@ -1838,6 +1845,24 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     # ****************************************************************
     # ***** Functions for pretty display of symbolic expressions *****
     # ****************************************************************
+    @staticmethod
+    def print_expr_in_latex(expr: Union[sm.Expr, List["sm.Equality"]]) -> None:
+        """
+        Print a sympy expression or a list of equalities in LaTeX
+
+        Parameters
+        ----------
+        expr:
+            a sympy expressions or a list of equalities
+        """
+        if isinstance(expr, sm.Expr):
+            display(Latex("$ " + sm.printing.latex(expr) + " $"))
+        elif isinstance(expr, list):
+            equalities_in_latex = "$ "
+            for eqn in expr:
+                equalities_in_latex += sm.printing.latex(eqn) + " \\\ "
+            equalities_in_latex = equalities_in_latex[:-4] + " $"
+            display(Latex(equalities_in_latex))
 
     def _make_expr_human_readable(self, expr: sm.Expr, float_round: int = 6) -> sm.Expr:
         """
@@ -1893,9 +1918,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             expr_modified = expr_modified.replace(1.0 * ext_flux_var, ext_flux_var)
         return expr_modified
 
-    def sym_potential(self, float_round: int = 6, print_latex: bool = False) -> sm.Expr:
+    def sym_potential(self, float_round: int = 6, print_latex: bool = False) -> None:
         """
-        Method returns a user readable symbolic potential for the current instance
+        Method prints a user readable symbolic potential for the current instance
 
         Parameters
         ----------
@@ -1903,10 +1928,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             Number of digits after the decimal to which floats are rounded
         print_latex:
             if set to True, the expression is additionally printed as LaTeX code
-
-        Returns
-        -------
-            Human readable form of the potential
         """
         potential = self._make_expr_human_readable(
             self.potential_symbolic, float_round=float_round
@@ -1922,16 +1943,19 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         if print_latex:
             print(latex(potential))
-        return potential
+        if _HAS_IPYTHON:
+            self.print_expr_in_latex(potential)
+        else:
+            print(potential)
 
     def sym_hamiltonian(
         self,
         subsystem_index: Optional[int] = None,
         float_round: int = 6,
         print_latex: bool = False,
-    ) -> sm.Expr:
+    ) -> None:
         """
-        Method returns a user readable symbolic Hamiltonian for the current instance
+        Prints a user readable symbolic Hamiltonian for the current instance
 
         Parameters
         ----------
@@ -1942,11 +1966,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             Number of digits after the decimal to which floats are rounded
         print_latex:
             if set to True, the expression is additionally printed as LaTeX code
-
-        Returns
-        -------
-        hamiltonian
-            Sympy expression which is simplified to make it human readable.
         """
         if subsystem_index is not None:
             if not self.hierarchical_diagonalization:
@@ -2042,7 +2061,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             )
         if print_latex:
             print(latex(sym_hamiltonian))
-        return sym_hamiltonian
+        if _HAS_IPYTHON:
+            self.print_expr_in_latex(sym_hamiltonian)
+        else:
+            print(sym_hamiltonian)
 
     def sym_interaction(
         self,
@@ -2051,8 +2073,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         print_latex: bool = False,
     ) -> sm.Expr:
         """
-        Returns the interaction between any set of subsystems for the current instance.
-        It would return the interaction terms having operators from all the subsystems
+        Print the interaction between any set of subsystems for the current instance.
+        It would print the interaction terms having operators from all the subsystems
         mentioned in the tuple.
 
         Parameters
@@ -2063,12 +2085,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             Number of digits after the decimal to which floats are rounded
         print_latex:
              if set to True, the expression is additionally printed as LaTeX code
-
-        Returns
-        -------
-        interaction
-            Sympy Expr object having interaction terms which have operators from all the
-            mentioned subsystems.
         """
         interaction = sm.symbols("x") * 0
         for subsys_index_pair in itertools.combinations(subsystem_indices, 2):
@@ -2104,7 +2120,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             )
         if print_latex:
             print(latex(interaction))
-        return interaction
+        if _HAS_IPYTHON:
+            self.print_expr_in_latex(interaction)
+        else:
+            print(interaction)
 
     # ****************************************************************
     # ************* Functions for plotting potential *****************
@@ -2856,7 +2875,7 @@ class Circuit(Subsystem):
             initiate_sym_calc=True,
         )
 
-        sm.init_printing(order="none")
+        sm.init_printing(pretty_print=False, order="none")
         self.is_child = False
         self.symbolic_circuit: SymbolicCircuit = symbolic_circuit
 
@@ -3393,13 +3412,9 @@ class Circuit(Subsystem):
         self.clear_unnecessary_attribs()
         self._frozen = True
 
-    def variable_transformation(self) -> List[sm.Equality]:
+    def variable_transformation(self) -> None:
         """
-        Returns the variable transformation used in this circuit
-
-        Returns
-        -------
-            Expressions of transformed variables in terms of node variables
+        Prints the variable transformation used in this circuit
         """
         trans_mat = self.transformation_matrix
         theta_vars = [
@@ -3415,13 +3430,16 @@ class Circuit(Subsystem):
             node_var_eqns.append(
                 sm.Eq(node_vars[idx], np.sum(trans_mat[idx, :] * theta_vars))
             )
-        return node_var_eqns
+        if _HAS_IPYTHON:
+            self.print_expr_in_latex(node_var_eqns)
+        else:
+            print(node_var_eqns)
 
     def sym_lagrangian(
         self, vars_type: str = "node", print_latex: bool = False
-    ) -> sm.Expr:
+    ) -> None:
         """
-        Method returns a user readable symbolic Lagrangian for the current instance
+        Method that prints a user readable symbolic Lagrangian for the current instance
 
         Parameters
         ----------
@@ -3429,10 +3447,6 @@ class Circuit(Subsystem):
             "node" or "new", fixes the kind of lagrangian requested, by default "node"
         print_latex:
             if set to True, the expression is additionally printed as LaTeX code
-
-        Returns
-        -------
-            Human readable form of the Lagrangian
         """
         if vars_type == "node":
             lagrangian = self.lagrangian_node_vars
@@ -3493,17 +3507,15 @@ class Circuit(Subsystem):
             )
         if print_latex:
             print(latex(lagrangian))
-        return lagrangian
+        if _HAS_IPYTHON:
+            self.print_expr_in_latex(lagrangian)
+        else:
+            print(lagrangian)
 
-    def offset_charge_transformation(self) -> List[sm.Equality]:
+    def offset_charge_transformation(self) -> None:
         """
-        Returns the variable transformation between offset charges of periodic variables
+        Prints the variable transformation between offset charges of periodic variables
         and the offset node charges
-
-        Returns
-        -------
-            Human readable form of expressions of offset charges in terms of node offset
-            charges
         """
         trans_mat = self.transformation_matrix
         node_offset_charge_vars = [
@@ -3524,7 +3536,10 @@ class Circuit(Subsystem):
                     )
                 )
             )
-        return periodic_offset_charge_eqns
+        if _HAS_IPYTHON:
+            self.print_expr_in_latex(periodic_offset_charge_eqns)
+        else:
+            print(periodic_offset_charge_eqns)
 
     def sym_external_fluxes(self) -> Dict[sm.Expr, Tuple["Branch", List["Branch"]]]:
         """
