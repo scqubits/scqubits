@@ -1220,6 +1220,7 @@ class GUI:
             self.qubit_plot_options_widgets["scan_dropdown"].value
         ].disabled = True
         self.qubit_plot_options_widgets["state_slider"].description = "Highest State"
+        self.qubit_plot_options_widgets["state_slider"].min = 1
 
         plot_options_widgets_tuple = (
             self.qubit_plot_options_widgets["scan_dropdown"],
@@ -1243,6 +1244,7 @@ class GUI:
             self.qubit_plot_options_widgets["scan_dropdown"].value
         ].disabled = True
         self.qubit_plot_options_widgets["state_slider"].description = "Highest State"
+        self.qubit_plot_options_widgets["state_slider"].min = 1
 
         plot_options_widgets_tuple = (
             self.qubit_plot_options_widgets["operator_dropdown"],
@@ -1283,6 +1285,7 @@ class GUI:
                     "state_slider"
                 ].description = "State No."
                 which_widget = self.qubit_plot_options_widgets["state_slider"]
+                which_widget.min = 0
             else:
                 which_widget = self.qubit_plot_options_widgets["multi_state_selector"]
 
@@ -1319,6 +1322,7 @@ class GUI:
             self.qubit_plot_options_widgets["scan_dropdown"].value
         ].disabled = False
         self.qubit_plot_options_widgets["state_slider"].description = "Highest State"
+        self.qubit_plot_options_widgets["state_slider"].min = 1
 
         plot_options_widgets_tuple = (
             self.qubit_plot_options_widgets["operator_dropdown"],
