@@ -230,6 +230,33 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     def __repr__(self) -> str:
         return self._id_str
 
+    def __reduce__(self):
+        # needed for multiprocessing / proper pickling
+        pickle_func, pickle_args, pickled_state = super().__reduce__()
+        new_pickled_state = {
+            key: value for key, value in pickled_state.items() if "_operator" not in key
+        }
+        new_pickled_state["_frozen"] = False
+
+        pickled_properties = {
+            property_name: property_obj
+            for property_name, property_obj in self.__class__.__dict__.items()
+            if isinstance(property_obj, property)
+        }
+
+        return pickle_func, pickle_args, (new_pickled_state, pickled_properties)
+
+    def __setstate__(self, state):
+        # needed for multiprocessing / proper unpickling
+        pickled_attribs, pickled_properties = state
+        self._frozen = False
+
+        self.__dict__.update(pickled_attribs)
+        self.operators_by_name = self.set_operators()
+
+        for property_name, property_obj in pickled_properties.items():
+            setattr(self.__class__, property_name, property_obj)
+
     @staticmethod
     def default_params() -> Dict[str, Any]:
         # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
@@ -2911,33 +2938,6 @@ class Circuit(Subsystem):
             super().__setattr__(name, value)
         else:
             raise Exception(f"Creating new attributes is disabled [{name}, {value}].")
-
-    def __reduce__(self):
-        # needed for multiprocessing / proper pickling
-        pickle_func, pickle_args, pickled_state = super().__reduce__()
-        new_pickled_state = {
-            key: value for key, value in pickled_state.items() if "_operator" not in key
-        }
-        new_pickled_state["_frozen"] = False
-
-        pickled_properties = {
-            property_name: property_obj
-            for property_name, property_obj in self.__class__.__dict__.items()
-            if isinstance(property_obj, property)
-        }
-
-        return pickle_func, pickle_args, (new_pickled_state, pickled_properties)
-
-    def __setstate__(self, state):
-        # needed for multiprocessing / proper unpickling
-        pickled_attribs, pickled_properties = state
-        self._frozen = False
-
-        self.__dict__.update(pickled_attribs)
-        self.operators_by_name = self.set_operators()
-
-        for property_name, property_obj in pickled_properties.items():
-            setattr(self.__class__, property_name, property_obj)
 
     def set_discretized_phi_range(
         self, var_indices: Tuple[int], phi_range: Tuple[float]
