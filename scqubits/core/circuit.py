@@ -266,8 +266,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         if (
             not self.is_child
-            and (len(self.symbolic_circuit.nodes) + self.symbolic_circuit.is_grounded)
-            > settings.SYM_MATRIX_INV_THRESHOLD
+            and (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES
         ):
             self.hamiltonian_symbolic = (
                 self.symbolic_circuit.generate_symbolic_hamiltonian(
@@ -291,8 +290,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         # update the attribute for the current instance
         # first check if the input value is valid.
-        if value < 0.0:
-            raise AttributeError("Circuit parameters must be positive")
+        if not (np.isrealobj(value) and value > 0):
+            raise AttributeError(
+                f"'{value}' is invalid. Branch parameters must be positive and real."
+            )
         setattr(self, f"_{param_name}", value)
 
         # update the attribute for the instance in symbolic_circuit
@@ -300,8 +301,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # large circuits
         if (
             not self.is_child
-            and (len(self.symbolic_circuit.nodes) + self.symbolic_circuit.is_grounded)
-            > settings.SYM_MATRIX_INV_THRESHOLD
+            and (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES
         ) or self.is_purely_harmonic:
             self.symbolic_circuit.update_param_init_val(param_name, value)
             self._regenerate_sym_hamiltonian()
@@ -335,6 +335,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         value:
             The value to which the instance property is updated.
         """
+        # first check if the input value is valid.
+        if not np.isrealobj(value):
+            raise AttributeError(
+                f"'{value}' is invalid. External flux and offset charges must be real valued."
+            )
 
         # update the attribute for the current instance
         setattr(self, f"_{param_name}", value)
@@ -357,8 +362,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         value:
             The value to which the instance property is updated.
         """
-        if (value < 1) or (not isinstance(value, int)):
-            raise AttributeError("Cutoffs can only be positive integers.")
+        if not (isinstance(value, int) and value > 0):
+            raise AttributeError(
+                f"{value} is invalid. Basis cutoffs can only be positive integers."
+            )
 
         setattr(self, f"_{param_name}", value)
 
@@ -530,7 +537,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         for subsystem_idx, subsystem in self.subsystems.items():
             if subsystem.truncated_dim >= subsystem.hilbertdim() - 1:
-                self.hierarchical_diagonalization = False
                 # find the correct position of the subsystem where the truncation
                 # index  is too big
                 subsystem_position = f"subsystem {subsystem_idx} "
@@ -544,15 +550,13 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     f"The truncation index for " + subsystem_position + f"is too big. "
                     f"It should be lower than {subsystem.hilbertdim() - 1}."
                 )
-            elif (subsystem.truncated_dim < 1) or (
-                not isinstance(subsystem.truncated_dim, int)
+            elif not (
+                isinstance(subsystem.truncated_dim, int)
+                and (subsystem.truncated_dim > 0)
             ):
-                self.hierarchical_diagonalization = False
-                # find the correct position of the subsystem where the truncation
-                # index  is too big
-                subsystem_position = f"subsystem {subsystem_idx} "
-                parent = subsystem.parent
-                raise Exception("The truncation index must be a positive integer.")
+                raise Exception(
+                    "Invalid value encountered in subsystem_trunc_dims. Truncated dimension should be a positive integer."
+                )
 
     def generate_subsystems(self):
         """
@@ -3374,9 +3378,7 @@ class Circuit(Subsystem):
 
         self._set_vars()  # setting the attribute vars to store operator symbols
 
-        if (
-            len(self.symbolic_circuit.nodes) + self.symbolic_circuit.is_grounded
-        ) > settings.SYM_MATRIX_INV_THRESHOLD:
+        if (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES:
             self.hamiltonian_symbolic = (
                 self.symbolic_circuit.generate_symbolic_hamiltonian(
                     substitute_params=True
@@ -3419,11 +3421,15 @@ class Circuit(Subsystem):
         trans_mat = self.transformation_matrix
         theta_vars = [
             sm.symbols(f"θ{index}")
-            for index in range(1, len(self.symbolic_circuit.nodes) + 1)
+            for index in range(
+                1, len(self.symbolic_circuit._node_list_without_ground) + 1
+            )
         ]
         node_vars = [
             sm.symbols(f"φ{index}")
-            for index in range(1, len(self.symbolic_circuit.nodes) + 1)
+            for index in range(
+                1, len(self.symbolic_circuit._node_list_without_ground) + 1
+            )
         ]
         node_var_eqns = []
         for idx, node_var in enumerate(node_vars):
@@ -3451,7 +3457,9 @@ class Circuit(Subsystem):
         if vars_type == "node":
             lagrangian = self.lagrangian_node_vars
             # replace v\theta with \theta_dot
-            for var_index in range(1, 1 + len(self.symbolic_circuit.nodes)):
+            for var_index in range(
+                1, 1 + len(self.symbolic_circuit._node_list_without_ground)
+            ):
                 lagrangian = lagrangian.replace(
                     sm.symbols(f"vφ{var_index}"),
                     sm.symbols("\\dot{φ_" + str(var_index) + "}"),
@@ -3520,7 +3528,9 @@ class Circuit(Subsystem):
         trans_mat = self.transformation_matrix
         node_offset_charge_vars = [
             sm.symbols(f"q_g{index}")
-            for index in range(1, len(self.symbolic_circuit.nodes) + 1)
+            for index in range(
+                1, len(self.symbolic_circuit._node_list_without_ground) + 1
+            )
         ]
         periodic_offset_charge_vars = [
             sm.symbols(f"ng{index}")
