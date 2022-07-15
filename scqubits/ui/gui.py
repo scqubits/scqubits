@@ -945,6 +945,7 @@ class GUI:
             self.update_range_values(new_min, new_max, widget_name, text_widgets)
         self.observe_ranges()
         self.observe_plot_refresh()
+        self.adjust_state_widgets(None)
         self.plot_refresh(None)
 
     def save_button_clicked_action(self, change) -> None:
