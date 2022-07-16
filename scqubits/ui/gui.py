@@ -385,10 +385,14 @@ class GUI:
 
             if isinstance(widget, IntSlider):
                 widget_min_text = IntText(
-                    value=widget.min, description="min=", layout=range_text_layout,
+                    value=widget.min,
+                    description="min=",
+                    layout=range_text_layout,
                 )
                 widget_max_text = IntText(
-                    value=widget.max, description="max=", layout=range_text_layout,
+                    value=widget.max,
+                    description="max=",
+                    layout=range_text_layout,
                 )
             elif isinstance(widget, FloatSlider):
                 widget_min_text = FloatText(
@@ -408,10 +412,14 @@ class GUI:
                 max_val = widget.options[-1]
 
                 widget_min_text = IntText(
-                    value=min_val, description="min=", layout=range_text_layout,
+                    value=min_val,
+                    description="min=",
+                    layout=range_text_layout,
                 )
                 widget_max_text = IntText(
-                    value=max_val, description="max=", layout=range_text_layout,
+                    value=max_val,
+                    description="max=",
+                    layout=range_text_layout,
                 )
             else:
                 continue
