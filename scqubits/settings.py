@@ -68,6 +68,12 @@ else:
     PROGRESSBAR_DISABLED = True
     IN_IPYTHON = False
 
+# use vector graphics display in jupyter
+if executed_in_ipython():
+    import matplotlib_inline.backend_inline
+
+    matplotlib_inline.backend_inline.set_matplotlib_formats("pdf", "svg")
+
 
 # run ParameterSweep directly upon initialization
 AUTORUN_SWEEP = True
@@ -136,3 +142,7 @@ T1_DEFAULT_WARNING = True
 # Overlap threshold in establishing a map between dressed states and bare product states
 # (lookups need to be manually regenerated for a change by the user to take effect
 OVERLAP_THRESHOLD = 0.5
+
+# settings for Circuit and SymbolicCircuit class
+## sets the threshold of the number of nodes above which the symbolic capacitance matrix inversion is skipped
+SYM_INVERSION_MAX_NODES = 3

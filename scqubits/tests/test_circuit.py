@@ -54,7 +54,7 @@ def test_zero_pi_discretized():
 
 def test_zero_pi_harmonic():
     """
-    Test for symmmetric zero-pi in harmonic oscillator basis.
+    Test for symmetric zero-pi in harmonic oscillator basis.
     """
     zp_yaml = """# zero-pi circuit
     branches:
@@ -179,3 +179,35 @@ branches:
     )
     eigs_test = circ.eigenvals()
     assert np.allclose(eigs_test, eigs_ref)
+
+
+def test_param_sweep():
+    DFC = scq.Circuit(
+        DATADIR + "circuit_DFC.yaml",
+        ext_basis="discretized",
+        initiate_sym_calc=False,
+        basis_completion="canonical",
+    )
+
+    closure_branches = [DFC.branches[0], DFC.branches[4], DFC.branches[-1]]
+    system_hierarchy = [[[1], [3]], [2], [4]]
+    subsystem_trunc_dims = [[34, [6, 6]], 6, 6]
+
+    DFC.configure(
+        closure_branches=closure_branches,
+        system_hierarchy=system_hierarchy,
+        subsystem_trunc_dims=subsystem_trunc_dims,
+    )
+
+    DFC._Φ1 = 0.5 + 0.01768
+    DFC._Φ2 = -0.2662
+    DFC._Φ3 = -0.5 + 0.01768
+
+    DFC._cutoff_ext_1 = 110
+    DFC._cutoff_ext_2 = 110
+    DFC._cutoff_ext_3 = 110
+    DFC._cutoff_ext_4 = 110
+
+    DFC.EJ = 4.6
+
+    DFC.get_spectrum_vs_paramvals("Φ1", np.linspace(0, 1, 11))

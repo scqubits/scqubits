@@ -33,7 +33,7 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.plotting as plot
-import scqubits.utils.spectrum_utils as spec_utils
+import scqubits.utils.spectrum_utils as utils
 
 from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
@@ -221,27 +221,25 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
     def _evals_calc(self, evals_count: int) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
-        evals = sparse.linalg.eigsh(
+        evals = utils.eigsh_safe(
             hamiltonian_mat,
             k=evals_count,
             sigma=0.0,
             which="LM",
             return_eigenvectors=False,
-            v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
         )
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         hamiltonian_mat = self.hamiltonian()
-        evals, evecs = sparse.linalg.eigsh(
+        evals, evecs = utils.eigsh_safe(
             hamiltonian_mat,
             k=evals_count,
             sigma=0.0,
             which="LM",
             return_eigenvectors=True,
-            v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
         )
-        evals, evecs = spec_utils.order_eigensystem(evals, evecs)
+        evals, evecs = utils.order_eigensystem(evals, evecs)
         return evals, evecs
 
     def get_ECS(self) -> float:
@@ -641,7 +639,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         theta_vec = theta_grid.make_linspace()
         a_n_theta = np.exp(1j * np.outer(n_vec, theta_vec)) / (2 * np.pi) ** 0.5
         wavefunc_amplitudes = np.matmul(state_amplitudes, a_n_theta).T
-        wavefunc_amplitudes = spec_utils.standardize_phases(wavefunc_amplitudes)
+        wavefunc_amplitudes = utils.standardize_phases(wavefunc_amplitudes)
 
         grid2d = discretization.GridSpec(
             np.asarray(
