@@ -363,3 +363,7 @@ def flatten_list_recursive(S):
     if isinstance(S[0], list):
         return flatten_list_recursive(S[0]) + flatten_list_recursive(S[1:])
     return S[:1] + flatten_list_recursive(S[1:])
+
+
+def number_of_lists_in_list(list_object: list) -> int:
+    return sum([1 for element in list_object if type(element) == list])

@@ -29,7 +29,6 @@ from typing import (
     Union,
     overload,
 )
-from typing_extensions import Literal
 
 import numpy as np
 
@@ -37,6 +36,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
 from qutip import Qobj
+from typing_extensions import Literal
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
@@ -1434,7 +1434,7 @@ def generator(sweep: "ParameterSweepBase", func: Callable, **kwargs) -> np.ndarr
                 itertools.product(*reduced_parameters.ranges),
             ),
             total=total_count,
-            desc="sweeping " + func_name,
+            desc=f"sweeping {func_name}",
             leave=False,
             disable=settings.PROGRESSBAR_DISABLED,
         )

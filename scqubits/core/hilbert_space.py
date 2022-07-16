@@ -16,7 +16,6 @@ import functools
 import importlib
 import re
 
-
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -50,8 +49,8 @@ import scqubits.ui.hspace_widget
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
-from scqubits.core.namedslots_array import NamedSlotsNdarray, Parameters
 
+from scqubits.core.namedslots_array import NamedSlotsNdarray, Parameters
 from scqubits.core.storage import SpectrumData
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
@@ -67,8 +66,8 @@ from scqubits.utils.typedefs import OscillatorList, QuantumSys, QubitList
 
 
 def has_duplicate_id_str(subsystem_list: List[QuantumSys]):
-    id_str_list = [obj._id_str for obj in subsystem_list]
-    id_str_set = set(obj._id_str for obj in subsystem_list)
+    id_str_list = [obj.id_str for obj in subsystem_list]
+    id_str_set = set(obj.id_str for obj in subsystem_list)
     return len(id_str_set) != len(id_str_list)
 
 
@@ -334,7 +333,6 @@ class HilbertSpace(
 
     osc_subsys_list = descriptors.ReadOnlyProperty(OscillatorList)
     qbt_subsys_list = descriptors.ReadOnlyProperty(QubitList)
-    lookup = descriptors.ReadOnlyProperty(spec_lookup.SpectrumLookupAdapter)
     interaction_list = descriptors.WatchedProperty(
         Tuple[Union[InteractionTerm, InteractionTermStr], ...], "INTERACTIONLIST_UPDATE"
     )
@@ -357,7 +355,7 @@ class HilbertSpace(
         if interaction_list:
             self.interaction_list = interaction_list
         else:
-            self.interaction_list: Tuple[InteractionTerm, ...] = []
+            self.interaction_list: List[InteractionTerm] = []
         self._interaction_term_by_id_str = {
             "InteractionTerm_{}".format(index): interaction_term
             for index, interaction_term in enumerate(self.interaction_list)
@@ -423,7 +421,7 @@ class HilbertSpace(
         output = "HilbertSpace:  subsystems\n"
         output += "-------------------------\n"
         for subsystem in self:
-            output += "\n" + str(subsystem) + "\n"
+            output += f"\n{subsystem}\n"
         if self.interaction_list:
             output += "\n\n"
             output += "HilbertSpace:  interaction terms\n"
@@ -432,7 +430,7 @@ class HilbertSpace(
             for id_str, interaction_term in self._interaction_term_by_id_str.items():
                 indent_length = 25
                 term_output = "InteractionTerm".ljust(indent_length, "-")
-                term_output += "| [{}]\n".format(id_str)
+                term_output += f"| [{id_str}]\n"
                 term_output += "\n".join(str(interaction_term).splitlines()[1:])
                 term_output += "\n\n"
                 output += term_output
@@ -700,7 +698,7 @@ class HilbertSpace(
             composite Hamiltonian composed of bare Hamiltonians of subsys_list
             independent of the external parameter
         """
-        bare_hamiltonian = 0
+        bare_hamiltonian = Qobj(0)
         for subsys_index, subsys in enumerate(self):
             if bare_esys is not None and subsys_index in bare_esys:
                 evals = bare_esys[subsys_index][0]
@@ -727,7 +725,7 @@ class HilbertSpace(
             interaction Hamiltonian
         """
         if not self.interaction_list:
-            return 0
+            return Qobj(0)
 
         operator_list = []
         for term in self.interaction_list:
