@@ -1945,7 +1945,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             expr_modified = expr_modified.replace(1.0 * ext_flux_var, ext_flux_var)
         return expr_modified
 
-    def sym_potential(self, float_round: int = 6, print_latex: bool = False) -> None:
+    def sym_potential(
+        self, float_round: int = 6, print_latex: bool = False, return_expr: bool = False
+    ) -> Union[sm.Expr, None]:
         """
         Method prints a user readable symbolic potential for the current instance
 
@@ -1955,6 +1957,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             Number of digits after the decimal to which floats are rounded
         print_latex:
             if set to True, the expression is additionally printed as LaTeX code
+        return_expr:
+                if set to True, all printing is suppressed and the function will silently
+                return the sympy expression
         """
         potential = self._make_expr_human_readable(
             self.potential_symbolic, float_round=float_round
@@ -1980,7 +1985,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         subsystem_index: Optional[int] = None,
         float_round: int = 6,
         print_latex: bool = False,
-    ) -> None:
+        return_expr: bool = False
+    ) -> Union[sm.Expr, None]:
         """
         Prints a user readable symbolic Hamiltonian for the current instance
 
@@ -1993,6 +1999,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             Number of digits after the decimal to which floats are rounded
         print_latex:
             if set to True, the expression is additionally printed as LaTeX code
+        return_expr:
+            if set to True, all printing is suppressed and the function will silently
+            return the sympy expression
         """
         if subsystem_index is not None:
             if not self.hierarchical_diagonalization:
@@ -2086,6 +2095,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             sym_hamiltonian = sm.Add(
                 sym_hamiltonian_KE, sym_hamiltonian_PE, evaluate=False
             )
+        if return_expr:
+            return sym_hamiltonian
         if print_latex:
             print(latex(sym_hamiltonian))
         if _HAS_IPYTHON:
@@ -2098,7 +2109,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         subsystem_indices: Tuple[int],
         float_round: int = 6,
         print_latex: bool = False,
-    ) -> None:
+        return_expr: bool = False,
+    ) -> Union[sm.Expr, None]:
         """
         Print the interaction between any set of subsystems for the current instance.
         It would print the interaction terms having operators from all the subsystems
@@ -2111,7 +2123,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         float_round:
             Number of digits after the decimal to which floats are rounded
         print_latex:
-             if set to True, the expression is additionally printed as LaTeX code
+            if set to True, the expression is additionally printed as LaTeX code
+        return_expr:
+            if set to True, all printing is suppressed and the function will silently
+            return the sympy expression
         """
         interaction = sm.symbols("x") * 0
         for subsys_index_pair in itertools.combinations(subsystem_indices, 2):
@@ -2145,6 +2160,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     "(2π" + "Φ_{" + str(get_trailing_number(str(external_flux))) + "})"
                 ),
             )
+        if return_expr:
+            return interaction
         if print_latex:
             print(latex(interaction))
         if _HAS_IPYTHON:
@@ -3436,10 +3453,13 @@ class Circuit(Subsystem):
             print(node_var_eqns)
 
     def sym_lagrangian(
-        self, vars_type: str = "node", print_latex: bool = False
-    ) -> None:
+        self,
+        vars_type: str = "node",
+        print_latex: bool = False,
+        return_expr: bool = False,
+    ) -> Union[sm.Expr, None]:
         """
-        Method that prints a user readable symbolic Lagrangian for the current instance
+        Method that gives a user readable symbolic Lagrangian for the current instance
 
         Parameters
         ----------
@@ -3447,6 +3467,9 @@ class Circuit(Subsystem):
             "node" or "new", fixes the kind of lagrangian requested, by default "node"
         print_latex:
             if set to True, the expression is additionally printed as LaTeX code
+        return_expr:
+            if set to True, all printing is suppressed and the function will silently
+            return the sympy expression
         """
         if vars_type == "node":
             lagrangian = self.lagrangian_node_vars
@@ -3507,6 +3530,8 @@ class Circuit(Subsystem):
                 (self._make_expr_human_readable(-sym_lagrangian_PE_new)),
                 evaluate=False,
             )
+        if return_expr:
+            return lagrangian
         if print_latex:
             print(latex(lagrangian))
         if _HAS_IPYTHON:
