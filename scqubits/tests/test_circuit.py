@@ -25,6 +25,30 @@ DATADIR = os.path.join(TESTDIR, "data", "")
 @pytest.mark.usefixtures("num_cpus")
 class TestCircuit:
     @staticmethod
+    def test_sym_hamiltonian():
+        zp_yaml = """
+        # zero-pi circuit
+        branches:
+        - ["JJ", 1, 2, EJ=10, 20] 
+        - ["JJ", 3, 4, EJ, 20]
+        - ["L", 2, 3, 0.01]
+        - ["L", 4, 1, 0.008]
+        - ["C", 1, 3, 0.02]
+        - ["C", 2, 4, 0.02]
+        """
+        REFERENCE = (
+            "<bound method Printable.__str__ of 6.25625*\\dot{θ_1}**2 + "
+            "25.0*\\dot{θ_2}**2 + 0.00625*\\dot{θ_3}**2 + EJ*cos(θ1 - 1.0*θ3) + "
+            "EJ*cos(-(2πΦ_{1}) + θ1 + θ3) - 0.036*θ2**2 - 0.004*θ2*θ3 - 0.009*θ3**2>"
+        )
+
+        zero_pi = scq.Circuit(zp_yaml, from_file=False, ext_basis="discretized")
+        latex_code = str(
+            zero_pi.sym_lagrangian(vars_type="new", return_expr=True).__repr__
+        )
+        assert latex_code == REFERENCE
+
+    @staticmethod
     def test_zero_pi_discretized():
         """
         Test for symmetric zero-pi in discretized phi basis.
