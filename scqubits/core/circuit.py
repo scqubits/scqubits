@@ -1985,7 +1985,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         subsystem_index: Optional[int] = None,
         float_round: int = 6,
         print_latex: bool = False,
-        return_expr: bool = False
+        return_expr: bool = False,
     ) -> Union[sm.Expr, None]:
         """
         Prints a user readable symbolic Hamiltonian for the current instance
