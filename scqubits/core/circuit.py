@@ -140,7 +140,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
         self.is_child = True
         self.parent = parent
         self.hamiltonian_symbolic = hamiltonian_symbolic
-        self._hamiltonian_sym_for_numerics = hamiltonian_symbolic
+        # self._hamiltonian_sym_for_numerics = hamiltonian_symbolic
         self._default_grid_phi = self.parent._default_grid_phi
 
         self.junction_potential = None
@@ -492,6 +492,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
             ]
 
         self._set_vars()
+
+        self.generate_hamiltonian_sym_for_numerics()
+        
         if self.hierarchical_diagonalization:
             # attribute to note updated subsystem indices
             self.updated_subsystem_indices = []
@@ -604,7 +607,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
         Generates the subsystems (child instances of Circuit) depending on the attribute
         `self.system_hierarchy`
         """
-        hamiltonian = self._hamiltonian_sym_for_numerics
+        # hamiltonian = self._hamiltonian_sym_for_numerics
+        hamiltonian = self.hamiltonian_symbolic
+
         # collecting constants
         constants = self._list_of_constants_from_expr(hamiltonian)
         self._constant_terms_in_hamiltonian = constants

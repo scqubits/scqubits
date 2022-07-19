@@ -24,7 +24,7 @@ LOGGER = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------
 # To enable logging output, uncomment the following setting:
-LOGGER.setLevel(logging.DEBUG)
+# LOGGER.setLevel(logging.DEBUG)
 # ---------------------------------------------------------------
 
 
