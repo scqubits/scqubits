@@ -457,16 +457,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
         Function which is used to initiate the subsystem instance.
         """
 
-        for x, param in enumerate(self.symbolic_params):
-            # if harmonic oscillator basis is used, param vars become class properties.
-            if param not in self.potential_symbolic.free_symbols:
-                self._make_property(
-                    param.name, getattr(self.parent, param.name), "update_param_vars"
-                )
-            else:
-                self._make_property(
-                    param.name, getattr(self.parent, param.name), "update_external_flux_or_charge"
-                )
+        for idx, param in enumerate(self.symbolic_params):
+            self._make_property(
+                param.name, getattr(self.parent, param.name), "update_param_vars"
+            )
 
         # getting attributes from parent
         for flux in self.external_fluxes:
@@ -3385,15 +3379,9 @@ class Circuit(Subsystem):
         # default values for the parameters
         for idx, param in enumerate(self.symbolic_params):
             if not hasattr(self, param.name):
-                # if harmonic oscillator basis is used, param vars become class properties.
-                if param not in self.potential_symbolic.free_symbols:
-                    self._make_property(
-                    param.name, self.symbolic_params[param], "update_param_vars"
-                    )
-                else:
-                    self._make_property(
-                        param.name, self.symbolic_params[param], "update_external_flux_or_charge"
-                    )
+                self._make_property(
+                param.name, self.symbolic_params[param], "update_param_vars"
+                )
         # setting the ranges for flux ranges used for discrete phi vars
         for var_index in self.var_categories["extended"]:
             if var_index not in self.discretized_phi_range:
