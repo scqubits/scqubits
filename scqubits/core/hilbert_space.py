@@ -575,6 +575,7 @@ class HilbertSpace(
             self
         )
         self._lookup = spec_lookup.SpectrumLookupAdapter(self)
+        self._lookup._out_of_sync = False
 
     def generate_bare_esys(self, update_subsystem_indices: List[int] = None) -> None:
         # update all the subsystems when update_subsystem_indices is set to None
@@ -609,7 +610,6 @@ class HilbertSpace(
         self._data["bare_evecs"] = NamedSlotsNdarray(
             bare_evecs, {"subsys": np.arange(self.subsystem_count)}
         )
-
         return bare_esys_dict
 
     ###################################################################################

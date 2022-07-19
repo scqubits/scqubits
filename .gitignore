@@ -34,3 +34,5 @@
 /example/
 scqubits/ui/test.ipynb
 scqubits/ui/.ipynb_checkpoints/test-checkpoint.ipynb
+scqubits/.vscode/settings.json
+*.ipynb

@@ -228,7 +228,7 @@ class GUI:
         current_qubit = self.qubit_and_plot_ToggleButtons[
             "qubit_buttons"
         ].get_interact_value()
-        operator_dropdown_list = self.get_operators()
+        operator_dropdown_list = self.active_qubit.get_operator_names()
         scan_dropdown_list = self.qubit_scan_params.keys()
         file = open(self.active_qubit._image_filename, "rb")
         image = file.read()
@@ -257,12 +257,13 @@ class GUI:
                 disabled=False,
                 layout=std_layout,
             ),
-            "state_slider": IntSlider(
+            "highest_state_slider": IntSlider(
                 min=1,
                 max=10,
                 value=5,
                 continuous_update=False,
                 layout=std_layout,
+                description="Highest State",
             ),
             "show_numbers_checkbox": Checkbox(
                 value=False, description="Show values", disabled=False, indent=False
@@ -298,6 +299,15 @@ class GUI:
                 description="\u03c8 ampl.",
                 continuous_update=False,
                 layout=std_layout,
+            )
+        else:
+            self.qubit_plot_options_widgets["wavefunction_state_slider"] = IntSlider(
+                min=0,
+                max=9,
+                value=5,
+                continuous_update=False,
+                layout=std_layout,
+                description="State No.",
             )
 
         if current_qubit in gui_defaults.paramvals_from_papers.keys():
@@ -434,7 +444,7 @@ class GUI:
                 step=0.01,
                 layout=range_text_layout,
             )
-            self.ranges_widgets["Wavefunction"] = {
+            self.ranges_widgets["wavefunction_domain_slider"] = {
                 "min": widget_min_text,
                 "max": widget_max_text,
             }
@@ -497,20 +507,6 @@ class GUI:
         self.observe_plot_refresh()
 
     # Retrieval Methods------------------------------------------------------------------
-    def get_operators(self) -> List[str]:
-        """Obtains the operators for the active qubit.
-        Note that this list omits any operators that start with "_".
-
-        Returns
-        -------
-            List of operators for the active_qubit
-        """
-        operator_list = []
-        for name, val in inspect.getmembers(self.active_qubit):
-            if "operator" in name and name[0] != "_":
-                operator_list.append(name)
-        return operator_list
-
     def get_current_values(self) -> Dict[str, Union[int, float]]:
         """Obtains the current values from each of the qubit parameter
         sliders.
@@ -594,9 +590,9 @@ class GUI:
             corresponding parameter/qubit plot option widget
         """
         if new_min <= 0 or ("cut" in widget_name and new_min == 1):
-            if widget_name == "state_slider":
+            if widget_name == "highest_state_slider":
                 new_min = 1
-            elif widget_name == "Wavefunction":
+            elif widget_name == "wavefunction_domain_slider":
                 pass
             elif widget_name == "wavefunction_scale_slider":
                 new_min = text_widget["min"].step
@@ -608,8 +604,8 @@ class GUI:
             else:
                 new_min = 0
         if new_max <= new_min:
-            if (widget_name == "state_slider" and new_min == 1) or (
-                widget_name != "Wavefunction" and new_min == 0
+            if (widget_name == "highest_state_slider" and new_min == 1) or (
+                widget_name != "wavefunction_domain_slider" and new_min == 0
             ):
                 new_max = new_min + text_widget["min"].step
             elif changed_widget_key == "min=":
@@ -744,12 +740,25 @@ class GUI:
 
     # Eventhandler Methods -------------------------------------------------------------
     def qubit_change(self, change) -> None:
+        self.plot_output.clear_output()
         new_qubit = change["new"]
-        if new_qubit in gui_defaults.slow_qubits:
-            self.manual_update_and_save_widgets["manual_update_checkbox"].value = True
         self.unobserve_ranges()
         self.unobserve_widgets()
         self.unobserve_plot_refresh()
+        self.manual_update_and_save_widgets["manual_update_checkbox"].unobserve(
+            self.manual_update_checkbox, names="value"
+        )
+        if new_qubit in gui_defaults.slow_qubits:
+            self.manual_update_and_save_widgets["manual_update_checkbox"].value = True
+            self.manual_update_and_save_widgets["update_button"].disabled = False
+            self.manual_update_bool = True
+        else:
+            self.manual_update_and_save_widgets["manual_update_checkbox"].value = False
+            self.manual_update_and_save_widgets["update_button"].disabled = True
+            self.manual_update_bool = False
+        self.manual_update_and_save_widgets["manual_update_checkbox"].observe(
+            self.manual_update_checkbox, names="value"
+        )
         self.set_qubit(new_qubit)
         self.initialize_tab_widget()
         self.observe_ranges()
@@ -765,6 +774,7 @@ class GUI:
         self.unobserve_ranges()
         self.unobserve_widgets()
         self.unobserve_plot_refresh()
+        self.plot_output.clear_output()
         self.current_plot_option_refresh = self.get_plot_option_refresh()
         new_plot_option = self.plot_option_layout()
 
@@ -788,7 +798,7 @@ class GUI:
         if change["new"]:
             self.manual_update_and_save_widgets["update_button"].disabled = False
             self.unobserve_plot_refresh()
-            self.plot_output.clear_output(wait=True)
+            self.plot_output.clear_output()
             self.manual_update_bool = True
         else:
             self.manual_update_and_save_widgets["update_button"].disabled = True
@@ -867,16 +877,20 @@ class GUI:
         self.unobserve_plot_refresh()
         self.update_params()
         hilbertdim = self.active_qubit.hilbertdim()
-        state_slider_text = self.ranges_widgets["state_slider"]
+        wavefunction_state_slider_text = self.ranges_widgets["highest_state_slider"]
 
-        if state_slider_text["max"].get_interact_value() >= hilbertdim - 1:
-            new_min = state_slider_text["min"].get_interact_value()
+        if wavefunction_state_slider_text["max"].get_interact_value() >= hilbertdim - 1:
+            new_min = wavefunction_state_slider_text["min"].get_interact_value()
             new_max = hilbertdim - 2
             new_min, new_max = self.check_ranges(
-                new_min, new_max, "state_slider", state_slider_text, "min="
+                new_min,
+                new_max,
+                "highest_state_slider",
+                wavefunction_state_slider_text,
+                "min=",
             )
             self.update_range_values(
-                new_min, new_max, "state_slider", state_slider_text
+                new_min, new_max, "highest_state_slider", wavefunction_state_slider_text
             )
 
         if isinstance(
@@ -884,9 +898,9 @@ class GUI:
         ):
             multi_state_selector_text = self.ranges_widgets["multi_state_selector"]
 
-            if multi_state_selector_text["max"].get_interact_value() >= hilbertdim - 1:
+            if multi_state_selector_text["max"].get_interact_value() >= hilbertdim - 2:
                 new_min = multi_state_selector_text["min"].get_interact_value()
-                new_max = hilbertdim - 2
+                new_max = hilbertdim - 3
                 new_min, new_max = self.check_ranges(
                     new_min,
                     new_max,
@@ -896,6 +910,30 @@ class GUI:
                 )
                 self.update_range_values(
                     new_min, new_max, "multi_state_selector", multi_state_selector_text
+                )
+        else:
+            wavefunction_state_slider_text = self.ranges_widgets[
+                "wavefunction_state_slider"
+            ]
+
+            if (
+                wavefunction_state_slider_text["max"].get_interact_value()
+                >= hilbertdim - 2
+            ):
+                new_min = wavefunction_state_slider_text["min"].get_interact_value()
+                new_max = hilbertdim - 3
+                new_min, new_max = self.check_ranges(
+                    new_min,
+                    new_max,
+                    "wavefunction_state_slider",
+                    wavefunction_state_slider_text,
+                    "min=",
+                )
+                self.update_range_values(
+                    new_min,
+                    new_max,
+                    "wavefunction_state_slider",
+                    wavefunction_state_slider_text,
                 )
         self.observe_ranges()
         self.observe_plot_refresh()
@@ -915,6 +953,7 @@ class GUI:
             self.update_range_values(new_min, new_max, widget_name, text_widgets)
         self.observe_ranges()
         self.observe_plot_refresh()
+        self.adjust_state_widgets(None)
         self.plot_refresh(None)
 
     def save_button_clicked_action(self, change) -> None:
@@ -923,9 +962,7 @@ class GUI:
     def plot_refresh(self, change):
         self.update_params()
 
-        if not self.manual_update_and_save_widgets[
-            "manual_update_checkbox"
-        ].get_interact_value():
+        if not self.manual_update_bool:
             self.current_plot_option_refresh(None)
 
     def common_params_dropdown_link_refresh(self, change) -> None:
@@ -962,7 +999,7 @@ class GUI:
                 "subtract_ground_checkbox"
             ].get_interact_value(),
             "eigenvalue_state_value": self.qubit_plot_options_widgets[
-                "state_slider"
+                "highest_state_slider"
             ].get_interact_value(),
         }
 
@@ -983,7 +1020,7 @@ class GUI:
         ):
             value_dict["scale_value"] = None
             value_dict["eigenvalue_states"] = self.qubit_plot_options_widgets[
-                "state_slider"
+                "wavefunction_state_slider"
             ].get_interact_value()
         else:
             manual_scale_tf_value = self.qubit_plot_options_widgets[
@@ -1000,8 +1037,12 @@ class GUI:
                 "multi_state_selector"
             ].get_interact_value()
             value_dict["phi_grid"] = Grid1d(
-                min_val=self.ranges_widgets["Wavefunction"]["min"].get_interact_value(),
-                max_val=self.ranges_widgets["Wavefunction"]["max"].get_interact_value(),
+                min_val=self.ranges_widgets["wavefunction_domain_slider"][
+                    "min"
+                ].get_interact_value(),
+                max_val=self.ranges_widgets["wavefunction_domain_slider"][
+                    "max"
+                ].get_interact_value(),
                 pt_count=self.active_qubit._default_grid.pt_count,
             )
 
@@ -1023,7 +1064,7 @@ class GUI:
                 "operator_dropdown"
             ].get_interact_value(),
             "matrix_element_state_value": self.qubit_plot_options_widgets[
-                "state_slider"
+                "highest_state_slider"
             ].get_interact_value(),
             "mode_value": self.qubit_plot_options_widgets[
                 "mode_dropdown"
@@ -1039,7 +1080,7 @@ class GUI:
                 "operator_dropdown"
             ].get_interact_value(),
             "eigenvalue_state_value": self.qubit_plot_options_widgets[
-                "state_slider"
+                "highest_state_slider"
             ].get_interact_value(),
             "mode_value": self.qubit_plot_options_widgets[
                 "mode_dropdown"
@@ -1095,14 +1136,16 @@ class GUI:
         ranges_grid_hbox = HBox(layout=grid_hbox_layout)
 
         for widget_name, text_widgets in self.ranges_widgets.items():
-            if widget_name in self.qubit_plot_options_widgets.keys():
-                widget = self.qubit_plot_options_widgets[widget_name]
-                if isinstance(widget, IntSlider):
-                    widget_name = "Highest State"
-                elif isinstance(widget, SelectMultiple):
-                    widget_name = "States"
-                else:
-                    widget_name = "Scale"
+            if widget_name == "highest_state_slider":
+                widget_name = "Highest State"
+            elif widget_name == "multi_state_selector":
+                widget_name = "States"
+            elif widget_name == "wavefunction_state_slider":
+                widget_name = "State No."
+            elif widget_name == "wavefunction_scale_slider":
+                widget_name = "Scale"
+            elif widget_name == "wavefunction_domain_slider":
+                widget_name = "Wavefunction"
 
             range_hbox = HBox(layout=range_hbox_layout)
             widget_label = Label(
@@ -1218,12 +1261,11 @@ class GUI:
         self.qubit_params_widgets[
             self.qubit_plot_options_widgets["scan_dropdown"].value
         ].disabled = True
-        self.qubit_plot_options_widgets["state_slider"].description = "Highest State"
 
         plot_options_widgets_tuple = (
             self.qubit_plot_options_widgets["scan_dropdown"],
             self.qubit_plot_options_widgets["subtract_ground_checkbox"],
-            self.qubit_plot_options_widgets["state_slider"],
+            self.qubit_plot_options_widgets["highest_state_slider"],
         )
 
         return plot_options_widgets_tuple
@@ -1241,12 +1283,11 @@ class GUI:
         self.qubit_params_widgets[
             self.qubit_plot_options_widgets["scan_dropdown"].value
         ].disabled = True
-        self.qubit_plot_options_widgets["state_slider"].description = "Highest State"
 
         plot_options_widgets_tuple = (
             self.qubit_plot_options_widgets["operator_dropdown"],
             self.qubit_plot_options_widgets["scan_dropdown"],
-            self.qubit_plot_options_widgets["state_slider"],
+            self.qubit_plot_options_widgets["highest_state_slider"],
             self.qubit_plot_options_widgets["mode_dropdown"],
         )
 
@@ -1278,10 +1319,9 @@ class GUI:
             if isinstance(
                 self.active_qubit, (scq.FluxQubit, scq.ZeroPi, scq.Cos2PhiQubit)
             ):
-                self.qubit_plot_options_widgets[
-                    "state_slider"
-                ].description = "State No."
-                which_widget = self.qubit_plot_options_widgets["state_slider"]
+                which_widget = self.qubit_plot_options_widgets[
+                    "wavefunction_state_slider"
+                ]
             else:
                 which_widget = self.qubit_plot_options_widgets["multi_state_selector"]
 
@@ -1317,11 +1357,10 @@ class GUI:
         self.qubit_params_widgets[
             self.qubit_plot_options_widgets["scan_dropdown"].value
         ].disabled = False
-        self.qubit_plot_options_widgets["state_slider"].description = "Highest State"
 
         plot_options_widgets_tuple = (
             self.qubit_plot_options_widgets["operator_dropdown"],
-            self.qubit_plot_options_widgets["state_slider"],
+            self.qubit_plot_options_widgets["highest_state_slider"],
             self.qubit_plot_options_widgets["mode_dropdown"],
             self.qubit_plot_options_widgets["show_numbers_checkbox"],
             self.qubit_plot_options_widgets["show3d_checkbox"],
@@ -1356,7 +1395,6 @@ class GUI:
         scan_min, scan_max = scan_range
         np_list = np.linspace(scan_min, scan_max, self.active_defaults["num_sample"])
         with self.plot_output:
-            plt.cla()
             self.fig, ax = self.active_qubit.plot_evals_vs_paramvals(
                 scan_value,
                 np_list,
@@ -1366,7 +1404,6 @@ class GUI:
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
             self.fig.dpi = gui_defaults.FIG_DPI
-            plt.close(1)
             plt.show()
         GUI.fig_ax = self.fig, ax
 
@@ -1392,7 +1429,6 @@ class GUI:
             Specifies the domain over which the wavefunction will be plotted.
         """
         with self.plot_output:
-            plt.cla()
             if isinstance(
                 self.active_qubit, (scq.FluxQubit, scq.ZeroPi, scq.Cos2PhiQubit)
             ):
@@ -1409,7 +1445,6 @@ class GUI:
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
             self.fig.dpi = gui_defaults.FIG_DPI
-            plt.close(1)
             plt.show()
         GUI.fig_ax = self.fig, ax
 
@@ -1441,7 +1476,6 @@ class GUI:
         scan_min, scan_max = scan_range
         np_list = np.linspace(scan_min, scan_max, self.active_defaults["num_sample"])
         with self.plot_output:
-            plt.cla()
             self.fig, ax = self.active_qubit.plot_matelem_vs_paramvals(
                 operator_value,
                 scan_value,
@@ -1452,7 +1486,6 @@ class GUI:
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
             self.fig.dpi = gui_defaults.FIG_DPI
-            plt.close(1)
             plt.show()
         GUI.fig_ax = self.fig, ax
 
@@ -1483,7 +1516,6 @@ class GUI:
             Initially set to True.
         """
         with self.plot_output:
-            plt.cla()
             self.fig, ax = self.active_qubit.plot_matrixelements(
                 operator_value,
                 evals_count=eigenvalue_state_value,
@@ -1494,6 +1526,5 @@ class GUI:
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
             self.fig.dpi = gui_defaults.FIG_DPI
-            plt.close(1)
             plt.show()
         GUI.fig_ax = self.fig, ax

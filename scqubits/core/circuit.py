@@ -32,8 +32,17 @@ from scipy import sparse, stats
 from scipy.sparse import csc_matrix
 from sympy import latex
 
+try:
+    from IPython.display import display, Latex
+except ImportError:
+    _HAS_IPYTHON = False
+else:
+    _HAS_IPYTHON = True
+
 import scqubits as scq
 import scqubits.core.discretization as discretization
+from scqubits.core import descriptors
+import scqubits.core.central_dispatch as dispatch
 import scqubits.core.oscillator as osc
 import scqubits.core.qubit_base as base
 import scqubits.core.spec_lookup as spec_lookup
@@ -42,8 +51,7 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as utils
-import scqubits.settings as settings
-
+from scqubits.utils.misc import check_sync_status
 
 from scqubits import HilbertSpace, settings
 from scqubits.core import operators as op
@@ -90,7 +98,7 @@ from scqubits.utils.spectrum_utils import (
 )
 
 
-class Subsystem(base.QubitBaseClass, serializers.Serializable):
+class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.DispatchClient):
     """
     Defines a subsystem for a circuit, which can further be used recursively to define
     subsystems within subsystem.
@@ -232,6 +240,33 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     def __repr__(self) -> str:
         return self._id_str
 
+    def __reduce__(self):
+        # needed for multiprocessing / proper pickling
+        pickle_func, pickle_args, pickled_state = super().__reduce__()
+        new_pickled_state = {
+            key: value for key, value in pickled_state.items() if "_operator" not in key
+        }
+        new_pickled_state["_frozen"] = False
+
+        pickled_properties = {
+            property_name: property_obj
+            for property_name, property_obj in self.__class__.__dict__.items()
+            if isinstance(property_obj, property)
+        }
+
+        return pickle_func, pickle_args, (new_pickled_state, pickled_properties)
+
+    def __setstate__(self, state):
+        # needed for multiprocessing / proper unpickling
+        pickled_attribs, pickled_properties = state
+        self._frozen = False
+
+        self.__dict__.update(pickled_attribs)
+        self.operators_by_name = self.set_operators()
+
+        for property_name, property_obj in pickled_properties.items():
+            setattr(self.__class__, property_name, property_obj)
+
     @staticmethod
     def default_params() -> Dict[str, Any]:
         # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
@@ -261,8 +296,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         if (
             not self.is_child
-            and (len(self.symbolic_circuit.nodes) + self.symbolic_circuit.is_grounded)
-            > settings.SYM_MATRIX_INV_THRESHOLD
+            and (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES
         ):
             self.hamiltonian_symbolic = (
                 self.symbolic_circuit.generate_symbolic_hamiltonian(
@@ -285,6 +319,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             The value to which the instance property is updated.
         """
         # update the attribute for the current instance
+        # first check if the input value is valid.
+        if not (np.isrealobj(value) and value > 0):
+            raise AttributeError(
+                f"'{value}' is invalid. Branch parameters must be positive and real."
+            )
         setattr(self, f"_{param_name}", value)
 
         # update the attribute for the instance in symbolic_circuit
@@ -292,8 +331,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # large circuits
         if (
             not self.is_child
-            and (len(self.symbolic_circuit.nodes) + self.symbolic_circuit.is_grounded)
-            > settings.SYM_MATRIX_INV_THRESHOLD
+            and (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES
         ) or self.is_purely_harmonic:
             self.symbolic_circuit.update_param_init_val(param_name, value)
             self._regenerate_sym_hamiltonian()
@@ -327,6 +365,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         value:
             The value to which the instance property is updated.
         """
+        # first check if the input value is valid.
+        if not np.isrealobj(value):
+            raise AttributeError(
+                f"'{value}' is invalid. External flux and offset charges must be real valued."
+            )
 
         # update the attribute for the current instance
         setattr(self, f"_{param_name}", value)
@@ -349,6 +392,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         value:
             The value to which the instance property is updated.
         """
+        if not (isinstance(value, int) and value > 0):
+            raise AttributeError(
+                f"{value} is invalid. Basis cutoffs can only be positive integers."
+            )
+
         setattr(self, f"_{param_name}", value)
 
         # set operators and rebuild the HilbertSpace object
@@ -395,7 +443,14 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             def setter(obj, value, name=attrib_name):
                 return obj._set_property_and_update_cutoffs(name, value)
 
-        setattr(self.__class__, attrib_name, property(fget=getter, fset=setter))
+        setattr(self.__class__, attrib_name, descriptors.WatchedProperty(float, "CIRCUIT_UPDATE", fget=getter, fset=setter, attr_name=attrib_name))
+
+    def receive(self, event: str, sender: object, **kwargs) -> None:
+        if self.hierarchical_diagonalization and (sender in self.subsystems.values()):
+            self.broadcast("CIRCUIT_UPDATE")
+            self._out_of_sync = True
+            self.hilbert_space._out_of_sync = True
+            self.broadcast("QUANTUMSYSTEM_UPDATE")
 
     def _configure(self) -> None:
         """
@@ -404,9 +459,14 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         for x, param in enumerate(self.symbolic_params):
             # if harmonic oscillator basis is used, param vars become class properties.
-            self._make_property(
-                param.name, getattr(self.parent, param.name), "update_param_vars"
-            )
+            if param not in self.potential_symbolic.free_symbols:
+                self._make_property(
+                    param.name, getattr(self.parent, param.name), "update_param_vars"
+                )
+            else:
+                self._make_property(
+                    param.name, getattr(self.parent, param.name), "update_external_flux_or_charge"
+                )
 
         # getting attributes from parent
         for flux in self.external_fluxes:
@@ -445,13 +505,17 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             self.generate_subsystems()
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
-            self.build_hilbertspace()
+            self.updated_subsystem_indices = list(range(len(self.subsystems)))
         else:
             self.operators_by_name = self.set_operators()
 
+        if self.hierarchical_diagonalization:
+            self._out_of_sync = False # for use with CentralDispatch
+            dispatch.CENTRAL_DISPATCH.register("CIRCUIT_UPDATE", self)
+
     def _store_updated_subsystem_index(self, index: int) -> None:
         if not self.hierarchical_diagonalization:
-            raise Exception(f"The subsystem provided to self has no subsystems.")
+            raise Exception(f"The subsystem provided to {self} has no subsystems.")
         if index not in self.updated_subsystem_indices:
             self.updated_subsystem_indices.append(index)
 
@@ -519,7 +583,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         for subsystem_idx, subsystem in self.subsystems.items():
             if subsystem.truncated_dim >= subsystem.hilbertdim() - 1:
-                self.hierarchical_diagonalization = False
                 # find the correct position of the subsystem where the truncation
                 # index  is too big
                 subsystem_position = f"subsystem {subsystem_idx} "
@@ -530,8 +593,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     subsystem_position += f"of subsystem {grandparent.get_subsystem_index(parent.var_categories_list[0])} "
                     parent = grandparent
                 raise Exception(
-                    f"The truncation index for " + subsystem_position + f"is too big. "
-                    f"It should be lower than {subsystem.hilbertdim() - 1}."
+                    f"The truncation index for {subsystem_position} exceeds the maximum"
+                    f" size of {subsystem.hilbertdim() - 1}."
+                )
+            elif not (
+                isinstance(subsystem.truncated_dim, int)
+                and (subsystem.truncated_dim > 0)
+            ):
+                raise Exception(
+                    "Invalid value encountered in subsystem_trunc_dims. "
+                    "Truncated dimension must be a positive integer."
                 )
 
     def generate_subsystems(self):
@@ -633,12 +704,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         if self.is_child:
             subsys_index = self.parent.hilbert_space.subsys_list.index(self)
-            if "bare_evecs" in self.parent.hilbert_space._data:
-                return self.parent.hilbert_space["bare_evecs"][subsys_index][0]
-            else:
-                raise Exception(
-                    "The bare eigenvectors have not been generated in the parent's hilbertspace."
-                )
+            return self.parent.hilbert_space["bare_evecs"][subsys_index][0]
         else:
             return self.eigensys()[1]
 
@@ -661,7 +727,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             if var_index in flatten_list_recursive(system_hierarchy):
                 return index
         raise Exception(
-            f"The var_index={var_index} could not be identified with any " "subsystem."
+            f"The var_index={var_index} could not be identified with any subsystem."
         )
 
     def build_hilbertspace(
@@ -677,6 +743,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             List of subsystem indices which need to be updated. If set to None, all the
            are updated.
         """
+        if update_subsystem_indices == []:
+            return None
         # generate lookup table in HilbertSpace
         _ = self.hilbert_space.generate_bare_esys(
             update_subsystem_indices=update_subsystem_indices
@@ -712,6 +780,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     * self._interaction_operator_from_expression(term),
                     check_validity=False,
                 )
+        self._out_of_sync = False
+        self.hilbert_space._out_of_sync = False
 
     def _interaction_operator_from_expression(self, symbolic_interaction_term: sm.Expr):
         """
@@ -1536,6 +1606,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         oscillator basis
         """
         expr_dict = H.as_coefficients_dict()
+        # removing zero terms
+        expr_dict = {key: expr_dict[key] for key in expr_dict if expr_dict[key] != 0}
         terms_list = list(expr_dict.keys())
         coeff_list = list(expr_dict.values())
 
@@ -1823,6 +1895,24 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     # ****************************************************************
     # ***** Functions for pretty display of symbolic expressions *****
     # ****************************************************************
+    @staticmethod
+    def print_expr_in_latex(expr: Union[sm.Expr, List["sm.Equality"]]) -> None:
+        """
+        Print a sympy expression or a list of equalities in LaTeX
+
+        Parameters
+        ----------
+        expr:
+            a sympy expressions or a list of equalities
+        """
+        if isinstance(expr, sm.Expr):
+            display(Latex("$ " + sm.printing.latex(expr) + " $"))
+        elif isinstance(expr, list):
+            equalities_in_latex = "$ "
+            for eqn in expr:
+                equalities_in_latex += sm.printing.latex(eqn) + " \\\ "
+            equalities_in_latex = equalities_in_latex[:-4] + " $"
+            display(Latex(equalities_in_latex))
 
     def _make_expr_human_readable(self, expr: sm.Expr, float_round: int = 6) -> sm.Expr:
         """
@@ -1878,9 +1968,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             expr_modified = expr_modified.replace(1.0 * ext_flux_var, ext_flux_var)
         return expr_modified
 
-    def sym_potential(self, float_round: int = 6, print_latex: bool = False) -> sm.Expr:
+    def sym_potential(
+        self, float_round: int = 6, print_latex: bool = False, return_expr: bool = False
+    ) -> Union[sm.Expr, None]:
         """
-        Method returns a user readable symbolic potential for the current instance
+        Method prints a user readable symbolic potential for the current instance
 
         Parameters
         ----------
@@ -1888,10 +1980,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             Number of digits after the decimal to which floats are rounded
         print_latex:
             if set to True, the expression is additionally printed as LaTeX code
-
-        Returns
-        -------
-            Human readable form of the potential
+        return_expr:
+                if set to True, all printing is suppressed and the function will silently
+                return the sympy expression
         """
         potential = self._make_expr_human_readable(
             self.potential_symbolic, float_round=float_round
@@ -1907,16 +1998,20 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         if print_latex:
             print(latex(potential))
-        return potential
+        if _HAS_IPYTHON:
+            self.print_expr_in_latex(potential)
+        else:
+            print(potential)
 
     def sym_hamiltonian(
         self,
         subsystem_index: Optional[int] = None,
         float_round: int = 6,
         print_latex: bool = False,
-    ) -> sm.Expr:
+        return_expr: bool = False,
+    ) -> Union[sm.Expr, None]:
         """
-        Method returns a user readable symbolic Hamiltonian for the current instance
+        Prints a user readable symbolic Hamiltonian for the current instance
 
         Parameters
         ----------
@@ -1927,18 +2022,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             Number of digits after the decimal to which floats are rounded
         print_latex:
             if set to True, the expression is additionally printed as LaTeX code
-
-        Returns
-        -------
-        hamiltonian
-            Sympy expression which is simplified to make it human readable.
+        return_expr:
+            if set to True, all printing is suppressed and the function will silently
+            return the sympy expression
         """
         if subsystem_index is not None:
             if not self.hierarchical_diagonalization:
                 raise Exception(
-                    "Current instance does not have any subsystems as hierarchical "
-                    "diagonalization is not utilized. If so, do not set subsystem_index"
-                    " keyword argument."
+                    "Hierarchical diagonalization was not enabled. Hence there "
+                    "are no identified subsystems addressable by "
+                    "subsystem_index."
                 )
             # start with the raw system hamiltonian
             sym_hamiltonian = self._make_expr_human_readable(
@@ -2025,19 +2118,25 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             sym_hamiltonian = sm.Add(
                 sym_hamiltonian_KE, sym_hamiltonian_PE, evaluate=False
             )
+        if return_expr:
+            return sym_hamiltonian
         if print_latex:
             print(latex(sym_hamiltonian))
-        return sym_hamiltonian
+        if _HAS_IPYTHON:
+            self.print_expr_in_latex(sym_hamiltonian)
+        else:
+            print(sym_hamiltonian)
 
     def sym_interaction(
         self,
         subsystem_indices: Tuple[int],
         float_round: int = 6,
         print_latex: bool = False,
-    ) -> sm.Expr:
+        return_expr: bool = False,
+    ) -> Union[sm.Expr, None]:
         """
-        Returns the interaction between any set of subsystems for the current instance.
-        It would return the interaction terms having operators from all the subsystems
+        Print the interaction between any set of subsystems for the current instance.
+        It would print the interaction terms having operators from all the subsystems
         mentioned in the tuple.
 
         Parameters
@@ -2047,13 +2146,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         float_round:
             Number of digits after the decimal to which floats are rounded
         print_latex:
-             if set to True, the expression is additionally printed as LaTeX code
-
-        Returns
-        -------
-        interaction
-            Sympy Expr object having interaction terms which have operators from all the
-            mentioned subsystems.
+            if set to True, the expression is additionally printed as LaTeX code
+        return_expr:
+            if set to True, all printing is suppressed and the function will silently
+            return the sympy expression
         """
         interaction = sm.symbols("x") * 0
         for subsys_index_pair in itertools.combinations(subsystem_indices, 2):
@@ -2087,9 +2183,14 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     "(2π" + "Φ_{" + str(get_trailing_number(str(external_flux))) + "})"
                 ),
             )
+        if return_expr:
+            return interaction
         if print_latex:
             print(latex(interaction))
-        return interaction
+        if _HAS_IPYTHON:
+            self.print_expr_in_latex(interaction)
+        else:
+            print(interaction)
 
     # ****************************************************************
     # ************* Functions for plotting potential *****************
@@ -2830,8 +2931,8 @@ class Circuit(Subsystem):
         base.QuantumSystem.__init__(self, id_str=None)
         if basis_completion not in ["heuristic", "canonical"]:
             raise Exception(
-                "Incorrect parameter set for basis_completion. It can either be "
-                "'heuristic' or 'canonical'"
+                "Invalid choice for basis_completion: must be 'heuristic' or "
+                "'canonical'."
             )
 
         symbolic_circuit = SymbolicCircuit.from_yaml(
@@ -2841,7 +2942,7 @@ class Circuit(Subsystem):
             initiate_sym_calc=True,
         )
 
-        sm.init_printing(order="none")
+        sm.init_printing(pretty_print=False, order="none")
         self.is_child = False
         self.symbolic_circuit: SymbolicCircuit = symbolic_circuit
 
@@ -2884,45 +2985,21 @@ class Circuit(Subsystem):
         for attr in required_attributes:
             setattr(self, attr, getattr(self.symbolic_circuit, attr))
 
-        if initiate_sym_calc:
-            self.configure()
-
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
+        self._out_of_sync = False # for use with CentralDispatch
+
+        if initiate_sym_calc:
+            self.configure()
         self._frozen = True
+        dispatch.CENTRAL_DISPATCH.register("CIRCUIT_UPDATE", self)
+
 
     def __setattr__(self, name, value):
         if not self._frozen or name in dir(self):
             super().__setattr__(name, value)
         else:
             raise Exception(f"Creating new attributes is disabled [{name}, {value}].")
-
-    def __reduce__(self):
-        # needed for multiprocessing / proper pickling
-        pickle_func, pickle_args, pickled_state = super().__reduce__()
-        new_pickled_state = {
-            key: value for key, value in pickled_state.items() if "_operator" not in key
-        }
-        new_pickled_state["_frozen"] = False
-
-        pickled_properties = {
-            property_name: property_obj
-            for property_name, property_obj in self.__class__.__dict__.items()
-            if isinstance(property_obj, property)
-        }
-
-        return pickle_func, pickle_args, (new_pickled_state, pickled_properties)
-
-    def __setstate__(self, state):
-        # needed for multiprocessing / proper unpickling
-        pickled_attribs, pickled_properties = state
-        self._frozen = False
-
-        self.__dict__.update(pickled_attribs)
-        self.operators_by_name = self.set_operators()
-
-        for property_name, property_obj in pickled_properties.items():
-            setattr(self.__class__, property_name, property_obj)
 
     def set_discretized_phi_range(
         self, var_indices: Tuple[int], phi_range: Tuple[float]
@@ -2946,7 +3023,7 @@ class Circuit(Subsystem):
         for var_index in var_indices:
             if var_index not in self.var_categories["extended"]:
                 raise Exception(
-                    f"Variable index {var_index}, is not an extended variable."
+                    f"Variable with index {var_index} is not an extended variable."
                 )
             self.discretized_phi_range[var_index] = phi_range
         self.operators_by_name = self.set_operators()
@@ -3199,9 +3276,7 @@ class Circuit(Subsystem):
                 subsystem_trunc_dims=old_subsystem_trunc_dims,
                 closure_branches=old_closure_branches,
             )
-            raise Exception(
-                "Configure failed, incorrect parameters used. Please check the above exception."
-            )
+            raise Exception("Configure failed due to incorrect parameters.")
 
     def _configure(
         self,
@@ -3310,10 +3385,15 @@ class Circuit(Subsystem):
         # default values for the parameters
         for idx, param in enumerate(self.symbolic_params):
             if not hasattr(self, param.name):
-                self._make_property(
+                # if harmonic oscillator basis is used, param vars become class properties.
+                if param not in self.potential_symbolic.free_symbols:
+                    self._make_property(
                     param.name, self.symbolic_params[param], "update_param_vars"
-                )
-
+                    )
+                else:
+                    self._make_property(
+                        param.name, self.symbolic_params[param], "update_external_flux_or_charge"
+                    )
         # setting the ranges for flux ranges used for discrete phi vars
         for var_index in self.var_categories["extended"]:
             if var_index not in self.discretized_phi_range:
@@ -3340,9 +3420,7 @@ class Circuit(Subsystem):
 
         self._set_vars()  # setting the attribute vars to store operator symbols
 
-        if (
-            len(self.symbolic_circuit.nodes) + self.symbolic_circuit.is_grounded
-        ) > settings.SYM_MATRIX_INV_THRESHOLD:
+        if (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES:
             self.hamiltonian_symbolic = (
                 self.symbolic_circuit.generate_symbolic_hamiltonian(
                     substitute_params=True
@@ -3378,35 +3456,41 @@ class Circuit(Subsystem):
         self.clear_unnecessary_attribs()
         self._frozen = True
 
-    def variable_transformation(self) -> List[sm.Equality]:
+    def variable_transformation(self) -> None:
         """
-        Returns the variable transformation used in this circuit
-
-        Returns
-        -------
-            Expressions of transformed variables in terms of node variables
+        Prints the variable transformation used in this circuit
         """
         trans_mat = self.transformation_matrix
         theta_vars = [
             sm.symbols(f"θ{index}")
-            for index in range(1, len(self.symbolic_circuit.nodes) + 1)
+            for index in range(
+                1, len(self.symbolic_circuit._node_list_without_ground) + 1
+            )
         ]
         node_vars = [
             sm.symbols(f"φ{index}")
-            for index in range(1, len(self.symbolic_circuit.nodes) + 1)
+            for index in range(
+                1, len(self.symbolic_circuit._node_list_without_ground) + 1
+            )
         ]
         node_var_eqns = []
         for idx, node_var in enumerate(node_vars):
             node_var_eqns.append(
                 sm.Eq(node_vars[idx], np.sum(trans_mat[idx, :] * theta_vars))
             )
-        return node_var_eqns
+        if _HAS_IPYTHON:
+            self.print_expr_in_latex(node_var_eqns)
+        else:
+            print(node_var_eqns)
 
     def sym_lagrangian(
-        self, vars_type: str = "node", print_latex: bool = False
-    ) -> sm.Expr:
+        self,
+        vars_type: str = "node",
+        print_latex: bool = False,
+        return_expr: bool = False,
+    ) -> Union[sm.Expr, None]:
         """
-        Method returns a user readable symbolic Lagrangian for the current instance
+        Method that gives a user readable symbolic Lagrangian for the current instance
 
         Parameters
         ----------
@@ -3414,15 +3498,16 @@ class Circuit(Subsystem):
             "node" or "new", fixes the kind of lagrangian requested, by default "node"
         print_latex:
             if set to True, the expression is additionally printed as LaTeX code
-
-        Returns
-        -------
-            Human readable form of the Lagrangian
+        return_expr:
+            if set to True, all printing is suppressed and the function will silently
+            return the sympy expression
         """
         if vars_type == "node":
             lagrangian = self.lagrangian_node_vars
             # replace v\theta with \theta_dot
-            for var_index in range(1, 1 + len(self.symbolic_circuit.nodes)):
+            for var_index in range(
+                1, 1 + len(self.symbolic_circuit._node_list_without_ground)
+            ):
                 lagrangian = lagrangian.replace(
                     sm.symbols(f"vφ{var_index}"),
                     sm.symbols("\\dot{φ_" + str(var_index) + "}"),
@@ -3476,24 +3561,26 @@ class Circuit(Subsystem):
                 (self._make_expr_human_readable(-sym_lagrangian_PE_new)),
                 evaluate=False,
             )
+        if return_expr:
+            return lagrangian
         if print_latex:
             print(latex(lagrangian))
-        return lagrangian
+        if _HAS_IPYTHON:
+            self.print_expr_in_latex(lagrangian)
+        else:
+            print(lagrangian)
 
-    def offset_charge_transformation(self) -> List[sm.Equality]:
+    def offset_charge_transformation(self) -> None:
         """
-        Returns the variable transformation between offset charges of periodic variables
+        Prints the variable transformation between offset charges of periodic variables
         and the offset node charges
-
-        Returns
-        -------
-            Human readable form of expressions of offset charges in terms of node offset
-            charges
         """
         trans_mat = self.transformation_matrix
         node_offset_charge_vars = [
             sm.symbols(f"q_g{index}")
-            for index in range(1, len(self.symbolic_circuit.nodes) + 1)
+            for index in range(
+                1, len(self.symbolic_circuit._node_list_without_ground) + 1
+            )
         ]
         periodic_offset_charge_vars = [
             sm.symbols(f"ng{index}")
@@ -3509,7 +3596,10 @@ class Circuit(Subsystem):
                     )
                 )
             )
-        return periodic_offset_charge_eqns
+        if _HAS_IPYTHON:
+            self.print_expr_in_latex(periodic_offset_charge_eqns)
+        else:
+            print(periodic_offset_charge_eqns)
 
     def sym_external_fluxes(self) -> Dict[sm.Expr, Tuple["Branch", List["Branch"]]]:
         """
