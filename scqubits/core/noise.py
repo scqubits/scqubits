@@ -24,7 +24,7 @@ import scipy.constants
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
-from scipy.sparse.csc import csc_matrix
+from scipy.sparse import csc_matrix
 
 import scqubits.core.units as units
 import scqubits.settings as settings
@@ -94,7 +94,7 @@ NOISE_PARAMS = {
     "T": 0.015,  # Typical temperature for a superconducting circuit experiment. Units: K
     "M": 400,  # Mutual inductance between qubit and a flux line. Units: \Phi_0 / Ampere
     "R_k": sp.constants.h
-    / sp.constants.e ** 2.0,  # Normal quantum resistance, aka Klitzing constant.
+    / sp.constants.e**2.0,  # Normal quantum resistance, aka Klitzing constant.
     # Note, in some papers a superconducting quantum
     # resistance is used, and defined as: h/(2e)^2
 }
@@ -492,7 +492,7 @@ class NoisySystem(ABC):
             +  \frac{1}{2} \sum_j \frac{1}{T_{1}^{j}}
 
         where :math:`k` (:math:`j`) run over the relevant pure dephasing (
-        depolariztion) channels that can contribute to the effective noise. By
+        depolarization) channels that can contribute to the effective noise. By
         default all noise channels given by the method `effective_noise_channels` are
         included.
 
@@ -827,7 +827,7 @@ class NoisySystem(ABC):
             +  \frac{1}{2} \sum_j \frac{1}{T_{1}^{j}},
 
         where :math:`k` (:math:`j`) run over the relevant pure dephasing (
-        depolariztion) channels that can contribute to the effective noise. By
+        depolarization) channels that can contribute to the effective noise. By
         default all the noise channels given by the method `effective_noise_channels`
         are included. Users can also provide specific noise channels, with selected
         options, to be included in the effective :math:`T_2` calculation. For
@@ -1167,7 +1167,8 @@ class NoisySystem(ABC):
         Returns
         -------
         time or rate: float
-            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
+            in inverse units.
 
         """
 
@@ -1210,7 +1211,7 @@ class NoisySystem(ABC):
         ):  # Check if the operator is given in dense form
             # if so, use numpy's vdot and dot
             rate = np.abs(np.vdot(evecs[:, i], np.dot(noise_op, evecs[:, j]))) ** 2 * s
-        else:  # Else, we have a sparse operator, use it's own dot method.
+        else:  # Else, we have a sparse operator, use its own dot method.
             rate = np.abs(np.vdot(evecs[:, i], noise_op.dot(evecs[:, j]))) ** 2 * s
 
         if get_rate:
@@ -1229,7 +1230,8 @@ class NoisySystem(ABC):
         get_rate: bool = False,
     ) -> float:
         r"""
-        :math:`T_1` due to dielectric dissipation in the Jesephson junction capacitances.
+        :math:`T_1` due to dielectric dissipation in the Josephson junction
+        capacitances.
 
         References:  Nguyen et al (2019), Smith et al (2020)
 
@@ -1432,7 +1434,7 @@ class NoisySystem(ABC):
             s = (
                 2
                 * (2 * np.pi) ** 2
-                * M ** 2
+                * M**2
                 * omega
                 * sp.constants.hbar
                 / complex(Z_fun(omega)).real

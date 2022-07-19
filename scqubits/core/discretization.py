@@ -16,7 +16,7 @@ import numpy as np
 
 from numpy import ndarray
 from scipy import sparse
-from scipy.sparse.dia import dia_matrix
+from scipy.sparse import csc_matrix
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
@@ -45,7 +45,7 @@ def band_matrix(
     dim: int,
     dtype: Any = None,
     has_corners: bool = False,
-) -> dia_matrix:
+) -> csc_matrix:
     """
     Returns a dim x dim sparse matrix with constant diagonals of values `band_coeffs[
     0]`, `band_coeffs[1]`, ... along the (off-)diagonals specified by the offsets
@@ -74,7 +74,7 @@ def band_matrix(
     vectors = [ones_vector * number for number in band_coeffs]
     matrix = sparse.dia_matrix((vectors, band_offsets), shape=(dim, dim), dtype=dtype)
     if not has_corners:
-        return matrix
+        return matrix.tocsc()
     for index, offset in enumerate(band_offsets):
         if offset < 0:
             corner_offset = dim + offset
@@ -87,7 +87,7 @@ def band_matrix(
         else:  # when offset == 0
             continue
         matrix.setdiag(corner_band, k=corner_offset)
-    return matrix
+    return matrix.tocsc()
 
 
 class Grid1d(dispatch.DispatchClient, serializers.Serializable):
@@ -122,7 +122,7 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         for param_name, param_val in sorted(
             utils.drop_private_keys(self.__dict__).items()
         ):
-            output += str(param_name) + ": " + str(param_val) + ",  "
+            output += f"{param_name}: {param_val},  "
         output = output[:-3] + " ]"
         return output
 
@@ -160,9 +160,10 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
 
     def first_derivative_matrix(
         self, prefactor: Union[float, complex] = 1.0, periodic: bool = False
-    ) -> dia_matrix:
-        """Generate sparse matrix for first derivative of the form :math:`\\partial_{x_i}`.
-        Uses STENCIL setting to construct the matrix with a multi-point stencil.
+    ) -> csc_matrix:
+        """Generate sparse matrix for first derivative of the form
+        :math:`\\partial_{x_i}`. Uses STENCIL setting to construct the matrix with a
+        multi-point stencil.
 
         Parameters
         ----------
@@ -189,13 +190,14 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         derivative_matrix = band_matrix(
             matrix_diagonals, offset, self.pt_count, dtype=dtp, has_corners=periodic
         )
-        return derivative_matrix
+        return derivative_matrix.tocsc()
 
     def second_derivative_matrix(
         self, prefactor: Union[float, complex] = 1.0, periodic: bool = False
-    ) -> dia_matrix:
-        """Generate sparse matrix for second derivative of the form :math:`\\partial^2_{x_i}`.
-        Uses STENCIL setting to construct the matrix with a multi-point stencil.
+    ) -> csc_matrix:
+        """Generate sparse matrix for second derivative of the form
+        :math:`\\partial^2_{x_i}`. Uses STENCIL setting to construct the matrix with
+        a multi-point stencil.
 
         Parameters
         ----------
@@ -215,18 +217,19 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
 
         delta_x = self.grid_spacing()
         matrix_diagonals = [
-            coefficient * prefactor / delta_x ** 2
+            coefficient * prefactor / delta_x**2
             for coefficient in SECOND_STENCIL_COEFFS[settings.STENCIL]
         ]
         offset = [i - (settings.STENCIL - 1) // 2 for i in range(settings.STENCIL)]
         derivative_matrix = band_matrix(
             matrix_diagonals, offset, self.pt_count, dtype=dtp, has_corners=periodic
         )
-        return derivative_matrix
+        return derivative_matrix.tocsc()
 
 
 class GridSpec(dispatch.DispatchClient, serializers.Serializable):
-    """Class for specifying a general discretized coordinate grid (arbitrary dimensions).
+    """Class for specifying a general discretized coordinate grid
+    (arbitrary dimensions).
 
     Parameters
     ----------
@@ -248,9 +251,10 @@ class GridSpec(dispatch.DispatchClient, serializers.Serializable):
     def __str__(self) -> str:
         output = "    GridSpec ......"
         for param_name, param_val in sorted(self.__dict__.items()):
-            output += "\n" + str(param_name) + "\t: " + str(param_val)
+            output += f"\n{param_name}\t: {param_val}"
         return output
 
     def unwrap(self) -> Tuple[ndarray, ndarray, Union[List[int], ndarray], int]:
-        """Auxiliary routine that yields a tuple of the parameters specifying the grid."""
+        """Auxiliary routine that yields a tuple of the parameters specifying the
+        grid."""
         return self.min_vals, self.max_vals, self.pt_counts, self.var_count

@@ -17,7 +17,7 @@ import warnings
 
 from collections.abc import Sequence
 from io import StringIO
-from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import qutip as qt
@@ -39,7 +39,7 @@ def process_which(which: Union[int, Iterable[int]], max_index: int) -> List[int]
     ----------
     which:
         single index or tuple/list of integers indexing the eigenobjects.
-        If which is -1, all indices up to the max_index limit are included.
+        If 'which' is -1, all indices up to the max_index limit are included.
     max_index:
         maximum index value
 
@@ -66,9 +66,11 @@ def make_bare_labels(subsystem_count: int, *args) -> Tuple[int, ...]:
     *args:
         each argument is a tuple of the form (subsys_index, label)
 
-    Returns ------- Suppose there are 5 subsys_list in total. Let (subsys_index1=0,
-    label1=3), (subsys_index2=2, label2=1). Then the returned bare-state tuple is:
-    (3,0,1,0,0)
+    Returns
+    -------
+        Suppose there are 5 subsys_list in total. Let (subsys_index1=0,
+        label1=3), (subsys_index2=2, label2=1). Then the returned bare-state tuple is:
+        (3,0,1,0,0)
     """
     bare_labels = [0] * subsystem_count
     for subsys_index, label in args:
@@ -95,7 +97,7 @@ class InfoBar:
     def __init__(self, desc: str, num_cpus: int) -> None:
         self.desc = desc
         self.num_cpus = num_cpus
-        self.tqdm_bar: tqdm = None
+        self.tqdm_bar: Optional[tqdm] = None
 
     def __enter__(self) -> None:
         self.tqdm_bar = tqdm(
@@ -156,6 +158,28 @@ def check_sync_status(func: Callable) -> Callable:
         return func(self, *args, **kwargs)
 
     return wrapper
+
+
+class DeprecationMessage:
+    """Decorator class, producing an adjustable warning and info upon usage of the
+    decorated function.
+
+    Parameters
+    ----------
+    warning_message:
+        Warnings message to be sent upon decorated (deprecated) routing
+    """
+
+    def __init__(self, warning_msg: str) -> None:
+        self.warning_msg = warning_msg
+
+    def __call__(self, func: Callable, *args, **kwargs) -> Callable:
+        @functools.wraps(func)
+        def decorated_func(*args, **kwargs):
+            warnings.warn(self.warning_msg, FutureWarning)
+            return func(*args, **kwargs)
+
+        return decorated_func
 
 
 def to_expression_or_string(string_expr: str) -> Any:
@@ -276,14 +300,67 @@ def cite(print_info=True):
 
     """
     fs = StringIO()
-
-    fs.write(
-        "Peter Groszkowski and Jens Koch, 'scqubits: a Python package for "
-        "superconducting qubits', arXiv:2107.08552 (2021).\n"
-    )
+    fs.write("Peter Groszkowski and Jens Koch,\n")
+    fs.write("'scqubits: a Python package for superconducting qubits'\n")
+    fs.write("Quantum 5, 583 (2021).\n")
+    fs.write("https://quantum-journal.org/papers/q-2021-11-17-583/\n")
 
     if print_info:
         print(fs.getvalue())
         return None
     else:
         return fs.getvalue()
+
+
+def is_float_string(the_string: str) -> bool:
+    try:
+        float(the_string)
+        return True
+    except ValueError:
+        return False
+
+
+def list_intersection(list1: list, list2: list) -> list:
+    return list(set(list1) & set(list2))
+
+
+def flatten_list(nested_list):
+    """
+    Flattens a list of lists once, not recursive.
+
+    Parameters
+    ----------
+
+    nested_list:
+        A list of lists, which can hold any class instance.
+
+    Returns
+    -------
+    Flattened list of objects
+    """
+    return functools.reduce(lambda a, b: a + b, nested_list)
+
+
+def flatten_list_recursive(S):
+    """
+    Flattens a list of lists recursively.
+
+    Parameters
+    ----------
+
+    nested_list:
+        A list of lists, which can hold any class instance.
+
+    Returns
+    -------
+    Flattened list of objects
+    """
+    if S == []:
+        return S
+    if isinstance(S[0], list):
+        return flatten_list_recursive(S[0]) + flatten_list_recursive(S[1:])
+    return S[:1] + flatten_list_recursive(S[1:])
+
+
+def number_of_lists_in_list(list_object: list) -> int:
+    return sum([1 for element in list_object if type(element) == list])

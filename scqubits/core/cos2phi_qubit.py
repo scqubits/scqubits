@@ -23,8 +23,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
 from scipy import sparse
-from scipy.sparse.csc import csc_matrix
-from scipy.sparse.dia import dia_matrix
+from scipy.sparse import csc_matrix, dia_matrix
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
@@ -37,7 +36,7 @@ import scqubits.core.units as units
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 import scqubits.utils.plotting as plot
-import scqubits.utils.spectrum_utils as spec_utils
+import scqubits.utils.spectrum_utils as utils
 
 from scqubits.core.noise import NOISE_PARAMS, NoisySystem, calc_therm_ratio
 from scqubits.core.storage import WaveFunctionOnGrid
@@ -129,7 +128,6 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
 
         elif callable(Q_ind):  # Q_ind is a function of omega
             q_ind_fun = Q_ind
-
         else:  # Q_ind is given as a number
 
             def q_ind_fun(omega):
@@ -433,8 +431,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     dEJ:
         disorder in junction energy
     flux:
-        external magnetic flux in angular units, 1 corresponds to one flux
-        quantum
+        external magnetic flux in units of one flux quantum
     ng:
         offset charge
     ncut:
@@ -493,7 +490,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         self.zeta_cut = zeta_cut
         self.phi_cut = phi_cut
         self.truncated_dim = truncated_dim
-        self._evec_dtype = np.float_
         self._default_phi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self._default_zeta_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self._default_theta_grid = discretization.Grid1d(-0.5 * np.pi, 1.5 * np.pi, 100)
@@ -563,14 +559,14 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
             inductive energy renormalized by with disorder"""
-        return self.EL / (1 - self.dL ** 2)
+        return self.EL / (1 - self.dL**2)
 
     def _disordered_ecj(self) -> float:
         """
         Returns
         -------
             junction capacitance energy renormalized by with disorder"""
-        return self.ECJ / (1 - self.dCJ ** 2)
+        return self.ECJ / (1 - self.dCJ**2)
 
     def phi_osc(self) -> float:
         """
@@ -859,27 +855,25 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
     def _evals_calc(self, evals_count) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
-        evals = sparse.linalg.eigsh(
+        evals = utils.eigsh_safe(
             hamiltonian_mat,
             k=evals_count,
             return_eigenvectors=False,
             sigma=0.0,
             which="LM",
-            v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
         )
         return np.sort(evals)
 
     def _esys_calc(self, evals_count) -> Tuple[ndarray, ndarray]:
         hamiltonian_mat = self.hamiltonian()
-        evals, evecs = sparse.linalg.eigsh(
+        evals, evecs = utils.eigsh_safe(
             hamiltonian_mat,
             k=evals_count,
             return_eigenvectors=True,
             sigma=0.0,
             which="LM",
-            v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
         )
-        evals, evecs = spec_utils.order_eigensystem(evals, evecs)
+        evals, evecs = utils.order_eigensystem(evals, evecs)
         return evals, evecs
 
     def potential(self, phi, zeta, theta) -> float:
@@ -1069,7 +1063,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         )
         wavefunc.amplitudes = np.transpose(
             amplitude_modifier(
-                spec_utils.standardize_phases(
+                utils.standardize_phases(
                     wavefunc.amplitudes.reshape(phi_grid.pt_count, theta_grid.pt_count)
                 )
             )
