@@ -65,7 +65,7 @@ class WatchedProperty(Generic[TargetType]):
         inner_object_name: str = None,
         attr_name: str = None,
         fget=None,
-        fset=None
+        fset=None,
     ) -> None:
         self.event = event
         self.inner = inner_object_name
@@ -86,7 +86,9 @@ class WatchedProperty(Generic[TargetType]):
             inner_instance = instance.__dict__[self.inner]
             return getattr(inner_instance, self.attr_name)
         if self.getter is None:
-            return instance.__dict__[self.attr_name]  # cannot use getattr, otherwise recursion 
+            return instance.__dict__[
+                self.attr_name
+            ]  # cannot use getattr, otherwise recursion
         else:
             return self.getter(instance)
 
@@ -97,7 +99,10 @@ class WatchedProperty(Generic[TargetType]):
             # Rely on inner_instance.attr_name to do the broadcasting.
         else:
             assert self.attr_name
-            if self.attr_name not in instance.__dict__ and f"_{self.attr_name}" not in instance.__dict__:
+            if (
+                self.attr_name not in instance.__dict__
+                and f"_{self.attr_name}" not in instance.__dict__
+            ):
                 if self.setter is None:
                     instance.__dict__[self.attr_name] = value
                 else:
