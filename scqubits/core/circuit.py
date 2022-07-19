@@ -140,7 +140,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
         self.is_child = True
         self.parent = parent
         self.hamiltonian_symbolic = hamiltonian_symbolic
-        self._hamiltonian_sym_for_numerics = hamiltonian_symbolic
         self._default_grid_phi = self.parent._default_grid_phi
 
         self.junction_potential = None
@@ -443,7 +442,13 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
             def setter(obj, value, name=attrib_name):
                 return obj._set_property_and_update_cutoffs(name, value)
 
-        setattr(self.__class__, attrib_name, descriptors.WatchedProperty(float, "CIRCUIT_UPDATE", fget=getter, fset=setter, attr_name=attrib_name))
+        setattr(
+            self.__class__,
+            attrib_name,
+            descriptors.WatchedProperty(
+                float, "CIRCUIT_UPDATE", fget=getter, fset=setter, attr_name=attrib_name
+            ),
+        )
 
     def receive(self, event: str, sender: object, **kwargs) -> None:
         if self.hierarchical_diagonalization and (sender in self.subsystems.values()):
@@ -457,16 +462,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
         Function which is used to initiate the subsystem instance.
         """
 
-        for x, param in enumerate(self.symbolic_params):
-            # if harmonic oscillator basis is used, param vars become class properties.
-            if param not in self.potential_symbolic.free_symbols:
-                self._make_property(
-                    param.name, getattr(self.parent, param.name), "update_param_vars"
-                )
-            else:
-                self._make_property(
-                    param.name, getattr(self.parent, param.name), "update_external_flux_or_charge"
-                )
+        for idx, param in enumerate(self.symbolic_params):
+            self._make_property(
+                param.name, getattr(self.parent, param.name), "update_param_vars"
+            )
 
         # getting attributes from parent
         for flux in self.external_fluxes:
@@ -498,6 +497,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
             ]
 
         self._set_vars()
+
+        self.generate_hamiltonian_sym_for_numerics()
+
         if self.hierarchical_diagonalization:
             # attribute to note updated subsystem indices
             self.updated_subsystem_indices = []
@@ -510,7 +512,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
             self.operators_by_name = self.set_operators()
 
         if self.hierarchical_diagonalization:
-            self._out_of_sync = False # for use with CentralDispatch
+            self._out_of_sync = False  # for use with CentralDispatch
             dispatch.CENTRAL_DISPATCH.register("CIRCUIT_UPDATE", self)
 
     def _store_updated_subsystem_index(self, index: int) -> None:
@@ -610,7 +612,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
         Generates the subsystems (child instances of Circuit) depending on the attribute
         `self.system_hierarchy`
         """
-        hamiltonian = self._hamiltonian_sym_for_numerics
+        hamiltonian = self.hamiltonian_symbolic
+
         # collecting constants
         constants = self._list_of_constants_from_expr(hamiltonian)
         self._constant_terms_in_hamiltonian = constants
@@ -2987,13 +2990,12 @@ class Circuit(Subsystem):
 
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
-        self._out_of_sync = False # for use with CentralDispatch
+        self._out_of_sync = False  # for use with CentralDispatch
 
         if initiate_sym_calc:
             self.configure()
         self._frozen = True
         dispatch.CENTRAL_DISPATCH.register("CIRCUIT_UPDATE", self)
-
 
     def __setattr__(self, name, value):
         if not self._frozen or name in dir(self):
@@ -3385,15 +3387,9 @@ class Circuit(Subsystem):
         # default values for the parameters
         for idx, param in enumerate(self.symbolic_params):
             if not hasattr(self, param.name):
-                # if harmonic oscillator basis is used, param vars become class properties.
-                if param not in self.potential_symbolic.free_symbols:
-                    self._make_property(
+                self._make_property(
                     param.name, self.symbolic_params[param], "update_param_vars"
-                    )
-                else:
-                    self._make_property(
-                        param.name, self.symbolic_params[param], "update_external_flux_or_charge"
-                    )
+                )
         # setting the ranges for flux ranges used for discrete phi vars
         for var_index in self.var_categories["extended"]:
             if var_index not in self.discretized_phi_range:
