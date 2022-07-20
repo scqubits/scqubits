@@ -22,57 +22,23 @@ import sympy as sm
 
 class NoisyCircuit(NoisySystem, ABC):
 
-    def __init__(self, circuit: Subsystem) -> None:
-        # initiating the methods required for noise estimation dynamically
+    def supported_noise_channels(self) -> List[str]:
+        """Return a list of supported noise channels"""
+        return ['tphi_1_over_f_cc', 
+                'tphi_1_over_f_flux',
+                't1_capacitive',
+                't1_charge_impedance', 
+                't1_flux_bias_line',
+                't1_inductive',
+                't1_quasiparticle_tunneling']
 
-        self.circuit = circuit # storing the Circuit class as an attribute
+    def generate_methods_1_over_f_flux(self: Subsystem) -> List[Callable]:
+        hamiltonian = self.hamiltonian_symbolic
+        ext_flux_methods = []
+        for ext_flux_sym in self.external_fluxes:
+            diff_sym_expression = hamiltonian.diff(ext_flux_sym)
+            
 
-        # methods for 1/f flux noise
-        for flux in circuit.external_fluxes:
-            hamiltonian = 
-
-    def hamiltonian_sym_for_numerics(self):
-        hamiltonian = self.circuit.hamiltonian_symbolic
-        hamiltonian = self.circuit._shift_harmonic_oscillator_potential(hamiltonian)
-
-        # removing the constants from the Hamiltonian
-        ordered_terms = hamiltonian.as_ordered_terms()
-        constants = [
-            term
-            for term in ordered_terms
-            if (
-                set(
-                    self.external_fluxes
-                    + self.offset_charges
-                    + list(self.symbolic_params.keys())
-                    + [sm.symbols("I")]
-                )
-                & set(term.free_symbols)
-            )
-            == set(term.free_symbols)
-        ]
-        self._constant_terms_in_hamiltonian = constants
-        for const in constants:
-            hamiltonian -= const
-
-        # associate an identity matrix with the external flux vars
-        for ext_flux in self.external_fluxes:
-            hamiltonian = hamiltonian.subs(
-                ext_flux, ext_flux * sm.symbols("I") * 2 * np.pi
-            )
-        # associate an identity matrix with offset charge vars
-        for offset_charge in self.offset_charges:
-            hamiltonian = hamiltonian.subs(
-                offset_charge, offset_charge * sm.symbols("I")
-            )
-        # finding the cosine terms
-        cos_terms = sum(
-            [term for term in hamiltonian.as_ordered_terms() if "cos" in str(term)]
-        )
-        setattr(self, "_hamiltonian_sym_for_numerics", hamiltonian)
-        setattr(self, "junction_potential", cos_terms)
-
-
-
+             
     def d_hamiltonian_d_param_function_factory(self, params: List):
         hamiltonian = self.circuit.hamiltonian_symbolic
