@@ -14,6 +14,7 @@
 import inspect
 
 from pathlib import Path
+from tkinter.tix import Select
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
@@ -63,6 +64,7 @@ else:
 
 import scqubits as scq
 import scqubits.ui.gui_defaults as gui_defaults
+import scqubits.core.noise as noise
 import scqubits.utils.misc as utils
 
 from scqubits.core.qubit_base import QubitBaseClass
@@ -78,6 +80,7 @@ class GUI:
     @utils.Required(ipywidgets=_HAS_IPYWIDGETS, IPython=_HAS_IPYTHON)
     def __init__(self):
         scq.settings.PROGRESSBAR_DISABLED = False
+        scq.settings.T1_DEFAULT_WARNING = False
 
         # Display Elements
         self.fig: Figure
@@ -91,6 +94,7 @@ class GUI:
         self.qubit_params: Dict[str, Union[int, float, None]] = {}
         self.ranges_widgets: Dict[str, Dict[str, Union[IntText, FloatText]]] = {}
         self.qubit_scan_params: Dict[str, Union[int, float, None]] = {}
+        self.noise_param_widgets: Dict[str, Union[FloatText, IntText]] = {}
 
         self.qubit_and_plot_ToggleButtons: Dict[str, ToggleButtons] = {}
         self.manual_update_and_save_widgets: Dict[str, Union[Checkbox, Button]] = {}
@@ -171,6 +175,35 @@ class GUI:
             ),
         }
 
+    def initialize_noise_param_widgets(self) -> None:
+        """Creates all the widgets associated with coherence times plots
+        """
+        self.noise_param_widgets.clear()
+        noise_params = ["T", "omega_low", "omega_high", "t_exp"]
+        noise_channels = self.active_qubit.supported_noise_channels()
+
+        if "tphi_1_over_f_flux" in noise_channels:
+            noise_params.append("A_flux")
+        if "tphi_1_over_f_cc" in noise_channels:
+            noise_params.append("A_cc")
+        if "tphi_1_over_f_ng" in noise_channels:
+            noise_params.append("A_ng")
+        if "t1_charge_impedance" in noise_channels or "t1_flux_bias_line" in noise_channels:
+            noise_params.append("R_0")
+        if "t1_flux_bias_line" in noise_channels:
+            noise_params.append("M")
+        if "t1_quasiparticle_tunneling" in noise_channels:
+            noise_params.append("x_qp")
+            noise_params.append("Delta")
+        
+        for noise_param in noise_params:
+            self.noise_param_widgets[noise_param] = FloatText(
+                value=noise.NOISE_PARAMS[noise_param], 
+                disalbed=False,
+                description=noise_param,
+                step=0.001,
+            )
+
     def set_qubit(self, qubit_name: str) -> None:
         """Sets up the chosen qubit to be the active qubit
         and updates the activedefaults and widget dictionaries
@@ -183,6 +216,7 @@ class GUI:
 
         self.active_defaults = gui_defaults.qubit_defaults[qubit_name]
         self.initialize_qubit(qubit_name)
+        self.initialize_noise_param_widgets()
         self.initialize_qubit_params_dicts()
         self.initialize_qubit_plot_options_widgets_dict()
         self.initialize_qubit_params_widgets_dict()
@@ -230,6 +264,7 @@ class GUI:
         ].get_interact_value()
         operator_dropdown_list = self.active_qubit.get_operator_names()
         scan_dropdown_list = self.qubit_scan_params.keys()
+        noise_channel_list = self.active_qubit.supported_noise_channels()
         file = open(self.active_qubit._image_filename, "rb")
         image = file.read()
 
@@ -257,6 +292,13 @@ class GUI:
                 disabled=False,
                 layout=std_layout,
             ),
+            "noise_channel_multi-select": SelectMultiple(
+                options=noise_channel_list,
+                value=noise_channel_list,
+                description="Noise Channels",
+                disabled=False,
+                layout=std_layout,
+            ),
             "highest_state_slider": IntSlider(
                 min=1,
                 max=10,
@@ -277,12 +319,41 @@ class GUI:
                 disabled=False,
                 indent=False,
             ),
-            "manual_scale_checkbox": Checkbox(
-                value=False, description="Manual Scaling", disabled=False, indent=False
+            "coherence_scale_text": FloatText(
+                value=1.0,
+                disabled=False,
+                description="Scale",
+                step=0.01,
+                layout=std_layout
+            ),
+            "i_text": IntText(
+                value = 1,
+                disabled=False,
+                description="i",
+                step=1,
+                layout=std_layout
+            ),
+            "j_text": IntText(
+                value = 0,
+                disabled=False,
+                description="j",
+                step=1,
+                layout=std_layout
+            ),
+            "t1_checkbox": Checkbox(
+                value=False, description="Effective T1", disabled=False, indent=False,
+                layout=std_layout
+            ),
+            "t2_checkbox": Checkbox(
+                value=False, description="Effective T2", disabled=False, indent=False,
+                layout=std_layout
             ),
         }
 
         if current_qubit in ["Transmon", "TunableTransmon", "Fluxonium"]:
+            self.qubit_plot_options_widgets["manual_scale_checkbox"] = Checkbox(
+                value=False, description="Manual Scaling", disabled=False, indent=False
+            )
             self.qubit_plot_options_widgets["multi_state_selector"] = SelectMultiple(
                 options=range(0, 10),
                 value=[0, 1, 2, 3, 4],
@@ -380,6 +451,9 @@ class GUI:
         total_dict = {**self.qubit_plot_options_widgets, **self.qubit_params_widgets}
 
         for widget_name, widget in total_dict.items():
+            if widget_name == "noise_channel_multi-select":
+                continue
+
             widget_min_text = None
             widget_max_text = None
 
@@ -455,18 +529,21 @@ class GUI:
         param_ranges_tab = self.ranges_layout()
         qubit_info_tab = self.qubit_info_layout()
         common_qubit_params_tab = self.common_qubit_params_layout()
+        noise_param_tab = self.noise_params_layout()
 
         tab_titles = [
             "Main",
             "Qubit info",
             "Literature params",
             "Param ranges",
+            "Noise Params",
         ]
         self.tab_widget.children = [
             qubit_plot_tab,
             qubit_info_tab,
             common_qubit_params_tab,
             param_ranges_tab,
+            noise_param_tab,
         ]
 
         for title_index in range(len(self.tab_widget.children)):
@@ -502,8 +579,9 @@ class GUI:
         self.manual_update_and_save_widgets["save_button"].on_click(
             self.save_button_clicked_action
         )
+        self.observe_coherence_elements()
         self.observe_ranges()
-        self.observe_widgets()
+        self.observe_plot_elements()
         self.observe_plot_refresh()
 
     # Retrieval Methods------------------------------------------------------------------
@@ -539,6 +617,8 @@ class GUI:
             plot_option_refresh = self.matelem_vs_paramvals_plot_refresh
         elif current_plot_option == "Matrix elements":
             plot_option_refresh = self.matrixelements_plot_refresh
+        elif current_plot_option == "Coherence times":
+            plot_option_refresh = self.coherence_vs_paramvals_plot_refresh
 
         return plot_option_refresh
 
@@ -592,7 +672,7 @@ class GUI:
         if new_min <= 0 or ("cut" in widget_name and new_min == 1):
             if widget_name == "highest_state_slider":
                 new_min = 1
-            elif widget_name == "wavefunction_domain_slider":
+            elif widget_name == "wavefunction_domain_slider" or widget_name == "flux":
                 pass
             elif widget_name == "wavefunction_scale_slider":
                 new_min = text_widget["min"].step
@@ -680,9 +760,8 @@ class GUI:
             "common_params_dropdown",
             "link_HTML",
         ]
-        for widget_name, widget in self.qubit_params_widgets.items():
-            widget.observe(self.plot_refresh, names="value")
-        for widget_name, widget in self.qubit_plot_options_widgets.items():
+        total_dict = {**self.qubit_params_widgets, **self.qubit_plot_options_widgets, **self.noise_param_widgets}
+        for widget_name, widget in total_dict.items():
             if widget_name not in qubit_plot_options_blacklist:
                 widget.observe(self.plot_refresh, names="value")
 
@@ -694,18 +773,18 @@ class GUI:
             "common_params_dropdown",
             "link_HTML",
         ]
-        for widget_name, widget in self.qubit_params_widgets.items():
-            widget.unobserve(self.plot_refresh, names="value")
-        for widget_name, widget in self.qubit_plot_options_widgets.items():
+        total_dict = {**self.qubit_params_widgets, **self.qubit_plot_options_widgets, **self.noise_param_widgets}
+        for widget_name, widget in total_dict.items():
             if widget_name not in qubit_plot_options_blacklist:
                 widget.unobserve(self.plot_refresh, names="value")
 
-    def observe_widgets(self) -> None:
+    def observe_plot_elements(self) -> None:
+        if isinstance(self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)):
+            self.qubit_plot_options_widgets["manual_scale_checkbox"].observe(
+                self.manual_scale_tf, names="value"
+            )
         self.qubit_plot_options_widgets["scan_dropdown"].observe(
             self.scan_dropdown_refresh, names="value"
-        )
-        self.qubit_plot_options_widgets["manual_scale_checkbox"].observe(
-            self.manual_scale_tf, names="value"
         )
         self.qubit_plot_options_widgets["common_params_dropdown"].observe(
             self.common_params_dropdown_link_refresh, names="value"
@@ -719,12 +798,13 @@ class GUI:
                 widget.observe(self.adjust_state_widgets, names="value")
             widget.observe(self.common_params_dropdown_value_refresh, names="value")
 
-    def unobserve_widgets(self) -> None:
+    def unobserve_plot_elements(self) -> None:
+        if isinstance(self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)):
+            self.qubit_plot_options_widgets["manual_scale_checkbox"].unobserve(
+                self.manual_scale_tf, names="value"
+            )
         self.qubit_plot_options_widgets["scan_dropdown"].unobserve(
             self.scan_dropdown_refresh, names="value"
-        )
-        self.qubit_plot_options_widgets["manual_scale_checkbox"].unobserve(
-            self.manual_scale_tf, names="value"
         )
         self.qubit_plot_options_widgets["common_params_dropdown"].unobserve(
             self.common_params_dropdown_link_refresh, names="value"
@@ -737,13 +817,42 @@ class GUI:
             if "cut" in widget_name:
                 widget.unobserve(self.adjust_state_widgets, names="value")
             widget.unobserve(self.common_params_dropdown_value_refresh, names="value")
+    
+    def observe_coherence_elements(self) -> None:
+        self.qubit_plot_options_widgets["coherence_scale_text"].observe(
+            self.coherence_text, names="value"
+        )
+        self.qubit_plot_options_widgets["i_text"].observe(
+            self.coherence_text, names="value"
+        )
+        self.qubit_plot_options_widgets["j_text"].observe(
+            self.coherence_text, names="value"
+        )
+
+        for widget in self.noise_param_widgets.values():
+            widget.observe(self.coherence_text, names="value")
+
+    def unobserve_coherence_elements(self) -> None:
+        self.qubit_plot_options_widgets["coherence_scale_text"].unobserve(
+            self.coherence_text, names="value"
+        )
+        self.qubit_plot_options_widgets["i_text"].unobserve(
+            self.coherence_text, names="value"
+        )
+        self.qubit_plot_options_widgets["j_text"].unobserve(
+            self.coherence_text, names="value"
+        )
+
+        for widget in self.noise_param_widgets.values():
+            widget.unobserve(self.coherence_text, names="value")
 
     # Eventhandler Methods -------------------------------------------------------------
     def qubit_change(self, change) -> None:
         self.plot_output.clear_output()
         new_qubit = change["new"]
         self.unobserve_ranges()
-        self.unobserve_widgets()
+        self.unobserve_coherence_elements()
+        self.unobserve_plot_elements()
         self.unobserve_plot_refresh()
         self.manual_update_and_save_widgets["manual_update_checkbox"].unobserve(
             self.manual_update_checkbox, names="value"
@@ -762,7 +871,8 @@ class GUI:
         self.set_qubit(new_qubit)
         self.initialize_tab_widget()
         self.observe_ranges()
-        self.observe_widgets()
+        self.observe_coherence_elements()
+        self.observe_plot_elements()
         self.observe_plot_refresh()
         self.plot_refresh(None)
 
@@ -772,7 +882,7 @@ class GUI:
 
     def plot_option_layout_refresh(self, change) -> None:
         self.unobserve_ranges()
-        self.unobserve_widgets()
+        self.unobserve_plot_elements()
         self.unobserve_plot_refresh()
         self.plot_output.clear_output()
         self.current_plot_option_refresh = self.get_plot_option_refresh()
@@ -782,7 +892,7 @@ class GUI:
             new_plot_option.children
         )
         self.observe_ranges()
-        self.observe_widgets()
+        self.observe_plot_elements()
         self.observe_plot_refresh()
         self.plot_refresh(None)
 
@@ -793,6 +903,42 @@ class GUI:
             ].disabled = False
         else:
             self.qubit_plot_options_widgets["wavefunction_scale_slider"].disabled = True
+
+    def coherence_text(self, change) -> None:
+        self.unobserve_coherence_elements()
+        self.unobserve_plot_refresh()
+        widget_key = change["owner"].description
+        widget = None
+
+        if widget_key == "Scale":
+            widget_key = "coherence_scale_text"
+        elif widget_key == "i":
+            widget_key = "i_text"
+        elif widget_key == "j":
+            widget_key = "j_text"
+        
+        if widget_key in self.qubit_plot_options_widgets.keys():
+            widget = self.qubit_plot_options_widgets[widget_key]
+        else:
+            widget = self.noise_param_widgets[widget_key]
+
+        if change["new"] <= 0:
+            if widget_key == "i_text":
+                widget.value = 1
+            elif widget_key == "j_text":
+                widget.value = 0
+            else:
+                widget.value = widget.step
+
+        i_text_widget = self.qubit_plot_options_widgets["i_text"]
+        j_text_widget = self.qubit_plot_options_widgets["j_text"]
+        if i_text_widget.get_interact_value() <= j_text_widget.get_interact_value():
+            if widget_key == "i_text":
+                j_text_widget.value = i_text_widget.value - i_text_widget.step
+            else:
+                i_text_widget.value = j_text_widget.value + j_text_widget.step
+        self.observe_coherence_elements()
+        self.observe_plot_refresh()
 
     def manual_update_checkbox(self, change) -> None:
         if change["new"]:
@@ -844,7 +990,7 @@ class GUI:
             return
         self.unobserve_ranges()
         self.unobserve_plot_refresh()
-        self.unobserve_widgets()
+        self.unobserve_plot_elements()
 
         params = gui_defaults.paramvals_from_papers[current_qubit][
             current_dropdown_value
@@ -869,7 +1015,7 @@ class GUI:
             self.qubit_params_widgets[param_name].value = param_val
         self.observe_ranges()
         self.observe_plot_refresh()
-        self.observe_widgets()
+        self.observe_plot_elements()
         self.plot_refresh(None)
 
     def adjust_state_widgets(self, change) -> None:
@@ -991,9 +1137,7 @@ class GUI:
 
         self.plot_output.clear_output(wait=True)
         value_dict = {
-            "scan_value": self.qubit_plot_options_widgets[
-                "scan_dropdown"
-            ].get_interact_value(),
+            "scan_value": scan_dropdown_value,
             "scan_range": (scan_slider.min, scan_slider.max),
             "subtract_ground_tf": self.qubit_plot_options_widgets[
                 "subtract_ground_checkbox"
@@ -1056,9 +1200,7 @@ class GUI:
 
         self.plot_output.clear_output(wait=True)
         value_dict = {
-            "scan_value": self.qubit_plot_options_widgets[
-                "scan_dropdown"
-            ].get_interact_value(),
+            "scan_value": scan_dropdown_value,
             "scan_range": (scan_slider.min, scan_slider.max),
             "operator_value": self.qubit_plot_options_widgets[
                 "operator_dropdown"
@@ -1094,6 +1236,74 @@ class GUI:
         }
 
         self.matrixelements_plot(**value_dict)
+
+    def coherence_vs_paramvals_plot_refresh(self, change) -> None:
+        self.plot_output.clear_output(wait=True)
+        t1_effective_tf = self.qubit_plot_options_widgets["t1_checkbox"].get_interact_value()
+        t2_effective_tf = self.qubit_plot_options_widgets["t2_checkbox"].get_interact_value()
+        scan_dropdown_value = self.qubit_plot_options_widgets[
+            "scan_dropdown"
+        ].get_interact_value()
+        scan_slider = self.qubit_params_widgets[scan_dropdown_value]
+        noise_channel_options = list(self.qubit_plot_options_widgets[
+            "noise_channel_multi-select"
+        ].get_interact_value())
+        common_noise_options = {
+            "i": self.qubit_plot_options_widgets["i_text"].get_interact_value(),
+            "j": self.qubit_plot_options_widgets["j_text"].get_interact_value(),
+            "T": self.noise_param_widgets["T"].get_interact_value(),
+        }
+        noise_params_dict = {}
+
+        for noise_param in self.noise_param_widgets.keys():
+            if noise_param != "T":
+                param_val = self.noise_param_widgets[noise_param].get_interact_value()
+                noise_params_dict[noise_param] = param_val
+
+        noise_channels = {"t1_eff": [], "t2_eff": [], "coherence_times": []}
+        for noise_channel in noise_channel_options:
+            if "tphi_1_over_f" in noise_channel:
+                tphi_dict = {
+                    "omega_low": noise_params_dict["omega_low"],
+                    "omega_high": noise_params_dict["omega_high"],
+                    "t_exp": noise_params_dict["t_exp"],
+                }
+                if "flux" in noise_channel:
+                    tphi_dict["A_noise"] = noise_params_dict["A_flux"]
+                elif "cc" in noise_channel:
+                    tphi_dict["A_noise"] = noise_params_dict["A_cc"]
+                elif "ng" in noise_channel: 
+                    tphi_dict["A_noise"] = noise_params_dict["A_ng"]
+                
+                noise_channels["t2_eff"].append((noise_channel, tphi_dict))
+                noise_channels["coherence_times"].append((noise_channel, tphi_dict))
+            elif noise_channel == "t1_flux_bias_line":
+                noise_channels["t1_eff"].append((noise_channel, dict(M=noise_params_dict["M"], Z=noise_params_dict["R_0"])))
+                noise_channels["t2_eff"].append((noise_channel, dict(M=noise_params_dict["M"], Z=noise_params_dict["R_0"])))
+                noise_channels["coherence_times"].append((noise_channel, dict(M=noise_params_dict["M"], Z=noise_params_dict["R_0"])))
+            elif noise_channel == "t1_charge_impedance":
+                noise_channels["coherence_times"].append((noise_channel, dict(Z=noise_params_dict["R_0"])))
+            elif noise_channel == "t1_quasiparticle_tunneling":
+                noise_channels["t1_eff"].append((noise_channel, dict(x_qp=noise_params_dict["x_qp"], Delta=noise_params_dict["Delta"])))
+                noise_channels["t2_eff"].append((noise_channel, dict(x_qp=noise_params_dict["x_qp"], Delta=noise_params_dict["Delta"])))
+                noise_channels["coherence_times"].append((noise_channel, dict(x_qp=noise_params_dict["x_qp"], Delta=noise_params_dict["Delta"])))
+            else:
+                noise_channels["t1_eff"].append(noise_channel)
+                noise_channels["t2_eff"].append(noise_channel)
+                noise_channels["coherence_times"].append(noise_channel)
+
+        self.plot_output.clear_output(wait=True)
+        value_dict = {
+            "t1_effective_tf": t1_effective_tf,
+            "t2_effective_tf": t2_effective_tf,
+            "scan_value": scan_dropdown_value,
+            "scan_range": (scan_slider.min, scan_slider.max),
+            "noise_channels": noise_channels,
+            "scale": self.qubit_plot_options_widgets["coherence_scale_text"].get_interact_value(),
+            "common_noise_options": common_noise_options,
+        }
+
+        self.coherence_vs_paramvals_plot(**value_dict)
 
     # Layout Methods ------------------------------------------------------------------
     def qubit_and_plot_ToggleButtons_layout(self) -> VBox:
@@ -1193,6 +1403,46 @@ class GUI:
         )
         return common_qubit_params_HBox
 
+    def noise_params_layout(self) -> HBox:
+        HBox_layout = Layout(display="flex", object_fit="contain", width="100%")
+        noise_params_grid = HBox(layout=HBox_layout)
+
+        params_size = len(self.noise_param_widgets)
+        if params_size > 6:
+            left_right_HBox_layout = Layout(
+                display="flex",
+                flex_flow="column nowrap",
+                object_fit="contain",
+                width="50%",
+            )
+            left_HBox = HBox(layout=left_right_HBox_layout)
+            right_HBox = HBox(layout=left_right_HBox_layout)
+
+            counter = 1
+            for noise_param_widget in self.noise_param_widgets.values():
+                noise_param_widget.layout.width = "50%"
+                if params_size % 2 == 0:
+                    if counter <= params_size / 2:
+                        left_HBox.children += (noise_param_widget,)
+                    else:
+                        right_HBox.children += (noise_param_widget,)
+                else:
+                    if counter <= params_size / 2 + 1:
+                        left_HBox.children += (noise_param_widget,)
+                    else:
+                        right_HBox.children += (noise_param_widget,)
+                counter += 1
+
+            noise_params_grid.children += (
+                left_HBox,
+                right_HBox,
+            )
+        else:
+            noise_params_grid.layout.flex_flow = "column nowrap"
+            noise_params_grid.children = list(self.noise_param_widgets.values())
+
+        return noise_params_grid
+
     def plot_option_layout(self) -> VBox:
         current_plot_option = self.qubit_and_plot_ToggleButtons[
             "plot_buttons"
@@ -1206,8 +1456,10 @@ class GUI:
             plot_option_vbox.children += self.wavefunctions_layout()
         elif current_plot_option == "Matrix element scan":
             plot_option_vbox.children += self.matelem_scan_layout()
-        else:
+        elif current_plot_option == "Matrix elements":
             plot_option_vbox.children += self.matelem_layout()
+        elif current_plot_option == "Coherence times":
+            plot_option_vbox.children += self.coherence_times_layout()
 
         return plot_option_vbox
 
@@ -1368,6 +1620,47 @@ class GUI:
 
         return plot_options_widgets_tuple
 
+    def coherence_times_layout(self,) -> Tuple[Dropdown, SelectMultiple]:
+        """Creates the children for matrix elements layout.
+
+        Returns
+        -------
+            Tuple of plot options widgets
+        """
+        self.qubit_params_widgets[
+            self.qubit_plot_options_widgets["scan_dropdown"].value
+        ].disabled = True
+        text_VBox = VBox(
+            [
+                self.qubit_plot_options_widgets["coherence_scale_text"],
+                self.qubit_plot_options_widgets["i_text"],
+                self.qubit_plot_options_widgets["j_text"],
+            ],
+            layout=Layout(width='50%')
+        )
+        checkbox_VBox = VBox(
+            [
+                self.qubit_plot_options_widgets["t1_checkbox"],
+                self.qubit_plot_options_widgets["t2_checkbox"],
+            ],
+            layout=Layout(width='35%')
+        )
+        
+
+        plot_options_widgets_tuple = (
+            self.qubit_plot_options_widgets["scan_dropdown"],
+            self.qubit_plot_options_widgets["noise_channel_multi-select"],
+            HBox(
+                [
+                    text_VBox, checkbox_VBox
+                ],
+                layout=Layout(display='flex', justify_content='space-between', width='95%')
+            )
+
+        )
+
+        return plot_options_widgets_tuple
+
     # Plot functions------------------------------------------------------------------
     def evals_vs_paramvals_plot(
         self,
@@ -1436,6 +1729,10 @@ class GUI:
                     which=eigenvalue_states, mode=mode_value
                 )
             else:
+                if len(eigenvalue_states) == 0:
+                    error_label = Label(value="Please select at least one state.")
+                    display(error_label)
+                    return
                 self.fig, ax = self.active_qubit.plot_wavefunction(  # type:ignore
                     which=eigenvalue_states,
                     mode=mode_value,
@@ -1523,6 +1820,64 @@ class GUI:
                 show_numbers=show_numbers_tf,
                 show3d=show3d_tf,
             )
+            self.fig.canvas.header_visible = False
+            self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
+            self.fig.dpi = gui_defaults.FIG_DPI
+            plt.show()
+        GUI.fig_ax = self.fig, ax
+
+    def coherence_vs_paramvals_plot(
+        self,
+        scan_value: str,
+        scan_range: Tuple[float, float],
+        noise_channels: Dict[str, List[Union[str, Tuple[str, Dict[str, float]]]]],
+        scale: float,
+        common_noise_options: Dict[str, Union[int, float]],
+        t1_effective_tf: bool,
+        t2_effective_tf: bool,
+    ) -> None:
+        """This method will refresh the coherence vs paramvals plot using the current
+        values of the plot options widgets as well as the qubit param widgets.
+
+        Parameters
+        ----------
+        scan_value:
+            Current value of the scan parameter dropdown.
+        scan_range:
+            Sets the interval [ min, max ] through
+            which plot_evals_vs_paramvals() will plot over.
+        noise_channels:
+            List of noise channels to be displayed
+        """
+        scan_min, scan_max = scan_range
+        np_list = np.linspace(scan_min, scan_max, self.active_defaults["num_sample"])
+        with self.plot_output:
+            if len(noise_channels) == 0:
+                error_label = Label(value="Please select at least one noise channel.")
+                display(error_label)
+                return
+            if not t1_effective_tf and not t2_effective_tf:
+                self.fig, ax = self.active_qubit.plot_coherence_vs_paramvals(
+                    param_name=scan_value, param_vals=np_list, noise_channels=noise_channels["coherence_times"], scale=scale, common_noise_options=common_noise_options,
+                )
+            elif t1_effective_tf and not t2_effective_tf:
+                self.fig, ax = self.active_qubit.plot_t1_effective_vs_paramvals(
+                    param_name=scan_value, param_vals=np_list, noise_channels=noise_channels["t1_eff"], scale=scale, common_noise_options=common_noise_options,
+                )
+            elif not t1_effective_tf and t2_effective_tf:
+                self.fig, ax = self.active_qubit.plot_t2_effective_vs_paramvals(
+                    param_name=scan_value, param_vals=np_list, noise_channels=noise_channels["t2_eff"], scale=scale, common_noise_options=common_noise_options,
+                )
+            else:
+                self.fig, ax = plt.subplots(nrows=1, ncols=2)
+                self.active_qubit.plot_t1_effective_vs_paramvals(
+                    param_name=scan_value, param_vals=np_list, noise_channels=noise_channels["t1_eff"], scale=scale, common_noise_options=common_noise_options, fig_ax=(self.fig, ax[0])
+                )
+                self.active_qubit.plot_t2_effective_vs_paramvals(
+                    param_name=scan_value, param_vals=np_list, noise_channels=noise_channels["t2_eff"], scale=scale, common_noise_options=common_noise_options, fig_ax=(self.fig, ax[1])
+                )
+                plt.close(2)
+                plt.close(3)
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
             self.fig.dpi = gui_defaults.FIG_DPI

@@ -234,6 +234,7 @@ plot_choices = [
     "Wavefunctions",
     "Matrix element scan",
     "Matrix elements",
+    "Coherence times",
 ]
 
 supported_qubits = [
