@@ -2916,6 +2916,74 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
             qt_evecs.append(ndarray_to_qt_ket(evec, self.hilbert_space.subsystem_dims))
         return qt_evecs
 
+    def ptrace(self, which: int, remaining_subsys: Union[int, List[int]]) -> qt.Qobj:
+        """
+        Wrapper method for `qutip.ptrace`; return the partial trace of the given
+        subsystem(s) for an eigenstate.
+
+        Parameters
+        ----------
+        which:
+            specifies which state to be traced
+        remaining_subsys:
+            the remaining subsystem that is not traced out
+
+        Returns
+        -------
+            The reduced density matrix as an operator Qobj
+        """
+        _, evecs = self.eigensys(evals_count=which + 1)
+        evec = ndarray_to_qt_ket(evecs.T[which], self.hilbert_space.subsystem_dims)
+        return qt.ptrace(evec, remaining_subsys)
+
+    def ptrace_purity(
+        self, which: int, remaining_subsys: Union[int, List[int]]
+    ) -> float:
+        """
+        Return the purity of partial trace of the given subsystem(s) for an eigenstate.
+
+        Parameters
+        ----------
+        which:
+            specifies which state to be traced
+        remaining_subsys:
+            the remaining subsystem that is not traced out
+
+        Returns
+        -------
+            The purity of the reduced density matrix
+        """
+        _, evecs = self.eigensys(evals_count=which + 1)
+        evec = ndarray_to_qt_ket(evecs.T[which], self.hilbert_space.subsystem_dims)
+        return qt.ptrace(evec, remaining_subsys).purity()
+
+    def entropy_vn(
+        self,
+        which: int,
+        remaining_subsys: Union[int, List[int]],
+        base: float = 2.718281828459045,
+    ) -> float:
+        """
+        Wrapper method for `qutip.entropy_vn`; return the von Neumann entropy of
+        partial trace of the given subsystem(s) for an eigenstate.
+
+        Parameters
+        ----------
+        which:
+            specifies which state to be traced
+        remaining_subsys:
+            the remaining subsystem that is not traced out
+        base:
+            the base of von Neumann entropy
+
+        Returns
+        -------
+            The von Neumann entropy of the reduced density matrix
+        """
+        _, evecs = self.eigensys(evals_count=which + 1)
+        evec = ndarray_to_qt_ket(evecs.T[which], self.hilbert_space.subsystem_dims)
+        return qt.entropy_vn(qt.ptrace(evec, remaining_subsys), base=base)
+
 
 class Circuit(Subsystem):
     """
