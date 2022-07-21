@@ -201,6 +201,31 @@ def qt_ket_to_ndarray(qobj_ket: qt.Qobj) -> np.ndarray:
     return np.asarray(qobj_ket.data.todense())
 
 
+def ndarray_to_qt_ket(array: np.ndarray, dims: list) -> qt.Qobj:
+    """
+    Return the correspondint qutip's Qobj for a state in a composite
+    Hilbert space that is represented as a numpy array.
+
+    Parameters
+    ----------
+    array:
+        state represented as a numpy array
+    dims:
+        dimensions of the subsystems, provided as a list
+        [<dim of subsystem 1>, <dim of subsystem 2>, ...]
+
+    Returns
+    -------
+        Qutip's Qobj that represents the state
+    """
+    # check if the input dimension is valid
+    if np.product(dims) != np.shape(array)[0]:
+        raise ValueError(
+            "The given dimensions does not match with the input array shape."
+        )
+    return qt.Qobj(inpt=array, dims=[dims, [1 for nsys in range(len(dims))]])
+
+
 def get_shape(lst, shape=()):
     """
     returns the shape of nested lists similarly to numpy's shape.

@@ -51,7 +51,7 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as utils
-from scqubits.utils.misc import check_sync_status
+from scqubits.utils.misc import check_sync_status, ndarray_to_qt_ket
 
 from scqubits import HilbertSpace, settings
 from scqubits.core import operators as op
@@ -1720,7 +1720,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
             junction_potential
         ).data.tocsc()
 
-        if H_LC_str: 
+        if H_LC_str:
             return eval(H_LC_str, replacement_dict) + junction_potential_matrix
         else:
             return junction_potential_matrix
@@ -1759,7 +1759,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
             junction_potential
         ).data.tocsc()
 
-        if H_LC_str: 
+        if H_LC_str:
             return eval(H_LC_str, replacement_dict) + junction_potential_matrix
         else:
             return junction_potential_matrix
@@ -2895,6 +2895,26 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
             if ("ng" not in symbol.name and "Φ" not in symbol.name)
             and symbol not in self.symbolic_params
         ]
+
+    def qt_ket(self, evals_count: int = 6) -> List[qt.Qobj]:
+        """
+        Return a list of qutip's ket Qobj that represents the eigenstates.
+
+        Parameters
+        ----------
+        evecs_count:
+            number of eigenvectors that is converted to the qutip ket Qobj
+
+        Returns
+        -------
+            A list of qutip ket Qobj
+        """
+        _, evecs = self.eigensys(evals_count=evals_count)
+        evecs = evecs.T
+        qt_evecs = []
+        for evec in evecs:
+            qt_evecs.append(ndarray_to_qt_ket(evec, self.hilbert_space.subsystem_dims))
+        return qt_evecs
 
 
 class Circuit(Subsystem):
