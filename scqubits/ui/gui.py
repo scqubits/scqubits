@@ -188,17 +188,20 @@ class GUI:
             noise_params.append("A_cc")
         if "tphi_1_over_f_ng" in noise_channels:
             noise_params.append("A_ng")
-        if "t1_charge_impedance" in noise_channels or "t1_flux_bias_line" in noise_channels:
+        if (
+            "t1_charge_impedance" in noise_channels
+            or "t1_flux_bias_line" in noise_channels
+        ):
             noise_params.append("R_0")
         if "t1_flux_bias_line" in noise_channels:
             noise_params.append("M")
         if "t1_quasiparticle_tunneling" in noise_channels:
             noise_params.append("x_qp")
             noise_params.append("Delta")
-        
+
         for noise_param in noise_params:
             self.noise_param_widgets[noise_param] = FloatText(
-                value=noise.NOISE_PARAMS[noise_param], 
+                value=noise.NOISE_PARAMS[noise_param],
                 disalbed=False,
                 description=noise_param,
                 step=0.001,
@@ -324,29 +327,27 @@ class GUI:
                 disabled=False,
                 description="Scale",
                 step=0.01,
-                layout=std_layout
+                layout=std_layout,
             ),
             "i_text": IntText(
-                value = 1,
-                disabled=False,
-                description="i",
-                step=1,
-                layout=std_layout
+                value=1, disabled=False, description="i", step=1, layout=std_layout
             ),
             "j_text": IntText(
-                value = 0,
-                disabled=False,
-                description="j",
-                step=1,
-                layout=std_layout
+                value=0, disabled=False, description="j", step=1, layout=std_layout
             ),
             "t1_checkbox": Checkbox(
-                value=False, description="Effective T1", disabled=False, indent=False,
-                layout=std_layout
+                value=False,
+                description="Effective T1",
+                disabled=False,
+                indent=False,
+                layout=std_layout,
             ),
             "t2_checkbox": Checkbox(
-                value=False, description="Effective T2", disabled=False, indent=False,
-                layout=std_layout
+                value=False,
+                description="Effective T2",
+                disabled=False,
+                indent=False,
+                layout=std_layout,
             ),
         }
 
@@ -459,14 +460,10 @@ class GUI:
 
             if isinstance(widget, IntSlider):
                 widget_min_text = IntText(
-                    value=widget.min,
-                    description="min=",
-                    layout=range_text_layout,
+                    value=widget.min, description="min=", layout=range_text_layout,
                 )
                 widget_max_text = IntText(
-                    value=widget.max,
-                    description="max=",
-                    layout=range_text_layout,
+                    value=widget.max, description="max=", layout=range_text_layout,
                 )
             elif isinstance(widget, FloatSlider):
                 widget_min_text = FloatText(
@@ -486,14 +483,10 @@ class GUI:
                 max_val = widget.options[-1]
 
                 widget_min_text = IntText(
-                    value=min_val,
-                    description="min=",
-                    layout=range_text_layout,
+                    value=min_val, description="min=", layout=range_text_layout,
                 )
                 widget_max_text = IntText(
-                    value=max_val,
-                    description="max=",
-                    layout=range_text_layout,
+                    value=max_val, description="max=", layout=range_text_layout,
                 )
             else:
                 continue
@@ -760,7 +753,11 @@ class GUI:
             "common_params_dropdown",
             "link_HTML",
         ]
-        total_dict = {**self.qubit_params_widgets, **self.qubit_plot_options_widgets, **self.noise_param_widgets}
+        total_dict = {
+            **self.qubit_params_widgets,
+            **self.qubit_plot_options_widgets,
+            **self.noise_param_widgets,
+        }
         for widget_name, widget in total_dict.items():
             if widget_name not in qubit_plot_options_blacklist:
                 widget.observe(self.plot_refresh, names="value")
@@ -773,13 +770,19 @@ class GUI:
             "common_params_dropdown",
             "link_HTML",
         ]
-        total_dict = {**self.qubit_params_widgets, **self.qubit_plot_options_widgets, **self.noise_param_widgets}
+        total_dict = {
+            **self.qubit_params_widgets,
+            **self.qubit_plot_options_widgets,
+            **self.noise_param_widgets,
+        }
         for widget_name, widget in total_dict.items():
             if widget_name not in qubit_plot_options_blacklist:
                 widget.unobserve(self.plot_refresh, names="value")
 
     def observe_plot_elements(self) -> None:
-        if isinstance(self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)):
+        if isinstance(
+            self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)
+        ):
             self.qubit_plot_options_widgets["manual_scale_checkbox"].observe(
                 self.manual_scale_tf, names="value"
             )
@@ -799,7 +802,9 @@ class GUI:
             widget.observe(self.common_params_dropdown_value_refresh, names="value")
 
     def unobserve_plot_elements(self) -> None:
-        if isinstance(self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)):
+        if isinstance(
+            self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)
+        ):
             self.qubit_plot_options_widgets["manual_scale_checkbox"].unobserve(
                 self.manual_scale_tf, names="value"
             )
@@ -817,7 +822,7 @@ class GUI:
             if "cut" in widget_name:
                 widget.unobserve(self.adjust_state_widgets, names="value")
             widget.unobserve(self.common_params_dropdown_value_refresh, names="value")
-    
+
     def observe_coherence_elements(self) -> None:
         self.qubit_plot_options_widgets["coherence_scale_text"].observe(
             self.coherence_text, names="value"
@@ -916,7 +921,7 @@ class GUI:
             widget_key = "i_text"
         elif widget_key == "j":
             widget_key = "j_text"
-        
+
         if widget_key in self.qubit_plot_options_widgets.keys():
             widget = self.qubit_plot_options_widgets[widget_key]
         else:
@@ -1239,15 +1244,21 @@ class GUI:
 
     def coherence_vs_paramvals_plot_refresh(self, change) -> None:
         self.plot_output.clear_output(wait=True)
-        t1_effective_tf = self.qubit_plot_options_widgets["t1_checkbox"].get_interact_value()
-        t2_effective_tf = self.qubit_plot_options_widgets["t2_checkbox"].get_interact_value()
+        t1_effective_tf = self.qubit_plot_options_widgets[
+            "t1_checkbox"
+        ].get_interact_value()
+        t2_effective_tf = self.qubit_plot_options_widgets[
+            "t2_checkbox"
+        ].get_interact_value()
         scan_dropdown_value = self.qubit_plot_options_widgets[
             "scan_dropdown"
         ].get_interact_value()
         scan_slider = self.qubit_params_widgets[scan_dropdown_value]
-        noise_channel_options = list(self.qubit_plot_options_widgets[
-            "noise_channel_multi-select"
-        ].get_interact_value())
+        noise_channel_options = list(
+            self.qubit_plot_options_widgets[
+                "noise_channel_multi-select"
+            ].get_interact_value()
+        )
         common_noise_options = {
             "i": self.qubit_plot_options_widgets["i_text"].get_interact_value(),
             "j": self.qubit_plot_options_widgets["j_text"].get_interact_value(),
@@ -1272,21 +1283,62 @@ class GUI:
                     tphi_dict["A_noise"] = noise_params_dict["A_flux"]
                 elif "cc" in noise_channel:
                     tphi_dict["A_noise"] = noise_params_dict["A_cc"]
-                elif "ng" in noise_channel: 
+                elif "ng" in noise_channel:
                     tphi_dict["A_noise"] = noise_params_dict["A_ng"]
-                
+
                 noise_channels["t2_eff"].append((noise_channel, tphi_dict))
                 noise_channels["coherence_times"].append((noise_channel, tphi_dict))
             elif noise_channel == "t1_flux_bias_line":
-                noise_channels["t1_eff"].append((noise_channel, dict(M=noise_params_dict["M"], Z=noise_params_dict["R_0"])))
-                noise_channels["t2_eff"].append((noise_channel, dict(M=noise_params_dict["M"], Z=noise_params_dict["R_0"])))
-                noise_channels["coherence_times"].append((noise_channel, dict(M=noise_params_dict["M"], Z=noise_params_dict["R_0"])))
+                noise_channels["t1_eff"].append(
+                    (
+                        noise_channel,
+                        dict(M=noise_params_dict["M"], Z=noise_params_dict["R_0"]),
+                    )
+                )
+                noise_channels["t2_eff"].append(
+                    (
+                        noise_channel,
+                        dict(M=noise_params_dict["M"], Z=noise_params_dict["R_0"]),
+                    )
+                )
+                noise_channels["coherence_times"].append(
+                    (
+                        noise_channel,
+                        dict(M=noise_params_dict["M"], Z=noise_params_dict["R_0"]),
+                    )
+                )
             elif noise_channel == "t1_charge_impedance":
-                noise_channels["coherence_times"].append((noise_channel, dict(Z=noise_params_dict["R_0"])))
+                noise_channels["coherence_times"].append(
+                    (noise_channel, dict(Z=noise_params_dict["R_0"]))
+                )
             elif noise_channel == "t1_quasiparticle_tunneling":
-                noise_channels["t1_eff"].append((noise_channel, dict(x_qp=noise_params_dict["x_qp"], Delta=noise_params_dict["Delta"])))
-                noise_channels["t2_eff"].append((noise_channel, dict(x_qp=noise_params_dict["x_qp"], Delta=noise_params_dict["Delta"])))
-                noise_channels["coherence_times"].append((noise_channel, dict(x_qp=noise_params_dict["x_qp"], Delta=noise_params_dict["Delta"])))
+                noise_channels["t1_eff"].append(
+                    (
+                        noise_channel,
+                        dict(
+                            x_qp=noise_params_dict["x_qp"],
+                            Delta=noise_params_dict["Delta"],
+                        ),
+                    )
+                )
+                noise_channels["t2_eff"].append(
+                    (
+                        noise_channel,
+                        dict(
+                            x_qp=noise_params_dict["x_qp"],
+                            Delta=noise_params_dict["Delta"],
+                        ),
+                    )
+                )
+                noise_channels["coherence_times"].append(
+                    (
+                        noise_channel,
+                        dict(
+                            x_qp=noise_params_dict["x_qp"],
+                            Delta=noise_params_dict["Delta"],
+                        ),
+                    )
+                )
             else:
                 noise_channels["t1_eff"].append(noise_channel)
                 noise_channels["t2_eff"].append(noise_channel)
@@ -1299,7 +1351,9 @@ class GUI:
             "scan_value": scan_dropdown_value,
             "scan_range": (scan_slider.min, scan_slider.max),
             "noise_channels": noise_channels,
-            "scale": self.qubit_plot_options_widgets["coherence_scale_text"].get_interact_value(),
+            "scale": self.qubit_plot_options_widgets[
+                "coherence_scale_text"
+            ].get_interact_value(),
             "common_noise_options": common_noise_options,
         }
 
@@ -1636,27 +1690,25 @@ class GUI:
                 self.qubit_plot_options_widgets["i_text"],
                 self.qubit_plot_options_widgets["j_text"],
             ],
-            layout=Layout(width='50%')
+            layout=Layout(width="50%"),
         )
         checkbox_VBox = VBox(
             [
                 self.qubit_plot_options_widgets["t1_checkbox"],
                 self.qubit_plot_options_widgets["t2_checkbox"],
             ],
-            layout=Layout(width='35%')
+            layout=Layout(width="35%"),
         )
-        
 
         plot_options_widgets_tuple = (
             self.qubit_plot_options_widgets["scan_dropdown"],
             self.qubit_plot_options_widgets["noise_channel_multi-select"],
             HBox(
-                [
-                    text_VBox, checkbox_VBox
-                ],
-                layout=Layout(display='flex', justify_content='space-between', width='95%')
-            )
-
+                [text_VBox, checkbox_VBox],
+                layout=Layout(
+                    display="flex", justify_content="space-between", width="95%"
+                ),
+            ),
         )
 
         return plot_options_widgets_tuple
@@ -1858,23 +1910,45 @@ class GUI:
                 return
             if not t1_effective_tf and not t2_effective_tf:
                 self.fig, ax = self.active_qubit.plot_coherence_vs_paramvals(
-                    param_name=scan_value, param_vals=np_list, noise_channels=noise_channels["coherence_times"], scale=scale, common_noise_options=common_noise_options,
+                    param_name=scan_value,
+                    param_vals=np_list,
+                    noise_channels=noise_channels["coherence_times"],
+                    scale=scale,
+                    common_noise_options=common_noise_options,
                 )
             elif t1_effective_tf and not t2_effective_tf:
                 self.fig, ax = self.active_qubit.plot_t1_effective_vs_paramvals(
-                    param_name=scan_value, param_vals=np_list, noise_channels=noise_channels["t1_eff"], scale=scale, common_noise_options=common_noise_options,
+                    param_name=scan_value,
+                    param_vals=np_list,
+                    noise_channels=noise_channels["t1_eff"],
+                    scale=scale,
+                    common_noise_options=common_noise_options,
                 )
             elif not t1_effective_tf and t2_effective_tf:
                 self.fig, ax = self.active_qubit.plot_t2_effective_vs_paramvals(
-                    param_name=scan_value, param_vals=np_list, noise_channels=noise_channels["t2_eff"], scale=scale, common_noise_options=common_noise_options,
+                    param_name=scan_value,
+                    param_vals=np_list,
+                    noise_channels=noise_channels["t2_eff"],
+                    scale=scale,
+                    common_noise_options=common_noise_options,
                 )
             else:
                 self.fig, ax = plt.subplots(nrows=1, ncols=2)
                 self.active_qubit.plot_t1_effective_vs_paramvals(
-                    param_name=scan_value, param_vals=np_list, noise_channels=noise_channels["t1_eff"], scale=scale, common_noise_options=common_noise_options, fig_ax=(self.fig, ax[0])
+                    param_name=scan_value,
+                    param_vals=np_list,
+                    noise_channels=noise_channels["t1_eff"],
+                    scale=scale,
+                    common_noise_options=common_noise_options,
+                    fig_ax=(self.fig, ax[0]),
                 )
                 self.active_qubit.plot_t2_effective_vs_paramvals(
-                    param_name=scan_value, param_vals=np_list, noise_channels=noise_channels["t2_eff"], scale=scale, common_noise_options=common_noise_options, fig_ax=(self.fig, ax[1])
+                    param_name=scan_value,
+                    param_vals=np_list,
+                    noise_channels=noise_channels["t2_eff"],
+                    scale=scale,
+                    common_noise_options=common_noise_options,
+                    fig_ax=(self.fig, ax[1]),
                 )
                 plt.close(2)
                 plt.close(3)
