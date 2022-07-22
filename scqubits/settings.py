@@ -115,11 +115,11 @@ mpl.rcParams["axes.prop_cycle"] = cycler(
 mpl.rcParams["font.family"] = "sans-serif"
 mpl.rcParams["font.sans-serif"] = "Roboto, Arial, Helvetica, DejaVu Sans"
 # mpl.rcParams["figure.dpi"] = 150
-mpl.rcParams["font.size"] = 11
-mpl.rcParams["axes.labelsize"] = 11
-mpl.rcParams["axes.titlesize"] = 11
-mpl.rcParams["xtick.labelsize"] = 10
-mpl.rcParams["ytick.labelsize"] = 10
+mpl.rcParams["font.size"] = 9
+mpl.rcParams["axes.labelsize"] = 9
+mpl.rcParams["axes.titlesize"] = 9
+mpl.rcParams["xtick.labelsize"] = 8
+mpl.rcParams["ytick.labelsize"] = 8
 
 # toggle top and right axes on and off
 DESPINE = True
