@@ -1778,8 +1778,8 @@ class GUI:
                 scan_value,
                 np_list,
                 evals_count=eigenvalue_state_value,
-                subtract_ground=subtract_ground_tf
-            )    
+                subtract_ground=subtract_ground_tf,
+            )
             self.plot_change_bool = False
 
             if _HAS_WIDGET_BACKEND:
@@ -1794,10 +1794,10 @@ class GUI:
                 np_list,
                 evals_count=eigenvalue_state_value,
                 subtract_ground=subtract_ground_tf,
-                fig_ax=(self.fig, self.fig.axes[0])
+                fig_ax=(self.fig, self.fig.axes[0]),
             )
         if not _HAS_WIDGET_BACKEND:
-            plt.close('all')
+            plt.close("all")
             with self.plot_output:
                 display(self.fig)
         GUI.fig_ax = self.fig, self.fig.axes[0]
@@ -1822,19 +1822,17 @@ class GUI:
             The current value for the wavefunction scale
         phi_grid:
             Specifies the domain over which the wavefunction will be plotted.
-        """    
+        """
         if not _HAS_WIDGET_BACKEND:
             self.plot_output.clear_output(wait=True)
 
-        if isinstance(
-            self.active_qubit, (scq.FluxQubit, scq.ZeroPi, scq.Cos2PhiQubit)
-        ):
+        if isinstance(self.active_qubit, (scq.FluxQubit, scq.ZeroPi, scq.Cos2PhiQubit)):
             if self.plot_change_bool:
                 self.fig, ax = self.active_qubit.plot_wavefunction(  # type:ignore
                     which=eigenvalue_states, mode=mode_value,
                 )
                 self.plot_change_bool = False
-                
+
                 if _HAS_WIDGET_BACKEND:
                     self.fig.canvas.header_visible = False
                     self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
@@ -1843,10 +1841,16 @@ class GUI:
             else:
                 self.fig.axes[0].clear()
                 self.active_qubit.plot_wavefunction(  # type:ignore
-                    which=eigenvalue_states, mode=mode_value, fig_ax=(self.fig, self.fig.axes[0])
+                    which=eigenvalue_states,
+                    mode=mode_value,
+                    fig_ax=(self.fig, self.fig.axes[0]),
                 )
         else:
-            self.plot_output.outputs = tuple(elem for elem in self.plot_output.outputs if "Label" not in elem["data"]["text/plain"])
+            self.plot_output.outputs = tuple(
+                elem
+                for elem in self.plot_output.outputs
+                if "Label" not in elem["data"]["text/plain"]
+            )
             if len(eigenvalue_states) == 0:
                 if _HAS_WIDGET_BACKEND:
                     self.fig.axes[0].clear()
@@ -1861,7 +1865,7 @@ class GUI:
                     scaling=scale_value,
                     phi_grid=phi_grid,
                 )
-                self.plot_change_bool = False 
+                self.plot_change_bool = False
 
                 if _HAS_WIDGET_BACKEND:
                     self.fig.canvas.header_visible = False
@@ -1875,11 +1879,11 @@ class GUI:
                     mode=mode_value,
                     scaling=scale_value,
                     phi_grid=phi_grid,
-                    fig_ax=(self.fig, self.fig.axes[0])
+                    fig_ax=(self.fig, self.fig.axes[0]),
                 )
 
         if not _HAS_WIDGET_BACKEND:
-            plt.close('all')
+            plt.close("all")
             with self.plot_output:
                 display(self.fig)
         GUI.fig_ax = self.fig, self.fig.axes[0]
@@ -1935,10 +1939,10 @@ class GUI:
                 np_list,
                 select_elems=matrix_element_state_value,
                 mode=mode_value,
-                fig_ax=(self.fig, self.fig.axes[0])
+                fig_ax=(self.fig, self.fig.axes[0]),
             )
         if not _HAS_WIDGET_BACKEND:
-            plt.close('all')
+            plt.close("all")
             with self.plot_output:
                 display(self.fig)
         GUI.fig_ax = self.fig, self.fig.axes
@@ -1978,7 +1982,7 @@ class GUI:
                 mode=mode_value,
                 show_numbers=show_numbers_tf,
                 show3d=show3d_tf,
-            )       
+            )
             self.plot_change_bool = False
             if _HAS_WIDGET_BACKEND:
                 self.fig.canvas.header_visible = False
@@ -1996,13 +2000,13 @@ class GUI:
                 mode=mode_value,
                 show_numbers=show_numbers_tf,
                 show3d=show3d_tf,
-                fig_ax=(self.fig, (self.fig.axes[0], self.fig.axes[1]))
+                fig_ax=(self.fig, (self.fig.axes[0], self.fig.axes[1])),
             )
             if _HAS_WIDGET_BACKEND:
                 self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
-                
+
         if not _HAS_WIDGET_BACKEND:
-            plt.close('all')
+            plt.close("all")
             with self.plot_output:
                 display(self.fig)
         GUI.fig_ax = self.fig, self.fig.axes
@@ -2091,14 +2095,16 @@ class GUI:
             for ax in self.fig.axes:
                 ax.clear()
             if not t1_effective_tf and not t2_effective_tf:
-                axes = np.array(self.fig.axes).reshape(math.ceil(len(self.fig.axes) / 2), 2)
+                axes = np.array(self.fig.axes).reshape(
+                    math.ceil(len(self.fig.axes) / 2), 2
+                )
                 self.active_qubit.plot_coherence_vs_paramvals(
                     param_name=scan_value,
                     param_vals=np_list,
                     noise_channels=noise_channels["coherence_times"],
                     scale=scale,
                     common_noise_options=common_noise_options,
-                    fig_ax=(self.fig, axes)
+                    fig_ax=(self.fig, axes),
                 )
             elif t1_effective_tf and not t2_effective_tf:
                 self.active_qubit.plot_t1_effective_vs_paramvals(
@@ -2107,7 +2113,7 @@ class GUI:
                     noise_channels=noise_channels["t1_eff"],
                     scale=scale,
                     common_noise_options=common_noise_options,
-                    fig_ax=(self.fig, self.fig.axes[0])
+                    fig_ax=(self.fig, self.fig.axes[0]),
                 )
             elif not t1_effective_tf and t2_effective_tf:
                 self.active_qubit.plot_t2_effective_vs_paramvals(
@@ -2116,7 +2122,7 @@ class GUI:
                     noise_channels=noise_channels["t2_eff"],
                     scale=scale,
                     common_noise_options=common_noise_options,
-                    fig_ax=(self.fig, self.fig.axes[0])
+                    fig_ax=(self.fig, self.fig.axes[0]),
                 )
             else:
                 self.active_qubit.plot_t1_effective_vs_paramvals(
@@ -2136,7 +2142,7 @@ class GUI:
                     fig_ax=(self.fig, self.fig.axes[1]),
                 )
         if not _HAS_WIDGET_BACKEND:
-            plt.close('all')
+            plt.close("all")
             with self.plot_output:
                 display(self.fig)
         GUI.fig_ax = self.fig, self.fig.axes
