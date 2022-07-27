@@ -249,11 +249,7 @@ class GUI:
         init_params = QubitClass.default_params()
 
         if qubit_name == "ZeroPi" or qubit_name == "FullZeroPi":
-            init_params["grid"] = scq.Grid1d(
-                min_val=gui_defaults.grid_defaults["grid_min_val"],
-                max_val=gui_defaults.grid_defaults["grid_max_val"],
-                pt_count=gui_defaults.grid_defaults["grid_pt_count"],
-            )
+            init_params["grid"] = Grid1d(-7 * np.pi, 7 * np.pi, 200)
         self.active_qubit = QubitClass(**init_params)
 
     def initialize_qubit_params_dicts(self) -> None:
@@ -421,8 +417,8 @@ class GUI:
         std_layout = Layout(width="45%")
 
         if isinstance(self.active_qubit, (scq.ZeroPi, scq.FullZeroPi)):
-            grid_min = gui_defaults.grid_defaults["grid_min_val"]
-            grid_max = gui_defaults.grid_defaults["grid_max_val"]
+            grid_min = self.active_qubit.grid.min_val
+            grid_max = self.active_qubit.grid.max_val
             self.qubit_params_widgets["grid"] = FloatRangeSlider(
                 min=-12 * np.pi,
                 max=12 * np.pi,
@@ -481,7 +477,7 @@ class GUI:
                 widget_max_text = IntText(
                     value=widget.max, description="max=", layout=range_text_layout,
                 )
-            elif isinstance(widget, FloatSlider):
+            elif isinstance(widget, (FloatSlider, FloatRangeSlider)):
                 widget_min_text = FloatText(
                     value=widget.min,
                     description="min=",
@@ -513,7 +509,7 @@ class GUI:
             }
 
         if isinstance(
-            self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)
+            self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium, scq.FluxQubit)
         ):
             widget_min_text = FloatText(
                 value=self.active_qubit._default_grid.min_val,
@@ -527,10 +523,46 @@ class GUI:
                 step=0.01,
                 layout=range_text_layout,
             )
-            self.ranges_widgets["wavefunction_domain_slider"] = {
+            self.ranges_widgets["phi"] = {
                 "min": widget_min_text,
                 "max": widget_max_text,
             }
+        elif isinstance(self.active_qubit, scq.ZeroPi):
+            widget_min_text = FloatText(
+                value=self.active_qubit._default_grid.min_val,
+                description="min=",
+                step=0.01,
+                layout=range_text_layout,
+            )
+            widget_max_text = FloatText(
+                value=self.active_qubit._default_grid.max_val,
+                description="max=",
+                step=0.01,
+                layout=range_text_layout,
+            )
+            self.ranges_widgets["theta"] = {
+                "min": widget_min_text,
+                "max": widget_max_text,
+            }
+        elif isinstance(self.active_qubit, scq.Cos2PhiQubit):
+            default_grids = {"phi": self.active_qubit._default_phi_grid, "theta": self.active_qubit._default_theta_grid, "zeta": self.active_qubit._default_zeta_grid}
+            for param, param_grid in default_grids.items():
+                widget_min_text = FloatText(
+                    value=param_grid.min_val,
+                    description="min=",
+                    step=0.01,
+                    layout=range_text_layout,
+                )
+                widget_max_text = FloatText(
+                    value=param_grid.max_val,
+                    description="max=",
+                    step=0.01,
+                    layout=range_text_layout,
+                )
+                self.ranges_widgets[param] = {
+                    "min": widget_min_text,
+                    "max": widget_max_text,
+                }
 
     def initialize_tab_widget(self) -> None:
         """Creates each of the tabs in self.tab_widget"""
@@ -642,9 +674,7 @@ class GUI:
             grid_min, grid_max = self.qubit_params_widgets["grid"].get_interact_value()
             current_values["grid_min_val"] = grid_min
             current_values["grid_max_val"] = grid_max
-            current_values["grid_pt_count"] = gui_defaults.grid_defaults[
-                "grid_pt_count"
-            ]
+            current_values["grid_pt_count"] = self.active_qubit.grid.pt_count
 
         self.active_qubit.set_params(**current_values)
 
@@ -681,7 +711,7 @@ class GUI:
         if new_min <= 0 or ("cut" in widget_name and new_min == 1):
             if widget_name == "highest_state_slider":
                 new_min = 1
-            elif widget_name == "wavefunction_domain_slider" or widget_name == "flux":
+            elif widget_name in ("phi", "theta", "zeta", "flux", "grid"):
                 pass
             elif widget_name == "wavefunction_scale_slider":
                 new_min = text_widget["min"].step
@@ -693,11 +723,7 @@ class GUI:
             else:
                 new_min = 0
         if new_max <= new_min:
-            if (widget_name == "highest_state_slider" and new_min == 1) or (
-                widget_name != "wavefunction_domain_slider" and new_min == 0
-            ):
-                new_max = new_min + text_widget["min"].step
-            elif changed_widget_key == "min=":
+            if changed_widget_key == "min=":
                 new_min = new_max - text_widget["max"].step
             else:
                 new_max = new_min + text_widget["min"].step
@@ -958,20 +984,18 @@ class GUI:
             widget = self.noise_param_widgets[widget_key]
 
         if change["new"] <= 0:
-            if widget_key == "i_text":
-                widget.value = 1
-            elif widget_key == "j_text":
+            if widget_key in ("i_text", "j_text"):
                 widget.value = 0
             else:
                 widget.value = widget.step
 
         i_text_widget = self.qubit_plot_options_widgets["i_text"]
         j_text_widget = self.qubit_plot_options_widgets["j_text"]
-        if i_text_widget.get_interact_value() <= j_text_widget.get_interact_value():
+        if i_text_widget.get_interact_value() == j_text_widget.get_interact_value():
             if widget_key == "i_text":
-                j_text_widget.value = i_text_widget.value - i_text_widget.step
+                i_text_widget.value = change["old"]
             else:
-                i_text_widget.value = j_text_widget.value + j_text_widget.step
+                j_text_widget.value = change["old"]
         self.observe_coherence_elements()
         self.observe_plot_refresh()
 
@@ -1221,14 +1245,45 @@ class GUI:
             value_dict["eigenvalue_states"] = self.qubit_plot_options_widgets[
                 "multi_state_selector"
             ].get_interact_value()
+
+        if isinstance(self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium, scq.FluxQubit)):
             value_dict["phi_grid"] = Grid1d(
-                min_val=self.ranges_widgets["wavefunction_domain_slider"][
+                min_val=self.ranges_widgets["phi"][
                     "min"
                 ].get_interact_value(),
-                max_val=self.ranges_widgets["wavefunction_domain_slider"][
+                max_val=self.ranges_widgets["phi"][
                     "max"
                 ].get_interact_value(),
                 pt_count=self.active_qubit._default_grid.pt_count,
+            )
+        elif isinstance(self.active_qubit, scq.ZeroPi):
+            value_dict["theta_grid"] = Grid1d(
+                min_val=self.ranges_widgets["theta"][
+                    "min"
+                ].get_interact_value(),
+                max_val=self.ranges_widgets["theta"][
+                    "max"
+                ].get_interact_value(),
+                pt_count=self.active_qubit._default_grid.pt_count,
+            )
+        elif isinstance(self.active_qubit, scq.Cos2PhiQubit):
+            value_dict["phi_grid"] = Grid1d(
+                min_val=self.ranges_widgets["phi"][
+                    "min"
+                ].get_interact_value(),
+                max_val=self.ranges_widgets["phi"][
+                    "max"
+                ].get_interact_value(),
+                pt_count=self.active_qubit._default_phi_grid.pt_count,
+            )
+            value_dict["theta_grid"] = Grid1d(
+                min_val=self.ranges_widgets["theta"][
+                    "min"
+                ].get_interact_value(),
+                max_val=self.ranges_widgets["theta"][
+                    "max"
+                ].get_interact_value(),
+                pt_count=self.active_qubit._default_theta_grid.pt_count,
             )
 
         self.wavefunctions_plot(**value_dict)
@@ -1781,10 +1836,9 @@ class GUI:
                 subtract_ground=subtract_ground_tf,
             )
             self.plot_change_bool = False
-
+            self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
             if _HAS_WIDGET_BACKEND:
                 self.fig.canvas.header_visible = False
-                self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
                 with self.plot_output:
                     plt.show()
         else:
@@ -1808,6 +1862,7 @@ class GUI:
         mode_value: str,
         scale_value: Optional[float] = None,
         phi_grid: Optional[Grid1d] = None,
+        theta_grid: Optional[Grid1d] = None,
     ) -> None:
         """This method will refresh the wavefunctions plot using the current
         values of the plot options widgets as well as the qubit param widgets.
@@ -1826,26 +1881,7 @@ class GUI:
         if not _HAS_WIDGET_BACKEND:
             self.plot_output.clear_output(wait=True)
 
-        if isinstance(self.active_qubit, (scq.FluxQubit, scq.ZeroPi, scq.Cos2PhiQubit)):
-            if self.plot_change_bool:
-                self.fig, ax = self.active_qubit.plot_wavefunction(  # type:ignore
-                    which=eigenvalue_states, mode=mode_value,
-                )
-                self.plot_change_bool = False
-
-                if _HAS_WIDGET_BACKEND:
-                    self.fig.canvas.header_visible = False
-                    self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
-                    with self.plot_output:
-                        plt.show()
-            else:
-                self.fig.axes[0].clear()
-                self.active_qubit.plot_wavefunction(  # type:ignore
-                    which=eigenvalue_states,
-                    mode=mode_value,
-                    fig_ax=(self.fig, self.fig.axes[0]),
-                )
-        else:
+        if isinstance(self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)):
             self.plot_output.outputs = tuple(
                 elem
                 for elem in self.plot_output.outputs
@@ -1866,10 +1902,9 @@ class GUI:
                     phi_grid=phi_grid,
                 )
                 self.plot_change_bool = False
-
+                self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
                 if _HAS_WIDGET_BACKEND:
                     self.fig.canvas.header_visible = False
-                    self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
                     with self.plot_output:
                         plt.show()
             else:
@@ -1881,6 +1916,35 @@ class GUI:
                     phi_grid=phi_grid,
                     fig_ax=(self.fig, self.fig.axes[0]),
                 )
+        else:
+            if isinstance(self.active_qubit, scq.FluxQubit):
+                grid_dict = {"phi_grid": phi_grid}
+            elif isinstance(self.active_qubit, scq.ZeroPi):
+                grid_dict = {"theta_grid": theta_grid}
+            elif isinstance(self.active_qubit, scq.Cos2PhiQubit):
+                grid_dict = {"phi_grid": phi_grid, "theta_grid": theta_grid}
+
+            if self.plot_change_bool:
+                self.fig, ax = self.active_qubit.plot_wavefunction(  # type:ignore
+                    which=eigenvalue_states, mode=mode_value, **grid_dict
+                )
+                self.plot_change_bool = False
+
+                if _HAS_WIDGET_BACKEND:
+                    self.fig.canvas.header_visible = False
+                    self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
+                    with self.plot_output:
+                        plt.show()
+            else:
+                self.fig.delaxes(self.fig.axes[1])
+                self.fig.axes[0].clear()
+                self.active_qubit.plot_wavefunction(  # type:ignore
+                    which=eigenvalue_states,
+                    mode=mode_value,
+                    **grid_dict,
+                    fig_ax=(self.fig, self.fig.axes[0]),
+                )
+                self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
 
         if not _HAS_WIDGET_BACKEND:
             plt.close("all")
@@ -1926,9 +1990,9 @@ class GUI:
                 mode=mode_value,
             )
             self.plot_change_bool = False
+            self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
             if _HAS_WIDGET_BACKEND:
                 self.fig.canvas.header_visible = False
-                self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
                 with self.plot_output:
                     plt.show()
         else:
@@ -1984,9 +2048,9 @@ class GUI:
                 show3d=show3d_tf,
             )
             self.plot_change_bool = False
+            self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
             if _HAS_WIDGET_BACKEND:
                 self.fig.canvas.header_visible = False
-                self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
                 with self.plot_output:
                     plt.show()
         else:
@@ -2002,8 +2066,7 @@ class GUI:
                 show3d=show3d_tf,
                 fig_ax=(self.fig, (self.fig.axes[0], self.fig.axes[1])),
             )
-            if _HAS_WIDGET_BACKEND:
-                self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
+            self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
 
         if not _HAS_WIDGET_BACKEND:
             plt.close("all")
