@@ -989,13 +989,13 @@ class GUI:
             self.manual_update_and_save_widgets["update_button"].disabled = True
             self.manual_update_bool = False
             self.observe_plot_refresh()
-            if len(self.plot_output.get_state()['outputs']) == 0:
+            if len(self.plot_output.outputs) == 0:
                 self.plot_change_bool = True
             self.plot_refresh(None)
 
     def manual_update_button_onclick(self, change) -> None:
         self.update_params()
-        if len(self.plot_output.get_state()['outputs']) == 0:
+        if len(self.plot_output.outputs) == 0:
             self.plot_change_bool = True
         self.current_plot_option_refresh(None)
 
@@ -1846,9 +1846,13 @@ class GUI:
                     which=eigenvalue_states, mode=mode_value, fig_ax=(self.fig, self.fig.axes[0])
                 )
         else:
+            self.plot_output.outputs = tuple(elem for elem in self.plot_output.outputs if "Label" not in elem["data"]["text/plain"])
             if len(eigenvalue_states) == 0:
+                if _HAS_WIDGET_BACKEND:
+                    self.fig.axes[0].clear()
                 error_label = Label(value="Please select at least one state.")
-                display(error_label)
+                with self.plot_output:
+                    display(error_label)
                 return
             if self.plot_change_bool:
                 self.fig, ax = self.active_qubit.plot_wavefunction(  # type:ignore
