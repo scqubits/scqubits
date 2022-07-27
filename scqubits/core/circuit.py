@@ -1741,7 +1741,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
             junction_potential
         ).data.tocsc()
 
-        return eval(H_LC_str, replacement_dict) + junction_potential_matrix
+        if H_LC_str: 
+            return eval(H_LC_str, replacement_dict) + junction_potential_matrix
+        else:
+            return junction_potential_matrix
 
     def _hamiltonian_for_discretized_extended_vars(self) -> csc_matrix:
         hamiltonian = self._hamiltonian_sym_for_numerics
@@ -1777,7 +1780,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
             junction_potential
         ).data.tocsc()
 
-        return eval(H_LC_str, replacement_dict) + junction_potential_matrix
+        if H_LC_str: 
+            return eval(H_LC_str, replacement_dict) + junction_potential_matrix
+        else:
+            return junction_potential_matrix
 
     def _eigenvals_for_purely_harmonic(self, evals_count: int):
         """
