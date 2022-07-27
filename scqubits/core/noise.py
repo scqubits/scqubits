@@ -445,12 +445,13 @@ class NoisySystem(ABC):
         setattr(self, param_name, current_val)  # type:ignore
 
         plotting_options = {
-            "fig_ax": plt.subplots(1),
             "title": "t1_effective",
             "xlabel": param_name,
             "yscale": "log",
             "grid": True,
         }
+        if "fig_ax" not in kwargs.keys():
+            plotting_options["fig_ax"] = plt.subplots(1)
 
         # Add a ylabel if we are plotting coherence times
         # and if scale is exactly 1
@@ -596,7 +597,6 @@ class NoisySystem(ABC):
         setattr(self, param_name, current_val)
 
         plotting_options = {
-            "fig_ax": plt.subplots(1),
             "title": "t2_effective",
             "xlabel": param_name,
             "yscale": "log",
@@ -606,7 +606,8 @@ class NoisySystem(ABC):
         # and if scale is exactly 1
         if not get_rate and scale == 1:
             plotting_options["ylabel"] = units.get_units_time_label()
-
+        if "fig_ax" not in kwargs.keys():
+            plotting_options["fig_ax"] = plt.subplots(1)
         # Users can overwrite plotting options
         plotting_options.update(kwargs)
 
