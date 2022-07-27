@@ -439,7 +439,7 @@ class GUI:
                     value=param_val,
                     description="{}:".format(param_name),
                     continuous_update=False,
-                    layout=std_layout
+                    layout=std_layout,
                 )
             else:
                 kwargs = (
@@ -452,7 +452,7 @@ class GUI:
                     step=0.01,
                     description="{}:".format(param_name),
                     continuous_update=False,
-                    layout=std_layout
+                    layout=std_layout,
                 )
 
     def initialize_ranges_widgets_dict(self) -> None:
@@ -509,7 +509,8 @@ class GUI:
             }
 
         if isinstance(
-            self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium, scq.FluxQubit)
+            self.active_qubit,
+            (scq.Transmon, scq.TunableTransmon, scq.Fluxonium, scq.FluxQubit),
         ):
             widget_min_text = FloatText(
                 value=self.active_qubit._default_grid.min_val,
@@ -545,7 +546,11 @@ class GUI:
                 "max": widget_max_text,
             }
         elif isinstance(self.active_qubit, scq.Cos2PhiQubit):
-            default_grids = {"phi": self.active_qubit._default_phi_grid, "theta": self.active_qubit._default_theta_grid, "zeta": self.active_qubit._default_zeta_grid}
+            default_grids = {
+                "phi": self.active_qubit._default_phi_grid,
+                "theta": self.active_qubit._default_theta_grid,
+                "zeta": self.active_qubit._default_zeta_grid,
+            }
             for param, param_grid in default_grids.items():
                 widget_min_text = FloatText(
                     value=param_grid.min_val,
@@ -1246,43 +1251,30 @@ class GUI:
                 "multi_state_selector"
             ].get_interact_value()
 
-        if isinstance(self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium, scq.FluxQubit)):
+        if isinstance(
+            self.active_qubit,
+            (scq.Transmon, scq.TunableTransmon, scq.Fluxonium, scq.FluxQubit),
+        ):
             value_dict["phi_grid"] = Grid1d(
-                min_val=self.ranges_widgets["phi"][
-                    "min"
-                ].get_interact_value(),
-                max_val=self.ranges_widgets["phi"][
-                    "max"
-                ].get_interact_value(),
+                min_val=self.ranges_widgets["phi"]["min"].get_interact_value(),
+                max_val=self.ranges_widgets["phi"]["max"].get_interact_value(),
                 pt_count=self.active_qubit._default_grid.pt_count,
             )
         elif isinstance(self.active_qubit, scq.ZeroPi):
             value_dict["theta_grid"] = Grid1d(
-                min_val=self.ranges_widgets["theta"][
-                    "min"
-                ].get_interact_value(),
-                max_val=self.ranges_widgets["theta"][
-                    "max"
-                ].get_interact_value(),
+                min_val=self.ranges_widgets["theta"]["min"].get_interact_value(),
+                max_val=self.ranges_widgets["theta"]["max"].get_interact_value(),
                 pt_count=self.active_qubit._default_grid.pt_count,
             )
         elif isinstance(self.active_qubit, scq.Cos2PhiQubit):
             value_dict["phi_grid"] = Grid1d(
-                min_val=self.ranges_widgets["phi"][
-                    "min"
-                ].get_interact_value(),
-                max_val=self.ranges_widgets["phi"][
-                    "max"
-                ].get_interact_value(),
+                min_val=self.ranges_widgets["phi"]["min"].get_interact_value(),
+                max_val=self.ranges_widgets["phi"]["max"].get_interact_value(),
                 pt_count=self.active_qubit._default_phi_grid.pt_count,
             )
             value_dict["theta_grid"] = Grid1d(
-                min_val=self.ranges_widgets["theta"][
-                    "min"
-                ].get_interact_value(),
-                max_val=self.ranges_widgets["theta"][
-                    "max"
-                ].get_interact_value(),
+                min_val=self.ranges_widgets["theta"]["min"].get_interact_value(),
+                max_val=self.ranges_widgets["theta"]["max"].get_interact_value(),
                 pt_count=self.active_qubit._default_theta_grid.pt_count,
             )
 
@@ -1881,7 +1873,9 @@ class GUI:
         if not _HAS_WIDGET_BACKEND:
             self.plot_output.clear_output(wait=True)
 
-        if isinstance(self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)):
+        if isinstance(
+            self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)
+        ):
             self.plot_output.outputs = tuple(
                 elem
                 for elem in self.plot_output.outputs
