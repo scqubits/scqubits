@@ -1768,7 +1768,6 @@ class SymbolicCircuit(serializers.Serializable):
             )
             potential_θ = potential_θ.replace(symbols(f"θ{frozen_var_index}"), sub[0])
 
-        potential_θ = self.round_symbolic_expr(potential_θ, 10)
         lagrangian_θ = C_terms_θ - potential_θ
 
         return lagrangian_θ, potential_θ, lagrangian_φ, potential_φ
@@ -1846,5 +1845,4 @@ class SymbolicCircuit(serializers.Serializable):
                 symbols(f"n{var_index}") + symbols(f"ng{var_index}"),
             )
         # rounding the decimals
-        hamiltonian_rounded = self.round_symbolic_expr(hamiltonian_symbolic, 10)
-        return hamiltonian_rounded
+        return hamiltonian_symbolic
