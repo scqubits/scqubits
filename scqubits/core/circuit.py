@@ -96,9 +96,10 @@ from scqubits.utils.spectrum_utils import (
     identity_wrap,
     order_eigensystem,
 )
+from scqubits.core.circuit_noise import NoisyCircuit
 
 
-class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.DispatchClient):
+class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.DispatchClient, NoisyCircuit):
     """
     Defines a subsystem for a circuit, which can further be used recursively to define
     subsystems within subsystem.
@@ -231,6 +232,24 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
 
         self._configure()
         self._frozen = True
+
+    def supported_noise_channels(self) -> List[str]:
+        """Return a list of supported noise channels"""
+        # return ['tphi_1_over_f_flux',]
+        noise_channels = []
+        if len(self.offset_charges) > 0:
+            noise_channels.append("tphi_1_over_f_flux")
+        if not self.is_purely_harmonic:
+            noise_channels.append("tphi_1_over_f_cc")
+        if len(self.var_categories["periodic"]) > 0:
+            noise_channels.append("tphi_1_over_f_ng")
+        return ['tphi_1_over_f_cc', 
+                'tphi_1_over_f_flux',
+                't1_capacitive',
+                't1_charge_impedance', 
+                't1_flux_bias_line',
+                't1_inductive',
+                't1_quasiparticle_tunneling']
 
     def __setattr__(self, name, value):
         if not self._frozen or name in dir(self):
@@ -1026,20 +1045,21 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
         return hamiltonian.expand()
         # * ##########################################################################
 
-    def generate_hamiltonian_sym_for_numerics(self):
+    def generate_hamiltonian_sym_for_numerics(self, hamiltonian: Optional[sm.Expr]=None, return_exprs = False, shift_potential_to_origin=True):
         """
         Generates a symbolic expression which is ready for numerical evaluation starting
         from the expression stored in the attribute hamiltonian_symbolic. Stores the
         result in the attribute _hamiltonian_sym_for_numerics.
         """
 
-        hamiltonian = (
+        hamiltonian = hamiltonian or (
             self.hamiltonian_symbolic.expand()
         )  # applying expand is critical; otherwise the replacement of p^2 with ps2
         # would not succeed
 
         # shifting the potential to the point of external fluxes
-        hamiltonian = self._shift_harmonic_oscillator_potential(hamiltonian)
+        if shift_potential_to_origin:
+            hamiltonian = self._shift_harmonic_oscillator_potential(hamiltonian)
 
         if self.ext_basis == "discretized":
 
@@ -1085,6 +1105,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
         cos_terms = sum(
             [term for term in hamiltonian.as_ordered_terms() if "cos" in str(term)]
         )
+        if return_exprs:
+            return hamiltonian, cos_terms
         setattr(self, "_hamiltonian_sym_for_numerics", hamiltonian)
         setattr(self, "junction_potential", cos_terms)
 
@@ -1304,7 +1326,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
         for cos_term in junction_potential.as_ordered_terms():
             coefficient = float(list(cos_term.as_coefficients_dict().values())[0])
             cos_argument_expr = [
-                arg.args[0] for arg in (1.0 * cos_term).args if arg.has(sm.cos)
+                arg.args[0] for arg in (1.0 * cos_term).args if (arg.has(sm.cos) or arg.has(sm.sin))
             ][0]
 
             var_indices = [
@@ -1331,11 +1353,14 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
                 builtin_op.mul,
                 operator_list,
             )
-
-            junction_potential_matrix += (
-                cos_term_operator + cos_term_operator.dag()
-            ) * 0.5
-
+            if any([arg.has(sm.cos) for arg in (1.0 * cos_term).args]): 
+                junction_potential_matrix += (
+                    cos_term_operator + cos_term_operator.dag()
+                ) * 0.5
+            elif any([arg.has(sm.sin) for arg in (1.0 * cos_term).args]):
+                junction_potential_matrix += (
+                    cos_term_operator - cos_term_operator.dag()
+                ) * 0.5 * (-1j)
         return junction_potential_matrix
 
     def circuit_operator_functions(self) -> Dict[str, Callable]:
@@ -1547,7 +1572,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
             operator identified by `operator_name`
         """
         if not self.hierarchical_diagonalization:
-            return getattr(self, operator_name + "_operator")()
+            return qt.Qobj(getattr(self, operator_name + "_operator")())
 
         var_index = get_trailing_number(operator_name)
         assert var_index
@@ -2939,6 +2964,10 @@ class Circuit(Subsystem):
         can be "discretized" or "harmonic" which chooses whether to use discretized
         phi or harmonic oscillator basis for extended variables,
         by default "discretized"
+    is_flux_dynamic: bool
+        set to False by default. Indicates if the flux allocation is done by assuming
+        that flux is time dependent. When set to True, it disables the option to change
+        the closure branches.
     initiate_sym_calc: bool
         attribute to initiate Circuit instance, by default `True`
     truncated_dim: Optional[int]
@@ -2955,6 +2984,7 @@ class Circuit(Subsystem):
         from_file: bool = True,
         basis_completion="heuristic",
         ext_basis: str = "discretized",
+        is_flux_dynamic: bool = False,
         initiate_sym_calc: bool = True,
         truncated_dim: int = None,
     ):
@@ -2970,6 +3000,7 @@ class Circuit(Subsystem):
             from_file=from_file,
             basis_completion=basis_completion,
             initiate_sym_calc=True,
+            is_flux_dynamic=is_flux_dynamic
         )
 
         sm.init_printing(pretty_print=False, order="none")
@@ -3276,17 +3307,20 @@ class Circuit(Subsystem):
         closure_branches:
             List of branches where external flux variables will be specified, by default
             `None` which then chooses closure branches by an internally generated
-            spanning tree.
+            spanning tree. For this option, Circuit should be initialized with `is_flux_dynamic` set to False.
 
         Raises
         ------
         Exception
-            when system_hierarchy is set and subsystem_trunc_dims is not set.
+            When system_hierarchy is set and subsystem_trunc_dims is not set.
+        Exception
+            When closure_branches is set and the Circuit instance is initialized with the setting
+            `is_flux_dynamic=True`. 
         """
         old_transformation_matrix = self.transformation_matrix
         old_system_hierarchy = self.system_hierarchy
         old_subsystem_trunc_dims = self.subsystem_trunc_dims
-        old_closure_branches = self.closure_branches
+        old_closure_branches = self.closure_branches if not self.symbolic_circuit.is_flux_dynamic else None
         try:
             self._configure(
                 transformation_matrix=transformation_matrix,
@@ -3342,6 +3376,8 @@ class Circuit(Subsystem):
         Exception
             when system_hierarchy is set and subsystem_trunc_dims is not set.
         """
+        if self.symbolic_circuit.is_flux_dynamic and closure_branches is not None:
+            raise Exception("The flux allocation is fixed when is_flux_dynamic is set to True. Set it to False otherwise.")
         self._frozen = False
         system_hierarchy = system_hierarchy or self.system_hierarchy
         subsystem_trunc_dims = subsystem_trunc_dims or self.subsystem_trunc_dims

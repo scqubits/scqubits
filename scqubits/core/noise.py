@@ -19,12 +19,14 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
+import qutip as qt
 import scipy.constants
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
 from scipy.sparse import csc_matrix
+from sympy import csc
 
 import scqubits.core.units as units
 import scqubits.settings as settings
@@ -1228,6 +1230,8 @@ class NoisySystem(ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
+        noise_op_method: Optional[Callable] = None,
+        branch_params: Optional[dict] = None,
     ) -> float:
         r"""
         :math:`T_1` due to dielectric dissipation in the Josephson junction
@@ -1285,7 +1289,7 @@ class NoisySystem(ABC):
             s = (
                 2
                 * 8
-                * self.EC
+                * (branch_params["EC"] if branch_params else self.EC)
                 / q_cap_fun(omega)
                 * (1 / np.tanh(0.5 * np.abs(therm_ratio)))
                 / (1 + np.exp(-therm_ratio))
@@ -1295,7 +1299,11 @@ class NoisySystem(ABC):
             )  # We assume that system energies are given in units of frequency
             return s
 
-        noise_op = self.n_operator()  # type: ignore
+        noise_op = (noise_op_method or self.n_operator)()  # type: ignore
+        if not isinstance(noise_op, (ndarray, csc_matrix, qt.Qobj)):
+            raise AttributeError("The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj.")
+        if isinstance(noise_op, (qt.Qobj)):
+            noise_op = noise_op.data.tocsc()
 
         return self.t1(
             i=i,
@@ -1316,6 +1324,7 @@ class NoisySystem(ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
+        noise_op_method: Optional[Callable] = None,
     ) -> float:
         r"""Noise due to charge coupling to an impedance (such as a transmission line).
 
@@ -1365,7 +1374,11 @@ class NoisySystem(ABC):
             )
             return s
 
-        noise_op = self.n_operator()  # type: ignore
+        noise_op = (noise_op_method or self.n_operator)()  # type: ignore
+        if not isinstance(noise_op, (ndarray, csc_matrix, qt.Qobj)):
+            raise AttributeError("The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj.")
+        if isinstance(noise_op, (qt.Qobj)):
+            noise_op = noise_op.data.tocsc()
 
         return self.t1(
             i=i,
@@ -1387,6 +1400,7 @@ class NoisySystem(ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
+        noise_op_method: Optional[Callable] = None,
     ) -> float:
         r"""Noise due to a bias flux line.
 
@@ -1447,8 +1461,9 @@ class NoisySystem(ABC):
             s *= (units.to_standard_units(1)) ** 2.0
             return s
 
-        noise_op = self.d_hamiltonian_d_flux()  # type: ignore
-
+        noise_op = (noise_op_method or self.d_hamiltonian_d_flux)()  # type: ignore
+        if isinstance(noise_op, qt.Qobj):
+            noise_op = noise_op.data.tocsc()
         return self.t1(
             i=i,
             j=j,
@@ -1468,6 +1483,8 @@ class NoisySystem(ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
+        noise_op_method: Optional[Callable] = None,
+        branch_params: Optional[dict] = None,
     ) -> float:
         r"""
         :math:`T_1` due to inductive dissipation in a superinductor.
@@ -1536,7 +1553,7 @@ class NoisySystem(ABC):
             therm_ratio = calc_therm_ratio(omega, T)
             s = (
                 2
-                * self.EL
+                * (branch_params["EL"] if branch_params else self.EC)
                 / q_ind_fun(omega)
                 * (1 / np.tanh(0.5 * np.abs(therm_ratio)))
                 / (1 + np.exp(-therm_ratio))
@@ -1546,7 +1563,11 @@ class NoisySystem(ABC):
             )  # We assume that system energies are given in units of frequency
             return s
 
-        noise_op = self.phi_operator()  # type: ignore
+        noise_op = (noise_op_method or self.phi_operator)()  # type: ignore
+        if not isinstance(noise_op, (ndarray, csc_matrix, qt.Qobj)):
+            raise AttributeError("The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj.")
+        if isinstance(noise_op, (qt.Qobj)):
+            noise_op = noise_op.data.tocsc()
 
         return self.t1(
             i=i,
