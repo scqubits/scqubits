@@ -843,10 +843,13 @@ class GUI:
             self.common_params_dropdown_params_refresh, names="value"
         )
         self.qubit_plot_options_widgets["t1_checkbox"].observe(
-            self.t1_t2_checkbox_update, names="value"
+            self.checkbox_plot_update, names="value"
         )
         self.qubit_plot_options_widgets["t2_checkbox"].observe(
-            self.t1_t2_checkbox_update, names="value"
+            self.checkbox_plot_update, names="value"
+        )
+        self.qubit_plot_options_widgets["show3d_checkbox"].observe(
+            self.checkbox_plot_update, names="value"
         )
 
         for widget_name, widget in self.qubit_params_widgets.items():
@@ -871,10 +874,13 @@ class GUI:
             self.common_params_dropdown_params_refresh, names="value"
         )
         self.qubit_plot_options_widgets["t1_checkbox"].unobserve(
-            self.t1_t2_checkbox_update, names="value"
+            self.checkbox_plot_update, names="value"
         )
         self.qubit_plot_options_widgets["t2_checkbox"].unobserve(
-            self.t1_t2_checkbox_update, names="value"
+            self.checkbox_plot_update, names="value"
+        )
+        self.qubit_plot_options_widgets["show3d_checkbox"].unobserve(
+            self.checkbox_plot_update, names="value"
         )
 
         for widget_name, widget in self.qubit_params_widgets.items():
@@ -1004,7 +1010,7 @@ class GUI:
         self.observe_coherence_elements()
         self.observe_plot_refresh()
 
-    def t1_t2_checkbox_update(self, change):
+    def checkbox_plot_update(self, change):
         self.plot_output.clear_output()
         self.plot_change_bool = True
 
@@ -1828,7 +1834,6 @@ class GUI:
                 subtract_ground=subtract_ground_tf,
             )
             self.plot_change_bool = False
-            self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
             if _HAS_WIDGET_BACKEND:
                 self.fig.canvas.header_visible = False
                 with self.plot_output:
@@ -1842,6 +1847,7 @@ class GUI:
                 subtract_ground=subtract_ground_tf,
                 fig_ax=(self.fig, self.fig.axes[0]),
             )
+        self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
         if not _HAS_WIDGET_BACKEND:
             plt.close("all")
             with self.plot_output:
@@ -1896,7 +1902,6 @@ class GUI:
                     phi_grid=phi_grid,
                 )
                 self.plot_change_bool = False
-                self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
                 if _HAS_WIDGET_BACKEND:
                     self.fig.canvas.header_visible = False
                     with self.plot_output:
@@ -1926,7 +1931,6 @@ class GUI:
 
                 if _HAS_WIDGET_BACKEND:
                     self.fig.canvas.header_visible = False
-                    self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
                     with self.plot_output:
                         plt.show()
             else:
@@ -1938,8 +1942,8 @@ class GUI:
                     **grid_dict,
                     fig_ax=(self.fig, self.fig.axes[0]),
                 )
-                self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
 
+        self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
         if not _HAS_WIDGET_BACKEND:
             plt.close("all")
             with self.plot_output:
@@ -1984,7 +1988,6 @@ class GUI:
                 mode=mode_value,
             )
             self.plot_change_bool = False
-            self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
             if _HAS_WIDGET_BACKEND:
                 self.fig.canvas.header_visible = False
                 with self.plot_output:
@@ -1999,6 +2002,8 @@ class GUI:
                 mode=mode_value,
                 fig_ax=(self.fig, self.fig.axes[0]),
             )
+
+        self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
         if not _HAS_WIDGET_BACKEND:
             plt.close("all")
             with self.plot_output:
@@ -2042,26 +2047,32 @@ class GUI:
                 show3d=show3d_tf,
             )
             self.plot_change_bool = False
-            self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
             if _HAS_WIDGET_BACKEND:
                 self.fig.canvas.header_visible = False
                 with self.plot_output:
                     plt.show()
         else:
-            self.fig.delaxes(self.fig.axes[2])
-            self.fig.delaxes(self.fig.axes[1])
-            self.fig.add_subplot(122)
-            self.fig.axes[0].clear()
+            if show3d_tf:
+                self.fig.delaxes(self.fig.axes[2])
+                self.fig.delaxes(self.fig.axes[1])
+                self.fig.add_subplot(122)
+                axes = (self.fig.axes[0], self.fig.axes[1])
+                axes[0].clear()
+            else:
+                self.fig.delaxes(self.fig.axes[1])
+                self.fig.delaxes(self.fig.axes[0])
+                self.fig.add_subplot(111)
+                axes = self.fig.axes[0]
             self.active_qubit.plot_matrixelements(
                 operator_value,
                 evals_count=eigenvalue_state_value,
                 mode=mode_value,
                 show_numbers=show_numbers_tf,
                 show3d=show3d_tf,
-                fig_ax=(self.fig, (self.fig.axes[0], self.fig.axes[1])),
+                fig_ax=(self.fig, axes),
             )
-            self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
 
+        self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
         if not _HAS_WIDGET_BACKEND:
             plt.close("all")
             with self.plot_output:
@@ -2145,7 +2156,6 @@ class GUI:
             self.plot_change_bool = False
             if _HAS_WIDGET_BACKEND:
                 self.fig.canvas.header_visible = False
-                self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
                 with self.plot_output:
                     plt.show()
         else:
@@ -2198,6 +2208,7 @@ class GUI:
                     common_noise_options=common_noise_options,
                     fig_ax=(self.fig, self.fig.axes[1]),
                 )
+        self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
         if not _HAS_WIDGET_BACKEND:
             plt.close("all")
             with self.plot_output:
