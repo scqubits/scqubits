@@ -59,7 +59,9 @@ class NoisyCircuit(NoisySystem, ABC):
                 )
         return sum(eval_matrix_list)
 
-    def _transform_expr_to_new_variables(self, expr_node_vars: sm.Expr, substitute_symbol: Optional[str]=None):
+    def _transform_expr_to_new_variables(
+        self, expr_node_vars: sm.Expr, substitute_symbol: Optional[str] = None
+    ):
         transformation_mat = self.transformation_matrix
         expr_node_vars = expr_node_vars.expand()
         num_vars = len(self.symbolic_circuit._node_list_without_ground)
@@ -71,7 +73,10 @@ class NoisyCircuit(NoisySystem, ABC):
 
         if substitute_symbol:
             for var in expr_node_vars.free_symbols:
-                expr_node_vars = expr_node_vars.subs(var, sm.symbols(f"{substitute_symbol}{get_trailing_number(var.name)}"))
+                expr_node_vars = expr_node_vars.subs(
+                    var,
+                    sm.symbols(f"{substitute_symbol}{get_trailing_number(var.name)}"),
+                )
         return expr_node_vars
 
     def generate_methods_d_hamiltonian_d(self):
@@ -332,13 +337,21 @@ class NoisyCircuit(NoisySystem, ABC):
             if branch.type == "L":
                 var_str = "θ"
             else:
-                var_str = "Q" 
+                var_str = "Q"
 
-            branch_var_expr_node = sm.symbols(f"φ{branch.nodes[0].index}") - sm.symbols(f"φ{branch.nodes[1].index}")
-            branch_var_expr = self._transform_expr_to_new_variables(branch_var_expr_node, substitute_symbol=var_str)
+            branch_var_expr_node = sm.symbols(f"φ{branch.nodes[0].index}") - sm.symbols(
+                f"φ{branch.nodes[1].index}"
+            )
+            branch_var_expr = self._transform_expr_to_new_variables(
+                branch_var_expr_node, substitute_symbol=var_str
+            )
 
             if branch.type != "L":
-                branch_param = branch.parameters["EC"] if branch.type == "C" else branch.parameters["ECJ"]
+                branch_param = (
+                    branch.parameters["EC"]
+                    if branch.type == "C"
+                    else branch.parameters["ECJ"]
+                )
             else:
                 branch_param = branch.parameters["EL"]
             if isinstance(branch_param, sm.Expr):
@@ -356,50 +369,51 @@ class NoisyCircuit(NoisySystem, ABC):
                 ] = self.wrapper_t1_inductive_capacitive(
                     "capacitive", branch_var_expr, branch_param
                 )
-                t1_charge_impedance_methods[f"t1_charge_impedance{branch.id_str}"] = self.wrapper_t1_charge_impedance(branch_var_expr)
+                t1_charge_impedance_methods[
+                    f"t1_charge_impedance{branch.id_str}"
+                ] = self.wrapper_t1_charge_impedance(branch_var_expr)
             # quasiparticle noise
             if branch.type == "JJ":
-                t1_quasipartice_tunneling_methods[f"t1_quasiparticle_tunneling{branch.id_str}"] = self.wrapper_t1_quasipartice_tunneling(branch)
-
+                t1_quasipartice_tunneling_methods[
+                    f"t1_quasiparticle_tunneling{branch.id_str}"
+                ] = self.wrapper_t1_quasipartice_tunneling(branch)
 
         self._data.update(t1_capacitive_methods)
         self._data.update(t1_inductive_methods)
         self._data.update(t1_charge_impedance_methods)
         self._data.update(t1_quasipartice_tunneling_methods)
-    
-    def wrapper_t1_quasipartice_tunneling(self, branch: Branch):
 
+    def wrapper_t1_quasipartice_tunneling(self, branch: Branch):
         def t1_quasiparticle_tunneling(
-                self=self,
-                i: int = 1,
-                j: int = 0,
-                Y_qp: Union[float, Callable] = None,
-                x_qp: float = NOISE_PARAMS["x_qp"],
-                T: float = NOISE_PARAMS["T"],
-                Delta: float = NOISE_PARAMS["Delta"],
-                total: bool = True,
-                esys: Tuple[ndarray, ndarray] = None,
-                get_rate: bool = False,
-            ) -> float:
+            self=self,
+            i: int = 1,
+            j: int = 0,
+            Y_qp: Union[float, Callable] = None,
+            x_qp: float = NOISE_PARAMS["x_qp"],
+            T: float = NOISE_PARAMS["T"],
+            Delta: float = NOISE_PARAMS["Delta"],
+            total: bool = True,
+            esys: Tuple[ndarray, ndarray] = None,
+            get_rate: bool = False,
+        ) -> float:
 
             return NoisySystem.t1_quasiparticle_tunneling(
                 self=self,
-                i = 1,
-                j = 0,
-                Y_qp = Y_qp,
-                x_qp = x_qp,
-                T = T,
-                Delta = Delta,
-                total = total,
-                esys = esys,
-                get_rate = get_rate,
-                noise_op = self.junction_related_evaluation(branch, calc="sin_phi")
+                i=1,
+                j=0,
+                Y_qp=Y_qp,
+                x_qp=x_qp,
+                T=T,
+                Delta=Delta,
+                total=total,
+                esys=esys,
+                get_rate=get_rate,
+                noise_op=self.junction_related_evaluation(branch, calc="sin_phi"),
             )
+
         return t1_quasiparticle_tunneling
 
-
     def wrapper_t1_charge_impedance(self, branch_var_expr: sm.Expr):
-
         def t1_charge_impedance(
             self=self,
             i: int = 1,
@@ -409,19 +423,20 @@ class NoisyCircuit(NoisySystem, ABC):
             total: bool = True,
             esys: Tuple[ndarray, ndarray] = None,
             get_rate: bool = False,
-            ) -> float:
+        ) -> float:
 
             return NoisySystem.t1_charge_impedance(
                 self=self,
-                i = i,
-                j = j,
-                Z = Z,
-                T = T,
-                total = total,
-                esys = esys,
-                get_rate = get_rate,
-                noise_op = self._evaluate_symbolic_expr(branch_var_expr),
-                )
+                i=i,
+                j=j,
+                Z=Z,
+                T=T,
+                total=total,
+                esys=esys,
+                get_rate=get_rate,
+                noise_op=self._evaluate_symbolic_expr(branch_var_expr),
+            )
+
         return t1_charge_impedance
 
     def wrapper_t1_inductive_capacitive(
@@ -476,6 +491,7 @@ class NoisyCircuit(NoisySystem, ABC):
                     noise_op=self._evaluate_symbolic_expr(branch_var_expr),
                     branch_params=branch_param,
                 )
+
         return t1_method
 
     def generate_overall_t1_quasipartice_tunneling(self):
@@ -483,119 +499,125 @@ class NoisyCircuit(NoisySystem, ABC):
             return None
 
         def t1_quasiparticle_tunneling(
-                self=self,
-                i: int = 1,
-                j: int = 0,
-                Y_qp: Union[float, Callable] = None,
-                x_qp: float = NOISE_PARAMS["x_qp"],
-                T: float = NOISE_PARAMS["T"],
-                Delta: float = NOISE_PARAMS["Delta"],
-                total: bool = True,
-                esys: Tuple[ndarray, ndarray] = None,
-                get_rate: bool = False,
-            ) -> float:
+            self=self,
+            i: int = 1,
+            j: int = 0,
+            Y_qp: Union[float, Callable] = None,
+            x_qp: float = NOISE_PARAMS["x_qp"],
+            T: float = NOISE_PARAMS["T"],
+            Delta: float = NOISE_PARAMS["Delta"],
+            total: bool = True,
+            esys: Tuple[ndarray, ndarray] = None,
+            get_rate: bool = False,
+        ) -> float:
             t1_times = []
-            for branch in [b for b in self.branches if b.type=="JJ"]:
-                t1_times.append(getattr(self, f"t1_quasiparticle_tunneling{branch.id_str}")(
-                i = i,
-                j = j,
-                Y_qp = Y_qp,
-                x_qp = x_qp,
-                T = T,
-                Delta = Delta,
-                total = total,
-                esys = esys,
-                ))
-            total_rate = sum([1/t1 for t1 in t1_times])
+            for branch in [b for b in self.branches if b.type == "JJ"]:
+                t1_times.append(
+                    getattr(self, f"t1_quasiparticle_tunneling{branch.id_str}")(
+                        i=i,
+                        j=j,
+                        Y_qp=Y_qp,
+                        x_qp=x_qp,
+                        T=T,
+                        Delta=Delta,
+                        total=total,
+                        esys=esys,
+                    )
+                )
+            total_rate = sum([1 / t1 for t1 in t1_times])
             if not get_rate:
                 return total_rate
-            return 1/total_rate if total_rate != 0 else np.inf
+            return 1 / total_rate if total_rate != 0 else np.inf
 
         self._data["t1_quasiparticle_tunneling"] = t1_quasiparticle_tunneling
 
     def generate_overall_t1_inductive(self):
-
         def t1_method(
-                self=self,
-                i: int = 1,
-                j: int = 0,
-                Q_ind: Union[float, Callable] = None,
-                T: float = NOISE_PARAMS["T"],
-                total: bool = True,
-                esys: Tuple[ndarray, ndarray] = None,
-                get_rate: bool = False,
-            ) -> float:
+            self=self,
+            i: int = 1,
+            j: int = 0,
+            Q_ind: Union[float, Callable] = None,
+            T: float = NOISE_PARAMS["T"],
+            total: bool = True,
+            esys: Tuple[ndarray, ndarray] = None,
+            get_rate: bool = False,
+        ) -> float:
             t1_times = []
             for branch in [b for b in self.branches if b.type == "L"]:
-                t1_times.append(getattr(self, f"t1_inductive{branch.id_str}")(
-                    i=i,
-                    j=j,
-                    Q_ind=Q_ind,
-                    T=T, 
-                    total=total,
-                    esys=esys,
-                ))
-            total_rate = sum([1/t1 for t1 in t1_times])
+                t1_times.append(
+                    getattr(self, f"t1_inductive{branch.id_str}")(
+                        i=i,
+                        j=j,
+                        Q_ind=Q_ind,
+                        T=T,
+                        total=total,
+                        esys=esys,
+                    )
+                )
+            total_rate = sum([1 / t1 for t1 in t1_times])
             if not get_rate:
                 return total_rate
-            return 1/total_rate if total_rate != 0 else np.inf
+            return 1 / total_rate if total_rate != 0 else np.inf
 
         self._data["t1_inductive"] = t1_method
 
     def generate_overall_t1_capacitive(self):
-
         def t1_method(
-                self=self,
-                i: int = 1,
-                j: int = 0,
-                Q_cap: Union[float, Callable] = None,
-                T: float = NOISE_PARAMS["T"],
-                total: bool = True,
-                esys: Tuple[ndarray, ndarray] = None,
-                get_rate: bool = False,
-            ) -> float:
+            self=self,
+            i: int = 1,
+            j: int = 0,
+            Q_cap: Union[float, Callable] = None,
+            T: float = NOISE_PARAMS["T"],
+            total: bool = True,
+            esys: Tuple[ndarray, ndarray] = None,
+            get_rate: bool = False,
+        ) -> float:
             t1_times = []
             for branch in [b for b in self.branches if b.type != "L"]:
-                t1_times.append(getattr(self, f"t1_capacitive{branch.id_str}")(
-                    i=i,
-                    j=j,
-                    Q_cap=Q_cap,
-                    T=T, 
-                    total=total,
-                    esys=esys,
-                ))
-            total_rate = sum([1/t1 for t1 in t1_times])
+                t1_times.append(
+                    getattr(self, f"t1_capacitive{branch.id_str}")(
+                        i=i,
+                        j=j,
+                        Q_cap=Q_cap,
+                        T=T,
+                        total=total,
+                        esys=esys,
+                    )
+                )
+            total_rate = sum([1 / t1 for t1 in t1_times])
             if not get_rate:
-                return total_rate 
-            return 1/total_rate if total_rate != 0 else np.inf
+                return total_rate
+            return 1 / total_rate if total_rate != 0 else np.inf
 
         self._data["t1_capacitive"] = t1_method
 
     def generate_overall_t1_charge_impedance(self):
         def t1_method(
-                self=self,
-                i: int = 1,
-                j: int = 0,
-                Z: Union[float, Callable] = NOISE_PARAMS["R_0"],
-                T: float = NOISE_PARAMS["T"],
-                total: bool = True,
-                esys: Tuple[ndarray, ndarray] = None,
-                get_rate: bool = False,
-            ) -> float:
+            self=self,
+            i: int = 1,
+            j: int = 0,
+            Z: Union[float, Callable] = NOISE_PARAMS["R_0"],
+            T: float = NOISE_PARAMS["T"],
+            total: bool = True,
+            esys: Tuple[ndarray, ndarray] = None,
+            get_rate: bool = False,
+        ) -> float:
             t1_times = []
             for branch in [b for b in self.branches if b.type != "L"]:
-                t1_times.append(getattr(self, f"t1_charge_impedance{branch.id_str}")(
-                    i=i,
-                    j=j,
-                    Z=Z,
-                    T=T,
-                    total=total,
-                    esys=esys,
-                ))
-            total_rate = sum([1/t1 for t1 in t1_times])
+                t1_times.append(
+                    getattr(self, f"t1_charge_impedance{branch.id_str}")(
+                        i=i,
+                        j=j,
+                        Z=Z,
+                        T=T,
+                        total=total,
+                        esys=esys,
+                    )
+                )
+            total_rate = sum([1 / t1 for t1 in t1_times])
             if not get_rate:
                 return total_rate
-            return 1/total_rate if total_rate != 0 else np.inf
+            return 1 / total_rate if total_rate != 0 else np.inf
 
         self._data["t1_charge_impedance"] = t1_method
 
@@ -611,4 +633,3 @@ class NoisyCircuit(NoisySystem, ABC):
         self.generate_overall_t1_charge_impedance()
         self.generate_overall_t1_inductive()
         self.generate_overall_t1_quasipartice_tunneling()
-        

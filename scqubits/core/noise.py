@@ -1301,7 +1301,9 @@ class NoisySystem(ABC):
 
         noise_op = noise_op or self.n_operator()  # type: ignore
         if not isinstance(noise_op, (ndarray, csc_matrix, qt.Qobj)):
-            raise AttributeError("The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj.")
+            raise AttributeError(
+                "The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj."
+            )
         if isinstance(noise_op, (qt.Qobj)):
             noise_op = noise_op.data.tocsc()
 
@@ -1376,7 +1378,9 @@ class NoisySystem(ABC):
 
         noise_op = noise_op or self.n_operator()  # type: ignore
         if not isinstance(noise_op, (ndarray, csc_matrix, qt.Qobj)):
-            raise AttributeError("The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj.")
+            raise AttributeError(
+                "The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj."
+            )
         if isinstance(noise_op, (qt.Qobj)):
             noise_op = noise_op.data.tocsc()
 
@@ -1565,7 +1569,9 @@ class NoisySystem(ABC):
 
         noise_op = noise_op or self.phi_operator()  # type: ignore
         if not isinstance(noise_op, (ndarray, csc_matrix, qt.Qobj)):
-            raise AttributeError("The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj.")
+            raise AttributeError(
+                "The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj."
+            )
         if isinstance(noise_op, (qt.Qobj)):
             noise_op = noise_op.data.tocsc()
 
@@ -1690,7 +1696,9 @@ class NoisySystem(ABC):
         noise_op = noise_op or self.sin_phi_operator(alpha=0.5, beta=0.5 * (2 * np.pi * self.flux))  # type: ignore
 
         if not isinstance(noise_op, (ndarray, csc_matrix, qt.Qobj)):
-            raise AttributeError("The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj.")
+            raise AttributeError(
+                "The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj."
+            )
         if isinstance(noise_op, (qt.Qobj)):
             noise_op = noise_op.data.tocsc()
 

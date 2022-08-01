@@ -99,7 +99,9 @@ from scqubits.utils.spectrum_utils import (
 from scqubits.core.circuit_noise import NoisyCircuit
 
 
-class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.DispatchClient, NoisyCircuit):
+class Subsystem(
+    base.QubitBaseClass, serializers.Serializable, dispatch.DispatchClient, NoisyCircuit
+):
     """
     Defines a subsystem for a circuit, which can further be used recursively to define
     subsystems within subsystem.
@@ -147,8 +149,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
         self._H_LC_str_harmonic = None
 
         self._make_property(
-                "ext_basis", getattr(self.parent, "ext_basis"), "update_ext_basis"
-            )
+            "ext_basis", getattr(self.parent, "ext_basis"), "update_ext_basis"
+        )
         self.external_fluxes = [
             var
             for var in self.parent.external_fluxes
@@ -237,7 +239,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
         """Return a list of supported noise channels"""
         # return ['tphi_1_over_f_flux',]
         noise_channels = ["t1_capacitive", "t1_charge_impedance"]
-        if len([branch for branch in self.branches if branch.type=="L"]):
+        if len([branch for branch in self.branches if branch.type == "L"]):
             noise_channels.append("t1_inductive")
         if len(self.offset_charges) > 0:
             noise_channels.append("tphi_1_over_f_ng")
@@ -427,7 +429,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
                     self._store_updated_subsystem_index(subsys_idx)
                     setattr(subsys, param_name, value)
 
-    def _set_property_and_update_ext_basis(self, param_name: str, value: str)-> None:
+    def _set_property_and_update_ext_basis(self, param_name: str, value: str) -> None:
         """
         Setter method for changing the attribute ext_basis.
         """
@@ -462,7 +464,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
                 settings.DISPATCH_ENABLED = False
                 obj._set_property_and_update_param_vars(name, value)
                 settings.DISPATCH_ENABLED = True
-
 
         elif property_update_type == "update_external_flux_or_charge":
 
@@ -723,24 +724,21 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
         )
 
         self.subsystems: List["Subsystem"] = [
-                    Subsystem(
-                        self,
-                        systems_sym[index],
-                        system_hierarchy=self.system_hierarchy[index],
-                        truncated_dim=self.subsystem_trunc_dims[index][0]
-                        if type(self.subsystem_trunc_dims[index]) == list
-                        else self.subsystem_trunc_dims[index],
-                        subsystem_trunc_dims=self.subsystem_trunc_dims[index][1]
-                        if type(self.subsystem_trunc_dims[index]) == list
-                        else None,
-                    )
-                    for index in range(len(self.system_hierarchy))
-                ]
-                
+            Subsystem(
+                self,
+                systems_sym[index],
+                system_hierarchy=self.system_hierarchy[index],
+                truncated_dim=self.subsystem_trunc_dims[index][0]
+                if type(self.subsystem_trunc_dims[index]) == list
+                else self.subsystem_trunc_dims[index],
+                subsystem_trunc_dims=self.subsystem_trunc_dims[index][1]
+                if type(self.subsystem_trunc_dims[index]) == list
+                else None,
+            )
+            for index in range(len(self.system_hierarchy))
+        ]
 
-        self.hilbert_space = HilbertSpace(
-            self.subsystems
-        )
+        self.hilbert_space = HilbertSpace(self.subsystems)
 
     def get_eigenstates(self) -> ndarray:
         """
@@ -874,10 +872,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
 
         for subsys_index in operator_dict:
             operator_dict[subsys_index] = qt.tensor(
-                [
-                    qt.identity(subsys.truncated_dim)
-                    for subsys in self.subsystems
-                ]
+                [qt.identity(subsys.truncated_dim) for subsys in self.subsystems]
             )
             if subsys_index in interacting_subsystem_indices:
                 for operator_sym in term_operator_syms:
@@ -1046,7 +1041,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
         return hamiltonian.expand()
         # * ##########################################################################
 
-    def generate_hamiltonian_sym_for_numerics(self, hamiltonian: Optional[sm.Expr]=None, return_exprs = False, shift_potential_to_origin=True):
+    def generate_hamiltonian_sym_for_numerics(
+        self,
+        hamiltonian: Optional[sm.Expr] = None,
+        return_exprs=False,
+        shift_potential_to_origin=True,
+    ):
         """
         Generates a symbolic expression which is ready for numerical evaluation starting
         from the expression stored in the attribute hamiltonian_symbolic. Stores the
@@ -1244,9 +1244,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
         if not self.hierarchical_diagonalization:
             return qt.identity(self.hilbertdim())
 
-        subsys_trunc_dims = [
-            subsys.truncated_dim for subsys in self.subsystems
-        ]
+        subsys_trunc_dims = [subsys.truncated_dim for subsys in self.subsystems]
 
         return qt.tensor([qt.identity(truncdim) for truncdim in subsys_trunc_dims])
 
@@ -1327,7 +1325,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
         for cos_term in junction_potential.as_ordered_terms():
             coefficient = float(list(cos_term.as_coefficients_dict().values())[0])
             cos_argument_expr = [
-                arg.args[0] for arg in (1.0 * cos_term).args if (arg.has(sm.cos) or arg.has(sm.sin))
+                arg.args[0]
+                for arg in (1.0 * cos_term).args
+                if (arg.has(sm.cos) or arg.has(sm.sin))
             ][0]
 
             var_indices = [
@@ -1354,14 +1354,14 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
                 builtin_op.mul,
                 operator_list,
             )
-            if any([arg.has(sm.cos) for arg in (1.0 * cos_term).args]): 
+            if any([arg.has(sm.cos) for arg in (1.0 * cos_term).args]):
                 junction_potential_matrix += (
                     cos_term_operator + cos_term_operator.dag()
                 ) * 0.5
             elif any([arg.has(sm.sin) for arg in (1.0 * cos_term).args]):
                 junction_potential_matrix += (
-                    cos_term_operator - cos_term_operator.dag()
-                ) * 0.5 * (-1j)
+                    (cos_term_operator - cos_term_operator.dag()) * 0.5 * (-1j)
+                )
         return junction_potential_matrix
 
     def circuit_operator_functions(self) -> Dict[str, Callable]:
@@ -1767,7 +1767,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
             junction_potential
         ).data.tocsc()
 
-        if H_LC_str: 
+        if H_LC_str:
             return eval(H_LC_str, replacement_dict) + junction_potential_matrix
         else:
             return junction_potential_matrix
@@ -1806,7 +1806,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
             junction_potential
         ).data.tocsc()
 
-        if H_LC_str: 
+        if H_LC_str:
             return eval(H_LC_str, replacement_dict) + junction_potential_matrix
         else:
             return junction_potential_matrix
@@ -3001,16 +3001,14 @@ class Circuit(Subsystem):
             from_file=from_file,
             basis_completion=basis_completion,
             initiate_sym_calc=True,
-            is_flux_dynamic=is_flux_dynamic
+            is_flux_dynamic=is_flux_dynamic,
         )
 
         sm.init_printing(pretty_print=False, order="none")
         self.is_child = False
         self.symbolic_circuit: SymbolicCircuit = symbolic_circuit
 
-        self._make_property(
-                "ext_basis", ext_basis, "update_ext_basis"
-            )
+        self._make_property("ext_basis", ext_basis, "update_ext_basis")
         self.truncated_dim: int = truncated_dim
         self.system_hierarchy: list = None
         self.subsystem_trunc_dims: list = None
@@ -3316,12 +3314,14 @@ class Circuit(Subsystem):
             When system_hierarchy is set and subsystem_trunc_dims is not set.
         Exception
             When closure_branches is set and the Circuit instance is initialized with the setting
-            `is_flux_dynamic=True`. 
+            `is_flux_dynamic=True`.
         """
         old_transformation_matrix = self.transformation_matrix
         old_system_hierarchy = self.system_hierarchy
         old_subsystem_trunc_dims = self.subsystem_trunc_dims
-        old_closure_branches = self.closure_branches if not self.symbolic_circuit.is_flux_dynamic else None
+        old_closure_branches = (
+            self.closure_branches if not self.symbolic_circuit.is_flux_dynamic else None
+        )
         try:
             self._configure(
                 transformation_matrix=transformation_matrix,
@@ -3378,7 +3378,9 @@ class Circuit(Subsystem):
             when system_hierarchy is set and subsystem_trunc_dims is not set.
         """
         if self.symbolic_circuit.is_flux_dynamic and closure_branches is not None:
-            raise Exception("The flux allocation is fixed when is_flux_dynamic is set to True. Set it to False otherwise.")
+            raise Exception(
+                "The flux allocation is fixed when is_flux_dynamic is set to True. Set it to False otherwise."
+            )
         self._frozen = False
         system_hierarchy = system_hierarchy or self.system_hierarchy
         subsystem_trunc_dims = subsystem_trunc_dims or self.subsystem_trunc_dims

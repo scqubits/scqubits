@@ -1609,13 +1609,15 @@ class SymbolicCircuit(serializers.Serializable):
         return closure_branches
 
     def _time_dependent_flux_distribution(self):
-        num_dynamical_variables = len(self.var_categories["periodic"] + self.var_categories["extended"])
+        num_dynamical_variables = len(
+            self.var_categories["periodic"] + self.var_categories["extended"]
+        )
 
         # constructing the constraint matrix
         R = np.zeros([len(self.branches), len(self.closure_branches)])
         # constructing branch capacitance matrix
-        C_diag = np.identity(len(self.branches))*0
-        # constructing the matrix which transforms node to branch variables 
+        C_diag = np.identity(len(self.branches)) * 0
+        # constructing the matrix which transforms node to branch variables
         W = np.zeros([len(self.branches), len(self._node_list_without_ground)])
 
         for idx, closure_branch in enumerate(self.closure_branches):
@@ -1624,28 +1626,41 @@ class SymbolicCircuit(serializers.Serializable):
                 R_elem = 1
                 if branch.node_ids()[0] - branch.node_ids()[1] < 0:
                     R_elem = -1
-                if b_idx > 0 and branch.node_ids()[0] != loop_branches[b_idx-1].node_ids()[1]:
+                if (
+                    b_idx > 0
+                    and branch.node_ids()[0] != loop_branches[b_idx - 1].node_ids()[1]
+                ):
                     R_elem *= -1
                 R[self.branches.index(branch), idx] = R_elem
-                
+
         for idx, branch in enumerate(self.branches):
             if branch.type in ["JJ", "C"]:
-                EC = branch.parameters["EC"] if branch.type == "C" else branch.parameters["ECJ"]
+                EC = (
+                    branch.parameters["EC"]
+                    if branch.type == "C"
+                    else branch.parameters["ECJ"]
+                )
                 if isinstance(EC, sympy.Expr):
                     EC = self.symbolic_params[EC]
-                C_diag[idx, idx] = 1/(EC*8)
+                C_diag[idx, idx] = 1 / (EC * 8)
             for node_idx, node in enumerate(branch.nodes):
                 if not node.is_ground():
                     n_id = self._node_list_without_ground.index(node)
-                    W[idx, n_id] = 1 * (-1)**node_idx
+                    W[idx, n_id] = 1 * (-1) ** node_idx
 
         M = np.vstack([(W.T @ C_diag), R.T])
 
-        I = np.vstack([np.zeros([len(self._node_list_without_ground) , len(self.closure_branches)]), 
-                    np.identity(len(self.closure_branches))])
-        
-        B = (np.linalg.pinv(M))@I
-        return B.round(10)@self.external_fluxes
+        I = np.vstack(
+            [
+                np.zeros(
+                    [len(self._node_list_without_ground), len(self.closure_branches)]
+                ),
+                np.identity(len(self.closure_branches)),
+            ]
+        )
+
+        B = (np.linalg.pinv(M)) @ I
+        return B.round(10) @ self.external_fluxes
 
     def _find_path_to_root(
         self, node: Node
@@ -1736,7 +1751,9 @@ class SymbolicCircuit(serializers.Serializable):
         branch_node_ids = [branch.node_ids() for branch in loop_branches]
         prev_node_id = branch_node_ids[0][0]
         while len(branches_in_order) < len(loop_branches):
-            for branch in [brnch for brnch in loop_branches if brnch not in branches_in_order]:
+            for branch in [
+                brnch for brnch in loop_branches if brnch not in branches_in_order
+            ]:
                 if prev_node_id in branch.node_ids():
                     branches_in_order.append(branch)
                     break
@@ -1844,9 +1861,9 @@ class SymbolicCircuit(serializers.Serializable):
                 symbols(f"θ{frozen_var_index}"),
             )
             potential_θ = potential_θ.replace(symbols(f"θ{frozen_var_index}"), sub[0])
-        
+
         lagrangian_θ = C_terms_θ - potential_θ
-        
+
         return lagrangian_θ, potential_θ, lagrangian_φ, potential_φ
 
     def generate_symbolic_hamiltonian(self, substitute_params=False) -> sympy.Expr:
