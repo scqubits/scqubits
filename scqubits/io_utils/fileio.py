@@ -23,9 +23,10 @@ import scqubits.core.constants as const
 import scqubits.io_utils.fileio_serializers as io_serializers
 
 if TYPE_CHECKING:
+    import h5py
+
     from scqubits.io_utils.fileio_backends import CSVReader, H5Reader, IOWriter
     from scqubits.io_utils.fileio_serializers import Serializable
-    import h5py
 
 
 class IOData:
@@ -150,8 +151,8 @@ class FileIOFactory:
             "file type: {}".format(suffix, file_name, const.FILE_TYPES)
         )
 
+    @staticmethod
     def get_reader(
-        self,
         file_name: str,
         file_handle: "h5py.Group" = None,
         get_external_reader: Callable = None,

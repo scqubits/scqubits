@@ -112,7 +112,7 @@ def _process_options(
         if key in defaults.SPECIAL_PLOT_OPTIONS:
             _process_special_option(figure, axes, key, value)
         else:
-            set_method = getattr(axes, "set_" + key)
+            set_method = getattr(axes, f"set_{key}")
             set_method(value)
 
     filename = kwargs.get("filename")
@@ -184,7 +184,7 @@ def plot_potential_to_axes(
     x_vals: ndarray,
     potential_vals: Union[ndarray, List[float]],
     offset_list: Union[ndarray, List[float]],
-    **kwargs
+    **kwargs,
 ) -> None:
     y_min = np.min(potential_vals)
     y_max = np.max(offset_list)
@@ -199,7 +199,9 @@ def plot_potential_to_axes(
     )
 
 
-def add_numbers_to_axes(axes: Axes, matrix: ndarray, modefunc: Callable) -> None:
+def add_numbers_to_axes(
+    axes: Axes, matrix: ndarray, modefunc: Callable, fontsize: int = 8
+) -> None:
     for y_index in range(matrix.shape[0]):
         for x_index in range(matrix.shape[1]):
             axes.text(
@@ -208,7 +210,7 @@ def add_numbers_to_axes(axes: Axes, matrix: ndarray, modefunc: Callable) -> None
                 "{:.03f}".format(modefunc(matrix[y_index, x_index])),
                 va="center",
                 ha="center",
-                fontsize=8,
+                fontsize=fontsize,
                 rotation=45,
                 color="white",
             )

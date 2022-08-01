@@ -15,7 +15,7 @@ import numpy as np
 
 import scqubits as qubit
 
-from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
+from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.param_sweep import ParameterSweep
 
 
@@ -41,24 +41,20 @@ class TestSpectrumLookup:
         g1 = 0.1  # coupling resonator-CPB1 (without charge matrix elements)
         g2 = 0.2  # coupling resonator-CPB2 (without charge matrix elements)
 
-        interaction1 = InteractionTerm(
+        hilbertspace.add_interaction(
             g_strength=g1,
-            op1=CPB1.n_operator(),
-            subsys1=CPB1,
-            op2=resonator.creation_operator() + resonator.annihilation_operator(),
-            subsys2=resonator,
+            op1=CPB1.n_operator,
+            op2=resonator.creation_operator,
+            add_hc=True,
         )
 
-        interaction2 = InteractionTerm(
+        hilbertspace.add_interaction(
             g_strength=g2,
-            op1=CPB2.n_operator(),
-            subsys1=CPB2,
-            op2=resonator.creation_operator() + resonator.annihilation_operator(),
-            subsys2=resonator,
+            op1=CPB2.n_operator,
+            op2=resonator.creation_operator,
+            add_hc=True,
         )
 
-        interaction_list = [interaction1, interaction2]
-        hilbertspace.interaction_list = interaction_list
         return hilbertspace
 
     def test_hilbertspace_generate_lookup(self):
@@ -71,18 +67,24 @@ class TestSpectrumLookup:
 
         CPB = hilbertspace[0]
         reference = np.asarray([-36.05064983, -28.25601136, -20.67410141])
+        assert np.allclose(hilbertspace.bare_eigenvals(CPB), reference)
+        # [legacy support / deprecated]
         assert np.allclose(hilbertspace.lookup.bare_eigenenergies(CPB), reference)
 
     def test_hilbertspace_lookup_bare_index(self):
         hilbertspace = self.initialize_hilbertspace()
         hilbertspace.generate_lookup()
         reference = (1, 0, 1)
+        assert hilbertspace.bare_index(8) == reference
+        # [legacy support / deprecated]
         assert hilbertspace.lookup.bare_index(8) == reference
 
     def test_hilbertspace_lookup_dressed_index(self):
         hilbertspace = self.initialize_hilbertspace()
         hilbertspace.generate_lookup()
         reference = 7
+        assert hilbertspace.dressed_index((1, 1, 0)) == reference
+        # [legacy support / deprecated]
         assert hilbertspace.lookup.dressed_index((1, 1, 0)) == reference
 
     def test_hilbertspace_lookup_bare_eigenstates(self):
@@ -174,6 +176,8 @@ class TestSpectrumLookup:
                 [1.20604294e-46, -1.15822587e-45, 7.76029780e-45],
             ]
         )
+        assert np.allclose(hilbertspace.bare_eigenstates(CPB), reference)
+        # [legacy support / deprecated]
         assert np.allclose(hilbertspace.lookup.bare_eigenstates(CPB), reference)
 
 
@@ -202,32 +206,24 @@ class TestParameterSweep:
         g1 = 0.1  # coupling resonator-CPB1 (without charge matrix elements)
         g2 = 0.2  # coupling resonator-CPB2 (without charge matrix elements)
 
-        interaction1 = InteractionTerm(
+        hilbertspace.add_interaction(
             g_strength=g1,
-            op1=CPB1.n_operator(),
-            subsys1=CPB1,
-            op2=resonator.creation_operator() + resonator.annihilation_operator(),
-            subsys2=resonator,
+            op1=CPB1.n_operator,
+            op2=resonator.creation_operator,
+            add_hc=True,
         )
 
-        interaction2 = InteractionTerm(
+        hilbertspace.add_interaction(
             g_strength=g2,
-            op1=CPB2.n_operator(),
-            subsys1=CPB2,
-            op2=resonator.creation_operator() + resonator.annihilation_operator(),
-            subsys2=resonator,
+            op1=CPB2.n_operator,
+            op2=resonator.creation_operator,
+            add_hc=True,
         )
-
-        interaction_list = [interaction1, interaction2]
-        hilbertspace.interaction_list = interaction_list
 
         param_name = "flux"  # name of varying external parameter
         param_vals = np.linspace(0.0, 2.0, 300)  # parameter values
 
-        subsys_update_list = [
-            CPB1,
-            CPB2,
-        ]  # list of HilbertSpace subsys_list which are affected by parameter changes
+        subsys_update_info = {param_name: [CPB1, CPB2]}
 
         def update_hilbertspace(
             param_val,
@@ -236,11 +232,10 @@ class TestParameterSweep:
             CPB2.EJ = 15 * np.abs(np.cos(np.pi * param_val * 0.65))
 
         sweep = ParameterSweep(
-            param_name=param_name,
-            param_vals=param_vals,
+            paramvals_by_name={param_name: param_vals},
             evals_count=20,
             hilbertspace=hilbertspace,
-            subsys_update_list=subsys_update_list,
+            subsys_update_info=subsys_update_info,
             update_hilbertspace=update_hilbertspace,
         )
         return sweep
@@ -248,9 +243,7 @@ class TestParameterSweep:
     def test_sweep_bare_eigenenergies(self):
         sweep = self.initialize()
         reference = np.asarray([-12.6254519, -8.58335482, -4.70576686, -1.00508497])
-        CPB2 = sweep.get_subsys(1)
-        calculated = sweep.lookup.bare_eigenenergies(CPB2, 15)
-        print(calculated)
+        calculated = sweep["bare_evals"]["subsys":1][15]
         assert np.allclose(reference, calculated)
 
     def test_sweep_bare_eigenstates(self):
@@ -340,5 +333,4 @@ class TestParameterSweep:
                 [-5.44193943e-50, -2.99920038e-54, -5.73539237e-53],
             ]
         )
-        CPB1 = sweep.get_subsys(0)
-        assert np.allclose(reference, sweep.lookup.bare_eigenstates(CPB1, 21))
+        assert np.allclose(reference, sweep["bare_evecs"]["subsys":0][21])

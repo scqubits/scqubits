@@ -97,7 +97,7 @@ class TestHilbertSpace:
         )  # coupling constants for fluxonium
         nmat2 = get_matrixelement_table(
             zpifull.n_theta_operator(), evecs2
-        )  # coupling constants for zeropi
+        )  # coupling constants for the  zeropi
         hbd = hilbertspc.hubbard_operator
         vfl = sum(
             [
@@ -211,7 +211,7 @@ class TestHilbertSpace:
         )
         return hilbertspace.hamiltonian()
 
-    def test_HilbertSpace_hamiltonian_is_hermitean(self):
+    def test_HilbertSpace_hamiltonian_is_hermitian(self):
         hamiltonian = self.hilbertspace_initialize().hamiltonian()
         assert hamiltonian.isherm
         hamiltonian = self.hamiltonian_use_addhc()

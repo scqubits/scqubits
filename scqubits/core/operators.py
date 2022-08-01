@@ -16,28 +16,66 @@ import numpy as np
 import scipy as sp
 
 from numpy import ndarray
-from scipy.sparse.csc import csc_matrix
-from scipy.sparse.dia import dia_matrix
+from scipy.sparse import csc_matrix, dia_matrix
 
 
 def annihilation(dimension: int) -> ndarray:
     """
-    Returns a dense matrix of size dimension x dimension representing the annihilation operator in number basis.
+    Returns a dense matrix of size dimension x dimension representing the annihilation
+    operator in number basis.
     """
     offdiag_elements = np.sqrt(range(1, dimension))
     return np.diagflat(offdiag_elements, 1)
 
 
+def annihilation_sparse(dimension: int) -> csc_matrix:
+    """Returns a matrix of size dimension x dimension representing the annihilation
+    operator in the format of a scipy sparse.csc_matrix.
+    """
+    offdiag_elements = np.sqrt(range(dimension))
+    return sp.sparse.dia_matrix(
+        (offdiag_elements, [1]), shape=(dimension, dimension)
+    ).tocsc()
+
+
 def creation(dimension: int) -> ndarray:
     """
-    Returns a dense matrix of size dimension x dimension representing the creation operator in number basis.
+    Returns a dense matrix of size dimension x dimension representing the creation
+    operator in number basis.
     """
     return annihilation(dimension).T
 
 
+def creation_sparse(dimension: int) -> csc_matrix:
+    """Returns a matrix of size dimension x dimension representing the creation operator
+    in the format of a scipy sparse.csc_matrix
+    """
+    return annihilation_sparse(dimension).transpose().tocsc()
+
+
+def hubbard_sparse(j1: int, j2: int, dimension: int) -> csc_matrix:
+    """The Hubbard operator :math:`|j1\\rangle>\\langle j2|` is returned as a matrix of
+    linear size dimension.
+
+    Parameters
+    ----------
+    dimension:
+    j1, j2:
+        indices of the two states labeling the Hubbard operator
+
+    Returns
+    -------
+        sparse number operator matrix, size dimension x dimension
+    """
+    hubbardmat = sp.sparse.dok_matrix((dimension, dimension), dtype=np.float_)
+    hubbardmat[j1, j2] = 1.0
+    return hubbardmat.asformat("csc")
+
+
 def number(dimension: int, prefactor: Union[float, complex] = None) -> ndarray:
-    """Number operator matrix of size dimension x dimension in sparse matrix representation. An additional prefactor
-    can be directly included in the generation of the matrix by supplying 'prefactor'.
+    """Number operator matrix of size dimension x dimension in sparse matrix
+    representation. An additional prefactor can be directly included in the
+    generation of the matrix by supplying 'prefactor'.
 
     Parameters
     ----------
@@ -57,31 +95,17 @@ def number(dimension: int, prefactor: Union[float, complex] = None) -> ndarray:
     return np.diagflat(diag_elements)
 
 
-def annihilation_sparse(dimension: int) -> csc_matrix:
-    """Returns a matrix of size dimension x dimension representing the annihilation operator
-    in the format of a scipy sparse.csc_matrix.
-    """
-    offdiag_elements = np.sqrt(range(dimension))
-    return sp.sparse.dia_matrix(
-        (offdiag_elements, [1]), shape=(dimension, dimension)
-    ).tocsc()
-
-
-def creation_sparse(dimension: int) -> csc_matrix:
-    """Returns a matrix of size dimension x dimension representing the creation operator
-    in the format of a scipy sparse.csc_matrix
-    """
-    return annihilation_sparse(dimension).transpose().tocsc()
-
-
 def number_sparse(
     dimension: int, prefactor: Union[float, complex] = None
-) -> dia_matrix:
-    """Number operator matrix of size dimension x dimension in sparse matrix representation. An additional prefactor
-    can be directly included in the generation of the matrix by supplying 'prefactor'.
+) -> csc_matrix:
+    """Number operator matrix of size dimension x dimension in sparse matrix
+    representation. An additional prefactor can be directly included in the
+    generation of the matrix by supplying 'prefactor'.
 
     Parameters
     ----------
+    dimension:
+        matrix size
     prefactor:
         prefactor multiplying the number operator matrix
 
@@ -94,25 +118,103 @@ def number_sparse(
         diag_elements *= prefactor
     return sp.sparse.dia_matrix(
         (diag_elements, [0]), shape=(dimension, dimension), dtype=np.float_
-    )
+    ).tocsc()
 
 
-def hubbard_sparse(j1: int, j2: int, dimension: int) -> csc_matrix:
-    """The Hubbard operator :math:`|j1\\rangle>\\langle j2|` is returned as a matrix of linear size dimension.
+def a_plus_adag_sparse(
+    dimension: int, prefactor: Union[float, complex, None] = None
+) -> csc_matrix:
+    """Operator matrix for prefactor(a+a^dag) of size dimension x dimension in
+    sparse matrix representation.
 
     Parameters
     ----------
     dimension:
-    j1, j2:
-        indices of the two states labeling the Hubbard operator
+        matrix size
+    prefactor:
+        prefactor multiplying the number operator matrix
+        (if not given, this defaults to 1)
 
     Returns
     -------
-        sparse number operator matrix, size dimension x dimension
+        prefactor * (a + a^dag) as sparse operator matrix, size dimension x dimension
     """
-    hubbardmat = sp.sparse.dok_matrix((dimension, dimension), dtype=np.float_)
-    hubbardmat[j1, j2] = 1.0
-    return hubbardmat.asformat("csc")
+    prefactor = prefactor if prefactor is not None else 1.0
+    return prefactor * (annihilation_sparse(dimension) + creation_sparse(dimension))
+
+
+def a_plus_adag(
+    dimension: int, prefactor: Union[float, complex, None] = None
+) -> ndarray:
+    """Operator matrix for prefactor(a+a^dag) of size dimension x dimension in
+    sparse matrix representation.
+
+    Parameters
+    ----------
+    dimension:
+        matrix size
+    prefactor:
+        prefactor multiplying the number operator matrix
+        (if not given, this defaults to 1)
+
+    Returns
+    -------
+        prefactor (a + a^dag) as ndarray, size dimension x dimension
+    """
+    return a_plus_adag_sparse(dimension, prefactor=prefactor).toarray()
+
+
+def ia_minus_iadag_sparse(
+    dimension: int, prefactor: Union[float, complex, None] = None
+) -> csc_matrix:
+    """Operator matrix for prefactor(ia-ia^dag) of size dimension x dimension as
+    ndarray
+
+    Parameters
+    ----------
+    dimension:
+        matrix size
+    prefactor:
+        prefactor multiplying the number operator matrix
+        (if not given, this defaults to 1)
+
+    Returns
+    -------
+        prefactor  (ia - ia^dag) as sparse operator matrix, size dimension x dimension
+    """
+    prefactor = prefactor if prefactor is not None else 1.0
+    return prefactor * (
+        1j * annihilation_sparse(dimension) - 1j * creation_sparse(dimension)
+    )
+
+
+def ia_minus_iadag(
+    dimension: int, prefactor: Union[float, complex, None] = None
+) -> ndarray:
+    """Operator matrix for prefactor(ia-ia^dag) of size dimension x dimension as
+    ndarray
+
+    Parameters
+    ----------
+    dimension:
+        matrix size
+    prefactor:
+        prefactor multiplying the number operator matrix
+        (if not given, this defaults to 1)
+
+    Returns
+    -------
+        prefactor  (ia - ia^dag) as ndarray, size dimension x dimension
+    """
+    return ia_minus_iadag_sparse(dimension, prefactor=prefactor).toarray()
+
+
+def sigma_minus() -> np.ndarray:
+    return sigma_plus().T
+
+
+def sigma_plus() -> np.ndarray:
+    return np.asarray([[0.0, 1.0], [0.0, 0.0]])
 
 
 def sigma_x() -> np.ndarray:
@@ -125,11 +227,3 @@ def sigma_y() -> np.ndarray:
 
 def sigma_z() -> np.ndarray:
     return np.asarray([[1.0, 0.0], [0.0, -1.0]])
-
-
-def sigma_plus() -> np.ndarray:
-    return np.asarray([[0.0, 1.0], [0.0, 0.0]])
-
-
-def sigma_minus() -> np.ndarray:
-    return sigma_plus().T

@@ -20,7 +20,6 @@ import scqubits.core.units as units
 
 if TYPE_CHECKING:
     from scqubits.core.storage import DataStore, SpectrumData, WaveFunction
-    from scqubits.legacy._param_sweep import _ParameterSweep
 
 
 NAME_REPLACEMENTS = {
@@ -167,21 +166,6 @@ def matelem_vs_paramvals(
 ) -> Dict[str, Any]:
     """Plot defaults for plotting.matelem_vs_paramvals"""
     return {"xlabel": recast_name(specdata.param_name), "ylabel": "matrix element"}
-
-
-def dressed_spectrum(sweep: "_ParameterSweep", **kwargs) -> Dict[str, Any]:
-    """Plot defaults for sweep_plotting.dressed_spectrum"""
-    if "ylim" not in kwargs:
-        kwargs["ymax"] = kwargs.get("ymax") or min(
-            15,
-            (
-                np.max(sweep.dressed_specdata.energy_table)
-                - np.min(sweep.dressed_specdata.energy_table)
-            ),
-        )
-    kwargs["xlabel"] = kwargs.get("xlabel") or recast_name(sweep.param_name)
-    kwargs["ylabel"] = kwargs.get("ylabel") or r"energy [{}]".format(units.get_units())
-    return kwargs
 
 
 def chi(param_name: Union[str, None], **kwargs) -> Dict[str, Any]:
