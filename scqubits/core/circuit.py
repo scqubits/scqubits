@@ -236,20 +236,21 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
     def supported_noise_channels(self) -> List[str]:
         """Return a list of supported noise channels"""
         # return ['tphi_1_over_f_flux',]
-        noise_channels = []
+        noise_channels = ["t1_capacitive", "t1_charge_impedance"]
+        if len([branch for branch in self.branches if branch.type=="L"]):
+            noise_channels.append("t1_inductive")
         if len(self.offset_charges) > 0:
+            noise_channels.append("tphi_1_over_f_ng")
+        if len(self.external_fluxes) > 0:
             noise_channels.append("tphi_1_over_f_flux")
+            noise_channels.append("t1_flux_bias_line")
         if not self.is_purely_harmonic:
             noise_channels.append("tphi_1_over_f_cc")
-        if len(self.var_categories["periodic"]) > 0:
-            noise_channels.append("tphi_1_over_f_ng")
-        return ['tphi_1_over_f_cc', 
-                'tphi_1_over_f_flux',
-                't1_capacitive',
-                't1_charge_impedance', 
-                't1_flux_bias_line',
-                't1_inductive',
-                't1_quasiparticle_tunneling']
+            noise_channels.append("t1_quasiparticle_tunneling")
+        return noise_channels
+
+    def effective_noise_channels(self):
+        return self.supported_noise_channels()
 
     def __setattr__(self, name, value):
         if not self._frozen or name in dir(self):

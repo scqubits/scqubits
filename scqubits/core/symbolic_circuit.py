@@ -1844,9 +1844,9 @@ class SymbolicCircuit(serializers.Serializable):
                 symbols(f"θ{frozen_var_index}"),
             )
             potential_θ = potential_θ.replace(symbols(f"θ{frozen_var_index}"), sub[0])
-
+        
         lagrangian_θ = C_terms_θ - potential_θ
-
+        
         return lagrangian_θ, potential_θ, lagrangian_φ, potential_φ
 
     def generate_symbolic_hamiltonian(self, substitute_params=False) -> sympy.Expr:
@@ -1921,5 +1921,5 @@ class SymbolicCircuit(serializers.Serializable):
                 symbols(f"Q{var_index}"),
                 symbols(f"n{var_index}") + symbols(f"ng{var_index}"),
             )
-        # rounding the decimals
-        return hamiltonian_symbolic
+
+        return hamiltonian_symbolic.expand()
