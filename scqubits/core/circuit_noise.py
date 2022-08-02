@@ -10,7 +10,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from abc import ABC, abstractmethod
+from abc import ABC
 import operator as builtin_op
 import functools
 from numpy import ndarray
@@ -20,8 +20,6 @@ import copy
 
 from scqubits.core.noise import NOISE_PARAMS, NoisySystem
 from scqubits.core.circuit_utils import get_trailing_number
-
-# from scqubits.core.circuit import Circuit, Subsystem
 
 from types import MethodType
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -55,7 +53,7 @@ class NoisyCircuit(NoisySystem, ABC):
                 for free_sym in term.free_symbols:
                     product_matrix_list.append(self.get_operator_by_name(free_sym.name))
                 eval_matrix_list.append(
-                    functools.reduce(builtin_op.mul, product_matrix_list)
+                    float(coefficient_sympy) * functools.reduce(builtin_op.mul, product_matrix_list)
                 )
         return sum(eval_matrix_list)
 
@@ -91,6 +89,7 @@ class NoisyCircuit(NoisySystem, ABC):
             shift_potential_to_origin=False,
             return_exprs=True,
         )
+        hamiltonian = hamiltonian.subs("I", 1)
         ext_flux_1_over_f_methods = {}
         ng_1_over_f_methods = {}
         cc_1_over_f_methods = {}
@@ -102,11 +101,10 @@ class NoisyCircuit(NoisySystem, ABC):
         for param_sym in self.external_fluxes + self.offset_charges:
             diff_sym_expr = hamiltonian.diff(param_sym)
 
-            def param_derivative(self=self, diff_sym_expr=diff_sym_expr):
+            def param_derivative(self=self, diff_sym_expr=diff_sym_expr, all_sym_parameters=all_sym_parameters):
                 # substitute all symbolic params
                 for param in all_sym_parameters:
                     diff_sym_expr = diff_sym_expr.subs(param, getattr(self, param.name))
-                diff_sym_expr = diff_sym_expr.subs("I", 1)
                 # evaluate the expression
                 return self._evaluate_symbolic_expr(diff_sym_expr)
 
@@ -125,7 +123,7 @@ class NoisyCircuit(NoisySystem, ABC):
             def param_derivative(self=self, branch=branch):
                 return self.junction_related_evaluation(branch, calc="dhdEJ")
 
-            cc_1_over_f_methods[f"d_hamiltonian_d_EJ{idx + 1}"] = param_derivative
+            cc_1_over_f_methods[f"d_hamiltonian_d_EJ{branch.id_str}"] = param_derivative
         self._data.update(ext_flux_1_over_f_methods)
         self._data.update(ng_1_over_f_methods)
         self._data.update(cc_1_over_f_methods)
@@ -155,13 +153,14 @@ class NoisyCircuit(NoisySystem, ABC):
         # substitute external flux
         for flux in self.external_fluxes:
             term = term.subs(flux, getattr(self, flux.name))
-        if calc == "sin_phi":
+        if calc == "sin_phi_qp":
             term = term.subs(sm.cos, sm.sin)
+            term = term.subs(term.args[0], term.args[0]/2)
         return self._evaluate_symbolic_expr(term)
 
     def generate_tphi_1_over_f_methods(self):
         """Generate methods tphi_1_over_f_{noise_type}{index} methods for
-        noise_type=['cc', 'ng', 'flux'] for individual noise sources differentiated
+        noise_type=['cc', 'ng', 'flux']; individual noise sources differentiated
         using index."""
         # calculating the rates from each of the flux sources
         junction_branches = [branch for branch in self.branches if branch.type == "JJ"]
@@ -181,8 +180,8 @@ class NoisyCircuit(NoisySystem, ABC):
             if isinstance(param_sym, sm.Expr):
                 trailing_number = get_trailing_number(param_sym.name)
                 noise_op_func = getattr(self, f"{diff_func_name}{trailing_number}")
-            else:
-                trailing_number = junction_branches.index(param_sym) + 1
+            elif param_sym in junction_branches:
+                trailing_number = param_sym.id_str
                 noise_op_func = getattr(self, f"{diff_func_name}{trailing_number}")
 
             def tphi_1_over_f_func(
@@ -216,11 +215,6 @@ class NoisyCircuit(NoisySystem, ABC):
                 -------
                     decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
                 """
-                if "tphi_1_over_f_flux" not in self.supported_noise_channels():
-                    raise RuntimeError(
-                        "Critical current noise channel 'tphi_1_over_f_cc3' is not supported in"
-                        " this system."
-                    )
                 noise_op = noise_op_func()
                 if isinstance(noise_op, qt.Qobj):
                     noise_op = noise_op.data.tocsc()
@@ -252,40 +246,81 @@ class NoisyCircuit(NoisySystem, ABC):
         self._data.update(methods_noise_rates_from_ng)
         self._data.update(methods_noise_rates_from_cc)
 
-    def generate_overall_tphi_methods(self):
-        """Generate methods tphi_1_over_f_{noise_type} and t_1_{noise_type} methods for
-        noise_type=['cc', 'ng', 'flux'] and ["capacitive", "charge_impedance",
-        "flux_bias_line", "inductive", "quasiparticle_tunneling"]"""
-        noise_types_tphi = ["cc", "ng", "flux"]
-        noise_types_t1 = ["flux_bias_line"]
-        # generating the total flux and charge noise methods
-        for noise_type in noise_types_tphi + noise_types_t1:
-            if noise_type in noise_types_tphi:
-                func_name = f"tphi_1_over_f_{noise_type}"
-            elif noise_type in noise_types_t1:
-                func_name = f"t1_{noise_type}"
+    def generate_overall_tphi_cc(self):
+        def tphi_1_over_f_cc(
+                self=self,
+                A_noise: float = NOISE_PARAMS["A_cc"],
+                i: int = 0,
+                j: int = 1,
+                esys: Tuple[ndarray, ndarray] = None,
+                get_rate: bool = False,
+                **kwargs
+            ) -> float:
+            tphi_times = []
+            for branch in [brnch for brnch in self.branches if brnch.type == "JJ"]:
+                tphi_times.append(getattr(self, f"tphi_1_over_f_cc{branch.id_str}")(
+                    A_noise = A_noise,
+                    i = i,
+                    j = j,
+                    esys = esys,
+                    **kwargs
+                ))
+            total_rate = sum([1/tphi for tphi in tphi_times])
+            if get_rate:
+                return total_rate
+            return 1/total_rate if total_rate !=0 else np.inf
+        
+        self._data["tphi_1_over_f_cc"] = tphi_1_over_f_cc
 
-            def total_coherence_time_from_noise_type(
-                self=self, noise_type=noise_type, func_name=func_name
-            ):
-                tphi_1_over_f_times = []
-                if noise_type == "flux" or "flux_bias_line":
-                    num_noise_sources = len(self.external_fluxes)
-                elif noise_type == "ng":
-                    num_noise_sources = len(self.offset_charges)
-                elif noise_type == "cc":
-                    num_noise_sources = len(
-                        [branch for branch in self.branches if branch.type == "JJ"]
-                    )
-                for trailing_number in range(1, num_noise_sources + 1):
+    def generate_overall_tphi_flux(self):
+        def tphi_1_over_f_flux(
+                self=self,
+                A_noise: float = NOISE_PARAMS["A_flux"],
+                i: int = 0,
+                j: int = 1,
+                esys: Tuple[ndarray, ndarray] = None,
+                get_rate: bool = False,
+                **kwargs
+            ) -> float:
+            tphi_times = []
+            for flux_sym in self.external_fluxes:
+                tphi_times.append(getattr(self, f"tphi_1_over_f_flux{get_trailing_number(flux_sym.name)}")(
+                    A_noise=A_noise,
+                    i = i,
+                    j = j,
+                    esys = esys,
+                ))
+            total_rate = sum([1/tphi for tphi in tphi_times])
+            if get_rate:
+                return total_rate
+            return 1/total_rate if total_rate !=0 else np.inf
+        self._data["tphi_1_over_f_flux"] = tphi_1_over_f_flux
 
-                    tphi_1_over_f_times.append(
-                        getattr(self, f"{func_name}{trailing_number}")()
-                    )
-                total_tphi = sum([1 / tphi for tphi in tphi_1_over_f_times])
-                return 1 / total_tphi
+    def generate_overall_tphi_ng(self):
+        def tphi_1_over_f_ng(
+                self=self,
+                A_noise: float = NOISE_PARAMS["A_ng"],
+                i: int = 0,
+                j: int = 1,
+                esys: Tuple[ndarray, ndarray] = None,
+                get_rate: bool = False,
+                **kwargs
+            ) -> float:
+            tphi_times = []
+            for flux_sym in self.offset_charges:
+                tphi_times.append(getattr(self, f"tphi_1_over_f_ng{get_trailing_number(flux_sym.name)}")(
+                    A_noise=A_noise,
+                    i = i,
+                    j = j,
+                    esys = esys,
+                ))
+            total_rate = sum([1/tphi for tphi in tphi_times])
+            if get_rate:
+                return total_rate
+            return 1/total_rate if total_rate !=0 else np.inf
+        self._data["tphi_1_over_f_ng"] = tphi_1_over_f_ng
 
-            self._data[func_name] = total_coherence_time_from_noise_type
+                
 
     def generate_t1_flux_bias_line_methods(self):
         """
@@ -331,7 +366,7 @@ class NoisyCircuit(NoisySystem, ABC):
         t1_capacitive_methods = {}
         t1_inductive_methods = {}
         t1_charge_impedance_methods = {}
-        t1_quasipartice_tunneling_methods = {}
+        t1_quasiparticle_tunneling_methods = {}
 
         for branch in self.branches:
             if branch.type == "L":
@@ -374,14 +409,14 @@ class NoisyCircuit(NoisySystem, ABC):
                 ] = self.wrapper_t1_charge_impedance(branch_var_expr)
             # quasiparticle noise
             if branch.type == "JJ":
-                t1_quasipartice_tunneling_methods[
+                t1_quasiparticle_tunneling_methods[
                     f"t1_quasiparticle_tunneling{branch.id_str}"
                 ] = self.wrapper_t1_quasipartice_tunneling(branch)
 
         self._data.update(t1_capacitive_methods)
         self._data.update(t1_inductive_methods)
         self._data.update(t1_charge_impedance_methods)
-        self._data.update(t1_quasipartice_tunneling_methods)
+        self._data.update(t1_quasiparticle_tunneling_methods)
 
     def wrapper_t1_quasipartice_tunneling(self, branch: Branch):
         def t1_quasiparticle_tunneling(
@@ -399,8 +434,8 @@ class NoisyCircuit(NoisySystem, ABC):
 
             return NoisySystem.t1_quasiparticle_tunneling(
                 self=self,
-                i=1,
-                j=0,
+                i=i,
+                j=j,
                 Y_qp=Y_qp,
                 x_qp=x_qp,
                 T=T,
@@ -408,7 +443,7 @@ class NoisyCircuit(NoisySystem, ABC):
                 total=total,
                 esys=esys,
                 get_rate=get_rate,
-                noise_op=self.junction_related_evaluation(branch, calc="sin_phi"),
+                noise_op=self.junction_related_evaluation(branch, calc="sin_phi_qp"),
             )
 
         return t1_quasiparticle_tunneling
@@ -525,7 +560,7 @@ class NoisyCircuit(NoisySystem, ABC):
                     )
                 )
             total_rate = sum([1 / t1 for t1 in t1_times])
-            if not get_rate:
+            if get_rate:
                 return total_rate
             return 1 / total_rate if total_rate != 0 else np.inf
 
@@ -555,7 +590,7 @@ class NoisyCircuit(NoisySystem, ABC):
                     )
                 )
             total_rate = sum([1 / t1 for t1 in t1_times])
-            if not get_rate:
+            if get_rate:
                 return total_rate
             return 1 / total_rate if total_rate != 0 else np.inf
 
@@ -585,7 +620,7 @@ class NoisyCircuit(NoisySystem, ABC):
                     )
                 )
             total_rate = sum([1 / t1 for t1 in t1_times])
-            if not get_rate:
+            if get_rate:
                 return total_rate
             return 1 / total_rate if total_rate != 0 else np.inf
 
@@ -615,11 +650,41 @@ class NoisyCircuit(NoisySystem, ABC):
                     )
                 )
             total_rate = sum([1 / t1 for t1 in t1_times])
-            if not get_rate:
+            if get_rate:
                 return total_rate
             return 1 / total_rate if total_rate != 0 else np.inf
 
         self._data["t1_charge_impedance"] = t1_method
+
+    def generate_overall_t1_flux_bias_line(self):
+        def t1_flux_bias_line(
+                self=self,
+                i: int = 1,
+                j: int = 0,
+                M: float = NOISE_PARAMS["M"],
+                Z: Union[complex, float, Callable] = NOISE_PARAMS["R_0"],
+                T: float = NOISE_PARAMS["T"],
+                total: bool = True,
+                esys: Tuple[ndarray, ndarray] = None,
+                get_rate: bool = False,
+            ) -> float:
+            t1_times = []
+            for external_flux_sym in self.external_fluxes:
+                t1_times.append(getattr(self, f"t1_flux_bias_line{get_trailing_number(external_flux_sym.name)}")(
+                    i=i,
+                    j=j,
+                    M=M,
+                    Z=Z,
+                    T=T,
+                    total=total,
+                    esys=esys,
+                ))
+            total_rate = sum([1 / t1 for t1 in t1_times])
+            if get_rate:
+                return total_rate
+            return 1 / total_rate if total_rate != 0 else np.inf
+
+        self._data["t1_flux_bias_line"] = t1_flux_bias_line
 
     def generate_all_noise_methods(self):
 
@@ -628,8 +693,11 @@ class NoisyCircuit(NoisySystem, ABC):
         self.generate_t1_flux_bias_line_methods()
         self.generate_t1_methods()
 
-        self.generate_overall_tphi_methods()
+        self.generate_overall_tphi_cc()
+        self.generate_overall_tphi_flux()
+        self.generate_overall_tphi_ng()
         self.generate_overall_t1_capacitive()
         self.generate_overall_t1_charge_impedance()
         self.generate_overall_t1_inductive()
+        self.generate_overall_t1_flux_bias_line()
         self.generate_overall_t1_quasipartice_tunneling()
