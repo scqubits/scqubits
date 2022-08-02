@@ -2918,8 +2918,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
 
     def ptrace(self, which: int, remaining_subsys: Union[int, List[int]]) -> qt.Qobj:
         """
-        Wrapper method for `qutip.ptrace`; return the partial trace of the given
-        subsystem(s) for an eigenstate.
+        Wrapper method for `qutip.ptrace`; return the reduced density matrix of the
+        given subsystem(s) for an eigenstate.
 
         Parameters
         ----------
@@ -2940,7 +2940,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
         self, which: int, remaining_subsys: Union[int, List[int]]
     ) -> float:
         """
-        Return the purity of partial trace of the given subsystem(s) for an eigenstate.
+        Return the purity of reduced density matrix  of the given subsystem(s) for
+        an eigenstate.
 
         Parameters
         ----------
@@ -2965,7 +2966,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable, dispatch.Dispatch
     ) -> float:
         """
         Wrapper method for `qutip.entropy_vn`; return the von Neumann entropy of
-        partial trace of the given subsystem(s) for an eigenstate.
+        reduced density of the given subsystem(s) for an eigenstate.
 
         Parameters
         ----------

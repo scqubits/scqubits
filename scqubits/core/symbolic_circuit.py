@@ -288,8 +288,10 @@ class SymbolicCircuit(serializers.Serializable):
 
         # attributes set by methods
         self.transformation_matrix: Optional[ndarray] = None
+        self.orthogonalized_transformation_matrix: Optional[ndarray] = None
 
         self.var_categories: Optional[List[int]] = None
+        self.island_node_dict: Optional[Dict[str, Union[list, None]]] = None
         self.external_fluxes: List[Symbol] = []
         self.closure_branches: List[Branch] = []
 
@@ -472,6 +474,10 @@ class SymbolicCircuit(serializers.Serializable):
                 self.transformation_matrix,
                 self.var_categories,
             ) = self.variable_transformation_matrix()
+            (
+                self.orthogonalized_transformation_matrix,
+                self.island_node_dict,
+            ) = self.orthogonalize_island_vectors()
 
         # find the closure branches in the circuit
         self.closure_branches = closure_branches or self._closure_branches()
@@ -1848,3 +1854,333 @@ class SymbolicCircuit(serializers.Serializable):
         # rounding the decimals
         hamiltonian_rounded = self.round_symbolic_expr(hamiltonian_symbolic, 10)
         return hamiltonian_rounded
+
+    def orthogonalize_island_vectors(
+        self,
+    ) -> Tuple[ndarray, Dict[str, Union[list, None]]]:
+        """
+        Based on the existing transformation matrix and variable categories, orthogonalize
+        vector entries for frozen, periodic and free (cyclic) variables, and return the
+        resulting transformation matrix.
+
+        Returns
+        -------
+        A transformation matrix with orthogonalized frozen, periodic and cyclic variables,
+        and a dictionary that shows the partition of nodes for each type of island.
+        """
+        # work with column vectors
+        transformation_matrix_T = self.transformation_matrix.T
+        orthogonalized_transformation_matrix_T = copy.deepcopy(transformation_matrix_T)
+        island_vars_types = ["free", "frozen", "periodic"]
+        island_vars_dict = {}
+        # for each island type, test iteratively if there is any linearly-dependent pair of
+        # vectors
+        for island_type in island_vars_types:
+            vars = self.var_categories[island_type]
+            # linear depencency is only tested if there are more than 1 variables
+            if len(vars) > 1:
+                # collect the corresponding vectors for the given variable category
+                vectors = [transformation_matrix_T[var_index - 1] for var_index in vars]
+                # order these vectors in descending order of number of 1
+                vectors.sort(key=lambda vector: np.count_nonzero(vector == 1.0))
+                vectors = np.array(vectors)
+                # for each vector, test if they are orthogonal with all the previous vectors
+                # if so, do nothing, if not, orthogonalize
+                for vec_index_i in range(1, len(vectors)):
+                    for vec_index_j in reversed(range(vec_index_i)):
+                        if vectors[vec_index_i] @ vectors[vec_index_j] != 0:
+                            vectors[vec_index_i] -= vectors[vec_index_j]
+                # replace the old vectors by the orthogonalized vectors
+                for index, var_index in enumerate(vars):
+                    orthogonalized_transformation_matrix_T[var_index - 1] = vectors[
+                        index
+                    ]
+            # build a dictionary that shows the partition of node variables for each type of
+            # island
+            island_vars_dict[island_type] = [
+                [
+                    idx + 1
+                    for idx, value in enumerate(
+                        orthogonalized_transformation_matrix_T[var_index - 1]
+                    )
+                    if value == 1
+                ]
+                for var_index in vars
+            ]
+            # add the complement list of nodes as the first item of the island list
+            # the first island is always either associated with the sigma variable, or not
+            # associated with any variable at all
+            if len(vars) > 0:
+                complement_node_list = list(
+                    set([node.index for node in self.nodes]) - set(node_list)
+                    for node_list in island_vars_dict[island_type]
+                )
+                island_vars_dict[island_type] = (
+                    complement_node_list + island_vars_dict[island_type]
+                )
+        return orthogonalized_transformation_matrix_T.T, island_vars_dict
+
+    def junction_node_pairs(self) -> List[List[int]]:
+        """
+        Returns all the node pairs that are connected by at least one JJ.
+
+        Returns
+        -------
+            A list of node pairs that are connected by at least one JJ.
+        """
+        JJ_branches = [branch for branch in self.branches if branch.type == "JJ"]
+        JJ_node_pair_sets = [
+            set([JJ_branch.nodes[0].index, JJ_branch.nodes[1].index])
+            for JJ_branch in JJ_branches
+        ]
+        return [
+            list(node_pair_set)
+            for idx, node_pair_set in enumerate(JJ_node_pair_sets)
+            if node_pair_set not in JJ_node_pair_sets[:idx]
+        ]
+
+    def variable_transformation_transmon_fluxonium(
+        self,
+        transmon_var: List[List[int]] = [],
+        fluxonium_var: List[List[int]] = [],
+    ) -> ndarray:
+        # copy the orthogonalized transformation matrix
+        modified_transformation_matrix_T = self.orthogonalized_transformation_matrix.T
+        node_entries_to_be_completed = [node.index for node in self.nodes]
+        if self.is_grounded:
+            node_entries_to_be_completed.remove(0)
+        # verify if the number of transmon and fluxonium variables are valid
+        if len(transmon_var) > len(self.var_categories["periodic"]):
+            raise Exception(
+                "The number of transmon variables cannot be greater than "
+                "the number of periodic variables."
+            )
+        if len(fluxonium_var) > len(self.var_categories["extended"]):
+            raise Exception(
+                "The number of fluxonium variables cannot be greater than "
+                "the number of extended variables."
+            )
+        # for every transmon variable node pair, identify the island IDs
+        periodic_island_node_list = self.island_node_dict["periodic"]
+        if len(transmon_var) > 0:
+            periodic_var_offset = self.var_categories["periodic"][0]
+            transmon_var_island_list = []
+            for node_pair in transmon_var:
+                # find out the island IDs for each node
+                node_pair_island_IDs = []
+                for island_ID, island_node_list in enumerate(periodic_island_node_list):
+                    if (node_pair[0] in island_node_list) or (
+                        node_pair[1] in island_node_list
+                    ):
+                        node_pair_island_IDs.append(island_ID)
+                transmon_var_island_list.append(node_pair_island_IDs)
+            # total number of periodic islands
+            periodic_island_number = len(self.var_categories["periodic"]) + 1
+            # require number of different islands > number of JJ node pairs provided
+            if len(
+                set.union(
+                    *[
+                        set(transmon_var_island)
+                        for transmon_var_island in transmon_var_island_list
+                    ]
+                )
+            ) <= len(transmon_var):
+                raise Exception(
+                    "For N node pairs provided for generating transmon variables, "
+                    "these nodes must be in at least N+1 different islands."
+                )
+            # algorithm: for an island pair that has island 0, do nothing with the column
+            # entry of the transformation matrix for the other island throughout the process
+            # (the other island variable is "protected"); for an island pair that has a
+            # protected island variable and an unprotected island variable, only change the
+            # unprotected island variable matrix column; for two unprotected island variables,
+            # add the former to the ladder.
+            # step 1: identify protected islands
+            protected_island = []
+            for transmon_var_island in transmon_var_island_list:
+                if transmon_var_island[0] == 0:
+                    protected_island.append(transmon_var_island[1])
+                elif transmon_var_island[1] == 0:
+                    protected_island.append(transmon_var_island[0])
+            unprotected_island = list(
+                set(periodic_island_number) - {0} - set(protected_island)
+            )
+            # step 2: for pairs [protected, unprotected] or [unprotected, protected] add the
+            # protected variable column entry to the unprotected variable column entry, and
+            # for [unprotected, unprotected], add the former to the ladder
+            for transmon_var_island in transmon_var_island_list:
+                # [protected, unprotected]
+                if (transmon_var_island[0] in protected_island) and (
+                    transmon_var_island[1] in unprotected_island
+                ):
+                    modified_transformation_matrix_T[
+                        periodic_var_offset + transmon_var_island[1] - 2
+                    ] += modified_transformation_matrix_T[
+                        periodic_var_offset + transmon_var_island[0] - 2
+                    ]
+                # [unprotected, protected]
+                elif (transmon_var_island[1] in protected_island) and (
+                    transmon_var_island[0] in unprotected_island
+                ):
+                    modified_transformation_matrix_T[
+                        periodic_var_offset + transmon_var_island[0] - 2
+                    ] += modified_transformation_matrix_T[
+                        periodic_var_offset + transmon_var_island[1] - 2
+                    ]
+                # [unprotected, unprotected]
+                elif (transmon_var_island[0] in unprotected_island) and (
+                    transmon_var_island[1] in unprotected_island
+                ):
+                    modified_transformation_matrix_T[
+                        periodic_var_offset + transmon_var_island[0] - 2
+                    ] += modified_transformation_matrix_T[
+                        periodic_var_offset + transmon_var_island[1] - 2
+                    ]
+            # to create a list of node entries to be completed, the algorithm is:
+            # for every transmon variable node pairs, try remove the first node, if not
+            # exist, remove the second
+            # if there is a node pair that contains a ground node, then the row entry for
+            # other node can be automatically completed
+            for transmon_node_pair in transmon_var:
+                try:
+                    node_entries_to_be_completed.remove(transmon_node_pair[0])
+                except ValueError:
+                    node_entries_to_be_completed.remove(transmon_node_pair[1])
+
+        elif len(fluxonium_var) > 0:
+            extended_var_offset = self.var_categories["extended"][0]
+            # require number of different nodes > number of JJ node pairs provided
+            if (
+                len(
+                    set.union(
+                        *[
+                            set(fluxonium_node_pair)
+                            for fluxonium_node_pair in fluxonium_var
+                        ]
+                    )
+                )
+                < len(fluxonium_var) + 1
+            ):
+                raise Exception(
+                    "For N node pairs provided for generating fluxonium variables, "
+                    "at least N+1 different nodes need to be involved."
+                )
+            # eliminate the node entries that need not be filled in
+            # if there is a node pair that contains a ground node, then the row entry for
+            # other node can be automatically completed
+            for fluxonium_node_pair in fluxonium_var:
+                try:
+                    node_entries_to_be_completed.remove(fluxonium_node_pair[0])
+                except ValueError:
+                    node_entries_to_be_completed.remove(fluxonium_node_pair[1])
+
+        # fill in the missing entries
+        # for fluxonium node pairs, each dictates one column entry for an extended variable
+        # the entry for the first node is 1, 0 for the rest, except for node pairs that
+        # contain a physical ground node, where only the entry for the ungrounded node is
+        # set to 1
+        if len(fluxonium_var) > 0:
+            # generate a list that counts nodes that are used to generate fluxonium variables
+            fluxonium_node = []
+            for fluxonium_ID, fluxonium_node_pair in enumerate(fluxonium_var):
+                modified_transformation_matrix_T[
+                    fluxonium_ID + extended_var_offset - 1
+                ] = np.zeros(np.shape(modified_transformation_matrix_T)[1])
+                if (fluxonium_node_pair[0] != 0) and (
+                    fluxonium_node_pair[0] not in fluxonium_node
+                ):
+                    modified_transformation_matrix_T[
+                        fluxonium_ID + extended_var_offset - 1,
+                        fluxonium_node_pair[0] - 1,
+                    ] = 1.0
+                    fluxonium_node.append(fluxonium_node_pair[0])
+                else:
+                    modified_transformation_matrix_T[
+                        fluxonium_ID + extended_var_offset - 1,
+                        fluxonium_node_pair[1] - 1,
+                    ] = 1.0
+                    fluxonium_node.append(fluxonium_node_pair[1])
+        # generate a filling matrix, which consists of entries in the transformation matrix
+        # that are to be filled in
+        filling_matrix = np.zeros(
+            (
+                len(self.var_categories["extended"]) - len(fluxonium_var),
+                np.shape(modified_transformation_matrix_T)[1]
+                - len(transmon_var)
+                - len(fluxonium_var),
+            )
+        )
+        for column_number in range(np.shape(filling_matrix)[0]):
+            filling_matrix[column_number][column_number] = 1.0
+        # maps the filling matrix back to the empty entires of the original transformation matrix
+        for column_number in range(np.shape(filling_matrix)[0]):
+            for row_number in range(np.shape(filling_matrix)[1]):
+                modified_transformation_matrix_T[
+                    extended_var_offset + len(fluxonium_var) + column_number - 1
+                ][node_entries_to_be_completed[row_number] - 1] = filling_matrix[
+                    column_number
+                ][
+                    row_number
+                ]
+        # copy paste entries based on the fluxonium and transmon node pairs
+        completed_node_entries = copy.deepcopy(node_entries_to_be_completed)
+        entries_to_be_copied = transmon_var + fluxonium_var
+
+        while len(entries_to_be_copied) > 0:
+            # find the first entries to be copied that has an element in the completed
+            # node entries
+            for entry in entries_to_be_copied:
+                # if there is any transmon or fluxonium node pair that connects to the physical ground
+                # node, fill the corresponding node entries with zeros
+                if entry[0] == 0:
+                    modified_transformation_matrix_T[
+                        extended_var_offset
+                        + len(fluxonium_var)
+                        - 1 : np.shape(modified_transformation_matrix_T)[0]
+                        - 1
+                        + self.is_grounded,
+                        entry[1] - 1,
+                    ] = np.zeros(
+                        len(self.var_categories["extended"]) - len(fluxonium_var)
+                    )
+                    # update completed node entries and entries to be copied
+                    entries_to_be_copied.remove(entry)
+                elif entry[1] == 0:
+                    modified_transformation_matrix_T[
+                        extended_var_offset
+                        + len(fluxonium_var)
+                        - 1 : np.shape(modified_transformation_matrix_T)[0]
+                        - 1
+                        + self.is_grounded,
+                        entry[0] - 1,
+                    ] = np.zeros(
+                        len(self.var_categories["extended"]) - len(fluxonium_var)
+                    )
+                    # update completed node entries and entries to be copied
+                    entries_to_be_copied.remove(entry)
+                elif (entry[0] in completed_node_entries) or (
+                    entry[1] in completed_node_entries
+                ):
+                    if entry[0] in completed_node_entries:
+                        # update completed node entries and entries to be copied
+                        completed_node_entries.append(entry[1])
+                        entries_to_be_copied.remove(entry)
+                        # perform the copy
+                        modified_transformation_matrix_T[
+                            extended_var_offset + len(fluxonium_var) - 1 :, entry[1] - 1
+                        ] = modified_transformation_matrix_T[
+                            extended_var_offset + len(fluxonium_var) - 1 :, entry[0] - 1
+                        ]
+                        break
+                    else:
+                        # update completed node entries and entries to be copied
+                        completed_node_entries.append(entry[0])
+                        entries_to_be_copied.remove(entry)
+                        # perform the copy
+                        modified_transformation_matrix_T[
+                            extended_var_offset + len(fluxonium_var) - 1 :, entry[0] - 1
+                        ] = modified_transformation_matrix_T[
+                            extended_var_offset + len(fluxonium_var) - 1 :, entry[1] - 1
+                        ]
+                        break
+        return modified_transformation_matrix_T.T
