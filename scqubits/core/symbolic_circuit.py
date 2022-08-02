@@ -261,9 +261,13 @@ class SymbolicCircuit(serializers.Serializable):
     basis_completion: str
         choices are: "heuristic" (default) or "canonical"; selects type of basis for
         completing the transformation matrix.
-    ground_node:
+    ground_node: Node
         If the circuit is grounded, the ground node is treated separately and should be
         provided to this parameter.
+    is_flux_dynamic: bool
+        set to False by default. Indicates if the flux allocation is done by assuming
+        that flux is time dependent. When set to True, it disables the option to change
+        the closure branches.
     initiate_sym_calc: bool
         set to True by default. Initiates the object attributes by calling the
         function initiate_symboliccircuit method when set to True.
@@ -276,6 +280,7 @@ class SymbolicCircuit(serializers.Serializable):
         branch_var_dict: Dict[Union[Any, Symbol], Union[Any, float]],
         basis_completion: str = "heuristic",
         ground_node: Optional[Node] = None,
+        is_flux_dynamic: bool = True,
         initiate_sym_calc: bool = True,
         input_string: str = "",
     ):
@@ -315,6 +320,9 @@ class SymbolicCircuit(serializers.Serializable):
 
         if self.is_grounded:
             self.nodes = [self.ground_node] + self.nodes
+
+        # switch to control the dynamic flux allocation in the loops
+        self.is_flux_dynamic = is_flux_dynamic
 
         # parameter for choosing matrix used for basis completion in the variable
         # transformation matrix
@@ -663,6 +671,7 @@ class SymbolicCircuit(serializers.Serializable):
         input_string: str,
         from_file: bool = True,
         basis_completion: str = "heuristic",
+        is_flux_dynamic: bool = True,
         initiate_sym_calc: bool = True,
     ):
         """
@@ -695,6 +704,10 @@ class SymbolicCircuit(serializers.Serializable):
         basis_completion:
             choices: "heuristic" or "canonical"; used to choose a type of basis
             for completing the transformation matrix. Set to "heuristic" by default.
+        is_flux_dynamic: bool
+            set to False by default. Indicates if the flux allocation is done by
+            assuming that flux is time dependent. When set to True, it disables the
+            option to change the closure branches.
         initiate_sym_calc:
             set to True by default. Initiates the object attributes by calling
             the function `initiate_symboliccircuit` method when set to True.
@@ -723,6 +736,7 @@ class SymbolicCircuit(serializers.Serializable):
             nodes,
             branches,
             ground_node=ground_node,
+            is_flux_dynamic=is_flux_dynamic,
             branch_var_dict=branch_var_dict,
             basis_completion=basis_completion,
             initiate_sym_calc=initiate_sym_calc,
@@ -1187,8 +1201,12 @@ class SymbolicCircuit(serializers.Serializable):
             # adding external flux
             phi_ext = 0
             if jj_branch in self.closure_branches:
-                index = self.closure_branches.index(jj_branch)
-                phi_ext += self.external_fluxes[index]
+                if not self.is_flux_dynamic:
+                    index = self.closure_branches.index(jj_branch)
+                    phi_ext += self.external_fluxes[index]
+            if self.is_flux_dynamic:
+                flux_branch_assignment = self._time_dependent_flux_distribution()
+                phi_ext += flux_branch_assignment[int(jj_branch.id_str)]
 
             # if loop to check for the presence of ground node
             if jj_branch.nodes[1].index == 0:
@@ -1214,8 +1232,12 @@ class SymbolicCircuit(serializers.Serializable):
             # adding external flux
             phi_ext = 0
             if jj2_branch in self.closure_branches:
-                index = self.closure_branches.index(jj2_branch)
-                phi_ext += self.external_fluxes[index]
+                if not self.is_flux_dynamic:
+                    index = self.closure_branches.index(jj2_branch)
+                    phi_ext += self.external_fluxes[index]
+            if self.is_flux_dynamic:
+                flux_branch_assignment = self._time_dependent_flux_distribution()
+                phi_ext += flux_branch_assignment[int(jj2_branch.id_str)]
 
             # if loop to check for the presence of ground node
             if jj2_branch.nodes[1].index == 0:
@@ -1396,8 +1418,12 @@ class SymbolicCircuit(serializers.Serializable):
             # adding external flux
             phi_ext = 0
             if l_branch in self.closure_branches:
-                index = self.closure_branches.index(l_branch)
-                phi_ext += self.external_fluxes[index]
+                if not self.is_flux_dynamic:
+                    index = self.closure_branches.index(l_branch)
+                    phi_ext += self.external_fluxes[index]
+            if self.is_flux_dynamic:
+                flux_branch_assignment = self._time_dependent_flux_distribution()
+                phi_ext += flux_branch_assignment[int(l_branch.id_str)]
 
             if l_branch.nodes[0].index == 0:
                 terms += (
@@ -1588,6 +1614,60 @@ class SymbolicCircuit(serializers.Serializable):
             ]
         return closure_branches
 
+    def _time_dependent_flux_distribution(self):
+        num_dynamical_variables = len(
+            self.var_categories["periodic"] + self.var_categories["extended"]
+        )
+
+        # constructing the constraint matrix
+        R = np.zeros([len(self.branches), len(self.closure_branches)])
+        # constructing branch capacitance matrix
+        C_diag = np.identity(len(self.branches)) * 0
+        # constructing the matrix which transforms node to branch variables
+        W = np.zeros([len(self.branches), len(self._node_list_without_ground)])
+
+        for idx, closure_branch in enumerate(self.closure_branches):
+            loop_branches = self._find_loop(closure_branch)
+            for b_idx, branch in enumerate(loop_branches):
+                R_elem = 1
+                if branch.node_ids()[0] - branch.node_ids()[1] < 0:
+                    R_elem = -1
+                if (
+                    b_idx > 0
+                    and branch.node_ids()[0] != loop_branches[b_idx - 1].node_ids()[1]
+                ):
+                    R_elem *= -1
+                R[self.branches.index(branch), idx] = R_elem
+
+        for idx, branch in enumerate(self.branches):
+            if branch.type in ["JJ", "C"]:
+                EC = (
+                    branch.parameters["EC"]
+                    if branch.type == "C"
+                    else branch.parameters["ECJ"]
+                )
+                if isinstance(EC, sympy.Expr):
+                    EC = self.symbolic_params[EC]
+                C_diag[idx, idx] = 1 / (EC * 8)
+            for node_idx, node in enumerate(branch.nodes):
+                if not node.is_ground():
+                    n_id = self._node_list_without_ground.index(node)
+                    W[idx, n_id] = 1 * (-1) ** node_idx
+
+        M = np.vstack([(W.T @ C_diag), R.T])
+
+        I = np.vstack(
+            [
+                np.zeros(
+                    [len(self._node_list_without_ground), len(self.closure_branches)]
+                ),
+                np.identity(len(self.closure_branches)),
+            ]
+        )
+
+        B = (np.linalg.pinv(M)) @ I
+        return B.round(10) @ self.external_fluxes
+
     def _find_path_to_root(
         self, node: Node
     ) -> Tuple[int, List["Node"], List["Branch"]]:
@@ -1662,15 +1742,29 @@ class SymbolicCircuit(serializers.Serializable):
         """
         # find out ancestor nodes, path to root and generation number for each node in the
         # closure branch
-        gen_1, ancestors_1, path_1 = self._find_path_to_root(closure_branch.nodes[0])
-        gen_2, ancestors_2, path_2 = self._find_path_to_root(closure_branch.nodes[1])
+        _, _, path_1 = self._find_path_to_root(closure_branch.nodes[0])
+        _, _, path_2 = self._find_path_to_root(closure_branch.nodes[1])
         # find branches that are not common in the paths, and then add the closure branch to form the loop
         loop = (
             list(set(path_1) - set(path_2))
             + list(set(path_2) - set(path_1))
             + [closure_branch]
         )
-        return loop
+        return self._order_branches_in_loop(loop)
+
+    def _order_branches_in_loop(self, loop_branches):
+        branches_in_order = [loop_branches[0]]
+        branch_node_ids = [branch.node_ids() for branch in loop_branches]
+        prev_node_id = branch_node_ids[0][0]
+        while len(branches_in_order) < len(loop_branches):
+            for branch in [
+                brnch for brnch in loop_branches if brnch not in branches_in_order
+            ]:
+                if prev_node_id in branch.node_ids():
+                    branches_in_order.append(branch)
+                    break
+            prev_node_id = [idx for idx in branch.node_ids() if idx != prev_node_id][0]
+        return branches_in_order
 
     def _set_external_fluxes(self, closure_branches: List[Branch] = None):
         # setting the class properties
@@ -1774,7 +1868,6 @@ class SymbolicCircuit(serializers.Serializable):
             )
             potential_θ = potential_θ.replace(symbols(f"θ{frozen_var_index}"), sub[0])
 
-        potential_θ = self.round_symbolic_expr(potential_θ, 10)
         lagrangian_θ = C_terms_θ - potential_θ
 
         return lagrangian_θ, potential_θ, lagrangian_φ, potential_φ
@@ -1852,8 +1945,7 @@ class SymbolicCircuit(serializers.Serializable):
                 symbols(f"n{var_index}") + symbols(f"ng{var_index}"),
             )
         # rounding the decimals
-        hamiltonian_rounded = self.round_symbolic_expr(hamiltonian_symbolic, 10)
-        return hamiltonian_rounded
+        return hamiltonian_symbolic.expand()
 
     def orthogonalize_island_vectors(
         self,
