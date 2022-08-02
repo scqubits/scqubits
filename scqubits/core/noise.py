@@ -1557,7 +1557,7 @@ class NoisySystem(ABC):
             therm_ratio = calc_therm_ratio(omega, T)
             s = (
                 2
-                * (branch_params if branch_params else self.EC)
+                * (branch_params if branch_params else self.EL)
                 / q_ind_fun(omega)
                 * (1 / np.tanh(0.5 * np.abs(therm_ratio)))
                 / (1 + np.exp(-therm_ratio))
