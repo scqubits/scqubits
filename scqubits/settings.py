@@ -143,6 +143,7 @@ T1_DEFAULT_WARNING = True
 # (lookups need to be manually regenerated for a change by the user to take effect
 OVERLAP_THRESHOLD = 0.5
 
-# settings for Circuit and SymbolicCircuit class
-## sets the threshold of the number of nodes above which the symbolic capacitance matrix inversion is skipped
+# Settings for Circuit and SymbolicCircuit class.
+# The following determines the threshold for the number of nodes above which the
+# symbolic inversion of the capacitance matrix is skipped.
 SYM_INVERSION_MAX_NODES = 3
