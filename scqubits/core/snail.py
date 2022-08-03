@@ -3,12 +3,14 @@ from scipy import sparse
 from typing import Any, Dict, Optional, Tuple
 import scqubits.core.qubit_base as base
 from scqubits.core import descriptors
-from scqubits.core.qubit_base import QubitBaseClass
+import scqubits.core.discretization as discretization
 from numpy import ndarray
 import scqubits.utils.spectrum_utils as utils
+import scqubits.io_utils.fileio_serializers as serializers
+from scipy.sparse import csc_matrix
 
 
-class Snail(QubitBaseClass):
+class Snail(base.QubitBaseClass, serializers.Serializable):
     r"""SNAIL
 
     | [1] Frattini et al., Appl. Phys Lett. 110, 222603 (2017). https://doi.org/10.1063/1.4984142
@@ -57,6 +59,11 @@ class Snail(QubitBaseClass):
         magnetic flux through the circuit loop, measured in units of the flux quantum
     ncut: int
         charge number cutoff for the charge on the three islands `n`, `n = -ncut, ..., ncut`
+    truncated_dim:
+        desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
     """
 
     EJ1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
@@ -127,9 +134,9 @@ class Snail(QubitBaseClass):
             "ECJ2": 1,
             "ECJ3": 1,
             "ECJ4": 1 / 0.7,
-            "ECg1": 10,
-            "ECg2": 10,
-            "ECg3": 10,
+            "ECg1": 10.0,
+            "ECg2": 10.0,
+            "ECg3": 10.0,
             "ng1": 0.0,
             "ng2": 0.0,
             "ng3": 0.0,
@@ -137,6 +144,15 @@ class Snail(QubitBaseClass):
             "ncut": 10,
             "truncated_dim": 10,
         }
+
+    @classmethod
+    def create(cls) -> "Snail":
+        phi_grid = discretization.Grid1d(-19.0, 19.0, 200)
+        init_params = cls.default_params()
+        init_params["grid"] = phi_grid
+        snail = cls(**init_params)
+        snail.widget()
+        return snail
 
     def EC_matrix(self) -> ndarray:
         """Return the charging energy matrix"""
@@ -185,7 +201,7 @@ class Snail(QubitBaseClass):
             - self.EJ4 * np.cos(2.0 * np.pi * self.flux - phi3)
         )
 
-    def kineticmat(self) -> ndarray:
+    def kineticmat(self) -> csc_matrix:
         """Return the kinetic energy matrix."""
         ec = self.EC_matrix()
         identity = sparse.identity(2 * self.ncut + 1, format="csc")
@@ -212,7 +228,7 @@ class Snail(QubitBaseClass):
 
         return 4 * nvec.T @ ec @ nvec
 
-    def potentialmat(self) -> ndarray:
+    def potentialmat(self) -> csc_matrix:
         """Return the potential energy matrix."""
         identity = sparse.identity(2 * self.ncut + 1, format="csc")
 
@@ -277,7 +293,105 @@ class Snail(QubitBaseClass):
         )
         return potential_mat
 
-    def hamiltonian(self) -> ndarray:
+    def hamiltonian(self) -> csc_matrix:
         """Return Hamiltonian in basis obtained by employing charge basis for both
         degrees of freedom"""
         return self.kineticmat() + self.potentialmat()
+
+    def _n_operator(self) -> ndarray:
+        diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex_)
+        return np.diag(diag_elements)
+
+    def _exp_i_phi_operator(self) -> ndarray:
+        dim = self.hilbertdim()
+        off_diag_elements = np.ones(dim - 1, dtype=np.complex_)
+        e_iphi_matrix = np.diag(off_diag_elements, k=1)
+        return e_iphi_matrix
+
+    def _identity(self) -> ndarray:
+        dim = self.hilbertdim()
+        return np.eye(dim)
+
+    def n_1_operator(self) -> csc_matrix:
+        r"""Return charge number operator conjugate to :math:`\phi_1`"""
+        return sparse.kron(
+            sparse.kron(self._n_operator(), self._identity(), format="csc"),
+            self._identity,
+            format="csc",
+        )
+
+    def n_2_operator(self) -> csc_matrix:
+        r"""Return charge number operator conjugate to :math:`\phi_2`"""
+        return sparse.kron(
+            sparse.kron(self._identity(), self._n_operator(), format="csc"),
+            self._identity,
+            format="csc",
+        )
+
+    def n_3_operator(self) -> csc_matrix:
+        r"""Return charge number operator conjugate to :math:`\phi_3`"""
+        return sparse.kron(
+            sparse.kron(self._identity(), self._identity(), format="csc"),
+            self._n_operator,
+            format="csc",
+        )
+
+    def exp_i_phi_1_operator(self) -> csc_matrix:
+        r"""Return operator :math:`e^{i\phi_1}` in the charge basis."""
+        return sparse.kron(
+            sparse.kron(self._exp_i_phi_operator(), self._identity(), format="csc"),
+            self._identity(),
+            format="csc",
+        )
+
+    def exp_i_phi_2_operator(self) -> csc_matrix:
+        r"""Return operator :math:`e^{i\phi_2}` in the charge basis."""
+        return sparse.kron(
+            sparse.kron(self._identity(), self._exp_i_phi_operator(), format="csc"),
+            self._identity(),
+            format="csc",
+        )
+
+    def exp_i_phi_3_operator(self) -> csc_matrix:
+        r"""Return operator :math:`e^{i\phi_3}` in the charge basis."""
+        return sparse.kron(
+            sparse.kron(self._identity(), self._identity(), format="csc"),
+            self._exp_i_phi_operator(),
+            format="csc",
+        )
+
+    def cos_phi_1_operator(self) -> csc_matrix:
+        """Return operator :math:`\\cos \\phi_1` in the charge basis"""
+        cos_op = 0.5 * self.exp_i_phi_1_operator()
+        cos_op += cos_op.T
+        return cos_op
+
+    def cos_phi_2_operator(self) -> csc_matrix:
+        """Return operator :math:`\\cos \\phi_2` in the charge basis"""
+        cos_op = 0.5 * self.exp_i_phi_2_operator()
+        cos_op += cos_op.T
+        return cos_op
+
+    def cos_phi_3_operator(self) -> csc_matrix:
+        """Return operator :math:`\\cos \\phi_3` in the charge basis"""
+        cos_op = 0.5 * self.exp_i_phi_3_operator()
+        cos_op += cos_op.T
+        return cos_op
+
+    def sin_phi_1_operator(self) -> csc_matrix:
+        """Return operator :math:`\\sin \\phi_1` in the charge basis"""
+        sin_op = -1j * 0.5 * self.exp_i_phi_1_operator()
+        sin_op += sin_op.conj().T
+        return sin_op
+
+    def sin_phi_2_operator(self) -> csc_matrix:
+        """Return operator :math:`\\sin \\phi_2` in the charge basis"""
+        sin_op = -1j * 0.5 * self.exp_i_phi_2_operator()
+        sin_op += sin_op.conj().T
+        return sin_op
+
+    def sin_phi_3_operator(self) -> csc_matrix:
+        """Return operator :math:`\\sin \\phi_2` in the charge basis"""
+        sin_op = -1j * 0.5 * self.exp_i_phi_3_operator()
+        sin_op += sin_op.conj().T
+        return sin_op
