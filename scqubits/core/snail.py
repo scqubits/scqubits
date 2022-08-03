@@ -2,6 +2,7 @@ import numpy as np
 from scipy import sparse
 from typing import Any, Dict, Optional, Tuple
 import scqubits.core.qubit_base as base
+from scqubits.core import descriptors
 from scqubits.core.qubit_base import QubitBaseClass
 from numpy import ndarray
 import scqubits.utils.spectrum_utils as utils
@@ -58,22 +59,22 @@ class Snail(QubitBaseClass):
         charge number cutoff for the charge on the three islands `n`, `n = -ncut, ..., ncut`
     """
 
-    # EJ1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # EJ2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # EJ3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # EJ4 = descriptors.WarchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # ECJ1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # ECJ2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # ECJ3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # ECJ4 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # ECg1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # ECg2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # ECg3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # ng1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # ng2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # ng3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # flux = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # ncut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
+    EJ1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EJ2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EJ3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EJ4 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ4 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECg1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECg2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECg3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ng1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ng2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ng3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    flux = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ncut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,
@@ -92,7 +93,7 @@ class Snail(QubitBaseClass):
         ng2: float,
         ng3: float,
         flux: float,
-        n_cut: int,
+        ncut: int,
         truncated_dim: int = 6,
         id_str: Optional[str] = None,
     ) -> None:
@@ -112,9 +113,8 @@ class Snail(QubitBaseClass):
         self.ng2 = ng2
         self.ng3 = ng3
         self.flux = flux
-        self.n_cut = n_cut
+        self.ncut = ncut
         self.truncated_dim = truncated_dim
-
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
@@ -135,7 +135,7 @@ class Snail(QubitBaseClass):
             "ng3": 0.0,
             "flux": 0.41,
             "ncut": 10,
-            "truncated_dim": 10
+            "truncated_dim": 10,
         }
 
     def EC_matrix(self) -> ndarray:
