@@ -1,13 +1,15 @@
 import numpy as np
 from scipy import sparse
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Tuple
+import scqubits.core.qubit_base as base
+from scqubits.core import descriptors
 from scqubits.core.qubit_base import QubitBaseClass
 from numpy import ndarray
 import scqubits.utils.spectrum_utils as utils
 
 
-class SnailQubit(QubitBaseClass):
-    r"""SNAIL Qubit
+class Snail(QubitBaseClass):
+    r"""SNAIL
 
     | [1] Frattini et al., Appl. Phys Lett. 110, 222603 (2017). https://doi.org/10.1063/1.4984142
     | [2] Orlando et al., Physical Review B, 60, 15398 (1999).
@@ -20,8 +22,8 @@ class SnailQubit(QubitBaseClass):
     modulator) that relied on a quadrupole element, and it can best be understood as an extension of the flux qubit
     (first defined in [2]) to n large Josephson junctions instead of 2. The greatest number of large junctions
     that has been experimentally realized in a SNAIL qubit is 3. Typically, one assumes
-    :math:`E_{J1}=E_{J2}=E_{J3}=E_J` and :math:`E_{J4}=\alpha E_J`. In the case of 3 Josephson Junctions, the Hamiltonian is
-    given by
+    :math:`E_{J1}=E_{J2}=E_{J3}=E_J` and :math:`E_{J4}=\alpha E_J`. In the case of 3 Josephson Junctions, the
+    Hamiltonian is given by
 
     .. math::
 
@@ -34,7 +36,7 @@ class SnailQubit(QubitBaseClass):
 
         EJ = 35.0
         alpha = 0.6
-        snail_qubit = scq.SnailQubit(EJ1 = EJ, EJ2 = EJ, EJ3 = EJ, EJ4 = alpha * EJ,
+        snail_qubit = scq.Snail(EJ1 = EJ, EJ2 = EJ, EJ3 = EJ, EJ4 = alpha * EJ,
                                      ECJ1 = 1.0, ECJ2 = 1.0, ECJ3 = 1.0, ECJ4 = 1.0 / alpha,
                                      ECg1 = 50.0, ECg2 = 50.0, ECg3 = 50.0, ng1 = 0.0,
                                      ng2 = 0.0, ng3 = 0.0, flux = 0.5, ncut = 10).
@@ -55,26 +57,24 @@ class SnailQubit(QubitBaseClass):
         magnetic flux through the circuit loop, measured in units of the flux quantum
     ncut: int
         charge number cutoff for the charge on the three islands `n`, `n = -ncut, ..., ncut`
-    truncated_dim: int
-        desired dimension of the truncated quantum system; expected: truncated_dim > 1.
     """
 
-    # EJ1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # EJ2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # EJ3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # EJ4 = descriptors.WarchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # ECJ1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # ECJ2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # ECJ3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # ECJ4 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # ECg1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # ECg2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # ECg3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # ng1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # ng2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # ng3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # flux = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    # ncut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
+    EJ1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EJ2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EJ3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EJ4 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ4 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECg1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECg2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECg3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ng1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ng2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ng3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    flux = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ncut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,
@@ -93,8 +93,11 @@ class SnailQubit(QubitBaseClass):
         ng2: float,
         ng3: float,
         flux: float,
-        n_cut: int,
+        ncut: int,
+        truncated_dim: int = 6,
+        id_str: Optional[str] = None,
     ) -> None:
+        base.QuantumSystem.__init__(self, id_str=id_str)
         self.EJ1 = EJ1
         self.EJ2 = EJ2
         self.EJ3 = EJ3
@@ -110,8 +113,8 @@ class SnailQubit(QubitBaseClass):
         self.ng2 = ng2
         self.ng3 = ng3
         self.flux = flux
-        self.n_cut = n_cut
-        self.truncated_dim = 2 * n_cut + 1
+        self.ncut = ncut
+        self.truncated_dim = truncated_dim
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
@@ -132,11 +135,12 @@ class SnailQubit(QubitBaseClass):
             "ng3": 0.0,
             "flux": 0.41,
             "ncut": 10,
+            "truncated_dim": 10,
         }
 
     def EC_matrix(self) -> ndarray:
-        """Return the charging energy matrix."""
-        CJ1 = 1.0 / (2 * self.ECJ1)  # capacitance in units where e is set to 1
+        """Return the charging energy matrix"""
+        CJ1 = 1.0 / (2 * self.ECJ1)  # capacitances in units where e is set to 1
         CJ2 = 1.0 / (2 * self.ECJ2)
         CJ3 = 1.0 / (2 * self.ECJ3)
         CJ4 = 1.0 / (2 * self.ECJ4)
@@ -150,7 +154,7 @@ class SnailQubit(QubitBaseClass):
                 [0, -CJ3, CJ3 + CJ4 + Cg3],
             ]
         )
-        return np.linalg.inv(Cmat) * (1 / 2)
+        return np.linalg.inv(Cmat) / 2.0
 
     def _evals_calc(self, evals_count: int) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
@@ -171,7 +175,7 @@ class SnailQubit(QubitBaseClass):
         """Return Hilbert space dimension."""
         return (2 * self.n_cut + 1) ** 3
 
-    def potential(self, phi1, phi2, phi3) -> float:
+    def potential(self, phi1: ndarray, phi2: ndarray, phi3: ndarray) -> ndarray:
         """Return value of the potential energy at phi1 and phi2 and phi3, disregarding
         constants."""
         return (
@@ -184,7 +188,7 @@ class SnailQubit(QubitBaseClass):
     def kineticmat(self) -> ndarray:
         """Return the kinetic energy matrix."""
         ec = self.EC_matrix()
-        identity = sparse.identity(self.truncated_dim, format="csc")
+        identity = sparse.identity(2 * self.n_cut + 1, format="csc")
 
         n1 = np.arange(-self.n_cut, self.n_cut + 1, 1)
         n1 = sparse.diags(n1).tocsc()
@@ -210,9 +214,9 @@ class SnailQubit(QubitBaseClass):
 
     def potentialmat(self) -> ndarray:
         """Return the potential energy matrix."""
-        identity = sparse.identity(self.truncated_dim, format="csc")
+        identity = sparse.identity(2 * self.n_cut + 1, format="csc")
 
-        ones_on_diagonal = np.ones((1, self.truncated_dim - 1))
+        ones_on_diagonal = np.ones((1, 2 * self.n_cut))
         e_positive_phi = sparse.diags(ones_on_diagonal, [1]).tocsc()
         e_negative_phi = sparse.diags(ones_on_diagonal, [-1]).tocsc()
 
