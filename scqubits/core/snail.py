@@ -173,7 +173,7 @@ class Snail(QubitBaseClass):
 
     def hilbertdim(self) -> int:
         """Return Hilbert space dimension."""
-        return (2 * self.n_cut + 1) ** 3
+        return (2 * self.ncut + 1) ** 3
 
     def potential(self, phi1: ndarray, phi2: ndarray, phi3: ndarray) -> ndarray:
         """Return value of the potential energy at phi1 and phi2 and phi3, disregarding
@@ -188,21 +188,21 @@ class Snail(QubitBaseClass):
     def kineticmat(self) -> ndarray:
         """Return the kinetic energy matrix."""
         ec = self.EC_matrix()
-        identity = sparse.identity(2 * self.n_cut + 1, format="csc")
+        identity = sparse.identity(2 * self.ncut + 1, format="csc")
 
-        n1 = np.arange(-self.n_cut, self.n_cut + 1, 1)
+        n1 = np.arange(-self.ncut, self.ncut + 1, 1)
         n1 = sparse.diags(n1).tocsc()
         n1 = sparse.kron(
             sparse.kron(n1, identity, format="csc"), identity, format="csc"
         )
 
-        n2 = np.arange(-self.n_cut, self.n_cut + 1, 1)
+        n2 = np.arange(-self.ncut, self.ncut + 1, 1)
         n2 = sparse.diags(n2).tocsc()
         n2 = sparse.kron(
             sparse.kron(identity, n2, format="csc"), identity, format="csc"
         )
 
-        n3 = np.arange(-self.n_cut, self.n_cut + 1, 1)
+        n3 = np.arange(-self.ncut, self.ncut + 1, 1)
         n3 = sparse.diags(n3).tocsc()
         n3 = sparse.kron(
             sparse.kron(identity, identity, format="csc"), n3, format="csc"
@@ -214,9 +214,9 @@ class Snail(QubitBaseClass):
 
     def potentialmat(self) -> ndarray:
         """Return the potential energy matrix."""
-        identity = sparse.identity(2 * self.n_cut + 1, format="csc")
+        identity = sparse.identity(2 * self.ncut + 1, format="csc")
 
-        ones_on_diagonal = np.ones((1, 2 * self.n_cut))
+        ones_on_diagonal = np.ones((1, 2 * self.ncut))
         e_positive_phi = sparse.diags(ones_on_diagonal, [1]).tocsc()
         e_negative_phi = sparse.diags(ones_on_diagonal, [-1]).tocsc()
 
