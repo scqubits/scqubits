@@ -1,13 +1,20 @@
+from typing import Any, Dict, Optional, Tuple
+
 import numpy as np
 from scipy import sparse
-from typing import Any, Dict, Optional, Tuple
-import scqubits.core.qubit_base as base
-from scqubits.core import descriptors
-import scqubits.core.discretization as discretization
+
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from numpy import ndarray
+from scipy.sparse import csc_matrix
+
+import scqubits.core.qubit_base as base
+import scqubits.core.descriptors as descriptors
+import scqubits.core.discretization as discretization
 import scqubits.utils.spectrum_utils as utils
 import scqubits.io_utils.fileio_serializers as serializers
-from scipy.sparse import csc_matrix
+import scqubits.core.storage as storage
+import scqubits.core.constants as constants
 
 
 class Snail(base.QubitBaseClass, serializers.Serializable):
@@ -122,6 +129,10 @@ class Snail(base.QubitBaseClass, serializers.Serializable):
         self.flux = flux
         self.ncut = ncut
         self.truncated_dim = truncated_dim
+        self._default_grid = discretization.Grid1d(
+            -np.pi / 2, 3 * np.pi / 2, 100
+        )  # for plotting in phi_j basis
+        self._image_filename = None
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
@@ -144,15 +155,6 @@ class Snail(base.QubitBaseClass, serializers.Serializable):
             "ncut": 10,
             "truncated_dim": 10,
         }
-
-    @classmethod
-    def create(cls) -> "Snail":
-        phi_grid = discretization.Grid1d(-19.0, 19.0, 200)
-        init_params = cls.default_params()
-        init_params["grid"] = phi_grid
-        snail = cls(**init_params)
-        snail.widget()
-        return snail
 
     def EC_matrix(self) -> ndarray:
         """Return the charging energy matrix"""
