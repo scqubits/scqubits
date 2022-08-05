@@ -2003,13 +2003,13 @@ class SymbolicCircuit(serializers.Serializable):
             # the first island is always either associated with the sigma variable, or not
             # associated with any variable at all
             if len(vars) > 0:
-                complement_node_list = list(
-                    set([node.index for node in self.nodes]) - set(node_list)
-                    for node_list in island_vars_dict[island_type]
-                )
-                island_vars_dict[island_type] = (
-                    complement_node_list + island_vars_dict[island_type]
-                )
+                complement_node_set = set([node.index for node in self.nodes])
+                for node_list in island_vars_dict[island_type]:
+                    complement_node_set -= set(node_list)
+                complement_node_list = list(complement_node_set)
+                island_vars_dict[island_type] = [
+                    complement_node_list
+                ] + island_vars_dict[island_type]
         return orthogonalized_transformation_matrix_T.T, island_vars_dict
 
     def junction_node_pairs(self) -> List[List[int]]:
@@ -2036,8 +2036,15 @@ class SymbolicCircuit(serializers.Serializable):
         transmon_var: List[List[int]] = [],
         fluxonium_var: List[List[int]] = [],
     ) -> ndarray:
+        # extended and periodic variable offset
+        periodic_var_offset = (
+            len(self.var_categories["frozen"]) + len(self.var_categories["free"]) + 1
+        )
+        extended_var_offset = periodic_var_offset + len(self.var_categories["periodic"])
         # copy the orthogonalized transformation matrix
-        modified_transformation_matrix_T = self.orthogonalized_transformation_matrix.T
+        modified_transformation_matrix_T = copy.deepcopy(
+            self.orthogonalized_transformation_matrix.T
+        )
         node_entries_to_be_completed = [node.index for node in self.nodes]
         if self.is_grounded:
             node_entries_to_be_completed.remove(0)
@@ -2055,7 +2062,6 @@ class SymbolicCircuit(serializers.Serializable):
         # for every transmon variable node pair, identify the island IDs
         periodic_island_node_list = self.island_node_dict["periodic"]
         if len(transmon_var) > 0:
-            periodic_var_offset = self.var_categories["periodic"][0]
             transmon_var_island_list = []
             for node_pair in transmon_var:
                 # find out the island IDs for each node
@@ -2081,53 +2087,33 @@ class SymbolicCircuit(serializers.Serializable):
                     "For N node pairs provided for generating transmon variables, "
                     "these nodes must be in at least N+1 different islands."
                 )
-            # algorithm: for an island pair that has island 0, do nothing with the column
-            # entry of the transformation matrix for the other island throughout the process
-            # (the other island variable is "protected"); for an island pair that has a
-            # protected island variable and an unprotected island variable, only change the
-            # unprotected island variable matrix column; for two unprotected island variables,
-            # add the former to the ladder.
-            # step 1: identify protected islands
-            protected_island = []
-            for transmon_var_island in transmon_var_island_list:
-                if transmon_var_island[0] == 0:
-                    protected_island.append(transmon_var_island[1])
-                elif transmon_var_island[1] == 0:
-                    protected_island.append(transmon_var_island[0])
-            unprotected_island = list(
-                set(periodic_island_number) - {0} - set(protected_island)
-            )
-            # step 2: for pairs [protected, unprotected] or [unprotected, protected] add the
-            # protected variable column entry to the unprotected variable column entry, and
-            # for [unprotected, unprotected], add the former to the ladder
-            for transmon_var_island in transmon_var_island_list:
-                # [protected, unprotected]
-                if (transmon_var_island[0] in protected_island) and (
-                    transmon_var_island[1] in unprotected_island
-                ):
-                    modified_transformation_matrix_T[
-                        periodic_var_offset + transmon_var_island[1] - 2
-                    ] += modified_transformation_matrix_T[
-                        periodic_var_offset + transmon_var_island[0] - 2
-                    ]
-                # [unprotected, protected]
-                elif (transmon_var_island[1] in protected_island) and (
-                    transmon_var_island[0] in unprotected_island
-                ):
-                    modified_transformation_matrix_T[
-                        periodic_var_offset + transmon_var_island[0] - 2
-                    ] += modified_transformation_matrix_T[
-                        periodic_var_offset + transmon_var_island[1] - 2
-                    ]
-                # [unprotected, unprotected]
-                elif (transmon_var_island[0] in unprotected_island) and (
-                    transmon_var_island[1] in unprotected_island
-                ):
-                    modified_transformation_matrix_T[
-                        periodic_var_offset + transmon_var_island[0] - 2
-                    ] += modified_transformation_matrix_T[
-                        periodic_var_offset + transmon_var_island[1] - 2
-                    ]
+            # algorithm:
+            # Loop over all the superconducting islands, for island i, whenever user
+            # provided a node pair with islands [i,j], j < i, add the column corresponding
+            # to the jth island to that of the ith island; if j = 0, do nothing.
+            for island_ID in range(1, len(self.var_categories["periodic"]) + 1):
+                # loop over all transmon_var_island
+                for transmon_var_island in transmon_var_island_list:
+                    if (
+                        (transmon_var_island[0] == island_ID)
+                        and (transmon_var_island[1] < island_ID)
+                        and (transmon_var_island[1] != 0)
+                    ):
+                        modified_transformation_matrix_T[
+                            periodic_var_offset + transmon_var_island[0] - 2
+                        ] += modified_transformation_matrix_T[
+                            periodic_var_offset + transmon_var_island[1] - 2
+                        ]
+                    elif (
+                        (transmon_var_island[1] == island_ID)
+                        and (transmon_var_island[0] < island_ID)
+                        and (transmon_var_island[0] != 0)
+                    ):
+                        modified_transformation_matrix_T[
+                            periodic_var_offset + transmon_var_island[1] - 2
+                        ] += modified_transformation_matrix_T[
+                            periodic_var_offset + transmon_var_island[0] - 2
+                        ]
             # to create a list of node entries to be completed, the algorithm is:
             # for every transmon variable node pairs, try remove the first node, if not
             # exist, remove the second
@@ -2140,7 +2126,6 @@ class SymbolicCircuit(serializers.Serializable):
                     node_entries_to_be_completed.remove(transmon_node_pair[1])
 
         elif len(fluxonium_var) > 0:
-            extended_var_offset = self.var_categories["extended"][0]
             # require number of different nodes > number of JJ node pairs provided
             if (
                 len(

@@ -3062,7 +3062,7 @@ class Circuit(Subsystem):
         attribute to initiate Circuit instance, by default `True`
     truncated_dim: Optional[int]
         truncated dimension if the user wants to use this circuit instance in
-        HilbertSpace, by default `None`
+        HilbertSpace, by default 10
     """
 
     # switch used in protecting the class from erroneous addition of new attributes
@@ -3076,7 +3076,7 @@ class Circuit(Subsystem):
         ext_basis: str = "discretized",
         is_flux_dynamic: bool = False,
         initiate_sym_calc: bool = True,
-        truncated_dim: int = None,
+        truncated_dim: int = 10,
     ):
         base.QuantumSystem.__init__(self, id_str=None)
         if basis_completion not in ["heuristic", "canonical"]:
@@ -3186,7 +3186,7 @@ class Circuit(Subsystem):
         basis_completion="heuristic",
         ext_basis: str = "discretized",
         initiate_sym_calc: bool = True,
-        truncated_dim: int = None,
+        truncated_dim: int = 10,
     ):
         """
         Wrapper to Circuit __init__ to create a class instance. This is deprecated and
@@ -3214,7 +3214,7 @@ class Circuit(Subsystem):
             attribute to initiate Circuit instance, by default `True`
         truncated_dim:
             truncated dimension if the user wants to use this circuit instance in
-            HilbertSpace, by default `None`
+            HilbertSpace, by default 10
         """
         warnings.warn(
             "Initializing Circuit instances with `from_yaml` will not be "
