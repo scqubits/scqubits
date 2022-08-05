@@ -58,28 +58,27 @@ class SnailQubit(base.QubitBaseClass, serializers.Serializable):
         self.flux = flux
         # Truncation dimension
         self.ncut = ncut
-        self.dim = 2 * ncut + 1
         self._image_filename = None
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
         return {
-            "EJ1": 1.0,
-            "EJ2": 1.0,
-            "EJ3": 1.0,
-            "EJ4": 0.7,
-            "EC1": 1,
-            "EC2": 1,
-            "EC3": 1,
-            "EC4": 1 / 0.7,
-            "ECg1": 10,
-            "ECg2": 10,
-            "ECg3": 10,
+            "EJ1": 887.3,
+            "EJ2": 887.3,
+            "EJ3": 887.3,
+            "EJ4": 117.5,
+            "EC1": 0.2873,
+            "EC2": 0.2873,
+            "EC3": 0.2873,
+            "EC4": 1.437,
+            "ECg1": 193.7,
+            "ECg2": 193.7,
+            "ECg3": 193.7,
             "ng1": 0.0,
             "ng2": 0.0,
             "ng3": 0.0,
-            "flux": 0.41,
-            "ncut": 10,
+            "flux": 0.0,
+            "ncut": 30,
         }
 
     # Construct the Ec matrix, we need this to calculate the kinetic_energy matrix in
@@ -105,24 +104,21 @@ class SnailQubit(base.QubitBaseClass, serializers.Serializable):
 
     def get_kinetic(self) -> ndarray:
         ec = self.get_Ec_matrix()
-        identity = sparse.identity(self.dim, format="csc")
+        identity = sparse.identity(2 * self.ncut + 1, format="csc")
 
-        n1 = np.arange(-self.ncut, self.ncut + 1, 1)
-        n1 = sparse.diags(n1).tocsc()
+        n_op = np.arange(-self.ncut, self.ncut + 1, 1)
+        n_op = sparse.diags(n_op).tocsc()
+
         n1 = sparse.kron(
-            sparse.kron(n1, identity, format="csc"), identity, format="csc"
+            sparse.kron(n_op, identity, format="csc"), identity, format="csc"
         )
 
-        n2 = np.arange(-self.ncut, self.ncut + 1, 1)
-        n2 = sparse.diags(n2).tocsc()
         n2 = sparse.kron(
-            sparse.kron(identity, n2, format="csc"), identity, format="csc"
+            sparse.kron(identity, n_op, format="csc"), identity, format="csc"
         )
 
-        n3 = np.arange(-self.ncut, self.ncut + 1, 1)
-        n3 = sparse.diags(n3).tocsc()
         n3 = sparse.kron(
-            sparse.kron(identity, identity, format="csc"), n3, format="csc"
+            sparse.kron(identity, identity, format="csc"), n_op, format="csc"
         )
 
         nvec = np.array([n1, n2, n3])
@@ -140,9 +136,9 @@ class SnailQubit(base.QubitBaseClass, serializers.Serializable):
         )
 
     def get_potential(self) -> ndarray:
-        identity = sparse.identity(self.dim, format="csc")
+        identity = sparse.identity(2 * self.ncut + 1, format="csc")
 
-        ones_on_diagonal = np.ones((1, self.dim - 1))  # might cause problem
+        ones_on_diagonal = np.ones((1, 2 * self.ncut))
         e_positive_phi = sparse.diags(ones_on_diagonal, [1]).tocsc()
         e_negative_phi = sparse.diags(ones_on_diagonal, [-1]).tocsc()
 
@@ -210,9 +206,9 @@ class SnailQubit(base.QubitBaseClass, serializers.Serializable):
         """Return the Hamiltonian."""
         return self.get_kinetic() + self.get_potential()
 
-    def hermitian(self) -> float:
-        h = self.hamiltonian()
-        return np.max(np.abs(h - h.T.conjugate()))
+    # def hermitian(self) -> float:
+    #     h = self.hamiltonian()
+    #     return np.max(np.abs(h - h.T.conjugate()))
 
     def hilbertdim(self) -> int:
         """Return Hilbert space dimension."""
@@ -221,7 +217,7 @@ class SnailQubit(base.QubitBaseClass, serializers.Serializable):
     def _evals_calc(self, evals_count: int) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
         evals = sp.sparse.linalg.eigsh(
-            hamiltonian_mat, which="SM", k=evals_count, return_eigenvectors=False
+            hamiltonian_mat, which="SA", k=evals_count, return_eigenvectors=False
         )
         return np.sort(evals)
 
