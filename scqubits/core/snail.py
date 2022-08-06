@@ -134,6 +134,9 @@ class SNAIL(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         sin_op += sin_op.conjugate().T
         return sin_op
 
+
+# n in Ec goes over all integers, phi_ext is lumped with the large junctions
+
     # def hamiltonian(self):
     #     dim = self.hilbertdim()
     #     hamiltonian_mat = np.diag(
@@ -150,6 +153,9 @@ class SNAIL(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     #         -self.n * self.EJ * np.exp(-1j * 2.0 * np.pi * self.flux/self.n) / 2.0
     #     )
     #
+    #     return hamiltonian_mat
+
+    # n in Ec goes over all integers, phi_ext is lumped with the small junction
 
     def hamiltonian(self):
         dim = self.hilbertdim()
@@ -167,6 +173,45 @@ class SNAIL(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             -self.n * self.EJ / 2.0
         )
         return hamiltonian_mat
+
+    # n in Ec goes over all multiples of n, phi_ext is lumped with the large junction
+
+    # def hamiltonian(self):
+    #     dim = self.hilbertdim()
+    #     hamiltonian_mat = np.diag(
+    #         [(4.0 * self.EC * (ind - self.ncut) ** 2 / self.n ** 2) * (ind%self.n == 0) for ind in range(dim)]
+    #     )
+    #     ind_n = np.arange(dim - self.n)
+    #     hamiltonian_mat[ind_n, ind_n + self.n] = -self.alpha * self.EJ / 2.0
+    #     hamiltonian_mat[ind_n + self.n, ind_n] = -self.alpha * self.EJ / 2.0
+    #     ind_1 = np.arange(dim - 1)
+    #     hamiltonian_mat[ind_1, ind_1 + 1] = (
+    #         -self.n * self.EJ * np.exp(1j * 2.0 * np.pi * self.flux/self.n) / 2.0
+    #     )
+    #     hamiltonian_mat[ind_1 + 1, ind_1] = (
+    #         -self.n * self.EJ * np.exp(-1j * 2.0 * np.pi * self.flux/self.n) / 2.0
+    #     )
+    #
+    #     return hamiltonian_mat
+
+    # n in Ec goes over all multiples of n, phi_ext is lumped with the small junction
+
+    # def hamiltonian(self):
+    #     dim = self.hilbertdim()
+    #     hamiltonian_mat = np.diag(
+    #         [4.0 * self.EC * (ind - self.ncut) ** 2 / self.n ** 2 * (ind%self.n == 0) for ind in range(dim)]
+    #     )
+    #     ind_n = np.arange(dim - self.n)
+    #     hamiltonian_mat[ind_n, ind_n + self.n] = -self.alpha * self.EJ / 2.0 * np.exp(1j * 2.0 * np.pi * self.flux)
+    #     hamiltonian_mat[ind_n + self.n, ind_n] = -self.alpha * self.EJ / 2.0 * np.exp(-1j * 2.0 * np.pi * self.flux)
+    #     ind_1 = np.arange(dim - 1)
+    #     hamiltonian_mat[ind_1, ind_1 + 1] = (
+    #         -self.n * self.EJ / 2.0
+    #     )
+    #     hamiltonian_mat[ind_1 + 1, ind_1] = (
+    #         -self.n * self.EJ / 2.0
+    #     )
+    #     return hamiltonian_mat
 
     def hilbertdim(self) -> int:
         """
