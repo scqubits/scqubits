@@ -352,27 +352,27 @@ class Subsystem(
         # update the attribute for the instance in symbolic_circuit
         # generate _hamiltonian_sym_for_numerics if not already generated, delayed for
         # large circuits
+
         if (
             not self.is_child
             and (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES
         ) or self.is_purely_harmonic:
+            capacitance_branches = [branch for branch in self.branches if branch.type in ("C", "JJ")]
+            capacitance_params = [branch.parameters["EC"] if branch.type=="C" else branch.parameters["ECJ"] for branch in capacitance_branches]
+            capacitance_sym_params = [param for param in capacitance_params if isinstance(param, sm.Expr)]
+
             self.symbolic_circuit.update_param_init_val(param_name, value)
-            self._regenerate_sym_hamiltonian()
+            if param_name in [param.name for param in capacitance_sym_params] and self.ext_basis == "harmonic":
+                self._is_parameter_updated = True
 
-        # update Circuit instance
-
-        # if purely harmonic the circuit attributes should change
-        if self.is_purely_harmonic and isinstance(self, Circuit):
-            self.potential_symbolic = self.symbolic_circuit.potential_symbolic
-            self.transformation_matrix = self.symbolic_circuit.transformation_matrix
-            self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
-
+        # update all subsystem instances
         if self.hierarchical_diagonalization:
-            self.generate_subsystems()
-            self.operators_by_name = self.set_operators()
-            self.updated_subsystem_indices = list(range(len(self.subsystems)))
-        else:
-            self.operators_by_name = self.set_operators()
+            if isinstance(self, Circuit) and self._is_parameter_updated:
+                return None
+            for subsys_idx, subsys in enumerate(self.subsystems):
+                if hasattr(subsys, param_name):
+                    self._store_updated_subsystem_index(subsys_idx)
+                    setattr(subsys, param_name, value)
 
     def _set_property_and_update_ext_flux_or_charge(
         self, param_name: str, value: float
@@ -509,7 +509,7 @@ class Subsystem(
     def sync_parameters_with_parent(self):
         for param_var in self.external_fluxes + self.offset_charges + list(self.symbolic_params.keys()):
             setattr(self, param_var.name, getattr(self.parent, param_var.name))
-
+        
     def _set_sync_status_to_True(self):
         self._out_of_sync = False
         for subsys in self.subsystems:
@@ -3077,6 +3077,7 @@ class Circuit(Subsystem):
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
         self._out_of_sync = False  # for use with CentralDispatch
+        self._is_parameter_updated = False # to track parameter changes in the circuit
 
         if initiate_sym_calc:
             self.configure()
@@ -3311,11 +3312,36 @@ class Circuit(Subsystem):
         """
         Syncs all the parameters of the subsystems with the current Circuit instance.
         """
+        self.update_circuit()
+        if not self._out_of_sync:
+            return None
         for subsys_index in self.updated_subsystem_indices:
             self.subsystems[subsys_index].sync_parameters_with_parent()
             if self.subsystems[subsys_index].hierarchical_diagonalization:
                 self.subsystems[subsys_index].build_hilbertspace()
         self._set_sync_status_to_True()
+
+    def update_circuit(self):
+
+        if not self._is_parameter_updated:
+            return None
+
+        self._regenerate_sym_hamiltonian()
+        # if purely harmonic the circuit attributes should change
+        if self.is_purely_harmonic and isinstance(self, Circuit):
+            self.potential_symbolic = self.symbolic_circuit.potential_symbolic
+            self.transformation_matrix = self.symbolic_circuit.transformation_matrix
+            self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
+
+        if self.hierarchical_diagonalization:
+            self.generate_subsystems()
+            self.operators_by_name = self.set_operators()
+            self.updated_subsystem_indices = list(range(len(self.subsystems)))
+        else:
+            self.operators_by_name = self.set_operators()
+
+        self._is_parameter_updated = False
+
 
     def configure(
         self,
