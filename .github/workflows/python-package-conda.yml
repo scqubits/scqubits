@@ -34,7 +34,9 @@ jobs:
       run: python -c 'import scqubits'
     - name: Install optional dependencies
       run: conda install --file optional-requirements.txt -c conda-forge
-    - name: Test with pytest
+    - name: Run all pytests (serial)
       run: |
-        conda install pytest
         pytest
+    - name: Run all pytests (multiprocessing)
+      run: |
+        pytest --num_cpus 4
