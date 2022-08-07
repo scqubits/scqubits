@@ -51,7 +51,7 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as utils
-from scqubits.utils.misc import check_sync_status
+from scqubits.utils.misc import check_sync_status_circuit
 
 from scqubits import HilbertSpace, settings
 from scqubits.core import operators as op
@@ -461,30 +461,42 @@ class Subsystem(
         if property_update_type == "update_param_vars":
 
             def setter(obj, value, name=attrib_name):
-                settings.DISPATCH_ENABLED = False
+                old_dispatch_status = settings.DISPATCH_ENABLED
+                if old_dispatch_status:
+                    settings.DISPATCH_ENABLED = False
                 obj._set_property_and_update_param_vars(name, value)
-                settings.DISPATCH_ENABLED = True
+                if old_dispatch_status:
+                    settings.DISPATCH_ENABLED = True
 
         elif property_update_type == "update_external_flux_or_charge":
 
             def setter(obj, value, name=attrib_name):
-                settings.DISPATCH_ENABLED = False
+                old_dispatch_status = settings.DISPATCH_ENABLED
+                if old_dispatch_status:
+                    settings.DISPATCH_ENABLED = False
                 obj._set_property_and_update_ext_flux_or_charge(name, value)
-                settings.DISPATCH_ENABLED = True
+                if old_dispatch_status:
+                    settings.DISPATCH_ENABLED = True
 
         elif property_update_type == "update_cutoffs":
 
             def setter(obj, value, name=attrib_name):
-                settings.DISPATCH_ENABLED = False
+                old_dispatch_status = settings.DISPATCH_ENABLED
+                if old_dispatch_status:
+                    settings.DISPATCH_ENABLED = False
                 obj._set_property_and_update_cutoffs(name, value)
-                settings.DISPATCH_ENABLED = True
+                if old_dispatch_status:
+                    settings.DISPATCH_ENABLED = True
 
         elif property_update_type == "update_ext_basis":
 
             def setter(obj, value, name=attrib_name):
-                settings.DISPATCH_ENABLED = False
+                old_dispatch_status = settings.DISPATCH_ENABLED
+                if old_dispatch_status:
+                    settings.DISPATCH_ENABLED = False
                 obj._set_property_and_update_ext_basis(name, value)
-                settings.DISPATCH_ENABLED = True
+                if old_dispatch_status:
+                    settings.DISPATCH_ENABLED = True
 
         setattr(
             self.__class__,
@@ -494,13 +506,27 @@ class Subsystem(
             ),
         )
 
+    def sync_parameters_with_parent(self):
+        for param_var in self.external_fluxes + self.offset_charges + list(self.symbolic_params.keys()):
+            setattr(self, param_var.name, getattr(self.parent, param_var.name))
+
+    def _set_sync_status_to_True(self):
+        self._out_of_sync = False
+        for subsys in self.subsystems:
+            if subsys.hierarchical_diagonalization:
+                subsys._set_sync_status_to_True()
+                subsys._out_of_sync = False
+
     def receive(self, event: str, sender: object, **kwargs) -> None:
+        if sender is self:
+            self.broadcast("QUANTUMSYSTEM_UPDATE")
+            if self.hierarchical_diagonalization:
+                self.hilbert_space._out_of_sync = True
         if self.hierarchical_diagonalization and (sender in self.subsystems):
             self._store_updated_subsystem_index(self.subsystems.index(sender))
             self.broadcast("CIRCUIT_UPDATE")
             self._out_of_sync = True
             self.hilbert_space._out_of_sync = True
-            self.broadcast("QUANTUMSYSTEM_UPDATE")
 
     def _configure(self) -> None:
         """
@@ -1862,6 +1888,7 @@ class Subsystem(
             eigen_vectors.append(functools.reduce(np.kron, eigen_vector))
         return eigenvals, np.array(eigen_vectors).T
 
+    @check_sync_status_circuit
     def hamiltonian(self) -> Union[csc_matrix, ndarray]:
         """
         Returns the Hamiltonian of the Circuit.
@@ -3279,6 +3306,16 @@ class Circuit(Subsystem):
                     or attrib[1:3] == "ng"
                 ):
                     delattr(self, attrib)
+
+    def sync_circuit(self):
+        """
+        Syncs all the parameters of the subsystems with the current Circuit instance.
+        """
+        for subsys_index in self.updated_subsystem_indices:
+            self.subsystems[subsys_index].sync_parameters_with_parent()
+            if self.subsystems[subsys_index].hierarchical_diagonalization:
+                self.subsystems[subsys_index].build_hilbertspace()
+        self._set_sync_status_to_True()
 
     def configure(
         self,

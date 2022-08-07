@@ -1646,7 +1646,7 @@ class SymbolicCircuit(serializers.Serializable):
             for node_idx, node in enumerate(branch.nodes):
                 if not node.is_ground():
                     n_id = self._node_list_without_ground.index(node)
-                    W[idx, n_id] = 1 * (-1) ** node_idx
+                    W[idx, n_id] = (-1) ** node_idx
 
         M = np.vstack([(W.T @ C_diag), R.T])
 

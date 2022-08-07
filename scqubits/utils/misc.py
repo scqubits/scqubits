@@ -162,6 +162,22 @@ def check_sync_status(func: Callable) -> Callable:
     return wrapper
 
 
+def check_sync_status_circuit(func: Callable) -> Callable:
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if self.hierarchical_diagonalization and self._out_of_sync:
+            raise Exception(
+                "[scqubits] Some Subsystem parameters have been changed and"
+                " the parameter/s in the current instance are is/are out of sync. "
+                " Please sync all the parameters in the main Circuit instance using:"
+                " <Circuit>.sync_circuit().",
+                Warning,
+            )
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
+
 class DeprecationMessage:
     """Decorator class, producing an adjustable warning and info upon usage of the
     decorated function.

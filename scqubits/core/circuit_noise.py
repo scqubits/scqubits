@@ -53,7 +53,8 @@ class NoisyCircuit(NoisySystem, ABC):
                 for free_sym in term.free_symbols:
                     product_matrix_list.append(self.get_operator_by_name(free_sym.name))
                 eval_matrix_list.append(
-                    float(coefficient_sympy) * functools.reduce(builtin_op.mul, product_matrix_list)
+                    float(coefficient_sympy)
+                    * functools.reduce(builtin_op.mul, product_matrix_list)
                 )
         return sum(eval_matrix_list)
 
@@ -101,7 +102,11 @@ class NoisyCircuit(NoisySystem, ABC):
         for param_sym in self.external_fluxes + self.offset_charges:
             diff_sym_expr = hamiltonian.diff(param_sym)
 
-            def param_derivative(self=self, diff_sym_expr=diff_sym_expr, all_sym_parameters=all_sym_parameters):
+            def param_derivative(
+                self=self,
+                diff_sym_expr=diff_sym_expr,
+                all_sym_parameters=all_sym_parameters,
+            ):
                 # substitute all symbolic params
                 for param in all_sym_parameters:
                     diff_sym_expr = diff_sym_expr.subs(param, getattr(self, param.name))
@@ -155,7 +160,7 @@ class NoisyCircuit(NoisySystem, ABC):
             term = term.subs(flux, getattr(self, flux.name))
         if calc == "sin_phi_qp":
             term = term.subs(sm.cos, sm.sin)
-            term = term.subs(term.args[0], term.args[0]/2)
+            term = term.subs(term.args[0], term.args[0] / 2)
         return self._evaluate_symbolic_expr(term)
 
     def generate_tphi_1_over_f_methods(self):
@@ -248,79 +253,85 @@ class NoisyCircuit(NoisySystem, ABC):
 
     def generate_overall_tphi_cc(self):
         def tphi_1_over_f_cc(
-                self=self,
-                A_noise: float = NOISE_PARAMS["A_cc"],
-                i: int = 0,
-                j: int = 1,
-                esys: Tuple[ndarray, ndarray] = None,
-                get_rate: bool = False,
-                **kwargs
-            ) -> float:
+            self=self,
+            A_noise: float = NOISE_PARAMS["A_cc"],
+            i: int = 0,
+            j: int = 1,
+            esys: Tuple[ndarray, ndarray] = None,
+            get_rate: bool = False,
+            **kwargs,
+        ) -> float:
             tphi_times = []
             for branch in [brnch for brnch in self.branches if brnch.type == "JJ"]:
-                tphi_times.append(getattr(self, f"tphi_1_over_f_cc{branch.id_str}")(
-                    A_noise = A_noise,
-                    i = i,
-                    j = j,
-                    esys = esys,
-                    **kwargs
-                ))
-            total_rate = sum([1/tphi for tphi in tphi_times])
+                tphi_times.append(
+                    getattr(self, f"tphi_1_over_f_cc{branch.id_str}")(
+                        A_noise=A_noise, i=i, j=j, esys=esys, **kwargs
+                    )
+                )
+            total_rate = sum([1 / tphi for tphi in tphi_times])
             if get_rate:
                 return total_rate
-            return 1/total_rate if total_rate !=0 else np.inf
-        
+            return 1 / total_rate if total_rate != 0 else np.inf
+
         self._data["tphi_1_over_f_cc"] = tphi_1_over_f_cc
 
     def generate_overall_tphi_flux(self):
         def tphi_1_over_f_flux(
-                self=self,
-                A_noise: float = NOISE_PARAMS["A_flux"],
-                i: int = 0,
-                j: int = 1,
-                esys: Tuple[ndarray, ndarray] = None,
-                get_rate: bool = False,
-                **kwargs
-            ) -> float:
+            self=self,
+            A_noise: float = NOISE_PARAMS["A_flux"],
+            i: int = 0,
+            j: int = 1,
+            esys: Tuple[ndarray, ndarray] = None,
+            get_rate: bool = False,
+            **kwargs,
+        ) -> float:
             tphi_times = []
             for flux_sym in self.external_fluxes:
-                tphi_times.append(getattr(self, f"tphi_1_over_f_flux{get_trailing_number(flux_sym.name)}")(
-                    A_noise=A_noise,
-                    i = i,
-                    j = j,
-                    esys = esys,
-                ))
-            total_rate = sum([1/tphi for tphi in tphi_times])
+                tphi_times.append(
+                    getattr(
+                        self, f"tphi_1_over_f_flux{get_trailing_number(flux_sym.name)}"
+                    )(
+                        A_noise=A_noise,
+                        i=i,
+                        j=j,
+                        esys=esys,
+                    )
+                )
+            total_rate = sum([1 / tphi for tphi in tphi_times])
             if get_rate:
                 return total_rate
-            return 1/total_rate if total_rate !=0 else np.inf
+            return 1 / total_rate if total_rate != 0 else np.inf
+
         self._data["tphi_1_over_f_flux"] = tphi_1_over_f_flux
 
     def generate_overall_tphi_ng(self):
         def tphi_1_over_f_ng(
-                self=self,
-                A_noise: float = NOISE_PARAMS["A_ng"],
-                i: int = 0,
-                j: int = 1,
-                esys: Tuple[ndarray, ndarray] = None,
-                get_rate: bool = False,
-                **kwargs
-            ) -> float:
+            self=self,
+            A_noise: float = NOISE_PARAMS["A_ng"],
+            i: int = 0,
+            j: int = 1,
+            esys: Tuple[ndarray, ndarray] = None,
+            get_rate: bool = False,
+            **kwargs,
+        ) -> float:
             tphi_times = []
             for flux_sym in self.offset_charges:
-                tphi_times.append(getattr(self, f"tphi_1_over_f_ng{get_trailing_number(flux_sym.name)}")(
-                    A_noise=A_noise,
-                    i = i,
-                    j = j,
-                    esys = esys,
-                ))
-            total_rate = sum([1/tphi for tphi in tphi_times])
+                tphi_times.append(
+                    getattr(
+                        self, f"tphi_1_over_f_ng{get_trailing_number(flux_sym.name)}"
+                    )(
+                        A_noise=A_noise,
+                        i=i,
+                        j=j,
+                        esys=esys,
+                    )
+                )
+            total_rate = sum([1 / tphi for tphi in tphi_times])
             if get_rate:
                 return total_rate
-            return 1/total_rate if total_rate !=0 else np.inf
-        self._data["tphi_1_over_f_ng"] = tphi_1_over_f_ng
+            return 1 / total_rate if total_rate != 0 else np.inf
 
-                
+        self._data["tphi_1_over_f_ng"] = tphi_1_over_f_ng
 
     def generate_t1_flux_bias_line_methods(self):
         """
@@ -658,27 +669,32 @@ class NoisyCircuit(NoisySystem, ABC):
 
     def generate_overall_t1_flux_bias_line(self):
         def t1_flux_bias_line(
-                self=self,
-                i: int = 1,
-                j: int = 0,
-                M: float = NOISE_PARAMS["M"],
-                Z: Union[complex, float, Callable] = NOISE_PARAMS["R_0"],
-                T: float = NOISE_PARAMS["T"],
-                total: bool = True,
-                esys: Tuple[ndarray, ndarray] = None,
-                get_rate: bool = False,
-            ) -> float:
+            self=self,
+            i: int = 1,
+            j: int = 0,
+            M: float = NOISE_PARAMS["M"],
+            Z: Union[complex, float, Callable] = NOISE_PARAMS["R_0"],
+            T: float = NOISE_PARAMS["T"],
+            total: bool = True,
+            esys: Tuple[ndarray, ndarray] = None,
+            get_rate: bool = False,
+        ) -> float:
             t1_times = []
             for external_flux_sym in self.external_fluxes:
-                t1_times.append(getattr(self, f"t1_flux_bias_line{get_trailing_number(external_flux_sym.name)}")(
-                    i=i,
-                    j=j,
-                    M=M,
-                    Z=Z,
-                    T=T,
-                    total=total,
-                    esys=esys,
-                ))
+                t1_times.append(
+                    getattr(
+                        self,
+                        f"t1_flux_bias_line{get_trailing_number(external_flux_sym.name)}",
+                    )(
+                        i=i,
+                        j=j,
+                        M=M,
+                        Z=Z,
+                        T=T,
+                        total=total,
+                        esys=esys,
+                    )
+                )
             total_rate = sum([1 / t1 for t1 in t1_times])
             if get_rate:
                 return total_rate
