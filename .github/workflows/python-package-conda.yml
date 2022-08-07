@@ -36,7 +36,7 @@ jobs:
       run: conda install --file optional-requirements.txt -c conda-forge
     - name: Run all pytests (serial)
       run: |
-        pytest
+        pytest -v --pyargs scqubits
     - name: Run all pytests (multiprocessing)
       run: |
-        pytest --num_cpus 4
+        pytest -v --pyargs scqubits --num_cpus=4
