@@ -357,12 +357,24 @@ class Subsystem(
             not self.is_child
             and (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES
         ) or self.is_purely_harmonic:
-            capacitance_branches = [branch for branch in self.branches if branch.type in ("C", "JJ")]
-            capacitance_params = [branch.parameters["EC"] if branch.type=="C" else branch.parameters["ECJ"] for branch in capacitance_branches]
-            capacitance_sym_params = [param for param in capacitance_params if isinstance(param, sm.Expr)]
+            capacitance_branches = [
+                branch for branch in self.branches if branch.type in ("C", "JJ")
+            ]
+            capacitance_params = [
+                branch.parameters["EC"]
+                if branch.type == "C"
+                else branch.parameters["ECJ"]
+                for branch in capacitance_branches
+            ]
+            capacitance_sym_params = [
+                param for param in capacitance_params if isinstance(param, sm.Expr)
+            ]
 
             self.symbolic_circuit.update_param_init_val(param_name, value)
-            if param_name in [param.name for param in capacitance_sym_params] and self.ext_basis == "harmonic":
+            if (
+                param_name in [param.name for param in capacitance_sym_params]
+                and self.ext_basis == "harmonic"
+            ):
                 self._is_parameter_updated = True
 
         # update all subsystem instances
@@ -507,9 +519,13 @@ class Subsystem(
         )
 
     def sync_parameters_with_parent(self):
-        for param_var in self.external_fluxes + self.offset_charges + list(self.symbolic_params.keys()):
+        for param_var in (
+            self.external_fluxes
+            + self.offset_charges
+            + list(self.symbolic_params.keys())
+        ):
             setattr(self, param_var.name, getattr(self.parent, param_var.name))
-        
+
     def _set_sync_status_to_True(self):
         self._out_of_sync = False
         for subsys in self.subsystems:
@@ -3077,7 +3093,7 @@ class Circuit(Subsystem):
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
         self._out_of_sync = False  # for use with CentralDispatch
-        self._is_parameter_updated = False # to track parameter changes in the circuit
+        self._is_parameter_updated = False  # to track parameter changes in the circuit
 
         if initiate_sym_calc:
             self.configure()
@@ -3341,7 +3357,6 @@ class Circuit(Subsystem):
             self.operators_by_name = self.set_operators()
 
         self._is_parameter_updated = False
-
 
     def configure(
         self,
