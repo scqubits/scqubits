@@ -107,21 +107,23 @@ class SnailQubit(base.QubitBaseClass, serializers.Serializable):
         identity = sparse.identity(2 * self.ncut + 1, format="csc")
 
         n_op = np.arange(-self.ncut, self.ncut + 1, 1)
-        n_op = sparse.diags(n_op).tocsc()
+        n_op1 = sparse.diags(n_op + self.ng1).tocsc()
+        n_op2 = sparse.diags(n_op + self.ng2).tocsc()
+        n_op3 = sparse.diags(n_op + self.ng3).tocsc()
 
         n1 = sparse.kron(
-            sparse.kron(n_op, identity, format="csc"), identity, format="csc"
+            sparse.kron(n_op1, identity, format="csc"), identity, format="csc"
         )
 
         n2 = sparse.kron(
-            sparse.kron(identity, n_op, format="csc"), identity, format="csc"
+            sparse.kron(identity, n_op2, format="csc"), identity, format="csc"
         )
 
         n3 = sparse.kron(
-            sparse.kron(identity, identity, format="csc"), n_op, format="csc"
+            sparse.kron(identity, identity, format="csc"), n_op3, format="csc"
         )
 
-        nvec = np.array([n1, n2, n3])
+        nvec = np.array([n1 , n2 , n3 ]) # added offset gate charges
 
         return 4 * nvec.T @ ec @ nvec
 

@@ -27,7 +27,7 @@ from scqubits import settings
 from scqubits.core.bifluxon import Bifluxon
 from scqubits.core.snail import SNAIL
 from scqubits.core.snail_qubit import SnailQubit
-from scqubits.core.snail_danny import SNAIL_D
+from scqubits.core.snail_scratch import SNAIL_D
 from scqubits.core.central_dispatch import CentralDispatch
 from scqubits.core.cos2phi_qubit import Cos2PhiQubit
 from scqubits.core.bifluxon import Bifluxon
