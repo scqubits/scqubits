@@ -29,6 +29,7 @@ from typing import (
     overload,
 )
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
@@ -48,6 +49,7 @@ from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import DataStore, SpectrumData
 from scqubits.settings import IN_IPYTHON
+from scqubits.settings import RCPARAMS_DICT
 from scqubits.utils.cpu_switch import get_map_method
 from scqubits.utils.misc import InfoBar, process_which
 from scqubits.utils.spectrum_utils import (
@@ -1068,46 +1070,47 @@ class QubitBaseClass1d(QubitBaseClass):
         **kwargs:
             standard plotting option (see separate documentation)
         """
-        wavefunc_indices = process_which(which, self.truncated_dim)
+        with mpl.rc_context(RCPARAMS_DICT):
+            wavefunc_indices = process_which(which, self.truncated_dim)
 
-        if esys is None:
-            evals_count = max(wavefunc_indices) + 1
-            esys = self.eigensys(evals_count=evals_count)
-            evals, _ = esys
-        else:
-            evals, _ = esys
+            if esys is None:
+                evals_count = max(wavefunc_indices) + 1
+                esys = self.eigensys(evals_count=evals_count)
+                evals, _ = esys
+            else:
+                evals, _ = esys
 
-        energies = evals[list(wavefunc_indices)]
+            energies = evals[list(wavefunc_indices)]
 
-        phi_grid = phi_grid or self._default_grid
-        potential_vals = self.potential(phi_grid.make_linspace())
+            phi_grid = phi_grid or self._default_grid
+            potential_vals = self.potential(phi_grid.make_linspace())
 
-        amplitude_modifier = constants.MODE_FUNC_DICT[mode]
-        wavefunctions = []
-        for wavefunc_index in wavefunc_indices:
-            phi_wavefunc = self.wavefunction(
-                esys, which=wavefunc_index, phi_grid=phi_grid
+            amplitude_modifier = constants.MODE_FUNC_DICT[mode]
+            wavefunctions = []
+            for wavefunc_index in wavefunc_indices:
+                phi_wavefunc = self.wavefunction(
+                    esys, which=wavefunc_index, phi_grid=phi_grid
+                )
+                phi_wavefunc.amplitudes = standardize_sign(phi_wavefunc.amplitudes)
+                phi_wavefunc.amplitudes = amplitude_modifier(phi_wavefunc.amplitudes)
+                wavefunctions.append(phi_wavefunc)
+
+            fig_ax = kwargs.get("fig_ax") or plt.subplots()
+            kwargs["fig_ax"] = fig_ax
+            kwargs = {
+                **self.wavefunction1d_defaults(
+                    mode, evals, wavefunc_count=len(wavefunc_indices)  # type:ignore
+                ),
+                **kwargs,
+            }
+            # in merging the dictionaries in the previous line: if any duplicates,
+            # later ones survive
+
+            plot.wavefunction1d(
+                wavefunctions,
+                potential_vals=potential_vals,  # type:ignore
+                offset=energies,
+                scaling=scaling,
+                **kwargs,
             )
-            phi_wavefunc.amplitudes = standardize_sign(phi_wavefunc.amplitudes)
-            phi_wavefunc.amplitudes = amplitude_modifier(phi_wavefunc.amplitudes)
-            wavefunctions.append(phi_wavefunc)
-
-        fig_ax = kwargs.get("fig_ax") or plt.subplots()
-        kwargs["fig_ax"] = fig_ax
-        kwargs = {
-            **self.wavefunction1d_defaults(
-                mode, evals, wavefunc_count=len(wavefunc_indices)  # type:ignore
-            ),
-            **kwargs,
-        }
-        # in merging the dictionaries in the previous line: if any duplicates,
-        # later ones survive
-
-        plot.wavefunction1d(
-            wavefunctions,
-            potential_vals=potential_vals,  # type:ignore
-            offset=energies,
-            scaling=scaling,
-            **kwargs,
-        )
-        return fig_ax
+            return fig_ax

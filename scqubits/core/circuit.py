@@ -24,6 +24,7 @@ import qutip as qt
 import scipy as sp
 import sympy as sm
 
+import matplotlib as mpl
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -51,6 +52,7 @@ import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as utils
 
 from scqubits import HilbertSpace, settings
+from scqubits.settings import RCPARAMS_DICT
 from scqubits.core import operators as op
 from scqubits.core.circuit_utils import (
     _cos_dia,
@@ -2291,30 +2293,32 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         potential_energies = self.potential_energy(**kwargs)
 
-        fig, axes = kwargs.get("fig_ax") or plt.subplots()
+        with mpl.rc_context(RCPARAMS_DICT):
+            fig, axes = kwargs.get("fig_ax") or plt.subplots()
 
-        if len(sweep_vars) == 1:
-            axes.plot(*(list(sweep_vars.values()) + [potential_energies]))
-            axes.set_xlabel(
-                r"$\theta_{{{}}}$".format(
-                    get_trailing_number(list(sweep_vars.keys())[0])
+            if len(sweep_vars) == 1:
+                axes.plot(*(list(sweep_vars.values()) + [potential_energies]))
+                axes.set_xlabel(
+                    r"$\theta_{{{}}}$".format(
+                        get_trailing_number(list(sweep_vars.keys())[0])
+                    )
                 )
-            )
-            axes.set_ylabel("Potential energy in " + scq.get_units())
+                axes.set_ylabel("Potential energy in " + scq.get_units())
 
-        if len(sweep_vars) == 2:
-            contourset = axes.contourf(
-                *(list(sweep_vars.values()) + [potential_energies])
-            )
-            var_indices = [
-                get_trailing_number(var_name) for var_name in list(sweep_vars.keys())
-            ]
-            axes.set_xlabel(r"$\theta_{{{}}}$".format(var_indices[0]))
-            axes.set_ylabel(r"$\theta_{{{}}}$".format(var_indices[1]))
-            cbar = plt.colorbar(contourset, ax=axes)
-            cbar.set_label("Potential energy in " + scq.get_units())
-        _process_options(fig, axes, **plot_kwargs)
-        return fig, axes
+            if len(sweep_vars) == 2:
+                contourset = axes.contourf(
+                    *(list(sweep_vars.values()) + [potential_energies])
+                )
+                var_indices = [
+                    get_trailing_number(var_name)
+                    for var_name in list(sweep_vars.keys())
+                ]
+                axes.set_xlabel(r"$\theta_{{{}}}$".format(var_indices[0]))
+                axes.set_ylabel(r"$\theta_{{{}}}$".format(var_indices[1]))
+                cbar = plt.colorbar(contourset, ax=axes)
+                cbar.set_label("Potential energy in " + scq.get_units())
+            _process_options(fig, axes, **plot_kwargs)
+            return fig, axes
 
     # ****************************************************************
     # ************* Functions for plotting wave function *************

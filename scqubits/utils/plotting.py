@@ -24,6 +24,8 @@ import scqubits.core.constants as constants
 import scqubits.utils.misc as utils
 import scqubits.utils.plot_defaults as defaults
 
+from scqubits.settings import RCPARAMS_DICT
+
 from scqubits.utils.plot_utils import (
     _extract_kwargs_options,
     _process_options,
@@ -73,20 +75,21 @@ def wavefunction1d(
     -------
         matplotlib objects for further editing
     """
-    fig, axes = kwargs.get("fig_ax") or plt.subplots()
+    with mpl.rc_context(RCPARAMS_DICT):
+        fig, axes = kwargs.get("fig_ax") or plt.subplots()
 
-    offset_list = utils.to_list(offset)
-    wavefunc_list: List[WaveFunction] = utils.to_list(wavefuncs)
-    wavefunc_list = scale_wavefunctions(wavefunc_list, potential_vals, scaling)
+        offset_list = utils.to_list(offset)
+        wavefunc_list: List[WaveFunction] = utils.to_list(wavefuncs)
+        wavefunc_list = scale_wavefunctions(wavefunc_list, potential_vals, scaling)
 
-    for wavefunction, energy_offset in zip(wavefunc_list, offset_list):
-        plot_wavefunction_to_axes(axes, wavefunction, energy_offset, **kwargs)
+        for wavefunction, energy_offset in zip(wavefunc_list, offset_list):
+            plot_wavefunction_to_axes(axes, wavefunction, energy_offset, **kwargs)
 
-    x_vals = wavefunc_list[0].basis_labels
-    plot_potential_to_axes(axes, x_vals, potential_vals, offset_list, **kwargs)
+        x_vals = wavefunc_list[0].basis_labels
+        plot_potential_to_axes(axes, x_vals, potential_vals, offset_list, **kwargs)
 
-    _process_options(fig, axes, **kwargs)
-    return fig, axes
+        _process_options(fig, axes, **kwargs)
+        return fig, axes
 
 
 def wavefunction1d_nopotential(
@@ -115,16 +118,17 @@ def wavefunction1d_nopotential(
     -------
         matplotlib objects for further editing
     """
-    fig, axes = kwargs.get("fig_ax") or plt.subplots()
+    with mpl.rc_context(RCPARAMS_DICT):
+        fig, axes = kwargs.get("fig_ax") or plt.subplots()
 
-    offset_list = utils.to_list(offset)
-    wavefunc_list: List[WaveFunction] = utils.to_list(wavefuncs)
+        offset_list = utils.to_list(offset)
+        wavefunc_list: List[WaveFunction] = utils.to_list(wavefuncs)
 
-    for wavefunction, energy_offset in zip(wavefunc_list, offset_list):
-        plot_wavefunction_to_axes(axes, wavefunction, energy_offset, **kwargs)
+        for wavefunction, energy_offset in zip(wavefunc_list, offset_list):
+            plot_wavefunction_to_axes(axes, wavefunction, energy_offset, **kwargs)
 
-    _process_options(fig, axes, **kwargs)
-    return fig, axes
+        _process_options(fig, axes, **kwargs)
+        return fig, axes
 
 
 def wavefunction1d_discrete(wavefunc: "WaveFunction", **kwargs) -> Tuple[Figure, Axes]:
@@ -143,17 +147,18 @@ def wavefunction1d_discrete(wavefunc: "WaveFunction", **kwargs) -> Tuple[Figure,
     -------
         matplotlib objects for further editing
     """
-    fig, axes = kwargs.get("fig_ax") or plt.subplots()
+    with mpl.rc_context(RCPARAMS_DICT):
+        fig, axes = kwargs.get("fig_ax") or plt.subplots()
 
-    x_vals = wavefunc.basis_labels
-    width = 0.75
-    axes.bar(x_vals, wavefunc.amplitudes, width=width)
+        x_vals = wavefunc.basis_labels
+        width = 0.75
+        axes.bar(x_vals, wavefunc.amplitudes, width=width)
 
-    axes.set_xticks(x_vals)
-    axes.set_xticklabels(x_vals)
-    _process_options(fig, axes, defaults.wavefunction1d_discrete(), **kwargs)
+        axes.set_xticks(x_vals)
+        axes.set_xticklabels(x_vals)
+        _process_options(fig, axes, defaults.wavefunction1d_discrete(), **kwargs)
 
-    return fig, axes
+        return fig, axes
 
 
 def wavefunction2d(
@@ -176,37 +181,38 @@ def wavefunction2d(
     -------
         matplotlib objects for further editing
     """
-    fig, axes = kwargs.get("fig_ax") or plt.subplots()
+    with mpl.rc_context(RCPARAMS_DICT):
+        fig, axes = kwargs.get("fig_ax") or plt.subplots()
 
-    min_vals = wavefunc.gridspec.min_vals
-    max_vals = wavefunc.gridspec.max_vals
+        min_vals = wavefunc.gridspec.min_vals
+        max_vals = wavefunc.gridspec.max_vals
 
-    if zero_calibrate:
-        absmax = np.amax(np.abs(wavefunc.amplitudes))
-        imshow_minval = -absmax
-        imshow_maxval = absmax
-        cmap = plt.get_cmap("PRGn")
-    else:
-        imshow_minval = np.min(wavefunc.amplitudes)
-        imshow_maxval = np.max(wavefunc.amplitudes)
-        cmap = plt.cm.viridis
+        if zero_calibrate:
+            absmax = np.amax(np.abs(wavefunc.amplitudes))
+            imshow_minval = -absmax
+            imshow_maxval = absmax
+            cmap = plt.get_cmap("PRGn")
+        else:
+            imshow_minval = np.min(wavefunc.amplitudes)
+            imshow_maxval = np.max(wavefunc.amplitudes)
+            cmap = plt.cm.viridis
 
-    im = axes.imshow(
-        wavefunc.amplitudes,
-        extent=[min_vals[0], max_vals[0], min_vals[1], max_vals[1]],
-        cmap=cmap,
-        vmin=imshow_minval,
-        vmax=imshow_maxval,
-        origin="lower",
-        aspect="auto",
-        **_extract_kwargs_options(kwargs, "imshow"),
-    )
-    divider = make_axes_locatable(axes)
-    cax = divider.append_axes("right", size="2%", pad=0.05)
-    fig.colorbar(im, cax=cax)
+        im = axes.imshow(
+            wavefunc.amplitudes,
+            extent=[min_vals[0], max_vals[0], min_vals[1], max_vals[1]],
+            cmap=cmap,
+            vmin=imshow_minval,
+            vmax=imshow_maxval,
+            origin="lower",
+            aspect="auto",
+            **_extract_kwargs_options(kwargs, "imshow"),
+        )
+        divider = make_axes_locatable(axes)
+        cax = divider.append_axes("right", size="2%", pad=0.05)
+        fig.colorbar(im, cax=cax)
 
-    _process_options(fig, axes, defaults.wavefunction2d(), **kwargs)
-    return fig, axes
+        _process_options(fig, axes, defaults.wavefunction2d(), **kwargs)
+        return fig, axes
 
 
 def contours(
@@ -237,28 +243,29 @@ def contours(
     -------
         matplotlib objects for further editing
     """
-    fig, axes = kwargs.get("fig_ax") or plt.subplots()
+    with mpl.rc_context(RCPARAMS_DICT):
+        fig, axes = kwargs.get("fig_ax") or plt.subplots()
 
-    x_grid, y_grid = np.meshgrid(x_vals, y_vals)
-    z_array = func(x_grid, y_grid)
+        x_grid, y_grid = np.meshgrid(x_vals, y_vals)
+        z_array = func(x_grid, y_grid)
 
-    im = axes.contourf(
-        x_grid,
-        y_grid,
-        z_array,
-        levels=contour_vals,
-        cmap=plt.cm.viridis,
-        origin="lower",
-        **_extract_kwargs_options(kwargs, "contourf"),
-    )
+        im = axes.contourf(
+            x_grid,
+            y_grid,
+            z_array,
+            levels=contour_vals,
+            cmap=plt.cm.viridis,
+            origin="lower",
+            **_extract_kwargs_options(kwargs, "contourf"),
+        )
 
-    if show_colorbar:
-        divider = make_axes_locatable(axes)
-        cax = divider.append_axes("right", size="2%", pad=0.05)
-        fig.colorbar(im, cax=cax)
+        if show_colorbar:
+            divider = make_axes_locatable(axes)
+            cax = divider.append_axes("right", size="2%", pad=0.05)
+            fig.colorbar(im, cax=cax)
 
-    _process_options(fig, axes, opts=defaults.contours(x_vals, y_vals), **kwargs)
-    return fig, axes
+        _process_options(fig, axes, opts=defaults.contours(x_vals, y_vals), **kwargs)
+        return fig, axes
 
 
 def matrix(
@@ -284,18 +291,25 @@ def matrix(
     -------
         figure and axes objects for further editing
     """
-    if "fig_ax" in kwargs:
-        fig, (ax1, ax2) = kwargs["fig_ax"]
-    else:
-        fig = plt.figure()
-        ax1 = fig.add_subplot(1, 2, 1, projection="3d")
-        ax2 = plt.subplot(1, 2, 2)
+    with mpl.rc_context(RCPARAMS_DICT):
+        if "fig_ax" in kwargs:
+            fig, (ax1, ax2) = kwargs["fig_ax"]
+        else:
+            fig = plt.figure()
+            ax1 = fig.add_subplot(1, 2, 1, projection="3d")
+            ax2 = plt.subplot(1, 2, 2)
 
-    fig, ax2 = matrix2d(
-        data_matrix, mode=mode, show_numbers=show_numbers, fig_ax=(fig, ax2), **kwargs
-    )
-    fig, ax1 = matrix_skyscraper(data_matrix, mode=mode, fig_ax=(fig, ax1), **kwargs)
-    return fig, (ax1, ax2)
+        fig, ax2 = matrix2d(
+            data_matrix,
+            mode=mode,
+            show_numbers=show_numbers,
+            fig_ax=(fig, ax2),
+            **kwargs,
+        )
+        fig, ax1 = matrix_skyscraper(
+            data_matrix, mode=mode, fig_ax=(fig, ax1), **kwargs
+        )
+        return fig, (ax1, ax2)
 
 
 def matrix_skyscraper(
@@ -317,48 +331,52 @@ def matrix_skyscraper(
     -------
         figure and axes objects for further editing
     """
-    fig, axes = kwargs.get("fig_ax") or plt.subplots(projection="3d")
+    with mpl.rc_context(RCPARAMS_DICT):
+        fig, axes = kwargs.get("fig_ax") or plt.subplots(projection="3d")
 
-    y_count, x_count = matrix.shape  # We label the columns as "x", while rows as "y"
-    element_count = x_count * y_count  # total num. of elements to plot
+        (
+            y_count,
+            x_count,
+        ) = matrix.shape  # We label the columns as "x", while rows as "y"
+        element_count = x_count * y_count  # total num. of elements to plot
 
-    xgrid, ygrid = np.meshgrid(range(x_count), range(y_count))
-    xgrid = xgrid.flatten()
-    ygrid = ygrid.flatten()
+        xgrid, ygrid = np.meshgrid(range(x_count), range(y_count))
+        xgrid = xgrid.flatten()
+        ygrid = ygrid.flatten()
 
-    zbottom = np.zeros(element_count)  # all bars start at z=0
-    dx, dy = 0.75, 0.75  # width of bars in x and y directions
+        zbottom = np.zeros(element_count)  # all bars start at z=0
+        dx, dy = 0.75, 0.75  # width of bars in x and y directions
 
-    modefunction = constants.MODE_FUNC_DICT[mode]
-    zheight = modefunction(matrix).flatten()  # height of bars from matrix elements
+        modefunction = constants.MODE_FUNC_DICT[mode]
+        zheight = modefunction(matrix).flatten()  # height of bars from matrix elements
 
-    min_zheight, max_zheight, nrm = color_normalize(zheight, mode)
-    colors = plt.cm.viridis(nrm(zheight))  # list of colors for each bar
+        min_zheight, max_zheight, nrm = color_normalize(zheight, mode)
+        colors = plt.cm.viridis(nrm(zheight))  # list of colors for each bar
 
-    # skyscraper plot
-    axes.view_init(azim=210, elev=23)
-    axes.bar3d(xgrid, ygrid, zbottom, dx, dy, zheight, color=colors)
+        # skyscraper plot
+        axes.view_init(azim=210, elev=23)
+        axes.bar3d(xgrid, ygrid, zbottom, dx, dy, zheight, color=colors)
 
-    if mode in ["real", "imag"]:
-        min_zheight = 0 if min_zheight > 0 else min_zheight
-        max_zheight = 0 if max_zheight < 0 else max_zheight
+        if mode in ["real", "imag"]:
+            min_zheight = 0 if min_zheight > 0 else min_zheight
+            max_zheight = 0 if max_zheight < 0 else max_zheight
 
-    if min_zheight == max_zheight:
-        # pad with small values so we don't get warnings
-        max_zheight += 0.0000001
+        if min_zheight == max_zheight:
+            # pad with small values so we don't get warnings
+            max_zheight += 0.0000001
 
-    axes.set_zlim3d([min_zheight, max_zheight])
+        axes.set_zlim3d([min_zheight, max_zheight])
 
-    for axis, locs in [
-        (axes.xaxis, np.arange(x_count)),
-        (axes.yaxis, np.arange(y_count)),
-    ]:
-        axis.set_ticks(locs + 0.5, minor=True)
-        axis.set(ticks=locs + 0.5, ticklabels=locs)
+        for axis, locs in [
+            (axes.xaxis, np.arange(x_count)),
+            (axes.yaxis, np.arange(y_count)),
+        ]:
+            axis.set_ticks(locs + 0.5, minor=True)
+            axis.set(ticks=locs + 0.5, ticklabels=locs)
 
-    _process_options(fig, axes, opts=defaults.matrix(), **kwargs)
+        _process_options(fig, axes, opts=defaults.matrix(), **kwargs)
 
-    return fig, axes
+        return fig, axes
 
 
 def matrix2d(
@@ -390,43 +408,48 @@ def matrix2d(
     -------
         figure and axes objects for further editing
     """
-    fig, axes = kwargs.get("fig_ax") or plt.subplots()
+    with mpl.rc_context(RCPARAMS_DICT):
+        fig, axes = kwargs.get("fig_ax") or plt.subplots()
 
-    modefunction = constants.MODE_FUNC_DICT[mode]
-    zheight = modefunction(matrix).flatten()  # height of bars from matrix elements
+        modefunction = constants.MODE_FUNC_DICT[mode]
+        zheight = modefunction(matrix).flatten()  # height of bars from matrix elements
 
-    min_zheight, max_zheight, nrm = color_normalize(zheight, mode)
+        min_zheight, max_zheight, nrm = color_normalize(zheight, mode)
 
-    if show_colorbar:
-        # add colorbar with normalized range
-        fig.colorbar(
-            mpl.cm.ScalarMappable(norm=nrm, cmap=plt.cm.viridis),
-            ax=axes,
-            fraction=0.046,
-            pad=0.04,
+        if show_colorbar:
+            # add colorbar with normalized range
+            fig.colorbar(
+                mpl.cm.ScalarMappable(norm=nrm, cmap=plt.cm.viridis),
+                ax=axes,
+                fraction=0.046,
+                pad=0.04,
+            )
+        cax = axes.matshow(
+            modefunction(matrix), cmap=plt.cm.viridis, interpolation=None
         )
-    cax = axes.matshow(modefunction(matrix), cmap=plt.cm.viridis, interpolation=None)
 
-    if show_numbers:
-        fig_width, fig_height = fig.get_size_inches()
-        box_width_inches = fig_width / matrix.shape[1]
-        box_height_inches = fig_height / matrix.shape[0]
-        font_size = min(box_width_inches, box_height_inches) * 12
-        add_numbers_to_axes(axes, matrix, modefunction, fontsize=font_size)
+        if show_numbers:
+            fig_width, fig_height = fig.get_size_inches()
+            box_width_inches = fig_width / matrix.shape[1]
+            box_height_inches = fig_height / matrix.shape[0]
+            font_size = min(box_width_inches, box_height_inches) * 12
+            add_numbers_to_axes(axes, matrix, modefunction, fontsize=font_size)
 
-    # shift the grid
-    for axis, locs in [
-        (axes.xaxis, np.arange(matrix.shape[1])),
-        (axes.yaxis, np.arange(matrix.shape[0])),
-    ]:
-        axis.set_ticks(locs + 0.5, minor=True)
-        axis.set(ticks=locs, ticklabels=locs)
-    axes.grid(False)
+        # shift the grid
+        for axis, locs in [
+            (axes.xaxis, np.arange(matrix.shape[1])),
+            (axes.yaxis, np.arange(matrix.shape[0])),
+        ]:
+            axis.set_ticks(locs + 0.5, minor=True)
+            axis.set(ticks=locs, ticklabels=locs)
+        axes.grid(False)
 
-    _process_options(fig, axes, **kwargs)
-    axes.tick_params(axis="x", bottom=True, top=False, labelbottom=True, labeltop=False)
+        _process_options(fig, axes, **kwargs)
+        axes.tick_params(
+            axis="x", bottom=True, top=False, labelbottom=True, labeltop=False
+        )
 
-    return fig, axes
+        return fig, axes
 
 
 def data_vs_paramvals(
@@ -451,40 +474,41 @@ def data_vs_paramvals(
     -------
         matplotlib objects for further editing
     """
-    fig, axes = kwargs.get("fig_ax") or plt.subplots()
+    with mpl.rc_context(RCPARAMS_DICT):
+        fig, axes = kwargs.get("fig_ax") or plt.subplots()
 
-    if label_list is None:
-        axes.plot(xdata, ydata, **_extract_kwargs_options(kwargs, "plot"))
+        if label_list is None:
+            axes.plot(xdata, ydata, **_extract_kwargs_options(kwargs, "plot"))
+            _process_options(fig, axes, **kwargs)
+            return fig, axes
+
+        for idx, ydataset in enumerate(ydata.T):
+            axes.plot(
+                xdata,
+                ydataset,
+                label=label_list[idx],
+                **_extract_kwargs_options(kwargs, "plot"),
+            )
+        if _LABELLINES_ENABLED:
+            try:
+                labelLines(axes.get_lines(), zorder=2.0)
+            except Exception:
+                pass
+        else:
+            axes.legend(
+                bbox_to_anchor=(1.04, 0.5),
+                loc="center left",
+                borderaxespad=0,
+                frameon=False,
+            )
         _process_options(fig, axes, **kwargs)
+
+        # The following ensures that np.nan entries (as present in transition energy plots)
+        # cannot reduce the intended x range
+        axes.update_datalim(np.c_[xdata, [0] * len(xdata)], updatey=False)
+        axes.autoscale()
+
         return fig, axes
-
-    for idx, ydataset in enumerate(ydata.T):
-        axes.plot(
-            xdata,
-            ydataset,
-            label=label_list[idx],
-            **_extract_kwargs_options(kwargs, "plot"),
-        )
-    if _LABELLINES_ENABLED:
-        try:
-            labelLines(axes.get_lines(), zorder=2.0)
-        except Exception:
-            pass
-    else:
-        axes.legend(
-            bbox_to_anchor=(1.04, 0.5),
-            loc="center left",
-            borderaxespad=0,
-            frameon=False,
-        )
-    _process_options(fig, axes, **kwargs)
-
-    # The following ensures that np.nan entries (as present in transition energy plots)
-    # cannot reduce the intended x range
-    axes.update_datalim(np.c_[xdata, [0] * len(xdata)], updatey=False)
-    axes.autoscale()
-
-    return fig, axes
 
 
 def evals_vs_paramvals(
@@ -516,21 +540,23 @@ def evals_vs_paramvals(
     -------
         matplotlib objects for further editing
     """
-    index_list = utils.process_which(which, specdata.energy_table[0].size)
+    with mpl.rc_context(RCPARAMS_DICT):
+        index_list = utils.process_which(which, specdata.energy_table[0].size)
 
-    assert specdata.param_vals is not None, "SpectrumData is missing parameter values!"
-    xdata = specdata.param_vals
-    assert isinstance(specdata.energy_table, np.ndarray)
-    ydata = specdata.energy_table[:, index_list]
-    if subtract_ground:
-        ydata = (ydata.T - ydata[:, 0]).T
-
-    return data_vs_paramvals(
-        xdata,
-        ydata,
-        label_list=label_list,
-        **defaults.evals_vs_paramvals(specdata, **kwargs),
-    )
+        assert (
+            specdata.param_vals is not None
+        ), "SpectrumData is missing parameter values!"
+        xdata = specdata.param_vals
+        assert isinstance(specdata.energy_table, np.ndarray)
+        ydata = specdata.energy_table[:, index_list]
+        if subtract_ground:
+            ydata = (ydata.T - ydata[:, 0]).T
+        return data_vs_paramvals(
+            xdata,
+            ydata,
+            label_list=label_list,
+            **defaults.evals_vs_paramvals(specdata, **kwargs),
+        )
 
 
 def matelem_vs_paramvals(
@@ -559,32 +585,35 @@ def matelem_vs_paramvals(
     -------
     matplotlib objects for further editing
     """
-    assert specdata.matrixelem_table is not None, (
-        "SpectrumData is missing matrix " "element data!"
-    )
-    fig, axes = kwargs.get("fig_ax") or plt.subplots()
-    x_vals = specdata.param_vals
-    modefunction = constants.MODE_FUNC_DICT[mode]
-
-    if isinstance(select_elems, int):
-        index_pairs = [
-            (row, col) for row in range(select_elems) for col in range(row + 1)
-        ]
-    else:
-        index_pairs = select_elems
-
-    for (row, col) in index_pairs:
-        y_vals = modefunction(specdata.matrixelem_table[:, row, col])
-        axes.plot(
-            x_vals,
-            y_vals,
-            label=f"{row},{col}",
-            **_extract_kwargs_options(kwargs, "plot"),
+    with mpl.rc_context(RCPARAMS_DICT):
+        assert specdata.matrixelem_table is not None, (
+            "SpectrumData is missing matrix " "element data!"
         )
+        fig, axes = kwargs.get("fig_ax") or plt.subplots()
+        x_vals = specdata.param_vals
+        modefunction = constants.MODE_FUNC_DICT[mode]
 
-    if _LABELLINES_ENABLED:
-        labelLines(axes.get_lines(), zorder=1.5)
-    else:
-        axes.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-    _process_options(fig, axes, opts=defaults.matelem_vs_paramvals(specdata), **kwargs)
-    return fig, axes
+        if isinstance(select_elems, int):
+            index_pairs = [
+                (row, col) for row in range(select_elems) for col in range(row + 1)
+            ]
+        else:
+            index_pairs = select_elems
+
+        for (row, col) in index_pairs:
+            y_vals = modefunction(specdata.matrixelem_table[:, row, col])
+            axes.plot(
+                x_vals,
+                y_vals,
+                label=f"{row},{col}",
+                **_extract_kwargs_options(kwargs, "plot"),
+            )
+
+        if _LABELLINES_ENABLED:
+            labelLines(axes.get_lines(), zorder=1.5)
+        else:
+            axes.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+        _process_options(
+            fig, axes, opts=defaults.matelem_vs_paramvals(specdata), **kwargs
+        )
+        return fig, axes

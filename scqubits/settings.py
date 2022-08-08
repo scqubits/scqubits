@@ -29,7 +29,6 @@ import warnings
 
 from typing import Any, Type, Union
 
-import matplotlib as mpl
 import numpy as np
 
 from cycler import cycler
@@ -94,7 +93,8 @@ MULTIPROC = "pathos"
 
 # Matplotlib options -------------------------------------------------------------------
 # set custom matplotlib color cycle
-mpl.rcParams["axes.prop_cycle"] = cycler(
+RCPARAMS_DICT = {}
+RCPARAMS_DICT["axes.prop_cycle"] = cycler(
     color=[
         "#016E82",
         "#333795",
@@ -112,13 +112,13 @@ mpl.rcParams["axes.prop_cycle"] = cycler(
 )
 
 # set matplotlib defaults
-mpl.rcParams["font.family"] = "sans-serif"
-mpl.rcParams["font.sans-serif"] = "Roboto, Arial, Helvetica, DejaVu Sans"
-mpl.rcParams["font.size"] = 11
-mpl.rcParams["axes.labelsize"] = 11
-mpl.rcParams["axes.titlesize"] = 11
-mpl.rcParams["xtick.labelsize"] = 10
-mpl.rcParams["ytick.labelsize"] = 10
+RCPARAMS_DICT["font.family"] = "sans-serif"
+RCPARAMS_DICT["font.sans-serif"] = "Roboto, Arial, Helvetica, DejaVu Sans"
+RCPARAMS_DICT["font.size"] = 11
+RCPARAMS_DICT["axes.labelsize"] = 11
+RCPARAMS_DICT["axes.titlesize"] = 11
+RCPARAMS_DICT["xtick.labelsize"] = 10
+RCPARAMS_DICT["ytick.labelsize"] = 10
 
 # toggle top and right axes on and off
 DESPINE = True
