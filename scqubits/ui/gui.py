@@ -16,7 +16,6 @@ import warnings
 from distutils.version import StrictVersion
 
 from pathlib import Path
-from tkinter.tix import Select
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
@@ -98,7 +97,6 @@ class GUI:
 
         # Display Elements
         self.fig: Figure
-        ax: Axes
         self.plot_output: Output = Output(layout={"width": "100%"})
         self.tab_widget: Tab = Tab(layout=Layout(width="95%"))
 
