@@ -158,21 +158,21 @@ class Snail(base.QubitBaseClass, serializers.Serializable):
 
     def EC_matrix(self) -> ndarray:
         """Return the charging energy matrix"""
-        CJ1 = 1.0 / (2 * self.ECJ1)  # capacitances in units where e is set to 1
-        CJ2 = 1.0 / (2 * self.ECJ2)
-        CJ3 = 1.0 / (2 * self.ECJ3)
-        CJ4 = 1.0 / (2 * self.ECJ4)
-        Cg1 = 1.0 / (2 * self.ECg1)
-        Cg2 = 1.0 / (2 * self.ECg2)
-        Cg3 = 1.0 / (2 * self.ECg3)
-        Cmat = np.array(
+        cj1 = 1.0 / (2 * self.ECJ1)  # capacitances in units where e is set to 1
+        cj2 = 1.0 / (2 * self.ECJ2)
+        cj3 = 1.0 / (2 * self.ECJ3)
+        cj4 = 1.0 / (2 * self.ECJ4)
+        cg1 = 1.0 / (2 * self.ECg1)
+        cg2 = 1.0 / (2 * self.ECg2)
+        cg3 = 1.0 / (2 * self.ECg3)
+        cmat = np.array(
             [
-                [CJ1 + CJ2 + Cg1, -CJ2, 0],
-                [-CJ2, CJ2 + CJ3 + Cg2, -CJ3],
-                [0, -CJ3, CJ3 + CJ4 + Cg3],
+                [cj1 + cj2 + cg1, -cj2, 0],
+                [-cj2, cj2 + cj3 + cg2, -cj3],
+                [0, -cj3, cj3 + cj4 + cg3],
             ]
         )
-        return np.linalg.inv(Cmat) / 2.0
+        return np.linalg.inv(cmat) / 2.0
 
     def _evals_calc(self, evals_count: int) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
