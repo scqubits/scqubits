@@ -28,7 +28,7 @@ from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
-from scipy import sparse, stats
+from scipy import sparse
 from scipy.sparse import csc_matrix
 from sympy import latex
 
@@ -80,7 +80,6 @@ from scqubits.core.circuit_utils import (
     matrix_power_sparse,
     operator_func_factory,
 )
-from scqubits.core.namedslots_array import NamedSlotsNdarray
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
 from scqubits.io_utils.fileio import IOData
 from scqubits.io_utils.fileio_serializers import dict_deserialize, dict_serialize
@@ -254,6 +253,72 @@ class Subsystem(
     def effective_noise_channels(self):
         return self.supported_noise_channels()
 
+    @staticmethod
+    def _is_expression_purely_harmonic(hamiltonian):
+        if (
+            len(
+                set.union(
+                    *[(hamiltonian).atoms(operator) for operator in [sm.cos, sm.sin]]
+                )
+            )
+            > 0
+        ):
+            return False
+        return True
+
+    def _diagonalize_purely_harmonic_hamiltonian(self):
+        """
+        Method used to decouple harmonic oscillators in purely harmonic Hamiltonians.
+        """
+        if not self.is_purely_harmonic:
+            raise Exception("The Subsystem Hamiltonian is not purely harmonic.")
+        num_oscs = len(self.var_categories["extended"])
+        # Construct capacitance and inductance matrices from the symbolic hamiltonian
+        C = np.zeros([num_oscs, num_oscs])
+        L = np.zeros([num_oscs, num_oscs])
+        # substitute all external fluxes in the symbolic Hamiltonian
+        hamiltonian = self.hamiltonian_symbolic
+        for param in self.external_fluxes + list(self.symbolic_params.keys()):
+            hamiltonian = hamiltonian.subs(param, getattr(self, param.name))
+        ext_var_indices = self.var_categories["extended"]
+        # filling the matrices
+        for i in range(num_oscs):
+            for j in range(num_oscs):
+                if i == j:
+                    C[i, j] = hamiltonian.coeff(f"Q{ext_var_indices[i]}**2")
+                    L[i, j] = hamiltonian.coeff(f"θ{ext_var_indices[i]}**2")
+                else:
+                    C[i, j] = hamiltonian.coeff(
+                        f"Q{ext_var_indices[i]}*Q{ext_var_indices[j]}"
+                    )
+                    L[i, j] = hamiltonian.coeff(
+                        f"θ{ext_var_indices[i]}*θ{ext_var_indices[j]}"
+                    )
+        # diagonalizing the matrices
+        normal_mode_freqs, eig_vecs = np.linalg.eig(np.linalg.inv(C) @ L)
+
+        self.normal_mode_freqs = normal_mode_freqs
+
+        self.hamiltonian_symbolic = self._transform_hamiltonian_purely_harmonic(
+            hamiltonian, eig_vecs
+        )
+
+    def _transform_hamiltonian_purely_harmonic(
+        self, hamiltonian: sm.Expr, transformation_matrix: ndarray
+    ):
+        ext_var_indices = self.var_categories["extended"]
+        num_vars = len(ext_var_indices)
+        Q_vars = [sm.symbols(f"Q{ext_var_indices[idx]}") for idx in range(num_vars)]
+        θ_vars = [sm.symbols(f"θ{ext_var_indices[idx]}") for idx in range(num_vars)]
+        Q_exprs = transformation_matrix.dot(Q_vars)
+        θ_exprs = transformation_matrix.dot(θ_vars)
+        for idx in range(num_vars):
+            hamiltonian = hamiltonian.subs(Q_vars[idx], Q_exprs[idx]).subs(
+                θ_vars[idx], θ_exprs[idx]
+            )
+
+        return hamiltonian
+
     def __setattr__(self, name, value):
         if not self._frozen or name in dir(self):
             super().__setattr__(name, value)
@@ -353,10 +418,10 @@ class Subsystem(
         # generate _hamiltonian_sym_for_numerics if not already generated, delayed for
         # large circuits
 
-        if (
-            not self.is_child
-            and (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES
-        ) or self.is_purely_harmonic:
+        if not self.is_child and (
+            (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES
+            or self.is_purely_harmonic
+        ):
             capacitance_branches = [
                 branch for branch in self.branches if branch.type in ("C", "JJ")
             ]
@@ -572,13 +637,19 @@ class Subsystem(
             self._make_property(
                 cutoff_str, getattr(self.parent, cutoff_str), "update_cutoffs"
             )
+        # if subsystem hamiltonian is purely harmonic
+        if self._is_expression_purely_harmonic(self.hamiltonian_symbolic):
+            self.is_purely_harmonic = True
+            self._diagonalize_purely_harmonic_hamiltonian()
+        else:
+            self.is_purely_harmonic = False
 
         # Creating the attributes for purely harmonic circuits
-        self.is_purely_harmonic = self.parent.is_purely_harmonic
         if (
-            self.is_purely_harmonic
+            isinstance(self, Circuit) and self.parent.is_purely_harmonic
         ):  # assuming that the parent has only extended variables and are ordered
             # starting from 1, 2, 3, ...
+            self.is_purely_harmonic = self.parent.is_purely_harmonic
             self.normal_mode_freqs = self.parent.normal_mode_freqs[
                 [var_idx - 1 for var_idx in self.var_categories["extended"]]
             ]

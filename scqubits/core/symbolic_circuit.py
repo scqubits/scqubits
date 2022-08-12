@@ -1609,9 +1609,6 @@ class SymbolicCircuit(serializers.Serializable):
         return closure_branches
 
     def _time_dependent_flux_distribution(self):
-        num_dynamical_variables = len(
-            self.var_categories["periodic"] + self.var_categories["extended"]
-        )
 
         # constructing the constraint matrix
         R = np.zeros([len(self.branches), len(self.closure_branches)])
