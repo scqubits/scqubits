@@ -165,11 +165,11 @@ def check_sync_status(func: Callable) -> Callable:
 def check_sync_status_circuit(func: Callable) -> Callable:
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
-        if self.hierarchical_diagonalization and self._out_of_sync:
+        if (not hasattr(self, "parent") and self._is_parameter_updated) or (self.hierarchical_diagonalization and self._out_of_sync):
             raise Exception(
-                "[scqubits] Some Subsystem parameters have been changed and"
+                "[scqubits] Circuit or Subsystem parameters have been changed and/or "
                 " the parameter/s in the current instance are is/are out of sync. "
-                " Please sync all the parameters in the main Circuit instance using:"
+                " Please run:"
                 " <Circuit>.sync_circuit().",
                 Warning,
             )
