@@ -841,13 +841,16 @@ class GUI:
             self.common_params_dropdown_params_refresh, names="value"
         )
         self.qubit_plot_options_widgets["t1_checkbox"].observe(
-            self.checkbox_plot_update, names="value"
+            self.plot_change_bool_update, names="value"
         )
         self.qubit_plot_options_widgets["t2_checkbox"].observe(
-            self.checkbox_plot_update, names="value"
+            self.plot_change_bool_update, names="value"
         )
         self.qubit_plot_options_widgets["show3d_checkbox"].observe(
-            self.checkbox_plot_update, names="value"
+            self.plot_change_bool_update, names="value"
+        )
+        self.qubit_plot_options_widgets["noise_channel_multi-select"].observe(
+            self.plot_change_bool_update, names="value"
         )
 
         for widget_name, widget in self.qubit_params_widgets.items():
@@ -872,13 +875,16 @@ class GUI:
             self.common_params_dropdown_params_refresh, names="value"
         )
         self.qubit_plot_options_widgets["t1_checkbox"].unobserve(
-            self.checkbox_plot_update, names="value"
+            self.plot_change_bool_update, names="value"
         )
         self.qubit_plot_options_widgets["t2_checkbox"].unobserve(
-            self.checkbox_plot_update, names="value"
+            self.plot_change_bool_update, names="value"
         )
         self.qubit_plot_options_widgets["show3d_checkbox"].unobserve(
-            self.checkbox_plot_update, names="value"
+            self.plot_change_bool_update, names="value"
+        )
+        self.qubit_plot_options_widgets["noise_channel_multi-select"].unobserve(
+            self.plot_change_bool_update, names="value"
         )
 
         for widget_name, widget in self.qubit_params_widgets.items():
@@ -1008,7 +1014,7 @@ class GUI:
         self.observe_coherence_elements()
         self.observe_plot_refresh()
 
-    def checkbox_plot_update(self, change):
+    def plot_change_bool_update(self, change):
         self.plot_output.clear_output()
         self.plot_change_bool = True
 
@@ -2104,10 +2110,20 @@ class GUI:
             self.plot_output.clear_output(wait=True)
         scan_min, scan_max = scan_range
         np_list = np.linspace(scan_min, scan_max, self.active_defaults["num_sample"])
-        if len(noise_channels) == 0:
+        
+        self.plot_output.outputs = tuple(
+            elem
+            for elem in self.plot_output.outputs
+            if "Label" not in elem["data"]["text/plain"]
+        )
+        if len(noise_channels["coherence_times"]) == 0:
+            if _HAS_WIDGET_BACKEND:
+                self.fig.axes[0].clear()
             error_label = Label(value="Please select at least one noise channel.")
-            display(error_label)
+            with self.plot_output:
+                display(error_label)
             return
+
         if self.plot_change_bool:
             if not t1_effective_tf and not t2_effective_tf:
                 self.fig, ax = self.active_qubit.plot_coherence_vs_paramvals(
@@ -2160,9 +2176,12 @@ class GUI:
             for ax in self.fig.axes:
                 ax.clear()
             if not t1_effective_tf and not t2_effective_tf:
-                axes = np.array(self.fig.axes).reshape(
-                    math.ceil(len(self.fig.axes) / 2), 2
-                )
+                if len(noise_channels["coherence_times"]) > 1:
+                    axes = np.array(self.fig.axes).reshape(
+                        math.ceil(len(self.fig.axes) / 2), 2
+                    )
+                else:
+                    axes = self.fig.axes[0]
                 self.active_qubit.plot_coherence_vs_paramvals(
                     param_name=scan_value,
                     param_vals=np_list,
