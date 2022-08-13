@@ -33,11 +33,6 @@ def get_map_method(num_cpus: int) -> Callable:
         return map
 
     # num_cpus > 1 -----------------
-
-    # windows may require special treatment if sys.platform == 'win32' and
-    # settings.POOL is None: warnings.warn("Windows users may explicitly need to
-    # provide scqubits.settings.POOL.")
-
     # user is asking for more than 1 cpu; start pool from here
     if settings.MULTIPROC == "pathos":
         try:
@@ -49,6 +44,7 @@ def get_map_method(num_cpus: int) -> Callable:
                 " 'pathos'/'dill'!"
             )
         else:
+            dill.settings["recurse"] = True
             settings.POOL = pathos.pools.ProcessPool(nodes=num_cpus)
             return settings.POOL.map
     if settings.MULTIPROC == "multiprocessing":
