@@ -35,7 +35,6 @@ class TransmonVTB(
         )
         Transmon.__init__(self, EJ, EC, ng, 0, truncated_dim)
         self._stitching_coefficients = np.array([1.0])
-        delattr(self, "ncut")
 
     def set_EJlist(self, EJlist) -> None:
         self.EJ = EJlist[0]

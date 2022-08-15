@@ -1278,7 +1278,7 @@ class VTBBaseMethods(ABC):
             eval_tol = self.inner_prod_eval_tol
             evals_inn, evecs_inn = eigh(inner_product_matrix)
             evals_nonzero = list(filter(lambda x: x > eval_tol, evals_inn))
-            if not evals_inn == evals_nonzero:
+            if not np.allclose(evals_inn, evals_nonzero):
                 idx = np.abs(evals_inn - evals_nonzero[0]).argmin()
                 evecs_nonzero = evecs_inn[:, idx:]
                 scale_factor = np.array(evals_nonzero) ** (-0.5)

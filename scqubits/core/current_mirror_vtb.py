@@ -56,7 +56,6 @@ class CurrentMirrorVTB(
         self._EJlist = EJlist
         self._nglist = nglist
         self._stitching_coefficients = np.ones(2 * N - 1)
-        delattr(self, "ncut")
 
     def EC_matrix(self):
         return super(vtb.VTBBaseMethods, self).EC_matrix()
