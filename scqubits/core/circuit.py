@@ -347,20 +347,22 @@ class Circuit(
                 ext_basis=ext_basis,
             )
 
-    def from_symbolic_hamiltonian(self, symbolic_hamiltonian: sm.Expr,
-    symbolic_param_dict: Dict[str, float],
+    def from_symbolic_hamiltonian(
+        self,
+        symbolic_hamiltonian: sm.Expr,
+        symbolic_param_dict: Dict[str, float],
         initiate_sym_calc: bool,
         truncated_dim: int,
-        ext_basis: str):
+        ext_basis: str,
+    ):
 
         base.QuantumSystem.__init__(self, id_str=None)
 
         self.hamiltonian_symbolic = symbolic_hamiltonian
-        
+
         self.symbolic_params = {}
         for param_str in symbolic_param_dict:
-            self.symbolic_params[sm.symbols(param_str)] = symbolic_param_dict[param_str
-            ]
+            self.symbolic_params[sm.symbols(param_str)] = symbolic_param_dict[param_str]
 
         sm.init_printing(pretty_print=False, order="none")
         self.is_child = False
@@ -749,13 +751,15 @@ class Circuit(
             When closure_branches is set and the Circuit instance is initialized with the setting
             `is_flux_dynamic=True`.
         """
-        
+
         old_system_hierarchy = self.system_hierarchy
         old_subsystem_trunc_dims = self.subsystem_trunc_dims
         if hasattr(self, "symbolic_circuit"):
             old_transformation_matrix = self.transformation_matrix
             old_closure_branches = (
-                self.closure_branches if not self.symbolic_circuit.is_flux_dynamic else None
+                self.closure_branches
+                if not self.symbolic_circuit.is_flux_dynamic
+                else None
             )
         try:
             if hasattr(self, "symbolic_circuit"):
@@ -792,11 +796,13 @@ class Circuit(
                 )
             raise Exception("Configure failed due to incorrect parameters.")
 
-    def _read_symbolic_hamiltonian(self, symbolic_hamiltonian: sm.Expr) -> Tuple[List[sm.Expr], List[sm.Expr], Dict[str, list[int]]]:
+    def _read_symbolic_hamiltonian(
+        self, symbolic_hamiltonian: sm.Expr
+    ) -> Tuple[List[sm.Expr], List[sm.Expr], Dict[str, list[int]]]:
         free_symbols = symbolic_hamiltonian.free_symbols
         external_fluxes = []
         offset_charges = []
-        var_categories = {"periodic":[], "extended":[], "free":[], "frozen":[]}
+        var_categories = {"periodic": [], "extended": [], "free": [], "frozen": []}
         for var_sym in free_symbols:
             if re.match(r"^ng\d+$", var_sym.name):
                 offset_charges.append(var_sym)
@@ -809,9 +815,10 @@ class Circuit(
                 var_index = get_trailing_number(var_sym.name)
                 var_categories["extended"].append(var_index)
         return external_fluxes, offset_charges, var_categories
-        
 
-    def _configure_sym_hamiltonian(self, system_hierarchy: list = None, subsystem_trunc_dims: list = None):
+    def _configure_sym_hamiltonian(
+        self, system_hierarchy: list = None, subsystem_trunc_dims: list = None
+    ):
         """
         Method which re-initializes a circuit instance to update, hierarchical
         diagonalization parameters or closure branches or the variable transformation
@@ -839,9 +846,15 @@ class Circuit(
             True if system_hierarchy is not None else False
         )
 
-        self.is_purely_harmonic = self._is_expression_purely_harmonic(self.hamiltonian_symbolic)
+        self.is_purely_harmonic = self._is_expression_purely_harmonic(
+            self.hamiltonian_symbolic
+        )
 
-        self.external_fluxes, self.offset_charges, self.var_categories = self._read_symbolic_hamiltonian(self.hamiltonian_symbolic)
+        (
+            self.external_fluxes,
+            self.offset_charges,
+            self.var_categories,
+        ) = self._read_symbolic_hamiltonian(self.hamiltonian_symbolic)
 
         if self.is_purely_harmonic:
             self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
@@ -932,7 +945,6 @@ class Circuit(
         # clear unnecessary attribs
         self.clear_unnecessary_attribs()
         self._frozen = True
-
 
     def _configure(
         self,

@@ -86,9 +86,8 @@ from scqubits.utils.spectrum_utils import (
 import scqubits.core.circuit as circuit
 from abc import ABC
 
-class CircuitRoutines(
-    ABC
-):
+
+class CircuitRoutines(ABC):
     @staticmethod
     def _is_expression_purely_harmonic(hamiltonian):
         if (
@@ -254,9 +253,13 @@ class CircuitRoutines(
         # generate _hamiltonian_sym_for_numerics if not already generated, delayed for
         # large circuits
 
-        if (hasattr(self, "symbolic_circuit")) and (not self.is_child) and (
-            (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES
-            or self.is_purely_harmonic
+        if (
+            (hasattr(self, "symbolic_circuit"))
+            and (not self.is_child)
+            and (
+                (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES
+                or self.is_purely_harmonic
+            )
         ):
             capacitance_branches = [
                 branch for branch in self.branches if branch.type in ("C", "JJ")
@@ -607,7 +610,7 @@ class CircuitRoutines(
             )
         )
 
-        self.subsystems: List["Subsystem"] = [
+        self.subsystems: List["circuit.Subsystem"] = [
             circuit.Subsystem(
                 self,
                 systems_sym[index],
