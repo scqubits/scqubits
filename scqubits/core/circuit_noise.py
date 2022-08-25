@@ -126,7 +126,7 @@ class NoisyCircuit(NoisySystem, ABC):
         for idx, branch in enumerate(junction_branches):
 
             def param_derivative(self=self, branch=branch):
-                return self.junction_related_evaluation(branch, calc="dhdEJ")
+                return -self.junction_related_evaluation(branch, calc="dhdEJ")
 
             cc_1_over_f_methods[f"d_hamiltonian_d_EJ{branch.id_str}"] = param_derivative
         self._data.update(ext_flux_1_over_f_methods)
@@ -391,6 +391,12 @@ class NoisyCircuit(NoisySystem, ABC):
             branch_var_expr = self._transform_expr_to_new_variables(
                 branch_var_expr_node, substitute_symbol=var_str
             )
+            # changing charge variables if necessary
+            if var_str == "Q":
+                for var_sym in branch_var_expr.free_symbols:
+                    var_index = get_trailing_number(var_sym.name)
+                    if var_index in self.var_categories["periodic"]:
+                        branch_var_expr = branch_var_expr.subs(var_sym, sm.symbols(f"n{var_index}"))
 
             if branch.type != "L":
                 branch_param = (
