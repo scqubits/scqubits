@@ -389,6 +389,7 @@ class NoisyCircuit(NoisySystem, ABC):
             branch_var_expr_node = sm.symbols(f"φ{branch.nodes[0].index}") - sm.symbols(
                 f"φ{branch.nodes[1].index}"
             )
+            branch_var_expr_node = branch_var_expr_node.subs("φ0", 0) # substituting node flux of ground to zero
             branch_var_expr = self._transform_expr_to_new_variables(
                 branch_var_expr_node, substitute_symbol=var_str
             )
