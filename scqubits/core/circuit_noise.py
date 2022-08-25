@@ -147,7 +147,9 @@ class NoisyCircuit(NoisySystem, ABC):
             sm.symbols(f"φ{branch_junction.nodes[0].index}")
             - sm.symbols(f"φ{branch_junction.nodes[1].index}")
         )
-        branch_cos_node_expr = branch_cos_node_expr.subs("φ0", 0) # setting ground node to zero.
+        branch_cos_node_expr = branch_cos_node_expr.subs(
+            "φ0", 0
+        )  # setting ground node to zero.
         branch_cos_expr = self._transform_expr_to_new_variables(branch_cos_node_expr)
         expr_dict = hamiltonian.as_coefficients_dict()
         for term, coefficient in expr_dict.items():
@@ -389,7 +391,9 @@ class NoisyCircuit(NoisySystem, ABC):
             branch_var_expr_node = sm.symbols(f"φ{branch.nodes[0].index}") - sm.symbols(
                 f"φ{branch.nodes[1].index}"
             )
-            branch_var_expr_node = branch_var_expr_node.subs("φ0", 0) # substituting node flux of ground to zero
+            branch_var_expr_node = branch_var_expr_node.subs(
+                "φ0", 0
+            )  # substituting node flux of ground to zero
             branch_var_expr = self._transform_expr_to_new_variables(
                 branch_var_expr_node, substitute_symbol=var_str
             )
@@ -398,7 +402,9 @@ class NoisyCircuit(NoisySystem, ABC):
                 for var_sym in branch_var_expr.free_symbols:
                     var_index = get_trailing_number(var_sym.name)
                     if var_index in self.var_categories["periodic"]:
-                        branch_var_expr = branch_var_expr.subs(var_sym, sm.symbols(f"n{var_index}"))
+                        branch_var_expr = branch_var_expr.subs(
+                            var_sym, sm.symbols(f"n{var_index}")
+                        )
 
             if branch.type != "L":
                 branch_param = (
