@@ -1621,8 +1621,6 @@ class SymbolicCircuit(serializers.Serializable):
             loop_branches = self._find_loop(closure_branch)
             for b_idx, branch in enumerate(loop_branches):
                 R_elem = 1
-                if branch.node_ids()[0] - branch.node_ids()[1] < 0:
-                    R_elem = -1
                 if (
                     b_idx > 0
                     and branch.node_ids()[0] != loop_branches[b_idx - 1].node_ids()[1]
