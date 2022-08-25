@@ -332,32 +332,23 @@ class GUI:
                 disabled=False,
                 indent=False,
             ),
-            "coherence_scale_text": FloatText(
-                value=1.0,
-                disabled=False,
-                description="Scale",
-                step=0.01,
-                layout=std_layout,
-            ),
             "i_text": IntText(
-                value=1, disabled=False, description="i", step=1, layout=std_layout
+                value=1, disabled=False, step=1
             ),
             "j_text": IntText(
-                value=0, disabled=False, description="j", step=1, layout=std_layout
+                value=0, disabled=False, step=1
             ),
             "t1_checkbox": Checkbox(
                 value=False,
                 description="Effective T1",
                 disabled=False,
                 indent=False,
-                layout=std_layout,
             ),
             "t2_checkbox": Checkbox(
                 value=False,
                 description="Effective T2",
                 disabled=False,
                 indent=False,
-                layout=std_layout,
             ),
         }
 
@@ -893,9 +884,6 @@ class GUI:
             widget.unobserve(self.common_params_dropdown_value_refresh, names="value")
 
     def observe_coherence_elements(self) -> None:
-        self.qubit_plot_options_widgets["coherence_scale_text"].observe(
-            self.coherence_text, names="value"
-        )
         self.qubit_plot_options_widgets["i_text"].observe(
             self.coherence_text, names="value"
         )
@@ -907,9 +895,6 @@ class GUI:
             widget.observe(self.coherence_text, names="value")
 
     def unobserve_coherence_elements(self) -> None:
-        self.qubit_plot_options_widgets["coherence_scale_text"].unobserve(
-            self.coherence_text, names="value"
-        )
         self.qubit_plot_options_widgets["i_text"].unobserve(
             self.coherence_text, names="value"
         )
@@ -986,31 +971,22 @@ class GUI:
         widget_key = change["owner"].description
         widget = None
 
-        if widget_key == "Scale":
-            widget_key = "coherence_scale_text"
-        elif widget_key == "i":
-            widget_key = "i_text"
-        elif widget_key == "j":
-            widget_key = "j_text"
-
-        if widget_key in self.qubit_plot_options_widgets.keys():
-            widget = self.qubit_plot_options_widgets[widget_key]
-        else:
+        if widget_key in self.noise_param_widgets.keys():
             widget = self.noise_param_widgets[widget_key]
+        else:
+            i_text_widget = self.qubit_plot_options_widgets["i_text"]
+            j_text_widget = self.qubit_plot_options_widgets["j_text"]
 
         if change["new"] <= 0:
-            if widget_key in ("i_text", "j_text"):
-                widget.value = 0
-            else:
+            if i_text_widget.value <= 0:
+                i_text_widget.value = 0
+            if j_text_widget.value <= 0:
+                j_text_widget.value = 0
+            if widget_key in self.noise_param_widgets.keys():
                 widget.value = widget.step
 
-        i_text_widget = self.qubit_plot_options_widgets["i_text"]
-        j_text_widget = self.qubit_plot_options_widgets["j_text"]
-        if i_text_widget.get_interact_value() == j_text_widget.get_interact_value():
-            if widget_key == "i_text":
-                i_text_widget.value = change["old"]
-            else:
-                j_text_widget.value = change["old"]
+        if i_text_widget.value == j_text_widget.value:
+            i_text_widget.value = j_text_widget.value + j_text_widget.step
         self.observe_coherence_elements()
         self.observe_plot_refresh()
 
@@ -1440,9 +1416,6 @@ class GUI:
             "scan_value": scan_dropdown_value,
             "scan_range": (scan_slider.min, scan_slider.max),
             "noise_channels": noise_channels,
-            "scale": self.qubit_plot_options_widgets[
-                "coherence_scale_text"
-            ].get_interact_value(),
             "common_noise_options": common_noise_options,
         }
 
@@ -1773,30 +1746,33 @@ class GUI:
         self.qubit_params_widgets[
             self.qubit_plot_options_widgets["scan_dropdown"].value
         ].disabled = True
-        text_VBox = VBox(
+        self.qubit_plot_options_widgets["i_text"].layout = Layout(width="15%")
+        self.qubit_plot_options_widgets["j_text"].layout = Layout(width="15%")
+        self.qubit_plot_options_widgets["t2_checkbox"].layout = Layout(width="45%")
+        self.qubit_plot_options_widgets["t1_checkbox"].layout = Layout(width="45%")
+        text_HBox = HBox(
             [
-                self.qubit_plot_options_widgets["coherence_scale_text"],
+                Label(value="Effective transitions from", layout=Layout(width="50%")),
                 self.qubit_plot_options_widgets["i_text"],
+                Label(value="to", layout=Layout(width="5%")),
                 self.qubit_plot_options_widgets["j_text"],
             ],
-            layout=Layout(width="50%"),
+            layout=Layout(display="flex", justify_content="space-between", width="95%"),
         )
-        checkbox_VBox = VBox(
+        checkbox_HBox = HBox(
             [
                 self.qubit_plot_options_widgets["t1_checkbox"],
                 self.qubit_plot_options_widgets["t2_checkbox"],
             ],
-            layout=Layout(width="35%"),
+            layout=Layout(display="flex", justify_content="space-between", width="95%"),
         )
 
         plot_options_widgets_tuple = (
             self.qubit_plot_options_widgets["scan_dropdown"],
             self.qubit_plot_options_widgets["noise_channel_multi-select"],
-            HBox(
-                [text_VBox, checkbox_VBox],
-                layout=Layout(
-                    display="flex", justify_content="space-between", width="95%"
-                ),
+            VBox(
+                [text_HBox, checkbox_HBox],
+                layout=Layout(width="95%"),
             ),
         )
 
@@ -2088,7 +2064,6 @@ class GUI:
         scan_value: str,
         scan_range: Tuple[float, float],
         noise_channels: Dict[str, List[Union[str, Tuple[str, Dict[str, float]]]]],
-        scale: float,
         common_noise_options: Dict[str, Union[int, float]],
         t1_effective_tf: bool,
         t2_effective_tf: bool,
@@ -2130,7 +2105,6 @@ class GUI:
                     param_name=scan_value,
                     param_vals=np_list,
                     noise_channels=noise_channels["coherence_times"],
-                    scale=scale,
                     common_noise_options=common_noise_options,
                 )
             elif t1_effective_tf and not t2_effective_tf:
@@ -2138,7 +2112,6 @@ class GUI:
                     param_name=scan_value,
                     param_vals=np_list,
                     noise_channels=noise_channels["t1_eff"],
-                    scale=scale,
                     common_noise_options=common_noise_options,
                 )
             elif not t1_effective_tf and t2_effective_tf:
@@ -2146,7 +2119,6 @@ class GUI:
                     param_name=scan_value,
                     param_vals=np_list,
                     noise_channels=noise_channels["t2_eff"],
-                    scale=scale,
                     common_noise_options=common_noise_options,
                 )
             else:
@@ -2155,7 +2127,6 @@ class GUI:
                     param_name=scan_value,
                     param_vals=np_list,
                     noise_channels=noise_channels["t1_eff"],
-                    scale=scale,
                     common_noise_options=common_noise_options,
                     fig_ax=(self.fig, ax[0]),
                 )
@@ -2163,7 +2134,6 @@ class GUI:
                     param_name=scan_value,
                     param_vals=np_list,
                     noise_channels=noise_channels["t2_eff"],
-                    scale=scale,
                     common_noise_options=common_noise_options,
                     fig_ax=(self.fig, ax[1]),
                 )
@@ -2186,7 +2156,6 @@ class GUI:
                     param_name=scan_value,
                     param_vals=np_list,
                     noise_channels=noise_channels["coherence_times"],
-                    scale=scale,
                     common_noise_options=common_noise_options,
                     fig_ax=(self.fig, axes),
                 )
@@ -2195,7 +2164,6 @@ class GUI:
                     param_name=scan_value,
                     param_vals=np_list,
                     noise_channels=noise_channels["t1_eff"],
-                    scale=scale,
                     common_noise_options=common_noise_options,
                     fig_ax=(self.fig, self.fig.axes[0]),
                 )
@@ -2204,7 +2172,6 @@ class GUI:
                     param_name=scan_value,
                     param_vals=np_list,
                     noise_channels=noise_channels["t2_eff"],
-                    scale=scale,
                     common_noise_options=common_noise_options,
                     fig_ax=(self.fig, self.fig.axes[0]),
                 )
@@ -2213,7 +2180,6 @@ class GUI:
                     param_name=scan_value,
                     param_vals=np_list,
                     noise_channels=noise_channels["t1_eff"],
-                    scale=scale,
                     common_noise_options=common_noise_options,
                     fig_ax=(self.fig, self.fig.axes[0]),
                 )
@@ -2221,7 +2187,6 @@ class GUI:
                     param_name=scan_value,
                     param_vals=np_list,
                     noise_channels=noise_channels["t2_eff"],
-                    scale=scale,
                     common_noise_options=common_noise_options,
                     fig_ax=(self.fig, self.fig.axes[1]),
                 )
