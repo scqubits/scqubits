@@ -143,17 +143,18 @@ class NoisyCircuit(NoisySystem, ABC):
         for sym in self.offset_charges + list(self.symbolic_params.keys()):
             hamiltonian = hamiltonian.subs(sym, getattr(self, sym.name))
         hamiltonian = hamiltonian.subs("I", 1)
-        derivative_node_expr = sm.cos(
+        branch_cos_node_expr = sm.cos(
             sm.symbols(f"φ{branch_junction.nodes[0].index}")
             - sm.symbols(f"φ{branch_junction.nodes[1].index}")
         )
-        derivarive_expr = self._transform_expr_to_new_variables(derivative_node_expr)
+        branch_cos_node_expr = branch_cos_node_expr.subs("φ0", 0) # setting ground node to zero.
+        branch_cos_expr = self._transform_expr_to_new_variables(branch_cos_node_expr)
         expr_dict = hamiltonian.as_coefficients_dict()
         for term, coefficient in expr_dict.items():
             term_without_ext_flux = copy.copy(term)
             for flux in self.external_fluxes:
                 term_without_ext_flux = term_without_ext_flux.subs(flux, 0)
-            if term_without_ext_flux == derivarive_expr:
+            if term_without_ext_flux == branch_cos_expr:
                 break
         # substitute external flux
         for flux in self.external_fluxes:
