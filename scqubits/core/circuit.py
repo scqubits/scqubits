@@ -189,25 +189,6 @@ class Subsystem(
         self._configure()
         self._frozen = True
 
-    def supported_noise_channels(self) -> List[str]:
-        """Return a list of supported noise channels"""
-        # return ['tphi_1_over_f_flux',]
-        noise_channels = ["t1_capacitive", "t1_charge_impedance"]
-        if len([branch for branch in self.branches if branch.type == "L"]):
-            noise_channels.append("t1_inductive")
-        if len(self.offset_charges) > 0:
-            noise_channels.append("tphi_1_over_f_ng")
-        if len(self.external_fluxes) > 0:
-            noise_channels.append("tphi_1_over_f_flux")
-            noise_channels.append("t1_flux_bias_line")
-        if not self.is_purely_harmonic:
-            noise_channels.append("tphi_1_over_f_cc")
-            noise_channels.append("t1_quasiparticle_tunneling")
-        return noise_channels
-
-    def effective_noise_channels(self):
-        return self.supported_noise_channels()
-
     def _configure(self) -> None:
         """
         Function which is used to initiate the subsystem instance.
@@ -1121,6 +1102,28 @@ class Circuit(
         # clear unnecessary attribs
         self.clear_unnecessary_attribs()
         self._frozen = True
+
+    def supported_noise_channels(self) -> List[str]:
+        """Return a list of supported noise channels"""
+        # return ['tphi_1_over_f_flux',]
+        noise_channels = ["t1_capacitive", "t1_charge_impedance"]
+        if len([branch for branch in self.branches if branch.type == "L"]):
+            noise_channels.append("t1_inductive")
+        if len(self.offset_charges) > 0:
+            noise_channels.append("tphi_1_over_f_ng")
+        if len(self.external_fluxes) > 0:
+            noise_channels.append("tphi_1_over_f_flux")
+            noise_channels.append("t1_flux_bias_line")
+        if not self.is_purely_harmonic:
+            noise_channels.append("tphi_1_over_f_cc")
+            # noise_channels.append("t1_quasiparticle_tunneling")
+        return noise_channels
+
+    def effective_noise_channels(self):
+        supported_channels = self.supported_noise_channels()
+        if "t1_charge_impedance" in supported_channels:
+            supported_channels.remove("t1_charge_impedance")
+        return supported_channels
 
     def variable_transformation(self) -> None:
         """
