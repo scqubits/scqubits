@@ -16,6 +16,7 @@ import os
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
+import scipy as sp
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -113,6 +114,40 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         noise_channels = cls.supported_noise_channels()
         noise_channels.remove("t1_charge_impedance")
         return noise_channels
+
+    def _hamiltonian_diagonal(self) -> ndarray:
+        dimension = self.hilbertdim()
+        return 4.0 * self.EC * (np.arange(dimension) - self.ncut - self.ng) ** 2
+
+    def _hamiltonian_offdiagonal(self) -> ndarray:
+        dimension = self.hilbertdim()
+        return np.full(shape=(dimension - 1,), fill_value=-self.EJ / 2.0)
+
+    def _evals_calc(self, evals_count: int) -> ndarray:
+        diagonal = self._hamiltonian_diagonal()
+        off_diagonal = self._hamiltonian_offdiagonal()
+
+        evals = sp.linalg.eigvalsh_tridiagonal(
+            diagonal,
+            off_diagonal,
+            select="i",
+            select_range=(0, evals_count - 1),
+            check_finite=False,
+        )
+        return evals
+
+    def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
+        diagonal = self._hamiltonian_diagonal()
+        off_diagonal = self._hamiltonian_offdiagonal()
+
+        evals, evecs = sp.linalg.eigh_tridiagonal(
+            diagonal,
+            off_diagonal,
+            select="i",
+            select_range=(0, evals_count - 1),
+            check_finite=False,
+        )
+        return evals, evecs
 
     def n_operator(self) -> ndarray:
         """Returns charge operator `n` in the charge basis"""
