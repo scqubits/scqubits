@@ -37,14 +37,15 @@ class TestCircuit:
         - ["C", 2, 4, 0.02]
         """
         REFERENCE = (
-            "<bound method Printable.__str__ of 6.25625*\\dot{θ_1}**2 + "
-            "25.0*\\dot{θ_2}**2 + 0.00625*\\dot{θ_3}**2 + EJ*cos(θ1 - 1.0*θ3) + "
-            "EJ*cos(-(2πΦ_{1}) + θ1 + θ3) - 0.036*θ2**2 - 0.004*θ2*θ3 - 0.009*θ3**2>"
+            "<bound method Printable.__str__ of "
+            "EJ*cos(θ1 - 1.0*θ3) + EJ*cos(-(2πΦ_{1}) + θ1 + θ3) + "
+            "6.25625*\\dot{θ_1}**2 + 25.0*\\dot{θ_2}**2 + 0.00625*\\dot{θ_3}**2 - "
+            "0.036*θ2**2 - 0.004*θ2*θ3 - 0.009*θ3**2>"
         )
 
         zero_pi = scq.Circuit(zp_yaml, from_file=False, ext_basis="discretized")
         latex_code = str(
-            zero_pi.sym_lagrangian(vars_type="new", return_expr=True).__repr__
+            zero_pi.sym_lagrangian(vars_type="new", return_expr=True).doit().__repr__
         )
         assert latex_code == REFERENCE
 
@@ -64,23 +65,23 @@ class TestCircuit:
         """
 
         circ_d = scq.Circuit(zp_yaml, from_file=False, ext_basis="discretized")
-        circ_d.cutoff_n_1 = 30
+        circ_d.cutoff_n_1 = 10
         circ_d.cutoff_ext_2 = 30
         circ_d.cutoff_ext_3 = 80
         circ_d.configure(system_hierarchy=[[1, 3], [2]], subsystem_trunc_dims=[30, 20])
 
-        circ_d.cutoff_ext_3 = 200
+        circ_d.cutoff_ext_3 = 40
         sym_zp = circ_d.subsystems[0]
         eigensys = sym_zp.eigensys()
         eigs = eigensys[0]
         eigs_ref = np.array(
             [
-                -3.69090429,
-                -3.69049138,
-                -2.89704215,
-                -2.89659842,
-                -2.77231275,
-                -2.76823373,
+                -3.70090046,
+                -3.69913548,
+                -2.90582739,
+                -2.90393935,
+                -2.79842719,
+                -2.7828118,
             ]
         )
 
@@ -101,22 +102,22 @@ class TestCircuit:
         - ["C", 2, 4, 0.02]
         """
         circ = scq.Circuit(zp_yaml, from_file=False, ext_basis="harmonic")
-        circ.cutoff_n_1 = 30
+        circ.cutoff_n_1 = 10
         circ.cutoff_ext_2 = 30
         circ.cutoff_ext_3 = 80
         circ.configure(system_hierarchy=[[1, 3], [2]], subsystem_trunc_dims=[30, 20])
-        circ.cutoff_ext_3 = 200
+        circ.cutoff_ext_3 = 40
         sym_zp = circ.subsystems[0]
         eigensys = sym_zp.eigensys()
         eigs = eigensys[0]
         eig_ref = np.array(
             [
-                -3.69858244,
-                -3.69261899,
-                -2.90463196,
-                -2.89989473,
-                -2.81204032,
-                -2.81003324,
+                -3.95850408,
+                -3.93587302,
+                -3.74822125,
+                -3.73409532,
+                -3.67662783,
+                -3.64125888,
             ]
         )
         assert np.allclose(eigs, eig_ref)

@@ -549,6 +549,9 @@ class Subsystem(
             # attribute to note updated subsystem indices
             self.updated_subsystem_indices = []
 
+            self.hamiltonian_without_interaction = None
+            self.interaction = None
+
             self.generate_subsystems()
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
@@ -740,6 +743,36 @@ class Subsystem(
 
         self.hilbert_space = HilbertSpace(self.subsystems)
 
+    def sorted_hamiltonian(
+        self,
+    ) -> Tuple[
+        Union[csc_matrix, ndarray],
+        Union[csc_matrix, ndarray],
+        Union[csc_matrix, ndarray],
+    ]:
+        """
+        If hierarchical diagonalization is used, returns sorted Hamiltonian
+        matrix based on the size of diagonal elements of the Hamiltonian
+        without interaction. The algorithm is inspired by:
+        https://stackoverflow.com/questions/36381356/sort-matrix-based-on-its-diagonal-entries
+
+        Returns
+        -------
+            The sorted Hamiltonian with and without interaction, and the sorted interaction.
+        """
+        if self.type_of_matrices == "sparse":
+            diag = self.hamiltonian_without_interaction.diagonal()
+        else:
+            diag = np.diag(self.hamiltonian_without_interaction)
+        # get the order of items
+        idx = np.argsort(diag)
+        # reorder
+        return (
+            self.hamiltonian()[idx, :][:, idx],
+            self.hamiltonian_without_interaction[idx, :][:, idx],
+            self.interaction[idx, :][:, idx],
+        )
+
     def get_eigenstates(self) -> ndarray:
         """
         Returns the eigenstates for the SubSystem instance
@@ -777,7 +810,7 @@ class Subsystem(
     ) -> None:
         """
         Builds the HilbertSpace object for the `Circuit` instance if
-        `hierarchical_diagonalization` is set to true.
+        `hierarchical_diagonalization` is set to true. In the mean time,
 
         Parameters
         ----------
@@ -793,6 +826,23 @@ class Subsystem(
         )
 
         self.hilbert_space.interaction_list = []
+
+        # generate Hamiltonian that does not contain interaction term
+        bare_esys = {
+            sys_index: (
+                self.hilbert_space["bare_evals"][sys_index][0],
+                self.hilbert_space["bare_evecs"][sys_index][0],
+            )
+            for sys_index, sys in enumerate(self.hilbert_space.subsys_list)
+        }
+        if self.type_of_matrices == "dense":
+            self.hamiltonian_without_interaction = self.hilbert_space.hamiltonian(
+                bare_esys=bare_esys
+            ).full()
+        elif self.type_of_matrices == "sparse":
+            self.hamiltonian_without_interaction = self.hilbert_space.hamiltonian(
+                bare_esys=bare_esys
+            ).data.tocsc()
 
         # Adding interactions using the symbolic interaction term
         for sys_index in range(len(self.system_hierarchy)):
@@ -1890,9 +1940,11 @@ class Subsystem(
             }
             hamiltonian = self.hilbert_space.hamiltonian(bare_esys=bare_esys)
             if self.type_of_matrices == "dense":
-                return hamiltonian.full()
+                hamiltonian_mat = hamiltonian.full()
             if self.type_of_matrices == "sparse":
-                return hamiltonian.data.tocsc()
+                hamiltonian_mat = hamiltonian.data.tocsc()
+            self.interaction = hamiltonian_mat - self.hamiltonian_without_interaction
+            return hamiltonian_mat
 
     def _evals_calc(self, evals_count: int) -> ndarray:
         # dimension of the hamiltonian
@@ -3590,6 +3642,9 @@ class Circuit(Subsystem):
             self.operators_by_name = self.set_operators()
         else:
             # list for updating necessary subsystems when calling build hilbertspace
+            self.interaction = None
+            self.hamiltonian_without_interaction = None
+
             self.updated_subsystem_indices = []
             self.operators_by_name = None
             self.system_hierarchy = system_hierarchy
