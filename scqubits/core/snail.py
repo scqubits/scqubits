@@ -1,30 +1,17 @@
 from typing import Any, Dict, Optional, Tuple
 
-from typing import Any, Dict, Optional, Tuple
-
-import matplotlib.pyplot as plt
 import numpy as np
 
-from numpy import ndarray
 from scipy import sparse
 
-
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
 from numpy import ndarray
 from scipy.sparse import csc_matrix
 
 import scqubits.core.qubit_base as base
-import scqubits.io_utils.fileio_serializers as serializers
-import scqubits.utils.spectrum_utils as utils
 
-from scqubits.core import descriptors
 import scqubits.core.descriptors as descriptors
-import scqubits.core.discretization as discretization
 import scqubits.utils.spectrum_utils as utils
 import scqubits.io_utils.fileio_serializers as serializers
-import scqubits.core.storage as storage
-import scqubits.core.constants as constants
 
 
 class Snailmon(base.QubitBaseClass, serializers.Serializable):
