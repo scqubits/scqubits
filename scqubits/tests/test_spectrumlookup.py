@@ -68,24 +68,18 @@ class TestSpectrumLookup:
         CPB = hilbertspace[0]
         reference = np.asarray([-36.05064983, -28.25601136, -20.67410141])
         assert np.allclose(hilbertspace.bare_eigenvals(CPB), reference)
-        # [legacy support / deprecated]
-        assert np.allclose(hilbertspace.lookup.bare_eigenenergies(CPB), reference)
 
     def test_hilbertspace_lookup_bare_index(self):
         hilbertspace = self.initialize_hilbertspace()
         hilbertspace.generate_lookup()
         reference = (1, 0, 1)
         assert hilbertspace.bare_index(8) == reference
-        # [legacy support / deprecated]
-        assert hilbertspace.lookup.bare_index(8) == reference
 
     def test_hilbertspace_lookup_dressed_index(self):
         hilbertspace = self.initialize_hilbertspace()
         hilbertspace.generate_lookup()
         reference = 7
         assert hilbertspace.dressed_index((1, 1, 0)) == reference
-        # [legacy support / deprecated]
-        assert hilbertspace.lookup.dressed_index((1, 1, 0)) == reference
 
     def test_hilbertspace_lookup_bare_eigenstates(self):
         hilbertspace = self.initialize_hilbertspace()
@@ -177,8 +171,6 @@ class TestSpectrumLookup:
             ]
         )
         assert np.allclose(hilbertspace.bare_eigenstates(CPB), reference)
-        # [legacy support / deprecated]
-        assert np.allclose(hilbertspace.lookup.bare_eigenstates(CPB), reference)
 
 
 class TestParameterSweep:
