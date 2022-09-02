@@ -36,6 +36,7 @@ import scipy as sp
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
+from scipy.sparse import csc_matrix, dia_matrix
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
@@ -48,6 +49,7 @@ from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import DataStore, SpectrumData
 from scqubits.settings import IN_IPYTHON
+from scqubits.utils import spectrum_utils
 from scqubits.utils.cpu_switch import get_map_method
 from scqubits.utils.misc import InfoBar, process_which
 from scqubits.utils.spectrum_utils import (
@@ -344,6 +346,29 @@ class QubitBaseClass(QuantumSystem, ABC):
         if filename:
             specdata.filewrite(filename)
         return specdata if return_spectrumdata else (evals, evecs)
+
+    def process_op(self, native_op: Union[ndarray, csc_matrix], energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+        if isinstance(energy_esys, bool):
+            if not energy_esys:
+                return native_op
+            esys = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            esys = energy_esys
+        evectors = esys[1][:, :self.truncated_dim]
+        return get_matrixelement_table(native_op, evectors)
+
+    def process_hamiltonian(self, native_op: Union[ndarray, csc_matrix], energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+        if isinstance(energy_esys, bool):
+            if not energy_esys:
+                return native_op
+            esys = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            esys = energy_esys
+        evals = esys[0][:self.truncated_dim]
+        if isinstance(native_op, ndarray):
+            return np.diag(evals)
+        return dia_matrix(evals).tocsc()  # look up in scipy doc, do we want dense or sparse,
+        # what is difference, for hamiltonian want sparse?
 
     @overload
     def matrixelement_table(

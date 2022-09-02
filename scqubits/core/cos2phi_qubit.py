@@ -23,7 +23,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
 from scipy import sparse
-from scipy.sparse import csc_matrix, dia_matrix
+from scipy.sparse import csc_matrix, dia_matrix, coo_matrix
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
@@ -45,23 +45,23 @@ from scqubits.core.storage import WaveFunctionOnGrid
 # -Cosine two phi qubit noise class
 class NoisyCos2PhiQubit(NoisySystem, ABC):
     @abstractmethod
-    def phi_1_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+    def phi_1_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
         pass
 
     @abstractmethod
-    def phi_2_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+    def phi_2_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
         pass
 
     @abstractmethod
-    def n_1_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+    def n_1_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
         pass
 
     @abstractmethod
-    def n_2_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+    def n_2_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> Union[ndarray, csc_matrix]:
         pass
 
     @abstractmethod
-    def n_zeta_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+    def n_zeta_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
         pass
 
     def t1_inductive(
@@ -602,19 +602,30 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
                 / math.sqrt(2)
         )
 
-    def phi_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
-        r"""Returns :math:`\phi` operator"""
-        if not use_energy_basis:
-            return self._kron3(
+    def phi_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+        r"""
+        Returns the :math:`\phi` operator in the native or eigenenergy basis.
+
+        Parameters
+        ----------
+        energy_esys:
+            If False (default), returns :math:`\phi` operator in the native basis.
+            If True, energy eigenspectrum is computed, returns :math:`\phi` operator in the energy eigenbasis.
+            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns :math:`\phi` operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            :math:`\phi` operator in chosen basis. If native basis chosen, operator
+            returned as a csc_matrix. If eigenenergy basis is chosen,
+            unless energy_esys is specified, :math:`\phi` operator has dimensions of truncated_dim
+            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen, :math:`\phi`
+            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        """
+        native = self._kron3(
             self._phi_operator(), self._identity_zeta(), self._identity_theta()
         )
-        if evecs is None:
-            _, evectors = self.eigensys(evals_count=self.truncated_dim)
-        else:
-            evectors = evecs[:, :self.truncated_dim]
-        return spec_utils.get_matrixelement_table(self._kron3(
-            self._phi_operator(), self._identity_zeta(), self._identity_theta()
-        ), evectors)
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def _n_phi_operator(self) -> csc_matrix:
         r"""
@@ -627,20 +638,31 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
                 * (op.creation_sparse(dimension) - op.annihilation_sparse(dimension))
                 / (self.phi_osc() * math.sqrt(2))
         )
+# changed expected from csc_matrix to Union[ndarray, coo_matrix]
+    def n_phi_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, coo_matrix]:
+        r"""
+        Returns the :math:`n_\phi` operator in the harmonic oscillator or eigenenergy basis.
 
-    def n_phi_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
-        r"""Returns :math:`n_\phi` operator"""
-        if not use_energy_basis:
-            return self._kron3(
+        Parameters
+        ----------
+        energy_esys:
+            If False (default), returns :math:`n_\phi` operator in the native basis.
+            If True, energy eigenspectrum is computed, returns :math:`n_\phi` operator in the energy eigenbasis.
+            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns :math:`n_\phi` operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            :math:`n_\phi` operator in chosen basis. If native basis chosen, operator
+            returned as a csc_matrix. If eigenenergy basis is chosen,
+            unless energy_esys is specified, :math:`n_\phi` operator has dimensions of truncated_dim
+            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen, :math:`n_\phi`
+            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray :math:`\zeta`.
+        """
+        native = self._kron3(
             self._n_phi_operator(), self._identity_zeta(), self._identity_theta()
         )
-        if evecs is None:
-            _, evectors = self.eigensys(evals_count=self.truncated_dim)
-        else:
-            evectors = evecs[:, :self.truncated_dim]
-        return spec_utils.get_matrixelement_table(self._kron3(
-            self._n_phi_operator(), self._identity_zeta(), self._identity_theta()
-        ), evectors)
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def _zeta_operator(self) -> csc_matrix:
         """
@@ -654,19 +676,30 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             / math.sqrt(2)
         )
 
-    def zeta_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
-        r"""Returns :math:`\zeta` operator"""
-        if not use_energy_basis:
-            return self._kron3(
+    def zeta_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+        r"""
+        Returns the :math:`\zeta`  operator in the harmonic oscillator or eigenenergy basis.
+
+        Parameters
+        ----------
+        energy_esys:
+            If False (default), returns :math:`\zeta` operator in the native basis.
+            If True, energy eigenspectrum is computed, returns :math:`\zeta`  operator in the energy eigenbasis.
+            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns :math:`\zeta`  operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            :math:`\zeta`  operator in chosen basis. If native basis chosen, operator
+            returned as a csc_matrix. If eigenenergy basis is chosen,
+            unless energy_esys is specified, :math:`\zeta`  operator has dimensions of truncated_dim
+            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen, :math:`\zeta`
+            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        """
+        native = self._kron3(
             self._identity_phi(), self._zeta_operator(), self._identity_theta()
         )
-        if evecs is None:
-            _, evectors = self.eigensys(evals_count=self.truncated_dim)
-        else:
-            evectors = evecs[:, :self.truncated_dim]
-        return spec_utils.get_matrixelement_table(self._kron3(
-            self._identity_phi(), self._zeta_operator(), self._identity_theta()
-        ), evectors)
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def _n_zeta_operator(self) -> csc_matrix:
         r"""
@@ -680,19 +713,30 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             / (self.zeta_osc() * math.sqrt(2))
         )
 
-    def n_zeta_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
-        r"""Returns :math:`n_\zeta` operator"""
-        if not use_energy_basis:
-            return self._kron3(
+    def n_zeta_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+        r"""
+        Returns the :math:`n_\zeta`  operator in the harmonic oscillator or eigenenergy basis.
+
+        Parameters
+        ----------
+        energy_esys:
+            If False (default), returns :math:`n_\zeta` operator in the native basis.
+            If True, energy eigenspectrum is computed, returns :math:`n_\zeta`  operator in the energy eigenbasis.
+            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns :math:`n_\zeta`  operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            :math:`n_\zeta`  operator in chosen basis. If native basis chosen, operator
+            returned as a csc_matrix. If eigenenergy basis is chosen,
+            unless energy_esys is specified, :math:`n_\zeta`  operator has dimensions of truncated_dim
+            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen, :math:`n_\zeta`
+            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        """
+        native = self._kron3(
             self._identity_phi(), self._n_zeta_operator(), self._identity_theta()
         )
-        if evecs is None:
-            _, evectors = self.eigensys(evals_count=self.truncated_dim)
-        else:
-            evectors = evecs[:, :self.truncated_dim]
-        return spec_utils.get_matrixelement_table(self._kron3(
-            self._identity_phi(), self._n_zeta_operator(), self._identity_theta()
-        ), evectors)
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def _exp_i_phi_operator(self) -> csc_matrix:
         """
@@ -730,19 +774,30 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             (diag_elements, [0]), shape=(self._dim_theta(), self._dim_theta())
         ).tocsc()
 
-    def n_theta_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
-        r"""Returns :math:`n_\theta` operator"""
-        if not use_energy_basis:
-            return self._kron3(
+    def n_theta_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+        r"""
+        Returns the :math:`n_\theta`  operator in the charge or eigenenergy basis.
+
+        Parameters
+        ----------
+        energy_esys:
+            If False (default), returns :math:`n_\theta` operator in the charge basis.
+            If True, energy eigenspectrum is computed, returns :math:`n_\theta`  operator in the energy eigenbasis.
+            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns :math:`n_\theta`  operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            :math:`n_\theta`  operator in chosen basis. If charge basis chosen, operator
+            returned as a csc_matrix. If eigenenergy basis is chosen,
+            unless energy_esys is specified, :math:`n_\theta`  operator has dimensions of truncated_dim
+            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen, :math:`n_\theta`
+            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        """
+        native = self._kron3(
             self._identity_phi(), self._identity_zeta(), self._n_theta_operator()
         )
-        if evecs is None:
-            _, evectors = self.eigensys(evals_count=self.truncated_dim)
-        else:
-            evectors = evecs[:, :self.truncated_dim]
-        return spec_utils.get_matrixelement_table(self._kron3(
-            self._identity_phi(), self._identity_zeta(), self._n_theta_operator()
-        ), evectors)
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
 
     def _cos_theta_operator(self) -> csc_matrix:
@@ -814,10 +869,25 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             self._identity_phi(), self._identity_zeta(), self._identity_theta()
         )
 
-    def hamiltonian(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
-        """
-        Returns Hamiltonian in basis obtained by employing harmonic basis for
-        :math:`\\phi, \\zeta` and charge basis for :math:`\\theta`.
+    def hamiltonian(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> csc_matrix:
+        """Returns Hamiltonian in basis obtained by employing harmonic basis for
+        :math:`\\phi, \\zeta` and charge basis for :math:`\\theta` or in the eigenenerg basis.
+
+        Parameters
+        ----------
+        energy_esys:
+            If False (default), returns Hamiltonian in basis obtained by employing harmonic basis for
+            :math:`\\phi, \\zeta` and charge basis for :math:`\\theta`.
+            If True, energy eigenspectrum is computed, returns Hamiltonian in the energy eigenbasis.
+            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns Hamiltonian in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            Hamiltonian in chosen basis as csc_matrix. If eigenenergy basis is chosen,
+            unless energy_esys is specified, Hamiltonian has dimensions of truncated_dim
+            x truncated_dim. Otherwise, if eigenenergy basis is chosen, Hamiltonian has dimensions of m x m,
+            for m given eigenvectors.
         """
         phi_osc_mat = self._kron3(
             op.number_sparse(self._dim_phi(), self.phi_plasma()),
@@ -886,8 +956,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         )
         disorder_c = -4 * self._disordered_ecj() * self.dCJ * dis_c_opt
 
-        if not use_energy_basis:
-            return (
+        hamiltonian_mat = (
             phi_osc_mat
             + zeta_osc_mat
             + cross_kinetic_mat
@@ -896,19 +965,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             + disorder_j
             + disorder_c
         )
-        if evecs is None:
-            _, evectors = self.eigensys(evals_count=self.truncated_dim)
-        else:
-            evectors = evecs[:, :self.truncated_dim]
-        return spec_utils.get_matrixelement_table((
-            phi_osc_mat
-            + zeta_osc_mat
-            + cross_kinetic_mat
-            + junction_mat
-            + disorder_l
-            + disorder_j
-            + disorder_c
-        ), evectors)
+        native = hamiltonian_mat.tocsc()
+        return self.process_hamiltonian(native_op=native, energy_esys=energy_esys)
 
     def _evals_calc(self, evals_count) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
@@ -1135,80 +1193,125 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             **kwargs
         )
 
-    def phi_1_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
-        """Returns operator representing the phase across inductor 1"""
-        return self.zeta_operator(use_energy_basis=use_energy_basis, evecs=evecs) - self.phi_operator(use_energy_basis=use_energy_basis, evecs=evecs)
+    def phi_1_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+        """
+        Returns operator representing the phase across inductor 1 in harmonic oscillator or eigenenergy basis.
 
-    # get rid of
-    def phi_1_operator_other(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
-        """Returns operator representing the phase across inductor 1"""
-        if not use_energy_basis:
-            return self.zeta_operator() - self.phi_operator()
-        if evecs is None:
-            _, evectors = self.eigensys(evals_count=self.truncated_dim)
-        else:
-            evectors = evecs[:, :self.truncated_dim]
-        return spec_utils.get_matrixelement_table(self.zeta_operator() - self.phi_operator(), evectors)
+        Parameters
+        ----------
+        energy_esys:
+            If False (default), returns operator in the harmonic oscillator basis.
+            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
-    def phi_2_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
-        """Returns operator representing the phase across inductor 2"""
-        return -self.zeta_operator(use_energy_basis=use_energy_basis, evecs=evecs) - self.phi_operator(use_energy_basis=use_energy_basis, evecs=evecs)
+        Returns
+        -------
+            Operator in chosen basis. If harmonic oscillator basis chosen, operator
+            returned as a csc_matrix. If eigenenergy basis is chosen,
+            unless energy_esys is specified, operator has dimensions of truncated_dim
+            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
+            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        """
+        native = self.zeta_operator() - self.phi_operator()
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    # get rid of
-    def phi_2_operator_other(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
-        """Returns operator representing the phase across inductor 2"""
-        if not use_energy_basis:
-            return -self.zeta_operator() - self.phi_operator()
-        if evecs is None:
-            _, evectors = self.eigensys(evals_count=self.truncated_dim)
-        else:
-            evectors = evecs[:, :self.truncated_dim]
-        return spec_utils.get_matrixelement_table(-self.zeta_operator() - self.phi_operator(), evectors)
+    def phi_2_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+        """
+        Returns operator representing the phase across inductor 2 in harmonic oscillator or eigenenergy basis.
 
-    def n_1_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
-        """Returns operator representing the charge difference across junction 1"""
-        return 0.5 * self.n_phi_operator(use_energy_basis=use_energy_basis, evecs=evecs) + 0.5 * (
-            self.n_theta_operator(use_energy_basis=use_energy_basis, evecs=evecs) - self.n_zeta_operator(use_energy_basis=use_energy_basis, evecs=evecs)
-        )
-    # get rid of
+        Parameters
+        ----------
+        energy_esys:
+            If False (default), returns operator in the harmonic oscillator basis.
+            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
-    def n_1_operator_other(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
-        """Returns operator representing the charge difference across junction 1"""
-        if not use_energy_basis:
-            return 0.5 * self.n_phi_operator() + 0.5 * (
-                self.n_theta_operator() - self.n_zeta_operator()
-        )
-        if evecs is None:
-            _, evectors = self.eigensys(evals_count=self.truncated_dim)
-        else:
-            evectors = evecs[:, :self.truncated_dim]
-        return spec_utils.get_matrixelement_table(0.5 * self.n_phi_operator() + 0.5 * (
-                self.n_theta_operator() - self.n_zeta_operator()
-        ), evectors)
+        Returns
+        -------
+            Operator in chosen basis. If harmonic oscillator basis chosen, operator
+            returned as a csc_matrix. If eigenenergy basis is chosen,
+            unless energy_esys is specified, operator has dimensions of truncated_dim
+            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
+            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        """
+        native = -self.zeta_operator() - self.phi_operator()
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def n_2_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
-        """Returns operator representing the charge difference across junction 2"""
-        return 0.5 * self.n_phi_operator(use_energy_basis=use_energy_basis, evecs=evecs) - 0.5 * (
-            self.n_theta_operator(use_energy_basis=use_energy_basis, evecs=evecs) - self.n_zeta_operator(use_energy_basis=use_energy_basis, evecs=evecs)
-        )
 
-    # get rid of
+    def n_1_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+        """
+        Returns operator representing the charge difference across junction 1 in native or eigenenergy basis.
 
-    def n_2_operator_other(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
-        """Returns operator representing the charge difference across junction 2"""
-        if not use_energy_basis:
-            return 0.5 * self.n_phi_operator() - 0.5 * (
+        Parameters
+        ----------
+        energy_esys:
+            If False (default), returns operator in the harmonic oscillator basis.
+            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            Operator in chosen basis. If native basis chosen, operator
+            returned as a csc_matrix. If eigenenergy basis is chosen,
+            unless energy_esys is specified, operator has dimensions of truncated_dim
+            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
+            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        """
+        native = 0.5 * self.n_phi_operator() + 0.5 * (
             self.n_theta_operator() - self.n_zeta_operator()
         )
-        if evecs is None:
-            _, evectors = self.eigensys(evals_count=self.truncated_dim)
-        else:
-            evectors = evecs[:, :self.truncated_dim]
-        return spec_utils.get_matrixelement_table(0.5 * self.n_phi_operator() - 0.5 * (
-            self.n_theta_operator() - self.n_zeta_operator()
-        ), evectors)
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def d_hamiltonian_d_flux(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+
+    def n_2_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+        """
+        Returns operator representing the charge difference across junction 2 in native or eigenenergy basis.
+
+        Parameters
+        ----------
+        energy_esys:
+            If False (default), returns operator in the harmonic oscillator basis.
+            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            Operator in chosen basis. If native basis chosen, operator
+            returned as a csc_matrix. If eigenenergy basis is chosen,
+            unless energy_esys is specified, operator has dimensions of truncated_dim
+            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
+            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        """
+        native = 0.5 * self.n_phi_operator() - 0.5 * (
+            self.n_theta_operator() - self.n_zeta_operator()
+        )
+        return self.process_op(native_op=native, energy_esys=energy_esys)
+
+    def d_hamiltonian_d_flux(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+        """
+        Returns operator representing a derivative of the Hamiltonian with respect to
+        flux in the native or eigenenergy basis.
+
+        Parameters
+        ----------
+        energy_esys:
+            If False (default), returns operator in the native basis.
+            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            Operator in chosen basis. If native basis chosen, operator
+            returned as a csc_matrix. If eigenenergy basis is chosen,
+            unless energy_esys is specified, operator has dimensions of truncated_dim
+            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
+            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        """
         phi_flux_term = self._sin_phi_operator() * np.cos(
             self.flux * np.pi
         ) + self._cos_phi_operator() * np.sin(self.flux * np.pi)
@@ -1233,15 +1336,30 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         )
                 * np.pi
         )
-        if not use_energy_basis:
-            return junction_mat + dis_junction_mat
-        if evecs is None:
-            _, evectors = self.eigensys(evals_count=self.truncated_dim)
-        else:
-            evectors = evecs[:, :self.truncated_dim]
-        return spec_utils.get_matrixelement_table(junction_mat + dis_junction_mat, evectors)
+        native = junction_mat + dis_junction_mat
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def d_hamiltonian_d_EJ(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+    def d_hamiltonian_d_EJ(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+        """
+        Returns operator representing a derivative of the Hamiltonian with respect to
+        EJ in the native or eigenenergy basis.
+
+        Parameters
+        ----------
+        energy_esys:
+            If False (default), returns operator in the native basis.
+            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            Operator in chosen basis. If native basis chosen, operator
+            returned as a csc_matrix. If eigenenergy basis is chosen,
+            unless energy_esys is specified, operator has dimensions of truncated_dim
+            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
+            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        """
         phi_flux_term = self._cos_phi_operator() * np.cos(
             self.flux * np.pi
         ) - self._sin_phi_operator() * np.sin(self.flux * np.pi)
@@ -1259,38 +1377,46 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             dis_phi_flux_term, self._identity_zeta(), self._sin_theta_operator()
         )
         )
-        if not use_energy_basis:
-            return junction_mat + dis_junction_mat
-        if evecs is None:
-            _, evectors = self.eigensys(evals_count=self.truncated_dim)
-        else:
-            evectors = evecs[:, :self.truncated_dim]
-        return spec_utils.get_matrixelement_table(junction_mat + dis_junction_mat, evectors)
+        native = junction_mat + dis_junction_mat
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def d_hamiltonian_d_ng(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
-        return (
-                4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator(use_energy_basis=use_energy_basis, evecs=evecs)
-                - 4
-                * self._disordered_ecj()
-                * (self.n_theta_operator(use_energy_basis=use_energy_basis, evecs=evecs) - self.ng - self.n_zeta_operator(use_energy_basis=use_energy_basis, evecs=evecs))
-        )
-    # get rid of
+    # def d_hamiltonian_d_ng(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+    #     """Returns operator representing a derivative of the Hamiltonian with respect
+    #     to ng.
+    #
+    #     What basis is this? And is it correct?"""
+    #     return = (
+    #             4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator(energy_esys=energy_esys)
+    #             - 4
+    #             * self._disordered_ecj()
+    #             * (self.n_theta_operator(energy_esys=energy_esys) - self.ng - self.n_zeta_operator(energy_esys=energy_esys))
+    #     )
 
-    def d_hamiltonian_d_ng_other(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
-        if not use_energy_basis:
-            return (
+    def d_hamiltonian_d_ng(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+        """
+        Returns operator representing a derivative of the Hamiltonian with respect to
+        ng in the native or eigenenergy basis.
+
+        Parameters
+        ----------
+        energy_esys:
+            If False (default), returns operator in the native basis.
+            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            Operator in chosen basis. If native basis chosen, operator
+            returned as a csc_matrix. If eigenenergy basis is chosen,
+            unless energy_esys is specified, operator has dimensions of truncated_dim
+            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
+            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        """
+        native = (
                 4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator()
                 - 4
                 * self._disordered_ecj()
                 * (self.n_theta_operator() - self.ng - self.n_zeta_operator())
         )
-        if evecs is None:
-            _, evectors = self.eigensys(evals_count=self.truncated_dim)
-        else:
-            evectors = evecs[:, :self.truncated_dim]
-        return spec_utils.get_matrixelement_table((
-                4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator()
-                - 4
-                * self._disordered_ecj()
-                * (self.n_theta_operator() - self.ng - self.n_zeta_operator())
-        ), evectors)
+        return self.process_op(native_op=native, energy_esys=energy_esys)
