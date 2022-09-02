@@ -25,7 +25,7 @@ DATADIR = os.path.join(TESTDIR, "data", "")
 @pytest.mark.usefixtures("num_cpus")
 class TestCircuit:
     @staticmethod
-    def test_sym_hamiltonian():
+    def test_sym_lagrangian():
         zp_yaml = """
         # zero-pi circuit
         branches:
@@ -44,10 +44,10 @@ class TestCircuit:
         )
 
         zero_pi = scq.Circuit(zp_yaml, from_file=False, ext_basis="discretized")
-        latex_code = str(
+        expression_str = str(
             zero_pi.sym_lagrangian(vars_type="new", return_expr=True).doit().__repr__
         )
-        assert latex_code == REFERENCE
+        assert expression_str == REFERENCE
 
     @staticmethod
     def test_zero_pi_discretized():
