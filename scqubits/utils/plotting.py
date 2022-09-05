@@ -286,6 +286,7 @@ def matrix(
     """
     if "fig_ax" in kwargs:
         fig, (ax1, ax2) = kwargs["fig_ax"]
+        del kwargs["fig_ax"]
     else:
         fig = plt.figure()
         ax1 = fig.add_subplot(1, 2, 1, projection="3d")

@@ -133,12 +133,6 @@ qubit_defaults = {
     "Cos2PhiQubit": cos2phiqubit_defaults,
 }
 
-grid_defaults = {
-    "grid_min_val": -6 * np.pi,
-    "grid_max_val": 6 * np.pi,
-    "grid_pt_count": 50,
-}
-
 paramvals_from_papers = {
     "Transmon": {
         "Paik et al. [J1, 3d], PRL 107, 240501, 1779 (2011)": {
@@ -234,6 +228,7 @@ plot_choices = [
     "Wavefunctions",
     "Matrix element scan",
     "Matrix elements",
+    "Coherence times",
 ]
 
 supported_qubits = [
