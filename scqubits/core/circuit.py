@@ -666,7 +666,7 @@ class Circuit(
         """
         Syncs all the parameters of the subsystems with the current Circuit instance.
         """
-        if not self._out_of_sync or not self._user_changed_parameter:
+        if not self._out_of_sync and not self._user_changed_parameter:
             return None
 
         self._regenerate_sym_hamiltonian()
