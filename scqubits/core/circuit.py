@@ -240,12 +240,12 @@ class Subsystem(
 
         if self.hierarchical_diagonalization:
             # attribute to note updated subsystem indices
-            self.updated_subsystem_indices = []
+            self.affected_subsystem_indices = []
 
             self.generate_subsystems()
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
-            self.updated_subsystem_indices = list(range(len(self.subsystems)))
+            self.affected_subsystem_indices = list(range(len(self.subsystems)))
         else:
             self.operators_by_name = self.set_operators()
 
@@ -369,7 +369,7 @@ class Circuit(
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
         self._out_of_sync = False  # for use with CentralDispatch
-        self._is_parameter_updated = False  # to track parameter changes in the circuit
+        self._user_changed_parameter = False  # to track parameter changes in the circuit
 
         if initiate_sym_calc:
             self.configure()
@@ -483,7 +483,7 @@ class Circuit(
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
         self._out_of_sync = False  # for use with CentralDispatch
-        self._is_parameter_updated = False  # to track parameter changes in the circuit
+        self._user_changed_parameter = False  # to track parameter changes in the circuit
 
         if initiate_sym_calc:
             self.configure()
@@ -638,7 +638,7 @@ class Circuit(
     def __repr__(self) -> str:
         return self._id_str
 
-    def clear_unnecessary_attribs(self):
+    def _clear_unnecessary_attribs(self):
         """
         Clear all the attributes which are not part of the circuit description
         """
@@ -662,25 +662,19 @@ class Circuit(
                 ):
                     delattr(self, attrib)
 
-    def sync_circuit(self):
+    def update(self):
         """
         Syncs all the parameters of the subsystems with the current Circuit instance.
         """
-        self.update_circuit()
-        if not self._out_of_sync:
-            return None
-        for subsys_index in self.updated_subsystem_indices:
-            self.subsystems[subsys_index].sync_parameters_with_parent()
-            if self.subsystems[subsys_index].hierarchical_diagonalization:
-                self.subsystems[subsys_index].build_hilbertspace()
-        self._set_sync_status_to_True()
-
-    def update_circuit(self):
-
-        if not self._is_parameter_updated:
+        if not self._out_of_sync or not self._user_changed_parameter:
             return None
 
         self._regenerate_sym_hamiltonian()
+        self._perform_internal_updates()
+        self._set_sync_status_to_True()
+        self._user_changed_parameter = False
+
+    def _perform_internal_updates(self):
         # if purely harmonic the circuit attributes should change
         if self.is_purely_harmonic and isinstance(self, Circuit):
             self.potential_symbolic = self.symbolic_circuit.potential_symbolic
@@ -689,12 +683,15 @@ class Circuit(
 
         if self.hierarchical_diagonalization:
             self.generate_subsystems()
-            self.operators_by_name = self.set_operators()
-            self.updated_subsystem_indices = list(range(len(self.subsystems)))
-        else:
-            self.operators_by_name = self.set_operators()
+            self.affected_subsystem_indices = list(range(len(self.subsystems)))
 
-        self._is_parameter_updated = False
+        self.operators_by_name = self.set_operators()
+
+        for subsys_index in self.affected_subsystem_indices:
+            self.subsystems[subsys_index].sync_parameters_with_parent()
+            if self.subsystems[subsys_index].hierarchical_diagonalization:
+                self.subsystems[subsys_index].build_hilbertspace()
+
 
     def configure(
         self,
@@ -908,7 +905,7 @@ class Circuit(
             self.operators_by_name = self.set_operators()
         else:
             # list for updating necessary subsystems when calling build hilbertspace
-            self.updated_subsystem_indices = []
+            self.affected_subsystem_indices = []
             self.operators_by_name = None
             self.system_hierarchy = system_hierarchy
             if subsystem_trunc_dims is None:
@@ -922,9 +919,9 @@ class Circuit(
             self.generate_subsystems()
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
-            self.updated_subsystem_indices = list(range(len(self.subsystems)))
+            self.affected_subsystem_indices = list(range(len(self.subsystems)))
         # clear unnecessary attribs
-        self.clear_unnecessary_attribs()
+        self._clear_unnecessary_attribs()
         self._frozen = True
 
     def _configure(
@@ -1084,7 +1081,7 @@ class Circuit(
             self.operators_by_name = self.set_operators()
         else:
             # list for updating necessary subsystems when calling build hilbertspace
-            self.updated_subsystem_indices = []
+            self.affected_subsystem_indices = []
             self.operators_by_name = None
             self.system_hierarchy = system_hierarchy
             if subsystem_trunc_dims is None:
@@ -1098,9 +1095,9 @@ class Circuit(
             self.generate_subsystems()
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
-            self.updated_subsystem_indices = list(range(len(self.subsystems)))
+            self.affected_subsystem_indices = list(range(len(self.subsystems)))
         # clear unnecessary attribs
-        self.clear_unnecessary_attribs()
+        self._clear_unnecessary_attribs()
         self._frozen = True
 
     def supported_noise_channels(self) -> List[str]:

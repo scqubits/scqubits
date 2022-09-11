@@ -279,11 +279,11 @@ class CircuitRoutines(ABC):
                 param_name in [param.name for param in capacitance_sym_params]
                 and self.ext_basis == "harmonic"
             ):
-                self._is_parameter_updated = True
+                self._user_changed_parameter = True
 
         # update all subsystem instances
         if self.hierarchical_diagonalization:
-            if isinstance(self, circuit.Circuit) and self._is_parameter_updated:
+            if isinstance(self, circuit.Circuit) and self._user_changed_parameter:
                 return None
             for subsys_idx, subsys in enumerate(self.subsystems):
                 if hasattr(subsys, param_name):
@@ -451,8 +451,8 @@ class CircuitRoutines(ABC):
     def _store_updated_subsystem_index(self, index: int) -> None:
         if not self.hierarchical_diagonalization:
             raise Exception(f"The subsystem provided to {self} has no subsystems.")
-        if index not in self.updated_subsystem_indices:
-            self.updated_subsystem_indices.append(index)
+        if index not in self.affected_subsystem_indices:
+            self.affected_subsystem_indices.append(index)
 
     # *****************************************************************
     # **** Functions to construct the operators for the Hamiltonian ****
@@ -1767,7 +1767,7 @@ class CircuitRoutines(ABC):
             self.build_hilbertspace(
                 update_subsystem_indices=self.updated_subsystem_indices
             )
-            self.updated_subsystem_indices = []
+            self.affected_subsystem_indices = []
 
             bare_esys = {
                 sys_index: (

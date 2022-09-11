@@ -208,7 +208,7 @@ class TestCircuit:
             lc_yaml, from_file=False, initiate_sym_calc=True, ext_basis="harmonic"
         )
         circ.EJ = 0.01
-        circ.sync_circuit()
+        circ.update()
         eigs_ref = np.array(
             [
                 35.681948467838,
