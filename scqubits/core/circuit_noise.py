@@ -338,7 +338,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
     def generate_t1_flux_bias_line_methods(self):
         """
-        Generate methods for flux bian line t1 coherence times.
+        Generate methods for flux bias line t1 coherence times.
         """
         flux_bias_line_methods = {}
         for flux_sym in self.external_fluxes:
@@ -436,14 +436,14 @@ class NoisyCircuit(NoisySystem, ABC):
             if branch.type == "JJ":
                 t1_quasiparticle_tunneling_methods[
                     f"t1_quasiparticle_tunneling{branch.id_str}"
-                ] = self.wrapper_t1_quasipartice_tunneling(branch)
+                ] = self.wrapper_t1_quasiparticle_tunneling(branch)
 
         self._data.update(t1_capacitive_methods)
         self._data.update(t1_inductive_methods)
         self._data.update(t1_charge_impedance_methods)
         self._data.update(t1_quasiparticle_tunneling_methods)
 
-    def wrapper_t1_quasipartice_tunneling(self, branch: Branch):
+    def wrapper_t1_quasiparticle_tunneling(self, branch: Branch):
         def t1_quasiparticle_tunneling(
             self=self,
             i: int = 1,
@@ -554,7 +554,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
         return t1_method
 
-    def generate_overall_t1_quasipartice_tunneling(self):
+    def generate_overall_t1_quasiparticle_tunneling(self):
         if self.is_purely_harmonic:
             return None
 
@@ -730,4 +730,4 @@ class NoisyCircuit(NoisySystem, ABC):
         self.generate_overall_t1_charge_impedance()
         self.generate_overall_t1_inductive()
         self.generate_overall_t1_flux_bias_line()
-        self.generate_overall_t1_quasipartice_tunneling()
+        self.generate_overall_t1_quasiparticle_tunneling()
