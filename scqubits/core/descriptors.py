@@ -28,7 +28,7 @@ class ReadOnlyProperty(Generic[TargetType]):
         super().__init__()
 
     def __set_name__(self, owner, name: str):
-        self.name = "_" + name
+        self.name = f"_{name}"
 
     def __get__(self, instance: Any, *args, **kwargs) -> TargetType:
         if instance is None:  # when accessed on class level rather than instance level
@@ -47,7 +47,7 @@ class WatchedProperty(Generic[TargetType]):
 
     Parameters
     ----------
-    type:
+    target_type:
         type of watched property
     event:
         name of event to be triggered when property is changed

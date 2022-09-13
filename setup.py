@@ -1,11 +1,13 @@
 """scqubits: superconducting qubits in Python
 ===========================================
 
-scqubits is an open-source Python library for simulating superconducting qubits. It is meant to give the user
-a convenient way to obtain energy spectra of common superconducting qubits, plot energy levels as a function of
-external parameters, calculate matrix elements etc. The library further provides an interface to QuTiP, making it
-easy to work with composite Hilbert spaces consisting of coupled superconducting qubits and harmonic modes.
-Internally, numerics within scqubits is carried out with the help of Numpy and Scipy; plotting capabilities rely on
+scqubits is an open-source Python library for simulating superconducting qubits. It is
+meant to give the user a convenient way to obtain energy spectra of common
+superconducting qubits, plot energy levels as a function of external parameters,
+calculate matrix elements etc. The library further provides an interface to QuTiP,
+making it easy to work with composite Hilbert spaces consisting of coupled
+superconducting qubits and harmonic modes. Internally, numerics within scqubits is
+carried out with the help of Numpy and Scipy; plotting capabilities rely on
 Matplotlib.
 
 If scqubits is helpful to you in your research, please support its continued
@@ -49,9 +51,9 @@ Operating System :: Microsoft :: Windows
 EXTRA_KWARGS = {}
 
 # version information about scqubits goes here
-MAJOR = 2
-MINOR = 2
-MICRO = 2
+MAJOR = 3
+MINOR = 0
+MICRO = 3
 ISRELEASED = True
 
 VERSION = "%d.%d.%d" % (MAJOR, MINOR, MICRO)
@@ -81,7 +83,7 @@ PACKAGES = [
     "scqubits/explorer",
 ]
 
-PYTHON_VERSION = ">=3.6"
+PYTHON_VERSION = ">=3.7"
 
 
 NAME = "scqubits"

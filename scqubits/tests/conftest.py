@@ -8,7 +8,7 @@
 #
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
-#######################################################################################################################
+#######################################################################################
 
 
 import os
@@ -35,12 +35,17 @@ warnings.filterwarnings(
 )
 
 TESTDIR, _ = os.path.split(scqubits.__file__)
-TESTDIR = os.path.join(TESTDIR, "tests", "")
-DATADIR = os.path.join(TESTDIR, "data", "")
+TESTDIR = os.path.join(TESTDIR, "tests", "")  # local scqubits directory holding tests
+DATADIR = os.path.join(TESTDIR, "data", "")  # local data collection within scqubits
 
 
 def pytest_addoption(parser):
-    # This is to allow multi-processing tests by adding --num_cpus 2 to pytest calls
+    """
+    This is to implement custom pytest command line options
+    OPTION 1: multi-processing tests
+    When invoking pytest, simply add ` --num_cpus 2` to pytest calls
+    OPTION 2: input-output file format
+    """
     parser.addoption(
         "--num_cpus", action="store", default=1, help="number of cores to be used"
     )
@@ -64,9 +69,9 @@ def io_type(pytestconfig):
 
 @pytest.mark.usefixtures("num_cpus", "io_type")
 class BaseTest:
-    """Used as base class for pytests of qubit classes"""
+    """Used as base class for the pytests of qubit classes"""
 
-    qbt = None
+    qbt = None  # class instance of qubit to be tested
 
     @pytest.fixture(autouse=True)
     def set_tmpdir(self, request):
@@ -176,7 +181,7 @@ class StandardTests(BaseTest):
         cls.param_name = ""
         cls.param_list = None
 
-    def test_hamiltonian_is_hermitean(self, io_type):
+    def test_hamiltonian_is_hermitian(self, io_type):
         testname = self.file_str + "_1." + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type(**specdata.system_params)

@@ -26,10 +26,10 @@ MODE_FUNC_DICT = {
 # the following string manipulations are used in automatic generation of default
 # ylabels of wavefunction plots
 MODE_STR_DICT = {
-    "abs_sqr": (lambda x: "$|$" + x + "$|^2$"),
-    "abs": (lambda x: "$|$" + x + "$|$"),
-    "real": (lambda x: "Re " + x),
-    "imag": (lambda x: "Im " + x),
+    "abs_sqr": (lambda x: f"$|${x}$|^2$"),
+    "abs": (lambda x: f"$|${x}$|$"),
+    "real": (lambda x: f"Re {x}"),
+    "imag": (lambda x: f"Im {x}"),
 }
 
 # enumerate variables for zero-pi qubit

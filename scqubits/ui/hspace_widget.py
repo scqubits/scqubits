@@ -37,7 +37,7 @@ else:
 import scqubits
 
 from scqubits.core.oscillator import Oscillator
-from scqubits.core.qubit_base import QubitBaseClass
+from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass
 from scqubits.utils import misc as utils
 
 QuantumSys = Union[QubitBaseClass, Oscillator]
@@ -226,7 +226,7 @@ class HilbertSpaceUi:
         candidates_dict = {
             name: subsys
             for name, subsys in main.__dict__.items()
-            if isinstance(subsys, scqubits.core.qubit_base.QuantumSystem)
+            if isinstance(subsys, QuantumSystem)
         }
         return candidates_dict
 
@@ -337,7 +337,7 @@ class HilbertSpaceUi:
                 operator_str_list,
             ):
                 try:
-                    instance = eval(subsys_str + "." + operator_str, main.__dict__)
+                    instance = eval(f"{subsys_str}.{operator_str}", main.__dict__)
                 except (AttributeError, SyntaxError, NameError):
                     with self.status_output:
                         print(
@@ -356,8 +356,8 @@ class HilbertSpaceUi:
 
             subsys1_index = subsysname_list.index(interaction_term["subsys1"])
             subsys2_index = subsysname_list.index(interaction_term["subsys2"])
-            op1_str = interaction_term["subsys1"] + "." + operator_str_list[0]
-            op2_str = interaction_term["subsys2"] + "." + operator_str_list[1]
+            op1_str = f"""{interaction_term["subsys1"]}.{operator_str_list[0]}"""
+            op2_str = f"""{interaction_term["subsys2"]}.{operator_str_list[1]}"""
             op1 = eval(op1_str, main.__dict__)
             op2 = eval(op2_str, main.__dict__)
 

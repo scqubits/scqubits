@@ -33,11 +33,6 @@ def get_map_method(num_cpus: int) -> Callable:
         return map
 
     # num_cpus > 1 -----------------
-
-    # windows may require special treatment if sys.platform == 'win32' and
-    # settings.POOL is None: warnings.warn("Windows users may explicitly need to
-    # provide scqubits.settings.POOL.")
-
     # user is asking for more than 1 cpu; start pool from here
     if settings.MULTIPROC == "pathos":
         try:

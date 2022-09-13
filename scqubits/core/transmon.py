@@ -16,6 +16,7 @@ import os
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
+import scipy as sp
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -133,6 +134,42 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             unless energy_esys is specified, `n` has dimensions of truncated_dim
             x truncated_dim. Otherwise, if eigenenergy basis is chosen, `n` has dimensions of m x m, for m given eigenvectors.
         """
+    def _hamiltonian_diagonal(self) -> ndarray:
+        dimension = self.hilbertdim()
+        return 4.0 * self.EC * (np.arange(dimension) - self.ncut - self.ng) ** 2
+
+    def _hamiltonian_offdiagonal(self) -> ndarray:
+        dimension = self.hilbertdim()
+        return np.full(shape=(dimension - 1,), fill_value=-self.EJ / 2.0)
+
+    def _evals_calc(self, evals_count: int) -> ndarray:
+        diagonal = self._hamiltonian_diagonal()
+        off_diagonal = self._hamiltonian_offdiagonal()
+
+        evals = sp.linalg.eigvalsh_tridiagonal(
+            diagonal,
+            off_diagonal,
+            select="i",
+            select_range=(0, evals_count - 1),
+            check_finite=False,
+        )
+        return evals
+
+    def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
+        diagonal = self._hamiltonian_diagonal()
+        off_diagonal = self._hamiltonian_offdiagonal()
+
+        evals, evecs = sp.linalg.eigh_tridiagonal(
+            diagonal,
+            off_diagonal,
+            select="i",
+            select_range=(0, evals_count - 1),
+            check_finite=False,
+        )
+        return evals, evecs
+
+    def n_operator(self) -> ndarray:
+        """Returns charge operator `n` in the charge basis"""
         diag_elements = np.arange(-self.ncut, self.ncut + 1, 1)
         native = np.diag(diag_elements)
         return self.process_op(native_op=native, energy_esys=energy_esys)
@@ -262,10 +299,10 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
 
-    # def d_hamiltonian_d_EJ(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
-    #     """Returns operator representing a derivative of the Hamiltonian with respect
-    #     to EJ."""
-    #     return -self.cos_phi_operator(energy_esys=energy_esys)
+    def d_hamiltonian_d_ng(self) -> ndarray:
+        """Returns operator representing a derivative of the Hamiltonian with respect to
+        charge offset `ng`."""
+        return -8 * self.EC * self.n_operator()
 
     def d_hamiltonian_d_EJ(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
         """

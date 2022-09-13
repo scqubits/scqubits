@@ -51,7 +51,7 @@ warnings.formatwarning = warning_on_one_line
 
 # Function checking whether code is run from a jupyter notebook or inside ipython
 def executed_in_ipython():
-    try:
+    try:  # inside ipython, the function get_ipython is always in globals()
         shell = get_ipython().__class__.__name__
         if shell in ["ZMQInteractiveShell", "TerminalInteractiveShell"]:
             return True  # Jupyter notebook or qtconsole of IPython
@@ -67,6 +67,12 @@ if executed_in_ipython():
 else:
     PROGRESSBAR_DISABLED = True
     IN_IPYTHON = False
+
+# use vector graphics display in jupyter
+if executed_in_ipython():
+    import matplotlib_inline.backend_inline
+
+    matplotlib_inline.backend_inline.set_matplotlib_formats("pdf", "svg")
 
 
 # run ParameterSweep directly upon initialization
@@ -107,10 +113,10 @@ mpl.rcParams["axes.prop_cycle"] = cycler(
 
 # set matplotlib defaults
 mpl.rcParams["font.family"] = "sans-serif"
-mpl.rcParams["font.sans-serif"] = "Arial, Helvetica, DejaVu Sans"
-mpl.rcParams["figure.dpi"] = 150
+mpl.rcParams["font.sans-serif"] = "Roboto, Arial, Helvetica, DejaVu Sans"
 mpl.rcParams["font.size"] = 11
 mpl.rcParams["axes.labelsize"] = 11
+mpl.rcParams["axes.titlesize"] = 11
 mpl.rcParams["xtick.labelsize"] = 10
 mpl.rcParams["ytick.labelsize"] = 10
 
@@ -129,5 +135,14 @@ RANDOM_ARRAY = RNG.random(size=10000000)
 FUZZY_SLICING = False
 FUZZY_WARNING = True
 
-# should we show a warning about default used in t1 coherence calculations.
+# Enable/disable warning about default used in t1 coherence calculations
 T1_DEFAULT_WARNING = True
+
+# Overlap threshold in establishing a map between dressed states and bare product states
+# (lookups need to be manually regenerated for a change by the user to take effect
+OVERLAP_THRESHOLD = 0.5
+
+# Settings for Circuit and SymbolicCircuit class.
+# The following determines the threshold for the number of nodes above which the
+# symbolic inversion of the capacitance matrix is skipped.
+SYM_INVERSION_MAX_NODES = 3
