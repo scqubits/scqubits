@@ -431,6 +431,8 @@ class CircuitRoutines(ABC):
             setattr(self, param_var.name, getattr(self.parent, param_var.name))
 
     def _set_sync_status_to_True(self):
+        if not self.hierarchical_diagonalization:
+            return None
         self._out_of_sync = False
         for subsys in self.subsystems:
             if subsys.hierarchical_diagonalization:
@@ -1765,7 +1767,7 @@ class CircuitRoutines(ABC):
         else:
             # update the hilbertspace
             self.build_hilbertspace(
-                update_subsystem_indices=self.updated_subsystem_indices
+                update_subsystem_indices=self.affected_subsystem_indices
             )
             self.affected_subsystem_indices = []
 
