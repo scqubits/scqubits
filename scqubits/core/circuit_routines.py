@@ -134,7 +134,7 @@ class CircuitRoutines(ABC):
 
         self.normal_mode_freqs = normal_mode_freqs
 
-        self.hamiltonian_symbolic = self._transform_hamiltonian_purely_harmonic(
+        self._hamiltonian_sym_for_numerics = self._transform_hamiltonian_purely_harmonic(
             hamiltonian, eig_vecs
         )
 
@@ -255,7 +255,6 @@ class CircuitRoutines(ABC):
 
         if (
             (hasattr(self, "symbolic_circuit"))
-            and (not self.is_child)
             and (
                 (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES
                 or self.is_purely_harmonic
@@ -280,6 +279,12 @@ class CircuitRoutines(ABC):
                 and self.ext_basis == "harmonic"
             ):
                 self._user_changed_parameter = True
+        # regenerate symbolic hamiltonian if purely harmonic
+        if self.is_child and self.is_purely_harmonic:
+            # copy the Hamiltonian from the parent
+            subsys_index = self.parent.subsystems.index(self)
+            self.hamiltonian_symbolic = self.parent.subsystem_hamiltonians[subsys_index]
+            self._configure()
 
         # update all subsystem instances
         if self.hierarchical_diagonalization:
@@ -570,7 +575,7 @@ class CircuitRoutines(ABC):
 
             hamiltonian_terms = hamiltonian.as_ordered_terms()
 
-            H_sys = 0 * sm.symbols("x")
+            H_sys = 0 * sm.symbols("x") # making an empty symbolic expression
             H_int = 0 * sm.symbols("x")
             for term in hamiltonian_terms:
                 term_operator_indices = [
@@ -946,10 +951,6 @@ class CircuitRoutines(ABC):
             self.hamiltonian_symbolic.expand()
         )  # applying expand is critical; otherwise the replacement of p^2 with ps2
         # would not succeed
-
-        # shifting the potential to the point of external fluxes
-        if shift_potential_to_origin:
-            hamiltonian = self._shift_harmonic_oscillator_potential(hamiltonian)
 
         if self.ext_basis == "discretized":
 
@@ -1749,7 +1750,22 @@ class CircuitRoutines(ABC):
                 evec[excitation_numbers[eig_idx][osc_idx]] = 1
                 eigen_vector.append(evec)
             eigen_vectors.append(functools.reduce(np.kron, eigen_vector))
-        return eigenvals, np.array(eigen_vectors).T
+        # translate the eigenvectors if necessary
+        hamiltonian = self.hamiltonian_symbolic
+        # substitute parameters
+        for sym_param in self.offset_charges + self.external_fluxes + list(self.symbolic_params.keys()):
+            hamiltonian = hamiltonian.subs(sym_param, getattr(self, sym_param.name))
+        # collecting the linear coefficients
+        linear_coeffs_theta = []
+        linear_coeffs_q = []
+        for var_index in self.var_categories_list:
+            linear_coeffs_theta.append(hamiltonian.coeff(f"θ{var_index}"))
+            linear_coeffs_q.append(hamiltonian.coeff(f"Q{var_index}"))
+        shift_operator = self._identity()*(1+0*1j)
+        for idx, var_index in enumerate(self.var_categories_list):
+            shift_operator += float(linear_coeffs_theta[idx])*getattr(self, f"θ{var_index}_operator")() 
+            shift_operator += float(linear_coeffs_q[idx])*getattr(self, f"Q{var_index}_operator")()
+        return eigenvals, shift_operator @ np.array(eigen_vectors).T
 
     @check_sync_status_circuit
     def hamiltonian(self) -> Union[csc_matrix, ndarray]:

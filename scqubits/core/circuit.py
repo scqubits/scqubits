@@ -669,28 +669,30 @@ class Circuit(
         if not self._out_of_sync and not self._user_changed_parameter:
             return None
 
-        self._regenerate_sym_hamiltonian()
         self._perform_internal_updates()
         self._set_sync_status_to_True()
         self._user_changed_parameter = False
 
     def _perform_internal_updates(self):
         # if purely harmonic the circuit attributes should change
-        if self.is_purely_harmonic and isinstance(self, Circuit):
-            self.potential_symbolic = self.symbolic_circuit.potential_symbolic
-            self.transformation_matrix = self.symbolic_circuit.transformation_matrix
-            self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
+        if self._user_changed_parameter:
+            self._regenerate_sym_hamiltonian()            
+            if self.is_purely_harmonic and isinstance(self, Circuit):
+                self.potential_symbolic = self.symbolic_circuit.potential_symbolic
+                self.transformation_matrix = self.symbolic_circuit.transformation_matrix
+                self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
+
+            if self.hierarchical_diagonalization:
+                self.generate_subsystems()
+                self.affected_subsystem_indices = list(range(len(self.subsystems)))
+
+            self.operators_by_name = self.set_operators()
 
         if self.hierarchical_diagonalization:
-            self.generate_subsystems()
-            self.affected_subsystem_indices = list(range(len(self.subsystems)))
-
-        self.operators_by_name = self.set_operators()
-
-        for subsys_index in self.affected_subsystem_indices:
-            self.subsystems[subsys_index].sync_parameters_with_parent()
-            if self.subsystems[subsys_index].hierarchical_diagonalization:
-                self.subsystems[subsys_index].build_hilbertspace()
+            for subsys_index in self.affected_subsystem_indices:
+                self.subsystems[subsys_index].sync_parameters_with_parent()
+                if self.subsystems[subsys_index].hierarchical_diagonalization:
+                    self.subsystems[subsys_index].build_hilbertspace()
 
 
     def configure(
@@ -1002,6 +1004,10 @@ class Circuit(
         ]
         for attr in required_attributes:
             setattr(self, attr, getattr(self.symbolic_circuit, attr))
+
+        # if the flux is static, remove the linear terms from the potential
+        if not self.symbolic_circuit.is_flux_dynamic:
+            self.hamiltonian_symbolic = self._shift_harmonic_oscillator_potential(self.hamiltonian_symbolic)
 
         if self.is_purely_harmonic:
             self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
