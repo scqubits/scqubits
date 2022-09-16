@@ -964,6 +964,10 @@ class Circuit(
                 "The flux allocation is fixed when is_flux_dynamic is set to True. Set it to False otherwise."
             )
         self._frozen = False
+        # if the flux is static, remove the linear terms from the potential
+        # if not self.symbolic_circuit.is_flux_dynamic:
+        #     self.hamiltonian_symbolic = self._shift_harmonic_oscillator_potential(self.hamiltonian_symbolic)
+        
         system_hierarchy = system_hierarchy or self.system_hierarchy
         subsystem_trunc_dims = subsystem_trunc_dims or self.subsystem_trunc_dims
         closure_branches = closure_branches or self.closure_branches
@@ -1004,10 +1008,6 @@ class Circuit(
         ]
         for attr in required_attributes:
             setattr(self, attr, getattr(self.symbolic_circuit, attr))
-
-        # if the flux is static, remove the linear terms from the potential
-        if not self.symbolic_circuit.is_flux_dynamic:
-            self.hamiltonian_symbolic = self._shift_harmonic_oscillator_potential(self.hamiltonian_symbolic)
 
         if self.is_purely_harmonic:
             self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
