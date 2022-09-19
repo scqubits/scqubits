@@ -369,7 +369,9 @@ class Circuit(
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
         self._out_of_sync = False  # for use with CentralDispatch
-        self._user_changed_parameter = False  # to track parameter changes in the circuit
+        self._user_changed_parameter = (
+            False  # to track parameter changes in the circuit
+        )
 
         if initiate_sym_calc:
             self.configure()
@@ -483,7 +485,9 @@ class Circuit(
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
         self._out_of_sync = False  # for use with CentralDispatch
-        self._user_changed_parameter = False  # to track parameter changes in the circuit
+        self._user_changed_parameter = (
+            False  # to track parameter changes in the circuit
+        )
 
         if initiate_sym_calc:
             self.configure()
@@ -676,7 +680,7 @@ class Circuit(
     def _perform_internal_updates(self):
         # if purely harmonic the circuit attributes should change
         if self._user_changed_parameter:
-            self._regenerate_sym_hamiltonian()            
+            self._regenerate_sym_hamiltonian()
             if self.is_purely_harmonic and isinstance(self, Circuit):
                 self.potential_symbolic = self.symbolic_circuit.potential_symbolic
                 self.transformation_matrix = self.symbolic_circuit.transformation_matrix
@@ -693,7 +697,6 @@ class Circuit(
                 self.subsystems[subsys_index].sync_parameters_with_parent()
                 if self.subsystems[subsys_index].hierarchical_diagonalization:
                     self.subsystems[subsys_index].build_hilbertspace()
-
 
     def configure(
         self,
@@ -964,7 +967,7 @@ class Circuit(
                 "The flux allocation is fixed when is_flux_dynamic is set to True. Set it to False otherwise."
             )
         self._frozen = False
-        
+
         system_hierarchy = system_hierarchy or self.system_hierarchy
         subsystem_trunc_dims = subsystem_trunc_dims or self.subsystem_trunc_dims
         closure_branches = closure_branches or self.closure_branches
@@ -1075,7 +1078,9 @@ class Circuit(
             )
         # if the flux is static, remove the linear terms from the potential
         if not self.symbolic_circuit.is_flux_dynamic:
-            self.hamiltonian_symbolic = self._shift_harmonic_oscillator_potential(self.hamiltonian_symbolic)
+            self.hamiltonian_symbolic = self._shift_harmonic_oscillator_potential(
+                self.hamiltonian_symbolic
+            )
 
         if system_hierarchy is not None:
             self.hierarchical_diagonalization = (

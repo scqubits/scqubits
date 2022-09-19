@@ -134,8 +134,8 @@ class CircuitRoutines(ABC):
 
         self.normal_mode_freqs = normal_mode_freqs
 
-        self._hamiltonian_sym_for_numerics = self._transform_hamiltonian_purely_harmonic(
-            hamiltonian, eig_vecs
+        self._hamiltonian_sym_for_numerics = (
+            self._transform_hamiltonian_purely_harmonic(hamiltonian, eig_vecs)
         )
 
     def _transform_hamiltonian_purely_harmonic(
@@ -253,12 +253,9 @@ class CircuitRoutines(ABC):
         # generate _hamiltonian_sym_for_numerics if not already generated, delayed for
         # large circuits
 
-        if (
-            (hasattr(self, "symbolic_circuit"))
-            and (
-                (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES
-                or self.is_purely_harmonic
-            )
+        if (hasattr(self, "symbolic_circuit")) and (
+            (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES
+            or self.is_purely_harmonic
         ):
             capacitance_branches = [
                 branch for branch in self.branches if branch.type in ("C", "JJ")
@@ -575,7 +572,7 @@ class CircuitRoutines(ABC):
 
             hamiltonian_terms = hamiltonian.as_ordered_terms()
 
-            H_sys = 0 * sm.symbols("x") # making an empty symbolic expression
+            H_sys = 0 * sm.symbols("x")  # making an empty symbolic expression
             H_int = 0 * sm.symbols("x")
             for term in hamiltonian_terms:
                 term_operator_indices = [
@@ -1753,7 +1750,11 @@ class CircuitRoutines(ABC):
         # translate the eigenvectors if necessary
         hamiltonian = self.hamiltonian_symbolic
         # substitute parameters
-        for sym_param in self.offset_charges + self.external_fluxes + list(self.symbolic_params.keys()):
+        for sym_param in (
+            self.offset_charges
+            + self.external_fluxes
+            + list(self.symbolic_params.keys())
+        ):
             hamiltonian = hamiltonian.subs(sym_param, getattr(self, sym_param.name))
         # collecting the linear coefficients
         linear_coeffs_theta = []
@@ -1761,10 +1762,15 @@ class CircuitRoutines(ABC):
         for var_index in self.var_categories_list:
             linear_coeffs_theta.append(hamiltonian.coeff(f"θ{var_index}"))
             linear_coeffs_q.append(hamiltonian.coeff(f"Q{var_index}"))
-        shift_operator = self._identity()*(1+0*1j)
+        shift_operator = self._identity() * (1 + 0 * 1j)
         for idx, var_index in enumerate(self.var_categories_list):
-            shift_operator += float(linear_coeffs_theta[idx])*getattr(self, f"θ{var_index}_operator")() 
-            shift_operator += float(linear_coeffs_q[idx])*getattr(self, f"Q{var_index}_operator")()
+            shift_operator += (
+                float(linear_coeffs_theta[idx])
+                * getattr(self, f"θ{var_index}_operator")()
+            )
+            shift_operator += (
+                float(linear_coeffs_q[idx]) * getattr(self, f"Q{var_index}_operator")()
+            )
         return eigenvals, shift_operator @ np.array(eigen_vectors).T
 
     @check_sync_status_circuit
