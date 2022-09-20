@@ -381,6 +381,20 @@ def flatten_list_recursive(S):
         return flatten_list_recursive(S[0]) + flatten_list_recursive(S[1:])
     return S[:1] + flatten_list_recursive(S[1:])
 
+def unique_elements_in_list(list_object: list) -> list:
+    """
+    Returns a list of all the unique elements in the list
+
+    Parameters
+    ----------
+    list_object : 
+        A list of any objects
+    """
+    unique_list = []
+    for element in list_object:
+        if element not in unique_list:
+            unique_list.append(element)
+    return unique_list
 
 def number_of_lists_in_list(list_object: list) -> int:
     return sum([1 for element in list_object if type(element) == list])

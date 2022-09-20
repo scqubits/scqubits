@@ -24,7 +24,7 @@ import sympy
 import yaml
 
 from numpy import ndarray
-from scqubits.utils.misc import flatten_list, is_float_string
+from scqubits.utils.misc import flatten_list, is_float_string, unique_elements_in_list
 from sympy import symbols
 
 
@@ -1733,10 +1733,13 @@ class SymbolicCircuit(serializers.Serializable):
         # closure branch
         _, _, path_1 = self._find_path_to_root(closure_branch.nodes[0])
         _, _, path_2 = self._find_path_to_root(closure_branch.nodes[1])
-        # find branches that are not common in the paths, and then add the closure branch to form the loop
+        # find branches that are not common in the paths, and then add the closure
+        # branch to form the loop
+        path_1 = unique_elements_in_list(path_1)
+        path_2 = unique_elements_in_list(path_2)
         loop = (
-            list(set(path_1) - set(path_2))
-            + list(set(path_2) - set(path_1))
+            [branch for branch in path_1 if branch not in path_2]
+            + [branch for branch in path_2 if branch not in path_1]
             + [closure_branch]
         )
         return self._order_branches_in_loop(loop)
