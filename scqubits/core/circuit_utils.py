@@ -235,7 +235,7 @@ def _n_theta_operator(ncut: int) -> csc_matrix:
     return n_theta_matrix
 
 
-def _exp_i_theta_operator(ncut) -> csc_matrix:
+def _exp_i_theta_operator_conjugate(ncut) -> csc_matrix:
     r"""
     Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace.
     """
@@ -247,7 +247,7 @@ def _exp_i_theta_operator(ncut) -> csc_matrix:
     return matrix
 
 
-def _exp_i_theta_operator_conjugate(ncut) -> csc_matrix:
+def _exp_i_theta_operator(ncut) -> csc_matrix:
     r"""
     Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace.
     """
