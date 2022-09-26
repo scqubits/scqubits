@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Tuple, List
 
 import numpy as np
@@ -18,10 +18,14 @@ from scqubits.core.noise import NoisySystem
 
 
 class NoisySnailmon(NoisySystem, ABC):
+    @abstractmethod
+    def d_hamiltonian_d_flux(self) -> ndarray:
+        pass
+
     @classmethod
+    @abstractmethod
     def supported_noise_channels(cls) -> List[str]:
-        """Return a list of supported noise channels"""
-        return ["tphi_1_over_f_flux"]
+        pass
 
 
 class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
@@ -170,6 +174,11 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
             "ncut": 6,
             "truncated_dim": 6,
         }
+
+    @classmethod
+    def supported_noise_channels(cls) -> List[str]:
+        """Return a list of supported noise channels"""
+        return ["tphi_1_over_f_flux"]
 
     # Construct the Ec matrix, we need this to calculate the kinetic_energy matrix in
     # the Hamiltonian
@@ -345,7 +354,7 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         return np.diag(diag_elements)
 
     def _exp_i_phi_operator(self) -> ndarray:
-        dim = self.hilbertdim()
+        dim = 2 * self.ncut + 1
         off_diag_elements = np.ones(dim - 1, dtype=np.complex_)
         e_iphi_matrix = np.diag(off_diag_elements, k=1)
         return e_iphi_matrix
