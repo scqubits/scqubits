@@ -316,6 +316,9 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
             )
         )
         potential_mat += potential_mat.conjugate().T
+        potential_mat += (self.EJ1 + self.EJ2 + self.EJ3 + self.EJ4) * sparse.identity(
+            self.hilbertdim()
+        )
         return potential_mat
 
     def hamiltonian(self) -> csc_matrix:
