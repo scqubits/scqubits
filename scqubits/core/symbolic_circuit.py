@@ -271,6 +271,9 @@ class SymbolicCircuit(serializers.Serializable):
     initiate_sym_calc: bool
         set to True by default. Initiates the object attributes by calling the
         function initiate_symboliccircuit method when set to True.
+    identify_LC_variables: bool
+            set to True by default. If set to True, the extended variables that only
+            appears in the quadratic Hamiltonian is identified.
     """
 
     def __init__(
@@ -283,6 +286,7 @@ class SymbolicCircuit(serializers.Serializable):
         is_flux_dynamic: bool = True,
         initiate_sym_calc: bool = True,
         input_string: str = "",
+        identify_LC_variables: bool = True,
     ):
         self.branches = branches_list
         self._node_list_without_ground = nodes_list_without_ground
@@ -334,7 +338,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         # Calling the function to initiate the class variables
         if initiate_sym_calc:
-            self.configure()
+            self.configure(identify_LC_variables=identify_LC_variables)
 
     def is_any_branch_parameter_symbolic(self):
         return True if len(self.symbolic_params) > 0 else False
@@ -442,6 +446,7 @@ class SymbolicCircuit(serializers.Serializable):
         self,
         transformation_matrix: ndarray = None,
         closure_branches: List[Branch] = None,
+        identify_LC_variables: bool = True,
     ):
         """
         Method to initialize the CustomQCircuit instance and initialize all the
@@ -454,6 +459,9 @@ class SymbolicCircuit(serializers.Serializable):
             the method `variable_transformation_matrix`.
         closure_branches:
             List of branches for which the external flux variables will be defined.
+        identify_LC_variables:
+            set to True by default. If set to True, the extended variables that only
+            appears in the quadratic Hamiltonian is identified.
         """
         # if the circuit is purely harmonic, then store the eigenfrequencies
         branch_type_list = [branch.type for branch in self.branches]
@@ -481,7 +489,9 @@ class SymbolicCircuit(serializers.Serializable):
             (
                 self.transformation_matrix,
                 self.var_categories,
-            ) = self.variable_transformation_matrix()
+            ) = self.variable_transformation_matrix(
+                identify_LC_variables=identify_LC_variables
+            )
             (
                 self.orthogonalized_transformation_matrix,
                 self.island_node_dict,
@@ -673,6 +683,7 @@ class SymbolicCircuit(serializers.Serializable):
         basis_completion: str = "heuristic",
         is_flux_dynamic: bool = True,
         initiate_sym_calc: bool = True,
+        identify_LC_variables: bool = True,
     ):
         """
         Constructs the instance of Circuit from an input string. Here is an example of
@@ -712,6 +723,9 @@ class SymbolicCircuit(serializers.Serializable):
             set to True by default. Initiates the object attributes by calling
             the function `initiate_symboliccircuit` method when set to True.
             Set to False for debugging.
+        identify_LC_variables:
+            set to True by default. If set to True, the extended variables that only
+            appears in the quadratic Hamiltonian is identified.
 
         Returns
         -------
@@ -741,6 +755,7 @@ class SymbolicCircuit(serializers.Serializable):
             basis_completion=basis_completion,
             initiate_sym_calc=initiate_sym_calc,
             input_string=circuit_desc,
+            identify_LC_variables=identify_LC_variables,
         )
 
         return circuit
@@ -1036,11 +1051,19 @@ class SymbolicCircuit(serializers.Serializable):
 
         return var_categories_user
 
-    def variable_transformation_matrix(self) -> Tuple[ndarray, Dict[str, List[int]]]:
+    def variable_transformation_matrix(
+        self, identify_LC_variables: bool = True
+    ) -> Tuple[ndarray, Dict[str, List[int]]]:
         """
         Evaluates the boundary conditions and constructs the variable transformation
         matrix, which is returned along with the dictionary `var_categories` which
         classifies the types of variables present in the circuit.
+
+        Parameters
+        ----------
+        identify_LC_variables:
+            if True, the LC variables (variables that only appears in the quadratic
+            part of the Hamiltonian) will be identified
 
         Returns
         -------
@@ -1071,17 +1094,21 @@ class SymbolicCircuit(serializers.Serializable):
                 frozen_modes.append(Σ)
 
         # **************** Finding the LC Modes ****************
-        selected_branches = [branch for branch in self.branches if branch.type == "JJ"]
-        LC_modes = self._independent_modes(
-            selected_branches, single_nodes=False, basisvec_entries=[-1, 1]
-        )
+        if identify_LC_variables:
+            selected_branches = [
+                branch for branch in self.branches if branch.type == "JJ"
+            ]
+            LC_modes = self._independent_modes(
+                selected_branches, single_nodes=False, basisvec_entries=[-1, 1]
+            )
 
         # **************** Adding frozen, free, periodic , LC and extended modes ****
         modes = []  # starting with an empty list
 
-        for m in (
-            frozen_modes + free_modes + periodic_modes + LC_modes  # + extended_modes
-        ):  # This order is important
+        identified_modes = frozen_modes + free_modes + periodic_modes
+        if identify_LC_variables:
+            identified_modes += LC_modes
+        for m in identified_modes:  # + extended_modes  # This order is important
             mat = np.array(modes + [m])
             if np.linalg.matrix_rank(mat) == len(mat):
                 modes.append(m)
@@ -2031,6 +2058,8 @@ class SymbolicCircuit(serializers.Serializable):
             if node_pair_set not in JJ_node_pair_sets[:idx]
         ]
 
+    # TODO this function is very obsolete and consider removing it or turn it to
+    # something useful
     def variable_transformation_transmon_fluxonium(
         self,
         transmon_var: List[List[int]] = [],

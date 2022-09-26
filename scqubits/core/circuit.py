@@ -1996,10 +1996,11 @@ class Subsystem(
             hamiltonian = self.hilbert_space.hamiltonian(bare_esys=bare_esys)
             if self.type_of_matrices == "dense":
                 hamiltonian_mat = hamiltonian.full()
+                self.hamiltonian_diagonal = np.diag(hamiltonian_mat).copy()
             if self.type_of_matrices == "sparse":
                 hamiltonian_mat = hamiltonian.data.tocsc()
+                self.hamiltonian_diagonal = hamiltonian_mat.diagonal()
             self.interaction = hamiltonian_mat - self.hamiltonian_without_interaction
-            self.hamiltonian_diagonal = np.diag(hamiltonian_mat).copy()
             self.hamiltonian_offdiagonal = hamiltonian_mat - self.hamiltonian_diagonal
             return hamiltonian_mat
 
@@ -3172,6 +3173,9 @@ class Circuit(Subsystem):
     truncated_dim: Optional[int]
         truncated dimension if the user wants to use this circuit instance in
         HilbertSpace, by default 10
+    identify_LC_variables: bool
+        set to True by default. If set to True, the extended variables that only
+        appears in the quadratic Hamiltonian is identified.
     """
 
     # switch used in protecting the class from erroneous addition of new attributes
@@ -3186,6 +3190,7 @@ class Circuit(Subsystem):
         is_flux_dynamic: bool = False,
         initiate_sym_calc: bool = True,
         truncated_dim: int = 10,
+        identify_LC_variables: bool = True,
     ):
         base.QuantumSystem.__init__(self, id_str=None)
         if basis_completion not in ["heuristic", "canonical"]:
@@ -3200,6 +3205,7 @@ class Circuit(Subsystem):
             basis_completion=basis_completion,
             initiate_sym_calc=True,
             is_flux_dynamic=is_flux_dynamic,
+            identify_LC_variables=identify_LC_variables,
         )
 
         sm.init_printing(pretty_print=False, order="none")
@@ -3250,7 +3256,7 @@ class Circuit(Subsystem):
         self._out_of_sync = False  # for use with CentralDispatch
 
         if initiate_sym_calc:
-            self.configure()
+            self.configure(identify_LC_variables=identify_LC_variables)
         self._frozen = True
         dispatch.CENTRAL_DISPATCH.register("CIRCUIT_UPDATE", self)
 
@@ -3296,6 +3302,7 @@ class Circuit(Subsystem):
         ext_basis: str = "discretized",
         initiate_sym_calc: bool = True,
         truncated_dim: int = 10,
+        identify_LC_variables: bool = True,
     ):
         """
         Wrapper to Circuit __init__ to create a class instance. This is deprecated and
@@ -3324,6 +3331,9 @@ class Circuit(Subsystem):
         truncated_dim:
             truncated dimension if the user wants to use this circuit instance in
             HilbertSpace, by default 10
+        identify_LC_variables:
+            set to True by default. If set to True, the extended variables that only
+            appears in the quadratic Hamiltonian is identified.
         """
         warnings.warn(
             "Initializing Circuit instances with `from_yaml` will not be "
@@ -3337,6 +3347,7 @@ class Circuit(Subsystem):
             ext_basis=ext_basis,
             initiate_sym_calc=initiate_sym_calc,
             truncated_dim=truncated_dim,
+            identify_LC_variables=identify_LC_variables,
         )
 
     def dict_for_serialization(self):
@@ -3484,6 +3495,7 @@ class Circuit(Subsystem):
         system_hierarchy: list = None,
         subsystem_trunc_dims: list = None,
         closure_branches: List[Branch] = None,
+        identify_LC_variables: bool = True,
     ):
         """
         Method which re-initializes a circuit instance to update, hierarchical
@@ -3526,6 +3538,7 @@ class Circuit(Subsystem):
                 system_hierarchy=system_hierarchy,
                 subsystem_trunc_dims=subsystem_trunc_dims,
                 closure_branches=closure_branches,
+                identify_LC_variables=identify_LC_variables,
             )
         except:
             # resetting the necessary attributes
@@ -3539,6 +3552,7 @@ class Circuit(Subsystem):
                 system_hierarchy=old_system_hierarchy,
                 subsystem_trunc_dims=old_subsystem_trunc_dims,
                 closure_branches=old_closure_branches,
+                identify_LC_variables=identify_LC_variables,
             )
             raise Exception("Configure failed due to incorrect parameters.")
 
@@ -3548,6 +3562,7 @@ class Circuit(Subsystem):
         system_hierarchy: list = None,
         subsystem_trunc_dims: list = None,
         closure_branches: List[Branch] = None,
+        identify_LC_variables: bool = True,
     ):
         """
         Method which re-initializes a circuit instance to update, hierarchical
@@ -3569,6 +3584,9 @@ class Circuit(Subsystem):
             List of branches where external flux variables will be specified, by default
             `None` which then chooses closure branches by an internally generated
             spanning tree.
+        identify_LC_variables:
+            set to True by default. If set to True, the extended variables that only
+            appears in the quadratic Hamiltonian is identified.
 
         Raises
         ------
@@ -3596,6 +3614,7 @@ class Circuit(Subsystem):
         self.symbolic_circuit.configure(
             transformation_matrix=transformation_matrix,
             closure_branches=closure_branches,
+            identify_LC_variables=identify_LC_variables,
         )
 
         # copying all the required attributes
