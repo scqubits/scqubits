@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, List
 
 import numpy as np
 
@@ -18,7 +18,10 @@ from scqubits.core.noise import NoisySystem
 
 
 class NoisySnailmon(NoisySystem, ABC):
-    pass
+    @classmethod
+    def supported_noise_channels(cls) -> List[str]:
+        """Return a list of supported noise channels"""
+        return ["tphi_1_over_f_flux"]
 
 
 class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
@@ -51,7 +54,7 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         EJ = 35.0
         alpha = 0.6
         snail_qubit = scq.Snail(EJ1 = EJ, EJ2 = EJ, EJ3 = EJ, EJ4 = alpha * EJ,
-                                     ECJ1 = 1.0, ECJ2 = 1.0, ECJ3 = 1.0, ECJ4 = 1.0 / alpha,
+                                     EC1 = 1.0, EC2 = 1.0, EC3 = 1.0, EC4 = 1.0 / alpha,
                                      ECg1 = 50.0, ECg2 = 50.0, ECg3 = 50.0, ng1 = 0.0,
                                      ng2 = 0.0, ng3 = 0.0, flux = 0.5, ncut = 10).
 
@@ -239,7 +242,17 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
             sparse.kron(identity, identity, format="csc"), n_op, format="csc"
         )
 
-        nvec = np.array([n1, n2, n3])
+        ng1 = self.ng1 * sparse.kron(
+            sparse.kron(identity, identity, format="csc"), identity, format="csc"
+        )
+        ng2 = self.ng2 * sparse.kron(
+            sparse.kron(identity, identity, format="csc"), identity, format="csc"
+        )
+        ng3 = self.ng3 * sparse.kron(
+            sparse.kron(identity, identity, format="csc"), identity, format="csc"
+        )
+
+        nvec = np.array([n1 - ng1, n2 - ng2, n3 - ng3])
 
         return 4 * nvec.T @ ec_mat @ nvec
 
@@ -295,6 +308,20 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         """Return Hamiltonian in basis obtained by employing charge basis for both
         degrees of freedom"""
         return self.kineticmat() + self.potentialmat()
+
+    def d_hamiltonian_d_flux(self) -> csc_matrix:
+        """Returns operator representing a derivative of the Hamiltonian with respect
+        to `flux`.
+        """
+        return (
+            2
+            * np.pi
+            * self.EJ4
+            * (
+                np.sin(2 * np.pi * self.flux) * self.cos_phi_3_operator()
+                - np.cos(2 * np.pi * self.flux) * self.sin_phi_3_operator()
+            )
+        )
 
     def _n_operator(self) -> ndarray:
         diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex_)
