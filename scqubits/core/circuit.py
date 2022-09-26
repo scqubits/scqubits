@@ -10,10 +10,12 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 import copy
+from ctypes import ArgumentError
 import functools
 import itertools
 import operator as builtin_op
 import re
+from tokenize import Double
 import warnings
 
 from types import MethodType
@@ -551,6 +553,8 @@ class Subsystem(
 
             self.hamiltonian_without_interaction = None
             self.interaction = None
+            self.hamiltonian_diagonal = None
+            self.hamiltonian_offdiagonal = None
 
             self.generate_subsystems()
             self._check_truncation_indices()
@@ -749,6 +753,8 @@ class Subsystem(
         Union[csc_matrix, ndarray],
         Union[csc_matrix, ndarray],
         Union[csc_matrix, ndarray],
+        Union[csc_matrix, ndarray],
+        Union[csc_matrix, ndarray],
     ]:
         """
         If hierarchical diagonalization is used, returns sorted Hamiltonian
@@ -758,7 +764,8 @@ class Subsystem(
 
         Returns
         -------
-            The sorted Hamiltonian with and without interaction, and the sorted interaction.
+            The sorted Hamiltonian with and without interaction, the sorted interaction, and the sorted
+            diagonal and off-diagonal part of the Hamiltonian.
         """
         if self.type_of_matrices == "sparse":
             diag = self.hamiltonian_without_interaction.diagonal()
@@ -771,6 +778,8 @@ class Subsystem(
             self.hamiltonian()[idx, :][:, idx],
             self.hamiltonian_without_interaction[idx, :][:, idx],
             self.interaction[idx, :][:, idx],
+            self.hamiltonian_diagonal[idx, :][:, idx],
+            self.hamiltonian_offdiagonal[idx, :][:, idx],
         )
 
     def get_eigenstates(self) -> ndarray:
@@ -874,6 +883,52 @@ class Subsystem(
                 )
         self._out_of_sync = False
         self.hilbert_space._out_of_sync = False
+
+    def subsystem_state_index(self, global_state_index: int) -> Tuple[int]:
+        """
+        Returns the subsystem state index providing the global state index
+
+        Parameters
+        ----------
+        global_state_index:
+            The state index of the system
+
+        Returns
+        -------
+            A tuple that encodes the subsystem index
+        """
+        subsystem_dims = self.subsystem_trunc_dims
+        # check if the input system state index is greater than the Hilbert space dimension
+        if global_state_index > np.prod(subsystem_dims) - 1:
+            raise ArgumentError(
+                "The input system state index is out of the Hilbert space dimensions"
+            )
+        return np.unravel_index(global_state_index, list(subsystem_dims))
+
+    def global_state_index(self, subsystem_state_index: Tuple[int]) -> int:
+        """
+        The reverse of `subsystem_state_index`, which returns the global system
+        index providing the subsystem state index
+
+        Parameters
+        ----------
+        subsystem_state_index:
+            The state index in terms of subsystem excitations
+
+        Returns
+        -------
+            The global system index as an integer
+        """
+        subsystem_dims = self.subsystem_trunc_dims
+        # check if the input system state index is greater than the Hilbert space dimension
+        if list(subsystem_state_index) > subsystem_dims:
+            raise ArgumentError(
+                "The input subsystem state index is out of the Hilbert space dimensions"
+            )
+        return np.ravel_multi_index(subsystem_state_index, subsystem_dims)
+
+    # TODO implement auxiliary functions for perturbation theory analysis, and possibly
+    # numerical Schrieffer-Wolff
 
     def _interaction_operator_from_expression(self, symbolic_interaction_term: sm.Expr):
         """
@@ -1944,6 +1999,8 @@ class Subsystem(
             if self.type_of_matrices == "sparse":
                 hamiltonian_mat = hamiltonian.data.tocsc()
             self.interaction = hamiltonian_mat - self.hamiltonian_without_interaction
+            self.hamiltonian_diagonal = np.diag(hamiltonian_mat).copy()
+            self.hamiltonian_offdiagonal = hamiltonian_mat - self.hamiltonian_diagonal
             return hamiltonian_mat
 
     def _evals_calc(self, evals_count: int) -> ndarray:
@@ -3641,10 +3698,13 @@ class Circuit(Subsystem):
             self.generate_hamiltonian_sym_for_numerics()
             self.operators_by_name = self.set_operators()
         else:
-            # list for updating necessary subsystems when calling build hilbertspace
+            # TODO consider better organizing these auxilliary attributes
             self.interaction = None
             self.hamiltonian_without_interaction = None
+            self.hamiltonian_diagonal = None
+            self.hamiltonian_offdiagonal = None
 
+            # list for updating necessary subsystems when calling build hilbertspace
             self.updated_subsystem_indices = []
             self.operators_by_name = None
             self.system_hierarchy = system_hierarchy
