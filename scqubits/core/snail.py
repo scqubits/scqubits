@@ -193,17 +193,31 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         ec_matrix = 0.5 * np.linalg.inv(cmat)
         return ec_matrix
 
-    def _evals_calc(self, evals_count: int) -> ndarray:
-        hamiltonian_mat = self.hamiltonian()
+    def _evals_calc(
+        self, evals_count: int, hamiltonian_mat: csc_matrix = None
+    ) -> ndarray:
+        if hamiltonian_mat is None:
+            hamiltonian_mat = self.hamiltonian()
         evals = utils.eigsh_safe(
-            hamiltonian_mat, which="SM", k=evals_count, return_eigenvectors=False
+            hamiltonian_mat,
+            k=evals_count,
+            sigma=0.0,
+            which="LM",
+            return_eigenvectors=False,
         )
         return np.sort(evals)
 
-    def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
-        hamiltonian_mat = self.hamiltonian()
+    def _esys_calc(
+        self, evals_count: int, hamiltonian_mat: csc_matrix = None
+    ) -> Tuple[ndarray, ndarray]:
+        if hamiltonian_mat is None:
+            hamiltonian_mat = self.hamiltonian()
         evals, evecs = utils.eigsh_safe(
-            hamiltonian_mat, eigvals=(0, evals_count - 1), eigvals_only=False
+            hamiltonian_mat,
+            k=evals_count,
+            sigma=0.0,
+            which="LM",
+            return_eigenvectors=True,
         )
         evals, evecs = utils.order_eigensystem(evals, evecs)
         return evals, evecs
@@ -334,14 +348,14 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         return e_iphi_matrix
 
     def _identity(self) -> ndarray:
-        dim = self.hilbertdim()
+        dim = 2 * self.ncut + 1
         return np.eye(dim)
 
     def n_1_operator(self) -> csc_matrix:
         r"""Return charge number operator conjugate to :math:`\phi_1`"""
         return sparse.kron(
             sparse.kron(self._n_operator(), self._identity(), format="csc"),
-            self._identity,
+            self._identity(),
             format="csc",
         )
 
@@ -349,7 +363,7 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         r"""Return charge number operator conjugate to :math:`\phi_2`"""
         return sparse.kron(
             sparse.kron(self._identity(), self._n_operator(), format="csc"),
-            self._identity,
+            self._identity(),
             format="csc",
         )
 
@@ -357,7 +371,7 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         r"""Return charge number operator conjugate to :math:`\phi_3`"""
         return sparse.kron(
             sparse.kron(self._identity(), self._identity(), format="csc"),
-            self._n_operator,
+            self._n_operator(),
             format="csc",
         )
 
