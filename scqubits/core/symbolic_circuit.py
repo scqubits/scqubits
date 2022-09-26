@@ -1617,16 +1617,27 @@ class SymbolicCircuit(serializers.Serializable):
         # constructing the matrix which transforms node to branch variables
         W = np.zeros([len(self.branches), len(self._node_list_without_ground)])
 
-        for idx, closure_branch in enumerate(self.closure_branches):
+        for closure_brnch_idx, closure_branch in enumerate(self.closure_branches):
             loop_branches = self._find_loop(closure_branch)
+            # setting the loop direction from the direction of the closure branch
+            R_prev_brnch = 1
             for b_idx, branch in enumerate(loop_branches):
                 R_elem = 1
-                if (
-                    b_idx > 0
-                    and branch.node_ids()[0] != loop_branches[b_idx - 1].node_ids()[1]
-                ):
-                    R_elem *= -1
-                R[self.branches.index(branch), idx] = R_elem
+                if b_idx == 0:
+                    start_node = list(branch.common_node(loop_branches[1]))[0]
+                    start_node_idx = branch.nodes.index(start_node)
+                    if start_node_idx == 0:
+                        R_elem *= -1
+                if b_idx > 0:
+                    start_node_idx = 1 if R_prev_brnch > 0 else 0
+                    start_node = loop_branches[b_idx-1].nodes[start_node_idx]
+                    R_elem = R_prev_brnch
+                    if branch.node_ids()[start_node_idx] == start_node.index:
+                        R_elem *= -1
+                R_prev_brnch = R_elem
+                R[self.branches.index(branch), closure_brnch_idx] = R_elem
+            if R[self.branches.index(closure_branch), closure_brnch_idx] < 0:
+                R[:, closure_brnch_idx] = R[:, closure_brnch_idx]*-1
 
         for idx, branch in enumerate(self.branches):
             if branch.type in ["JJ", "C"]:
