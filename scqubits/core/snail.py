@@ -1,3 +1,4 @@
+from abc import ABC
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
@@ -13,8 +14,14 @@ import scqubits.core.descriptors as descriptors
 import scqubits.utils.spectrum_utils as utils
 import scqubits.io_utils.fileio_serializers as serializers
 
+from scqubits.core.noise import NoisySystem
 
-class Snailmon(base.QubitBaseClass, serializers.Serializable):
+
+class NoisySnailmon(NoisySystem, ABC):
+    pass
+
+
+class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
     r"""SNAIL
 
     | [1] Frattini et al., Appl. Phys Lett. 110, 222603 (2017). https://doi.org/10.1063/1.4984142
@@ -262,35 +269,17 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable):
             -0.5
             * self.EJ1
             * sparse.kron(
-                sparse.kron(e_positive_phi + e_negative_phi, identity, format="csc"),
+                sparse.kron(e_positive_phi, identity, format="csc"),
                 identity,
                 format="csc",
             )
         )
-        potential_mat += (
-            -0.5
-            * self.EJ4
-            * sparse.kron(
-                sparse.kron(identity, identity, format="csc"),
-                np.exp(-1j * 2 * np.pi * self.flux) * e_positive_phi
-                + np.exp(+1j * 2 * np.pi * self.flux) * e_negative_phi,
-                format="csc",
-            )
-        )
+
         potential_mat += (
             -0.5
             * self.EJ2
             * sparse.kron(
                 sparse.kron(e_positive_phi, e_negative_phi, format="csc"),
-                identity,
-                format="csc",
-            )
-        )
-        potential_mat += (
-            -0.5
-            * self.EJ2
-            * sparse.kron(
-                sparse.kron(e_negative_phi, e_positive_phi, format="csc"),
                 identity,
                 format="csc",
             )
@@ -306,13 +295,14 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable):
         )
         potential_mat += (
             -0.5
-            * self.EJ3
+            * self.EJ4
             * sparse.kron(
-                sparse.kron(identity, e_negative_phi, format="csc"),
-                e_positive_phi,
+                sparse.kron(identity, identity, format="csc"),
+                np.exp(-1j * 2 * np.pi * self.flux) * e_positive_phi,
                 format="csc",
             )
         )
+        potential_mat += potential_mat.conjugate().T
         return potential_mat
 
     def hamiltonian(self) -> csc_matrix:
