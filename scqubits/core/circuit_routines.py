@@ -72,6 +72,7 @@ from scqubits.core.circuit_utils import (
     grid_operator_func_factory,
     matrix_power_sparse,
     operator_func_factory,
+    round_symbolic_expr
 )
 from scqubits.utils.misc import (
     flatten_list_recursive,
@@ -113,26 +114,26 @@ class CircuitRoutines(ABC):
         L = np.zeros([num_oscs, num_oscs])
         # substitute all external fluxes in the symbolic Hamiltonian
         hamiltonian = self.hamiltonian_symbolic
-        for param in self.external_fluxes + list(self.symbolic_params.keys()):
+        for param in self.external_fluxes + list(self.symbolic_params.keys()) + self.offset_charges:
             hamiltonian = hamiltonian.subs(param, getattr(self, param.name))
         ext_var_indices = self.var_categories["extended"]
         # filling the matrices
         for i in range(num_oscs):
             for j in range(num_oscs):
                 if i == j:
-                    C[i, j] = hamiltonian.coeff(f"Q{ext_var_indices[i]}**2")
+                    C[i, j] = hamiltonian.coeff(f"Q{ext_var_indices[i]}**2")*4
                     L[i, j] = hamiltonian.coeff(f"θ{ext_var_indices[i]}**2")
                 else:
                     C[i, j] = hamiltonian.coeff(
                         f"Q{ext_var_indices[i]}*Q{ext_var_indices[j]}"
-                    )
+                    )*4
                     L[i, j] = hamiltonian.coeff(
                         f"θ{ext_var_indices[i]}*θ{ext_var_indices[j]}"
                     )
         # diagonalizing the matrices
-        normal_mode_freqs, eig_vecs = np.linalg.eig(np.linalg.inv(C) @ L)
+        normal_mode_freqs_sq, eig_vecs = np.linalg.eig((C) @ L)
 
-        self.normal_mode_freqs = normal_mode_freqs
+        self.normal_mode_freqs = normal_mode_freqs_sq**0.5
 
         self._hamiltonian_sym_for_numerics = (
             self._transform_hamiltonian_purely_harmonic(hamiltonian, eig_vecs)
@@ -929,7 +930,7 @@ class CircuitRoutines(ABC):
         )
         # remove constants from Hamiltonian
         hamiltonian -= hamiltonian.as_coefficients_dict()[1]
-        return hamiltonian.expand()
+        return round_symbolic_expr(hamiltonian.expand(), 10)
         # * ##########################################################################
 
     def generate_hamiltonian_sym_for_numerics(
@@ -1183,7 +1184,7 @@ class CircuitRoutines(ABC):
                 ).tocsc()
             elif self.ext_basis == "harmonic":
                 osc_length = self.osc_lengths[var_index]
-                pos_operator = (osc_length / 2**0.5) * (
+                pos_operator = -(osc_length / 2**0.5) * (
                     op.creation(self.cutoffs_dict()[var_index])
                     + op.annihilation(self.cutoffs_dict()[var_index])
                 )
@@ -1308,12 +1309,12 @@ class CircuitRoutines(ABC):
                 osc_freqs[var_index] = (8 * ELi * ECi) ** 0.5
                 osc_lengths[var_index] = (8.0 * ECi / ELi) ** 0.25
                 nonwrapped_ops["position"] = functools.partial(
-                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2**0.5)
+                    op.a_plus_adag_sparse, prefactor=-osc_lengths[var_index] / (2**0.5)
                 )
                 nonwrapped_ops["sin"] = compose(
                     sp.linalg.sinm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
+                        op.a_plus_adag, prefactor=-osc_lengths[var_index] / (2**0.5)
                     ),
                 )
                 nonwrapped_ops["cos"] = compose(
@@ -1771,7 +1772,7 @@ class CircuitRoutines(ABC):
             shift_operator += (
                 float(linear_coeffs_q[idx]) * getattr(self, f"Q{var_index}_operator")()
             )
-        return eigenvals, shift_operator @ np.array(eigen_vectors).T
+        return np.array(eigenvals), shift_operator @ np.array(eigen_vectors).T
 
     @check_sync_status_circuit
     def hamiltonian(self) -> Union[csc_matrix, ndarray]:
@@ -1779,7 +1780,7 @@ class CircuitRoutines(ABC):
         Returns the Hamiltonian of the Circuit.
         """
         if not self.hierarchical_diagonalization:
-            if isinstance(self, circuit.Circuit) and self.is_purely_harmonic:
+            if self.is_purely_harmonic:
                 return self._hamiltonian_for_harmonic_extended_vars()
             elif self.ext_basis == "harmonic":
                 return self._hamiltonian_for_harmonic_extended_vars()
@@ -1811,8 +1812,7 @@ class CircuitRoutines(ABC):
         hilbertdim = self.hilbertdim()
 
         if (
-            isinstance(self, circuit.Circuit)
-            and self.is_purely_harmonic
+            self.is_purely_harmonic
             and not self.hierarchical_diagonalization
         ):
             return self._eigenvals_for_purely_harmonic(evals_count=evals_count)[0]
@@ -1834,8 +1834,7 @@ class CircuitRoutines(ABC):
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
 
         if (
-            isinstance(self, circuit.Circuit)
-            and self.is_purely_harmonic
+            self.is_purely_harmonic
             and not self.hierarchical_diagonalization
         ):
             return self._eigensys_for_purely_harmonic(evals_count=evals_count)

@@ -26,6 +26,7 @@ import yaml
 from numpy import ndarray
 from scqubits.utils.misc import flatten_list, is_float_string, unique_elements_in_list
 from sympy import symbols
+from scqubits.core.circuit_utils import round_symbolic_expr
 
 
 def process_word(word: str) -> Union[float, symbols]:
@@ -1794,14 +1795,6 @@ class SymbolicCircuit(serializers.Serializable):
         for p in self.var_categories["periodic"]:
             self.offset_charges = self.offset_charges + [symbols(f"ng{p}")]
 
-    @staticmethod
-    def round_symbolic_expr(expr: sympy.Expr, number_of_digits: int) -> sympy.Expr:
-        rounded_expr = expr.expand()
-        for term in sympy.preorder_traversal(expr.expand()):
-            if isinstance(term, sympy.Float):
-                rounded_expr = rounded_expr.subs(term, round(term, number_of_digits))
-        return rounded_expr
-
     def generate_symbolic_lagrangian(
         self,
     ) -> Tuple[sympy.Expr, sympy.Expr, sympy.Expr, sympy.Expr]:
@@ -1948,4 +1941,4 @@ class SymbolicCircuit(serializers.Serializable):
                 symbols(f"n{var_index}") + symbols(f"ng{var_index}"),
             )
 
-        return hamiltonian_symbolic.expand()
+        return round_symbolic_expr(hamiltonian_symbolic.expand(), 10)

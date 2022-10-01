@@ -408,3 +408,11 @@ def _cos_dia_dense(x: ndarray) -> ndarray:
 def matrix_power_sparse(dense_mat: ndarray, n: int) -> csc_matrix:
     sparse_mat = sparse.csc_matrix(dense_mat)
     return sparse_mat**n
+
+
+def round_symbolic_expr(expr: sm.Expr, number_of_digits: int) -> sm.Expr:
+    rounded_expr = expr.expand()
+    for term in sm.preorder_traversal(expr.expand()):
+        if isinstance(term, sm.Float):
+            rounded_expr = rounded_expr.subs(term, round(term, number_of_digits))
+    return rounded_expr
