@@ -210,7 +210,7 @@ def _sin_phi(grid: discretization.Grid1d) -> csc_matrix:
     pt_count = grid.pt_count
 
     sin_op = sparse.dia_matrix((pt_count, pt_count))
-    diag_elements = np.cos(grid.make_linspace())
+    diag_elements = np.sin(grid.make_linspace())
     sin_op.setdiag(diag_elements)
     return sin_op.tocsc()
 
