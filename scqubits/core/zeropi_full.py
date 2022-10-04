@@ -230,7 +230,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return [
             "tphi_1_over_f_cc",
             "tphi_1_over_f_flux",
-            "t1_bias_flux_line",
+            "t1_flux_bias_line",
             # 't1_capacitive',
             "t1_inductive",
         ]
