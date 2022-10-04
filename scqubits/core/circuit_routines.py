@@ -1159,7 +1159,7 @@ class CircuitRoutines(ABC):
         elif self.type_of_matrices == "dense":
             return np.identity(dim)
 
-    def exp_i_pos_operator(
+    def exp_i_operator(
         self, var_sym: sm.Symbol, prefactor: float
     ) -> Union[csc_matrix, ndarray]:
         """
@@ -1185,17 +1185,28 @@ class CircuitRoutines(ABC):
                     self.discretized_phi_range[var_index][1],
                     self.cutoffs_dict()[var_index],
                 )
-                diagonal = np.exp(phi_grid.make_linspace() * prefactor * 1j)
-                exp_i_theta = sparse.dia_matrix(
-                    (diagonal, [0]), shape=(phi_grid.pt_count, phi_grid.pt_count)
-                ).tocsc()
+                if "θ" in var_sym.name:
+                    diagonal = np.exp(phi_grid.make_linspace() * prefactor * 1j)
+                    exp_i_theta = sparse.dia_matrix(
+                        (diagonal, [0]), shape=(phi_grid.pt_count, phi_grid.pt_count)
+                    ).tocsc()
+                elif "Q" in var_sym.name:
+                    exp_i_theta = sp.linalg.expm(
+                        _i_d_dphi_operator(phi_grid).toarray() * prefactor * 1j
+                    )
             elif self.ext_basis == "harmonic":
                 osc_length = self.osc_lengths[var_index]
-                pos_operator = (osc_length / 2**0.5) * (
-                    op.creation(self.cutoffs_dict()[var_index])
-                    + op.annihilation(self.cutoffs_dict()[var_index])
-                )
-                exp_i_theta = sp.linalg.expm(pos_operator * prefactor * 1j)
+                if "θ" in var_sym.name:
+                    exp_argument_op = op.a_plus_adag_sparse(
+                        self.cutoffs_dict()[var_index],
+                        prefactor=(osc_length / 2**0.5),
+                    )
+                elif "Q" in var_sym.name:
+                    exp_argument_op = op.iadag_minus_ia_sparse(
+                        self.cutoffs_dict()[var_index],
+                        prefactor=(osc_length * 2**0.5) ** -1,
+                    )
+                exp_i_theta = sp.linalg.expm(exp_argument_op * prefactor * 1j)
 
         return self._sparsity_adaptive(exp_i_theta)
 
@@ -1241,7 +1252,7 @@ class CircuitRoutines(ABC):
                 prefactor = float(cos_argument_expr.coeff(var_symbol))
                 operator_list.append(
                     self.identity_wrap_for_hd(
-                        self.exp_i_pos_operator(var_symbol, prefactor), var_indices[idx]
+                        self.exp_i_operator(var_symbol, prefactor), var_indices[idx]
                     )
                 )
 
@@ -1756,7 +1767,7 @@ class CircuitRoutines(ABC):
                 eigen_vector.append(evec)
             eigen_vectors.append(functools.reduce(np.kron, eigen_vector))
         # translate the eigenvectors if necessary
-        hamiltonian = self.hamiltonian_symbolic
+        hamiltonian = self._hamiltonian_sym_for_numerics
         # substitute parameters
         for sym_param in (
             self.offset_charges
@@ -1764,20 +1775,32 @@ class CircuitRoutines(ABC):
             + list(self.symbolic_params.keys())
         ):
             hamiltonian = hamiltonian.subs(sym_param, getattr(self, sym_param.name))
+        hamiltonian = hamiltonian.subs("I", 1)
         # collecting the linear coefficients
         linear_coeffs_theta = []
         linear_coeffs_q = []
+        quad_coeffs_theta = []
+        quad_coeffs_q = []
         for var_index in self.var_categories_list:
-            linear_coeffs_theta.append(hamiltonian.coeff(f"θ{var_index}"))
-            linear_coeffs_q.append(hamiltonian.coeff(f"Q{var_index}"))
-        shift_operator = self._identity() * (1 + 0 * 1j)
+            linear_coeffs_theta.append(float(hamiltonian.coeff(f"θ{var_index}")))
+            linear_coeffs_q.append(float(hamiltonian.coeff(f"Q{var_index}")))
+            quad_coeffs_theta.append(float(hamiltonian.coeff(f"θ{var_index}**2")))
+            quad_coeffs_q.append(float(hamiltonian.coeff(f"Q{var_index}**2")))
+        shift_operator = self._identity()
         for idx, var_index in enumerate(self.var_categories_list):
-            shift_operator += (
-                float(linear_coeffs_theta[idx])
-                * getattr(self, f"θ{var_index}_operator")()
+            shift_operator = shift_operator @ self._kron_operator(
+                self.exp_i_operator(
+                    sm.sympify(f"θ{var_index}"),
+                    linear_coeffs_q[idx] / (2 * quad_coeffs_q[idx]),
+                ),
+                var_index,
             )
-            shift_operator += (
-                float(linear_coeffs_q[idx]) * getattr(self, f"Q{var_index}_operator")()
+            shift_operator = shift_operator @ self._kron_operator(
+                self.exp_i_operator(
+                    sm.sympify(f"Q{var_index}"),
+                    linear_coeffs_theta[idx] / (2 * quad_coeffs_theta[idx]),
+                ),
+                var_index,
             )
         return np.array(eigenvals), shift_operator @ np.array(eigen_vectors).T
 

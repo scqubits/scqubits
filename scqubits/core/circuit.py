@@ -217,7 +217,7 @@ class Subsystem(
             self._make_property(
                 cutoff_str, getattr(self.parent, cutoff_str), "update_cutoffs"
             )
-        # # if subsystem hamiltonian is purely harmonic
+        # if subsystem hamiltonian is purely harmonic
         if self._is_expression_purely_harmonic(self.hamiltonian_symbolic):
             self.is_purely_harmonic = True
             self._ext_basis = (
