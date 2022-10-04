@@ -25,5 +25,6 @@ class TestSnailmon(StandardTests):
         cls.file_str = "snailmon"
         cls.op1_str = "n_1_operator"
         cls.op2_str = "n_2_operator"
+        cls.op3_str = "n_3_operator"
         cls.param_name = "flux"
         cls.param_list = np.linspace(0.45, 0.55, 50)

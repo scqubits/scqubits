@@ -210,8 +210,8 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         evals = utils.eigsh_safe(
             hamiltonian_mat,
             k=evals_count,
-            sigma=0.0,
-            which="LM",
+            # sigma=0.0,
+            which="SA",
             return_eigenvectors=False,
         )
         return np.sort(evals)
@@ -224,8 +224,8 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         evals, evecs = utils.eigsh_safe(
             hamiltonian_mat,
             k=evals_count,
-            sigma=0.0,
-            which="LM",
+            # sigma=0.0,
+            which="SA",
             return_eigenvectors=True,
         )
         evals, evecs = utils.order_eigensystem(evals, evecs)
@@ -248,7 +248,7 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
     def kineticmat(self) -> csc_matrix:
         """Return the kinetic energy matrix."""
         ec_mat = self.EC_matrix()
-        identity = sparse.identity(2 * self.ncut + 1, format="csc")
+        identity = self._identity()
 
         n_op = np.arange(-self.ncut, self.ncut + 1, 1)
         n_op = sparse.diags(n_op).tocsc()
