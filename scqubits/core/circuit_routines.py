@@ -1324,7 +1324,7 @@ class CircuitRoutines(ABC):
                     ),
                 )
                 nonwrapped_ops["momentum"] = functools.partial(
-                    op.ia_minus_iadag_sparse,
+                    op.iadag_minus_ia_sparse,
                     prefactor=1 / (osc_lengths[var_index] * 2**0.5),
                 )
 

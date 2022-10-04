@@ -164,7 +164,7 @@ def a_plus_adag(
     return a_plus_adag_sparse(dimension, prefactor=prefactor).toarray()
 
 
-def ia_minus_iadag_sparse(
+def iadag_minus_ia_sparse(
     dimension: int, prefactor: Union[float, complex, None] = None
 ) -> csc_matrix:
     """Operator matrix for prefactor(ia-ia^dag) of size dimension x dimension as
@@ -184,11 +184,11 @@ def ia_minus_iadag_sparse(
     """
     prefactor = prefactor if prefactor is not None else 1.0
     return prefactor * (
-        1j * annihilation_sparse(dimension) - 1j * creation_sparse(dimension)
+        1j * creation_sparse(dimension) - 1j * annihilation_sparse(dimension)
     )
 
 
-def ia_minus_iadag(
+def iadag_minus_ia(
     dimension: int, prefactor: Union[float, complex, None] = None
 ) -> ndarray:
     """Operator matrix for prefactor(ia-ia^dag) of size dimension x dimension as
@@ -206,7 +206,7 @@ def ia_minus_iadag(
     -------
         prefactor  (ia - ia^dag) as ndarray, size dimension x dimension
     """
-    return ia_minus_iadag_sparse(dimension, prefactor=prefactor).toarray()
+    return iadag_minus_ia_sparse(dimension, prefactor=prefactor).toarray()
 
 
 def sigma_minus() -> np.ndarray:
