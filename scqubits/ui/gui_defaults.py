@@ -14,7 +14,9 @@ import numpy as np
 
 EL_range = {"min": 1e-5, "max": 10.0}
 EJ_range = {"min": 1e-5, "max": 70.0}
+Snail_EJ_range = {"min": 1e-5, "max": 2e3}
 EC_range = {"min": 1e-5, "max": 10.0}
+Snail_EC_range = {"min": 1e-5, "max": 300.0}
 flux_range = {"min": 0.0, "max": 1.0}
 ng_range = {"min": 0.0, "max": 1.0}
 int_range = {"min": 1, "max": 30}
@@ -82,17 +84,17 @@ snailmon_defaults = {
     "scan_param": "flux",
     "operator": "n_1_operator",
     "ncut": ncut_range,
-    "EJ1": EJ_range,
-    "EJ2": EJ_range,
-    "EJ3": EJ_range,
-    "EJ4": EJ_range,
-    "EC1": EC_range,
-    "EC2": EC_range,
-    "EC3": EC_range,
-    "EC4": EC_range,
-    "ECg1": EC_range,
-    "ECg2": EC_range,
-    "ECg3": EC_range,
+    "EJ1": Snail_EJ_range,
+    "EJ2": Snail_EJ_range,
+    "EJ3": Snail_EJ_range,
+    "EJ4": Snail_EJ_range,
+    "EC1": Snail_EC_range,
+    "EC2": Snail_EC_range,
+    "EC3": Snail_EC_range,
+    "EC4": Snail_EC_range,
+    "ECg1": Snail_EC_range,
+    "ECg2": Snail_EC_range,
+    "ECg3": Snail_EC_range,
     "ng1": ng_range,
     "ng2": ng_range,
     "ng3": ng_range,

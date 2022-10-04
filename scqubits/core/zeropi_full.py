@@ -451,8 +451,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         evals = spec_utils.eigsh_safe(
             hamiltonian_mat,
             k=evals_count,
-            sigma=0.0,
-            which="LM",
+            # sigma=0.0,
+            which="SA",
             return_eigenvectors=False,
         )
         return np.sort(evals)
@@ -465,8 +465,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         evals, evecs = spec_utils.eigsh_safe(
             hamiltonian_mat,
             k=evals_count,
-            sigma=0.0,
-            which="LM",
+            # sigma=0.0,
+            which="SA",
             return_eigenvectors=True,
         )
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
