@@ -77,6 +77,29 @@ fluxqubit_defaults = {
     "num_sample": 100,
 }
 
+snailmon_defaults = {
+    **global_defaults,
+    "scan_param": "flux",
+    "operator": "n_1_operator",
+    "ncut": ncut_range,
+    "EJ1": EJ_range,
+    "EJ2": EJ_range,
+    "EJ3": EJ_range,
+    "EJ4": EJ_range,
+    "EC1": EC_range,
+    "EC2": EC_range,
+    "EC3": EC_range,
+    "EC4": EC_range,
+    "ECg1": EC_range,
+    "ECg2": EC_range,
+    "ECg3": EC_range,
+    "ng1": ng_range,
+    "ng2": ng_range,
+    "ng3": ng_range,
+    "scale": None,
+    "num_sample": 100,
+}
+
 zeropi_defaults = {
     **global_defaults,
     "scan_param": "flux",
@@ -131,6 +154,7 @@ qubit_defaults = {
     "ZeroPi": zeropi_defaults,
     "FullZeroPi": fullzeropi_defaults,
     "Cos2PhiQubit": cos2phiqubit_defaults,
+    "Snailmon": snailmon_defaults
 }
 
 grid_defaults = {
@@ -244,9 +268,10 @@ supported_qubits = [
     "ZeroPi",
     "FullZeroPi",
     "Cos2PhiQubit",
+    "Snailmon"
 ]
 
-slow_qubits = ["FluxQubit", "ZeroPi", "FullZeroPi", "Cos2PhiQubit"]
+slow_qubits = ["FluxQubit", "ZeroPi", "FullZeroPi", "Cos2PhiQubit", "Snailmon"]
 
 subsys_panel_names = [
     "Energy spectrum",

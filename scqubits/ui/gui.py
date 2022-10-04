@@ -1013,7 +1013,7 @@ class GUI:
             ].get_interact_value(),
         }
 
-        if isinstance(self.active_qubit, scq.FullZeroPi):
+        if isinstance(self.active_qubit, (scq.Snailmon, scq.FullZeroPi)):
             return
         elif isinstance(
             self.active_qubit, (scq.FluxQubit, scq.ZeroPi, scq.Cos2PhiQubit)
@@ -1306,7 +1306,7 @@ class GUI:
         -------
             Tuple of plot options widgets
         """
-        if isinstance(self.active_qubit, scq.FullZeroPi):
+        if isinstance(self.active_qubit, (scq.Snailmon, scq.FullZeroPi)):
             plot_options_widgets_tuple = (Label(value="Not implemented"),)
         else:
             self.qubit_plot_options_widgets[

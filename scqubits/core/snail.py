@@ -1,3 +1,17 @@
+# snail.py
+#
+# This file is part of scqubits: a Python package for superconducting qubits,
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
+#
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
+#    All rights reserved.
+#
+#    This source code is licensed under the BSD-style license found in the
+#    LICENSE file in the root directory of this source tree.
+############################################################################
+
+import os
+
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Tuple, List
 
@@ -151,7 +165,8 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         # Truncation dimension
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._image_filename = None
+        self._image_filename = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "qubit_img/snailmon.jpg")
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
