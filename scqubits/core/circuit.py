@@ -220,7 +220,9 @@ class Subsystem(
         # # if subsystem hamiltonian is purely harmonic
         if self._is_expression_purely_harmonic(self.hamiltonian_symbolic):
             self.is_purely_harmonic = True
-            self._ext_basis = "harmonic" # using harmonic oscillator basis for purely harmonic 
+            self._ext_basis = (
+                "harmonic"  # using harmonic oscillator basis for purely harmonic
+            )
             self._diagonalize_purely_harmonic_hamiltonian()
         else:
             self.is_purely_harmonic = False

@@ -1631,14 +1631,14 @@ class SymbolicCircuit(serializers.Serializable):
                         R_elem *= -1
                 if b_idx > 0:
                     start_node_idx = 1 if R_prev_brnch > 0 else 0
-                    start_node = loop_branches[b_idx-1].nodes[start_node_idx]
+                    start_node = loop_branches[b_idx - 1].nodes[start_node_idx]
                     R_elem = R_prev_brnch
                     if branch.node_ids()[start_node_idx] == start_node.index:
                         R_elem *= -1
                 R_prev_brnch = R_elem
                 R[self.branches.index(branch), closure_brnch_idx] = R_elem
             if R[self.branches.index(closure_branch), closure_brnch_idx] < 0:
-                R[:, closure_brnch_idx] = R[:, closure_brnch_idx]*-1
+                R[:, closure_brnch_idx] = R[:, closure_brnch_idx] * -1
 
         for idx, branch in enumerate(self.branches):
             if branch.type in ["JJ", "C"]:

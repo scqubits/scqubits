@@ -72,7 +72,7 @@ from scqubits.core.circuit_utils import (
     grid_operator_func_factory,
     matrix_power_sparse,
     operator_func_factory,
-    round_symbolic_expr
+    round_symbolic_expr,
 )
 from scqubits.utils.misc import (
     flatten_list_recursive,
@@ -114,19 +114,26 @@ class CircuitRoutines(ABC):
         L = np.zeros([num_oscs, num_oscs])
         # substitute all external fluxes in the symbolic Hamiltonian
         hamiltonian = self.hamiltonian_symbolic
-        for param in self.external_fluxes + list(self.symbolic_params.keys()) + self.offset_charges:
+        for param in (
+            self.external_fluxes
+            + list(self.symbolic_params.keys())
+            + self.offset_charges
+        ):
             hamiltonian = hamiltonian.subs(param, getattr(self, param.name))
         ext_var_indices = self.var_categories["extended"]
         # filling the matrices
         for i in range(num_oscs):
             for j in range(num_oscs):
                 if i == j:
-                    C[i, j] = hamiltonian.coeff(f"Q{ext_var_indices[i]}**2")*4
+                    C[i, j] = hamiltonian.coeff(f"Q{ext_var_indices[i]}**2") * 4
                     L[i, j] = hamiltonian.coeff(f"θ{ext_var_indices[i]}**2")
                 else:
-                    C[i, j] = hamiltonian.coeff(
-                        f"Q{ext_var_indices[i]}*Q{ext_var_indices[j]}"
-                    )*4
+                    C[i, j] = (
+                        hamiltonian.coeff(
+                            f"Q{ext_var_indices[i]}*Q{ext_var_indices[j]}"
+                        )
+                        * 4
+                    )
                     L[i, j] = hamiltonian.coeff(
                         f"θ{ext_var_indices[i]}*θ{ext_var_indices[j]}"
                     )
@@ -1811,10 +1818,7 @@ class CircuitRoutines(ABC):
         # dimension of the hamiltonian
         hilbertdim = self.hilbertdim()
 
-        if (
-            self.is_purely_harmonic
-            and not self.hierarchical_diagonalization
-        ):
+        if self.is_purely_harmonic and not self.hierarchical_diagonalization:
             return self._eigenvals_for_purely_harmonic(evals_count=evals_count)[0]
 
         hamiltonian_mat = self.hamiltonian()
@@ -1833,10 +1837,7 @@ class CircuitRoutines(ABC):
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
 
-        if (
-            self.is_purely_harmonic
-            and not self.hierarchical_diagonalization
-        ):
+        if self.is_purely_harmonic and not self.hierarchical_diagonalization:
             return self._eigensys_for_purely_harmonic(evals_count=evals_count)
 
         # dimension of the hamiltonian
