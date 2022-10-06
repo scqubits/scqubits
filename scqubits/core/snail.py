@@ -72,7 +72,7 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         EJ = 35.0
         alpha = 0.6
         snail_qubit = scq.Snail(EJ1 = EJ, EJ2 = EJ, EJ3 = EJ, EJ4 = alpha * EJ,
-                                     EC1 = 1.0, EC2 = 1.0, EC3 = 1.0, EC4 = 1.0 / alpha,
+                                     ECJ1 = 1.0, ECJ2 = 1.0, ECJ3 = 1.0, ECJ4 = 1.0 / alpha,
                                      ECg1 = 50.0, ECg2 = 50.0, ECg3 = 50.0, ng1 = 0.0,
                                      ng2 = 0.0, ng3 = 0.0, flux = 0.5, ncut = 10).
 
@@ -81,7 +81,7 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
     EJ1, EJ2, EJ3, EJ4: float
         Josephson energy of the ith junction
         `EJ1 = EJ2 = EJ3`, with `EJ3 = alpha * EJ1` and `alpha <= 1`
-    EC1, EC2, EC3, EC4: float
+    ECJ1, ECJ2, ECJ3, ECJ4: float
         charging energy associated with the ith junction, may include parallel shunt
         capacitance
     ECg1, ECg2, ECg3, ECg4: float
@@ -105,13 +105,14 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
     EJ2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     EJ3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     EJ4 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    EC1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    EC2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    EC3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    EC4 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ4 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ECg1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ECg2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ECg3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECg4 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ng1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ng2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ng3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
@@ -124,13 +125,14 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         EJ2: float,
         EJ3: float,
         EJ4: float,
-        EC1: float,
-        EC2: float,
-        EC3: float,
-        EC4: float,
+        ECJ1: float,
+        ECJ2: float,
+        ECJ3: float,
+        ECJ4: float,
         ECg1: float,
         ECg2: float,
         ECg3: float,
+        ECg4: float,
         ng1: float,
         ng2: float,
         ng3: float,
@@ -146,15 +148,16 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         self.EJ3 = EJ3
         self.EJ4 = EJ4
         # Capacitance connected to each Josephson Junction
-        self.EC1 = EC1
-        self.EC2 = EC2
-        self.EC3 = EC3
-        self.EC4 = EC4
+        self.ECJ1 = ECJ1
+        self.ECJ2 = ECJ2
+        self.ECJ3 = ECJ3
+        self.ECJ4 = ECJ4
 
         # Capacitance connected to ground
         self.ECg1 = ECg1
         self.ECg2 = ECg2
         self.ECg3 = ECg3
+        self.ECg4 = ECg4
 
         # offset charges associated with each Josephson Junction
         self.ng1 = ng1
@@ -175,13 +178,14 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
             "EJ2": 887.3,
             "EJ3": 887.3,
             "EJ4": 117.5,
-            "EC1": 0.2873,
-            "EC2": 0.2873,
-            "EC3": 0.2873,
-            "EC4": 1.437,
+            "ECJ1": 0.2873,
+            "ECJ2": 0.2873,
+            "ECJ3": 0.2873,
+            "ECJ4": 1.437,
             "ECg1": 193.7,
             "ECg2": 193.7,
             "ECg3": 193.7,
+            "ECg4": 193.7,
             "ng1": 0.0,
             "ng2": 0.0,
             "ng3": 0.0,
@@ -199,22 +203,29 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
     # the Hamiltonian
     def EC_matrix(self) -> ndarray:
         """Returns the charging energy matrix"""
-        c1 = 1 / (2 * self.EC1)
-        c2 = 1 / (2 * self.EC2)
-        c3 = 1 / (2 * self.EC3)
-        c4 = 1 / (2 * self.EC4)
+        c1 = 1 / (2 * self.ECJ1)
+        c2 = 1 / (2 * self.ECJ2)
+        c3 = 1 / (2 * self.ECJ3)
+        c4 = 1 / (2 * self.ECJ4)
 
         cg1 = 1 / (2 * self.ECg1)
         cg2 = 1 / (2 * self.ECg2)
         cg3 = 1 / (2 * self.ECg3)
+        cg4 = 1 / (2 * self.ECg4)
         cmat = np.array(
             [
-                [c1 + c2 + cg1, -c2, 0],
-                [-c2, c2 + c3 + cg2, -c3],
-                [0, -c3, c3 + c4 + cg3],
+                [c1 + c2 + cg1, -c2, 0, -c1],
+                [-c2, c2 + c3 + cg2, -c3, 0],
+                [0, -c3, c3 + c4 + cg3, -c4],
+                [-c1, 0, -c4, c4 + c1 + cg4],
             ]
         )
-        ec_matrix = 0.5 * np.linalg.inv(cmat)
+
+        m_inv = 0.5 * np.array([[1, -1, -1], [1, 1, -1], [1, 1, 1], [-1, -1, -1]])
+
+        c_mat_transformed = np.matmul(m_inv.T, np.matmul(cmat, m_inv))
+
+        ec_matrix = 0.5 * np.linalg.inv(c_mat_transformed)
         return ec_matrix
 
     def _evals_calc(
@@ -290,8 +301,12 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
             sparse.kron(identity, identity, format="csc"), identity, format="csc"
         )
 
-        nvec = np.array([n1 - ng1, n2 - ng2, n3 - ng3])
-
+        nvec = np.array([n1, n2, n3])
+        m_inv = 0.5 * np.array([[1, -1, -1], [1, 1, -1], [1, 1, 1], [-1, -1, -1]])
+        m_inv_square = m_inv.T[0:3, 0:3]
+        ng_vec = np.array([ng1, ng2, ng3])
+        ng_prime_vec = np.matmul(ng_vec, m_inv_square)
+        nvec = nvec - ng_prime_vec
         return 4 * nvec.T @ ec_mat @ nvec
 
     def potentialmat(self) -> csc_matrix:
@@ -300,45 +315,82 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
 
         ones_on_diagonal = np.ones((1, 2 * self.ncut))
         e_positive_phi = sparse.diags(ones_on_diagonal, [1]).tocsc()
-        e_negative_phi = sparse.diags(ones_on_diagonal, [-1]).tocsc()
 
+        # potential_mat = (
+        #     -0.5
+        #     * self.EJ1
+        #     * sparse.kron(
+        #         sparse.kron(e_positive_phi, identity, format="csc"),
+        #         identity,
+        #         format="csc",
+        #     )
+        # )
+        #
+        # potential_mat += (
+        #     -0.5
+        #     * self.EJ2
+        #     * sparse.kron(
+        #         sparse.kron(e_positive_phi, e_negative_phi, format="csc"),
+        #         identity,
+        #         format="csc",
+        #     )
+        # )
+        # potential_mat += (
+        #     -0.5
+        #     * self.EJ3
+        #     * sparse.kron(
+        #         sparse.kron(identity, e_positive_phi, format="csc"),
+        #         e_negative_phi,
+        #         format="csc",
+        #     )
+        # )
+        # potential_mat += (
+        #     -0.5
+        #     * self.EJ4
+        #     * sparse.kron(
+        #         sparse.kron(identity, identity, format="csc"),
+        #         np.exp(-1j * 2 * np.pi * self.flux) * e_positive_phi,
+        #         format="csc",
+        #     )
+        # )
         potential_mat = (
-            -0.5
-            * self.EJ1
-            * sparse.kron(
-                sparse.kron(e_positive_phi, identity, format="csc"),
-                identity,
-                format="csc",
-            )
+                -0.5
+                * self.EJ1
+                * sparse.kron(
+            sparse.kron(e_positive_phi, identity, format="csc"),
+            identity,
+            format="csc",
+        )
         )
 
         potential_mat += (
-            -0.5
-            * self.EJ2
-            * sparse.kron(
-                sparse.kron(e_positive_phi, e_negative_phi, format="csc"),
-                identity,
-                format="csc",
-            )
+                -0.5
+                * self.EJ2
+                * sparse.kron(
+            sparse.kron(identity, e_positive_phi, format="csc"),
+            identity,
+            format="csc",
+        )
         )
         potential_mat += (
-            -0.5
-            * self.EJ3
-            * sparse.kron(
-                sparse.kron(identity, e_positive_phi, format="csc"),
-                e_negative_phi,
-                format="csc",
-            )
+                -0.5
+                * self.EJ3
+                * sparse.kron(
+            sparse.kron(identity, identity, format="csc"),
+            e_positive_phi,
+            format="csc",
+        )
         )
         potential_mat += (
-            -0.5
-            * self.EJ4
-            * sparse.kron(
-                sparse.kron(identity, identity, format="csc"),
-                np.exp(-1j * 2 * np.pi * self.flux) * e_positive_phi,
-                format="csc",
-            )
+                -0.5
+                * self.EJ4
+                * sparse.kron(
+            sparse.kron(e_positive_phi, e_positive_phi, format="csc"),
+            np.exp(-1j * 2 * np.pi * self.flux) * e_positive_phi,
+            format="csc",
         )
+        )
+
         potential_mat += potential_mat.conjugate().T
         potential_mat += (self.EJ1 + self.EJ2 + self.EJ3 + self.EJ4) * sparse.identity(
             self.hilbertdim()
@@ -354,15 +406,29 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         """Returns operator representing a derivative of the Hamiltonian with respect
         to `flux`.
         """
-        return (
-            2
-            * np.pi
-            * self.EJ4
-            * (
-                np.sin(2 * np.pi * self.flux) * self.cos_phi_3_operator()
-                - np.cos(2 * np.pi * self.flux) * self.sin_phi_3_operator()
-            )
+        # return (
+        #     2
+        #     * np.pi
+        #     * self.EJ4
+        #     * (
+        #         np.sin(2 * np.pi * self.flux) * self.cos_phi_3_operator()
+        #         - np.cos(2 * np.pi * self.flux) * self.sin_phi_3_operator()
+        #     )
+        # )
+        # My attempt
+        ones_on_diagonal = np.ones((1, 2 * self.ncut))
+        e_positive_phi = sparse.diags(ones_on_diagonal, [1]).tocsc()
+        d_ham_d_flux = (
+                1 / 2.0j
+                * self.EJ4
+                * sparse.kron(
+            sparse.kron(e_positive_phi, e_positive_phi, format="csc"),
+            np.exp(-1j * 2 * np.pi * self.flux) * e_positive_phi,
+            format="csc",
         )
+        )
+        d_ham_d_flux += d_ham_d_flux.conjugate().T
+        return d_ham_d_flux
 
     def _n_operator(self) -> ndarray:
         diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex_)
