@@ -28,7 +28,7 @@ import scqubits.core.descriptors as descriptors
 import scqubits.utils.spectrum_utils as utils
 import scqubits.io_utils.fileio_serializers as serializers
 
-from scqubits.core.noise import NoisySystem
+from scqubits.core.noise import NOISE_PARAMS, NoisySystem
 
 
 class NoisySnailmon(NoisySystem, ABC):
@@ -197,7 +197,210 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
     @classmethod
     def supported_noise_channels(cls) -> List[str]:
         """Return a list of supported noise channels"""
-        return ["tphi_1_over_f_flux"]
+        return [
+            "tphi_1_over_f_flux",
+            "tphi_1_over_f_ng1",
+            "tphi_1_over_f_ng2",
+            "tphi_1_over_f_ng3",
+            "tphi_1_over_f_ng",
+        ]
+
+    def tphi_1_over_f_ng1(
+        self,
+        A_noise: float = NOISE_PARAMS["A_ng"],
+        i: int = 0,
+        j: int = 1,
+        esys: Tuple[ndarray, ndarray] = None,
+        get_rate: bool = False,
+        **kwargs
+    ) -> float:
+        r"""
+        Calculate the 1/f dephasing time (or rate) due to charge noise of
+        junction associated with the charge operator :math:`n1`.
+        Parameters
+        ----------
+        A_noise:
+            noise strength
+        i: int >=0
+            state index that along with j defines a qubit
+        j: int >=0
+            state index that along with i defines a qubit
+        esys:
+            evals, evecs tuple
+        get_rate:
+            get rate or time
+
+
+        Returns
+        -------
+        time or rate: float
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
+            in inverse units.
+        """
+        if "tphi_1_over_f_ng1" not in self.supported_noise_channels():
+            raise RuntimeError(
+                "Charge noise channel 'tphi_1_over_f_ng1' is not supported in this"
+                " system."
+            )
+
+        return self.tphi_1_over_f(
+            A_noise=A_noise,
+            i=i,
+            j=j,
+            noise_op=self.d_hamiltonian_d_ng1(),  # type: ignore
+            esys=esys,
+            get_rate=get_rate,
+            **kwargs
+        )
+
+    def tphi_1_over_f_ng2(
+        self,
+        A_noise: float = NOISE_PARAMS["A_ng"],
+        i: int = 0,
+        j: int = 1,
+        esys: Tuple[ndarray, ndarray] = None,
+        get_rate: bool = False,
+        **kwargs
+    ) -> float:
+        r"""
+        Calculate the 1/f dephasing time (or rate) due to charge noise of
+        junction associated with the charge operator :math:`n2`.
+        Parameters
+        ----------
+        A_noise:
+            noise strength
+        i: int >=0
+            state index that along with j defines a qubit
+        j: int >=0
+            state index that along with i defines a qubit
+        esys:
+            evals, evecs tuple
+        get_rate:
+            get rate or time
+
+
+        Returns
+        -------
+        time or rate: float
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
+            in inverse units.
+        """
+        if "tphi_1_over_f_ng2" not in self.supported_noise_channels():
+            raise RuntimeError(
+                "Charge noise channel 'tphi_1_over_f_ng2' is not supported in this"
+                " system."
+            )
+
+        return self.tphi_1_over_f(
+            A_noise=A_noise,
+            i=i,
+            j=j,
+            noise_op=self.d_hamiltonian_d_ng2(),  # type: ignore
+            esys=esys,
+            get_rate=get_rate,
+            **kwargs
+        )
+
+    def tphi_1_over_f_ng3(
+        self,
+        A_noise: float = NOISE_PARAMS["A_ng"],
+        i: int = 0,
+        j: int = 1,
+        esys: Tuple[ndarray, ndarray] = None,
+        get_rate: bool = False,
+        **kwargs
+    ) -> float:
+        r"""
+        Calculate the 1/f dephasing time (or rate) due to charge noise of
+        junction associated with the charge operator :math:`n3`.
+        Parameters
+        ----------
+        A_noise:
+            noise strength
+        i: int >=0
+            state index that along with j defines a qubit
+        j: int >=0
+            state index that along with i defines a qubit
+        esys:
+            evals, evecs tuple
+        get_rate:
+            get rate or time
+
+
+        Returns
+        -------
+        time or rate: float
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
+            in inverse units.
+        """
+        if "tphi_1_over_f_ng3" not in self.supported_noise_channels():
+            raise RuntimeError(
+                "Charge noise channel 'tphi_1_over_f_ng3' is not supported in this"
+                " system."
+            )
+
+        return self.tphi_1_over_f(
+            A_noise=A_noise,
+            i=i,
+            j=j,
+            noise_op=self.d_hamiltonian_d_ng3(),  # type: ignore
+            esys=esys,
+            get_rate=get_rate,
+            **kwargs
+        )
+
+    def tphi_1_over_f_ng(
+        self,
+        A_noise: float = NOISE_PARAMS["A_cc"],
+        i: int = 0,
+        j: int = 1,
+        esys: Tuple[ndarray, ndarray] = None,
+        get_rate: bool = False,
+        **kwargs
+    ) -> float:
+        r"""
+        Calculate the 1/f dephasing time (or rate) due to critical-current noise
+        from all three Josephson junctions :math:`EJ1`, :math:`EJ2` and :math:`EJ3`.
+        The combined noise is calculated by summing the rates from the individual
+        contributions.
+
+        Parameters
+        ----------
+        A_noise:
+            noise strength
+        i:
+            state index that along with j defines a qubit
+        j:
+            state index that along with i defines a qubit
+        esys:
+            evals, evecs tuple
+        get_rate:
+            get rate or time
+
+        Returns
+        -------
+            decoherence time in units of :math:`2\pi` (system units),
+            or rate in inverse units.
+        """
+        if "tphi_1_over_f_ng" not in self.supported_noise_channels():
+            raise RuntimeError(
+                "Critical current noise channel 'tphi_1_over_f_ng' is not supported in"
+                " this system."
+            )
+
+        rate = self.tphi_1_over_f_ng1(
+            A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **kwargs
+        )
+        rate += self.tphi_1_over_f_ng2(
+            A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **kwargs
+        )
+        rate += self.tphi_1_over_f_ng3(
+            A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **kwargs
+        )
+        if get_rate:
+            return rate
+        else:
+            return 1 / rate if rate != 0 else np.inf
 
     # Construct the Ec matrix, we need this to calculate the kinetic_energy matrix in
     # the Hamiltonian
@@ -429,6 +632,65 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         )
         d_ham_d_flux += d_ham_d_flux.conjugate().T
         return d_ham_d_flux
+
+    def d_hamiltonian_d_ng1(self) -> csc_matrix:
+        """Returns operator representing a derivative of the Hamiltonian with respect
+        to `ng1`.
+        """
+        return self.d_hamiltonian_d_ngi(1)
+
+    def d_hamiltonian_d_ng2(self) -> csc_matrix:
+        """Returns operator representing a derivative of the Hamiltonian with respect
+        to `ng1`.
+        """
+        return self.d_hamiltonian_d_ngi(2)
+
+    def d_hamiltonian_d_ng3(self) -> csc_matrix:
+        """Returns operator representing a derivative of the Hamiltonian with respect
+        to `ng1`.
+        """
+        return self.d_hamiltonian_d_ngi(3)
+
+    def d_hamiltonian_d_ngi(self, i) -> csc_matrix:
+        """Returns operator representing a derivative of the Hamiltonian with respect
+        to `ng1`.
+        """
+        ec_mat = self.EC_matrix()
+        identity = self._identity()
+
+        n_op = np.arange(-self.ncut, self.ncut + 1, 1)
+        n_op = sparse.diags(n_op).tocsc()
+
+        n1 = sparse.kron(
+            sparse.kron(n_op, identity, format="csc"), identity, format="csc"
+        )
+
+        n2 = sparse.kron(
+            sparse.kron(identity, n_op, format="csc"), identity, format="csc"
+        )
+
+        n3 = sparse.kron(
+            sparse.kron(identity, identity, format="csc"), n_op, format="csc"
+        )
+
+        ng1 = self.ng1 * sparse.kron(
+            sparse.kron(identity, identity, format="csc"), identity, format="csc"
+        )
+        ng2 = self.ng2 * sparse.kron(
+            sparse.kron(identity, identity, format="csc"), identity, format="csc"
+        )
+        ng3 = self.ng3 * sparse.kron(
+            sparse.kron(identity, identity, format="csc"), identity, format="csc"
+        )
+
+        nvec = np.array([n1, n2, n3])
+        m_inv = 0.5 * np.array([[1, -1, -1], [1, 1, -1], [1, 1, 1], [-1, -1, -1]])
+        m_inv_square = m_inv.T[0:3, 0:3]
+        ng_vec = np.array([ng1, ng2, ng3])
+        ng_prime_vec = np.matmul(ng_vec, m_inv_square)
+        nvec -= ng_prime_vec
+        d_n_vec = m_inv_square[:, i - 1]
+        return - 8 * d_n_vec @ ec_mat @ nvec
 
     def _n_operator(self) -> ndarray:
         diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex_)
