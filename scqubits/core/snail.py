@@ -71,7 +71,7 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
 
         EJ = 35.0
         alpha = 0.6
-        snail_qubit = scq.Snail(EJ1 = EJ, EJ2 = EJ, EJ3 = EJ, EJ4 = alpha * EJ,
+        snail_qubit = scq.Snailmon(EJ1 = EJ, EJ2 = EJ, EJ3 = EJ, EJ4 = alpha * EJ,
                                      ECJ1 = 1.0, ECJ2 = 1.0, ECJ3 = 1.0, ECJ4 = 1.0 / alpha,
                                      ECg1 = 50.0, ECg2 = 50.0, ECg3 = 50.0, ng1 = 0.0,
                                      ng2 = 0.0, ng3 = 0.0, flux = 0.5, ncut = 10).
