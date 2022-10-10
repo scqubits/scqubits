@@ -169,7 +169,8 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         self.ncut = ncut
         self.truncated_dim = truncated_dim
         self._image_filename = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "qubit_img/snailmon.jpg")
+            os.path.dirname(os.path.abspath(__file__)), "qubit_img/snailmon.jpg"
+        )
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
@@ -557,41 +558,41 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         #     )
         # )
         potential_mat = (
-                -0.5
-                * self.EJ1
-                * sparse.kron(
-            sparse.kron(e_positive_phi, identity, format="csc"),
-            identity,
-            format="csc",
-        )
+            -0.5
+            * self.EJ1
+            * sparse.kron(
+                sparse.kron(e_positive_phi, identity, format="csc"),
+                identity,
+                format="csc",
+            )
         )
 
         potential_mat += (
-                -0.5
-                * self.EJ2
-                * sparse.kron(
-            sparse.kron(identity, e_positive_phi, format="csc"),
-            identity,
-            format="csc",
-        )
-        )
-        potential_mat += (
-                -0.5
-                * self.EJ3
-                * sparse.kron(
-            sparse.kron(identity, identity, format="csc"),
-            e_positive_phi,
-            format="csc",
-        )
+            -0.5
+            * self.EJ2
+            * sparse.kron(
+                sparse.kron(identity, e_positive_phi, format="csc"),
+                identity,
+                format="csc",
+            )
         )
         potential_mat += (
-                -0.5
-                * self.EJ4
-                * sparse.kron(
-            sparse.kron(e_positive_phi, e_positive_phi, format="csc"),
-            np.exp(-1j * 2 * np.pi * self.flux) * e_positive_phi,
-            format="csc",
+            -0.5
+            * self.EJ3
+            * sparse.kron(
+                sparse.kron(identity, identity, format="csc"),
+                e_positive_phi,
+                format="csc",
+            )
         )
+        potential_mat += (
+            -0.5
+            * self.EJ4
+            * sparse.kron(
+                sparse.kron(e_positive_phi, e_positive_phi, format="csc"),
+                np.exp(-1j * 2 * np.pi * self.flux) * e_positive_phi,
+                format="csc",
+            )
         )
 
         potential_mat += potential_mat.conjugate().T
@@ -622,13 +623,14 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         ones_on_diagonal = np.ones((1, 2 * self.ncut))
         e_positive_phi = sparse.diags(ones_on_diagonal, [1]).tocsc()
         d_ham_d_flux = (
-                1 / 2.0j
-                * self.EJ4
-                * sparse.kron(
-            sparse.kron(e_positive_phi, e_positive_phi, format="csc"),
-            np.exp(-1j * 2 * np.pi * self.flux) * e_positive_phi,
-            format="csc",
-        )
+            1
+            / 2.0j
+            * self.EJ4
+            * sparse.kron(
+                sparse.kron(e_positive_phi, e_positive_phi, format="csc"),
+                np.exp(-1j * 2 * np.pi * self.flux) * e_positive_phi,
+                format="csc",
+            )
         )
         d_ham_d_flux += d_ham_d_flux.conjugate().T
         return d_ham_d_flux
@@ -690,7 +692,7 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         ng_prime_vec = np.matmul(ng_vec, m_inv_square)
         nvec -= ng_prime_vec
         d_n_vec = m_inv_square[:, i - 1]
-        return - 8 * d_n_vec @ ec_mat @ nvec
+        return -8 * d_n_vec @ ec_mat @ nvec
 
     def _n_operator(self) -> ndarray:
         diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex_)
