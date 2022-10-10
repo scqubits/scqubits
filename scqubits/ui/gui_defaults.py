@@ -157,7 +157,7 @@ qubit_defaults = {
     "ZeroPi": zeropi_defaults,
     "FullZeroPi": fullzeropi_defaults,
     "Cos2PhiQubit": cos2phiqubit_defaults,
-    "Snailmon": snailmon_defaults
+    "Snailmon": snailmon_defaults,
 }
 
 paramvals_from_papers = {
@@ -266,7 +266,7 @@ supported_qubits = [
     "ZeroPi",
     "FullZeroPi",
     "Cos2PhiQubit",
-    "Snailmon"
+    "Snailmon",
 ]
 
 slow_qubits = ["FluxQubit", "ZeroPi", "FullZeroPi", "Cos2PhiQubit", "Snailmon"]
