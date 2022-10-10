@@ -2846,7 +2846,7 @@ class CircuitRoutines(ABC):
                 axes.xaxis.set_major_locator(
                     plt.MaxNLocator(
                         1
-                        + 2 * getattr(self, "cutoff_n_" + str(var_index), integer=True)
+                        + 2 * getattr(self, "cutoff_n_" + str(var_index))
                     )
                 )
         else:
