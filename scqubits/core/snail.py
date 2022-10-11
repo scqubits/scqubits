@@ -424,12 +424,10 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
                 [-c1, 0, -c4, c4 + c1 + cg4],
             ]
         )
+        m_inv = np.array([[1, 0, 0, 1], [1, 1, 0, 1], [1, 1, 1, 1], [0, 0, 0, 1]])
+        c_mat_transformed = m_inv.T @ cmat @ m_inv
 
-        m_inv = 0.5 * np.array([[1, -1, -1], [1, 1, -1], [1, 1, 1], [-1, -1, -1]])
-
-        c_mat_transformed = np.matmul(m_inv.T, np.matmul(cmat, m_inv))
-
-        ec_matrix = 0.5 * np.linalg.inv(c_mat_transformed)
+        ec_matrix = 0.5 * np.linalg.inv(c_mat_transformed)[0:3, 0:3]
         return ec_matrix
 
     def _evals_calc(
@@ -506,7 +504,7 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         )
 
         nvec = np.array([n1, n2, n3])
-        m_inv = 0.5 * np.array([[1, -1, -1], [1, 1, -1], [1, 1, 1], [-1, -1, -1]])
+        m_inv = np.array([[1, 0, 0, 1], [1, 1, 0, 1], [1, 1, 1, 1], [0, 0, 0, 1]])
         m_inv_square = m_inv.T[0:3, 0:3]
         ng_vec = np.array([ng1, ng2, ng3])
         ng_prime_vec = np.matmul(ng_vec, m_inv_square)
@@ -686,7 +684,7 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         )
 
         nvec = np.array([n1, n2, n3])
-        m_inv = 0.5 * np.array([[1, -1, -1], [1, 1, -1], [1, 1, 1], [-1, -1, -1]])
+        m_inv = np.array([[1, 0, 0, 1], [1, 1, 0, 1], [1, 1, 1, 1], [0, 0, 0, 1]])
         m_inv_square = m_inv.T[0:3, 0:3]
         ng_vec = np.array([ng1, ng2, ng3])
         ng_prime_vec = np.matmul(ng_vec, m_inv_square)
