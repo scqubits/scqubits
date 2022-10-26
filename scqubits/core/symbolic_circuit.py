@@ -1974,6 +1974,7 @@ class SymbolicCircuit(serializers.Serializable):
         # rounding the decimals
         return hamiltonian_symbolic.expand()
 
+    #################### Pattern-recognition module ############################
     def orthogonalize_island_vectors(
         self,
     ) -> Tuple[ndarray, Dict[str, Union[list, None]]]:
@@ -2038,6 +2039,44 @@ class SymbolicCircuit(serializers.Serializable):
                     complement_node_list
                 ] + island_vars_dict[island_type]
         return orthogonalized_transformation_matrix_T.T, island_vars_dict
+
+    # TODO unfinished function
+    # comment: this algorithm is essentially identifying any charge island that
+    # is connected to one junction and has capacitors inducing charges
+    def transmon_node(self) -> List[Tuple[int]]:
+        """
+        Identify node that can be identified as transmon coupled to the rest
+        of the circuit. Such node is only connected to one node through either
+        a JJ or a capacitor and JJ in parallel (which is identified as the
+        transmon), and may connects to the rest of nodes through capacitors
+        only.
+
+        Returns
+        -------
+            A list of tuples
+        """
+        transmon_node_id = []
+        for node in self.nodes:
+            # first rule out the node that links to any inductor
+            if len(node.connected_nodes("L")) == 0:
+                # then test if it connects to only one JJ
+                JJnodes = node.connected_nodes("JJ")
+                if len(JJnodes) == 1:
+                    # test if this connected node only connects to other part
+                    # of the circuit only through capacitor
+                    JJnode_L_connected_nodes = JJnodes[0].connected_nodes("L")
+                    JJnode_JJ_connected_nodes = JJnodes[0].connected_nodes("JJ")
+                    try:
+                        JJnode_JJ_connected_nodes.remove(node)
+                    except ValueError:
+                        pass
+                    if (
+                        len(JJnode_L_connected_nodes) != 0
+                        or len(JJnode_JJ_connected_nodes) != 0
+                    ):
+                        # the node satisfy the criteria as a transmon node
+                        transmon_node_id.append(node.index)
+        return transmon_node_id
 
     def junction_node_pairs(self) -> List[List[int]]:
         """
