@@ -23,7 +23,6 @@ from scipy.sparse import csc_matrix
 
 from scqubits.core import discretization as discretization
 from scqubits.utils.misc import flatten_list_recursive, is_float_string
-from tomlkit import string
 
 import yaml
 
