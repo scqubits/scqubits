@@ -418,10 +418,10 @@ def assemble_circuit(
 ) -> Tuple[str, List[Dict[int, int]]]:
     """
     Assemble a yaml string for a large circuit that are made of smaller sub-circuits and coupling
-    elements. This method takes a list of Sub-circuit `yaml` strings as the first argument, and a
-    `yaml` string that characterize the coupler branches as the second argument. For example, if
-    one wish to make a `yaml` string for a circuit consist of a grounded fluxonium capacitively
-    coupled to a grounded LC resonator, then one need to define
+    elements. This method takes a list of Sub-circuit yaml strings as the first argument, and a
+    yaml string that characterize the coupler branches as the second argument. For example, if
+    one wish to make a yaml string for a circuit consist of a grounded fluxonium capacitively
+    coupled to a grounded LC resonator, then one need to define:
 
     circuit_1 = '''
     branches:
@@ -431,7 +431,7 @@ def assemble_circuit(
     '''
     circuit_2 = '''
     branches:
-    - [C, 0, 1, EC]
+    - [C, 0, 1, EC = 3]
     - [JJ, 0, 1, EJ, ECJ]
     - [L, 0, 1, EL]
     '''
@@ -441,7 +441,7 @@ def assemble_circuit(
     - [C, 1: 1, 2: 1, E_coup = 1]
     '''
 
-    The resulting `yaml` string for the assembled circuit is
+    The resulting yaml string for the assembled composite circuit is
     branches:
     - [C, 0, 1, EC = 1]
     - [JJ, 0, 1, EJ = 20, ECJ = 3]
@@ -451,21 +451,29 @@ def assemble_circuit(
     - [L, 0, 2, EL]
     - [C, 1, 2, E_coup = 1]
 
-    The `yaml` strings for each coupler circuit follow the syntax of input strings used in the
+    The yaml strings for each coupler circuit follow the syntax of input strings used in the
     custom circuit module, whereas the syntax for coupler branches is different. Each coupler
     branch is represented by:
     <branch-type>, <subcircuit-index>:<node-index-of-the-circuit>, <subcircuit-index>:<node-index-of-the-circuit>, <param-1> [, <param-2>]]
 
+    All the grounded sub-circuit share the same ground node in the composite circuit.
+    The parameter symbols are global, i.e. the same parameter symbol that appears in different
+    subcircuit yaml strings will be treated as one parameter in the composite circuit. The
+    symbolic parameters are only initialized once, with the value specified at the first
+    instance of appearance (notice the initial value for EC in the above example).
+
     Parameters
     ----------
     circuit_list:
-        TODO
+        A list of yaml strings encoding branches of sub-circuits.
     couplers:
-        TODO
+        A yaml string that encodes information of coupler branches
 
     Returns
     -------
-        TODO
+        A yaml string for the composite circuit, which can be used as the input for the custom
+        circuit module, and a list of dictionaries which provides the mapping between the
+        node indices of the sub-circuits (keys) and those of the composite circuit (values).
     """
     # identify numbers of subcircuits
     subcircuit_number = len(circuit_list)
