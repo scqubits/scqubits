@@ -554,16 +554,22 @@ class HilbertSpace(
     ###################################################################################
     # HilbertSpace: generate SpectrumLookup
     ###################################################################################
-    def generate_lookup(self, update_subsystem_indices: List[int] = None) -> None:
-
-        bare_esys_dict = self.generate_bare_esys(
-            update_subsystem_indices=update_subsystem_indices
-        )
+    def generate_lookup(
+        self, 
+        update_subsystem_indices: List[int] = None,
+        dressed_esys: Optional[Tuple[ndarray, ndarray]] = None,
+    ) -> None:
         dummy_params = self._parameters.paramvals_by_name
 
-        evals, evecs = self.eigensys(
-            evals_count=self.dimension, bare_esys=bare_esys_dict
-        )
+        if dressed_esys is None:
+            bare_esys_dict = self.generate_bare_esys(
+                update_subsystem_indices=update_subsystem_indices
+            )
+            evals, evecs = self.eigensys(
+                evals_count=self.dimension, bare_esys=bare_esys_dict
+            )
+        else:
+            evals, evecs = dressed_esys
         # The following workaround ensures that eigenvectors maintain QutipEigenstates
         # view when getting placed inside an outer array
         evecs_wrapped = np.empty(shape=1, dtype=object)
@@ -576,7 +582,10 @@ class HilbertSpace(
         )
         self._lookup = spec_lookup.SpectrumLookupAdapter(self)
 
-    def generate_bare_esys(self, update_subsystem_indices: List[int] = None) -> None:
+    def generate_bare_esys(
+        self, 
+        update_subsystem_indices: List[int] = None
+    ) -> Dict[int, Tuple[ndarray]]:
         # update all the subsystems when update_subsystem_indices is set to None
         if update_subsystem_indices is None:
             update_subsystem_indices = list(range(self.subsystem_count))
