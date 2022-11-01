@@ -34,6 +34,7 @@ jobs:
       run: python -c 'import scqubits'
     - name: Install optional dependencies
       run: conda install --file optional-requirements.txt -c conda-forge
+      run: python -c 'import h5py'
     - name: Run all pytests (serial)
       run: |
         pytest -v --pyargs scqubits
