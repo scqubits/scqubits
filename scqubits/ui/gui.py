@@ -971,25 +971,30 @@ class GUI:
     def coherence_text(self, change) -> None:
         self.unobserve_coherence_elements()
         self.unobserve_plot_refresh()
+        isNoiseParamChange = None
         widget_key = change["owner"].description
-        widget = None
 
         if widget_key in self.noise_param_widgets.keys():
+            isNoiseParamChange = True
             widget = self.noise_param_widgets[widget_key]
         else:
+            isNoiseParamChange = False
             i_text_widget = self.qubit_plot_options_widgets["i_text"]
             j_text_widget = self.qubit_plot_options_widgets["j_text"]
 
         if change["new"] <= 0:
-            if i_text_widget.value <= 0:
-                i_text_widget.value = 0
-            if j_text_widget.value <= 0:
-                j_text_widget.value = 0
-            if widget_key in self.noise_param_widgets.keys():
-                widget.value = widget.step
+            if isNoiseParamChange:
+                if widget_key in self.noise_param_widgets.keys():
+                    widget.value = widget.step
+            else:
+                if i_text_widget.value <= 0:
+                    i_text_widget.value = 0
+                if j_text_widget.value <= 0:
+                    j_text_widget.value = 0
 
-        if i_text_widget.value == j_text_widget.value:
-            i_text_widget.value = j_text_widget.value + j_text_widget.step
+        if not isNoiseParamChange:
+            if i_text_widget.value == j_text_widget.value:
+                i_text_widget.value = j_text_widget.value + j_text_widget.step
         self.observe_coherence_elements()
         self.observe_plot_refresh()
 
