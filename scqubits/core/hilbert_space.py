@@ -621,7 +621,7 @@ class HilbertSpace(
         bare_esys: Optional[Dict[int, Union[ndarray, List[ndarray]]]] = None,
     ) -> ndarray:
         """Calculates eigenvalues of the full Hamiltonian using
-        `qutip.Qob.eigenenergies()`.
+        `qutip.Qobj.eigenenergies()`.
 
         Parameters
         ----------
@@ -640,7 +640,7 @@ class HilbertSpace(
         bare_esys: Optional[Dict[int, Union[ndarray, List[ndarray]]]] = None,
     ) -> Tuple[ndarray, QutipEigenstates]:
         """Calculates eigenvalues and eigenvectors of the full Hamiltonian using
-        `qutip.Qob.eigenstates()`.
+        `qutip.Qobj.eigenstates()`.
 
         Parameters
         ----------

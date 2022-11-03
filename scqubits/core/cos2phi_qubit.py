@@ -726,14 +726,14 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         sin_op = (
             0.5
             * sparse.dia_matrix(
-                (np.ones(self._dim_theta()), [1]),
+                (np.ones(self._dim_theta()), [-1]),
                 shape=(self._dim_theta(), self._dim_theta()),
             ).tocsc()
         )
         sin_op -= (
             0.5
             * sparse.dia_matrix(
-                (np.ones(self._dim_theta()), [-1]),
+                (np.ones(self._dim_theta()), [1]),
                 shape=(self._dim_theta(), self._dim_theta()),
             ).tocsc()
         )
