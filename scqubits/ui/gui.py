@@ -173,7 +173,6 @@ class GUI:
             "manual_update_checkbox": Checkbox(
                 value=False,
                 description="Manual Update",
-                disabled=False,
                 indent=False,
                 layout=Layout(width="125px"),
             ),
@@ -184,7 +183,6 @@ class GUI:
             "filename_text": Text(
                 value=str(Path.cwd().joinpath("plot.pdf")),
                 description="",
-                disabled=False,
                 layout=Layout(width="500px"),
             ),
         }
@@ -215,14 +213,13 @@ class GUI:
         for noise_param in noise_params:
             self.noise_param_widgets[noise_param] = FloatText(
                 value=noise.NOISE_PARAMS[noise_param],
-                disalbed=False,
                 description=noise_param,
                 step=0.001,
             )
 
     def set_qubit(self, qubit_name: str) -> None:
         """Sets up the chosen qubit to be the active qubit
-        and updates the activedefaults and widget dictionaries
+        and updates the active defaults and widget dictionaries
         accordingly.
         """
         if qubit_name in gui_defaults.slow_qubits:
@@ -288,27 +285,23 @@ class GUI:
                 options=scan_dropdown_list,
                 value=self.active_defaults["scan_param"],
                 description="Scan over",
-                disabled=False,
                 layout=std_layout,
             ),
             "mode_dropdown": Dropdown(
                 options=gui_defaults.mode_dropdown_list,
                 description="Plot as:",
-                disabled=False,
                 layout=std_layout,
             ),
             "operator_dropdown": Dropdown(
                 options=operator_dropdown_list,
                 value=self.active_defaults["operator"],
                 description="Operator",
-                disabled=False,
                 layout=std_layout,
             ),
             "noise_channel_multi-select": SelectMultiple(
                 options=noise_channel_list,
                 value=noise_channel_list,
                 description="Noise Channels",
-                disabled=False,
                 layout=std_layout,
             ),
             "highest_state_slider": IntSlider(
@@ -320,42 +313,38 @@ class GUI:
                 description="Highest State",
             ),
             "show_numbers_checkbox": Checkbox(
-                value=False, description="Show values", disabled=False, indent=False
+                value=False, description="Show values", indent=False
             ),
             "show3d_checkbox": Checkbox(
-                value=True, description="Show 3D", disabled=False, indent=False
+                value=True, description="Show 3D", indent=False
             ),
             "subtract_ground_checkbox": Checkbox(
                 value=True,
                 description="Subtract E\u2080",
-                disabled=False,
                 indent=False,
             ),
-            "i_text": IntText(value=1, disabled=False, step=1),
-            "j_text": IntText(value=0, disabled=False, step=1),
+            "i_text": IntText(value=1, step=1),
+            "j_text": IntText(value=0, step=1),
             "t1_checkbox": Checkbox(
                 value=False,
                 description="Effective T1",
-                disabled=False,
                 indent=False,
             ),
             "t2_checkbox": Checkbox(
                 value=False,
                 description="Effective T2",
-                disabled=False,
                 indent=False,
             ),
         }
 
         if current_qubit in ["Transmon", "TunableTransmon", "Fluxonium"]:
             self.qubit_plot_options_widgets["manual_scale_checkbox"] = Checkbox(
-                value=False, description="Manual Scaling", disabled=False, indent=False
+                value=False, description="Manual Scaling", indent=False
             )
             self.qubit_plot_options_widgets["multi_state_selector"] = SelectMultiple(
                 options=range(0, 10),
                 value=[0, 1, 2, 3, 4],
                 description="States",
-                disabled=False,
                 continuous_update=False,
                 layout=std_layout,
             )
@@ -384,7 +373,7 @@ class GUI:
                 gui_defaults.paramvals_from_papers[current_qubit].keys()
             )
             self.qubit_plot_options_widgets["common_params_dropdown"] = Dropdown(
-                options=common_params_dropdown_list, disabled=False, layout=std_layout
+                options=common_params_dropdown_list, layout=std_layout
             )
         else:
             self.qubit_plot_options_widgets["common_params_dropdown"] = Label(
