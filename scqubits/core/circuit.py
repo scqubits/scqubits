@@ -74,7 +74,7 @@ class Subsystem(
         subsystem, is set to None when hierarchical diagonalization is not required,
         by default `None`
     truncated_dim: Optional[int], optional
-        sets the truncated dimension for the current subsystem, by default 10
+        sets the truncated dimension for the current subsystem, set to 10 by default.
     """
 
     # switch used in protecting the class from erroneous addition of new attributes
