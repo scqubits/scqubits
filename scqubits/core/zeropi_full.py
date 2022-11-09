@@ -296,13 +296,14 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
     def hamiltonian(
         self, return_parts: bool = False
     ) -> Union[csc_matrix, Tuple[csc_matrix, ndarray, ndarray, float]]:
-        """Returns Hamiltonian in basis obtained by discretizing phi, employing charge basis for theta, and Fock
-        basis for zeta.
+        """Returns Hamiltonian in basis obtained by discretizing phi, employing charge
+        basis for theta, and Fock basis for zeta.
 
         Parameters
         ----------
         return_parts:
-            If set to true, `hamiltonian` returns [hamiltonian, evals, evecs, g_coupling_matrix]
+            If set to true, `hamiltonian` returns
+            [hamiltonian, evals, evecs, g_coupling_matrix]
         """
         zeropi_dim = self.zeropi_cutoff
         zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
@@ -340,8 +341,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return hamiltonian_mat.tocsc()
 
     def d_hamiltonian_d_flux(self, zeropi_evecs: ndarray = None) -> csc_matrix:
-        r"""Calculates a derivative of the Hamiltonian w.r.t flux, at the current value of flux,
-        as stored in the object. The returned operator is in the product basis
+        r"""Calculates a derivative of the Hamiltonian w.r.t flux, at the current value
+        of flux, as stored in the object. The returned operator is in the product basis
 
         The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0.
         So if \frac{\partial H}{ \partial \Phi_{\rm ext}}, is needed, the expr returned
@@ -496,9 +497,11 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
     def g_coupling_matrix(
         self, zeropi_states: ndarray = None, evals_count: int = None
     ) -> ndarray:
-        """Returns a matrix of coupling strengths g_{ll'} [cmp. Dempster et al., text above Eq. (17)], using the states
-        from 'zeropi_states'. If `zeropi_states==None`, then a set of `self.zeropi` eigenstates is calculated. Only in
-        that case is `which` used for the eigenstate number (and hence the coupling matrix size).
+        """Returns a matrix of coupling strengths g_{ll'} [cmp. Dempster et al., text
+        above Eq. (17)], using the states from 'zeropi_states'. If
+        `zeropi_states==None`, then a set of `self.zeropi` eigenstates is calculated.
+        Only in that case is `which` used for the eigenstate number (and hence the
+        coupling matrix size).
         """
         if evals_count is None:
             evals_count = self._zeropi.truncated_dim
