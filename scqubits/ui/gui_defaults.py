@@ -100,6 +100,7 @@ snailmon_defaults = {
     "ng1": ng_range,
     "ng2": ng_range,
     "ng3": ng_range,
+    "ng4": ng_range,
     "scale": None,
     "num_sample": 100,
 }

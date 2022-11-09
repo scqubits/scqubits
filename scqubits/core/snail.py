@@ -116,6 +116,7 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
     ng1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ng2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ng3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ng4 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     flux = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ncut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
 
@@ -136,6 +137,7 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         ng1: float,
         ng2: float,
         ng3: float,
+        ng4: float,
         flux: float,
         ncut: int,
         truncated_dim: int = 6,
@@ -163,6 +165,7 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         self.ng1 = ng1
         self.ng2 = ng2
         self.ng3 = ng3
+        self.ng4 = ng4
         # flux
         self.flux = flux
         # Truncation dimension
@@ -190,6 +193,7 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
             "ng1": 0.0,
             "ng2": 0.0,
             "ng3": 0.0,
+            "ng4": 0.0,
             "flux": 0.0,
             "ncut": 6,
             "truncated_dim": 6,
@@ -427,7 +431,7 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         m_inv = np.array([[1, 0, 0, 1], [1, 1, 0, 1], [1, 1, 1, 1], [0, 0, 0, 1]])
         c_mat_transformed = m_inv.T @ cmat @ m_inv
 
-        ec_matrix = 0.5 * np.linalg.inv(c_mat_transformed)[0:3, 0:3]
+        ec_matrix = 0.5 * np.linalg.inv(c_mat_transformed)[0:3,0:3]
         return ec_matrix
 
     def _evals_calc(
@@ -502,13 +506,44 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         ng3 = self.ng3 * sparse.kron(
             sparse.kron(identity, identity, format="csc"), identity, format="csc"
         )
+        iden = sparse.kron(
+            sparse.kron(identity, identity, format="csc"), identity, format="csc"
+        )
+
+
+        """Returns the charging energy matrix"""
+        c1 = 1 / (2 * self.ECJ1)
+        c2 = 1 / (2 * self.ECJ2)
+        c3 = 1 / (2 * self.ECJ3)
+        c4 = 1 / (2 * self.ECJ4)
+
+        cg1 = 1 / (2 * self.ECg1)
+        cg2 = 1 / (2 * self.ECg2)
+        cg3 = 1 / (2 * self.ECg3)
+        cg4 = 1 / (2 * self.ECg4)
+        cmat = np.array(
+            [
+                [c1 + c2 + cg1, -c2, 0, -c1],
+                [-c2, c2 + c3 + cg2, -c3, 0],
+                [0, -c3, c3 + c4 + cg3, -c4],
+                [-c1, 0, -c4, c4 + c1 + cg4],
+            ]
+        )
+        m_inv = np.array([[1, 0, 0, 1], [1, 1, 0, 1], [1, 1, 1, 1], [0, 0, 0, 1]])
+        c_mat_transformed = m_inv.T @ cmat @ m_inv
+
+        ec_mat_full = 0.5 * np.linalg.inv(c_mat_transformed)
 
         nvec = np.array([n1, n2, n3])
         m_inv = np.array([[1, 0, 0, 1], [1, 1, 0, 1], [1, 1, 1, 1], [0, 0, 0, 1]])
         m_inv_square = m_inv.T[0:3, 0:3]
         ng_vec = np.array([ng1, ng2, ng3])
-        ng_prime_vec = np.matmul(ng_vec, m_inv_square)
-        nvec = nvec - ng_prime_vec
+        # ng_prime_vec = np.matmul(ng_vec, m_inv_square)
+        ng_prime_vec = ng_vec
+        gamma = np.array([iden, iden, iden])
+        # gamma *= (np.linalg.inv(ec_mat) @ ec_mat_full[0:3, 3]) * (self.ng1+self.ng2+self.ng3+self.ng4)
+        gamma *= (np.linalg.inv(ec_mat) @ ec_mat_full[0:3, 3]) * self.ng4
+        nvec = nvec - ng_prime_vec - gamma
         return 4 * nvec.T @ ec_mat @ nvec
 
     def potentialmat(self) -> csc_matrix:
