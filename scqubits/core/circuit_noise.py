@@ -432,16 +432,16 @@ class NoisyCircuit(NoisySystem, ABC):
                 t1_charge_impedance_methods[
                     f"t1_charge_impedance{branch.id_str}"
                 ] = self.wrapper_t1_charge_impedance(branch_var_expr)
-            # quasiparticle noise
-            if branch.type == "JJ":
-                t1_quasiparticle_tunneling_methods[
-                    f"t1_quasiparticle_tunneling{branch.id_str}"
-                ] = self.wrapper_t1_quasiparticle_tunneling(branch)
+            # # quasiparticle noise
+            # if branch.type == "JJ":
+            #     t1_quasiparticle_tunneling_methods[
+            #         f"t1_quasiparticle_tunneling{branch.id_str}"
+            #     ] = self.wrapper_t1_quasiparticle_tunneling(branch)
 
         self._data.update(t1_capacitive_methods)
         self._data.update(t1_inductive_methods)
         self._data.update(t1_charge_impedance_methods)
-        self._data.update(t1_quasiparticle_tunneling_methods)
+        # self._data.update(t1_quasiparticle_tunneling_methods)
 
     def wrapper_t1_quasiparticle_tunneling(self, branch: Branch):
         def t1_quasiparticle_tunneling(
@@ -731,3 +731,4 @@ class NoisyCircuit(NoisySystem, ABC):
         self.generate_overall_t1_inductive()
         self.generate_overall_t1_flux_bias_line()
         self.generate_overall_t1_quasiparticle_tunneling()
+        print("Supported noise channels:", self.supported_noise_channels())
