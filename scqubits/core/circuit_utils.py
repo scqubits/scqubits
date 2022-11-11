@@ -15,6 +15,7 @@ import re
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union, Tuple
 
 import numpy as np
+import scipy as sp
 import sympy as sm
 
 from numpy import ndarray
@@ -420,7 +421,7 @@ def assemble_circuit(
     elements. This method takes a list of Sub-circuit yaml strings as the first argument, and a
     yaml string that characterize the coupler branches as the second argument. For example, if
     one wish to make a yaml string for a circuit consist of a grounded fluxonium capacitively
-    coupled to a grounded LC resonator, then one need to define:
+    coupled to another fluxonium, then one need to define:
 
     circuit_1 = '''
     branches:
@@ -611,3 +612,24 @@ def assemble_circuit(
                 composite_circuit_yaml += str(word) + ", "
         composite_circuit_yaml += "]\n"
     return composite_circuit_yaml, subcircuit_node_index_dict_list
+
+
+def assemble_transformation_matrix(
+    transformation_matrix_list: List[ndarray],
+) -> ndarray:
+    """
+    Assemble a transformation matrix for a large circuit that are made of smaller sub-circuits
+    and coupling elements. This method takes a list of sub-circuit transformation matrices as
+    the argument.
+
+    Parameters
+    ----------
+    transformation_matrix_list:
+        A list of transformation matrices as numpy ndarray.
+
+    Returns
+    -------
+        A numpy ndarray for the composite circuit.
+    """
+
+    return sp.linalg.block_diag(*transformation_matrix_list)

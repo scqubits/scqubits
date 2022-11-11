@@ -778,7 +778,7 @@ class Subsystem(
             self.hamiltonian()[idx, :][:, idx],
             self.hamiltonian_without_interaction[idx, :][:, idx],
             self.interaction[idx, :][:, idx],
-            self.hamiltonian_diagonal[idx, :][:, idx],
+            self.hamiltonian_diagonal[idx],
             self.hamiltonian_offdiagonal[idx, :][:, idx],
         )
 
