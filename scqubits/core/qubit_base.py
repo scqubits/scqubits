@@ -365,6 +365,16 @@ class QubitBaseClass(QuantumSystem, ABC):
             specdata.filewrite(filename)
         return specdata if return_spectrumdata else (evals, evecs)
 
+    def anharmonicity(self) -> float:
+        """Returns the qubit's anharmonicity, (E_2 - E_1) - (E_1 - E_0)."""
+        energies = self.eigenvals(evals_count=3)
+        return energies[2] - 2 * energies[1] + energies[0]
+
+    def E01(self) -> float:
+        """Returns the qubit's fundamental energy splitting, E_1 - E_0."""
+        energies = self.eigenvals(evals_count=2)
+        return energies[1] - energies[0]
+
     @overload
     def matrixelement_table(
         self,
