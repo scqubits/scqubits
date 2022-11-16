@@ -1457,7 +1457,7 @@ def generator(sweep: "ParameterSweepBase", func: Callable, **kwargs) -> np.ndarr
         )
     )
     element_shape: Tuple[int, ...] = tuple()
-    if isinstance(data_array[0], np.ndarray):
+    if isinstance(data_array[0], np.ndarray | Qobj):
         element_shape = data_array[0].shape
 
     data_ndarray = np.asarray(data_array)
