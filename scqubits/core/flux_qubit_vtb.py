@@ -70,7 +70,6 @@ class FluxQubitVTB(
             truncated_dim,
         )
         self._stitching_coefficients = np.array([+1, -1])
-        delattr(self, "ncut")
 
     def EC_matrix(self):
         return super(vtb.VTBBaseMethods, self).EC_matrix()

@@ -436,6 +436,8 @@ class VTBBaseMethods(ABC):
         self, minima_diff: ndarray, Xi_inv: ndarray, num_cpus: int
     ) -> ndarray:
         """Given a minima pair, generate and then filter the unit cell vectors"""
+        if self.number_periodic_degrees_freedom == 0:
+            return np.zeros((1, self.number_degrees_freedom), dtype=int)
         target_map = get_map_method(num_cpus)
         relevant_vectors = list(
             target_map(
@@ -1922,37 +1924,37 @@ class VTBBaseMethods(ABC):
             axis=0,
         ).T
 
-    def plot_wavefunction(
-        self, esys=None, which=0, mode="abs", zero_calibrate=True, **kwargs
-    ):
-        """Plots 2d phase-basis wave function.
-
-        Parameters
-        ----------
-        esys: ndarray, ndarray
-            eigenvalues, eigenvectors as obtained from `.eigensystem()`
-        which: int, optional
-            index of wave function to be plotted (default value = (0)
-        mode: str, optional
-            choices as specified in `constants.MODE_FUNC_DICT`
-            (default value = 'abs_sqr')
-        zero_calibrate: bool, optional
-            if True, colors are adjusted to use zero wavefunction amplitude as the
-            neutral color in the palette
-        **kwargs:
-            plot options
-
-        Returns
-        -------
-        Figure, Axes
-        """
-        amplitude_modifier = constants.MODE_FUNC_DICT[mode]
-        wavefunction = self.wavefunction(esys, which=which)
-        wavefunction.amplitudes = amplitude_modifier(wavefunction.amplitudes)
-        return plot.wavefunction2d(
-            wavefunction,
-            zero_calibrate=zero_calibrate,
-            xlabel=r"$\phi$",
-            ylabel=r"$\theta$",
-            **kwargs
-        )
+    # def plot_wavefunction(
+    #     self, esys=None, which=0, mode="abs", zero_calibrate=True, **kwargs
+    # ):
+    #     """Plots 2d phase-basis wave function.
+    #
+    #     Parameters
+    #     ----------
+    #     esys: ndarray, ndarray
+    #         eigenvalues, eigenvectors as obtained from `.eigensystem()`
+    #     which: int, optional
+    #         index of wave function to be plotted (default value = (0)
+    #     mode: str, optional
+    #         choices as specified in `constants.MODE_FUNC_DICT`
+    #         (default value = 'abs_sqr')
+    #     zero_calibrate: bool, optional
+    #         if True, colors are adjusted to use zero wavefunction amplitude as the
+    #         neutral color in the palette
+    #     **kwargs:
+    #         plot options
+    #
+    #     Returns
+    #     -------
+    #     Figure, Axes
+    #     """
+    #     amplitude_modifier = constants.MODE_FUNC_DICT[mode]
+    #     wavefunction = self.wavefunction(esys, which=which)
+    #     wavefunction.amplitudes = amplitude_modifier(wavefunction.amplitudes)
+    #     return plot.wavefunction2d(
+    #         wavefunction,
+    #         zero_calibrate=zero_calibrate,
+    #         xlabel=r"$\phi$",
+    #         ylabel=r"$\theta$",
+    #         **kwargs
+    #     )
