@@ -248,6 +248,20 @@ class SpectrumLookupMixin(MixinCompatible):
     spectrum and spectrum lookup related methods directly available at the
     `ParameterSweep` level.
     """
+    _inside_hilbertspace = False
+
+    def __init_subclass__(cls):
+        super().__init_subclass__()
+        if cls.__name__ == "HilbertSpace":
+            cls._inside_hilbertspace = True
+        else:
+            cls._inside_hilbertspace = False
+
+    def reset_preslicing(self):
+        if self._inside_hilbertspace:
+            self._current_param_indices = 0
+        else:
+            self._current_param_indices = slice(None, None, None)
 
     @property
     def _bare_product_states_labels(self) -> List[Tuple[int, ...]]:
@@ -520,11 +534,11 @@ class SpectrumLookupMixin(MixinCompatible):
         """
         Return ndarray of bare eigenstates for given subsystems and parameter index.
         Eigenstates are expressed in the basis internal to the subsystems. Usually to be
-        with pre-slicing.
+        used with pre-slicing when part of `ParameterSweep`.
         """
         param_indices_tuple = self.set_npindextuple(param_indices)
         subsys_index = self.hilbertspace.get_subsys_index(subsys)
-        self._current_param_indices = slice(None, None, None)
+        self.reset_preslicing()
         return self["bare_evecs"][subsys_index][param_indices_tuple]
 
     @utils.check_sync_status
@@ -551,7 +565,7 @@ class SpectrumLookupMixin(MixinCompatible):
         """
         param_indices_tuple = self.set_npindextuple(param_indices)
         subsys_index = self.hilbertspace.get_subsys_index(subsys)
-        self._current_param_indices = slice(None, None, None)
+        self.reset_preslicing()
         return self["bare_evals"][subsys_index][param_indices_tuple]
 
     def bare_productstate(
