@@ -153,6 +153,24 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def find_EJ_EC(
         E01: float, anharmonicity: float, ng=0, ncut=30
     ) -> Tuple[float, float]:
+        """
+        Finds the EJ and EC values given a qubit splitting `E01` and `anharmonicity`.
+
+        Parameters
+        ----------
+            E01:
+                qubit transition energy
+            anharmonicity:
+                absolute qubit anharmonicity, (E2-E1) - (E1-E0)
+            ng:
+                offset charge (default: 0)
+            ncut:
+                charge number cutoff (default: 30)
+
+        Returns
+        -------
+            A tuple of the EJ and EC values representing the best fit.
+        """
         tmon = Transmon(EJ=10.0, EC=0.1, ng=ng, ncut=ncut)
         start_EJ_EC = np.array([tmon.EJ, tmon.EC])
 
