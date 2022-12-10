@@ -184,6 +184,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             cost = (E01 - computed_E01) ** 2
             cost += (anharmonicity - computed_anharmonicity) ** 2
             return cost
+
         return sp.optimize.minimize(cost_func, start_EJ_EC).x
 
     def n_operator(self) -> ndarray:

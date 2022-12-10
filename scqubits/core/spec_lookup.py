@@ -248,6 +248,7 @@ class SpectrumLookupMixin(MixinCompatible):
     spectrum and spectrum lookup related methods directly available at the
     `ParameterSweep` level.
     """
+
     _inside_hilbertspace = False
 
     def __init_subclass__(cls):
