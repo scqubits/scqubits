@@ -452,6 +452,9 @@ class HilbertSpace(
         return self
 
     @property
+    @utils.DeprecationMessage(
+        "`subsys_list` is deprecated. Use `subsystem_list` instead."
+    )
     def subsys_list(self) -> List[QuantumSys]:
         return list(self._subsystems)
 
@@ -751,7 +754,7 @@ class HilbertSpace(
                 operator_list.append(term)
             elif isinstance(term, (InteractionTerm, InteractionTermStr)):
                 operator_list.append(
-                    term.hamiltonian(self.subsys_list, bare_esys=bare_esys)
+                    term.hamiltonian(self.subsystem_list, bare_esys=bare_esys)
                 )
             else:
                 raise TypeError(
@@ -777,7 +780,7 @@ class HilbertSpace(
         if evals is None:
             evals = subsystem.eigenvals(evals_count=evals_count)
         diag_qt_op = qt.Qobj(inpt=np.diagflat(evals[0:evals_count]))  # type:ignore
-        return spec_utils.identity_wrap(diag_qt_op, subsystem, self.subsys_list)
+        return spec_utils.identity_wrap(diag_qt_op, subsystem, self.subsystem_list)
 
     ###################################################################################
     # HilbertSpace: identity wrapping, operators
@@ -799,7 +802,7 @@ class HilbertSpace(
         index = range(dim)
         diag_matrix = np.zeros((dim, dim), dtype=np.float_)
         diag_matrix[index, index] = diag_elements
-        return spec_utils.identity_wrap(diag_matrix, subsystem, self.subsys_list)
+        return spec_utils.identity_wrap(diag_matrix, subsystem, self.subsystem_list)
 
     def hubbard_operator(self, j: int, k: int, subsystem: QuantumSys) -> Qobj:
         """Hubbard operator :math:`|j\\rangle\\langle k|` for system `subsystem`
@@ -813,7 +816,7 @@ class HilbertSpace(
         """
         dim = subsystem.truncated_dim
         operator = qt.states.basis(dim, j) * qt.states.basis(dim, k).dag()
-        return spec_utils.identity_wrap(operator, subsystem, self.subsys_list)
+        return spec_utils.identity_wrap(operator, subsystem, self.subsystem_list)
 
     def annihilate(self, subsystem: QuantumSys) -> Qobj:
         """Annihilation operator a for `subsystem`
@@ -825,7 +828,7 @@ class HilbertSpace(
         """
         dim = subsystem.truncated_dim
         operator = qt.destroy(dim)
-        return spec_utils.identity_wrap(operator, subsystem, self.subsys_list)
+        return spec_utils.identity_wrap(operator, subsystem, self.subsystem_list)
 
     ###################################################################################
     # HilbertSpace: spectrum sweep
