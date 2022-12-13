@@ -361,7 +361,6 @@ class HilbertSpace(
             for index, interaction_term in enumerate(self.interaction_list)
         }
 
-        self._lookup: Optional[spec_lookup.SpectrumLookupAdapter] = None
         self._osc_subsys_list = [
             subsys for subsys in self if isinstance(subsys, osc.Oscillator)
         ]
@@ -440,11 +439,6 @@ class HilbertSpace(
         return len(self._subsystems)
 
     @property
-    def lookup(self):
-        """[Legacy] supporting old lookup interface."""
-        return self._lookup
-
-    @property
     def hilbertspace(self) -> HilbertSpace:
         """[Legacy] Auxiliary reference to self for compatibility with
         SpectrumLookupMixin
@@ -475,7 +469,6 @@ class HilbertSpace(
         data = alldata_dict.pop("_data", {})
         new_hilbertspace: HilbertSpace = cls(**alldata_dict)
         new_hilbertspace._data = data
-        new_hilbertspace._lookup = spec_lookup.SpectrumLookupAdapter(new_hilbertspace)
         return new_hilbertspace
 
     def serialize(self) -> "IOData":
@@ -515,16 +508,16 @@ class HilbertSpace(
     def receive(self, event: str, sender: Any, **kwargs) -> None:
         if event == "QUANTUMSYSTEM_UPDATE" and sender in self:
             self.broadcast("HILBERTSPACE_UPDATE")
-            if self._lookup:
-                self._lookup._out_of_sync = True
+            if self.lookup_exists():
+                self._out_of_sync = True
         elif event == "INTERACTIONTERM_UPDATE" and sender in self.interaction_list:
             self.broadcast("HILBERTSPACE_UPDATE")
-            if self._lookup:
-                self._lookup._out_of_sync = True
+            if self.lookup_exists():
+                self._out_of_sync = True
         elif event == "INTERACTIONLIST_UPDATE" and sender is self:
             self.broadcast("HILBERTSPACE_UPDATE")
-            if self._lookup:
-                self._lookup._out_of_sync = True
+            if self.lookup_exists():
+                self._out_of_sync = True
 
     ###################################################################################
     # HilbertSpace: subsystems, dimensions, etc.
@@ -577,9 +570,11 @@ class HilbertSpace(
         self._data["dressed_indices"] = spec_lookup.SpectrumLookupMixin.generate_lookup(
             self
         )
-        self._lookup = spec_lookup.SpectrumLookupAdapter(self)
 
-    def generate_bare_esys(self, update_subsystem_indices: List[int] = None) -> None:
+    def lookup_exists(self) -> bool:
+        return "dressed_indices" in self._data
+
+    def generate_bare_esys(self, update_subsystem_indices: List[int] = None) -> dict:
         # update all the subsystems when update_subsystem_indices is set to None
         if update_subsystem_indices is None:
             update_subsystem_indices = list(range(self.subsystem_count))
@@ -991,8 +986,8 @@ class HilbertSpace(
             raise TypeError(
                 "Invalid combination and/or types of arguments for `add_interaction`"
             )
-        if self._lookup is not None:
-            self._lookup._out_of_sync = True
+        if self.lookup_exists():
+            self._out_of_sync = True
 
         self.interaction_list.append(interaction)
 
