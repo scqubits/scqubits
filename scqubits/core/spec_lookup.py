@@ -11,6 +11,7 @@
 ############################################################################
 
 import itertools
+import numbers
 
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
@@ -436,7 +437,7 @@ class SpectrumLookupMixin(MixinCompatible):
         bare_tuple: Tuple[int, ...],
         subtract_ground: bool = False,
         param_indices: Optional[NpIndices] = None,
-    ) -> NamedSlotsNdarray:  # the return value may also be np.nan
+    ) -> Union[float, NamedSlotsNdarray]:  # the return value may also be np.nan
         """
         Look up dressed energy most closely corresponding to the given bare-state labels
 
@@ -458,14 +459,14 @@ class SpectrumLookupMixin(MixinCompatible):
 
         if dressed_index is None:
             return np.nan  # type:ignore
-        if isinstance(dressed_index, int):
+        if isinstance(dressed_index, numbers.Number):
             energy = self["evals"][param_indices + (dressed_index,)]
             if subtract_ground:
                 energy -= self["evals"][param_indices + (0,)]
             return energy
 
         dressed_index = np.asarray(dressed_index)
-        energies = np.empty_like(dressed_index)
+        energies = np.empty_like(dressed_index, dtype=np.float_)
         it = np.nditer(dressed_index, flags=["multi_index", "refs_ok"])
         sliced_energies = self["evals"][param_indices]
 
@@ -487,7 +488,7 @@ class SpectrumLookupMixin(MixinCompatible):
         dressed_index: int,
         subtract_ground: bool = False,
         param_indices: Optional[Tuple[int, ...]] = None,
-    ) -> float:
+    ) -> Union[float, NamedSlotsNdarray]:
         """
         Look up the dressed eigenenergy belonging to the given dressed index,
         usually to be used with pre-slicing
