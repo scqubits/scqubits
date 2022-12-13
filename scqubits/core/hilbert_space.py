@@ -315,7 +315,7 @@ class HilbertSpace(
     spec_lookup.SpectrumLookupMixin, dispatch.DispatchClient, serializers.Serializable
 ):
     """Class holding information about the full Hilbert space, usually composed of
-    multiple subsys_list. The class provides methods to turn subsystem operators into
+    multiple subsystems. The class provides methods to turn subsystem operators into
     operators acting on the full Hilbert space, and establishes the interface to
     qutip. Returned operators are of the `qutip.Qobj` type. The class also provides
     methods for obtaining eigenvalues, absorption and emission spectra as a function
@@ -445,7 +445,7 @@ class HilbertSpace(
         return self._lookup
 
     @property
-    def hilbertspace(self) -> "HilbertSpace":
+    def hilbertspace(self) -> HilbertSpace:
         """[Legacy] Auxiliary reference to self for compatibility with
         SpectrumLookupMixin
         class."""
@@ -462,7 +462,7 @@ class HilbertSpace(
     # HilbertSpace: file IO methods
     ###################################################################################
     @classmethod
-    def deserialize(cls, io_data: "IOData") -> "HilbertSpace":
+    def deserialize(cls, io_data: "IOData") -> HilbertSpace:
         """
         Take the given IOData and return an instance of the described class,
         initialized with the data stored in io_data.
@@ -470,7 +470,7 @@ class HilbertSpace(
         alldata_dict = io_data.as_kwargs()
         alldata_dict["ignore_low_overlap"] = alldata_dict.pop("_ignore_low_overlap")
         data = alldata_dict.pop("_data", {})
-        new_hilbertspace: "HilbertSpace" = cls(**alldata_dict)
+        new_hilbertspace: HilbertSpace = cls(**alldata_dict)
         new_hilbertspace._data = data
         new_hilbertspace._lookup = spec_lookup.SpectrumLookupAdapter(new_hilbertspace)
         return new_hilbertspace
@@ -501,7 +501,7 @@ class HilbertSpace(
     # HilbertSpace: creation via GUI
     ###################################################################################
     @classmethod
-    def create(cls) -> "HilbertSpace":
+    def create(cls) -> HilbertSpace:
         hilbertspace = cls([])
         scqubits.ui.hspace_widget.create_hilbertspace_widget(hilbertspace.__init__)
         return hilbertspace
@@ -548,7 +548,7 @@ class HilbertSpace(
 
     @property
     def subsystem_count(self) -> int:
-        """Returns number of subsys_list composing the joint Hilbert space"""
+        """Returns number of subsystems composing the joint Hilbert space"""
         return len(self._subsystems)
 
     ###################################################################################
@@ -713,7 +713,7 @@ class HilbertSpace(
 
         Returns
         -------
-            composite Hamiltonian composed of bare Hamiltonians of subsys_list
+            composite Hamiltonian composed of bare Hamiltonians of subsystems
             independent of the external parameter
         """
         bare_hamiltonian = Qobj(0)
@@ -786,7 +786,7 @@ class HilbertSpace(
     def diag_operator(self, diag_elements: ndarray, subsystem: QuantumSys) -> Qobj:
         """For given diagonal elements of a diagonal operator in `subsystem`, return
         the `Qobj` operator for the full Hilbert space (perform wrapping in
-        identities for other subsys_list).
+        identities for other subsystems).
 
         Parameters
         ----------
