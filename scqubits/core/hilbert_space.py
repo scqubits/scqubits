@@ -315,7 +315,7 @@ class HilbertSpace(
     spec_lookup.SpectrumLookupMixin, dispatch.DispatchClient, serializers.Serializable
 ):
     """Class holding information about the full Hilbert space, usually composed of
-    multiple subsys_list. The class provides methods to turn subsystem operators into
+    multiple subsystems. The class provides methods to turn subsystem operators into
     operators acting on the full Hilbert space, and establishes the interface to
     qutip. Returned operators are of the `qutip.Qobj` type. The class also provides
     methods for obtaining eigenvalues, absorption and emission spectra as a function
@@ -361,7 +361,6 @@ class HilbertSpace(
             for index, interaction_term in enumerate(self.interaction_list)
         }
 
-        self._lookup: Optional[spec_lookup.SpectrumLookupAdapter] = None
         self._osc_subsys_list = [
             subsys for subsys in self if isinstance(subsys, osc.Oscillator)
         ]
@@ -440,18 +439,16 @@ class HilbertSpace(
         return len(self._subsystems)
 
     @property
-    def lookup(self):
-        """[Legacy] supporting old lookup interface."""
-        return self._lookup
-
-    @property
-    def hilbertspace(self) -> "HilbertSpace":
+    def hilbertspace(self) -> HilbertSpace:
         """[Legacy] Auxiliary reference to self for compatibility with
         SpectrumLookupMixin
         class."""
         return self
 
     @property
+    @utils.DeprecationMessage(
+        "`subsys_list` is deprecated. Use `subsystem_list` instead."
+    )
     def subsys_list(self) -> List[QuantumSys]:
         return list(self._subsystems)
 
@@ -462,7 +459,7 @@ class HilbertSpace(
     # HilbertSpace: file IO methods
     ###################################################################################
     @classmethod
-    def deserialize(cls, io_data: "IOData") -> "HilbertSpace":
+    def deserialize(cls, io_data: "IOData") -> HilbertSpace:
         """
         Take the given IOData and return an instance of the described class,
         initialized with the data stored in io_data.
@@ -470,9 +467,8 @@ class HilbertSpace(
         alldata_dict = io_data.as_kwargs()
         alldata_dict["ignore_low_overlap"] = alldata_dict.pop("_ignore_low_overlap")
         data = alldata_dict.pop("_data", {})
-        new_hilbertspace: "HilbertSpace" = cls(**alldata_dict)
+        new_hilbertspace: HilbertSpace = cls(**alldata_dict)
         new_hilbertspace._data = data
-        new_hilbertspace._lookup = spec_lookup.SpectrumLookupAdapter(new_hilbertspace)
         return new_hilbertspace
 
     def serialize(self) -> "IOData":
@@ -501,7 +497,7 @@ class HilbertSpace(
     # HilbertSpace: creation via GUI
     ###################################################################################
     @classmethod
-    def create(cls) -> "HilbertSpace":
+    def create(cls) -> HilbertSpace:
         hilbertspace = cls([])
         scqubits.ui.hspace_widget.create_hilbertspace_widget(hilbertspace.__init__)
         return hilbertspace
@@ -512,16 +508,16 @@ class HilbertSpace(
     def receive(self, event: str, sender: Any, **kwargs) -> None:
         if event == "QUANTUMSYSTEM_UPDATE" and sender in self:
             self.broadcast("HILBERTSPACE_UPDATE")
-            if self._lookup:
-                self._lookup._out_of_sync = True
+            if self.lookup_exists():
+                self._out_of_sync = True
         elif event == "INTERACTIONTERM_UPDATE" and sender in self.interaction_list:
             self.broadcast("HILBERTSPACE_UPDATE")
-            if self._lookup:
-                self._lookup._out_of_sync = True
+            if self.lookup_exists():
+                self._out_of_sync = True
         elif event == "INTERACTIONLIST_UPDATE" and sender is self:
             self.broadcast("HILBERTSPACE_UPDATE")
-            if self._lookup:
-                self._lookup._out_of_sync = True
+            if self.lookup_exists():
+                self._out_of_sync = True
 
     ###################################################################################
     # HilbertSpace: subsystems, dimensions, etc.
@@ -548,7 +544,7 @@ class HilbertSpace(
 
     @property
     def subsystem_count(self) -> int:
-        """Returns number of subsys_list composing the joint Hilbert space"""
+        """Returns number of subsystems composing the joint Hilbert space"""
         return len(self._subsystems)
 
     ###################################################################################
@@ -574,9 +570,11 @@ class HilbertSpace(
         self._data["dressed_indices"] = spec_lookup.SpectrumLookupMixin.generate_lookup(
             self
         )
-        self._lookup = spec_lookup.SpectrumLookupAdapter(self)
 
-    def generate_bare_esys(self, update_subsystem_indices: List[int] = None) -> None:
+    def lookup_exists(self) -> bool:
+        return "dressed_indices" in self._data
+
+    def generate_bare_esys(self, update_subsystem_indices: List[int] = None) -> dict:
         # update all the subsystems when update_subsystem_indices is set to None
         if update_subsystem_indices is None:
             update_subsystem_indices = list(range(self.subsystem_count))
@@ -713,7 +711,7 @@ class HilbertSpace(
 
         Returns
         -------
-            composite Hamiltonian composed of bare Hamiltonians of subsys_list
+            composite Hamiltonian composed of bare Hamiltonians of subsystems
             independent of the external parameter
         """
         bare_hamiltonian = Qobj(0)
@@ -751,7 +749,7 @@ class HilbertSpace(
                 operator_list.append(term)
             elif isinstance(term, (InteractionTerm, InteractionTermStr)):
                 operator_list.append(
-                    term.hamiltonian(self.subsys_list, bare_esys=bare_esys)
+                    term.hamiltonian(self.subsystem_list, bare_esys=bare_esys)
                 )
             else:
                 raise TypeError(
@@ -777,7 +775,7 @@ class HilbertSpace(
         if evals is None:
             evals = subsystem.eigenvals(evals_count=evals_count)
         diag_qt_op = qt.Qobj(inpt=np.diagflat(evals[0:evals_count]))  # type:ignore
-        return spec_utils.identity_wrap(diag_qt_op, subsystem, self.subsys_list)
+        return spec_utils.identity_wrap(diag_qt_op, subsystem, self.subsystem_list)
 
     ###################################################################################
     # HilbertSpace: identity wrapping, operators
@@ -786,7 +784,7 @@ class HilbertSpace(
     def diag_operator(self, diag_elements: ndarray, subsystem: QuantumSys) -> Qobj:
         """For given diagonal elements of a diagonal operator in `subsystem`, return
         the `Qobj` operator for the full Hilbert space (perform wrapping in
-        identities for other subsys_list).
+        identities for other subsystems).
 
         Parameters
         ----------
@@ -799,7 +797,7 @@ class HilbertSpace(
         index = range(dim)
         diag_matrix = np.zeros((dim, dim), dtype=np.float_)
         diag_matrix[index, index] = diag_elements
-        return spec_utils.identity_wrap(diag_matrix, subsystem, self.subsys_list)
+        return spec_utils.identity_wrap(diag_matrix, subsystem, self.subsystem_list)
 
     def hubbard_operator(self, j: int, k: int, subsystem: QuantumSys) -> Qobj:
         """Hubbard operator :math:`|j\\rangle\\langle k|` for system `subsystem`
@@ -813,7 +811,7 @@ class HilbertSpace(
         """
         dim = subsystem.truncated_dim
         operator = qt.states.basis(dim, j) * qt.states.basis(dim, k).dag()
-        return spec_utils.identity_wrap(operator, subsystem, self.subsys_list)
+        return spec_utils.identity_wrap(operator, subsystem, self.subsystem_list)
 
     def annihilate(self, subsystem: QuantumSys) -> Qobj:
         """Annihilation operator a for `subsystem`
@@ -825,7 +823,7 @@ class HilbertSpace(
         """
         dim = subsystem.truncated_dim
         operator = qt.destroy(dim)
-        return spec_utils.identity_wrap(operator, subsystem, self.subsys_list)
+        return spec_utils.identity_wrap(operator, subsystem, self.subsystem_list)
 
     ###################################################################################
     # HilbertSpace: spectrum sweep
@@ -988,8 +986,8 @@ class HilbertSpace(
             raise TypeError(
                 "Invalid combination and/or types of arguments for `add_interaction`"
             )
-        if self._lookup is not None:
-            self._lookup._out_of_sync = True
+        if self.lookup_exists():
+            self._out_of_sync = True
 
         self.interaction_list.append(interaction)
 
