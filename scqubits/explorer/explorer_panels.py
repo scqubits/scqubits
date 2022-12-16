@@ -12,8 +12,10 @@
 
 from typing import TYPE_CHECKING, List, Tuple, Union
 
+# import matplotlib as mlp
 import numpy as np
 
+from matplotlib import rc_context
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
@@ -23,6 +25,7 @@ import scqubits.utils.plotting as plot
 from scqubits import SpectrumData, settings
 from scqubits.core.namedslots_array import NamedSlotsNdarray
 from scqubits.core.oscillator import Oscillator
+from scqubits.settings import matplotlib_settings
 from scqubits.utils.misc import tuple_to_short_str
 
 if TYPE_CHECKING:
@@ -30,6 +33,7 @@ if TYPE_CHECKING:
     from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass, QubitBaseClass1d
 
 
+@rc_context(matplotlib_settings)
 def display_bare_spectrum(
     sweep: "ParameterSweep",
     subsys: Union["QubitBaseClass", "Oscillator"],
@@ -55,6 +59,7 @@ def display_bare_spectrum(
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
 
 
+@rc_context(matplotlib_settings)
 def display_anharmonicity(
     sweep: "ParameterSweep",
     subsys: "QubitBaseClass",
@@ -75,6 +80,7 @@ def display_anharmonicity(
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
 
 
+@rc_context(matplotlib_settings)
 def display_matrixelements(
     sweep: "ParameterSweep",
     operator_name: str,
@@ -103,6 +109,7 @@ def display_matrixelements(
     )
 
 
+@rc_context(matplotlib_settings)
 def display_matrixelement_sweep(
     sweep: "ParameterSweep",
     operator_name: str,
@@ -149,6 +156,7 @@ def display_matrixelement_sweep(
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
 
 
+@rc_context(matplotlib_settings)
 def display_bare_wavefunctions(
     sweep: "ParameterSweep",
     subsys: "QubitBaseClass",
@@ -170,6 +178,7 @@ def display_bare_wavefunctions(
     )
 
 
+@rc_context(matplotlib_settings)
 def display_transitions(
     sweep: "ParameterSweep",
     photon_number: int,
@@ -195,6 +204,7 @@ def display_transitions(
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
 
 
+@rc_context(matplotlib_settings)
 def display_cross_kerr(
     sweep: "ParameterSweep",
     subsys1: "QuantumSystem",
@@ -250,6 +260,7 @@ def display_cross_kerr(
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
 
 
+@rc_context(matplotlib_settings)
 def display_self_kerr(
     sweep: "ParameterSweep",
     subsys: "QuantumSystem",
