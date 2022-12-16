@@ -33,6 +33,7 @@ from scqubits.utils.plot_utils import (
     plot_wavefunction_to_axes,
     scale_wavefunctions,
 )
+from scqubits.settings import matplotlib_settings
 
 if TYPE_CHECKING:
     from scqubits.core.storage import SpectrumData, WaveFunction, WaveFunctionOnGrid
@@ -45,6 +46,7 @@ except ImportError:
     _LABELLINES_ENABLED = False
 
 
+@mpl.rc_context(matplotlib_settings)
 def wavefunction1d(
     wavefuncs: Union["WaveFunction", "List[WaveFunction]"],
     potential_vals: np.ndarray,
@@ -89,6 +91,7 @@ def wavefunction1d(
     return fig, axes
 
 
+@mpl.rc_context(matplotlib_settings)
 def wavefunction1d_nopotential(
     wavefuncs: Union["WaveFunction", "List[WaveFunction]"],
     offset: Union[float, Iterable[float]] = 0,
@@ -127,6 +130,7 @@ def wavefunction1d_nopotential(
     return fig, axes
 
 
+@mpl.rc_context(matplotlib_settings)
 def wavefunction1d_discrete(wavefunc: "WaveFunction", **kwargs) -> Tuple[Figure, Axes]:
     """
     Plots the amplitude of a real-valued 1d wave function in a discrete basis.
@@ -156,6 +160,7 @@ def wavefunction1d_discrete(wavefunc: "WaveFunction", **kwargs) -> Tuple[Figure,
     return fig, axes
 
 
+@mpl.rc_context(matplotlib_settings)
 def wavefunction2d(
     wavefunc: "WaveFunctionOnGrid", zero_calibrate: bool = False, **kwargs
 ) -> Tuple[Figure, Axes]:
@@ -209,6 +214,7 @@ def wavefunction2d(
     return fig, axes
 
 
+@mpl.rc_context(matplotlib_settings)
 def contours(
     x_vals: Union[List[float], np.ndarray],
     y_vals: Union[List[float], np.ndarray],
@@ -261,6 +267,7 @@ def contours(
     return fig, axes
 
 
+@mpl.rc_context(matplotlib_settings)
 def matrix(
     data_matrix: np.ndarray, mode: str = "abs", show_numbers: bool = False, **kwargs
 ) -> Tuple[Figure, Tuple[Axes, Axes]]:
@@ -299,6 +306,7 @@ def matrix(
     return fig, (ax1, ax2)
 
 
+@mpl.rc_context(matplotlib_settings)
 def matrix_skyscraper(
     matrix: np.ndarray, mode: str = "abs", **kwargs
 ) -> Tuple[Figure, Axes]:
@@ -357,11 +365,16 @@ def matrix_skyscraper(
         axis.set_ticks(locs + 0.5, minor=True)
         axis.set(ticks=locs + 0.5, ticklabels=locs)
 
+    axes.tick_params(axis='x', pad=-5)
+    axes.tick_params(axis='y', pad=-5)
+    axes.tick_params(axis='z', pad=-2)
+
     _process_options(fig, axes, opts=defaults.matrix(), **kwargs)
 
     return fig, axes
 
 
+@mpl.rc_context(matplotlib_settings)
 def matrix2d(
     matrix: np.ndarray,
     mode: str = "abs",
@@ -412,7 +425,7 @@ def matrix2d(
         fig_width, fig_height = fig.get_size_inches()
         box_width_inches = fig_width / matrix.shape[1]
         box_height_inches = fig_height / matrix.shape[0]
-        font_size = min(box_width_inches, box_height_inches) * 12
+        font_size = min(box_width_inches, box_height_inches) * 11
         add_numbers_to_axes(axes, matrix, modefunction, fontsize=font_size)
 
     # shift the grid
@@ -430,6 +443,7 @@ def matrix2d(
     return fig, axes
 
 
+@mpl.rc_context(matplotlib_settings)
 def data_vs_paramvals(
     xdata: np.ndarray,
     ydata: np.ndarray,
@@ -488,6 +502,7 @@ def data_vs_paramvals(
     return fig, axes
 
 
+@mpl.rc_context(matplotlib_settings)
 def evals_vs_paramvals(
     specdata: "SpectrumData",
     which: Union[int, Iterable[int]] = -1,
@@ -534,6 +549,7 @@ def evals_vs_paramvals(
     )
 
 
+@mpl.rc_context(matplotlib_settings)
 def matelem_vs_paramvals(
     specdata: "SpectrumData",
     select_elems: Union[int, List[Tuple[int, int]]] = 4,
@@ -586,6 +602,6 @@ def matelem_vs_paramvals(
     if _LABELLINES_ENABLED:
         labelLines(axes.get_lines(), zorder=1.5)
     else:
-        axes.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+        axes.legend(loc="center left", bbox_to_anchor=(1, 0.5), frameon=False)
     _process_options(fig, axes, opts=defaults.matelem_vs_paramvals(specdata), **kwargs)
     return fig, axes
