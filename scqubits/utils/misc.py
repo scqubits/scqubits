@@ -314,9 +314,17 @@ def cite(print_info=True):
         return fs.getvalue()
 
 
-def is_float_string(the_string: str) -> bool:
+def is_string_float(the_string: str) -> bool:
     try:
         float(the_string)
+        return True
+    except ValueError:
+        return False
+
+
+def is_string_int(the_string: str) -> bool:
+    try:
+        int(the_string)
         return True
     except ValueError:
         return False

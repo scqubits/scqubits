@@ -10,8 +10,6 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import os
-
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -349,9 +347,6 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         self._default_grid = discretization.Grid1d(
             -np.pi / 2, 3 * np.pi / 2, 100
         )  # for plotting in phi_j basis
-        self._image_filename = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "qubit_img/flux-qubit.jpg"
-        )
 
     @staticmethod
     def default_params() -> Dict[str, Any]:

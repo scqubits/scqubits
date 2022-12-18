@@ -24,12 +24,12 @@ import sympy
 import yaml
 
 from numpy import ndarray
-from scqubits.utils.misc import flatten_list, is_float_string
+from scqubits.utils.misc import flatten_list, is_string_float
 from sympy import symbols
 
 
 def process_word(word: str) -> Union[float, symbols]:
-    if is_float_string(word):
+    if is_string_float(word):
         return float(word)
     return symbols(word)
 
@@ -64,7 +64,7 @@ def parse_branch_parameters(
     branch_params: List[float] = []
     num_params = 2 if branch_type in ["JJ", "JJ2"] else 1
     for word in words[0:num_params]:
-        if not is_float_string(word):
+        if not is_string_float(word):
             if len(word.split("=")) > 2:
                 raise Exception("Syntax error in branch specification.")
             if len(word.split("=")) == 2:

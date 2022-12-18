@@ -11,7 +11,6 @@
 ############################################################################
 
 import math
-import os
 
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -494,10 +493,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         self._default_phi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self._default_zeta_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self._default_theta_grid = discretization.Grid1d(-0.5 * np.pi, 1.5 * np.pi, 100)
-        self._image_filename = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "qubit_img/cos2phi-qubit.jpg",
-        )
 
     @staticmethod
     def default_params() -> Dict[str, Any]:

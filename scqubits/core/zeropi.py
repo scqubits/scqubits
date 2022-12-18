@@ -10,7 +10,6 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import os
 import warnings
 
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -154,9 +153,6 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         self._init_params.remove(
             "ECS"
         )  # used in for file Serializable purposes; remove ECS as init parameter
-        self._image_filename = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "qubit_img/zeropi.jpg"
-        )
         dispatch.CENTRAL_DISPATCH.register("GRID_UPDATE", self)
 
     @staticmethod
