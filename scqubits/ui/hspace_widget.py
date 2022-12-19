@@ -22,7 +22,7 @@ from scipy.sparse import csc_matrix
 
 try:
     import ipywidgets
-    import ipyvuetify
+    import ipyvuetify as v
 except ImportError:
     _HAS_IPYWIDGETS = False
 else:
@@ -52,24 +52,25 @@ class HilbertSpaceUi:
     @utils.Required(ipywidgets=_HAS_IPYWIDGETS)
     def __init__(self):
         """Set up all widget GUI elements and class attributes."""
-        self.status_output = ipyvuetify.Container(children=[])
+        self.status_output = v.Container(children=[])
         self.subsys_candidates_dict = self.get_subsys_candidates()
         self.interactions_count = 0
         self.current_interaction_key = ""
         self.interactions_dict = {}
 
         # == subsystems panel =========================================================
-        self.subsys_refresh_button = ipyvuetify.Btn(
-            children=[ipyvuetify.Icon(children=["mdi-refresh"])],
+        self.subsys_refresh_button = v.Btn(
+            children=[v.Icon(children=["mdi-refresh"])],
             width=40,
             min_width=40,
             height=40,
             class_="ml-2",
         )
 
-        self.subsys_widget = ipyvuetify.Select(
+        self.subsys_widget = v.Select(
             v_model="",
             items=list(self.subsys_candidates_dict.keys()),
+            menu_props={"closeOnContentClick": True},
             attach=True,
             chips=True,
             multiple=True,
@@ -82,15 +83,15 @@ class HilbertSpaceUi:
         )
 
         # == InteractionTerms list panel ==============================================
-        self.interact_new_button = ipyvuetify.Btn(
-            children=[ipyvuetify.Icon(children=["mdi-plus"])],
+        self.interact_new_button = v.Btn(
+            children=[v.Icon(children=["mdi-plus"])],
             width=40,
             min_width=40,
             height=40,
             class_="ml-2",
         )
 
-        self.interact_list_widget = ipyvuetify.Select(
+        self.interact_list_widget = v.Select(
             v_model=None,
             items=[],
             outlined=True,
@@ -102,24 +103,24 @@ class HilbertSpaceUi:
             style_="width: 70%",
         )
 
-        self.interact_display = ipyvuetify.ChipGroup(
-            v_model="None", children=[ipyvuetify.Text(children=["None"])]
+        self.interact_display = v.ChipGroup(
+            v_model="None", children=[v.Text(children=["None"])]
         )
 
         # == Panel for specifying an InteractionTerm ==================================
-        self.op1subsys_widget = ipyvuetify.Select(
+        self.op1subsys_widget = v.Select(
             items=self.subsys_widget.v_model, label="subsys1", outlined=True, dense=True
         )
-        self.op2subsys_widget = ipyvuetify.Select(
+        self.op2subsys_widget = v.Select(
             items=self.subsys_widget.v_model, label="subsys2", outlined=True, dense=True
         )
-        self.op1_ddown_widget = ipyvuetify.Select(
+        self.op1_ddown_widget = v.Select(
             items=self.possible_operators(self.op1subsys_widget.v_model),
             label="op1",
             outlined=True,
             dense=True,
         )
-        self.op2_ddown_widget = ipyvuetify.Select(
+        self.op2_ddown_widget = v.Select(
             items=self.possible_operators(self.op2subsys_widget.v_model),
             label="op2",
             outlined=True,
@@ -132,11 +133,11 @@ class HilbertSpaceUi:
             outlined=True,
             dense=True,
         )
-        self.addhc_widget = ipyvuetify.Select(
+        self.addhc_widget = v.Select(
             label="add_hc", items=["False", "True"], outlined=True, dense=True
         )
 
-        self.interact_box1 = ipyvuetify.Col(
+        self.interact_box1 = v.Col(
             children=[
                 self.op1subsys_widget,
                 self.op1_ddown_widget,
@@ -147,10 +148,10 @@ class HilbertSpaceUi:
             ]
         )
 
-        self.string_expr_widget = ipyvuetify.TextField(
+        self.string_expr_widget = v.TextField(
             label="expr", placeholder="e.g., EJ * cos(op1 - op2)"
         )
-        self.interact_box2 = ipyvuetify.Col(
+        self.interact_box2 = v.Col(
             children=[
                 self.string_expr_widget,
                 self.op1subsys_widget,
@@ -161,48 +162,46 @@ class HilbertSpaceUi:
             ],
         )
 
-        self.tabs_select_interact_type = ipyvuetify.Tabs(
+        self.tabs_select_interact_type = v.Tabs(
             v_model="tab",
             align_with_title=True,
             grow=True,
-            background_color="grey",
-            slider_color="purple",
-            dark=True,
+            background_color="lightgrey",
             children=[
-                ipyvuetify.Tab(children=["g * op1 * op2"]),
-                ipyvuetify.Tab(children=["Python expr"]),
-                ipyvuetify.TabItem(
+                v.Tab(children=["g * op1 * op2"]),
+                v.Tab(children=["Python expr"]),
+                v.TabItem(
                     key="g * op1 * op2",
                     children=[self.interact_box1],
                     style_="background-color: snow",
                 ),
-                ipyvuetify.TabItem(key="Python expr", children=[self.interact_box2]),
+                v.TabItem(key="Python expr", children=[self.interact_box2]),
             ],
         )
         # == Central run button ==================================
-        self.run_button = ipyvuetify.Btn(
+        self.run_button = v.Btn(
             children=["Create HilbertSpace"], style_="align: bottom;"
         )
 
         # == Wrap everything into boxes ===============================================
-        self.all_panels = ipyvuetify.Row(
+        self.all_panels = v.Row(
             children=[
-                ipyvuetify.Col(
+                v.Col(
                     children=[
-                        ipyvuetify.Row(
+                        v.Row(
                             children=[self.subsys_widget, self.subsys_refresh_button],
                         ),
-                        ipyvuetify.Text(children=["Interaction terms:"], class_="mr-3"),
+                        v.Text(children=["Interaction terms:"], class_="mr-3"),
                         self.interact_display,
-                        ipyvuetify.Spacer(style_="height: 400px"),
+                        v.Spacer(style_="height: 400px"),
                         self.run_button,
                     ],
                     class_="col-6",
                 ),
-                ipyvuetify.Spacer(),
-                ipyvuetify.Sheet(
+                v.Spacer(),
+                v.Sheet(
                     children=[
-                        ipyvuetify.Row(
+                        v.Row(
                             children=[
                                 self.interact_list_widget,
                                 self.interact_new_button,
@@ -216,7 +215,7 @@ class HilbertSpaceUi:
             ],
         )
 
-        self.ui = ipyvuetify.Col(children=[self.all_panels, self.status_output])
+        self.ui = v.Col(children=[self.all_panels, self.status_output])
 
         # == Make GUI connections =====================================================
         self.connect_ui()
@@ -241,7 +240,7 @@ class HilbertSpaceUi:
 
     def update_interact_display(self):
         self.interact_display.children = [
-            ipyvuetify.Chip(children=[term[0]], filling=False, outlined=True)
+            v.Chip(children=[term[0]], filling=False, outlined=True)
             for term in self.interact_list_widget.items
         ]
         self.interact_display.v_model = [
@@ -304,7 +303,7 @@ class HilbertSpaceUi:
         if interaction_list is False:
             return None
         self.status_output.children = [
-            ipyvuetify.Alert(
+            v.Alert(
                 children=["HilbertSpace instance created."],
                 color="blue",
                 text=True,
@@ -420,7 +419,7 @@ class HilbertSpaceUi:
             for param_name in ["subsys1", "subsys2"]:
                 if not interaction_term[param_name]:
                     self.status_output.children = [
-                        ipyvuetify.Alert(
+                        v.Alert(
                             children=[f"Error: {param_name} not specified."],
                             text=True,
                             dense=True,
@@ -431,7 +430,7 @@ class HilbertSpaceUi:
                     return False
                 if interaction_term[param_name] not in subsysname_list:
                     self.status_output.children = [
-                        ipyvuetify.Alert(
+                        v.Alert(
                             children=[
                                 f"Error: subsystem operator '{interaction_term[param_name]}' is not consistent with HilbertSpace subsysname_list."
                             ],
@@ -451,7 +450,7 @@ class HilbertSpaceUi:
                     instance = eval(f"{subsys_str}.{operator_str}", main.__dict__)
                 except (AttributeError, SyntaxError, NameError):
                     self.status_output.children = [
-                        ipyvuetify.Alert(
+                        v.Alert(
                             children=[
                                 f"Error: operator {operator_str} is not defined or has a syntax error."
                             ],
@@ -464,7 +463,7 @@ class HilbertSpaceUi:
                     return False
                 if not isinstance(instance, (np.ndarray, csc_matrix, Qobj)):
                     self.status_output.children = [
-                        ipyvuetify.Alert(
+                        v.Alert(
                             children=[
                                 f"Error (type mismatch): '{operator_str}' is not a valid operator."
                             ],

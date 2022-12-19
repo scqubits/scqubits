@@ -86,20 +86,14 @@ def create_widget(
         image = file.read()
 
         image_widget = ipyvuetify.Container(
-            children=[
-                ipywidgets.Image(
-                    value=image, format="jpg"
-                )
-            ],
+            children=[ipywidgets.Image(value=image, format="jpg")],
             class_="ml-3 mt-0 pt-0",
-            style_="width: 78%;"
+            style_="width: 78%;",
         )
         ui_widget = ipyvuetify.Row(
             children=[
-                ipyvuetify.Row(
-                    children=box_list,
-                    style_="width: 22%;"),
-                image_widget
+                ipyvuetify.Row(children=box_list, style_="width: 22%;"),
+                image_widget,
             ],
             class_="ml-3 mt-4",
         )

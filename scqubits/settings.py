@@ -125,7 +125,7 @@ matplotlib_settings = {
     "ytick.color": off_black,
     "axes.labelcolor": off_black,
     "axes.edgecolor": off_black,
-    "axes.titlecolor": off_black
+    "axes.titlecolor": off_black,
 }
 
 

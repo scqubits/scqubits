@@ -9,14 +9,14 @@ class ValidatedTextFieldABC(ipyvuetify.TextField):
 
     def __init__(self, onchange, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        assert('name' in kwargs.keys())
+        assert "name" in kwargs.keys()
 
         self.onchange_callback = onchange
 
-        self.param_name = kwargs['name']
+        self.param_name = kwargs["name"]
 
-        self.on_event('change', self.safe_callback)
-        self.on_event('input', self.valid_entry)
+        self.on_event("change", self.safe_callback)
+        self.on_event("input", self.valid_entry)
 
     def valid_entry(self, *args, **kwargs):
         if not self.is_valid(self.v_model):

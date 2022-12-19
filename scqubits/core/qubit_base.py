@@ -117,8 +117,10 @@ class QuantumSystem(DispatchClient, ABC):
     def __init__(self, id_str: Union[str, None]):
         self._sys_type = type(self).__name__
         self._id_str = id_str or self._autogenerate_id_str()
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                            "qubit_img", type(self).__name__ + ".jpg"
+        self._image_filename = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "qubit_img",
+            type(self).__name__ + ".jpg",
         )
 
     def __init_subclass__(cls):
