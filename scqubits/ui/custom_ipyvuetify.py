@@ -1,4 +1,5 @@
 import ipyvuetify
+import ipywidgets
 
 from scqubits.utils import misc as utils
 
@@ -7,15 +8,17 @@ class ValidatedTextFieldABC(ipyvuetify.TextField):
     is_valid: callable = None
     valid_type = None
 
-    def __init__(self, onchange, *args, **kwargs):
+    def __init__(self, *args, onchange=None, **kwargs):
         super().__init__(*args, **kwargs)
-        assert "name" in kwargs.keys()
+        if "label" in kwargs.keys() and not "name" in kwargs.keys():
+            kwargs["name"] = kwargs["label"]
 
         self.onchange_callback = onchange
 
         self.param_name = kwargs["name"]
 
-        self.on_event("change", self.safe_callback)
+        if onchange:
+            self.on_event("change", self.safe_callback)
         self.on_event("input", self.valid_entry)
 
     def valid_entry(self, *args, **kwargs):
@@ -41,3 +44,25 @@ class IntTextField(ValidatedTextFieldABC):
 class FloatTextField(ValidatedTextFieldABC):
     is_valid = staticmethod(utils.is_string_float)
     valid_type = float
+
+
+def make_slider_textfield(text_kwargs=None, **slider_kwargs):
+
+    if "style_" not in slider_kwargs:
+        slider_kwargs["style_"] = "width: 200px;"
+
+    slider = ipyvuetify.Slider(**slider_kwargs)
+
+    text_kwargs = text_kwargs or {}
+
+    if "style_" not in text_kwargs:
+        text_kwargs["style_"] = ""
+    text_kwargs["style_"] += "max-width: 50px; width: 50px;"
+
+    text_field = IntTextField(
+        v_model=slider_kwargs["v_model"], name=slider_kwargs["label"],
+        **text_kwargs
+    )
+
+    ipywidgets.jslink((slider, "v_model"), (text_field, "v_model"))
+    return slider, text_field
