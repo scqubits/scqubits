@@ -66,3 +66,26 @@ def make_slider_textfield(text_kwargs=None, **slider_kwargs):
 
     ipywidgets.jslink((slider, "v_model"), (text_field, "v_model"))
     return slider, text_field
+
+
+def make_slider_floattextfield(text_kwargs=None, min=0.0, max=1.0,
+                               steps=100, **slider_kwargs):
+
+    if "style_" not in slider_kwargs:
+        slider_kwargs["style_"] = "width: 200px;"
+
+    slider = ipyvuetify.Slider(min=0, max=steps, **slider_kwargs)
+
+    text_kwargs = text_kwargs or {}
+
+    if "style_" not in text_kwargs:
+        text_kwargs["style_"] = ""
+    text_kwargs["style_"] += "max-width: 50px; width: 50px;"
+
+    text_field = FloatTextField(
+        v_model=slider_kwargs["v_model"], name=slider_kwargs["label"],
+        **text_kwargs
+    )
+
+    ipywidgets.jslink((slider, "v_model"), (text_field, "v_model"))
+    return slider, text_field

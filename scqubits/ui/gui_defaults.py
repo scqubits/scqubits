@@ -12,9 +12,9 @@
 
 import numpy as np
 
-EL_range = {"min": 1e-5, "max": 10.0}
-EJ_range = {"min": 1e-5, "max": 70.0}
-EC_range = {"min": 1e-5, "max": 10.0}
+EL_range = {"min": 1.0e-5, "max": 10.0}
+EJ_range = {"min": 1.0e-5, "max": 70.0}
+EC_range = {"min": 1.0e-5, "max": 10.0}
 flux_range = {"min": 0.0, "max": 1.0}
 ng_range = {"min": 0.0, "max": 1.0}
 int_range = {"min": 1, "max": 30}
@@ -239,15 +239,6 @@ supported_qubits = [
     "ZeroPi",
     "FullZeroPi",
     "Cos2PhiQubit",
-]
-
-slow_qubits = ["FluxQubit", "ZeroPi", "FullZeroPi", "Cos2PhiQubit"]
-
-subsys_panel_names = [
-    "Energy spectrum",
-    "Wavefunctions",
-    "Matrix elements",
-    "Anharmonicity",
     "Self-Kerr",
 ]
 
@@ -255,12 +246,19 @@ composite_panel_names = ["Transitions", "Cross-Kerr, ac-Stark", "Custom data"]
 
 common_panels = ["Energy spectrum", "Wavefunctions"]
 
-mode_dropdown_list = [
-    ("Re(·)", "real"),
-    ("Im(·)", "imag"),
-    ("|·|", "abs"),
-    ("|\u00B7|\u00B2", "abs_sqr"),
-]
+# mode_dropdown_list = [
+#     ("Re(·)", "real"),
+#     ("Im(·)", "imag"),
+#     ("|·|", "abs"),
+#     ("|\u00B7|\u00B2", "abs_sqr"),
+# ]
+
+mode_dropdown_list = {
+    "Re(·)": "real",
+    "Im(·)": "imag",
+    "|·|": "abs",
+    "|\u00B7|\u00B2": "abs_sqr"
+}
 
 default_panels = {qubit_name: common_panels for qubit_name in supported_qubits}
 default_panels["Oscillator"] = []
