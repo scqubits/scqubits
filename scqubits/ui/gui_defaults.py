@@ -22,15 +22,15 @@ float_range = {"min": 0.0, "max": 30.0}
 ncut_range = {"min": 10, "max": 50}
 
 global_defaults = {
-    "mode_wavefunc": "real",
-    "mode_matrixelem": "abs",
+    "mode_wavefunc": "Re(·)",
+    "mode_matrixelem": "|·|",
     "ng": ng_range,
     "flux": flux_range,
     "EJ": EJ_range,
     "EC": EC_range,
     "int": int_range,
     "float": float_range,
-    "scale": 1,
+    "scale": 1.0,
     "num_sample": 150,
 }
 
@@ -242,22 +242,32 @@ supported_qubits = [
     "Self-Kerr",
 ]
 
+slow_qubits = ["FluxQubit", "ZeroPi", "FullZeroPi", "Cos2PhiQubit"]
+
+subsys_panel_names = [
+    "Energy spectrum",
+    "Wavefunctions",
+    "Matrix elements",
+    "Anharmonicity",
+    "Self-Kerr",
+]
+
 composite_panel_names = ["Transitions", "Cross-Kerr, ac-Stark", "Custom data"]
 
 common_panels = ["Energy spectrum", "Wavefunctions"]
 
-# mode_dropdown_list = [
-#     ("Re(·)", "real"),
-#     ("Im(·)", "imag"),
-#     ("|·|", "abs"),
-#     ("|\u00B7|\u00B2", "abs_sqr"),
-# ]
+mode_dropdown_list = [
+    "Re(·)",
+    "Im(·)",
+    "|·|",
+    "|\u00B7|\u00B2",
+]
 
-mode_dropdown_list = {
+mode_dropdown_dict = {
     "Re(·)": "real",
     "Im(·)": "imag",
     "|·|": "abs",
-    "|\u00B7|\u00B2": "abs_sqr"
+    "|\u00B7|\u00B2": "abs_sqr",
 }
 
 default_panels = {qubit_name: common_panels for qubit_name in supported_qubits}
