@@ -49,9 +49,9 @@ try:
     import ipywidgets
     import ipyvuetify as v
 except ImportError:
-    _HAS_IPYWIDGETS = False
+    _HAS_IPYVUETIFY = False
 else:
-    _HAS_IPYWIDGETS = True
+    _HAS_IPYVUETIFY = True
 
 try:
     from IPython.display import display
@@ -77,7 +77,7 @@ class GUI:
     def __repr__(self):
         return ""
 
-    @utils.Required(ipywidgets=_HAS_IPYWIDGETS, IPython=_HAS_IPYTHON)
+    @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
     def __init__(self):
         self.active_qubit: QubitBaseClass = None
         scq.settings.PROGRESSBAR_DISABLED = False
