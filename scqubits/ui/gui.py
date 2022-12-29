@@ -41,7 +41,8 @@ from scqubits.ui.gui_setup import (
     init_filename_textfield,
     init_noise_param_floattextfield,
     flex_row,
-    init_dict_v_plot_options, init_dict_v_noise_params,
+    init_dict_v_plot_options,
+    init_dict_v_noise_params,
 )
 
 try:
@@ -99,7 +100,9 @@ class GUI:
         # Display Elements
         self.fig: Figure
 
-        self.v_plot_output = ipywidgets.Output(layout=ipywidgets.Layout(overflow='unset'))
+        self.v_plot_output = ipywidgets.Output(
+            layout=ipywidgets.Layout(overflow="unset")
+        )
         self.v_tabs: v.Tabs = v.Tabs(
             children=[], elevation="0", background_color="#f9fbff"
         )

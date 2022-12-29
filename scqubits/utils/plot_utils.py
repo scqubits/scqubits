@@ -162,7 +162,9 @@ def scale_wavefunctions(
     potential_vals: np.ndarray,
     scaling: Optional[float],
 ) -> List["WaveFunction"]:
-    scale_factors = np.array([wavefunc.amplitude_scale_factor(potential_vals) for wavefunc in wavefunc_list])
+    scale_factors = np.array(
+        [wavefunc.amplitude_scale_factor(potential_vals) for wavefunc in wavefunc_list]
+    )
     for wavefunc in wavefunc_list:
         wavefunc.rescale(np.max(scale_factors))
     adaptive_scalefactor = scaling or defaults.set_wavefunction_scaling(

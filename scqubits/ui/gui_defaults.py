@@ -237,7 +237,7 @@ supported_qubits = [
     "FluxQubit",
     "ZeroPi",
     "FullZeroPi",
-    "Cos2PhiQubit"
+    "Cos2PhiQubit",
 ]
 
 slow_qubits = ["FluxQubit", "ZeroPi", "FullZeroPi", "Cos2PhiQubit"]

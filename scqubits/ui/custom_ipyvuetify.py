@@ -96,7 +96,6 @@ class NumberEntryWidget:
         self.slider.observe(self.update_textfield, names="v_model")
         self.textfield.observe(self.update_slider, names="v_model")
 
-
     def _ipython_display_(self):
         display(self.widget())
 
@@ -132,9 +131,13 @@ class NumberEntryWidget:
             self.slider.v_model = self.textfield.valid_type(self.textfield.v_model)
 
     def slider_in_progress_toggle(self, *args):
-        self.textfield.continuous_update_in_progress = not self.textfield.continuous_update_in_progress
+        self.textfield.continuous_update_in_progress = (
+            not self.textfield.continuous_update_in_progress
+        )
         if not self.textfield.continuous_update_in_progress:
-            self.textfield.v_model = str(self.slider.v_model)  # This is a hack... need to trigger final "change" event
+            self.textfield.v_model = str(
+                self.slider.v_model
+            )  # This is a hack... need to trigger final "change" event
 
     @property
     def disabled(self):

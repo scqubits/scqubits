@@ -230,6 +230,7 @@ def init_dict_v_plot_options(
 
     return dict_v_plot_options
 
+
 def init_dict_v_noise_params(active_qubit) -> Dict[str, v.VuetifyWidget]:
     """Creates all the widgets associated with coherence times plots"""
     dict_v_noise_params = {}
@@ -242,10 +243,7 @@ def init_dict_v_noise_params(active_qubit) -> Dict[str, v.VuetifyWidget]:
         noise_params.append("A_cc")
     if "tphi_1_over_f_ng" in noise_channels:
         noise_params.append("A_ng")
-    if (
-            "t1_charge_impedance" in noise_channels
-            or "t1_flux_bias_line" in noise_channels
-    ):
+    if "t1_charge_impedance" in noise_channels or "t1_flux_bias_line" in noise_channels:
         noise_params.append("R_0")
     if "t1_flux_bias_line" in noise_channels:
         noise_params.append("M")
@@ -254,8 +252,6 @@ def init_dict_v_noise_params(active_qubit) -> Dict[str, v.VuetifyWidget]:
         noise_params.append("Delta")
 
     for noise_param in noise_params:
-        dict_v_noise_params[noise_param] = init_noise_param_floattextfield(
-            noise_param
-        )
+        dict_v_noise_params[noise_param] = init_noise_param_floattextfield(noise_param)
 
     return dict_v_noise_params
