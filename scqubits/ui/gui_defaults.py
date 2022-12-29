@@ -10,7 +10,6 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import numpy as np
 
 EL_range = {"min": 1.0e-5, "max": 10.0}
 EJ_range = {"min": 1.0e-5, "max": 70.0}
@@ -238,8 +237,7 @@ supported_qubits = [
     "FluxQubit",
     "ZeroPi",
     "FullZeroPi",
-    "Cos2PhiQubit",
-    "Self-Kerr",
+    "Cos2PhiQubit"
 ]
 
 slow_qubits = ["FluxQubit", "ZeroPi", "FullZeroPi", "Cos2PhiQubit"]

@@ -15,11 +15,9 @@ class ValidatedTextFieldABC(ipyvuetify.TextField):
         self._current_value = kwargs["v_model"]
 
         if "style_" not in kwargs:
-            kwargs["style_"] = "max-width: 120px; width: 120px; height:40px"
+            kwargs["style_"] = "max-width: 120px; width: 120px; height:30px"
 
         super().__init__(*args, filled=True, **kwargs)
-
-
         self.observe(self.valid_entry, names="v_model")
 
     def valid_entry(self, *args, **kwargs):
@@ -93,8 +91,8 @@ class NumberEntryWidget:
         )
         self.textfield.continuous_update_in_progress = False
 
-        self.slider.on_event("start", self.slider_progress_toggle)
-        self.slider.on_event("end", self.slider_progress_toggle)
+        self.slider.on_event("start", self.slider_in_progress_toggle)
+        self.slider.on_event("end", self.slider_in_progress_toggle)
         self.slider.observe(self.update_textfield, names="v_model")
         self.textfield.observe(self.update_slider, names="v_model")
 
@@ -104,7 +102,7 @@ class NumberEntryWidget:
 
     def widget(self):
         return ipyvuetify.Container(
-            class_=self.class_ or "d-flex flex-row",
+            class_=self.class_ or "d-flex flex-row pr-4",
             style_=self.style_,
             children=[self.textfield, self.slider],
         )
@@ -133,7 +131,7 @@ class NumberEntryWidget:
             self.slider.color = ""
             self.slider.v_model = self.textfield.valid_type(self.textfield.v_model)
 
-    def slider_progress_toggle(self, *args):
+    def slider_in_progress_toggle(self, *args):
         self.textfield.continuous_update_in_progress = not self.textfield.continuous_update_in_progress
         if not self.textfield.continuous_update_in_progress:
             self.textfield.v_model = str(self.slider.v_model)  # This is a hack... need to trigger final "change" event
