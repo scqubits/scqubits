@@ -16,8 +16,10 @@ class ValidatedTextFieldABC(ipyvuetify.TextField):
 
         if "style_" not in kwargs:
             kwargs["style_"] = "max-width: 120px; width: 120px; height:30px"
+        if not kwargs.get("filled"):
+            kwargs["filled"] = True
 
-        super().__init__(*args, filled=True, **kwargs)
+        super().__init__(*args, **kwargs)
         self.observe(self.valid_entry, names="v_model")
 
     def valid_entry(self, *args, **kwargs):
