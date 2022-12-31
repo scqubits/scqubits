@@ -11,15 +11,18 @@
 ############################################################################
 
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Any
 
 import ipyvuetify as v
 import ipywidgets
+import numpy as np
 
+import scqubits as scq
 import scqubits.core.noise as noise
-import scqubits.ui.custom_ipyvuetify as ui
+import scqubits.ui.gui_custom_widgets as ui
+from scqubits.core.qubit_base import QubitBaseClass
 
-from scqubits.ui import gui_defaults as gui_defaults
+from scqubits.ui import gui_defaults as gui_defaults, gui_custom_widgets as ui
 
 
 def init_qubit_dropdown():
@@ -93,6 +96,13 @@ def init_manual_update_widget(switch, button):
 def flex_row(*widgets):
     return v.Container(
         class_="d-flex flex-row",
+        children=widgets,
+    )
+
+
+def flex_column(*widgets):
+    return v.Container(
+        class_="d-flex flex-column",
         children=widgets,
     )
 
@@ -255,3 +265,190 @@ def init_dict_v_noise_params(active_qubit) -> Dict[str, v.VuetifyWidget]:
         dict_v_noise_params[noise_param] = init_noise_param_floattextfield(noise_param)
 
     return dict_v_noise_params
+
+
+def init_qubit_params_widgets_dict(
+    qubit: QubitBaseClass,
+    qubit_params: Dict[str, float],
+    defaults: Dict[str, Any],
+) -> Dict[str, v.VuetifyWidget]:
+    """Creates all the widgets associated with the parameters of the
+    chosen qubit.
+    """
+    dict_v_qubit_params = {}
+
+    for param_name, param_val in qubit_params.items():
+        if isinstance(param_val, int):
+            kwargs = defaults.get(param_name) or defaults["int"]
+
+            dict_v_qubit_params[param_name] = ui.NumberEntryWidget(
+                num_type=int,
+                label=f"{param_name}",
+                v_model=param_val,
+                style_="max-width: 250px",
+                **kwargs,
+            )
+        else:
+            kwargs = defaults.get(param_name) or defaults["float"]
+            dict_v_qubit_params[param_name] = ui.NumberEntryWidget(
+                num_type=float,
+                label=f"{param_name}",
+                step=0.01,
+                v_model=param_val,
+                style_="max-width: 250px",
+                **kwargs,
+            )
+    if isinstance(qubit, (scq.ZeroPi, scq.FullZeroPi)):
+        grid_min = qubit.grid.min_val
+        grid_max = qubit.grid.max_val
+        dict_v_qubit_params["grid"] = v.RangeSlider(
+            min=-12 * np.pi,
+            max=12 * np.pi,
+            v_model=[grid_min, grid_max],
+            step=0.05,
+            thumb_label=True,
+            thumb_size="24",
+            style_="width: 200px",
+            label="Grid range",
+        )
+    return dict_v_qubit_params
+
+
+def init_ranges_widgets_dict(
+    qubit, dict_v_plot_options, dict_v_qubit_params
+) -> Dict[str, Any]:
+    """Creates all the widgets associated with changing the ranges of
+    certain qubit plot options as well as all of the qubit's parameters.
+    """
+    dict_v_ranges = {}
+    total_dict = {
+        **dict_v_plot_options,
+        **dict_v_qubit_params,
+    }
+
+    for widget_name, widget in total_dict.items():
+        if widget_name == "noise_channel_multiselect":
+            continue
+
+        widget_min_text = None
+        widget_max_text = None
+
+        if isinstance(widget, (v.Slider, ui.NumberEntryWidget)) and isinstance(
+            widget.v_model, int
+        ):
+            widget_min_text = ui.IntTextField(
+                v_model=widget.min,
+                label="min",
+                name="min",
+                style_="width: 80px",
+                class_="mp-3",
+            )
+            widget_max_text = ui.IntTextField(
+                v_model=widget.max,
+                label="max",
+                name="max",
+                style_="width: 80px",
+                class_="px-3",
+            )
+        elif isinstance(
+            widget, (v.Slider, v.RangeSlider, ui.NumberEntryWidget)
+        ) and isinstance(widget.v_model, float):
+            widget_min_text = ui.FloatTextField(
+                v_model=widget.min,
+                step=0.01,
+                label="min",
+                style_="width: 80px",
+                class_="px-3",
+            )
+            widget_max_text = ui.FloatTextField(
+                v_model=widget.max,
+                step=0.01,
+                label="max",
+                style_="width: 80px",
+                class_="px-3",
+            )
+        elif isinstance(widget, v.Select) and widget.multiple:
+            min_val = widget.items[0]
+            max_val = widget.items[-1]
+
+            widget_min_text = ui.IntTextField(
+                v_model=min_val,
+                name="min",
+                label="min",
+                style_="width: 80px",
+                class_="px-3",
+            )
+            widget_max_text = ui.IntTextField(
+                v_model=max_val,
+                name="max",
+                label="max",
+                style_="width: 80px",
+                class_="px-3",
+            )
+        else:
+            continue
+
+        dict_v_ranges[widget_name] = {
+            "min": widget_min_text,
+            "max": widget_max_text,
+        }
+
+    if isinstance(
+        qubit,
+        (scq.Transmon, scq.TunableTransmon, scq.Fluxonium, scq.FluxQubit),
+    ):
+        widget_min_text = ui.FloatTextField(
+            v_model=qubit._default_grid.min_val,
+            label="min",
+            step=0.01,
+            style_="width: 80px",
+            class_="px-3",
+        )
+        widget_max_text = ui.FloatTextField(
+            v_model=qubit._default_grid.max_val,
+            label="max",
+            step=0.01,
+            style_="width: 80px",
+            class_="px-3",
+        )
+        dict_v_ranges["phi"] = {
+            "min": widget_min_text,
+            "max": widget_max_text,
+        }
+    elif isinstance(qubit, scq.ZeroPi):
+        widget_min_text = ui.FloatTextField(
+            v_model=qubit._default_grid.min_val,
+            label="min",
+            step=0.01,
+            style_="width: 80px",
+            class_="px-3",
+        )
+        widget_max_text = ui.FloatTextField(
+            v_model=qubit._default_grid.max_val,
+            label="max",
+            step=0.01,
+            style_="width: 80px",
+            class_="px-3",
+        )
+        dict_v_ranges["theta"] = {
+            "min": widget_min_text,
+            "max": widget_max_text,
+        }
+    elif isinstance(qubit, scq.Cos2PhiQubit):
+        default_grids = {
+            "phi": qubit._default_phi_grid,
+            "theta": qubit._default_theta_grid,
+            "zeta": qubit._default_zeta_grid,
+        }
+        for param, param_grid in default_grids.items():
+            widget_min_text = ui.FloatTextField(
+                v_model=param_grid.min_val, label="min", step=0.01
+            )
+            widget_max_text = ui.FloatTextField(
+                v_model=param_grid.max_val, label="max", step=0.01
+            )
+            dict_v_ranges[param] = {
+                "min": widget_min_text,
+                "max": widget_max_text,
+            }
+    return dict_v_ranges

@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict
 
 import scqubits.core.units as units
 import scqubits.utils.misc as utils
-from scqubits.ui.custom_ipyvuetify import FloatTextField, IntTextField
+from scqubits.ui.gui_custom_widgets import FloatTextField, IntTextField
 
 try:
     import ipyvuetify

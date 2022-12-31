@@ -32,7 +32,7 @@ from scqubits.explorer import explorer_panels as panels
 from scqubits.ui.gui_defaults import (
     composite_panel_names,
     default_panels,
-    mode_dropdown_list,
+    mode_dropdown_dict,
     subsys_panel_names,
 )
 from scqubits.utils import misc as utils
@@ -760,14 +760,20 @@ class Explorer:
                     options=list(range(subsys.truncated_dim)), rows=6
                 )
             self.ui["mode_dropdown"] = Dropdown(
-                options=mode_dropdown_list,
+                options=list(
+                    zip(mode_dropdown_dict.keys(), mode_dropdown_dict.values())
+                ),
                 description="Plot as:",
             )
             return [self.ui["wavefunction_selector"], self.ui["mode_dropdown"]]
 
         if panel_name == "Matrix elements":
             ui_mode_dropdown = Dropdown(
-                options=mode_dropdown_list, description="Plot as:", value="abs"
+                options=list(
+                    zip(mode_dropdown_dict.keys(), mode_dropdown_dict.values())
+                ),
+                description="Plot as:",
+                value="abs",
             )
             ui_matrixscan_toggle = ToggleButtons(options=["fixed", "sweep"])
             ui_matrixscan_toggle.style.button_width = "55px"

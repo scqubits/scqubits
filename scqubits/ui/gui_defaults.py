@@ -254,19 +254,14 @@ composite_panel_names = ["Transitions", "Cross-Kerr, ac-Stark", "Custom data"]
 
 common_panels = ["Energy spectrum", "Wavefunctions"]
 
-mode_dropdown_list = [
-    "Re(·)",
-    "Im(·)",
-    "|·|",
-    "|\u00B7|\u00B2",
-]
-
 mode_dropdown_dict = {
     "Re(·)": "real",
     "Im(·)": "imag",
     "|·|": "abs",
     "|\u00B7|\u00B2": "abs_sqr",
 }
+
+mode_dropdown_list = list(mode_dropdown_dict.keys())
 
 default_panels = {qubit_name: common_panels for qubit_name in supported_qubits}
 default_panels["Oscillator"] = []
@@ -276,3 +271,4 @@ default_panels["Composite"] = ["Transitions"]
 PLOT_HEIGHT = "500px"
 FIG_WIDTH_INCHES = 6
 FIG_DPI = 150
+NAV_COLOR = "#f9fbff"

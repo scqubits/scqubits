@@ -1,3 +1,15 @@
+# gui_custom_widgets.py
+#
+# This file is part of scqubits: a Python package for superconducting qubits,
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
+#
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
+#    All rights reserved.
+#
+#    This source code is licensed under the BSD-style license found in the
+#    LICENSE file in the root directory of this source tree.
+############################################################################
+
 import ipyvuetify
 from IPython.core.display_functions import display
 
@@ -10,16 +22,16 @@ class ValidatedTextFieldABC(ipyvuetify.TextField):
     valid_type = None
     _current_value = None
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         self.continuous_update_in_progress = False
         self._current_value = kwargs["v_model"]
 
-        if "style_" not in kwargs:
-            kwargs["style_"] = "max-width: 120px; width: 120px; height:30px"
-        if not kwargs.get("filled"):
+        # if "style_" not in kwargs:
+        #     kwargs["style_"] = "max-width: 120px; width: 120px; height:30px"
+        if "filled" not in kwargs:
             kwargs["filled"] = True
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.observe(self.valid_entry, names="v_model")
 
     def valid_entry(self, *args, **kwargs):
@@ -55,8 +67,8 @@ class NumberEntryWidget:
         num_type,
         label,
         min=None,
-        max=None,
         step=None,
+        max=None,
         v_model=None,
         style_="",
         class_="",
@@ -75,6 +87,8 @@ class NumberEntryWidget:
             min = min if min is not None else 0
             max = max if max is not None else 100
             v_model = v_model if v_model is not None else min
+        else:
+            raise Exception("Unsupported type: ", num_type)
 
         self.class_ = class_
         self.style_ = style_
