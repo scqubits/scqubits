@@ -20,6 +20,8 @@ import numpy as np
 from qutip import Qobj
 from scipy.sparse import csc_matrix
 
+from scqubits.ui.gui_defaults import NAV_COLOR
+
 try:
     import ipywidgets
     import ipyvuetify as v
@@ -40,7 +42,7 @@ import scqubits
 from scqubits.core.oscillator import Oscillator
 from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass
 from scqubits.utils import misc as utils
-from scqubits.ui.custom_ipyvuetify import FloatTextField
+from scqubits.ui.gui_custom_widgets import FloatTextField
 
 QuantumSys = Union[QubitBaseClass, Oscillator]
 
@@ -64,10 +66,11 @@ class HilbertSpaceUi:
             width=40,
             min_width=40,
             height=40,
-            class_="ml-2",
+            class_="ml-2 mt-2",
         )
 
         self.subsys_widget = v.Select(
+            class_="px-2",
             v_model="",
             items=list(self.subsys_candidates_dict.keys()),
             menu_props={"closeOnContentClick": True},
@@ -88,7 +91,7 @@ class HilbertSpaceUi:
             width=40,
             min_width=40,
             height=40,
-            class_="ml-2",
+            class_="mt-2",
         )
 
         self.interact_list_widget = v.Select(
@@ -99,7 +102,7 @@ class HilbertSpaceUi:
             height=40,
             clearable=True,
             label="Edit interaction terms",
-            class_="ml-0",
+            class_="px-2",
             style_="width: 70%",
         )
 
@@ -127,17 +130,19 @@ class HilbertSpaceUi:
             dense=True,
         )
         self.g_widget = FloatTextField(
-            name="g_strength",
+            v_model="",
             label="g_strength",
-            onchange=lambda *args, **kwargs: None,
+            style_="",
             outlined=True,
             dense=True,
+            filled=False,
         )
         self.addhc_widget = v.Select(
             label="add_hc", items=["False", "True"], outlined=True, dense=True
         )
 
-        self.interact_box1 = v.Col(
+        self.interact_box1 = v.Container(
+            class_="d-flex flex-column",
             children=[
                 self.op1subsys_widget,
                 self.op1_ddown_widget,
@@ -145,13 +150,14 @@ class HilbertSpaceUi:
                 self.op2_ddown_widget,
                 self.g_widget,
                 self.addhc_widget,
-            ]
+            ],
         )
 
         self.string_expr_widget = v.TextField(
             label="expr", placeholder="e.g., EJ * cos(op1 - op2)"
         )
-        self.interact_box2 = v.Col(
+        self.interact_box2 = v.Container(
+            class_="d-flex flex-row",
             children=[
                 self.string_expr_widget,
                 self.op1subsys_widget,
@@ -166,16 +172,20 @@ class HilbertSpaceUi:
             v_model="tab",
             align_with_title=True,
             grow=True,
-            background_color="lightgrey",
+            background_color=NAV_COLOR,
             children=[
                 v.Tab(children=["g * op1 * op2"]),
                 v.Tab(children=["Python expr"]),
                 v.TabItem(
                     key="g * op1 * op2",
                     children=[self.interact_box1],
-                    style_="background-color: snow",
+                    style_="background-color: " + NAV_COLOR,
                 ),
-                v.TabItem(key="Python expr", children=[self.interact_box2]),
+                v.TabItem(
+                    key="Python expr",
+                    children=[self.interact_box2],
+                    style_="background-color: " + NAV_COLOR,
+                ),
             ],
         )
         # == Central run button ==================================
@@ -184,38 +194,42 @@ class HilbertSpaceUi:
         )
 
         # == Wrap everything into boxes ===============================================
-        self.all_panels = v.Row(
+        self.all_panels = v.Container(
+            class_="d-flex flex-row",
             children=[
-                v.Col(
+                v.Container(
+                    class_="d-flex flex-column col-6",
                     children=[
                         v.Row(
-                            children=[self.subsys_widget, self.subsys_refresh_button],
+                            children=[self.subsys_refresh_button, self.subsys_widget],
                         ),
                         v.Text(children=["Interaction terms:"], class_="mr-3"),
                         self.interact_display,
                         v.Spacer(style_="height: 400px"),
                         self.run_button,
                     ],
-                    class_="col-6",
                 ),
                 v.Spacer(),
                 v.Sheet(
                     children=[
-                        v.Row(
+                        v.Container(
+                            class_="d-flex flex-row",
                             children=[
-                                self.interact_list_widget,
                                 self.interact_new_button,
-                                self.tabs_select_interact_type,
+                                self.interact_list_widget,
                             ],
-                        )
+                        ),
+                        self.tabs_select_interact_type,
                     ],
                     class_="mr-3 col-5",
-                    style_="background-color: snow",
+                    style_="background-color: " + NAV_COLOR,
                 ),
             ],
         )
 
-        self.ui = v.Col(children=[self.all_panels, self.status_output])
+        self.ui = v.Container(
+            class_="d-flex flex-column", children=[self.all_panels, self.status_output]
+        )
 
         # == Make GUI connections =====================================================
         self.connect_ui()
@@ -265,7 +279,6 @@ class HilbertSpaceUi:
         def on_interact_list_changed(sender, event, value):
             self.current_interaction_key = tuple(value) if value else None
             self.current_interact_change()
-            print(self.interact_list_widget.items)
             self.update_interact_display()
 
         def on_interact_list_click_clear(sender, event, value):
@@ -364,9 +377,7 @@ class HilbertSpaceUi:
             not self.current_interaction_key
             or self.current_interaction_key == "!!disabled!!"
         ):
-            print("no update")
             return
-        print("update", self.op1subsys_widget)
         key = self.current_interaction_key
         self.interactions_dict[key]["subsys1"] = self.op1subsys_widget.v_model
         self.interactions_dict[key]["subsys2"] = self.op2subsys_widget.v_model
@@ -375,7 +386,6 @@ class HilbertSpaceUi:
         self.interactions_dict[key]["g_strength"] = self.g_widget.v_model
         self.interactions_dict[key]["add_hc"] = self.addhc_widget.v_model
         self.interactions_dict[key]["string_expr"] = self.string_expr_widget.v_model
-        print(self.interact_list_widget)
 
     @staticmethod
     def empty_interaction_term():
@@ -415,7 +425,6 @@ class HilbertSpaceUi:
 
         interaction_list = []
         for interaction_term in self.interactions_dict.values():
-            print(interaction_term)
             for param_name in ["subsys1", "subsys2"]:
                 if not interaction_term[param_name]:
                     self.status_output.children = [
