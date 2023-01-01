@@ -247,7 +247,7 @@ class GUI:
             ],
         )
 
-        save_widget = flex_row(self.v_save_btn, self.v_save_filename)
+        save_widget = flex_row([self.v_save_btn, self.v_save_filename])
 
         display(
             v.Container(
@@ -1205,9 +1205,10 @@ class GUI:
 
         plot_options_widgets_tuple = (
             self.dict_v_plot_options["scan_param"],
-            flex_column(
+            flex_column([
                 self.dict_v_plot_options["highest_state"],
-                self.dict_v_plot_options["subtract_ground"],
+                self.dict_v_plot_options["subtract_ground"]
+                ]
             ),
         )
         return plot_options_widgets_tuple
@@ -1324,15 +1325,15 @@ class GUI:
                 self.dict_v_plot_options["j_text"],
             ],
         )
-        checkbox_HBox = flex_column(
+        checkbox_HBox = flex_column([
             self.dict_v_plot_options["t1_checkbox"],
             self.dict_v_plot_options["t2_checkbox"],
-        )
+        ])
 
         plot_options_widgets_tuple = (
             self.dict_v_plot_options["scan_param"],
             self.dict_v_plot_options["noise_channel_multiselect"],
-            flex_column(text_HBox, checkbox_HBox),
+            flex_column([text_HBox, checkbox_HBox]),
         )
 
         return plot_options_widgets_tuple

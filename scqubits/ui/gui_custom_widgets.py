@@ -9,6 +9,7 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
+from typing import Union, List
 
 import ipyvuetify
 from IPython.core.display_functions import display
@@ -24,6 +25,9 @@ class ValidatedTextFieldABC(ipyvuetify.TextField):
 
     def __init__(self, **kwargs):
         self.continuous_update_in_progress = False
+
+        if "v_model" not in kwargs and "items" in kwargs:
+            kwargs["v_model"] = kwargs["items"][0]
         self._current_value = kwargs["v_model"]
 
         # if "style_" not in kwargs:
@@ -193,3 +197,83 @@ class NumberEntryWidget:
 
     def unobserve(self, *args, **kwargs):
         self.textfield.unobserve(*args, **kwargs)
+
+
+class InitSelect(ipyvuetify.Select):
+    def __init__(self, **kwargs):
+        if "v_model" not in kwargs and "items" in kwargs:
+            kwargs["v_model"] = kwargs["items"][0]
+        super().__init__(**kwargs)
+
+
+class vBtn(ipyvuetify.Btn):
+    def __init__(self, **kwargs):
+        onclick = kwargs.pop("onclick", None)
+        super().__init__(**kwargs)
+
+        if onclick:
+            self.on_event("click", onclick)
+
+
+class DiscreteSetSlider(ipyvuetify.Slider):
+    def __init__(self, param_vals, **kwargs):
+        self.val_count = len(param_vals)
+        self.param_vals = param_vals
+
+        min = 0
+        max = self.val_count - 1
+
+        super().__init__(min=min, max=max, step=1, v_model=min, **kwargs)
+
+    def current_value(self):
+        return self.param_vals[int(self.v_model)]
+
+
+class IconButton(vBtn):
+    def __init__(self, icon_name, **kwargs):
+        super().__init__(
+            **kwargs,
+            min_width=40,
+            width=40,
+            height=40,
+            elevation="0",
+            children=[ipyvuetify.Icon(children=[icon_name])]
+        )
+
+
+class NavbarElement(ipyvuetify.ExpansionPanels):
+    def __init__(
+        self,
+        header,
+        content: Union[None, ipyvuetify.ExpansionPanelContent] = None,
+        children: Union[None, List[ipyvuetify.VuetifyWidget]] = None,
+        **kwargs
+    ):
+        assert (content and not children) or (children and not content)
+
+        content = (
+            content
+            if isinstance(content, ipyvuetify.ExpansionPanelContent)
+            else ipyvuetify.ExpansionPanelContent(children=children)
+        )
+
+        super().__init__(
+            **kwargs,
+            **dict(
+                flat=True,
+                v_model=None,
+                children=[
+                    ipyvuetify.ExpansionPanel(
+                        accordion=True,
+                        children=[
+                            ipyvuetify.ExpansionPanelHeader(
+                                single_line=True,
+                                style_="font-size: 16px; font-weight: 500",
+                                children=[header],
+                            ),
+                            content,
+                        ],
+                    )
+                ],
+            )
+        )

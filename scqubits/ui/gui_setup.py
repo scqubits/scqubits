@@ -11,7 +11,7 @@
 ############################################################################
 
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 import ipyvuetify as v
 import ipywidgets
@@ -93,16 +93,16 @@ def init_manual_update_widget(switch, button):
     )
 
 
-def flex_row(*widgets):
+def flex_row(widgets: List[v.VuetifyWidget], class_="") -> v.Container:
     return v.Container(
-        class_="d-flex flex-row",
+        class_="d-flex flex-row " + class_,
         children=widgets,
     )
 
 
-def flex_column(*widgets):
+def flex_column(widgets: List[v.VuetifyWidget], class_="") -> v.Container:
     return v.Container(
-        class_="d-flex flex-column",
+        class_="d-flex flex-column " + class_,
         children=widgets,
     )
 
