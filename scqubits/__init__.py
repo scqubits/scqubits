@@ -54,7 +54,11 @@ from scqubits.io_utils.fileio import read, write
 # Import of custom-circuit modules needs to take place after other imports to
 # avoid circular import issues
 from scqubits.core.circuit import Circuit
-from scqubits.core.circuit_utils import truncation_template
+from scqubits.core.circuit_utils import (
+    truncation_template,
+    assemble_circuit,
+    assemble_transformation_matrix,
+)
 from scqubits.core.symbolic_circuit import SymbolicCircuit
 
 

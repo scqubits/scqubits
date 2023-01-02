@@ -414,7 +414,9 @@ def matrix_power_sparse(dense_mat: ndarray, n: int) -> csc_matrix:
 
 
 def assemble_circuit(
-    circuit_list: List[str], couplers: str
+    circuit_list: List[str],
+    couplers: str,
+    rename_parameters=False,
 ) -> Tuple[str, List[Dict[int, int]]]:
     """
     Assemble a yaml string for a large circuit that are made of smaller sub-circuits and coupling
@@ -432,8 +434,8 @@ def assemble_circuit(
     circuit_2 = '''
     branches:
     - [C, 0, 1, EC = 3]
-    - [JJ, 0, 1, EJ, ECJ]
-    - [L, 0, 1, EL]
+    - [JJ, 0, 1, EJ = 1, ECJ = 2]
+    - [L, 0, 1, EL = 0.5]
     '''
     circuit_list = [circuit_1, circuit_2]
     couplers = '''
@@ -441,7 +443,8 @@ def assemble_circuit(
     - [C, 1: 1, 2: 1, E_coup = 1]
     '''
 
-    The resulting yaml string for the assembled composite circuit is
+    If rename_parameters argument set to False, the resulting yaml string for the assembled
+    composite circuit is:
     branches:
     - [C, 0, 1, EC = 1]
     - [JJ, 0, 1, EJ = 20, ECJ = 3]
@@ -450,6 +453,17 @@ def assemble_circuit(
     - [JJ, 0, 2, EJ, ECJ]
     - [L, 0, 2, EL]
     - [C, 1, 2, E_coup = 1]
+
+    If rename_parameters argument set to True, the resulting yaml string for the assembled
+    composite circuit is:
+    branches:
+    - [C, 0, 1, EC_1 = 1]
+    - [JJ, 0, 1, EJ_1 = 20, ECJ_1 = 3]
+    - [L, 0, 1, EL_1 = 10]
+    - [C, 0, 2, EC_2 = 3]
+    - [JJ, 0, 2, EJ_2 = 1, ECJ_2 = 2]
+    - [L, 0, 2, EL_2 = 0.5]
+    - [C, 1, 2, E_coup_12 = 1]
 
     The yaml strings for each coupler circuit follow the syntax of input strings used in the
     custom circuit module, whereas the syntax for coupler branches is different. Each coupler
@@ -468,6 +482,9 @@ def assemble_circuit(
         A list of yaml strings encoding branches of sub-circuits.
     couplers:
         A yaml string that encodes information of coupler branches
+    rename_parameters:
+        If set to True, parameters in the sub-circuits will be renamed as <original-parameter-name>_<sub-circuit-index>
+        parameters in the couplers will be renamed as <original-parameter-name>_<sub-circuit-1-index><sub-circuit-2-index>
 
     Returns
     -------
@@ -551,18 +568,42 @@ def assemble_circuit(
             # include parameters
             for word in subcircuit_branch[3 : 3 + num_params]:
                 if not is_float_string(word):
-                    if len(word.split("=")) == 2:
-                        param_str, init_val = word.split("=")
-                        param_str, init_val = param_str.strip(), float(init_val.strip())
-                        # if the parameter is already initialized, the subsequent initialization
-                        # is neglected
-                        if param_str in param_dict:
-                            composite_circuit_yaml += str(param_str) + ", "
-                        else:
+                    if not rename_parameters:
+                        if len(word.split("=")) == 2:
+                            param_str, init_val = word.split("=")
+                            param_str, init_val = param_str.strip(), float(
+                                init_val.strip()
+                            )
+                            # if the parameter is already initialized, the subsequent initialization
+                            # is neglected
+                            if param_str in param_dict:
+                                composite_circuit_yaml += str(param_str) + ", "
+                            else:
+                                composite_circuit_yaml += str(word) + ", "
+                                param_dict[param_str] = init_val
+                        elif len(word.split("=")) == 1:
                             composite_circuit_yaml += str(word) + ", "
-                            param_dict[param_str] = init_val
-                    elif len(word.split("=")) == 1:
-                        composite_circuit_yaml += str(word) + ", "
+                    else:
+                        if len(word.split("=")) == 2:
+                            param_str, init_val = word.split("=")
+                            param_str, init_val = param_str.strip(), float(
+                                init_val.strip()
+                            )
+                            composite_circuit_yaml += (
+                                param_str
+                                + "_"
+                                + str(subcircuit_index + 1)
+                                + " = "
+                                + str(init_val)
+                                + ", "
+                            )
+                        elif len(word.split("=")) == 1:
+                            composite_circuit_yaml += (
+                                str(word.strip())
+                                + "_"
+                                + str(subcircuit_index + 1)
+                                + ", "
+                            )
                 else:
                     composite_circuit_yaml += str(word) + ", "
             composite_circuit_yaml += "]\n"
@@ -596,18 +637,40 @@ def assemble_circuit(
         # include parameters
         for word in coupler_branch[3 : 3 + num_params]:
             if not is_float_string(word):
-                if len(word.split("=")) == 2:
-                    param_str, init_val = word.split("=")
-                    param_str, init_val = param_str.strip(), float(init_val.strip())
-                    # if the parameter is already initialized, the subsequent initialization
-                    # is neglected
-                    if param_str in param_dict:
-                        composite_circuit_yaml += str(param_str) + ", "
-                    else:
+                if not rename_parameters:
+                    if len(word.split("=")) == 2:
+                        param_str, init_val = word.split("=")
+                        param_str, init_val = param_str.strip(), float(init_val.strip())
+                        # if the parameter is already initialized, the subsequent initialization
+                        # is neglected
+                        if param_str in param_dict:
+                            composite_circuit_yaml += str(param_str) + ", "
+                        else:
+                            composite_circuit_yaml += str(word) + ", "
+                            param_dict[param_str] = init_val
+                    elif len(word.split("=")) == 1:
                         composite_circuit_yaml += str(word) + ", "
-                        param_dict[param_str] = init_val
-                elif len(word.split("=")) == 1:
-                    composite_circuit_yaml += str(word) + ", "
+                else:
+                    if len(word.split("=")) == 2:
+                        param_str, init_val = word.split("=")
+                        param_str, init_val = param_str.strip(), float(init_val.strip())
+                        composite_circuit_yaml += (
+                            param_str
+                            + "_"
+                            + str(list(coupler_branch[1].keys())[0])
+                            + str(list(coupler_branch[2].keys())[0])
+                            + " = "
+                            + str(init_val)
+                            + ", "
+                        )
+                    elif len(word.split("=")) == 1:
+                        composite_circuit_yaml += (
+                            str(word.strip())
+                            + "_"
+                            + str(list(coupler_branch[1].keys())[0])
+                            + str(list(coupler_branch[2].keys())[0])
+                            + ", "
+                        )
             else:
                 composite_circuit_yaml += str(word) + ", "
         composite_circuit_yaml += "]\n"
