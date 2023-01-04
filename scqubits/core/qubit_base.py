@@ -212,7 +212,7 @@ class QuantumSystem(DispatchClient, ABC):
         init_params = params or self.get_initdata()
         init_params.pop("id_str", None)
         ui.create_widget(
-            self.set_params, init_params, image_filename=self._image_filename
+            self.set_params_from_gui, init_params, image_filename=self._image_filename
         )
 
     @staticmethod
@@ -220,6 +220,15 @@ class QuantumSystem(DispatchClient, ABC):
     def default_params() -> Dict[str, Any]:
         """Return dictionary with default parameter values for initialization of
         class instance"""
+
+    def set_params_from_gui(self, change):
+        """
+        Set new parameters through the provided dictionary.
+        """
+        param_name = change["owner"].name
+        param_val = change["owner"].num_value
+        print(param_name, param_val)
+        setattr(self, param_name, param_val)
 
     def set_params(self, **kwargs):
         """

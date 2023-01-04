@@ -66,7 +66,6 @@ def create_widget(
             enter_widget = IntTextField
 
         widgets[name] = enter_widget(
-            onchange=callback_func,
             v_model=value,
             placeholder=f"enter appropriate value for {label_str}",
             label=label_str,
@@ -77,9 +76,8 @@ def create_widget(
             style_="width: 40%;",
             class_="ml-2",
         )
-        box_list.append(
-            widgets[name],
-        )
+        widgets[name].observe(callback_func, names="v_model")
+        box_list.append(widgets[name])
 
     if image_filename:
         file = open(image_filename, "rb")

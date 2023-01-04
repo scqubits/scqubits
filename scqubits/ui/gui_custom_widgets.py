@@ -25,13 +25,12 @@ class ValidatedTextFieldABC(ipyvuetify.TextField):
 
     def __init__(self, **kwargs):
         self.continuous_update_in_progress = False
+        self.name = kwargs.pop("name", None)
 
         if "v_model" not in kwargs and "items" in kwargs:
             kwargs["v_model"] = kwargs["items"][0]
         self._current_value = kwargs["v_model"]
 
-        # if "style_" not in kwargs:
-        #     kwargs["style_"] = "max-width: 120px; width: 120px; height:30px"
         if "filled" not in kwargs:
             kwargs["filled"] = True
 
@@ -58,6 +57,7 @@ class ValidatedTextFieldABC(ipyvuetify.TextField):
 class IntTextField(ValidatedTextFieldABC):
     is_valid = staticmethod(utils.is_string_int)
     valid_type = int
+    step = 1
 
 
 class FloatTextField(ValidatedTextFieldABC):
@@ -131,7 +131,7 @@ class NumberEntryWidget:
             return getattr(self.textfield, item)
         if hasattr(self.slider, item):
             return getattr(self.slider, item)
-        raise
+        raise Exception(f"NumberEntryWidget.{item} does not exist.")
 
     def update_textfield(self, *args):
         if self.textfield.continuous_update_in_progress:
@@ -254,12 +254,13 @@ class NavbarElement(ipyvuetify.ExpansionPanels):
         content = (
             content
             if isinstance(content, ipyvuetify.ExpansionPanelContent)
-            else ipyvuetify.ExpansionPanelContent(children=children)
+            else ipyvuetify.ExpansionPanelContent(class_="text-no-wrap", style_="transform: scale(0.9)", children=children)
         )
 
         super().__init__(
             **kwargs,
             **dict(
+                transition=False,
                 flat=True,
                 v_model=None,
                 children=[
@@ -267,8 +268,9 @@ class NavbarElement(ipyvuetify.ExpansionPanels):
                         accordion=True,
                         children=[
                             ipyvuetify.ExpansionPanelHeader(
-                                single_line=True,
+                                disable_icon_rotate=True,
                                 style_="font-size: 16px; font-weight: 500",
+                                class_="text-no-wrap",
                                 children=[header],
                             ),
                             content,
