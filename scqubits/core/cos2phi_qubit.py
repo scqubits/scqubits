@@ -202,10 +202,10 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         get_rate: bool = False,
     ) -> float:
         r"""
-        :math:`T_1` due to dielectric dissipation in Josephson junction
-        capacitors.
+        :math:`T_1` due to dielectric dissipation in the Josephson junction
+        capacitances.
 
-        References:  nguyen et al (2019), Smith et al (2020)
+        References:  Nguyen et al (2019), Smith et al (2020)
 
         Parameters
         ----------
@@ -227,8 +227,9 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
 
         Returns
         -------
-        time or rate
-            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+        time or rate: float
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
+             in inverse units.
 
         """
         if "t1_capacitive" not in self.supported_noise_channels():
@@ -725,14 +726,14 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         sin_op = (
             0.5
             * sparse.dia_matrix(
-                (np.ones(self._dim_theta()), [1]),
+                (np.ones(self._dim_theta()), [-1]),
                 shape=(self._dim_theta(), self._dim_theta()),
             ).tocsc()
         )
         sin_op -= (
             0.5
             * sparse.dia_matrix(
-                (np.ones(self._dim_theta()), [-1]),
+                (np.ones(self._dim_theta()), [1]),
                 shape=(self._dim_theta(), self._dim_theta()),
             ).tocsc()
         )

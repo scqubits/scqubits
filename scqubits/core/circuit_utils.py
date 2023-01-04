@@ -241,7 +241,7 @@ def _exp_i_theta_operator(ncut) -> csc_matrix:
     """
     dim_theta = 2 * ncut + 1
     matrix = sparse.dia_matrix(
-        (np.ones(dim_theta), [1]),
+        (np.ones(dim_theta), [-1]),
         shape=(dim_theta, dim_theta),
     ).tocsc()
     return matrix
@@ -253,7 +253,7 @@ def _exp_i_theta_operator_conjugate(ncut) -> csc_matrix:
     """
     dim_theta = 2 * ncut + 1
     matrix = sparse.dia_matrix(
-        (np.ones(dim_theta), [-1]),
+        (np.ones(dim_theta), [1]),
         shape=(dim_theta, dim_theta),
     ).tocsc()
     return matrix
