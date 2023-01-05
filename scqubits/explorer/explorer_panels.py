@@ -162,6 +162,8 @@ def display_bare_wavefunctions(
     subsys: "QubitBaseClass",
     param_slice: "ParameterSlice",
     fig_ax: Tuple[Figure, Axes],
+    mode="real",
+    which=-1
 ) -> None:
     subsys_index = sweep.get_subsys_index(subsys)
 
@@ -174,7 +176,7 @@ def display_bare_wavefunctions(
 
     title = "wavefunctions: {}".format(subsys.id_str)
     __ = subsys.plot_wavefunction(
-        which=-1, esys=(evals, evecs), title=title, fig_ax=fig_ax
+        which=which, esys=(evals, evecs), mode=mode, title=title, fig_ax=fig_ax
     )
 
 

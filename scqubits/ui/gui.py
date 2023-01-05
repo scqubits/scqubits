@@ -201,13 +201,13 @@ class GUI:
 
         main_tab = v.Sheet(
             class_="d-flex d-row",
-            style_="height: 300px, max_height: 300px",
+            style_="height: 280px, max_height: 280px",
             children=[self.main_tab_widgets()],
         )
         param_ranges_tab = v.Sheet(
             class_="d-flex flex-column flex-wrap overflow-auto",
             dense=True,
-            style_="max-height: 600px;",
+            style_="max-height: 500px;",
             children=self.param_ranges_tab_widgets(),
         )
         qubit_info_tab = v.Sheet(children=[self.qubit_info_tab()])
@@ -215,8 +215,8 @@ class GUI:
             class_="d-flex flex-column", children=self.literature_params_tab_widgets()
         )
         noise_param_tab = v.Sheet(
+            class_="d-flex flex-column flex-wrap overflow-auto",
             children=[self.noise_params_tab_widgets()],
-            style_="max_height: 600px",
         )
 
         self.v_tabs.children = [
@@ -1126,7 +1126,7 @@ class GUI:
         qubit_params_grid = self.qubit_params_widgets()
 
         main_tab = v.Container(
-            class_="d-flex flex-row ml-0 mr-0",
+            class_="d-flex flex-row mx-0 px-0",
             children=[
                 v.Container(
                     style_="transform: scale(0.85)",
@@ -1134,7 +1134,7 @@ class GUI:
                     children=plot_option_list,
                 ),
                 v.Container(
-                    style_="transform: scale(0.85); max-height: 400px",
+                    style_="transform: scale(0.85); max-height: 350px",
                     class_="d-flex align-start flex-column flex-wrap flex-align-content-start overflow-auto",
                     children=qubit_params_grid,
                 ),
@@ -1159,9 +1159,9 @@ class GUI:
 
     def noise_params_tab_widgets(self) -> v.Container:
         noise_params_grid = v.Container(
-            class_="d-flex flex-column flex-wrap",
+            class_="d-flex flex-column flex-wrap py-3",
             children=[],
-            style_="max-width: 400px",
+            style_="max-height: 400px",
         )
         noise_params_grid.children = list(self.dict_v_noise_params.values())
         return noise_params_grid

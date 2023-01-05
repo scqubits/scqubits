@@ -286,6 +286,7 @@ def init_qubit_params_widgets_dict(
                 label=f"{param_name}",
                 v_model=param_val,
                 style_="max-width: 250px",
+                text_kwargs={"min_height": 40, "height": 40, "dense": True},
                 **kwargs,
             )
         else:
@@ -296,6 +297,7 @@ def init_qubit_params_widgets_dict(
                 step=0.01,
                 v_model=param_val,
                 style_="max-width: 250px",
+                text_kwargs={"min_height": 40, "height": 40, "dense": True},
                 **kwargs,
             )
     if isinstance(qubit, (scq.ZeroPi, scq.FullZeroPi)):

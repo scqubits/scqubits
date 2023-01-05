@@ -227,7 +227,6 @@ class QuantumSystem(DispatchClient, ABC):
         """
         param_name = change["owner"].name
         param_val = change["owner"].num_value
-        print(param_name, param_val)
         setattr(self, param_name, param_val)
 
     def set_params(self, **kwargs):

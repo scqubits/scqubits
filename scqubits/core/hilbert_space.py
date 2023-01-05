@@ -375,6 +375,7 @@ class HilbertSpace(
         self._current_param_indices = 0
         self._evals_count = self.dimension
         self._out_of_sync = False
+        self._out_of_sync_warning_issued = False
         # end attributes for compatibility with SpectrumLookupMixin
 
         dispatch.CENTRAL_DISPATCH.register("QUANTUMSYSTEM_UPDATE", self)
@@ -437,6 +438,20 @@ class HilbertSpace(
 
     def __len__(self):
         return len(self._subsystems)
+    #
+    # @property
+    # def _out_of_sync(self):
+    #     return self._out_of_sync_
+    #
+    # @_out_of_sync.setter
+    # def _out_of_sync(self, value):
+    #     if value:
+    #         self._out_of_sync = True
+    #     else:
+    #         self._out_of_sync_ = False
+    #
+    #
+    #
 
     @property
     def hilbertspace(self) -> HilbertSpace:
@@ -551,6 +566,8 @@ class HilbertSpace(
     # HilbertSpace: generate SpectrumLookup
     ###################################################################################
     def generate_lookup(self, update_subsystem_indices: List[int] = None) -> None:
+        self._out_of_sync = False
+        self._out_of_sync_warning_issued = False
 
         bare_esys_dict = self.generate_bare_esys(
             update_subsystem_indices=update_subsystem_indices

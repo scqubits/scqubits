@@ -121,6 +121,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     _hilbertspace: HilbertSpace
 
     _out_of_sync = False
+    _out_of_sync_warning_issued = False
     _current_param_indices: NpIndices
 
     @property
@@ -993,6 +994,8 @@ class ParameterSweep(  # type:ignore
         """Create all sweep data: bare spectral data, dressed spectral data, lookup
         data and custom sweep data."""
         # generate one dispatch before temporarily disabling CENTRAL_DISPATCH
+        self._out_of_sync = False
+        self._out_of_sync_warning_issued = False
 
         if self._deepcopy:
             stored_hilbertspace = copy.deepcopy(self.hilbertspace)
