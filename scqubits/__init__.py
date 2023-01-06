@@ -24,14 +24,6 @@ import warnings
 from scqubits import settings
 # core
 from scqubits.core.central_dispatch import CentralDispatch
-# Import of custom-circuit modules needs to take place after other imports to
-# avoid circular import issues
-from scqubits.core.circuit import Circuit
-from scqubits.core.circuit_utils import (
-    truncation_template,
-    assemble_circuit,
-    assemble_transformation_matrix,
-)
 from scqubits.core.cos2phi_qubit import Cos2PhiQubit
 from scqubits.core.discretization import Grid1d
 from scqubits.core.flux_qubit import FluxQubit
@@ -73,6 +65,15 @@ from scqubits.utils.misc import about, cite
 
 # spectrum utils
 from scqubits.utils.spectrum_utils import identity_wrap
+
+# Import of custom-circuit modules needs to take place after other imports to
+# avoid circular import issues
+from scqubits.core.circuit import Circuit
+from scqubits.core.circuit_utils import (
+    truncation_template,
+    assemble_circuit,
+    assemble_transformation_matrix,
+)
 
 # version
 try:
