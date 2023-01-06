@@ -22,9 +22,16 @@ Matplotlib."""
 import warnings
 
 from scqubits import settings
-
 # core
 from scqubits.core.central_dispatch import CentralDispatch
+# Import of custom-circuit modules needs to take place after other imports to
+# avoid circular import issues
+from scqubits.core.circuit import Circuit
+from scqubits.core.circuit_utils import (
+    truncation_template,
+    assemble_circuit,
+    assemble_transformation_matrix,
+)
 from scqubits.core.cos2phi_qubit import Cos2PhiQubit
 from scqubits.core.discretization import Grid1d
 from scqubits.core.flux_qubit import FluxQubit
@@ -35,6 +42,7 @@ from scqubits.core.noise import calc_therm_ratio
 from scqubits.core.oscillator import KerrOscillator, Oscillator
 from scqubits.core.param_sweep import ParameterSweep
 from scqubits.core.storage import DataStore, SpectrumData
+from scqubits.core.symbolic_circuit import SymbolicCircuit
 from scqubits.core.transmon import Transmon, TunableTransmon
 from scqubits.core.units import (
     from_standard_units,
@@ -46,17 +54,8 @@ from scqubits.core.units import (
 )
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
-
 # file IO
 from scqubits.io_utils.fileio import read, write
-
-
-# Import of custom-circuit modules needs to take place after other imports to
-# avoid circular import issues
-from scqubits.core.circuit import Circuit
-from scqubits.core.circuit_utils import truncation_template
-from scqubits.core.symbolic_circuit import SymbolicCircuit
-
 
 # GUI
 try:

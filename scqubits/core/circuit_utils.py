@@ -11,18 +11,18 @@
 ############################################################################
 
 import re
-
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union, Tuple
 
 import numpy as np
+import scipy as sp
 import sympy as sm
-
+import yaml
 from numpy import ndarray
 from scipy import sparse
 from scipy.sparse import csc_matrix
 
 from scqubits.core import discretization as discretization
-from scqubits.utils.misc import flatten_list_recursive
+from scqubits.utils.misc import flatten_list_recursive, is_float_string
 
 if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem
@@ -416,3 +416,287 @@ def round_symbolic_expr(expr: sm.Expr, number_of_digits: int) -> sm.Expr:
         if isinstance(term, sm.Float):
             rounded_expr = rounded_expr.subs(term, round(term, number_of_digits))
     return rounded_expr
+
+def assemble_circuit(
+    circuit_list: List[str],
+    couplers: str,
+    rename_parameters=False,
+) -> Tuple[str, List[Dict[int, int]]]:
+    """
+    Assemble a yaml string for a large circuit that are made of smaller sub-circuits and coupling
+    elements. This method takes a list of Sub-circuit yaml strings as the first argument, and a
+    yaml string that characterize the coupler branches as the second argument. For example, if
+    one wish to make a yaml string for a circuit consist of a grounded fluxonium capacitively
+    coupled to another fluxonium, then one need to define:
+
+    circuit_1 = '''
+    branches:
+    - [C, 0, 1, EC = 1]
+    - [JJ, 0, 1, EJ = 20, ECJ = 3]
+    - [L, 0, 1, EL = 10]
+    '''
+    circuit_2 = '''
+    branches:
+    - [C, 0, 1, EC = 3]
+    - [JJ, 0, 1, EJ = 1, ECJ = 2]
+    - [L, 0, 1, EL = 0.5]
+    '''
+    circuit_list = [circuit_1, circuit_2]
+    couplers = '''
+    couplers:
+    - [C, 1: 1, 2: 1, E_coup = 1]
+    '''
+
+    If rename_parameters argument set to False, the resulting yaml string for the assembled
+    composite circuit is:
+    branches:
+    - [C, 0, 1, EC = 1]
+    - [JJ, 0, 1, EJ = 20, ECJ = 3]
+    - [L, 0, 1, EL = 10]
+    - [C, 0, 2, EC]
+    - [JJ, 0, 2, EJ, ECJ]
+    - [L, 0, 2, EL]
+    - [C, 1, 2, E_coup = 1]
+
+    If rename_parameters argument set to True, the resulting yaml string for the assembled
+    composite circuit is:
+    branches:
+    - [C, 0, 1, EC_1 = 1]
+    - [JJ, 0, 1, EJ_1 = 20, ECJ_1 = 3]
+    - [L, 0, 1, EL_1 = 10]
+    - [C, 0, 2, EC_2 = 3]
+    - [JJ, 0, 2, EJ_2 = 1, ECJ_2 = 2]
+    - [L, 0, 2, EL_2 = 0.5]
+    - [C, 1, 2, E_coup_12 = 1]
+
+    The yaml strings for each coupler circuit follow the syntax of input strings used in the
+    custom circuit module, whereas the syntax for coupler branches is different. Each coupler
+    branch is represented by:
+    <branch-type>, <subcircuit-index>:<node-index-of-the-circuit>, <subcircuit-index>:<node-index-of-the-circuit>, <param-1> [, <param-2>]]
+
+    All the grounded sub-circuit share the same ground node in the composite circuit.
+    The parameter symbols are global, i.e. the same parameter symbol that appears in different
+    subcircuit yaml strings will be treated as one parameter in the composite circuit. The
+    symbolic parameters are only initialized once, with the value specified at the first
+    instance of appearance (notice the initial value for EC in the above example).
+
+    Parameters
+    ----------
+    circuit_list:
+        A list of yaml strings encoding branches of sub-circuits.
+    couplers:
+        A yaml string that encodes information of coupler branches
+    rename_parameters:
+        If set to True, parameters in the sub-circuits will be renamed as <original-parameter-name>_<sub-circuit-index>
+        parameters in the couplers will be renamed as <original-parameter-name>_<sub-circuit-1-index><sub-circuit-2-index>
+
+    Returns
+    -------
+        A yaml string for the composite circuit, which can be used as the input for the custom
+        circuit module, and a list of dictionaries which provides the mapping between the
+        node indices of the sub-circuits (keys) and those of the composite circuit (values).
+    """
+    # identify numbers of subcircuits
+    subcircuit_number = len(circuit_list)
+    subcircuit_branches_list = []
+    subcircuit_nodes_list = []
+    subcircuit_is_grounded_list = []
+    subcircuit_node_number_list = []
+    subcircuit_node_index_dict_list = []
+    for circuit_yaml in circuit_list:
+        # load subcircuit yaml strings
+        subcircuit_branches = yaml.load(circuit_yaml, Loader=yaml.FullLoader)[
+            "branches"
+        ]
+        # append the dictionary for each subcircuit
+        subcircuit_branches_list.append(subcircuit_branches)
+        # for each subcircuit, extract their node indices
+        subcircuit_nodes = [
+            [subcircuit_branch[1], subcircuit_branch[2]]
+            for subcircuit_branch in subcircuit_branches
+        ]
+        subcircuit_nodes = [*set(flatten_list_recursive(subcircuit_nodes))]
+        # add node indices of each subcircuit to a single list
+        subcircuit_nodes_list.append(subcircuit_nodes)
+        # add total node number of each subcircuit to a single list
+        subcircuit_node_number_list.append(len(subcircuit_nodes))
+        subcircuit_is_grounded_list.append(True if (0 in subcircuit_nodes) else False)
+    # generate a dictionary for each subcircuit which has subcircuit node indices as keys and
+    # the assembled circuit node indices as values
+    node_index_offset = 0
+    for subcircuit_index in range(subcircuit_number):
+        subcircuit_node_index_dict = {}
+        for subcircuit_node_index in subcircuit_nodes_list[subcircuit_index]:
+            subcircuit_node_index_dict[subcircuit_node_index] = (
+                subcircuit_node_index + node_index_offset
+            )
+        if subcircuit_is_grounded_list[subcircuit_index]:
+            subcircuit_node_index_dict[0] = 0
+        node_index_offset += (
+            subcircuit_node_number_list[subcircuit_index]
+            - subcircuit_is_grounded_list[subcircuit_index]
+        )
+        subcircuit_node_index_dict_list.append(subcircuit_node_index_dict)
+    # create new yaml string for the composite circuit
+    composite_circuit_yaml = "\nbranches:\n"
+    # initialize parameter dictionary
+    param_dict = {}
+    # write all the subcircuit branch info into the composite circuit yaml,
+    # converting their node indices
+    for subcircuit_index in range(subcircuit_number):
+        for subcircuit_branch in subcircuit_branches_list[subcircuit_index]:
+            composite_circuit_yaml += " - ["
+            # identify branch type
+            branch_type = subcircuit_branch[0]
+            composite_circuit_yaml += branch_type + " ,"
+            # include the converted first node index
+            composite_circuit_yaml += (
+                str(
+                    subcircuit_node_index_dict_list[subcircuit_index][
+                        subcircuit_branch[1]
+                    ]
+                )
+                + " ,"
+            )
+            # include the converted second node index
+            composite_circuit_yaml += (
+                str(
+                    subcircuit_node_index_dict_list[subcircuit_index][
+                        subcircuit_branch[2]
+                    ]
+                )
+                + " ,"
+            )
+            # identify parameter numbers
+            num_params = 2 if branch_type in ["JJ", "JJ2"] else 1
+            # include parameters
+            for word in subcircuit_branch[3 : 3 + num_params]:
+                if not is_float_string(word):
+                    if not rename_parameters:
+                        if len(word.split("=")) == 2:
+                            param_str, init_val = word.split("=")
+                            param_str, init_val = param_str.strip(), float(
+                                init_val.strip()
+                            )
+                            # if the parameter is already initialized, the subsequent initialization
+                            # is neglected
+                            if param_str in param_dict:
+                                composite_circuit_yaml += str(param_str) + ", "
+                            else:
+                                composite_circuit_yaml += str(word) + ", "
+                                param_dict[param_str] = init_val
+                        elif len(word.split("=")) == 1:
+                            composite_circuit_yaml += str(word) + ", "
+                    else:
+                        if len(word.split("=")) == 2:
+                            param_str, init_val = word.split("=")
+                            param_str, init_val = param_str.strip(), float(
+                                init_val.strip()
+                            )
+                            composite_circuit_yaml += (
+                                param_str
+                                + "_"
+                                + str(subcircuit_index + 1)
+                                + " = "
+                                + str(init_val)
+                                + ", "
+                            )
+                        elif len(word.split("=")) == 1:
+                            composite_circuit_yaml += (
+                                str(word.strip())
+                                + "_"
+                                + str(subcircuit_index + 1)
+                                + ", "
+                            )
+                else:
+                    composite_circuit_yaml += str(word) + ", "
+            composite_circuit_yaml += "]\n"
+    # add coupling branches to the composite circuit yaml string
+    # load coupler yaml strings
+    coupler_branches = yaml.load(couplers, Loader=yaml.FullLoader)["couplers"]
+    for coupler_branch in coupler_branches:
+        composite_circuit_yaml += " - ["
+        branch_type = coupler_branch[0]
+        composite_circuit_yaml += branch_type + ", "
+        # include the converted first node index
+        composite_circuit_yaml += (
+            str(
+                subcircuit_node_index_dict_list[list(coupler_branch[1].keys())[0] - 1][
+                    list(coupler_branch[1].values())[0]
+                ]
+            )
+            + " ,"
+        )
+        # include the converted second node index
+        composite_circuit_yaml += (
+            str(
+                subcircuit_node_index_dict_list[list(coupler_branch[2].keys())[0] - 1][
+                    list(coupler_branch[2].values())[0]
+                ]
+            )
+            + " ,"
+        )
+        # identify parameter numbers
+        num_params = 2 if branch_type in ["JJ", "JJ2"] else 1
+        # include parameters
+        for word in coupler_branch[3 : 3 + num_params]:
+            if not is_float_string(word):
+                if not rename_parameters:
+                    if len(word.split("=")) == 2:
+                        param_str, init_val = word.split("=")
+                        param_str, init_val = param_str.strip(), float(init_val.strip())
+                        # if the parameter is already initialized, the subsequent initialization
+                        # is neglected
+                        if param_str in param_dict:
+                            composite_circuit_yaml += str(param_str) + ", "
+                        else:
+                            composite_circuit_yaml += str(word) + ", "
+                            param_dict[param_str] = init_val
+                    elif len(word.split("=")) == 1:
+                        composite_circuit_yaml += str(word) + ", "
+                else:
+                    if len(word.split("=")) == 2:
+                        param_str, init_val = word.split("=")
+                        param_str, init_val = param_str.strip(), float(init_val.strip())
+                        composite_circuit_yaml += (
+                            param_str
+                            + "_"
+                            + str(list(coupler_branch[1].keys())[0])
+                            + str(list(coupler_branch[2].keys())[0])
+                            + " = "
+                            + str(init_val)
+                            + ", "
+                        )
+                    elif len(word.split("=")) == 1:
+                        composite_circuit_yaml += (
+                            str(word.strip())
+                            + "_"
+                            + str(list(coupler_branch[1].keys())[0])
+                            + str(list(coupler_branch[2].keys())[0])
+                            + ", "
+                        )
+            else:
+                composite_circuit_yaml += str(word) + ", "
+        composite_circuit_yaml += "]\n"
+    return composite_circuit_yaml, subcircuit_node_index_dict_list
+
+
+def assemble_transformation_matrix(
+    transformation_matrix_list: List[ndarray],
+) -> ndarray:
+    """
+    Assemble a transformation matrix for a large circuit that are made of smaller sub-circuits
+    and coupling elements. This method takes a list of sub-circuit transformation matrices as
+    the argument.
+
+    Parameters
+    ----------
+    transformation_matrix_list:
+        A list of transformation matrices as numpy ndarray.
+
+    Returns
+    -------
+        A numpy ndarray for the composite circuit.
+    """
+
+    return sp.linalg.block_diag(*transformation_matrix_list)
