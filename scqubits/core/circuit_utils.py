@@ -417,6 +417,7 @@ def round_symbolic_expr(expr: sm.Expr, number_of_digits: int) -> sm.Expr:
             rounded_expr = rounded_expr.subs(term, round(term, number_of_digits))
     return rounded_expr
 
+
 def assemble_circuit(
     circuit_list: List[str],
     couplers: str,

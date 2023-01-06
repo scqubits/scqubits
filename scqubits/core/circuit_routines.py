@@ -106,21 +106,17 @@ class CircuitRoutines(ABC):
         phase_variable_index = set()
         variable_str_list = [str(symbol) for symbol in list(hamiltonian.free_symbols)]
         for variable_str in variable_str_list:
-            if variable_str[0] == 'n' and variable_str[1:].isnumeric():
+            if variable_str[0] == "n" and variable_str[1:].isnumeric():
                 periodic_charge_variable_index.add(variable_str[1:])
-            if variable_str[0] == 'Q' and variable_str[1:].isnumeric():
+            if variable_str[0] == "Q" and variable_str[1:].isnumeric():
                 extended_charge_variable_index.add(variable_str[1:])
-            if variable_str[0] == 'θ' and variable_str[1:].isnumeric():
+            if variable_str[0] == "θ" and variable_str[1:].isnumeric():
                 phase_variable_index.add(variable_str[1:])
-        if (
-            len(periodic_charge_variable_index) > 0
-        ):
+        if len(periodic_charge_variable_index) > 0:
             return False
         # further, if the hamiltonian has any DoF where only its charge or flux operator is present
         # return False
-        if (
-            extended_charge_variable_index != phase_variable_index
-        ):
+        if extended_charge_variable_index != phase_variable_index:
             return False
         return True
 
@@ -2866,10 +2862,7 @@ class CircuitRoutines(ABC):
                 axes.xaxis.set_major_locator(plt.MaxNLocator(15, integer=True))
             else:
                 axes.xaxis.set_major_locator(
-                    plt.MaxNLocator(
-                        1
-                        + 2 * getattr(self, "cutoff_n_" + str(var_index))
-                    )
+                    plt.MaxNLocator(1 + 2 * getattr(self, "cutoff_n_" + str(var_index)))
                 )
         else:
             fig, axes = plot.wavefunction1d_nopotential(

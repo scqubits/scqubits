@@ -1144,7 +1144,9 @@ class Circuit(
             noise_channels.append("tphi_1_over_f_ng")
         if len(self.external_fluxes) > 0:
             if not self.symbolic_circuit.is_flux_dynamic:
-                warnings.warn("The flag 'is_flux_dynamic' is set to False, so the coherence time estimation due to flux noise might be incorrect. Please set it to True to get the correct results.")
+                warnings.warn(
+                    "The flag 'is_flux_dynamic' is set to False, so the coherence time estimation due to flux noise might be incorrect. Please set it to True to get the correct results."
+                )
             noise_channels.append("tphi_1_over_f_flux")
             noise_channels.append("t1_flux_bias_line")
         if not self.is_purely_harmonic:
