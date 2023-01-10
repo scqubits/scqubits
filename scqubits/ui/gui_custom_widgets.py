@@ -9,9 +9,10 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
-from typing import Union, List
+from typing import Union, List, Callable, Any
 
 import ipyvuetify
+import traitlets
 from IPython.core.display_functions import display
 
 
@@ -19,13 +20,15 @@ from scqubits.utils import misc as utils
 
 
 class ValidatedTextFieldABC(ipyvuetify.TextField):
-    is_valid: callable = None
-    valid_type = None
+    _typecheck_func: callable = None
+    _type = None
     _current_value = None
+    num_value = None
 
-    def __init__(self, **kwargs):
-        self.continuous_update_in_progress = False
+    def __init__(self, min=None, max=None, **kwargs):
         self.name = kwargs.pop("name", None)
+        self.min = min
+        self.max = max
 
         if "v_model" not in kwargs and "items" in kwargs:
             kwargs["v_model"] = kwargs["items"][0]
@@ -35,10 +38,14 @@ class ValidatedTextFieldABC(ipyvuetify.TextField):
             kwargs["filled"] = True
 
         super().__init__(**kwargs)
-        self.observe(self.valid_entry, names="v_model")
+        self.observe(self.is_entry_valid, names="v_model")
 
-    def valid_entry(self, *args, **kwargs):
-        if not self.is_valid(self.v_model):
+    def is_entry_valid(self, *args, **kwargs):
+        if (
+            not self._typecheck_func(self.v_model)
+            or (self.min not in [None, ""] and self.v_model < self.min)
+            or (self.max not in [None, ""] and self.v_model > self.max)
+        ):
             self.error = True
             self.rules = ["invalid"]
             return False
@@ -47,22 +54,22 @@ class ValidatedTextFieldABC(ipyvuetify.TextField):
         self.error = False
         return True
 
-    @property
-    def num_value(self):
+    def _num_value(self):
         if not self.error:
-            self._current_value = self.valid_type(self.v_model)
+            self._current_value = self._type(self.v_model)
         return self._current_value
 
 
 class IntTextField(ValidatedTextFieldABC):
-    is_valid = staticmethod(utils.is_string_int)
-    valid_type = int
+    _typecheck_func = staticmethod(utils.is_string_int)
+    _type = int
+    num_value = traitlets.Int(read_only=True).tag(sync=True)
     step = 1
 
 
 class FloatTextField(ValidatedTextFieldABC):
-    is_valid = staticmethod(utils.is_string_float)
-    valid_type = float
+    _typecheck_func = staticmethod(utils.is_string_float)
+    _type = float
 
 
 class NumberEntryWidget:
@@ -80,6 +87,7 @@ class NumberEntryWidget:
         slider_kwargs=None,
     ):
         super().__init__()
+        self._continuous_update_in_progress = False
         if num_type == float:
             TxtWidget = FloatTextField
             min = min if min is not None else 0.0
@@ -109,12 +117,19 @@ class NumberEntryWidget:
         self.slider = ipyvuetify.Slider(
             min=min, max=max, step=step, v_model=v_model, **slider_kwargs
         )
-        self.textfield.continuous_update_in_progress = False
 
         self.slider.on_event("start", self.slider_in_progress_toggle)
         self.slider.on_event("end", self.slider_in_progress_toggle)
         self.slider.observe(self.update_textfield, names="v_model")
         self.textfield.observe(self.update_slider, names="v_model")
+
+
+    def __getattr__(self, item):
+        if hasattr(self.textfield, item):
+            return getattr(self.textfield, item)
+        if hasattr(self.slider, item):
+            return getattr(self.slider, item)
+        raise Exception(f"NumberEntryWidget.{item} does not exist.")
 
     def _ipython_display_(self):
         display(self.widget())
@@ -126,35 +141,28 @@ class NumberEntryWidget:
             children=[self.textfield, self.slider],
         )
 
-    def __getattr__(self, item):
-        if hasattr(self.textfield, item):
-            return getattr(self.textfield, item)
-        if hasattr(self.slider, item):
-            return getattr(self.slider, item)
-        raise Exception(f"NumberEntryWidget.{item} does not exist.")
-
     def update_textfield(self, *args):
-        if self.textfield.continuous_update_in_progress:
+        if self._continuous_update_in_progress:
             self.textfield.v_model = self.slider.v_model
 
     def update_slider(self, *args):
         if self.textfield.error:
             return
-        if self.textfield.valid_type(self.textfield.v_model) > self.slider.max:
+        if self.textfield.num_value > self.slider.max:
             self.slider.color = "red"
             self.slider.v_model = self.slider.max
-        elif self.textfield.valid_type(self.textfield.v_model) < self.slider.min:
+        elif self.textfield.num_value < self.slider.min:
             self.slider.color = "red"
             self.slider.v_model = self.slider.min
         else:
             self.slider.color = ""
-            self.slider.v_model = self.textfield.valid_type(self.textfield.v_model)
+            self.slider.v_model = self.textfield.num_value
 
     def slider_in_progress_toggle(self, *args):
-        self.textfield.continuous_update_in_progress = (
-            not self.textfield.continuous_update_in_progress
+        self._continuous_update_in_progress = (
+            not self._continuous_update_in_progress
         )
-        if not self.textfield.continuous_update_in_progress:
+        if not self._continuous_update_in_progress:
             self.textfield.v_model = str(
                 self.slider.v_model
             )  # This is a hack... need to trigger final "change" event
@@ -237,7 +245,7 @@ class IconButton(vBtn):
             width=40,
             height=40,
             elevation="0",
-            children=[ipyvuetify.Icon(children=[icon_name])]
+            children=[ipyvuetify.Icon(children=[icon_name])],
         )
 
 
@@ -247,14 +255,16 @@ class NavbarElement(ipyvuetify.ExpansionPanels):
         header,
         content: Union[None, ipyvuetify.ExpansionPanelContent] = None,
         children: Union[None, List[ipyvuetify.VuetifyWidget]] = None,
-        **kwargs
+        **kwargs,
     ):
         assert (content and not children) or (children and not content)
 
         content = (
             content
             if isinstance(content, ipyvuetify.ExpansionPanelContent)
-            else ipyvuetify.ExpansionPanelContent(class_="text-no-wrap", style_="transform: scale(0.9)", children=children)
+            else ipyvuetify.ExpansionPanelContent(
+                class_="text-no-wrap", style_="transform: scale(0.9)", children=children
+            )
         )
 
         super().__init__(
@@ -277,5 +287,5 @@ class NavbarElement(ipyvuetify.ExpansionPanels):
                         ],
                     )
                 ],
-            )
+            ),
         )

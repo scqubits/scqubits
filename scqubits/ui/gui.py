@@ -158,6 +158,7 @@ class GUI:
             init_params["grid"] = Grid1d(-7 * np.pi, 7 * np.pi, 200)
 
         self.active_qubit = QubitClass(**init_params)
+        self.active_qubit.truncated_dim = self.active_qubit.hilbertdim()
         self.set_qubit_params()
 
         self.dict_v_noise_params = init_dict_v_noise_params(self.active_qubit)
@@ -331,7 +332,7 @@ class GUI:
         """
         current_values_dict = {}
         for param_name, widget in self.dict_v_qubit_params.items():
-            if not hasattr(widget, "valid_entry") or widget.valid_entry():
+            if not hasattr(widget, "valid_entry") or widget.is_entry_valid():
                 current_values_dict[param_name] = (
                     widget.num_value if hasattr(widget, "num_value") else widget.v_model
                 )
@@ -409,25 +410,54 @@ class GUI:
             A tuple containing the viable minimum and maximum values for the
             corresponding parameter/qubit plot option widget
         """
-        if new_min <= 0 or ("cut" in widget_name and new_min == 1):
-            if widget_name == "highest_state":
-                new_min = 1
-            elif widget_name in ("phi", "theta", "zeta", "flux", "grid"):
-                pass
-            elif widget_name == "wavefunction_scale_slider":
-                new_min = text_widget["min"].step
-            elif widget_name in self.dict_v_qubit_params.keys():
-                if "cut" in widget_name:
-                    new_min = 2
-                else:
-                    new_min = self.active_defaults[widget_name]["min"]
-            else:
+        print("CHECKING", new_min, new_max, widget_name)
+        if widget_name == "highest_state":
+            if new_min < 0:
                 new_min = 0
-        if new_max <= new_min:
+            if new_max < 0:
+                new_max = 0
+            if new_min > new_max:
+                new_min = new_max
+        elif widget_name in ("phi", "theta", "zeta", "flux", "grid"):
+            pass
+        elif widget_name == "wavefunction_scale_slider":
+            if new_min < 0:
+                new_min = 0
+                # new_min = text_widget["min"].step
+        elif "cut" in widget_name:
+            if new_min < 2:
+                new_min = 2
+        elif widget_name in self.dict_v_qubit_params.keys():
+            if new_min < 0:
+                new_min = self.active_defaults[widget_name]["min"]
+
+        if new_max < new_min:
             if changed_widget_key == "min":
-                new_min = new_max - text_widget["max"].step
+                new_min = new_max
             else:
-                new_max = new_min + text_widget["min"].step
+                new_max = new_min
+
+
+        # if new_min <= 1 or ("cut" in widget_name and new_min <= 1):
+        #     if widget_name == "highest_state":
+        #         new_min = 1
+        #     elif widget_name in ("phi", "theta", "zeta", "flux", "grid"):
+        #         pass
+        #     elif widget_name == "wavefunction_scale_slider":
+        #         new_min = text_widget["min"].step
+        #     elif widget_name in self.dict_v_qubit_params.keys():
+        #         if "cut" in widget_name:
+        #             new_min = 2
+        #         else:
+        #             new_min = self.active_defaults[widget_name]["min"]
+        #     else:
+        #         new_min = 0
+        # if new_max < new_min:
+        #     if changed_widget_key == "min":
+        #         new_min = new_max - text_widget["max"].step
+        #     else:
+        #         new_max = new_min + text_widget["min"].step
+        print("CHECKED", new_min, new_max)
         return new_min, new_max
 
     def update_range_values(
@@ -708,9 +738,6 @@ class GUI:
             self.manual_updating_on()
         else:
             self.manual_updating_off()
-            # if len(self.v_plot_output.outputs) == 0:
-            #     self.plot_change_bool = True
-            # self.plot_refresh(change=None)
 
     def manual_update_button_onclick(self, widget, event, data) -> None:
         self.update_params()
@@ -775,8 +802,9 @@ class GUI:
         wavefunction_state_slider_text = self.dict_v_ranges["highest_state"]
 
         if wavefunction_state_slider_text["max"].v_model >= hilbertdim - 1:
+            new_max = max(hilbertdim - 2, 0)
             new_min = wavefunction_state_slider_text["min"].v_model
-            new_max = hilbertdim - 2
+            print("MIN", new_min, "MAX", new_max)
             new_min, new_max = self.check_ranges(
                 new_min,
                 new_max,

@@ -198,10 +198,10 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         init_params["grid_min_val"] = self.grid.min_val
         init_params["grid_pt_count"] = self.grid.pt_count
         ui.create_widget(
-            self.set_params, init_params, image_filename=self._image_filename
+            self.set_params_from_gui, init_params, image_filename=self._image_filename
         )
 
-    def set_params(self, **kwargs) -> None:
+    def set_params_from_gui(self, **kwargs) -> None:
         phi_grid = discretization.Grid1d(
             kwargs.pop("grid_min_val"),
             kwargs.pop("grid_max_val"),

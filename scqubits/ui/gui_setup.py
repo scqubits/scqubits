@@ -180,8 +180,8 @@ def init_dict_v_plot_options(
             v_model=True,
             label="Subtract E\u2080",
         ),
-        "i_text": ui.IntTextField(v_model=1, name="i"),
-        "j_text": ui.IntTextField(v_model=0, name="j"),
+        "i_text": ui.IntTextField(v_model=1, name="i", min=0),
+        "j_text": ui.IntTextField(v_model=0, name="j", min=0),
         "t1_checkbox": v.Switch(
             v_model=False,
             label="Effective T1",
@@ -342,6 +342,7 @@ def init_ranges_widgets_dict(
                 v_model=widget.min,
                 label="min",
                 name="min",
+                min=0,
                 style_="width: 80px",
                 class_="mp-3",
             )
@@ -349,6 +350,7 @@ def init_ranges_widgets_dict(
                 v_model=widget.max,
                 label="max",
                 name="max",
+                min=0,
                 style_="width: 80px",
                 class_="px-3",
             )

@@ -240,10 +240,10 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         init_params["grid_min_val"] = self.grid.min_val
         init_params["grid_pt_count"] = self.grid.pt_count
         ui.create_widget(
-            self.set_params, init_params, image_filename=self._image_filename
+            self.set_params_from_gui, init_params, image_filename=self._image_filename
         )
 
-    def set_params(self, **kwargs) -> None:
+    def set_params_from_gui(self, **kwargs) -> None:
         for param_name, param_val in kwargs.items():
             if "grid_" in param_name:
                 setattr(self.grid, param_name[5:], param_val)
