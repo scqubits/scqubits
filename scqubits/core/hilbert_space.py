@@ -39,6 +39,7 @@ from scipy.sparse import csc_matrix, dia_matrix
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
+import scqubits.core.diag as diag
 import scqubits.core.oscillator as osc
 import scqubits.core.spec_lookup as spec_lookup
 import scqubits.core.storage as storage
@@ -342,6 +343,10 @@ class HilbertSpace(
         subsystem_list: List[QuantumSys],
         interaction_list: List[Union[InteractionTerm, InteractionTermStr]] = None,
         ignore_low_overlap: bool = False,
+        evals_method: Optional[str] = None,
+        evals_method_options: Optional[dict] = None,
+        esys_method: Optional[str] = None,
+        esys_method_options: Optional[dict] = None,
     ) -> None:
         if has_duplicate_id_str(subsystem_list):
             raise ValueError(
@@ -367,6 +372,15 @@ class HilbertSpace(
         self._qbt_subsys_list = [
             subsys for subsys in self if not isinstance(subsys, osc.Oscillator)
         ]
+
+        self.evals_method = evals_method
+        self.evals_method_options = (
+            {} if evals_method_options is None else evals_method_options
+        )
+        self.esys_method = esys_method
+        self.esys_method_options = (
+            {} if esys_method_options is None else esys_method_options
+        )
 
         # The following attributes are for compatibility with SpectrumLookupMixin
         self._data: Dict[str, Any] = {}
@@ -629,8 +643,25 @@ class HilbertSpace(
             optionally, the bare eigensystems for each subsystem can be provided to
             speed up computation; these are provided in dict form via <subsys>: esys
         """
+        # hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)  # type:ignore
+        # return hamiltonian_mat.eigenenergies(eigvals=evals_count)
+
         hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)  # type:ignore
-        return hamiltonian_mat.eigenenergies(eigvals=evals_count)
+
+        if self.evals_method is None:
+            evals = hamiltonian_mat.eigenenergies(eigvals=evals_count)
+        else:
+            diagonalizer = (
+                diag.DIAG_METHODS[self.evals_method]
+                if isinstance(self.evals_method, str)
+                else self.evals_method
+            )
+            evals = diagonalizer(
+                hamiltonian_mat,
+                evals_count=evals_count,
+                **self.evals_method_options,
+            )
+        return evals
 
     def eigensys(
         self,
@@ -652,9 +683,29 @@ class HilbertSpace(
         -------
             eigenvalues and eigenvectors
         """
+        # hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)  # type:ignore
+        # evals, evecs = hamiltonian_mat.eigenstates(eigvals=evals_count)
+        # evecs = evecs.view(scqubits.io_utils.fileio_qutip.QutipEigenstates)
+        # return evals, evecs
+
         hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)  # type:ignore
-        evals, evecs = hamiltonian_mat.eigenstates(eigvals=evals_count)
+
+        if self.esys_method is None:
+            evals, evecs = hamiltonian_mat.eigenstates(eigvals=evals_count)
+        else:
+            diagonalizer = (
+                diag.DIAG_METHODS[self.esys_method]
+                if isinstance(self.esys_method, str)
+                else self.esys_method
+            )
+            evals, evecs = diagonalizer(
+                hamiltonian_mat,
+                evals_count=evals_count,
+                **self.esys_method_options,
+            )
+
         evecs = evecs.view(scqubits.io_utils.fileio_qutip.QutipEigenstates)
+
         return evals, evecs
 
     def _esys_for_paramval(
