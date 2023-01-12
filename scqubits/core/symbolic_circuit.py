@@ -1941,4 +1941,4 @@ class SymbolicCircuit(serializers.Serializable):
                 symbols(f"n{var_index}") + symbols(f"ng{var_index}"),
             )
 
-        return round_symbolic_expr(hamiltonian_symbolic.expand(), 10)
+        return round_symbolic_expr(hamiltonian_symbolic.expand(), 20)

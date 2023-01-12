@@ -644,7 +644,7 @@ class CircuitRoutines(ABC):
         Returns the eigenstates for the SubSystem instance
         """
         if self.is_child:
-            subsys_index = self.parent.hilbert_space.subsys_list.index(self)
+            subsys_index = self.parent.hilbert_space.subsystem_list.index(self)
             return self.parent.hilbert_space["bare_evecs"][subsys_index][0]
         else:
             return self.eigensys()[1]
@@ -700,14 +700,14 @@ class CircuitRoutines(ABC):
                 continue
             # modifying interaction terms:
             # substituting all the external flux, offset charge and branch parameters.
-            interaction = interaction.subs(
-                [
-                    (param, getattr(self, str(param)))
-                    for param in list(self.symbolic_params.keys())
-                    + self.external_fluxes
-                    + self.offset_charges
-                ]
-            )
+            # interaction = interaction.subs(
+            #     [
+            #         (param, getattr(self, str(param)))
+            #         for param in list(self.symbolic_params.keys())
+            #         + self.external_fluxes
+            #         + self.offset_charges
+            #     ]
+            # )
             #   - substituting Identity with 1
             interaction = interaction.subs("I", 1)
 
@@ -716,13 +716,47 @@ class CircuitRoutines(ABC):
 
             for idx, term in enumerate(interaction_terms):
                 coefficient_sympy = expr_dict[term]
+
+                branch_sym_params = [symbol for symbol in term.free_symbols if symbol in list(self.symbolic_params.keys())]
+                operator_expr, param_expr = term.as_independent(*branch_sym_params, as_Mul=True)
+
+                param_expr_str = str(coefficient_sympy * param_expr)
+                for param in list(self.symbolic_params.keys()):
+                    param_expr_str = param_expr_str.replace(param.name, "self." + param.name)
                 self.hilbert_space.add_interaction(
-                    qobj=float(coefficient_sympy)
-                    * self._interaction_operator_from_expression(term),
+                    expr=param_expr_str + "*operator_expr", const={"self": self},
+                    op1 = ("operator_expr", self._operator_from_sym_expr_wrapper(operator_expr)),
                     check_validity=False,
                 )
         self._out_of_sync = False
         self.hilbert_space._out_of_sync = False
+
+    def _evaluate_symbolic_expr(self, sym_expr):
+        expr_dict = sym_expr.as_coefficients_dict()
+        terms = list(expr_dict.keys())
+
+        eval_matrix_list = []
+
+        for idx, term in enumerate(terms):
+            coefficient_sympy = expr_dict[term]
+            if any([arg.has(sm.cos) or arg.has(sm.sin) for arg in (1.0 * term).args]):
+                eval_matrix_list.append(
+                    float(coefficient_sympy) * self._evaluate_matrix_cosine_terms(term)
+                )
+            else:
+                product_matrix_list = []
+                for free_sym in term.free_symbols:
+                    product_matrix_list.append(self.get_operator_by_name(free_sym.name))
+                eval_matrix_list.append(
+                    float(coefficient_sympy)
+                    * functools.reduce(builtin_op.mul, product_matrix_list)
+                )
+        return sum(eval_matrix_list)
+
+    def _operator_from_sym_expr_wrapper(self, sym_expr):
+        def wrapper_func(self=self, sym_expr=sym_expr):
+            return self._evaluate_symbolic_expr(sym_expr)
+        return wrapper_func
 
     def _interaction_operator_from_expression(self, symbolic_interaction_term: sm.Expr):
         """
@@ -784,12 +818,12 @@ class CircuitRoutines(ABC):
                         ].get_operator_by_name(operator_sym.name)
                         if isinstance(operator_matrix, qt.Qobj):
                             operator_matrix = operator_matrix.data.tocsc()
-                        operator_dict[subsys_index] *= identity_wrap(
-                            operator_matrix,
-                            self.subsystems[subsys_index],
-                            self.subsystems,
-                            evecs=self.subsystems[subsys_index].get_eigenstates(),
-                        )
+                            operator_dict[subsys_index] *= identity_wrap(
+                                operator_matrix,
+                                self.subsystems[subsys_index],
+                                self.subsystems,
+                                evecs=self.subsystems[subsys_index].get_eigenstates(),
+                            )
         operator_list = list(operator_dict.values())
         return functools.reduce(builtin_op.mul, operator_list)
 
@@ -937,7 +971,7 @@ class CircuitRoutines(ABC):
         )
         # remove constants from Hamiltonian
         hamiltonian -= hamiltonian.as_coefficients_dict()[1]
-        return round_symbolic_expr(hamiltonian.expand(), 10)
+        return round_symbolic_expr(hamiltonian.expand(), 20)
         # * ##########################################################################
 
     def generate_hamiltonian_sym_for_numerics(
@@ -1206,7 +1240,7 @@ class CircuitRoutines(ABC):
                         self.cutoffs_dict()[var_index],
                         prefactor=(osc_length * 2**0.5) ** -1,
                     )
-                exp_i_theta = sp.linalg.expm(exp_argument_op * prefactor * 1j)
+                exp_i_theta = sparse.linalg.expm(exp_argument_op * prefactor * 1j)
 
         return self._sparsity_adaptive(exp_i_theta)
 
@@ -1255,7 +1289,7 @@ class CircuitRoutines(ABC):
                         self.exp_i_operator(var_symbol, prefactor), var_indices[idx]
                     )
                 )
-
+            
             cos_term_operator = coefficient * functools.reduce(
                 builtin_op.mul,
                 operator_list,
@@ -1829,7 +1863,7 @@ class CircuitRoutines(ABC):
                     self.hilbert_space["bare_evals"][sys_index][0],
                     self.hilbert_space["bare_evecs"][sys_index][0],
                 )
-                for sys_index, sys in enumerate(self.hilbert_space.subsys_list)
+                for sys_index, sys in enumerate(self.hilbert_space.subsystem_list)
             }
             hamiltonian = self.hilbert_space.hamiltonian(bare_esys=bare_esys)
             if self.type_of_matrices == "dense":

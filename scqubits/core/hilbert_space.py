@@ -63,7 +63,7 @@ if TYPE_CHECKING:
     from scqubits.io_utils.fileio import IOData
 
 from scqubits.utils.typedefs import OscillatorList, QuantumSys, QubitList
-
+from scqubits.core.qubit_base import QubitBaseClass
 
 def has_duplicate_id_str(subsystem_list: List[QuantumSys]):
     id_str_list = [obj.id_str for obj in subsystem_list]
@@ -213,7 +213,8 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         self,
         expr: str,
         operator_list: List[Tuple[int, str, Union[ndarray, csc_matrix, dia_matrix]]],
-        const: Optional[Dict[str, Union[float, complex]]] = None,
+        id_wrapped_operator_list: Optional[List[Tuple[str, callable]]] = None,
+        const: Optional[Dict[str, Union[float, complex, QubitBaseClass]]] = None,
         add_hc: bool = False,
     ) -> None:
         self.qutip_dict = {
@@ -228,6 +229,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         }
         self.expr = expr
         self.operator_list = operator_list
+        self.id_wrapped_operator_list = id_wrapped_operator_list or []
         self.const = const or {}
         self.add_hc = add_hc
 
@@ -304,6 +306,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         idwrapped_ops_by_name = self.id_wrap_all_ops(
             subsystem_list, bare_esys=bare_esys
         )
+        idwrapped_ops_by_name.update({item[0]:item[1]() for item in self.id_wrapped_operator_list})
         hamiltonian = self.run_string_code(self.expr, idwrapped_ops_by_name)
         if not self.add_hc:
             return hamiltonian
@@ -1008,12 +1011,18 @@ class HilbertSpace(
         const = kwargs.pop("const", None)
 
         operator_list = []
+        id_wrapped_operator_list = []
         for key in kwargs.keys():
+            if callable(kwargs[key][1]) and not hasattr(kwargs[key][1], "__self__"):
+                id_wrapped_operator_list.append(kwargs[key])
+                continue
             if re.match(r"op\d+$", key) is None:
                 raise TypeError("Unexpected keyword argument {}.".format(key))
             operator_list.append(self._parse_op_by_name(kwargs[key]))
+        if id_wrapped_operator_list == []:
+            id_wrapped_operator_list = None
 
-        return InteractionTermStr(expr, operator_list, const=const, add_hc=add_hc)
+        return InteractionTermStr(expr, operator_list, id_wrapped_operator_list=id_wrapped_operator_list, const=const, add_hc=add_hc)
 
     def _parse_interactionterm(self, **kwargs) -> InteractionTerm:
         g = kwargs.pop("g", None)
