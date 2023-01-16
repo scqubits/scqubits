@@ -683,10 +683,6 @@ class HilbertSpace(
         -------
             eigenvalues and eigenvectors
         """
-        # hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)  # type:ignore
-        # evals, evecs = hamiltonian_mat.eigenstates(eigvals=evals_count)
-        # evecs = evecs.view(scqubits.io_utils.fileio_qutip.QutipEigenstates)
-        # return evals, evecs
 
         hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)  # type:ignore
 

@@ -51,61 +51,51 @@ def _setup_default_options(
     return opts
 
 
-def _convert_type(m, which):
-    """
-    TODO: update this; right now just handles qutip.Qobj 
-        should check to what extend this is needed, for other cases. 
+def _convert_evecs_to_qobjs(evecs, qobj):
 
-    Parameters
-    ----------
-    m: dense or sparse ndarray, or a Qobj
-        dictionary of options
-    which:
-        'dense' or 'sparse'
-    Returns
-    ----------
-        xxxx
-    """
-    if which not in ['dense', 'sparse']:
-        raise ValueError("Parameter 'which' needs to be 'dense' or 'sparse'")
+    evecs_count = evecs.shape[1]
+    ekets = np.empty((evecs_count,), dtype=object)
+    ekets[:] = [
+        Qobj(evecs[:, i], dims=[qobj.dims[0], [1] * len(qobj.dims[0])], type="ket")
+        for i in range(evecs_count)
+    ]
+    norms = np.array([ket.norm() for ket in ekets])
+    return ekets / norms
 
-    if isinstance(m, Qobj):
-        if which == 'sparse':
-            return m.data 
-        else: 
-            return m.full()
-    return m
 
-def scipy_dense_evals(matrix, evals_count=6, auto_convert_type=True, **kwargs):
+def scipy_dense_evals(matrix, evals_count=6, **kwargs):
     """
     Diagonalization based on scipy's (dense) eigh function.
     Only evals are returned.
     """
-    if auto_convert_type:
-        matrix = _convert_type(matrix, "dense")
+    m = matrix.full() if isinstance(matrix, Qobj) else matrix
 
     evals = sp.linalg.eigh(
-        matrix, subset_by_index=(0, evals_count - 1), eigvals_only=True, **kwargs
+        m, subset_by_index=(0, evals_count - 1), eigvals_only=True, **kwargs
     )
     return evals
 
 
-def scipy_dense_esys(matrix, evals_count=6, auto_convert_type=True, **kwargs):
+def scipy_dense_esys(matrix, evals_count=6, **kwargs):
     """
     Diagonalization based on scipy's (dense) eigh function.
     Both evals and evecs are returned.
     """
-    if auto_convert_type:
-        matrix = _convert_type(matrix, "dense")
+    m = matrix.full() if isinstance(matrix, Qobj) else matrix
 
-    evals, evecs = sp.linalg.eigh(
-        matrix, subset_by_index=(0, evals_count - 1), **kwargs
+    evals, evecs = sp.linalg.eigh(m, subset_by_index=(0, evals_count - 1), **kwargs)
+
+    # TODO: do we need this?
+    # evals, evecs = order_eigensystem(evals, evecs)
+
+    evecs = (
+        _convert_evecs_to_qobjs(evecs, matrix) if isinstance(matrix, Qobj) else evecs
     )
-    evals, evecs = order_eigensystem(evals, evecs)
+
     return evals, evecs
 
 
-def scipy_sparse_evals(matrix, evals_count=6, auto_convert_type=True, **kwargs):
+def scipy_sparse_evals(matrix, evals_count=6, **kwargs):
     """
     Diagonalization based on scipy's (sparse) eigsh function.
     Only evals are returned.
@@ -120,8 +110,7 @@ def scipy_sparse_evals(matrix, evals_count=6, auto_convert_type=True, **kwargs):
     2. We test for degenerate eigenvalues. If there are any, we orthogonalize the
     eigenvectors properly.
     """
-    if auto_convert_type:
-        matrix = _convert_type(matrix, "sparse")
+    m = matrix.data if isinstance(matrix, Qobj) else matrix
 
     options = _setup_default_options(
         kwargs,
@@ -134,13 +123,13 @@ def scipy_sparse_evals(matrix, evals_count=6, auto_convert_type=True, **kwargs):
             return_eigenvectors=False,
         ),
     )
-    evals = sp.sparse.linalg.eigsh(matrix, k=evals_count, **options)
+    evals = sp.sparse.linalg.eigsh(m, k=evals_count, **options)
 
     # have to reverse order if return_eigenvectors=False and which="SA"
     return evals[::-1]
 
 
-def scipy_sparse_esys(matrix, evals_count=6, auto_convert_type=True, **kwargs):
+def scipy_sparse_esys(matrix, evals_count=6, **kwargs):
     """
     Diagonalization based on scipy's (sparse) eigsh function.
     Both evals and evecs are returned.
@@ -158,9 +147,8 @@ def scipy_sparse_esys(matrix, evals_count=6, auto_convert_type=True, **kwargs):
     TODO: right now, this is essentially a copy/paste of spectrum_utils.eigsh_safe()
         When the dust settles, should combine both into one.
 
-    """    
-    if auto_convert_type:
-        matrix = _convert_type(matrix, "sparse")
+    """
+    m = matrix.data if isinstance(matrix, Qobj) else matrix
 
     options = _setup_default_options(
         kwargs,
@@ -173,14 +161,18 @@ def scipy_sparse_esys(matrix, evals_count=6, auto_convert_type=True, **kwargs):
             return_eigenvectors=True,
         ),
     )
-    evals, evecs = sp.sparse.linalg.eigsh(matrix, k=evals_count, **options)
+    evals, evecs = sp.sparse.linalg.eigsh(m, k=evals_count, **options)
     if has_degeneracy(evals):
         evecs, _ = sp.linalg.qr(evecs, mode="economic")
-        return evals, evecs
+
+    evecs = (
+        _convert_evecs_to_qobjs(evecs, matrix) if isinstance(matrix, Qobj) else evecs
+    )
+
     return evals, evecs
 
 
-def cupy_dense_evals(matrix, evals_count=6, auto_convert_type=False, **kwargs):
+def cupy_dense_evals(matrix, evals_count=6, **kwargs):
     """
     Diagonalization based on cuda's (dense) eigvalsh function.
     Only evals are returned.
@@ -190,16 +182,15 @@ def cupy_dense_evals(matrix, evals_count=6, auto_convert_type=False, **kwargs):
     except:
         raise ImportError("Module cupy is not installed.")
 
-    if auto_convert_type:
-        matrix = _convert_type(matrix, "dense")
+    m = matrix.full() if isinstance(matrix, Qobj) else matrix
 
-    evals_gpu = cp.linalg.eigvalsh(cp.asarray(matrix), **kwargs)
+    evals_gpu = cp.linalg.eigvalsh(cp.asarray(m), **kwargs)
     cp.cuda.Stream.null.synchronize()  # wait for GPU to finish
 
     return evals_gpu[:evals_count].get()
 
 
-def cupy_dense_esys(matrix, evals_count=6, auto_convert_type=False, **kwargs):
+def cupy_dense_esys(matrix, evals_count=6, **kwargs):
     """
     Diagonalization based on cupy's (dense) eigh function.
     Both evals and evecs are returned.
@@ -209,16 +200,21 @@ def cupy_dense_esys(matrix, evals_count=6, auto_convert_type=False, **kwargs):
     except:
         raise ImportError("Module cupy is not installed.")
 
-    if auto_convert_type:
-        matrix = _convert_type(matrix, "dense")
+    m = matrix.full() if isinstance(matrix, Qobj) else matrix
 
-    evals_gpu, evecs_gpu = cp.linalg.eigh(cp.asarray(matrix), **kwargs)
+    evals_gpu, evecs_gpu = cp.linalg.eigh(cp.asarray(m), **kwargs)
     cp.cuda.Stream.null.synchronize()  # wait for GPU to finish
 
-    return evals_gpu[:evals_count].get(), evecs_gpu[:, :evals_count].get()
+    evals, evecs = evals_gpu[:evals_count].get(), evecs_gpu[:, :evals_count].get()
+
+    evecs = (
+        _convert_evecs_to_qobjs(evecs, matrix) if isinstance(matrix, Qobj) else evecs
+    )
+
+    return evals, evecs
 
 
-def cupy_sparse_evals(matrix, evals_count=6, auto_convert_type=False, **kwargs):
+def cupy_sparse_evals(matrix, evals_count=6, **kwargs):
     """
     Diagonalization based on cupy's (sparse) eighs function.
     Only evals are returned.
@@ -235,8 +231,7 @@ def cupy_sparse_evals(matrix, evals_count=6, auto_convert_type=False, **kwargs):
     except:
         raise ImportError("Module cupyx (part of cupy) is not installed.")
 
-    if auto_convert_type:
-        matrix = _convert_type(matrix, "dense")
+    m = matrix.data if isinstance(matrix, Qobj) else matrix
 
     options = _setup_default_options(
         kwargs,
@@ -246,12 +241,12 @@ def cupy_sparse_evals(matrix, evals_count=6, auto_convert_type=False, **kwargs):
         ),
     )
     # evals_gpu = eigsh(cp.asarray(matrix), k=evals_count, **options)
-    evals_gpu = eigsh(cp.asarray(matrix), k=matrix.shape[0] - 3, **options)
+    evals_gpu = eigsh(cp.asarray(m), k=matrix.shape[0] - 3, **options)
 
     return evals_gpu.get()[::-1]
 
 
-def cupy_sparse_esys(matrix, evals_count=6, auto_convert_type=False, **kwargs):
+def cupy_sparse_esys(matrix, evals_count=6, **kwargs):
     """
     Diagonalization based on cupy's (sparse) eighs function.
     Both evals and evecs are returned.
@@ -270,8 +265,7 @@ def cupy_sparse_esys(matrix, evals_count=6, auto_convert_type=False, **kwargs):
     except:
         raise ImportError("Module cupyx (part of cupy) is not installed.")
 
-    if auto_convert_type:
-        matrix = _convert_type(matrix, "dense")
+    m = matrix.data if isinstance(matrix, Qobj) else matrix
 
     options = _setup_default_options(
         kwargs,
@@ -279,9 +273,15 @@ def cupy_sparse_esys(matrix, evals_count=6, auto_convert_type=False, **kwargs):
             return_eigenvectors=True,
         ),
     )
-    evals_gpu, evecs_gpu = eigsh(cp.asarray(matrix), k=evals_count, **options)
+    evals_gpu, evecs_gpu = eigsh(cp.asarray(m), k=evals_count, **options)
 
-    return evals_gpu.get(), evecs_gpu.get()
+    evals, evecs = evals_gpu.get(), evecs_gpu.get()
+
+    evecs = (
+        _convert_evecs_to_qobjs(evecs, matrix) if isinstance(matrix, Qobj) else evecs
+    )
+
+    return evals, evecs
 
 
 # Default values of various noise constants and parameters.
@@ -369,4 +369,7 @@ def scipy_eigsh(matrix, evals_count=6, **kwargs):
             evecs, _ = sp.linalg.qr(evecs, mode="economic")
             return evals, evecs
     # return np.sort(sp.sparse.linalg.eigsh(matrix, k=evals_count, **options))
+
     return sp.sparse.linalg.eigsh(matrix, k=evals_count, **options)
+
+

@@ -52,9 +52,10 @@ from scqubits.io_utils.fileio import read, write
 
 # custom diagonalization
 import scqubits.core.diag as diag
+
 # from scqubits.core.diag import (
-        # DIAG_METHODS, 
-        # DiagCupyEigh,
+# DIAG_METHODS,
+# DiagCupyEigh,
 # )
 
 # Import of custom-circuit modules needs to take place after other imports to
