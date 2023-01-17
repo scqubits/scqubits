@@ -306,7 +306,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         idwrapped_ops_by_name = self.id_wrap_all_ops(
             subsystem_list, bare_esys=bare_esys
         )
-        idwrapped_ops_by_name.update({item[0]:item[1]() for item in self.id_wrapped_operator_list})
+        idwrapped_ops_by_name.update({item[0]:item[1](bare_esys=bare_esys) for item in self.id_wrapped_operator_list})
         hamiltonian = self.run_string_code(self.expr, idwrapped_ops_by_name)
         if not self.add_hc:
             return hamiltonian

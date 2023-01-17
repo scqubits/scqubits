@@ -247,6 +247,7 @@ class Subsystem(
             self.affected_subsystem_indices = []
 
             self.generate_subsystems()
+            self.build_hilbertspace()
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
@@ -1108,6 +1109,7 @@ class Circuit(
             self.subsystem_trunc_dims = subsystem_trunc_dims
             self.generate_hamiltonian_sym_for_numerics()
             self.generate_subsystems()
+            self.build_hilbertspace()
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
