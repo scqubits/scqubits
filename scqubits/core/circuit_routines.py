@@ -711,9 +711,14 @@ class CircuitRoutines(ABC):
                 )
 
     def _evaluate_symbolic_expr(self, sym_expr, bare_esys=None):
+        # substitute circuit parameters
+        param_symbols = self.external_fluxes + self.offset_charges + list(self.symbolic_params.keys())
+        for param in param_symbols:
+            sym_expr = sym_expr.subs(param, getattr(self, param.name))
+        
         expr_dict = sym_expr.as_coefficients_dict()
         terms = list(expr_dict.keys())
-
+        
         eval_matrix_list = []
 
         for idx, term in enumerate(terms):
