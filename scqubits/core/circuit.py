@@ -9,14 +9,13 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
+import copy
+import re
 import warnings
-
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import sympy as sm
-import re
-
 from numpy import ndarray
 from sympy import latex
 
@@ -39,7 +38,7 @@ from scqubits.core.circuit_utils import (
 )
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
 from scqubits.io_utils.fileio import IOData
-from scqubits.io_utils.fileio_serializers import dict_deserialize, dict_serialize
+from scqubits.io_utils.fileio_serializers import dict_serialize
 from scqubits.utils.misc import (
     flatten_list,
     number_of_lists_in_list,
@@ -189,6 +188,16 @@ class Subsystem(
         self._configure()
         self._frozen = True
 
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for k, v in self.__dict__.items():
+            result._frozen = False
+            setattr(result, k, copy.deepcopy(v, memo))
+            result._frozen = True
+        return result
+
     def _configure(self) -> None:
         """
         Function which is used to initiate the subsystem instance.
@@ -332,6 +341,16 @@ class Circuit(
                 truncated_dim=truncated_dim,
                 ext_basis=ext_basis,
             )
+
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for k, v in self.__dict__.items():
+            result._frozen = False
+            setattr(result, k, copy.deepcopy(v, memo))
+            result._frozen = True
+        return result
 
     def from_symbolic_hamiltonian(
         self,
@@ -1127,7 +1146,9 @@ class Circuit(
             noise_channels.append("tphi_1_over_f_ng")
         if len(self.external_fluxes) > 0:
             if not self.symbolic_circuit.is_flux_dynamic:
-                warnings.warn("The flag 'is_flux_dynamic' is set to False, so the coherence time estimation due to flux noise might be incorrect. Please set it to True to get the correct results.")
+                warnings.warn(
+                    "The flag 'is_flux_dynamic' is set to False, so the coherence time estimation due to flux noise might be incorrect. Please set it to True to get the correct results."
+                )
             noise_channels.append("tphi_1_over_f_flux")
             noise_channels.append("t1_flux_bias_line")
         if not self.is_purely_harmonic:

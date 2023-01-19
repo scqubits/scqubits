@@ -14,7 +14,6 @@ import functools
 import itertools
 import operator as builtin_op
 import re
-
 from types import MethodType
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -22,7 +21,6 @@ import numpy as np
 import qutip as qt
 import scipy as sp
 import sympy as sm
-
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -91,6 +89,7 @@ from abc import ABC
 class CircuitRoutines(ABC):
     @staticmethod
     def _is_expression_purely_harmonic(hamiltonian):
+        # if the hamiltonian contains any cos or sin term, return False
         if (
             len(
                 set.union(
@@ -99,6 +98,25 @@ class CircuitRoutines(ABC):
             )
             > 0
         ):
+            return False
+        # further, if the hamiltonian contains any charge operator of periodic variables
+        # return False
+        periodic_charge_variable_index = set()
+        extended_charge_variable_index = set()
+        phase_variable_index = set()
+        variable_str_list = [str(symbol) for symbol in list(hamiltonian.free_symbols)]
+        for variable_str in variable_str_list:
+            if variable_str[0] == "n" and variable_str[1:].isnumeric():
+                periodic_charge_variable_index.add(variable_str[1:])
+            if variable_str[0] == "Q" and variable_str[1:].isnumeric():
+                extended_charge_variable_index.add(variable_str[1:])
+            if variable_str[0] == "θ" and variable_str[1:].isnumeric():
+                phase_variable_index.add(variable_str[1:])
+        if len(periodic_charge_variable_index) > 0:
+            return False
+        # further, if the hamiltonian has any DoF where only its charge or flux operator is present
+        # return False
+        if extended_charge_variable_index != phase_variable_index:
             return False
         return True
 
@@ -2793,10 +2811,7 @@ class CircuitRoutines(ABC):
                 axes.xaxis.set_major_locator(plt.MaxNLocator(15, integer=True))
             else:
                 axes.xaxis.set_major_locator(
-                    plt.MaxNLocator(
-                        1
-                        + 2 * getattr(self, "cutoff_n_" + str(var_index))
-                    )
+                    plt.MaxNLocator(1 + 2 * getattr(self, "cutoff_n_" + str(var_index)))
                 )
         else:
             fig, axes = plot.wavefunction1d_nopotential(
