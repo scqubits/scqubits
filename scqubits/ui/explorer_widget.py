@@ -255,61 +255,6 @@ class Explorer:
         axes_table = np.array([])
         return fig, axes_table
 
-    # +--------+---------+
-    # | TAB1   |  TAB2   |
-    # +--------+---------+self.ui_main_tab-----------------------------------------+
-    # |                                                                            |
-    # |                          self.ui_hbox["panels_select_tab"]                 |
-    # |                                   - or -                                   |
-    # |                          self.ui_vbox["panel_settings_dialog"]                |
-    # |                                                                            |
-    # +----------------+-----------------------------------------------------------+
-    # def build_ui_main_tab(self) -> v.Tabs:
-    #     self.ui_hbox["panels_select_tab"] = self.build_ui_panels_select_tab()
-    #     self.ui_vbox["panel_settings_dialog"] = self.build_ui_settings_tab()
-    #
-    #     main_tab = v.Tabs(
-    #         children=[
-    #             v.Tab(children=["Choose panels"]),
-    #             v.TabItem(key="Main", children=[self.ui_hbox["panels_select_tab"]]),
-    #             v.Tab(children=["Panel settings"]),
-    #             v.TabItem(
-    #                 key="Qubit info", children=[self.ui_vbox["panel_settings_dialog"]]
-    #             ),
-    #         ]
-    #     )
-    #     return main_tab
-
-    # +----------------+-----------------------------------------------------------+
-    # |      self.ui_hbox["main_display"]                                          |
-    # |                |                                                           |
-    # |                |                                                           |
-    # |                |                                                           |
-    # | self.ui_vbox   |         self["ui_figure_display"] = self.fig.canvas       |
-    # | ["parameters-  |                          - or -                           |
-    # |   panel_left"] |                                   = Output()              |
-    # |                |                                                           |
-    # |                |                                                           |
-    # |                |                                                           |
-    # +----------------+-----------------------------------------------------------+
-    # def build_ui_main_display(self) -> v.Container:
-    #     self.ui_vbox["parameters_panel_left"] = self.build_ui_parameters_panel_left()
-    #     self.ui["figure_display"] = self.build_ui_figure_display()
-    #     self.update_layout_and_plots(None)
-    #     return flex_row(
-    #         [*self.ui_vbox["parameters_panel_left"], self.ui["figure_display"]]
-    #     )
-
-    # +--------+
-    # | TAB1   |
-    # +-----------------------------------------------------------------------------+
-    # |  subsys_dropdown      html_label           +-------------------------+  BTN |
-    # |                                            |                         |      |
-    # |  switch             switch             |    panels_list          |      |
-    # |  switch             switch             |                         |      |
-    # |    ...                   ...               +-------------------------+      |
-    # +-----------------------------------------------------------------------------+
-
     def bring_up_dialog(self, *args):
         self.ui_vbox["panel_settings_dialog"].v_model = True
         display(self.ui_vbox["panel_settings_dialog"])
@@ -400,16 +345,6 @@ class Explorer:
             ],
         )
 
-    #          +--------+
-    #          |  TAB2  |
-    # +-----------------------------------------------------------------------------+
-    # |  panel_choice ---------+                                                    |
-    # |  panels_choice_dropdown|                                                    |
-    # |                                                                             |
-    # |  panel_settings ------------------------------+                             |
-    # |  ui["settings"][subsys_name][panel_name]                                    |
-    # |                                                                             |
-    # +-----------------------------------------------------------------------------+
     def build_ui_settings_dialog(self) -> v.Dialog:
         self.ui["subsys_panel_settings"] = {
             subsys_name: {
@@ -480,20 +415,6 @@ class Explorer:
                 )
             ],
         )
-
-    # +--parameters_panel_left-----+
-    # |                            |
-    # |  Active Sweep Parameter    |
-    # |  "sweep_param_dropdown"    |
-    # |                            |
-    # |  Sample Value              |
-    # |  "sweep_value_slider"      |
-    # |                            |
-    # |  Fixed Parameter(s)        |
-    # |  "fixed_param_sliders"     |
-    # |     ...                    |
-    # |                            |
-    # +----------------------------+
 
     @property
     def fixed_param(self):
@@ -854,8 +775,8 @@ class Explorer:
             self.ui_level_slider[full_panel_name] = ui.NumberEntryWidget(
                 num_type=int,
                 label="Highest level",
-                min=1,
-                max=evals_count,
+                v_min=1,
+                v_max=evals_count,
                 v_model=evals_count,
             )
             ui_subtract_ground_switch = v.Switch(
@@ -915,27 +836,29 @@ class Explorer:
     def build_ui_settings_composite(self, panel_name: str):
         if panel_name == "Transitions":
             self.ui["transitions"]["initial_state_inttexts"] = [
-                ui.IntTextField(
+                ui.ValidatedNumberField(
                     label="",
-                    min=0,
-                    max=subsys.truncated_dim,
+                    num_type=int,
+                    v_min=0,
+                    v_max=subsys.truncated_dim,
                     v_model=0,
                     width=35,
                 )
                 for subsys in self.sweep.hilbertspace
             ]
 
-            self.ui["transitions"]["initial_dressed_inttext"] = ui.IntTextField(
+            self.ui["transitions"]["initial_dressed_inttext"] = ui.ValidatedNumberField(
                 label="",
-                min=0,
-                max=self.sweep.hilbertspace.dimension,
+                num_type=int,
+                v_min=0,
+                v_max=self.sweep.hilbertspace.dimension,
                 v_model=0,
                 width=35,
                 disabled=True,
             )
 
-            self.ui["transitions"]["photons_inttext"] = ui.IntTextField(
-                v_model=1, min=1, max=5, label="", width=35
+            self.ui["transitions"]["photons_inttext"] = ui.ValidatedNumberField(
+                num_type=int, v_model=1, v_min=1, v_max=5, label="", width=35
             )
             self.ui["transitions"]["highlight_selectmultiple"] = ui.InitSelect(
                 multiple=True,
@@ -956,12 +879,12 @@ class Explorer:
                 label="show sidebands", v_model=True, width=250
             )
             for inttext in self.ui["transitions"]["initial_state_inttexts"]:
-                inttext.observe(self.update_plots, names="v_model")
+                inttext.observe(self.update_plots, names="num_value")
             self.ui["transitions"]["initial_dressed_inttext"].observe(
-                self.update_plots, names="v_model"
+                self.update_plots, names="num_value"
             )
             self.ui["transitions"]["photons_inttext"].observe(
-                self.update_plots, names="v_model"
+                self.update_plots, names="num_value"
             )
             self.ui["transitions"]["highlight_selectmultiple"].observe(
                 self.update_plots, names="v_model"

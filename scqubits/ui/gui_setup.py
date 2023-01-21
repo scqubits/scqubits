@@ -116,8 +116,23 @@ def init_filename_textfield():
     )
 
 
-def init_noise_param_floattextfield(noise_param: str):
-    return ui.FloatTextField(
+def init_noise_param_floattextfield(noise_param: str) -> ui.ValidatedNumberField:
+    """
+    Creates a `ValidatedNumberField` widget for each noise parameter.
+    The function takes one argument, the name of the noise parameter, and returns a `ValidatedNumberField` widget set to
+    the current value of that noise parameter in the `NOISE_PARAMS` dictionary.
+
+    Parameters
+    ----------
+        noise_param:
+            Name of the noise parameter that is being modified
+
+    Returns
+    -------
+        `ValidatedNumberField` widget
+    """
+    return ui.ValidatedNumberField(
+        num_type=float,
         v_model=noise.NOISE_PARAMS[noise_param],
         name=noise_param,
         label=noise_param,
@@ -180,8 +195,8 @@ def init_dict_v_plot_options(
             v_model=True,
             label="Subtract E\u2080",
         ),
-        "i_text": ui.IntTextField(v_model=1, name="i", min=0),
-        "j_text": ui.IntTextField(v_model=0, name="j", min=0),
+        "i_text": ui.ValidatedNumberField(v_model=1, num_type=int, name="i", v_min=0),
+        "j_text": ui.ValidatedNumberField(v_model=0, num_type=int, name="j", v_min=0),
         "t1_checkbox": v.Switch(
             v_model=False,
             label="Effective T1",
@@ -280,13 +295,14 @@ def init_qubit_params_widgets_dict(
     for param_name, param_val in qubit_params.items():
         if isinstance(param_val, int):
             kwargs = defaults.get(param_name) or defaults["int"]
-
             dict_v_qubit_params[param_name] = ui.NumberEntryWidget(
                 num_type=int,
                 label=f"{param_name}",
                 v_model=param_val,
                 style_="max-width: 250px",
                 text_kwargs={"min_height": 40, "height": 40, "dense": True},
+                s_min=0,
+                s_max=None,
                 **kwargs,
             )
         else:
@@ -335,37 +351,77 @@ def init_ranges_widgets_dict(
         widget_min_text = None
         widget_max_text = None
 
-        if isinstance(widget, (v.Slider, ui.NumberEntryWidget)) and isinstance(
+        if isinstance(widget, v.Slider) and isinstance(
             widget.v_model, int
         ):
-            widget_min_text = ui.IntTextField(
+            widget_min_text = ui.ValidatedNumberField(
                 v_model=widget.min,
+                num_type=int,
                 label="min",
                 name="min",
-                min=0,
+                v_min=0,
                 style_="width: 80px",
                 class_="mp-3",
             )
-            widget_max_text = ui.IntTextField(
+            widget_max_text = ui.ValidatedNumberField(
                 v_model=widget.max,
+                num_type=int,
                 label="max",
                 name="max",
-                min=0,
+                v_min=0,
                 style_="width: 80px",
                 class_="px-3",
             )
-        elif isinstance(
-            widget, (v.Slider, v.RangeSlider, ui.NumberEntryWidget)
-        ) and isinstance(widget.v_model, float):
-            widget_min_text = ui.FloatTextField(
-                v_model=widget.min,
+        elif isinstance(widget, ui.NumberEntryWidget) and isinstance(
+            widget.v_model, int
+        ):
+            widget_min_text = ui.ValidatedNumberField(
+                v_model=widget.v_min,
+                num_type=int,
+                label="min",
+                name="min",
+                v_min=0,
+                style_="width: 80px",
+                class_="mp-3",
+            )
+            widget_max_text = ui.ValidatedNumberField(
+                v_model=widget.v_max,
+                num_type=int,
+                label="max",
+                name="max",
+                v_min=0,
+                style_="width: 80px",
+                class_="px-3",
+            )
+        elif isinstance(widget, ui.NumberEntryWidget) and isinstance(widget.v_model, float):
+            widget_min_text = ui.ValidatedNumberField(
+                v_model=widget.v_min,
+                num_type=float,
                 step=0.01,
                 label="min",
                 style_="width: 80px",
                 class_="px-3",
             )
-            widget_max_text = ui.FloatTextField(
+            widget_max_text = ui.ValidatedNumberField(
+                v_model=widget.v_max,
+                num_type=float,
+                step=0.01,
+                label="max",
+                style_="width: 80px",
+                class_="px-3",
+            )
+        elif isinstance(widget, (v.Slider, v.RangeSlider)) and isinstance(widget.v_model, float):
+            widget_min_text = ui.ValidatedNumberField(
+                v_model=widget.min,
+                num_type=float,
+                step=0.01,
+                label="min",
+                style_="width: 80px",
+                class_="px-3",
+            )
+            widget_max_text = ui.ValidatedNumberField(
                 v_model=widget.max,
+                num_type=float,
                 step=0.01,
                 label="max",
                 style_="width: 80px",
@@ -375,15 +431,17 @@ def init_ranges_widgets_dict(
             min_val = widget.items[0]
             max_val = widget.items[-1]
 
-            widget_min_text = ui.IntTextField(
+            widget_min_text = ui.ValidatedNumberField(
                 v_model=min_val,
+                num_type=type(widget.items[-1]),
                 name="min",
                 label="min",
                 style_="width: 80px",
                 class_="px-3",
             )
-            widget_max_text = ui.IntTextField(
+            widget_max_text = ui.ValidatedNumberField(
                 v_model=max_val,
+                num_type=type(widget.items[-1]),
                 name="max",
                 label="max",
                 style_="width: 80px",
@@ -401,15 +459,17 @@ def init_ranges_widgets_dict(
         qubit,
         (scq.Transmon, scq.TunableTransmon, scq.Fluxonium, scq.FluxQubit),
     ):
-        widget_min_text = ui.FloatTextField(
+        widget_min_text = ui.ValidatedNumberField(
             v_model=qubit._default_grid.min_val,
+            num_type=float,
             label="min",
             step=0.01,
             style_="width: 80px",
             class_="px-3",
         )
-        widget_max_text = ui.FloatTextField(
+        widget_max_text = ui.ValidatedNumberField(
             v_model=qubit._default_grid.max_val,
+            num_type=float,
             label="max",
             step=0.01,
             style_="width: 80px",
@@ -420,15 +480,17 @@ def init_ranges_widgets_dict(
             "max": widget_max_text,
         }
     elif isinstance(qubit, scq.ZeroPi):
-        widget_min_text = ui.FloatTextField(
+        widget_min_text = ui.ValidatedNumberField(
             v_model=qubit._default_grid.min_val,
+            num_type=float,
             label="min",
             step=0.01,
             style_="width: 80px",
             class_="px-3",
         )
-        widget_max_text = ui.FloatTextField(
+        widget_max_text = ui.ValidatedNumberField(
             v_model=qubit._default_grid.max_val,
+            num_type=float,
             label="max",
             step=0.01,
             style_="width: 80px",
@@ -445,11 +507,11 @@ def init_ranges_widgets_dict(
             "zeta": qubit._default_zeta_grid,
         }
         for param, param_grid in default_grids.items():
-            widget_min_text = ui.FloatTextField(
-                v_model=param_grid.min_val, label="min", step=0.01
+            widget_min_text = ui.ValidatedNumberField(
+                v_model=param_grid.min_val, num_type=float, label="min", step=0.01
             )
-            widget_max_text = ui.FloatTextField(
-                v_model=param_grid.max_val, label="max", step=0.01
+            widget_max_text = ui.ValidatedNumberField(
+                v_model=param_grid.max_val, num_type=float, label="max", step=0.01
             )
             dict_v_ranges[param] = {
                 "min": widget_min_text,

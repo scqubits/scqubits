@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict
 
 import scqubits.core.units as units
 import scqubits.utils.misc as utils
-from scqubits.ui.gui_custom_widgets import FloatTextField, IntTextField
+from scqubits.ui.gui_custom_widgets import ValidatedNumberField
 
 try:
     import ipyvuetify
@@ -60,13 +60,9 @@ def create_widget(
         elif name == "flux":
             label_str += r" [Φ₀]"
 
-        if isinstance(value, float):
-            enter_widget = FloatTextField
-        else:
-            enter_widget = IntTextField
-
-        widgets[name] = enter_widget(
+        widgets[name] = ValidatedNumberField(
             v_model=value,
+            num_type=type(value),
             placeholder=f"enter appropriate value for {label_str}",
             label=label_str,
             name=name,

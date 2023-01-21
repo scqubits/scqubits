@@ -11,14 +11,14 @@
 ############################################################################
 
 
-EL_range = {"min": 1.0e-5, "max": 10.0}
-EJ_range = {"min": 1.0e-5, "max": 70.0}
-EC_range = {"min": 1.0e-5, "max": 10.0}
-flux_range = {"min": 0.0, "max": 1.0}
-ng_range = {"min": 0.0, "max": 1.0}
-int_range = {"min": 1, "max": 30}
-float_range = {"min": 0.0, "max": 30.0}
-ncut_range = {"min": 10, "max": 50}
+EL_range = {"v_min": 1.0e-5, "v_max": 10.0}
+EJ_range = {"v_min": 1.0e-5, "v_max": 70.0}
+EC_range = {"v_min": 1.0e-5, "v_max": 10.0}
+flux_range = {"v_min": 0.0, "v_max": 1.0}
+ng_range = {"v_min": 0.0, "v_max": 1.0}
+int_range = {"v_min": 1, "v_max": 30}
+float_range = {"v_min": 0.0, "v_max": 30.0}
+ncut_range = {"v_min": 10, "v_max": 50}
 
 global_defaults = {
     "mode_wavefunc": "Re(·)",
@@ -44,8 +44,8 @@ tunabletransmon_defaults = {
     **global_defaults,
     "scan_param": "flux",
     "operator": "n_operator",
-    "EJmax": EJ_range,
-    "d": {"min": 0.0, "max": 1.0},
+    "EJv_max": EJ_range,
+    "d": {"v_min": 0.0, "v_max": 1.0},
     "ncut": ncut_range,
 }
 
@@ -54,7 +54,7 @@ fluxonium_defaults = {
     "scan_param": "flux",
     "operator": "n_operator",
     "EL": EL_range,
-    "cutoff": {"min": 10, "max": 120},
+    "cutoff": {"v_min": 10, "v_max": 120},
 }
 
 fluxqubit_defaults = {
@@ -83,8 +83,8 @@ zeropi_defaults = {
     "ncut": ncut_range,
     "EL": EL_range,
     "ECJ": EC_range,
-    "dEJ": {"min": 0.0, "max": 1.0},
-    "dCJ": {"min": 0.0, "max": 1.0},
+    "dEJ": {"v_min": 0.0, "v_max": 1.0},
+    "dCJ": {"v_min": 0.0, "v_max": 1.0},
     "scale": None,
     "num_sample": 50,
 }
@@ -96,12 +96,12 @@ fullzeropi_defaults = {
     "ncut": ncut_range,
     "EL": EL_range,
     "ECJ": EC_range,
-    "dEJ": {"min": 0.0, "max": 1.0},
-    "dCJ": {"min": 0.0, "max": 1.0},
-    "dEL": {"min": 0.0, "max": 1.0},
-    "dC": {"min": 0.0, "max": 1.0},
-    "zeropi_cutoff": {"min": 5, "max": 30},
-    "zeta_cutoff": {"min": 5, "max": 30},
+    "dEJ": {"v_min": 0.0, "v_max": 1.0},
+    "dCJ": {"v_min": 0.0, "v_max": 1.0},
+    "dEL": {"v_min": 0.0, "v_max": 1.0},
+    "dC": {"v_min": 0.0, "v_max": 1.0},
+    "zeropi_cutoff": {"v_min": 5, "v_max": 30},
+    "zeta_cutoff": {"v_min": 5, "v_max": 30},
     "scale": None,
     "num_sample": 50,
 }
@@ -112,12 +112,12 @@ cos2phiqubit_defaults = {
     "operator": "phi_operator",
     "EL": EL_range,
     "ECJ": EC_range,
-    "dEJ": {"min": 0, "max": 0.99},
-    "dL": {"min": 0, "max": 0.99},
-    "dCJ": {"min": 0, "max": 0.99},
+    "dEJ": {"v_min": 0, "v_max": 0.99},
+    "dL": {"v_min": 0, "v_max": 0.99},
+    "dCJ": {"v_min": 0, "v_max": 0.99},
     "ncut": ncut_range,
-    "zeta_cut": {"min": 10, "max": 50},
-    "phi_cut": {"min": 5, "max": 30},
+    "zeta_cut": {"v_min": 10, "v_max": 50},
+    "phi_cut": {"v_min": 5, "v_max": 30},
     "scale": None,
     "num_sample": 50,
 }
@@ -159,7 +159,7 @@ paramvals_from_papers = {
     "TunableTransmon": {
         "Arute et al. [mean], Nature 574, 505 (2019)": {
             "params": {
-                "EJmax": 32.7,
+                "EJv_max": 32.7,
                 "EC": 0.195,
             },
             "link": "https://www.nature.com/articles/s41586-019-1666-5",

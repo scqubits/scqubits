@@ -108,11 +108,11 @@ class GUI:
         )
         self.v_tabs: v.Tabs = v.Tabs(children=[], background_color=NAV_COLOR)
         self.dict_v_ranges: Dict[
-            str, Dict[str, Union[ui.IntTextField, ui.FloatTextField]]
+            str, Dict[str, ui.ValidatedNumberField]
         ] = {}
 
         self.dict_v_noise_params: Dict[
-            str, Union[ui.FloatTextField, ui.IntTextField]
+            str, ui.ValidatedNumberField
         ] = {}
 
         self.dict_v_plot_options: Dict[str, Any] = {}
@@ -292,17 +292,10 @@ class GUI:
     #
     def init_observe(self) -> None:
         """Links all the necessary widgets to their desired function."""
-        self.v_qubit_choice.observe(
-            names="v_model",
-            handler=self.qubit_change,
-        )
-
-        self.v_plot_choice.observe(
-            names="v_model", handler=self.plot_option_layout_refresh
-        )
-
+        self.v_qubit_choice.observe(self.qubit_change, names="v_model")
+        self.v_plot_choice.observe(self.plot_option_layout_refresh, names="v_model")
         self.v_manual_update_switch.observe(
-            names="v_model", handler=self.toggle_manual_updating
+            self.toggle_manual_updating, names="v_model"
         )
         self.v_manual_update_btn.on_event("click", self.manual_update_button_onclick)
         self.v_save_btn.on_event("click", self.save_button_clicked_action)
@@ -410,33 +403,30 @@ class GUI:
             A tuple containing the viable minimum and maximum values for the
             corresponding parameter/qubit plot option widget
         """
-        print("CHECKING", new_min, new_max, widget_name)
-        if widget_name == "highest_state":
-            if new_min < 0:
-                new_min = 0
-            if new_max < 0:
-                new_max = 0
-            if new_min > new_max:
-                new_min = new_max
-        elif widget_name in ("phi", "theta", "zeta", "flux", "grid"):
-            pass
-        elif widget_name == "wavefunction_scale_slider":
-            if new_min < 0:
-                new_min = 0
-                # new_min = text_widget["min"].step
-        elif "cut" in widget_name:
-            if new_min < 2:
-                new_min = 2
-        elif widget_name in self.dict_v_qubit_params.keys():
-            if new_min < 0:
-                new_min = self.active_defaults[widget_name]["min"]
+        # if widget_name == "highest_state":
+            # if new_min < 0:
+            #     new_min = 0
+            # if new_max < 0:
+            #     new_max = 0
+        #     if new_min > new_max:
+        #         new_min = new_max
+        # elif widget_name in ("phi", "theta", "zeta", "flux", "grid"):
+        #     pass
+        # elif widget_name == "wavefunction_scale_slider":
+        #     if new_min < 0:
+        #         new_min = 0
+        # elif "cut" in widget_name:
+        #     if new_min < 2:
+        #         new_min = 2
+        # elif widget_name in self.dict_v_qubit_params.keys():
+        #     if new_min < 0:
+        #         new_min = self.active_defaults[widget_name]["min"]
 
         if new_max < new_min:
             if changed_widget_key == "min":
                 new_min = new_max
             else:
                 new_max = new_min
-
 
         # if new_min <= 1 or ("cut" in widget_name and new_min <= 1):
         #     if widget_name == "highest_state":
@@ -457,7 +447,6 @@ class GUI:
         #         new_min = new_max - text_widget["max"].step
         #     else:
         #         new_max = new_min + text_widget["min"].step
-        print("CHECKED", new_min, new_max)
         return new_min, new_max
 
     def update_range_values(
@@ -494,15 +483,18 @@ class GUI:
         if isinstance(widget, v.Select) and widget.multiple:
             current_values = list(widget.v_model)
             new_values = []
-            widget.options = range(new_min, new_max + 1)
+            widget.items = range(int(new_min), int(new_max + 1))
             for value in current_values:
-                if value in widget.options:
+                if value in widget.items:
                     new_values.append(value)
             if len(new_values) == 0:
                 new_values.append(widget.options[0])
-            widget.value = new_values
+            widget.v_model = new_values
         elif widget is None:
             pass
+        elif hasattr(widget, "v_min"):
+            widget.v_min = new_min
+            widget.v_max = new_max
         else:
             widget.min = new_min
             widget.max = new_max
@@ -510,13 +502,13 @@ class GUI:
     # Observe Methods-------------------------------------------------------------------
     def observe_range_widgets(self) -> None:
         for text_widgets in self.dict_v_ranges.values():
-            text_widgets["min"].observe(names="v_model", handler=self.ranges_update)
-            text_widgets["max"].observe(names="v_model", handler=self.ranges_update)
+            text_widgets["min"].observe(self.ranges_update, names="num_value")
+            text_widgets["max"].observe(self.ranges_update, names="num_value")
 
     def unobserve_range_widgets(self) -> None:
         for text_widgets in self.dict_v_ranges.values():
-            text_widgets["min"].unobserve(names="v_model", handler=self.ranges_update)
-            text_widgets["max"].unobserve(names="v_model", handler=self.ranges_update)
+            text_widgets["min"].unobserve(self.ranges_update)
+            text_widgets["max"].unobserve(self.ranges_update)
 
     def activate_auto_plot_refresh(self) -> None:
         if self.manual_updating:
@@ -529,7 +521,11 @@ class GUI:
         }
         for widget_name, widget in total_dict.items():
             if widget_name not in self.autoconnect_blacklist:
-                widget.observe(names="v_model", handler=self.plot_refresh)
+                widget.observe(self.plot_refresh, names="v_model")
+                # if isinstance(widget, (ui.ValidatedNumberField, ui.NumberEntryWidget)):
+                #     widget.observe(self.plot_refresh, names="v_model")
+                # else:
+                #     widget.observe(self.plot_refresh, names="v_model")
 
     def deactivate_auto_plot_refresh(self) -> None:
         if self.manual_updating:
@@ -541,111 +537,87 @@ class GUI:
         }
         for widget_name, widget in total_dict.items():
             if widget_name not in self.autoconnect_blacklist:
-                widget.unobserve(names="v_model", handler=self.plot_refresh)
+                widget.unobserve(self.plot_refresh)
 
     def observe_plot_option_widgets(self) -> None:
         if isinstance(
             self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)
         ):
             self.dict_v_plot_options["manual_wf_scaling"].observe(
-                names="v_model", handler=self.toggle_manual_wf_scaling
+                self.toggle_manual_wf_scaling, names="v_model"
             )
 
         self.dict_v_plot_options["scan_param"].observe(
-            names="v_model", handler=self.set_new_scan_param
+            self.set_new_scan_param, names="v_model"
+        )
+        self.dict_v_plot_options["literature_params"].observe(
+            self.set_literature_params_and_refresh_plot, names="v_model"
         )
 
         self.dict_v_plot_options["literature_params"].observe(
-            names="v_model",
-            handler=self.set_literature_params_and_refresh_plot,
+            self.literature_url_refresh, names="v_model"
         )
-
-        self.dict_v_plot_options["literature_params"].observe(
-            names="v_model",
-            handler=self.literature_url_refresh,
-        )
-
         self.dict_v_plot_options["t1_checkbox"].observe(
-            names="v_model", handler=self.clear_plot
+            self.clear_plot, names="v_model"
         )
 
         self.dict_v_plot_options["t2_checkbox"].observe(
-            names="v_model", handler=self.clear_plot
+            self.clear_plot, names="v_model"
         )
         self.dict_v_plot_options["show3d_matelem"].observe(
-            names="v_model", handler=self.clear_plot
+            self.clear_plot, names="v_model"
         )
         self.dict_v_plot_options["noise_channel_multiselect"].observe(
-            names="v_model", handler=self.clear_plot
+            self.clear_plot, names="v_model"
         )
 
         for widget_name, widget in self.dict_v_qubit_params.items():
             if "cut" in widget_name:
-                widget.observe(names="v_model", handler=self.adjust_state_widgets)
-            widget.observe(
-                names="v_model", handler=self.check_user_override_literature_params
-            )
+                widget.observe(self.adjust_state_widgets, names="v_model")
+            widget.observe(self.check_user_override_literature_params, names="v_model")
 
     def unobserve_plot_options_widget(self) -> None:
         if isinstance(
             self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)
         ):
             self.dict_v_plot_options["manual_wf_scaling"].unobserve(
-                names="v_model", handler=self.toggle_manual_wf_scaling
+                self.toggle_manual_wf_scaling
             )
-        self.dict_v_plot_options["scan_param"].unobserve(
-            names="v_model", handler=self.set_new_scan_param
+
+        self.dict_v_plot_options["scan_param"].unobserve(self.set_new_scan_param)
+        self.dict_v_plot_options["literature_params"].unobserve(
+            self.literature_url_refresh
         )
         self.dict_v_plot_options["literature_params"].unobserve(
-            names="v_model", handler=self.literature_url_refresh
+            self.set_literature_params_and_refresh_plot
         )
-        self.dict_v_plot_options["literature_params"].unobserve(
-            names="v_model",
-            handler=self.set_literature_params_and_refresh_plot,
-        )
-        self.dict_v_plot_options["t1_checkbox"].unobserve(
-            names="v_model", handler=self.clear_plot
-        )
-        self.dict_v_plot_options["t2_checkbox"].unobserve(
-            names="v_model", handler=self.clear_plot
-        )
-        self.dict_v_plot_options["show3d_matelem"].unobserve(
-            names="v_model", handler=self.clear_plot
-        )
-        self.dict_v_plot_options["noise_channel_multiselect"].unobserve(
-            names="v_model", handler=self.clear_plot
-        )
+        self.dict_v_plot_options["t1_checkbox"].unobserve(self.clear_plot)
+        self.dict_v_plot_options["t2_checkbox"].unobserve(self.clear_plot)
+        self.dict_v_plot_options["show3d_matelem"].unobserve(self.clear_plot)
+        self.dict_v_plot_options["noise_channel_multiselect"].unobserve(self.clear_plot)
 
         for widget_name, widget in self.dict_v_qubit_params.items():
             if "cut" in widget_name:
-                widget.unobserve(names="v_model", handler=self.adjust_state_widgets)
-            widget.unobserve(
-                names="v_model", handler=self.check_user_override_literature_params
-            )
+                widget.unobserve(self.adjust_state_widgets)
+            widget.unobserve(self.check_user_override_literature_params)
 
     def observe_coherence_widgets(self) -> None:
         self.dict_v_plot_options["i_text"].observe(
-            names="v_model", handler=self.check_coherence_params_bounds
+            self.check_coherence_params_bounds, names="num_value"
         )
         self.dict_v_plot_options["j_text"].observe(
-            names="v_model", handler=self.check_coherence_params_bounds
+            self.check_coherence_params_bounds, names="num_value"
         )
 
         for widget in self.dict_v_noise_params.values():
-            widget.observe(names="v_model", handler=self.check_coherence_params_bounds)
+            widget.observe(self.check_coherence_params_bounds, names="num_value")
 
     def unobserve_coherence_widgets(self) -> None:
-        self.dict_v_plot_options["i_text"].unobserve(
-            names="v_model", handler=self.check_coherence_params_bounds
-        )
-        self.dict_v_plot_options["j_text"].unobserve(
-            names="v_model", handler=self.check_coherence_params_bounds
-        )
+        self.dict_v_plot_options["i_text"].unobserve(self.check_coherence_params_bounds)
+        self.dict_v_plot_options["j_text"].unobserve(self.check_coherence_params_bounds)
 
         for widget in self.dict_v_noise_params.values():
-            widget.unobserve(
-                names="v_model", handler=self.check_coherence_params_bounds
-            )
+            widget.unobserve(self.check_coherence_params_bounds)
 
     # Eventhandler Methods -------------------------------------------------------------
     def qubit_change(self, change) -> None:
@@ -781,14 +753,14 @@ class GUI:
                 self.dict_v_ranges[param_name]["min"].v_model = self.active_defaults[
                     param_name
                 ]["min"]
-                self.dict_v_qubit_params[param_name].min = self.active_defaults[
+                self.dict_v_qubit_params[param_name].v_min = self.active_defaults[
                     param_name
                 ]["min"]
             if param_val > param_max:
                 self.dict_v_ranges[param_name]["max"].v_model = (
                     np.ceil(param_val / 10) * 10
                 )
-                self.dict_v_qubit_params[param_name].max = np.ceil(param_val / 10) * 10
+                self.dict_v_qubit_params[param_name].v_max = np.ceil(param_val / 10) * 10
 
             self.dict_v_qubit_params[param_name].v_model = param_val
 
@@ -801,10 +773,9 @@ class GUI:
         hilbertdim = self.active_qubit.hilbertdim()
         wavefunction_state_slider_text = self.dict_v_ranges["highest_state"]
 
-        if wavefunction_state_slider_text["max"].v_model >= hilbertdim - 1:
+        if wavefunction_state_slider_text["max"].num_value >= hilbertdim - 1:
             new_max = max(hilbertdim - 2, 0)
-            new_min = wavefunction_state_slider_text["min"].v_model
-            print("MIN", new_min, "MAX", new_max)
+            new_min = wavefunction_state_slider_text["min"].num_value
             new_min, new_max = self.check_ranges(
                 new_min,
                 new_max,
@@ -820,9 +791,8 @@ class GUI:
             self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)
         ):
             multi_state_selector_text = self.dict_v_ranges["multi_state_selector"]
-
-            if multi_state_selector_text["max"].v_model >= hilbertdim - 2:
-                new_min = multi_state_selector_text["min"].v_model
+            if multi_state_selector_text["max"].num_value >= hilbertdim - 2:
+                new_min = multi_state_selector_text["min"].num_value
                 new_max = hilbertdim - 3
                 new_min, new_max = self.check_ranges(
                     new_min,
@@ -839,8 +809,8 @@ class GUI:
                 "wavefunction_state_slider"
             ]
 
-            if wavefunction_state_slider_text["max"].v_model >= hilbertdim - 2:
-                new_min = wavefunction_state_slider_text["min"].v_model
+            if wavefunction_state_slider_text["max"].num_value >= hilbertdim - 2:
+                new_min = wavefunction_state_slider_text["min"].num_value
                 new_max = hilbertdim - 3
                 new_min, new_max = self.check_ranges(
                     new_min,
@@ -864,6 +834,7 @@ class GUI:
             new_max = text_widgets["max"].num_value
             changed_widget_key = change["owner"].label
 
+
             new_min, new_max = self.check_ranges(
                 new_min, new_max, widget_name, text_widgets, changed_widget_key
             )
@@ -885,8 +856,8 @@ class GUI:
 
         if (
             change
-            and isinstance(change["owner"], ui.ValidatedTextFieldABC)
-            and change["owner"].continuous_update_in_progress
+            and isinstance(change["owner"], ui.ValidatedNumberField)
+            and change["owner"]._continuous_update_in_progress
         ):
             do_update = False
         else:
@@ -918,7 +889,7 @@ class GUI:
 
         value_dict = {
             "scan_value": scan_dropdown_value,
-            "scan_range": (scan_slider.min, scan_slider.max),
+            "scan_range": (scan_slider.v_min, scan_slider.v_max),
             "subtract_ground_tf": self.dict_v_plot_options["subtract_ground"].v_model,
             "eigenvalue_state_value": self.dict_v_plot_options["highest_state"].v_model,
         }
@@ -941,7 +912,7 @@ class GUI:
             value_dict["scale_value"] = None
             value_dict["eigenvalue_states"] = self.dict_v_plot_options[
                 "wavefunction_state_slider"
-            ].v_model
+            ].num_value
         else:
             manual_scale_tf_value = self.dict_v_plot_options[
                 "manual_wf_scaling"
@@ -950,7 +921,7 @@ class GUI:
             if manual_scale_tf_value:
                 value_dict["scale_value"] = self.dict_v_plot_options[
                     "wavefunction_scale_slider"
-                ].v_model
+                ].num_value
             else:
                 value_dict["scale_value"] = None
             value_dict["eigenvalue_states"] = self.dict_v_plot_options[
@@ -991,7 +962,7 @@ class GUI:
 
         value_dict = {
             "scan_value": scan_dropdown_value,
-            "scan_range": (scan_slider.min, scan_slider.max),
+            "scan_range": (scan_slider.v_min, scan_slider.v_max),
             "operator_value": self.dict_v_plot_options["operator_choice"].v_model,
             "matrix_element_state_value": self.dict_v_plot_options[
                 "highest_state"
@@ -1112,7 +1083,7 @@ class GUI:
             "t1_effective_tf": t1_effective_tf,
             "t2_effective_tf": t2_effective_tf,
             "scan_value": scan_dropdown_value,
-            "scan_range": (scan_slider.min, scan_slider.max),
+            "scan_range": (scan_slider.v_min, scan_slider.v_max),
             "noise_channels": noise_channels,
             "common_noise_options": common_noise_options,
         }
@@ -1126,7 +1097,7 @@ class GUI:
 
         for widget_name, text_widgets in self.dict_v_ranges.items():
             if widget_name == "highest_state":
-                widget_name = "Highest State"
+                widget_name = "Max level"
             elif widget_name == "multi_state_selector":
                 widget_name = "States"
             elif widget_name == "wavefunction_state_slider":
@@ -1233,9 +1204,10 @@ class GUI:
 
         plot_options_widgets_tuple = (
             self.dict_v_plot_options["scan_param"],
-            flex_column([
-                self.dict_v_plot_options["highest_state"],
-                self.dict_v_plot_options["subtract_ground"]
+            flex_column(
+                [
+                    self.dict_v_plot_options["highest_state"],
+                    self.dict_v_plot_options["subtract_ground"],
                 ]
             ),
         )
@@ -1353,10 +1325,12 @@ class GUI:
                 self.dict_v_plot_options["j_text"],
             ],
         )
-        checkbox_HBox = flex_column([
-            self.dict_v_plot_options["t1_checkbox"],
-            self.dict_v_plot_options["t2_checkbox"],
-        ])
+        checkbox_HBox = flex_column(
+            [
+                self.dict_v_plot_options["t1_checkbox"],
+                self.dict_v_plot_options["t2_checkbox"],
+            ]
+        )
 
         plot_options_widgets_tuple = (
             self.dict_v_plot_options["scan_param"],

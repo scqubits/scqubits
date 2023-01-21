@@ -12,6 +12,7 @@
 from typing import Union, List, Callable, Any
 
 import ipyvuetify
+import ipywidgets
 import traitlets
 from IPython.core.display_functions import display
 
@@ -19,32 +20,58 @@ from IPython.core.display_functions import display
 from scqubits.utils import misc as utils
 
 
-class ValidatedTextFieldABC(ipyvuetify.TextField):
+class ValidatedNumberField(ipyvuetify.TextField):
     _typecheck_func: callable = None
     _type = None
     _current_value = None
     num_value = None
 
-    def __init__(self, min=None, max=None, **kwargs):
+    def __init__(
+        self,
+        v_model,
+        num_type=None,
+        v_min=None,
+        v_max=None,
+        step=None,
+        filled=True,
+        **kwargs,
+    ):
         self.name = kwargs.pop("name", None)
-        self.min = min
-        self.max = max
+        self._type = num_type if num_type is not None else type(v_model)
 
-        if "v_model" not in kwargs and "items" in kwargs:
-            kwargs["v_model"] = kwargs["items"][0]
-        self._current_value = kwargs["v_model"]
+        # if "v_model" not in kwargs and "items" in kwargs:
+        #     kwargs["v_model"] = kwargs["items"][0]
+        self._current_value = v_model
 
-        if "filled" not in kwargs:
-            kwargs["filled"] = True
+        super().__init__(v_model=v_model, filled=filled, **kwargs)
 
-        super().__init__(**kwargs)
+        if num_type == float:
+            TraitletClass = traitlets.Float
+            self._typecheck_func = lambda data: utils.is_string_float(data)
+            self.step = step if step is not None else 0.1
+        elif num_type == int:
+            TraitletClass = traitlets.Int
+            self._typecheck_func = lambda data: utils.is_string_int(data)
+            self.step = step if step is not None else 1
+        else:
+            raise Exception(f"Not a supported number type: {num_type}")
+
+        self.add_traits(
+            num_value=TraitletClass(read_only=True).tag(sync=True),
+            v_min=TraitletClass(allow_none=True).tag(sync=True),
+            v_max=TraitletClass(allow_none=True).tag(sync=True),
+        )
+        self.v_min = v_min
+        self.v_max = v_max
+        self.set_trait("num_value", self._num_value())
+
         self.observe(self.is_entry_valid, names="v_model")
 
     def is_entry_valid(self, *args, **kwargs):
         if (
             not self._typecheck_func(self.v_model)
-            or (self.min not in [None, ""] and self.v_model < self.min)
-            or (self.max not in [None, ""] and self.v_model > self.max)
+            or (self.v_min not in [None, ""] and self.num_value < self.v_min)
+            or (self.v_max not in [None, ""] and self.num_value > self.v_max)
         ):
             self.error = True
             self.rules = ["invalid"]
@@ -52,6 +79,7 @@ class ValidatedTextFieldABC(ipyvuetify.TextField):
 
         self.rules = [True]
         self.error = False
+        self.set_trait("num_value", self._num_value())
         return True
 
     def _num_value(self):
@@ -60,76 +88,54 @@ class ValidatedTextFieldABC(ipyvuetify.TextField):
         return self._current_value
 
 
-class IntTextField(ValidatedTextFieldABC):
-    _typecheck_func = staticmethod(utils.is_string_int)
-    _type = int
-    num_value = traitlets.Int(read_only=True).tag(sync=True)
-    step = 1
-
-
-class FloatTextField(ValidatedTextFieldABC):
-    _typecheck_func = staticmethod(utils.is_string_float)
-    _type = float
-
-
-class NumberEntryWidget:
+class NumberEntryWidget(ValidatedNumberField):
     def __init__(
         self,
-        num_type,
         label,
-        min=None,
-        step=None,
-        max=None,
         v_model=None,
+        num_type=float,
+        step=None,
+        v_min=None,
+        v_max=None,
+        s_min=None,
+        s_max=None,
         style_="",
         class_="",
         text_kwargs=None,
         slider_kwargs=None,
     ):
-        super().__init__()
-        self._continuous_update_in_progress = False
-        if num_type == float:
-            TxtWidget = FloatTextField
-            min = min if min is not None else 0.0
-            max = max if max is not None else 1.0
-            step = step or 0.1
-            v_model = v_model if v_model is not None else min
-        elif num_type == int:
-            TxtWidget = IntTextField
-            min = min if min is not None else 0
-            max = max if max is not None else 100
-            v_model = v_model if v_model is not None else min
-        else:
-            raise Exception("Unsupported type: ", num_type)
-
         self.class_ = class_
         self.style_ = style_
-
         text_kwargs = text_kwargs or {}
         slider_kwargs = slider_kwargs or {}
 
-        self.textfield = TxtWidget(label=label, v_model=v_model, **text_kwargs)
+        super().__init__(
+            label=label,
+            v_model=v_model,
+            num_type=num_type,
+            step=step,
+            v_min=v_min,
+            v_max=v_max,
+            **text_kwargs,
+        )
 
         if "style_" not in slider_kwargs:
             slider_kwargs["style_"] = "max-width: 240px; width: 220px;"
         if "class_" not in slider_kwargs:
             slider_kwargs["class_"] = "pt-3"
         self.slider = ipyvuetify.Slider(
-            min=min, max=max, step=step, v_model=v_model, **slider_kwargs
+            min=s_min, max=s_max, step=step, v_model=v_model, **slider_kwargs
         )
 
+        self._continuous_update_in_progress = False
         self.slider.on_event("start", self.slider_in_progress_toggle)
         self.slider.on_event("end", self.slider_in_progress_toggle)
         self.slider.observe(self.update_textfield, names="v_model")
-        self.textfield.observe(self.update_slider, names="v_model")
+        self.observe(self.update_slider, names="num_value")
 
-
-    def __getattr__(self, item):
-        if hasattr(self.textfield, item):
-            return getattr(self.textfield, item)
-        if hasattr(self.slider, item):
-            return getattr(self.slider, item)
-        raise Exception(f"NumberEntryWidget.{item} does not exist.")
+        ipywidgets.jslink((self, "v_max"), (self.slider, "max"))
+        ipywidgets.jslink((self, "v_min"), (self.slider, "min"))
+        ipywidgets.jslink((self, "disabled"), (self.slider, "disabled"))
 
     def _ipython_display_(self):
         display(self.widget())
@@ -138,73 +144,32 @@ class NumberEntryWidget:
         return ipyvuetify.Container(
             class_=self.class_ or "d-flex flex-row pr-4",
             style_=self.style_,
-            children=[self.textfield, self.slider],
+            children=[self, self.slider],
         )
 
     def update_textfield(self, *args):
         if self._continuous_update_in_progress:
-            self.textfield.v_model = self.slider.v_model
+            self.v_model = self.slider.v_model
 
     def update_slider(self, *args):
-        if self.textfield.error:
+        if self.error:
             return
-        if self.textfield.num_value > self.slider.max:
+        if self.num_value > self.slider.max:
             self.slider.color = "red"
             self.slider.v_model = self.slider.max
-        elif self.textfield.num_value < self.slider.min:
+        elif self.num_value < self.slider.min:
             self.slider.color = "red"
             self.slider.v_model = self.slider.min
         else:
             self.slider.color = ""
-            self.slider.v_model = self.textfield.num_value
+            self.slider.v_model = self.num_value
 
     def slider_in_progress_toggle(self, *args):
-        self._continuous_update_in_progress = (
-            not self._continuous_update_in_progress
-        )
+        self._continuous_update_in_progress = not self._continuous_update_in_progress
         if not self._continuous_update_in_progress:
-            self.textfield.v_model = str(
+            self.v_model = str(
                 self.slider.v_model
             )  # This is a hack... need to trigger final "change" event
-
-    @property
-    def disabled(self):
-        return self.textfield.disabled
-
-    @disabled.setter
-    def disabled(self, value):
-        self.textfield.disabled = value
-        self.slider.disabled = value
-
-    @property
-    def v_model(self):
-        return self.textfield.v_model
-
-    @v_model.setter
-    def v_model(self, value):
-        self.textfield.v_model = value
-
-    @property
-    def min(self):
-        return self.slider.min
-
-    @min.setter
-    def min(self, value):
-        self.slider.min = value
-
-    @property
-    def max(self):
-        return self.slider.max
-
-    @max.setter
-    def max(self, value):
-        self.slider.max = value
-
-    def observe(self, *args, **kwargs):
-        self.textfield.observe(*args, **kwargs)
-
-    def unobserve(self, *args, **kwargs):
-        self.textfield.unobserve(*args, **kwargs)
 
 
 class InitSelect(ipyvuetify.Select):
@@ -227,11 +192,7 @@ class DiscreteSetSlider(ipyvuetify.Slider):
     def __init__(self, param_vals, **kwargs):
         self.val_count = len(param_vals)
         self.param_vals = param_vals
-
-        min = 0
-        max = self.val_count - 1
-
-        super().__init__(min=min, max=max, step=1, v_model=min, **kwargs)
+        super().__init__(min=0, max=(self.val_count - 1), step=1, v_model=0, **kwargs)
 
     def current_value(self):
         return self.param_vals[int(self.v_model)]

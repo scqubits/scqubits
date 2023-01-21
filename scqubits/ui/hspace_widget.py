@@ -42,7 +42,7 @@ import scqubits
 from scqubits.core.oscillator import Oscillator
 from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass
 from scqubits.utils import misc as utils
-from scqubits.ui.gui_custom_widgets import FloatTextField
+from scqubits.ui.gui_custom_widgets import ValidatedNumberField
 
 QuantumSys = Union[QubitBaseClass, Oscillator]
 
@@ -129,8 +129,9 @@ class HilbertSpaceUi:
             outlined=True,
             dense=True,
         )
-        self.g_widget = FloatTextField(
+        self.g_widget = ValidatedNumberField(
             v_model="",
+            num_type=float,
             label="g_strength",
             style_="",
             outlined=True,

@@ -29,7 +29,7 @@ import warnings
 
 from typing import Any, Type, Union
 
-import matplotlib as mpl
+import matplotlib.font_manager as mpl_font
 import numpy as np
 
 from cycler import cycler
@@ -96,7 +96,7 @@ MULTIPROC = "pathos"
 # select fonts
 font_selected = None
 for font in ["IBM Plex Sans", "Roboto", "Arial", "Helvetica"]:
-    if font in mpl.font_manager.get_font_names():
+    if font in mpl_font.get_font_names():
         font_selected = font
         break
 
