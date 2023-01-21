@@ -12,35 +12,27 @@
 
 
 import warnings
-
 from distutils.version import StrictVersion
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-
 from matplotlib import get_backend as get_matplotlib_backend
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 import scqubits as scq
 import scqubits.ui.gui_custom_widgets as ui
-
 from scqubits.core.param_sweep import ParameterSlice
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.explorer import explorer_panels as panels
-from scqubits.ui.gui_defaults import (
-    composite_panel_names,
-    default_panels,
-    mode_dropdown_dict,
-    subsys_panel_names,
-    NAV_COLOR,
-    mode_dropdown_list,
-)
+from scqubits.settings import matplotlib_settings
+from scqubits.ui.gui_defaults import (NAV_COLOR, composite_panel_names,
+                                      default_panels, mode_dropdown_dict,
+                                      mode_dropdown_list, subsys_panel_names)
 from scqubits.ui.gui_setup import flex_row
 from scqubits.utils import misc as utils
-from scqubits.settings import matplotlib_settings
 
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep

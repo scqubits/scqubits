@@ -31,7 +31,6 @@ from typing import (
 )
 
 import numpy as np
-
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
@@ -45,7 +44,6 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.plotting as plot
-
 from scqubits import settings as settings
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.namedslots_array import (

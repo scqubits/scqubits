@@ -12,45 +12,41 @@
 
 import math
 import warnings
-
 from distutils.version import StrictVersion
-
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-
-import matplotlib
 from matplotlib import get_backend as get_matplotlib_backend
 from matplotlib.figure import Axes, Figure
 
 import scqubits as scq
-import scqubits.ui.gui_defaults as gui_defaults
 import scqubits.ui.gui_custom_widgets as ui
+import scqubits.ui.gui_defaults as gui_defaults
 import scqubits.utils.misc as utils
-
 from scqubits.core.discretization import Grid1d
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.settings import matplotlib_settings
 from scqubits.ui.gui_defaults import NAV_COLOR
 from scqubits.ui.gui_setup import (
-    init_qubit_dropdown,
-    init_plot_choice_buttons,
-    init_manual_update_switch,
-    init_manual_update_btn,
-    init_save_btn,
-    init_filename_textfield,
-    flex_row,
-    init_dict_v_plot_options,
-    init_dict_v_noise_params,
     flex_column,
+    flex_row,
+    init_dict_v_noise_params,
+    init_dict_v_plot_options,
+    init_filename_textfield,
+    init_manual_update_btn,
+    init_manual_update_switch,
+    init_plot_choice_buttons,
+    init_qubit_dropdown,
     init_qubit_params_widgets_dict,
     init_ranges_widgets_dict,
+    init_save_btn,
 )
 
 try:
-    import ipywidgets
     import ipyvuetify as v
+    import ipywidgets
 except ImportError:
     _HAS_IPYVUETIFY = False
 else:
@@ -107,13 +103,9 @@ class GUI:
             layout={"overflow-x": "unset !important"}
         )
         self.v_tabs: v.Tabs = v.Tabs(children=[], background_color=NAV_COLOR)
-        self.dict_v_ranges: Dict[
-            str, Dict[str, ui.ValidatedNumberField]
-        ] = {}
+        self.dict_v_ranges: Dict[str, Dict[str, ui.ValidatedNumberField]] = {}
 
-        self.dict_v_noise_params: Dict[
-            str, ui.ValidatedNumberField
-        ] = {}
+        self.dict_v_noise_params: Dict[str, ui.ValidatedNumberField] = {}
 
         self.dict_v_plot_options: Dict[str, Any] = {}
         self.dict_v_qubit_params: Dict[str, Any] = {}
@@ -404,10 +396,10 @@ class GUI:
             corresponding parameter/qubit plot option widget
         """
         # if widget_name == "highest_state":
-            # if new_min < 0:
-            #     new_min = 0
-            # if new_max < 0:
-            #     new_max = 0
+        # if new_min < 0:
+        #     new_min = 0
+        # if new_max < 0:
+        #     new_max = 0
         #     if new_min > new_max:
         #         new_min = new_max
         # elif widget_name in ("phi", "theta", "zeta", "flux", "grid"):
@@ -760,7 +752,9 @@ class GUI:
                 self.dict_v_ranges[param_name]["max"].v_model = (
                     np.ceil(param_val / 10) * 10
                 )
-                self.dict_v_qubit_params[param_name].v_max = np.ceil(param_val / 10) * 10
+                self.dict_v_qubit_params[param_name].v_max = (
+                    np.ceil(param_val / 10) * 10
+                )
 
             self.dict_v_qubit_params[param_name].v_model = param_val
 
@@ -833,7 +827,6 @@ class GUI:
             new_min = text_widgets["min"].num_value
             new_max = text_widgets["max"].num_value
             changed_widget_key = change["owner"].label
-
 
             new_min, new_max = self.check_ranges(
                 new_min, new_max, widget_name, text_widgets, changed_widget_key

@@ -9,13 +9,13 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
-from typing import Union, List, Callable, Any
+
+from typing import Any, Callable, List, Union
 
 import ipyvuetify
 import ipywidgets
 import traitlets
 from IPython.core.display_functions import display
-
 
 from scqubits.utils import misc as utils
 

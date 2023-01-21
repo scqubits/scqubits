@@ -11,7 +11,7 @@
 ############################################################################
 
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 import ipyvuetify as v
 import ipywidgets
@@ -19,10 +19,9 @@ import numpy as np
 
 import scqubits as scq
 import scqubits.core.noise as noise
-import scqubits.ui.gui_custom_widgets as ui
 from scqubits.core.qubit_base import QubitBaseClass
-
-from scqubits.ui import gui_defaults as gui_defaults, gui_custom_widgets as ui
+from scqubits.ui import gui_custom_widgets as ui
+from scqubits.ui import gui_defaults as gui_defaults
 
 
 def init_qubit_dropdown():
