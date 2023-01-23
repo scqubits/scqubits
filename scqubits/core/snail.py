@@ -116,7 +116,8 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
     ng1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ng2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ng3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    ng4 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    # ng4 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    # nt = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     flux = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ncut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
 
@@ -137,7 +138,8 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         ng1: float,
         ng2: float,
         ng3: float,
-        ng4: float,
+        # ng4: float,
+        # nt: float,
         flux: float,
         ncut: int,
         truncated_dim: int = 6,
@@ -165,7 +167,8 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         self.ng1 = ng1
         self.ng2 = ng2
         self.ng3 = ng3
-        self.ng4 = ng4
+        # self.ng4 = ng4
+        # self.nt = nt
         # flux
         self.flux = flux
         # Truncation dimension
@@ -193,7 +196,8 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
             "ng1": 0.0,
             "ng2": 0.0,
             "ng3": 0.0,
-            "ng4": 0.0,
+            # "ng4": 0.0,
+            # "nt": 0.0,
             "flux": 0.0,
             "ncut": 6,
             "truncated_dim": 6,
@@ -428,11 +432,19 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
                 [-c1, 0, -c4, c4 + c1 + cg4],
             ]
         )
-        m_inv = np.array([[1, 0, 0, 1], [1, 1, 0, 1], [1, 1, 1, 1], [0, 0, 0, 1]])
+        m_inv = self.m_inv()
         c_mat_transformed = m_inv.T @ cmat @ m_inv
-
-        ec_matrix = 0.5 * np.linalg.inv(c_mat_transformed)[0:3,0:3]
+        ec_matrix = 0.5 * np.linalg.inv(c_mat_transformed)[0:3, 0:3]
         return ec_matrix
+
+    def m_inv(self) -> ndarray:
+        """Returns the variable transformation matrix"""
+        # Di Paolo's transformation
+        m_inv = np.linalg.inv(np.array([[1, 0, 0, -1], [-1, 1, 0, 0], [0, -1, 1, 0], [1, 1, 1, 1]]))
+        # Jens' transformation
+        # m_inv = np.linalg.inv(np.array([[1, 0, 0, -1], [-1, 1, 0, 0], [0, -1, 1, 0], [0, 0, 1, 0]]))
+
+        return m_inv
 
     def _evals_calc(
         self, evals_count: int, hamiltonian_mat: csc_matrix = None
@@ -482,35 +494,6 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         ec_mat = self.EC_matrix()
         identity = self._identity()
 
-        n_op = np.arange(-self.ncut, self.ncut + 1, 1)
-        n_op = sparse.diags(n_op).tocsc()
-
-        n1 = sparse.kron(
-            sparse.kron(n_op, identity, format="csc"), identity, format="csc"
-        )
-
-        n2 = sparse.kron(
-            sparse.kron(identity, n_op, format="csc"), identity, format="csc"
-        )
-
-        n3 = sparse.kron(
-            sparse.kron(identity, identity, format="csc"), n_op, format="csc"
-        )
-
-        ng1 = self.ng1 * sparse.kron(
-            sparse.kron(identity, identity, format="csc"), identity, format="csc"
-        )
-        ng2 = self.ng2 * sparse.kron(
-            sparse.kron(identity, identity, format="csc"), identity, format="csc"
-        )
-        ng3 = self.ng3 * sparse.kron(
-            sparse.kron(identity, identity, format="csc"), identity, format="csc"
-        )
-        iden = sparse.kron(
-            sparse.kron(identity, identity, format="csc"), identity, format="csc"
-        )
-
-
         """Returns the charging energy matrix"""
         c1 = 1 / (2 * self.ECJ1)
         c2 = 1 / (2 * self.ECJ2)
@@ -529,21 +512,57 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
                 [-c1, 0, -c4, c4 + c1 + cg4],
             ]
         )
-        m_inv = np.array([[1, 0, 0, 1], [1, 1, 0, 1], [1, 1, 1, 1], [0, 0, 0, 1]])
-        c_mat_transformed = m_inv.T @ cmat @ m_inv
 
-        ec_mat_full = 0.5 * np.linalg.inv(c_mat_transformed)
+        # m_inv = self.m_inv()
+        # c_mat_transformed = m_inv.T @ cmat @ m_inv
+        # ec_mat_full = 0.5 * np.linalg.inv(c_mat_transformed)
+
+        n_op = np.arange(-self.ncut, self.ncut + 1, 1)
+        n_op = sparse.diags(n_op).tocsc()
+
+        n1 = sparse.kron(
+            sparse.kron(n_op, identity, format="csc"), identity, format="csc"
+        )
+        n2 = sparse.kron(
+            sparse.kron(identity, n_op, format="csc"), identity, format="csc"
+        )
+        n3 = sparse.kron(
+            sparse.kron(identity, identity, format="csc"), n_op, format="csc"
+        )
+
+        ng1 = self.ng1 * sparse.kron(
+            sparse.kron(identity, identity, format="csc"), identity, format="csc"
+        )
+        ng2 = self.ng2 * sparse.kron(
+            sparse.kron(identity, identity, format="csc"), identity, format="csc"
+        )
+        ng3 = self.ng3 * sparse.kron(
+            sparse.kron(identity, identity, format="csc"), identity, format="csc"
+        )
+        # ng4 = self.ng4 * sparse.kron(
+        #     sparse.kron(identity, identity, format="csc"), identity, format="csc"
+        # )
+        # iden = sparse.kron(
+        #     sparse.kron(identity, identity, format="csc"), identity, format="csc"
+        # )
 
         nvec = np.array([n1, n2, n3])
-        m_inv = np.array([[1, 0, 0, 1], [1, 1, 0, 1], [1, 1, 1, 1], [0, 0, 0, 1]])
-        m_inv_square = m_inv.T[0:3, 0:3]
-        ng_vec = np.array([ng1, ng2, ng3])
-        # ng_prime_vec = np.matmul(ng_vec, m_inv_square)
-        ng_prime_vec = ng_vec
-        gamma = np.array([iden, iden, iden])
-        # gamma *= (np.linalg.inv(ec_mat) @ ec_mat_full[0:3, 3]) * (self.ng1+self.ng2+self.ng3+self.ng4)
-        gamma *= (np.linalg.inv(ec_mat) @ ec_mat_full[0:3, 3]) * self.ng4
-        nvec = nvec - ng_prime_vec - gamma
+
+        # uncomment for user access to voltages ngs
+        # ng_vec = np.array([ng1, ng2, ng3, ng4])
+        # ng_prime_vec = m_inv[0:4, 0:3].T @ ng_vec
+        #ngvalvec = np.array([self.ng1, self.ng2, self.ng3, self.ng4])
+        #ng4_prime = (m_inv @ ngvalvec)[3]
+        #gamma = -(self.nt * m_inv[2, 3] - ng4_prime) * np.linalg.inv(ec_mat) @ ec_mat_full[0:3, 3]
+        # for i in range(3):
+        #     nvec[i] = nvec[i] - ng_prime_vec[i] - gamma[i]*iden + (self.nt-ng4_prime)*m_inv.T[i, 2]*iden
+
+        # Gives user access to 3 linearly independent ngs
+        ng_prime_vec = np.array([ng1, ng2, ng3])
+        # gamma = -(self.nt - self.ng4) * m_inv[2, 3] * np.linalg.inv(ec_mat) @ ec_mat_full[0:3, 3]
+        for i in range(3):
+            nvec[i] = nvec[i] - ng_prime_vec[i] # - gamma[i]*iden + (self.nt-self.ng4)*m_inv.T[i, 2]*iden
+
         return 4 * nvec.T @ ec_mat @ nvec
 
     def potentialmat(self) -> csc_matrix:
@@ -553,43 +572,6 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         ones_on_diagonal = np.ones((1, 2 * self.ncut))
         e_positive_phi = sparse.diags(ones_on_diagonal, [1]).tocsc()
 
-        # potential_mat = (
-        #     -0.5
-        #     * self.EJ1
-        #     * sparse.kron(
-        #         sparse.kron(e_positive_phi, identity, format="csc"),
-        #         identity,
-        #         format="csc",
-        #     )
-        # )
-        #
-        # potential_mat += (
-        #     -0.5
-        #     * self.EJ2
-        #     * sparse.kron(
-        #         sparse.kron(e_positive_phi, e_negative_phi, format="csc"),
-        #         identity,
-        #         format="csc",
-        #     )
-        # )
-        # potential_mat += (
-        #     -0.5
-        #     * self.EJ3
-        #     * sparse.kron(
-        #         sparse.kron(identity, e_positive_phi, format="csc"),
-        #         e_negative_phi,
-        #         format="csc",
-        #     )
-        # )
-        # potential_mat += (
-        #     -0.5
-        #     * self.EJ4
-        #     * sparse.kron(
-        #         sparse.kron(identity, identity, format="csc"),
-        #         np.exp(-1j * 2 * np.pi * self.flux) * e_positive_phi,
-        #         format="csc",
-        #     )
-        # )
         potential_mat = (
             -0.5
             * self.EJ1
@@ -643,16 +625,6 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         """Returns operator representing a derivative of the Hamiltonian with respect
         to `flux`.
         """
-        # return (
-        #     2
-        #     * np.pi
-        #     * self.EJ4
-        #     * (
-        #         np.sin(2 * np.pi * self.flux) * self.cos_phi_3_operator()
-        #         - np.cos(2 * np.pi * self.flux) * self.sin_phi_3_operator()
-        #     )
-        # )
-        # My attempt
         ones_on_diagonal = np.ones((1, 2 * self.ncut))
         e_positive_phi = sparse.diags(ones_on_diagonal, [1]).tocsc()
         d_ham_d_flux = (
@@ -719,7 +691,7 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         )
 
         nvec = np.array([n1, n2, n3])
-        m_inv = np.array([[1, 0, 0, 1], [1, 1, 0, 1], [1, 1, 1, 1], [0, 0, 0, 1]])
+        m_inv = self.m_inv()
         m_inv_square = m_inv.T[0:3, 0:3]
         ng_vec = np.array([ng1, ng2, ng3])
         ng_prime_vec = np.matmul(ng_vec, m_inv_square)
