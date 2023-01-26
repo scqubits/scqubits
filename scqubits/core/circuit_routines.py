@@ -14,6 +14,7 @@ import functools
 import itertools
 import operator as builtin_op
 import re
+from types import MethodType
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -188,6 +189,23 @@ class CircuitRoutines(ABC):
     def __repr__(self) -> str:
         return self._id_str
 
+    def __reduce__(self):
+        # needed for multiprocessing / proper pickling
+        pickle_func, pickle_args, pickled_state = super().__reduce__()
+        pickled_dict = self.__dict__
+        pickled_properties = {
+            property_name: property_obj
+            for property_name, property_obj in self.__class__.__dict__.items()
+            if isinstance(property_obj, property)
+        }
+        return pickle_func, pickle_args, (pickled_dict, pickled_properties)
+
+    def __setstate__(self, state):
+        pickled_dict, pickled_properties = state
+        self.__dict__ = pickled_dict
+
+        for property_name, property_obj in pickled_properties.items():
+            setattr(self.__class__, property_name, property_obj)
     @staticmethod
     def default_params() -> Dict[str, Any]:
         # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
@@ -1354,7 +1372,7 @@ class CircuitRoutines(ABC):
 
         op_func_by_name = self.circuit_operator_functions()
         for op_name, op_func in op_func_by_name.items():
-            setattr(self, op_name, functools.partial(op_func, self))
+            setattr(self, op_name, MethodType(op_func, self))
 
         return op_func_by_name
 
