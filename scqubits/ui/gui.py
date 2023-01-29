@@ -64,8 +64,8 @@ _HAS_WIDGET_BACKEND = get_matplotlib_backend() == MATPLOTLIB_WIDGET_BACKEND
 
 
 class GUI:
-    # Handle to the most recently generated Figure, Axes tuple
-    fig_ax: Optional[Tuple[Figure, Axes]] = None
+    """Generates the GUI for scqubits, handling single-qubit properties"""
+    fig_ax: Optional[Tuple[Figure, Axes]] = None  # Handle to the most recently generated Figure, Axes tuple
 
     autoconnect_blacklist = [
         "info_panel",
@@ -514,10 +514,6 @@ class GUI:
         for widget_name, widget in total_dict.items():
             if widget_name not in self.autoconnect_blacklist:
                 widget.observe(self.plot_refresh, names="v_model")
-                # if isinstance(widget, (ui.ValidatedNumberField, ui.NumberEntryWidget)):
-                #     widget.observe(self.plot_refresh, names="v_model")
-                # else:
-                #     widget.observe(self.plot_refresh, names="v_model")
 
     def deactivate_auto_plot_refresh(self) -> None:
         if self.manual_updating:
