@@ -169,7 +169,7 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         self.ncut = ncut
         self.truncated_dim = truncated_dim
         self._image_filename = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "qubit_img/snailmon.jpg"
+            os.path.dirname(os.path.abspath(__file__)), "qubit_img/Snailmon.jpg"
         )
 
     @staticmethod
