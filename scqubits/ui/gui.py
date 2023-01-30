@@ -893,7 +893,7 @@ class GUI:
             ],
         }
 
-        if isinstance(self.active_qubit, scq.FullZeroPi):
+        if isinstance(self.active_qubit, (scq.Snailmon, scq.FullZeroPi)):
             return
         elif isinstance(
             self.active_qubit, (scq.FluxQubit, scq.ZeroPi, scq.Cos2PhiQubit)
@@ -1232,8 +1232,8 @@ class GUI:
         -------
             Tuple of plot options widgets
         """
-        if isinstance(self.active_qubit, scq.FullZeroPi):
-            plot_options_widgets_tuple = (v.Text(children=["Not implemented"]),)
+        if isinstance(self.active_qubit, (scq.Snailmon, scq.FullZeroPi)):
+            plot_options_widgets_tuple = (Label(value="Not implemented"),)
         else:
             self.dict_v_plot_options["amplitude_mode"].v_model = self.active_defaults[
                 "mode_wavefunc"

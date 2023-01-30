@@ -76,6 +76,33 @@ fluxqubit_defaults = {
     "num_sample": 100,
 }
 
+snail_EJ_range = {"min": 1e-5, "max": 2e3}
+snail_EC_range = {"min": 1e-5, "max": 300.0}
+
+snailmon_defaults = {
+    **global_defaults,
+    "scan_param": "flux",
+    "operator": "n_1_operator",
+    "ncut": ncut_range,
+    "EJ1": snail_EJ_range,
+    "EJ2": snail_EJ_range,
+    "EJ3": snail_EJ_range,
+    "EJ4": snail_EJ_range,
+    "ECJ1": snail_EC_range,
+    "ECJ2": snail_EC_range,
+    "ECJ3": snail_EC_range,
+    "ECJ4": snail_EC_range,
+    "ECg1": snail_EC_range,
+    "ECg2": snail_EC_range,
+    "ECg3": snail_EC_range,
+    "ECg4": snail_EC_range,
+    "ng1": ng_range,
+    "ng2": ng_range,
+    "ng3": ng_range,
+    "scale": None,
+    "num_sample": 100,
+}
+
 zeropi_defaults = {
     **global_defaults,
     "scan_param": "flux",
@@ -130,6 +157,7 @@ qubit_defaults = {
     "ZeroPi": zeropi_defaults,
     "FullZeroPi": fullzeropi_defaults,
     "Cos2PhiQubit": cos2phiqubit_defaults,
+    "Snailmon": snailmon_defaults,
 }
 
 paramvals_from_papers = {
@@ -238,9 +266,10 @@ supported_qubits = [
     "ZeroPi",
     "FullZeroPi",
     "Cos2PhiQubit",
+    "Snailmon",
 ]
 
-slow_qubits = ["FluxQubit", "ZeroPi", "FullZeroPi", "Cos2PhiQubit"]
+slow_qubits = ["FluxQubit", "ZeroPi", "FullZeroPi", "Cos2PhiQubit", "Snailmon"]
 
 subsys_panel_names = [
     "Energy spectrum",
