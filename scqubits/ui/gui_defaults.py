@@ -76,8 +76,8 @@ fluxqubit_defaults = {
     "num_sample": 100,
 }
 
-snail_EJ_range = {"min": 1e-5, "max": 2e3}
-snail_EC_range = {"min": 1e-5, "max": 300.0}
+snail_EJ_range = {"v_min": 1e-5, "v_max": 2e3}
+snail_EC_range = {"v_min": 1e-5, "v_max": 300.0}
 
 snailmon_defaults = {
     **global_defaults,
