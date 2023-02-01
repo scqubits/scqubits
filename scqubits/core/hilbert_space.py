@@ -45,13 +45,13 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_qutip
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
-import scqubits.ui.hspace_widget
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
 
 from scqubits.core.namedslots_array import NamedSlotsNdarray, Parameters
 from scqubits.core.storage import SpectrumData
+from scqubits.ui.hspace_widget import create_hilbertspace_widget
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
 if settings.IN_IPYTHON:
@@ -375,6 +375,7 @@ class HilbertSpace(
         self._current_param_indices = 0
         self._evals_count = self.dimension
         self._out_of_sync = False
+        self._out_of_sync_warning_issued = False
         # end attributes for compatibility with SpectrumLookupMixin
 
         dispatch.CENTRAL_DISPATCH.register("QUANTUMSYSTEM_UPDATE", self)
@@ -437,6 +438,20 @@ class HilbertSpace(
 
     def __len__(self):
         return len(self._subsystems)
+    #
+    # @property
+    # def _out_of_sync(self):
+    #     return self._out_of_sync_
+    #
+    # @_out_of_sync.setter
+    # def _out_of_sync(self, value):
+    #     if value:
+    #         self._out_of_sync = True
+    #     else:
+    #         self._out_of_sync_ = False
+    #
+    #
+    #
 
     @property
     def hilbertspace(self) -> HilbertSpace:
@@ -551,6 +566,8 @@ class HilbertSpace(
     # HilbertSpace: generate SpectrumLookup
     ###################################################################################
     def generate_lookup(self, update_subsystem_indices: List[int] = None) -> None:
+        self._out_of_sync = False
+        self._out_of_sync_warning_issued = False
 
         bare_esys_dict = self.generate_bare_esys(
             update_subsystem_indices=update_subsystem_indices

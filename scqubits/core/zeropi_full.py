@@ -190,9 +190,6 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         self._init_params.remove(
             "ECS"
         )  # used for file IO Serializable purposes; remove ECS as init parameter
-        self._image_filename = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "qubit_img/fullzeropi.jpg"
-        )
 
         dispatch.CENTRAL_DISPATCH.register("GRID_UPDATE", self)
 
@@ -243,18 +240,15 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         init_params["grid_min_val"] = self.grid.min_val
         init_params["grid_pt_count"] = self.grid.pt_count
         ui.create_widget(
-            self.set_params, init_params, image_filename=self._image_filename
+            self.set_params_from_gui, init_params, image_filename=self._image_filename
         )
 
-    def set_params(self, **kwargs) -> None:
-        phi_grid = discretization.Grid1d(
-            kwargs.pop("grid_min_val"),
-            kwargs.pop("grid_max_val"),
-            kwargs.pop("grid_pt_count"),
-        )
-        self.grid = phi_grid
+    def set_params_from_gui(self, **kwargs) -> None:
         for param_name, param_val in kwargs.items():
-            setattr(self, param_name, param_val)
+            if "grid_" in param_name:
+                setattr(self.grid, param_name[5:], param_val)
+            else:
+                setattr(self, param_name, param_val)
 
     def receive(self, event: str, sender: object, **kwargs) -> None:
         if sender is self._zeropi.grid:

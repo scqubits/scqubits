@@ -31,7 +31,6 @@ from typing import (
 )
 
 import numpy as np
-
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
@@ -45,7 +44,6 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.plotting as plot
-
 from scqubits import settings as settings
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.namedslots_array import (
@@ -121,6 +119,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     _hilbertspace: HilbertSpace
 
     _out_of_sync = False
+    _out_of_sync_warning_issued = False
     _current_param_indices: NpIndices
 
     @property
@@ -993,6 +992,8 @@ class ParameterSweep(  # type:ignore
         """Create all sweep data: bare spectral data, dressed spectral data, lookup
         data and custom sweep data."""
         # generate one dispatch before temporarily disabling CENTRAL_DISPATCH
+        self._out_of_sync = False
+        self._out_of_sync_warning_issued = False
 
         if self._deepcopy:
             stored_hilbertspace = copy.deepcopy(self.hilbertspace)

@@ -9,13 +9,13 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
+
 import copy
 import functools
 import itertools
 import operator as builtin_op
 import re
 import warnings
-
 from types import MethodType
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -23,7 +23,6 @@ import numpy as np
 import qutip as qt
 import scipy as sp
 import sympy as sm
-
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -33,7 +32,7 @@ from scipy.sparse import csc_matrix
 from sympy import latex
 
 try:
-    from IPython.display import display, Latex
+    from IPython.display import Latex, display
 except ImportError:
     _HAS_IPYTHON = False
 else:
@@ -49,7 +48,6 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as utils
-
 from scqubits import HilbertSpace, settings
 from scqubits.core import operators as op
 from scqubits.core.circuit_utils import (

@@ -10,7 +10,6 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import os
 import warnings
 
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -154,9 +153,6 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         self._init_params.remove(
             "ECS"
         )  # used in for file Serializable purposes; remove ECS as init parameter
-        self._image_filename = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "qubit_img/zeropi.jpg"
-        )
         dispatch.CENTRAL_DISPATCH.register("GRID_UPDATE", self)
 
     @staticmethod
@@ -202,10 +198,10 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         init_params["grid_min_val"] = self.grid.min_val
         init_params["grid_pt_count"] = self.grid.pt_count
         ui.create_widget(
-            self.set_params, init_params, image_filename=self._image_filename
+            self.set_params_from_gui, init_params, image_filename=self._image_filename
         )
 
-    def set_params(self, **kwargs) -> None:
+    def set_params_from_gui(self, **kwargs) -> None:
         phi_grid = discretization.Grid1d(
             kwargs.pop("grid_min_val"),
             kwargs.pop("grid_max_val"),

@@ -147,16 +147,17 @@ class Required:
 def check_sync_status(func: Callable) -> Callable:
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
-        if self._out_of_sync:
+        if self._out_of_sync and not self._out_of_sync_warning_issued:
             with warnings.catch_warnings():
                 warnings.simplefilter("always")
                 warnings.warn(
-                    "[scqubits] Some system parameters have been changed and"
+                    "[scqubits] Some quantum system parameters have been changed and"
                     " generated spectrum data could be outdated, potentially leading to"
                     " incorrect results. Spectral data can be refreshed via"
                     " <HilbertSpace>.generate_lookup() or <ParameterSweep>.run()",
                     Warning,
                 )
+            self._out_of_sync_warning_issued = True
         return func(self, *args, **kwargs)
 
     return wrapper
@@ -314,9 +315,17 @@ def cite(print_info=True):
         return fs.getvalue()
 
 
-def is_float_string(the_string: str) -> bool:
+def is_string_float(the_string: str) -> bool:
     try:
         float(the_string)
+        return True
+    except ValueError:
+        return False
+
+
+def is_string_int(the_string: str) -> bool:
+    try:
+        int(the_string)
         return True
     except ValueError:
         return False
