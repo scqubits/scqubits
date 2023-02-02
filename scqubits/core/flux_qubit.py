@@ -521,7 +521,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
             for m given eigenvectors.
         """
         hamiltonian_mat = self.kineticmat() + self.potentialmat()
-        return self.process_hamiltonian(native_op=hamiltonian_mat, energy_esys=energy_esys)
+        return self.process_hamiltonian(native_hamiltonian=hamiltonian_mat, energy_esys=energy_esys)
 
     def d_hamiltonian_d_EJ1(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
         """

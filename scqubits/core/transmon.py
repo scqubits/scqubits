@@ -168,7 +168,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         )
         return evals, evecs
 
-    def n_operator(self) -> ndarray:
+    def n_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
         """Returns charge operator `n` in the charge basis"""
         diag_elements = np.arange(-self.ncut, self.ncut + 1, 1)
         native = np.diag(diag_elements)
@@ -273,7 +273,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         ind = np.arange(dimension - 1)
         hamiltonian_mat[ind, ind + 1] = -self.EJ / 2.0
         hamiltonian_mat[ind + 1, ind] = -self.EJ / 2.0
-        return self.process_hamiltonian(native_op=hamiltonian_mat, energy_esys=energy_esys)
+        return self.process_hamiltonian(native_hamiltonian=hamiltonian_mat, energy_esys=energy_esys)
 
     def d_hamiltonian_d_ng(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
         """

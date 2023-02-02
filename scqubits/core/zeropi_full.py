@@ -348,8 +348,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         ) + sparse.kron(zeropi_coupling.conjugate().T, op.creation_sparse(zeta_dim))
         hmtocsc = hamiltonian_mat.tocsc()
         if return_parts:
-            return self.process_hamiltonian(native_op=hmtocsc, energy_esys=energy_esys), zeropi_evals, zeropi_evecs, gmat
-        return self.process_hamiltonian(native_op=hmtocsc, energy_esys=energy_esys)
+            return self.process_hamiltonian(native_hamiltonian=hmtocsc, energy_esys=energy_esys), zeropi_evals, zeropi_evecs, gmat
+        return self.process_hamiltonian(native_hamiltonian=hmtocsc, energy_esys=energy_esys)
 
     def d_hamiltonian_d_flux(self, zeropi_evecs: ndarray = None,  energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
         r"""

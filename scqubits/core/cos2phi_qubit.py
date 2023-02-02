@@ -965,7 +965,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             + disorder_c
         )
         native = hamiltonian_mat.tocsc()
-        return self.process_hamiltonian(native_op=native, energy_esys=energy_esys)
+        return self.process_hamiltonian(native_hamiltonian=native, energy_esys=energy_esys)
 
     def _evals_calc(self, evals_count) -> ndarray:
         hamiltonian_mat = self.hamiltonian()

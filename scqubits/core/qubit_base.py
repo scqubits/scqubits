@@ -368,6 +368,25 @@ class QubitBaseClass(QuantumSystem, ABC):
         return specdata if return_spectrumdata else (evals, evecs)
 
     def process_op(self, native_op: Union[ndarray, csc_matrix], energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+        """Processes the operator `native_op`: either hand back `native_op` unchanged, or transform it into the
+        energy eigenbasis. (Native basis refers to the basis used internally by each qubit, e.g., charge basis in the
+        case of `Transmon`.
+
+        Parameters
+        ----------
+        native_op:
+            operator in native basis
+        energy_esys:
+            if False (default), returns operator in the native basis
+            if True, energy eigenspectrum is computed, returns operator in the energy eigenbasis
+            if energy_esys is the energy eigenspectrum, in the form of a tuple containing two ndarrays
+            (eigenvalues and energy eigenvectors), returns operator in the energy eigenbasis,
+            and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            `native_op` either unchanged or transformed into eigenenergy basis
+        """
         if isinstance(energy_esys, bool):
             if not energy_esys:
                 return native_op
@@ -377,18 +396,35 @@ class QubitBaseClass(QuantumSystem, ABC):
         evectors = esys[1][:, :self.truncated_dim]
         return get_matrixelement_table(native_op, evectors)
 
-    def process_hamiltonian(self, native_op: Union[ndarray, csc_matrix], energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+    def process_hamiltonian(self, native_hamiltonian: Union[ndarray, csc_matrix], energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+        """Return qubit Hamiltonian in chosen basis: either return unchanged (i.e., in native basis) or transform
+        into eigenenergy basis
+
+        Parameters
+        ----------
+        native_hamiltonian:
+            Hamiltonian in native basis
+        energy_esys:
+            if False (default), returns Hamiltonian in the native basis
+            if True, energy eigenspectrum is computed, returns Hamiltonian in the energy eigenbasis
+            if energy_esys is the energy eigenspectrum, in the form of a tuple containing two ndarrays
+            (eigenvalues and energy eigenvectors), returns Hamiltonian in the energy eigenbasis,
+            and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            Hamiltonian, either unchanged in native basis, or transformed into eigenenergy basis
+        """
         if isinstance(energy_esys, bool):
             if not energy_esys:
-                return native_op
+                return native_hamiltonian
             esys = self.eigensys(evals_count=self.truncated_dim)
         else:
             esys = energy_esys
         evals = esys[0][:self.truncated_dim]
-        if isinstance(native_op, ndarray):
+        if isinstance(native_hamiltonian, ndarray):
             return np.diag(evals)
-        return dia_matrix(evals).tocsc()  # look up in scipy doc, do we want dense or sparse,
-        # what is difference, for hamiltonian want sparse?
+        return dia_matrix(evals).tocsc()
 
     @overload
     def matrixelement_table(

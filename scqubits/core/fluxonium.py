@@ -290,7 +290,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         cos_matrix = self.cos_phi_operator(beta=2 * np.pi * self.flux)
 
         hamiltonian_mat = lc_osc_matrix - self.EJ * cos_matrix
-        return self.process_hamiltonian(native_op=hamiltonian_mat, energy_esys=energy_esys)
+        return self.process_hamiltonian(native_hamiltonian=hamiltonian_mat, energy_esys=energy_esys)
 
     def d_hamiltonian_d_EJ(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
         """

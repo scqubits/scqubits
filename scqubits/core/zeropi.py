@@ -390,7 +390,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             for m given eigenvectors.
         """
         hamiltonian_mat = self.sparse_kinetic_mat() + self.sparse_potential_mat()
-        return self.process_hamiltonian(native_op=hamiltonian_mat, energy_esys=energy_esys)
+        return self.process_hamiltonian(native_hamiltonian=hamiltonian_mat, energy_esys=energy_esys)
 
     def sparse_d_potential_d_flux_mat(self) -> csc_matrix:
         r"""Calculates a of the potential energy w.r.t flux, at the current value of
