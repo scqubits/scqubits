@@ -294,7 +294,9 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         )
 
     def hamiltonian(
-        self, return_parts: bool = False, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+        self,
+        return_parts: bool = False,
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
     ) -> Union[csc_matrix, Tuple[csc_matrix, ndarray, ndarray, float]]:
         r"""
         Returns Hamiltonian in basis obtained by discretizing :math:`\phi`, employing
@@ -348,10 +350,23 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         ) + sparse.kron(zeropi_coupling.conjugate().T, op.creation_sparse(zeta_dim))
         hmtocsc = hamiltonian_mat.tocsc()
         if return_parts:
-            return self.process_hamiltonian(native_hamiltonian=hmtocsc, energy_esys=energy_esys), zeropi_evals, zeropi_evecs, gmat
-        return self.process_hamiltonian(native_hamiltonian=hmtocsc, energy_esys=energy_esys)
+            return (
+                self.process_hamiltonian(
+                    native_hamiltonian=hmtocsc, energy_esys=energy_esys
+                ),
+                zeropi_evals,
+                zeropi_evecs,
+                gmat,
+            )
+        return self.process_hamiltonian(
+            native_hamiltonian=hmtocsc, energy_esys=energy_esys
+        )
 
-    def d_hamiltonian_d_flux(self, zeropi_evecs: ndarray = None,  energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+    def d_hamiltonian_d_flux(
+        self,
+        zeropi_evecs: ndarray = None,
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+    ) -> Union[ndarray, csc_matrix]:
         r"""
         Calculates a derivative of the Hamiltonian w.r.t flux, at the current value of flux,
         as stored in the object. The returned operator is in the product basis or eigenenergy basis.
@@ -387,7 +402,11 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         )
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def d_hamiltonian_d_EJ(self, zeropi_evecs: ndarray = None,  energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+    def d_hamiltonian_d_EJ(
+        self,
+        zeropi_evecs: ndarray = None,
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+    ) -> Union[ndarray, csc_matrix]:
         r"""
         Calculates a derivative of the Hamiltonian w.r.t EJ. The returned operator is in the
         product basis or eigenenergy basis.
@@ -423,7 +442,9 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         )
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def d_hamiltonian_d_ng(self,  energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+    def d_hamiltonian_d_ng(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> Union[ndarray, csc_matrix]:
         r"""
         Calculates a derivative of the Hamiltonian w.r.t ng.
         Returns matrix representing a derivative of the Hamiltonian in the native Hamiltonian basis
@@ -447,7 +468,6 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         """
         native = -8 * self.EC * self.n_theta_operator()
         return self.process_op(native_op=native, energy_esys=energy_esys)
-
 
     def _zeropi_operator_in_product_basis(
         self, zeropi_operator, zeropi_evecs: ndarray = None
@@ -479,7 +499,11 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             format="csc",
         )
 
-    def i_d_dphi_operator(self, zeropi_evecs: ndarray = None,  energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+    def i_d_dphi_operator(
+        self,
+        zeropi_evecs: ndarray = None,
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+    ) -> Union[ndarray, csc_matrix]:
         r"""
         Returns :math:`i d/d\phi` operator in the product or eigenengy basis.
 
@@ -520,7 +544,11 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
     #         self._zeropi.n_theta_operator(energy_esys=energy_esys), zeropi_evecs=zeropi_evecs
     #     )
 
-    def n_theta_operator(self, zeropi_evecs: ndarray = None,  energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+    def n_theta_operator(
+        self,
+        zeropi_evecs: ndarray = None,
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+    ) -> Union[ndarray, csc_matrix]:
         r"""
         Returns :math:`n_\theta`  operator in the product or eigenengy basis.
 
@@ -555,7 +583,11 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         )
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def phi_operator(self, zeropi_evecs: ndarray = None, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+    def phi_operator(
+        self,
+        zeropi_evecs: ndarray = None,
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+    ) -> Union[ndarray, csc_matrix]:
         r"""
         Returns :math:`\phi`  operator in the product or eigenengy basis.
 

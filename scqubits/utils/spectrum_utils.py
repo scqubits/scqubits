@@ -194,7 +194,6 @@ def get_matrixelement_table(
     return mtable
 
 
-
 def closest_dressed_energy(
     bare_energy: float, dressed_energy_vals: np.ndarray
 ) -> float:

@@ -116,7 +116,9 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         noise_channels.remove("t1_charge_impedance")
         return noise_channels
 
-    def n_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def n_operator(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
         Returns charge operator `n` in the charge or eigenenergy basis.
 
@@ -134,6 +136,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             unless energy_esys is specified, `n` has dimensions of truncated_dim
             x truncated_dim. Otherwise, if eigenenergy basis is chosen, `n` has dimensions of m x m, for m given eigenvectors.
         """
+
     def _hamiltonian_diagonal(self) -> ndarray:
         dimension = self.hilbertdim()
         return 4.0 * self.EC * (np.arange(dimension) - self.ncut - self.ng) ** 2
@@ -168,13 +171,17 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         )
         return evals, evecs
 
-    def n_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def n_operator(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """Returns charge operator `n` in the charge basis"""
         diag_elements = np.arange(-self.ncut, self.ncut + 1, 1)
         native = np.diag(diag_elements)
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def exp_i_phi_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def exp_i_phi_operator(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
         Returns operator :math:`e^{i\\varphi}` in the charge or eigenenergy basis.
 
@@ -198,7 +205,9 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         exp_op = np.diag(entries, -1)
         return self.process_op(native_op=exp_op, energy_esys=energy_esys)
 
-    def cos_phi_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def cos_phi_operator(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
         Returns operator :math:`\\cos \\varphi` in the charge or eigenenergy basis.
 
@@ -221,7 +230,9 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         cos_op += cos_op.T
         return self.process_op(native_op=cos_op, energy_esys=energy_esys)
 
-    def sin_phi_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def sin_phi_operator(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
         Returns operator :math:`\\sin \\varphi` in the charge or eigenenergy basis.
 
@@ -244,7 +255,9 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         sin_op += sin_op.conjugate().T
         return self.process_op(native_op=sin_op, energy_esys=energy_esys)
 
-    def hamiltonian(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def hamiltonian(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
         Returns Hamiltonian in the charge or eigenenergy basis.
 
@@ -273,9 +286,13 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         ind = np.arange(dimension - 1)
         hamiltonian_mat[ind, ind + 1] = -self.EJ / 2.0
         hamiltonian_mat[ind + 1, ind] = -self.EJ / 2.0
-        return self.process_hamiltonian(native_hamiltonian=hamiltonian_mat, energy_esys=energy_esys)
+        return self.process_hamiltonian(
+            native_hamiltonian=hamiltonian_mat, energy_esys=energy_esys
+        )
 
-    def d_hamiltonian_d_ng(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def d_hamiltonian_d_ng(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
         Returns operator representing a derivative of the Hamiltonian with respect to
         charge offset `ng` in the charge or eigenenergy basis.
@@ -298,13 +315,14 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         native = -8 * self.EC * self.n_operator(energy_esys=energy_esys)
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-
     def d_hamiltonian_d_ng(self) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect to
         charge offset `ng`."""
         return -8 * self.EC * self.n_operator()
 
-    def d_hamiltonian_d_EJ(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def d_hamiltonian_d_EJ(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
         Returns operator representing a derivative of the Hamiltonian with respect to
         EJ in the charge or eigenenergy basis.
@@ -449,7 +467,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         phi_basis_labels = phi_grid.make_linspace()
         phi_wavefunc_amplitudes = np.empty(phi_grid.pt_count, dtype=np.complex_)
         for k in range(phi_grid.pt_count):
-            phi_wavefunc_amplitudes[k] = (1j ** which / math.sqrt(2 * np.pi)) * np.sum(
+            phi_wavefunc_amplitudes[k] = (1j**which / math.sqrt(2 * np.pi)) * np.sum(
                 n_wavefunc.amplitudes
                 * np.exp(1j * phi_basis_labels[k] * n_wavefunc.basis_labels)
             )
@@ -605,7 +623,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         of EJ in the parent class `Transmon`"""
         return self.EJmax * np.sqrt(
             np.cos(np.pi * self.flux) ** 2
-            + self.d ** 2 * np.sin(np.pi * self.flux) ** 2
+            + self.d**2 * np.sin(np.pi * self.flux) ** 2
         )
 
     @staticmethod
@@ -632,7 +650,9 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
             "t1_charge_impedance",
         ]
 
-    def d_hamiltonian_d_flux(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def d_hamiltonian_d_flux(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
         Returns operator representing a derivative of the Hamiltonian with respect to
         `flux` in the charge or eigenenergy basis.
@@ -657,10 +677,10 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
             * self.EJmax
             * np.cos(np.pi * self.flux)
             * np.sin(np.pi * self.flux)
-            * (self.d ** 2 - 1)
+            * (self.d**2 - 1)
             / np.sqrt(
                 np.cos(np.pi * self.flux) ** 2
-                + self.d ** 2 * np.sin(np.pi * self.flux) ** 2
+                + self.d**2 * np.sin(np.pi * self.flux) ** 2
             )
             * self.cos_phi_operator()
         )

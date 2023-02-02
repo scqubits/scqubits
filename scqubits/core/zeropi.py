@@ -367,7 +367,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             )
         return potential_mat
 
-    def hamiltonian(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> csc_matrix:
+    def hamiltonian(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> csc_matrix:
         r"""
         Calculates Hamiltonian in basis obtained by discretizing :math:`\phi` and employing
         charge basis for :math:`\theta` or in the eigenenergy basis. Returns matrix representing
@@ -390,7 +392,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             for m given eigenvectors.
         """
         hamiltonian_mat = self.sparse_kinetic_mat() + self.sparse_potential_mat()
-        return self.process_hamiltonian(native_hamiltonian=hamiltonian_mat, energy_esys=energy_esys)
+        return self.process_hamiltonian(
+            native_hamiltonian=hamiltonian_mat, energy_esys=energy_esys
+        )
 
     def sparse_d_potential_d_flux_mat(self) -> csc_matrix:
         r"""Calculates a of the potential energy w.r.t flux, at the current value of
@@ -416,7 +420,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         )
         return -2.0 * np.pi * self.EJ * op_1 - np.pi * self.EJ * self.dEJ * op_2
 
-    def d_hamiltonian_d_flux(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+    def d_hamiltonian_d_flux(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> Union[ndarray, csc_matrix]:
         r"""
         Calculates a derivative of the Hamiltonian w.r.t flux, at the current value
         of flux, as stored in the object. The flux is assumed to be given in the units
@@ -458,7 +464,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             format="csc",
         )
 
-    def d_hamiltonian_d_EJ(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+    def d_hamiltonian_d_EJ(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> Union[ndarray, csc_matrix]:
         r"""
         Calculates a derivative of the Hamiltonian w.r.t EJ.
         Returns matrix representing a derivative of the Hamiltonian in the native Hamiltonian basis
@@ -490,7 +498,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     #     Returns a matrix representing the derivative of the Hamiltonian."""
     #     return -8 * self.EC * self.n_theta_operator(energy_esys=energy_esys)
 
-    def d_hamiltonian_d_ng(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+    def d_hamiltonian_d_ng(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> Union[ndarray, csc_matrix]:
         r"""
         Calculates a derivative of the Hamiltonian w.r.t ng as stored in the object.
         Returns matrix representing a derivative of the Hamiltonian in the native Hamiltonian basis
@@ -550,7 +560,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         phi_matrix.setdiag(diag_elements)
         return phi_matrix
 
-    def phi_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+    def phi_operator(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> Union[ndarray, csc_matrix]:
         r"""
         Returns :math:`\phi` operator in the native or eigenenergy basis.
 
@@ -573,7 +585,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         native = sparse.kron(self._phi_operator(), self._identity_theta(), format="csc")
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def n_theta_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+    def n_theta_operator(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> Union[ndarray, csc_matrix]:
         r"""
         Returns :math:`n_\theta` operator in the native or eigenenergy basis.
 
@@ -643,7 +657,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         )
         return cos_theta_matrix
 
-    def cos_theta_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+    def cos_theta_operator(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> Union[ndarray, csc_matrix]:
         r"""
         Returns :math:`\cos(\theta)` operator in the native or eigenenergy basis.
 
@@ -687,7 +703,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         )
         return sin_theta_matrix
 
-    def sin_theta_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
+    def sin_theta_operator(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> Union[ndarray, csc_matrix]:
         r"""
         Returns :math:`\sin(\theta)` operator in the native or eigenenergy basis.
 

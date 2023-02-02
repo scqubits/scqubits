@@ -37,15 +37,21 @@ from scqubits.core.noise import NOISE_PARAMS, NoisySystem
 # -Flux qubit noise class
 class NoisyFluxQubit(NoisySystem, ABC):
     @abstractmethod
-    def d_hamiltonian_d_EJ1(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def d_hamiltonian_d_EJ1(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         pass
 
     @abstractmethod
-    def d_hamiltonian_d_EJ2(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def d_hamiltonian_d_EJ2(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         pass
 
     @abstractmethod
-    def d_hamiltonian_d_EJ3(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def d_hamiltonian_d_EJ3(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         pass
 
     @classmethod
@@ -433,34 +439,34 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         ECmat = self.EC_matrix()
 
         kinetic_mat = (
-                4.0
-                * ECmat[0, 0]
-                * np.kron(
-            np.matmul(
-                self._n_operator() - self.ng1 * self._identity(),
-                self._n_operator() - self.ng1 * self._identity(),
-            ),
-            self._identity(),
-        )
-        )
-        kinetic_mat += (
-                4.0
-                * ECmat[1, 1]
-                * np.kron(
-            self._identity(),
-            np.matmul(
-                self._n_operator() - self.ng2 * self._identity(),
-                self._n_operator() - self.ng2 * self._identity(),
-            ),
-        )
+            4.0
+            * ECmat[0, 0]
+            * np.kron(
+                np.matmul(
+                    self._n_operator() - self.ng1 * self._identity(),
+                    self._n_operator() - self.ng1 * self._identity(),
+                ),
+                self._identity(),
+            )
         )
         kinetic_mat += (
-                4.0
-                * (ECmat[0, 1] + ECmat[1, 0])
-                * np.kron(
-            self._n_operator() - self.ng1 * self._identity(),
-            self._n_operator() - self.ng2 * self._identity(),
+            4.0
+            * ECmat[1, 1]
+            * np.kron(
+                self._identity(),
+                np.matmul(
+                    self._n_operator() - self.ng2 * self._identity(),
+                    self._n_operator() - self.ng2 * self._identity(),
+                ),
+            )
         )
+        kinetic_mat += (
+            4.0
+            * (ECmat[0, 1] + ECmat[1, 0])
+            * np.kron(
+                self._n_operator() - self.ng1 * self._identity(),
+                self._n_operator() - self.ng2 * self._identity(),
+            )
         )
         return kinetic_mat
 
@@ -500,7 +506,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         )
         return potential_mat
 
-    def hamiltonian(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def hamiltonian(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
         Return Hamiltonian in the basis obtained by employing charge basis for both
         degrees of freedom or in the eigenenergy basis.
@@ -521,9 +529,13 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
             for m given eigenvectors.
         """
         hamiltonian_mat = self.kineticmat() + self.potentialmat()
-        return self.process_hamiltonian(native_hamiltonian=hamiltonian_mat, energy_esys=energy_esys)
+        return self.process_hamiltonian(
+            native_hamiltonian=hamiltonian_mat, energy_esys=energy_esys
+        )
 
-    def d_hamiltonian_d_EJ1(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def d_hamiltonian_d_EJ1(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
         Returns operator representing a derivative of the Hamiltonian with respect to
         EJ1 in the native Hamiltonian basis or eigenenergy basis.
@@ -548,7 +560,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         )
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def d_hamiltonian_d_EJ2(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def d_hamiltonian_d_EJ2(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
         Returns operator representing a derivative of the Hamiltonian with respect to
         EJ2 in the native Hamiltonian basis or eigenenergy basis.
@@ -573,7 +587,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         )
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def d_hamiltonian_d_EJ3(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def d_hamiltonian_d_EJ3(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
         Returns operator representing a derivative of the Hamiltonian with respect to
         EJ3 in the native Hamiltonian basis or eigenenergy basis.
@@ -622,7 +638,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         dim = 2 * self.ncut + 1
         return np.eye(dim)
 
-    def n_1_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def n_1_operator(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         r"""
         Returns the charge number operator conjugate to :math:`\phi_1` in the charge? or eigenenergy basis.
 
@@ -643,7 +661,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         native = np.kron(self._n_operator(), self._identity())
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def n_2_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def n_2_operator(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         r"""
         Returns the charge number operator conjugate to :math:`\phi_2` in the charge? or eigenenergy basis.
 
@@ -664,7 +684,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         native = np.kron(self._identity(), self._n_operator())
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def exp_i_phi_1_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def exp_i_phi_1_operator(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         r"""
         Returns operator :math:`e^{i\phi_1}` in the charge or eigenenergy basis.
 
@@ -686,7 +708,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         native = np.kron(self._exp_i_phi_operator(), self._identity())
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def exp_i_phi_2_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def exp_i_phi_2_operator(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         r"""
         Returns operator :math:`e^{i\phi_2}` in the charge or eigenenergy basis.
 
@@ -708,7 +732,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         native = np.kron(self._identity(), self._exp_i_phi_operator())
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def cos_phi_1_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def cos_phi_1_operator(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
         Returns operator :math:`\\cos \\phi_1` in the charge or eigenenergy basis.
 
@@ -732,7 +758,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         native = cos_op
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def cos_phi_2_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def cos_phi_2_operator(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
         Returns operator :math:`\\cos \\phi_2` in the charge or eigenenergy basis.
 
@@ -756,7 +784,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         native = cos_op
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def sin_phi_1_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def sin_phi_1_operator(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
         Returns operator :math:`\\sin \\phi_1` in the charge or eigenenergy basis.
 
@@ -780,7 +810,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         native = sin_op
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def sin_phi_2_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def sin_phi_2_operator(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
         Returns operator :math:`\\sin \\phi_2` in the charge or eigenenergy basis.
 

@@ -140,7 +140,9 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         return math.sqrt(8.0 * self.EL * self.EC)  # LC plasma oscillation energy
 
-    def phi_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def phi_operator(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
         Returns the phi operator in the LC harmonic oscillator or eigenenergy basis.
 
@@ -161,14 +163,16 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         dimension = self.hilbertdim()
         native = (
-                    (op.creation(dimension) + op.annihilation(dimension))
-                    * self.phi_osc()
-                    / math.sqrt(2)
-            )
+            (op.creation(dimension) + op.annihilation(dimension))
+            * self.phi_osc()
+            / math.sqrt(2)
+        )
 
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def n_operator(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def n_operator(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
         Returns the :math:`n = - i d/d\\phi` operator in the LC harmonic oscillator or eigenenergy basis.
 
@@ -188,13 +192,18 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         dimension = self.hilbertdim()
         native = (
-                1j
-                * (op.creation(dimension) - op.annihilation(dimension))
-                / (self.phi_osc() * math.sqrt(2))
-            )
+            1j
+            * (op.creation(dimension) - op.annihilation(dimension))
+            / (self.phi_osc() * math.sqrt(2))
+        )
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def exp_i_phi_operator(self, alpha: float = 1.0, beta: float = 0.0, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def exp_i_phi_operator(
+        self,
+        alpha: float = 1.0,
+        beta: float = 0.0,
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+    ) -> ndarray:
         """
         Returns the :math:`e^{i (\\alpha \\phi + \\beta) }` operator, with :math:`\\alpha` and :math:`\\beta` being
         numbers, in the LC harmonic oscillator or eigenenergy basis.
@@ -217,7 +226,12 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         native = sp.linalg.expm(exponent) * cmath.exp(1j * beta)
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def cos_phi_operator(self, alpha: float = 1.0, beta: float = 0.0, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def cos_phi_operator(
+        self,
+        alpha: float = 1.0,
+        beta: float = 0.0,
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+    ) -> ndarray:
         """
         Returns the :math:`\\cos (\\alpha \\phi + \\beta)` operator with :math:`\\alpha` and :math:`\\beta` being
         numbers, in the LC harmonic oscillator or eigenenergy basis.
@@ -240,7 +254,12 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         native = sp.linalg.cosm(argument)
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def sin_phi_operator(self, alpha: float = 1.0, beta: float = 0.0, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def sin_phi_operator(
+        self,
+        alpha: float = 1.0,
+        beta: float = 0.0,
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+    ) -> ndarray:
         """
         Returns the :math:`\\sin (\\alpha \\phi + \\beta)` operator with :math:`\\alpha` and :math:`\\beta` being
         numbers, in the LC harmonic oscillator or eigenenergy basis.
@@ -263,7 +282,9 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         native = sp.linalg.sinm(argument)
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def hamiltonian(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:  # follow Zhu et al., PRB 87, 024510 (2013)
+    def hamiltonian(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:  # follow Zhu et al., PRB 87, 024510 (2013)
         """
         Constructs Hamiltonian matrix in harmonic-oscillator, following Zhu
         et al., PRB 87, 024510 (2013), or eigenenergy basis.
@@ -290,9 +311,13 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         cos_matrix = self.cos_phi_operator(beta=2 * np.pi * self.flux)
 
         hamiltonian_mat = lc_osc_matrix - self.EJ * cos_matrix
-        return self.process_hamiltonian(native_hamiltonian=hamiltonian_mat, energy_esys=energy_esys)
+        return self.process_hamiltonian(
+            native_hamiltonian=hamiltonian_mat, energy_esys=energy_esys
+        )
 
-    def d_hamiltonian_d_EJ(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def d_hamiltonian_d_EJ(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
         Returns operator representing a derivative of the Hamiltonian with respect to
         EJ in the harmonic-oscillator or eigenenergy basis. The flux is grouped as in the Hamiltonian.
@@ -323,7 +348,9 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     #     The flux is grouped as in the Hamiltonian."""
     #     return -2 * np.pi * self.EJ * self.sin_phi_operator(1, 2 * np.pi * self.flux, energy_esys=energy_esys)
 
-    def d_hamiltonian_d_flux(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    def d_hamiltonian_d_flux(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
         Returns operator representing a derivative of the Hamiltonian with respect to
         flux in the harmonic-oscillator or eigenenergy basis. The flux is grouped as in the Hamiltonian.
