@@ -64,7 +64,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
 
     @abstractmethod
     def n_2_operator(
-        self, use_energy_basis: bool = False, evecs: ndarray = None
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
         pass
 
@@ -1410,18 +1410,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         )
         native = junction_mat + dis_junction_mat
         return self.process_op(native_op=native, energy_esys=energy_esys)
-
-    # def d_hamiltonian_d_ng(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
-    #     """Returns operator representing a derivative of the Hamiltonian with respect
-    #     to ng.
-    #
-    #     What basis is this? And is it correct?"""
-    #     return = (
-    #             4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator(energy_esys=energy_esys)
-    #             - 4
-    #             * self._disordered_ecj()
-    #             * (self.n_theta_operator(energy_esys=energy_esys) - self.ng - self.n_zeta_operator(energy_esys=energy_esys))
-    #     )
 
     def d_hamiltonian_d_ng(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False

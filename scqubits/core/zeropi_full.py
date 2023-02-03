@@ -297,15 +297,15 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         self,
         return_parts: bool = False,
         energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
-    ) -> Union[csc_matrix, Tuple[csc_matrix, ndarray, ndarray, float]]:
+    ) -> Union[csc_matrix, Tuple[csc_matrix, ndarray, ndarray, ndarray]]:
         r"""
         Returns Hamiltonian in basis obtained by discretizing :math:`\phi`, employing
         charge basis for :math:`\theta`, and Fock basis for :math:`\zeta`, or in the eigenenergy basis.
 
-        If set return_parts = True, returns [hamiltonian, evals, evecs, g_coupling_matrix].
-
         Parameters
         ----------
+        return_parts:
+            If set return_parts = True, returns [hamiltonian, evals, evecs, g_coupling_matrix].
         energy_esys:
             If False (default), returns Hamiltonian in native Hamiltonian basis
             If True, energy eigenspectrum is computed, returns Hamiltonian in the energy eigenbasis.
@@ -505,7 +505,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
     ) -> Union[ndarray, csc_matrix]:
         r"""
-        Returns :math:`i d/d\phi` operator in the product or eigenengy basis.
+        Returns :math:`i d/d\phi` operator in the product or eigenenergy basis.
 
         Helper method _zeropi_operator_in_product_basis is employed which converts
         a zeropi operator into one in the product basis. If user already has zeropi eigenvectors, user can input
@@ -538,19 +538,13 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         )
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    # def n_theta_operator(self, zeropi_evecs: ndarray = None,  energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
-    #     r"""Returns :math:`n_\theta` operator."""
-    #     return self._zeropi_operator_in_product_basis(
-    #         self._zeropi.n_theta_operator(energy_esys=energy_esys), zeropi_evecs=zeropi_evecs
-    #     )
-
     def n_theta_operator(
         self,
         zeropi_evecs: ndarray = None,
         energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
     ) -> Union[ndarray, csc_matrix]:
         r"""
-        Returns :math:`n_\theta`  operator in the product or eigenengy basis.
+        Returns :math:`n_\theta`  operator in the product or eigenenergy basis.
 
         Helper method _zeropi_operator_in_product_basis is employed which converts
         a zeropi operator into one in the product basis. If user already has zeropi eigenvectors, user can input
@@ -589,7 +583,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
     ) -> Union[ndarray, csc_matrix]:
         r"""
-        Returns :math:`\phi`  operator in the product or eigenengy basis.
+        Returns :math:`\phi`  operator in the product or eigenenergy basis.
 
         Helper method _zeropi_operator_in_product_basis is employed which converts
         a zeropi operator into one in the product basis. If user already has zeropi eigenvectors, user can input

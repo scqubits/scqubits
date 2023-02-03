@@ -116,27 +116,6 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         noise_channels.remove("t1_charge_impedance")
         return noise_channels
 
-    def n_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
-        """
-        Returns charge operator `n` in the charge or eigenenergy basis.
-
-        Parameters
-        ----------
-        energy_esys:
-            If False (default), returns charge operator `n` in the charge basis.
-            If True, energy eigenspectrum is computed, returns charge operator `n` in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns charge operator `n` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
-
-        Returns
-        -------
-            Charge operator `n` in chosen basis as ndarray. If eigenenergy basis is chosen,
-            unless energy_esys is specified, `n` has dimensions of truncated_dim
-            x truncated_dim. Otherwise, if eigenenergy basis is chosen, `n` has dimensions of m x m, for m given eigenvectors.
-        """
-
     def _hamiltonian_diagonal(self) -> ndarray:
         dimension = self.hilbertdim()
         return 4.0 * self.EC * (np.arange(dimension) - self.ncut - self.ng) ** 2
@@ -174,7 +153,23 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def n_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """Returns charge operator `n` in the charge basis"""
+        """
+        Returns charge operator `n` in the charge or eigenenergy basis.
+
+        Parameters
+        ----------
+        energy_esys:
+            If False (default), returns charge operator `n` in the charge basis.
+            If True, energy eigenspectrum is computed, returns charge operator `n` in the energy eigenbasis.
+            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns charge operator `n` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            Charge operator `n` in chosen basis as ndarray. If eigenenergy basis is chosen,
+            unless energy_esys is specified, `n` has dimensions of truncated_dim
+            x truncated_dim. Otherwise, if eigenenergy basis is chosen, `n` has dimensions of m x m, for m given eigenvectors.
+        """
         diag_elements = np.arange(-self.ncut, self.ncut + 1, 1)
         native = np.diag(diag_elements)
         return self.process_op(native_op=native, energy_esys=energy_esys)
@@ -314,11 +309,6 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         native = -8 * self.EC * self.n_operator(energy_esys=energy_esys)
         return self.process_op(native_op=native, energy_esys=energy_esys)
-
-    def d_hamiltonian_d_ng(self) -> ndarray:
-        """Returns operator representing a derivative of the Hamiltonian with respect to
-        charge offset `ng`."""
-        return -8 * self.EC * self.n_operator()
 
     def d_hamiltonian_d_EJ(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False

@@ -397,7 +397,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         )
 
     def sparse_d_potential_d_flux_mat(self) -> csc_matrix:
-        r"""Calculates a of the potential energy w.r.t flux, at the current value of
+        r"""
+        Calculates a derivative of the potential energy w.r.t flux, at the current value of
         flux, as stored in the object.
 
         The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0.
@@ -427,10 +428,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         Calculates a derivative of the Hamiltonian w.r.t flux, at the current value
         of flux, as stored in the object. The flux is assumed to be given in the units
         of the ratio :math:`\Phi_{ext}/\Phi_0`.
-        So, if :math:`\frac{\partial H}{ \partial \Phi_{ext}}`?? is needed, the expression returned
-        by this function needs to be multiplied by :math:`1/\Phi_0`.
-
-        Returns matrix representing a derivative of the Hamiltonian in the native or eigenenergy basis.
+        Returns matrix representing a derivative of the Hamiltonian in the native Hamiltonian basis
+        or eigenenergy basis.
 
         Parameters
         ----------
@@ -490,13 +489,6 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         """
         native = self.sparse_d_potential_d_EJ_mat()
         return self.process_op(native_op=native, energy_esys=energy_esys)
-
-    # def d_hamiltonian_d_ng(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
-    #     r"""Calculates a derivative of the Hamiltonian w.r.t ng
-    #     as stored in the object.
-    #
-    #     Returns a matrix representing the derivative of the Hamiltonian."""
-    #     return -8 * self.EC * self.n_theta_operator(energy_esys=energy_esys)
 
     def d_hamiltonian_d_ng(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
