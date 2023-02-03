@@ -65,7 +65,6 @@ def create_widget(
         widgets[name] = enter_widget(
             value=value,
             description="",
-            disabled=False,
             layout=ipywidgets.Layout(width="150px"),
         )
         box_list.append(

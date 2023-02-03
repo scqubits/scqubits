@@ -631,7 +631,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def _exp_i_phi_operator(self) -> ndarray:
         dim = 2 * self.ncut + 1
         off_diag_elements = np.ones(dim - 1, dtype=np.complex_)
-        e_iphi_matrix = np.diag(off_diag_elements, k=1)
+        e_iphi_matrix = np.diag(off_diag_elements, k=-1)
         return e_iphi_matrix
 
     def _identity(self) -> ndarray:

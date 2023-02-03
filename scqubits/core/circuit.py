@@ -114,7 +114,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         subsystem, is set to None when hierarchical diagonalization is not required,
         by default `None`
     truncated_dim: Optional[int], optional
-        sets the truncated dimension for the current subsystem, by default 10
+        sets the truncated dimension for the current subsystem, set to 10 by default.
     """
 
     # switch used in protecting the class from erroneous addition of new attributes
@@ -1364,7 +1364,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 )
                 nonwrapped_ops["momentum"] = functools.partial(
                     op.ia_minus_iadag_sparse,
-                    prefactor=1 / (osc_lengths[var_index] * 2**0.5),
+                    prefactor=-1 / (osc_lengths[var_index] * 2**0.5),
                 )
 
                 for short_op_name in nonwrapped_ops.keys():

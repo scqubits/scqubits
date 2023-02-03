@@ -230,7 +230,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return [
             "tphi_1_over_f_cc",
             "tphi_1_over_f_flux",
-            "t1_bias_flux_line",
+            "t1_flux_bias_line",
             # 't1_capacitive',
             "t1_inductive",
         ]
@@ -298,14 +298,16 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return_parts: bool = False,
         energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
     ) -> Union[csc_matrix, Tuple[csc_matrix, ndarray, ndarray, float]]:
-        r"""
-        Returns Hamiltonian in basis obtained by discretizing :math:`\phi`, employing
+        r"""Returns Hamiltonian in basis obtained by discretizing :math:`\phi`, employing
         charge basis for :math:`\theta`, and Fock basis for :math:`\zeta`, or in the eigenenergy basis.
 
         If set return_parts = True, returns [hamiltonian, evals, evecs, g_coupling_matrix].
 
         Parameters
         ----------
+        return_parts:
+            If set to true, `hamiltonian` returns
+            [hamiltonian, evals, evecs, g_coupling_matrix]
         energy_esys:
             If False (default), returns Hamiltonian in native Hamiltonian basis
             If True, energy eigenspectrum is computed, returns Hamiltonian in the energy eigenbasis.
@@ -318,6 +320,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             unless energy_esys is specified, Hamiltonian has dimensions of truncated_dim
             x truncated_dim. Otherwise, if eigenenergy basis is chosen, Hamiltonian has dimensions of m x m,
             for m given eigenvectors.
+
         """
         zeropi_dim = self.zeropi_cutoff
         zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
@@ -391,7 +394,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
         Returns
         -------
-            Operator in chosen basis. If product basis chosen, operator
+            Operator in chosen basis. If product basis is chosen, operator
             returned as a csc_matrix. If eigenenergy basis is chosen,
             unless energy_esys is specified, operator has dimensions of truncated_dim
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
@@ -538,12 +541,6 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         )
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    # def n_theta_operator(self, zeropi_evecs: ndarray = None,  energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> Union[ndarray, csc_matrix]:
-    #     r"""Returns :math:`n_\theta` operator."""
-    #     return self._zeropi_operator_in_product_basis(
-    #         self._zeropi.n_theta_operator(energy_esys=energy_esys), zeropi_evecs=zeropi_evecs
-    #     )
-
     def n_theta_operator(
         self,
         zeropi_evecs: ndarray = None,
@@ -620,7 +617,6 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         native = self._zeropi_operator_in_product_basis(
             self._zeropi.phi_operator(), zeropi_evecs=zeropi_evecs
         )
-
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def hilbertdim(self) -> int:
@@ -685,9 +681,11 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
     def g_coupling_matrix(
         self, zeropi_states: ndarray = None, evals_count: int = None
     ) -> ndarray:
-        """Returns a matrix of coupling strengths g_{ll'} [cmp. Dempster et al., text above Eq. (17)], using the states
-        from 'zeropi_states'. If `zeropi_states==None`, then a set of `self.zeropi` eigenstates is calculated. Only in
-        that case is `which` used for the eigenstate number (and hence the coupling matrix size).
+        """Returns a matrix of coupling strengths g_{ll'} [cmp. Dempster et al., text
+        above Eq. (17)], using the states from 'zeropi_states'. If
+        `zeropi_states==None`, then a set of `self.zeropi` eigenstates is calculated.
+        Only in that case is `which` used for the eigenstate number (and hence the
+        coupling matrix size).
         """
         if evals_count is None:
             evals_count = self._zeropi.truncated_dim

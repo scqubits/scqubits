@@ -694,10 +694,10 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             * 1j
             * (
                 sparse.dia_matrix(
-                    ([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)
+                    ([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta)
                 )
                 - sparse.dia_matrix(
-                    ([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta)
+                    ([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)
                 )
             ).tocsc()
         )
