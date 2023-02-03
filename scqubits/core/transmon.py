@@ -34,7 +34,6 @@ import scqubits.utils.plotting as plot
 from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 from scqubits.core.storage import WaveFunction
-from scqubits.utils.spectrum_utils import get_matrixelement_table
 
 LevelsTuple = Tuple[int, ...]
 Transition = Tuple[int, int]
@@ -149,6 +148,44 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             check_finite=False,
         )
         return evals, evecs
+
+    @staticmethod
+    def find_EJ_EC(
+        E01: float, anharmonicity: float, ng=0, ncut=30
+    ) -> Tuple[float, float]:
+        """
+        Finds the EJ and EC values given a qubit splitting `E01` and `anharmonicity`.
+
+        Parameters
+        ----------
+            E01:
+                qubit transition energy
+            anharmonicity:
+                absolute qubit anharmonicity, (E2-E1) - (E1-E0)
+            ng:
+                offset charge (default: 0)
+            ncut:
+                charge number cutoff (default: 30)
+
+        Returns
+        -------
+            A tuple of the EJ and EC values representing the best fit.
+        """
+        tmon = Transmon(EJ=10.0, EC=0.1, ng=ng, ncut=ncut)
+        start_EJ_EC = np.array([tmon.EJ, tmon.EC])
+
+        def cost_func(EJ_EC: Tuple[float, float]) -> float:
+            EJ, EC = EJ_EC
+            tmon.EJ = EJ
+            tmon.EC = EC
+            energies = tmon.eigenvals(evals_count=3)
+            computed_E01 = energies[1] - energies[0]
+            computed_anharmonicity = energies[2] - energies[1] - computed_E01
+            cost = (E01 - computed_E01) ** 2
+            cost += (anharmonicity - computed_anharmonicity) ** 2
+            return cost
+
+        return sp.optimize.minimize(cost_func, start_EJ_EC).x
 
     def n_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False

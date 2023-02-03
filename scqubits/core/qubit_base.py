@@ -49,7 +49,6 @@ from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import DataStore, SpectrumData
 from scqubits.settings import IN_IPYTHON
-from scqubits.utils import spectrum_utils
 from scqubits.utils.cpu_switch import get_map_method
 from scqubits.utils.misc import InfoBar, process_which
 from scqubits.utils.spectrum_utils import (
@@ -433,6 +432,16 @@ class QubitBaseClass(QuantumSystem, ABC):
         if isinstance(native_hamiltonian, ndarray):
             return np.diag(evals)
         return dia_matrix(evals).tocsc()
+
+    def anharmonicity(self) -> float:
+        """Returns the qubit's anharmonicity, (E_2 - E_1) - (E_1 - E_0)."""
+        energies = self.eigenvals(evals_count=3)
+        return energies[2] - 2 * energies[1] + energies[0]
+
+    def E01(self) -> float:
+        """Returns the qubit's fundamental energy splitting, E_1 - E_0."""
+        energies = self.eigenvals(evals_count=2)
+        return energies[1] - energies[0]
 
     @overload
     def matrixelement_table(
