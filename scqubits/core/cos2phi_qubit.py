@@ -34,7 +34,6 @@ import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.core.units as units
 import scqubits.io_utils.fileio_serializers as serializers
-import scqubits.settings as settings
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as utils
 
@@ -42,7 +41,7 @@ from scqubits.core.noise import NOISE_PARAMS, NoisySystem, calc_therm_ratio
 from scqubits.core.storage import WaveFunctionOnGrid
 
 
-# -Cosine two phi qubit noise class
+# - Cosine-2-phi qubit noise class ------------------------------------------------------------------------------------
 class NoisyCos2PhiQubit(NoisySystem, ABC):
     @abstractmethod
     def phi_1_operator(
@@ -620,15 +619,15 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If False (default), returns :math:`\phi` operator in the native basis.
-            If True, energy eigenspectrum is computed, returns :math:`\phi` operator in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns :math:`\phi` operator in the native basis.
+            If `True`, the energy eigenspectrum is computed, returns :math:`\phi` operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns :math:`\phi` operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
             :math:`\phi` operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If eigenenergy basis is chosen,
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
             unless energy_esys is specified, :math:`\phi` operator has dimensions of truncated_dim
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen, :math:`\phi`
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
@@ -660,15 +659,15 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If False (default), returns :math:`n_\phi` operator in the native basis.
-            If True, energy eigenspectrum is computed, returns :math:`n_\phi` operator in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns :math:`n_\phi` operator in the native basis.
+            If `True`, the energy eigenspectrum is computed, returns :math:`n_\phi` operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns :math:`n_\phi` operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
             :math:`n_\phi` operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If eigenenergy basis is chosen,
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
             unless energy_esys is specified, :math:`n_\phi` operator has dimensions of truncated_dim
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen, :math:`n_\phi`
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray :math:`\zeta`.
@@ -699,15 +698,15 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If False (default), returns :math:`\zeta` operator in the native basis.
-            If True, energy eigenspectrum is computed, returns :math:`\zeta`  operator in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns :math:`\zeta` operator in the native basis.
+            If `True`, the energy eigenspectrum is computed, returns :math:`\zeta`  operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns :math:`\zeta`  operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
             :math:`\zeta`  operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If eigenenergy basis is chosen,
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
             unless energy_esys is specified, :math:`\zeta`  operator has dimensions of truncated_dim
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen, :math:`\zeta`
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
@@ -738,15 +737,15 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If False (default), returns :math:`n_\zeta` operator in the native basis.
-            If True, energy eigenspectrum is computed, returns :math:`n_\zeta`  operator in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns :math:`n_\zeta` operator in the native basis.
+            If `True`, the energy eigenspectrum is computed, returns :math:`n_\zeta`  operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns :math:`n_\zeta`  operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
             :math:`n_\zeta`  operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If eigenenergy basis is chosen,
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
             unless energy_esys is specified, :math:`n_\zeta`  operator has dimensions of truncated_dim
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen, :math:`n_\zeta`
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
@@ -801,15 +800,15 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If False (default), returns :math:`n_\theta` operator in the charge basis.
-            If True, energy eigenspectrum is computed, returns :math:`n_\theta`  operator in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns :math:`n_\theta` operator in the charge basis.
+            If `True`, the energy eigenspectrum is computed, returns :math:`n_\theta`  operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns :math:`n_\theta`  operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
             :math:`n_\theta`  operator in chosen basis. If charge basis chosen, operator
-            returned as a csc_matrix. If eigenenergy basis is chosen,
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
             unless energy_esys is specified, :math:`n_\theta`  operator has dimensions of truncated_dim
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen, :math:`n_\theta`
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
@@ -897,17 +896,17 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If False (default), returns Hamiltonian in basis obtained by employing harmonic basis for
+            If `False` (default), returns Hamiltonian in basis obtained by employing harmonic basis for
             :math:`\\phi, \\zeta` and charge basis for :math:`\\theta`.
-            If True, energy eigenspectrum is computed, returns Hamiltonian in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `True`, the energy eigenspectrum is computed, returns Hamiltonian in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns Hamiltonian in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            Hamiltonian in chosen basis as csc_matrix. If eigenenergy basis is chosen,
-            unless energy_esys is specified, Hamiltonian has dimensions of truncated_dim
-            x truncated_dim. Otherwise, if eigenenergy basis is chosen, Hamiltonian has dimensions of m x m,
+            Hamiltonian in chosen basis as csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, the Hamiltonian has dimensions of `truncated_dim`
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, Hamiltonian has dimensions of m x m,
             for m given eigenvectors.
         """
         phi_osc_mat = self._kron3(
@@ -1223,16 +1222,16 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If False (default), returns operator in the harmonic oscillator basis.
-            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns operator in the harmonic oscillator basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
             Operator in chosen basis. If harmonic oscillator basis chosen, operator
-            returned as a csc_matrix. If eigenenergy basis is chosen,
-            unless energy_esys is specified, operator has dimensions of truncated_dim
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
@@ -1248,16 +1247,16 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If False (default), returns operator in the harmonic oscillator basis.
-            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns operator in the harmonic oscillator basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
             Operator in chosen basis. If harmonic oscillator basis chosen, operator
-            returned as a csc_matrix. If eigenenergy basis is chosen,
-            unless energy_esys is specified, operator has dimensions of truncated_dim
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
@@ -1273,16 +1272,16 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If False (default), returns operator in the harmonic oscillator basis.
-            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns operator in the harmonic oscillator basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
             Operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If eigenenergy basis is chosen,
-            unless energy_esys is specified, operator has dimensions of truncated_dim
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
@@ -1300,16 +1299,16 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If False (default), returns operator in the harmonic oscillator basis.
-            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns operator in the harmonic oscillator basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
             Operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If eigenenergy basis is chosen,
-            unless energy_esys is specified, operator has dimensions of truncated_dim
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
@@ -1328,16 +1327,16 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If False (default), returns operator in the native basis.
-            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns operator in the native basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
             Operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If eigenenergy basis is chosen,
-            unless energy_esys is specified, operator has dimensions of truncated_dim
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
@@ -1378,16 +1377,16 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If False (default), returns operator in the native basis.
-            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns operator in the native basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
             Operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If eigenenergy basis is chosen,
-            unless energy_esys is specified, operator has dimensions of truncated_dim
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
@@ -1421,16 +1420,16 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If False (default), returns operator in the native basis.
-            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns operator in the native basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
             Operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If eigenenergy basis is chosen,
-            unless energy_esys is specified, operator has dimensions of truncated_dim
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """

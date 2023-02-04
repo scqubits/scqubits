@@ -378,17 +378,17 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         Parameters
         ----------
         energy_esys:
-            If False (default), returns Hamiltonian in basis obtained by discretizing :math:`\phi` and employing
+            If `False` (default), returns Hamiltonian in basis obtained by discretizing :math:`\phi` and employing
             charge basis for :math:`\theta`.
-            If True, energy eigenspectrum is computed, returns Hamiltonian in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `True`, the energy eigenspectrum is computed, returns Hamiltonian in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns Hamiltonian in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            Hamiltonian in chosen basis as csc_matrix. If eigenenergy basis is chosen,
-            unless energy_esys is specified, Hamiltonian has dimensions of truncated_dim
-            x truncated_dim. Otherwise, if eigenenergy basis is chosen, Hamiltonian has dimensions of m x m,
+            Hamiltonian in chosen basis as csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, the Hamiltonian has dimensions of `truncated_dim`
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, Hamiltonian has dimensions of m x m,
             for m given eigenvectors.
         """
         hamiltonian_mat = self.sparse_kinetic_mat() + self.sparse_potential_mat()
@@ -434,16 +434,16 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         Parameters
         ----------
         energy_esys:
-            If False (default), returns operator in the native basis.
-            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns operator in the native basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
             Operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If eigenenergy basis is chosen,
-            unless energy_esys is specified, operator has dimensions of truncated_dim
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
@@ -474,16 +474,16 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         Parameters
         ----------
         energy_esys:
-            If False (default), returns operator in the native basis.
-            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns operator in the native basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
             Operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If eigenenergy basis is chosen,
-            unless energy_esys is specified, operator has dimensions of truncated_dim
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
@@ -501,16 +501,16 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         Parameters
         ----------
         energy_esys:
-            If False (default), returns operator in the native basis.
-            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns operator in the native basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
             Operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If eigenenergy basis is chosen,
-            unless energy_esys is specified, operator has dimensions of truncated_dim
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
@@ -561,16 +561,16 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         Parameters
         ----------
         energy_esys:
-            If False (default), returns operator in the native basis.
-            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns operator in the native basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
             Operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If eigenenergy basis is chosen,
-            unless energy_esys is specified, operator has dimensions of truncated_dim
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
@@ -586,16 +586,16 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         Parameters
         ----------
         energy_esys:
-            If False (default), returns operator in the native basis.
-            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns operator in the native basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
             Operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If eigenenergy basis is chosen,
-            unless energy_esys is specified, operator has dimensions of truncated_dim
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
@@ -658,16 +658,16 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         Parameters
         ----------
         energy_esys:
-            If False (default), returns operator in the native basis.
-            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns operator in the native basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
             Operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If eigenenergy basis is chosen,
-            unless energy_esys is specified, operator has dimensions of truncated_dim
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
@@ -704,16 +704,16 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         Parameters
         ----------
         energy_esys:
-            If False (default), returns operator in the native basis.
-            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns operator in the native basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
             Operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If eigenenergy basis is chosen,
-            unless energy_esys is specified, operator has dimensions of truncated_dim
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """

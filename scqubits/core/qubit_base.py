@@ -230,7 +230,7 @@ class QuantumSystem(DispatchClient, ABC):
         return []
 
 
-# —QubitBaseClass———————————————————————————————————————————————————————————————————————————————————————————————————————
+# -QubitBaseClass-------------------------------------------------------------------------------------------------------
 
 
 class QubitBaseClass(QuantumSystem, ABC):
@@ -380,8 +380,8 @@ class QubitBaseClass(QuantumSystem, ABC):
         native_op:
             operator in native basis
         energy_esys:
-            if False (default), returns operator in the native basis
-            if True, energy eigenspectrum is computed, returns operator in the energy eigenbasis
+            If `False` (default), returns operator in the native basis
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis
             if energy_esys is the energy eigenspectrum, in the form of a tuple containing two ndarrays
             (eigenvalues and energy eigenvectors), returns operator in the energy eigenbasis,
             and does not have to recalculate eigenspectrum.
@@ -412,8 +412,8 @@ class QubitBaseClass(QuantumSystem, ABC):
         native_hamiltonian:
             Hamiltonian in native basis
         energy_esys:
-            if False (default), returns Hamiltonian in the native basis
-            if True, energy eigenspectrum is computed, returns Hamiltonian in the energy eigenbasis
+            If `False` (default), returns Hamiltonian in the native basis
+            If `True`, the energy eigenspectrum is computed, returns Hamiltonian in the energy eigenbasis
             if energy_esys is the energy eigenspectrum, in the form of a tuple containing two ndarrays
             (eigenvalues and energy eigenvectors), returns Hamiltonian in the energy eigenbasis,
             and does not have to recalculate eigenspectrum.

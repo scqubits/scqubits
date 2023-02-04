@@ -191,21 +191,23 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
         """
-        Returns charge operator `n` in the charge or eigenenergy basis.
+        Returns charge operator n in the charge or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If False (default), returns charge operator `n` in the charge basis.
-            If True, energy eigenspectrum is computed, returns charge operator `n` in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns charge operator `n` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If `False` (default), returns charge operator n in the charge basis.
+            If `True`, energy eigenspectrum is computed, returns charge operator n in the energy eigenbasis.
+            If `energy_esys = esys`, where `esys` is a tuple containing two ndarrays (eigenvalues and energy
+            eigenvectors), returns charge operator n in the energy eigenbasis, and does not have to recalculate the
+            eigenspectrum.
 
         Returns
         -------
-            Charge operator `n` in chosen basis as ndarray. If eigenenergy basis is chosen,
-            unless energy_esys is specified, `n` has dimensions of truncated_dim
-            x truncated_dim. Otherwise, if eigenenergy basis is chosen, `n` has dimensions of m x m, for m given eigenvectors.
+            Charge operator n in chosen basis as ndarray.
+            For `energy_esys=True`, n has dimensions of `truncated_dim` x `truncated_dim`.
+            If an actual eigensystem is handed to `energy_sys`, then `n` has dimensions of m x m,
+            where m is the number of given eigenvectors.
         """
         diag_elements = np.arange(-self.ncut, self.ncut + 1, 1)
         native = np.diag(diag_elements)
@@ -220,16 +222,16 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         Parameters
         ----------
         energy_esys:
-            If False (default), returns operator :math:`e^{i\\varphi}` in the charge basis.
-            If True, energy eigenspectrum is computed, returns operator :math:`e^{i\\varphi}` in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns operator :math:`e^{i\\varphi}` in the charge basis.
+            If `True`, the energy eigenspectrum is computed, returns operator :math:`e^{i\\varphi}` in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns operator :math:`e^{i\\varphi}` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            Operator :math:`e^{i\\varphi}` in chosen basis as ndarray. If eigenenergy basis is chosen,
+            Operator :math:`e^{i\\varphi}` in chosen basis as ndarray. If the eigenenergy basis is chosen,
             unless energy_esys is specified, :math:`e^{i\\varphi}` has dimensions of truncated_dim
-            x truncated_dim. Otherwise, if eigenenergy basis is chosen, :math:`e^{i\\varphi}` has dimensions of m x m,
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`e^{i\\varphi}` has dimensions of m x m,
             for m given eigenvectors.
         """
         dimension = self.hilbertdim()
@@ -246,16 +248,16 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         Parameters
         ----------
         energy_esys:
-            If False (default), returns operator :math:`\\cos \\varphi` in the charge basis.
-            If True, energy eigenspectrum is computed, returns operator :math:`\\cos \\varphi` in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns operator :math:`\\cos \\varphi` in the charge basis.
+            If `True`, the energy eigenspectrum is computed, returns operator :math:`\\cos \\varphi` in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns operator :math:`\\cos \\varphi` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            Operator :math:`\\cos \\varphi` in chosen basis as ndarray. If eigenenergy basis is chosen,
+            Operator :math:`\\cos \\varphi` in chosen basis as ndarray. If the eigenenergy basis is chosen,
             unless energy_esys is specified, :math:`\\cos \\varphi` has dimensions of truncated_dim
-            x truncated_dim. Otherwise, if eigenenergy basis is chosen, :math:`\\cos \\varphi` has dimensions of m x m,
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\\cos \\varphi` has dimensions of m x m,
             for m given eigenvectors.
         """
         cos_op = 0.5 * self.exp_i_phi_operator()
@@ -271,16 +273,16 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         Parameters
         ----------
         energy_esys:
-            If False (default), returns operator :math:`\\sin \\varphi` in the charge basis.
-            If True, energy eigenspectrum is computed, returns operator :math:`\\sin \\varphi` in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns operator :math:`\\sin \\varphi` in the charge basis.
+            If `True`, the energy eigenspectrum is computed, returns operator :math:`\\sin \\varphi` in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns operator :math:`\\sin \\varphi` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            Operator :math:`\\sin \\varphi` in chosen basis as ndarray. If eigenenergy basis is chosen,
+            Operator :math:`\\sin \\varphi` in chosen basis as ndarray. If the eigenenergy basis is chosen,
             unless energy_esys is specified, :math:`\\sin \\varphi` has dimensions of truncated_dim
-            x truncated_dim. Otherwise, if eigenenergy basis is chosen, :math:`\\sin \\varphi` has dimensions of m x m,
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\\sin \\varphi` has dimensions of m x m,
             for m given eigenvectors.
         """
         sin_op = -1j * 0.5 * self.exp_i_phi_operator()
@@ -296,16 +298,15 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         Parameters
         ----------
         energy_esys:
-            If False (default), returns Hamiltonian in the charge basis.
-            If True, energy eigenspectrum is computed, returns Hamiltonian in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns Hamiltonian in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If `False` (default), returns Hamiltonian in the charge basis.
+            If `True`, the energy eigenspectrum is computed; returns Hamiltonian in the energy eigenbasis.
+            If `energy_esys = esys`, where `esys` is a tuple containing two ndarrays (eigenvalues and energy
+            eigenvectors); then return the Hamiltonian in the energy eigenbasis, do not recalculate eigenspectrum.
 
         Returns
         -------
-            Hamiltonian in chosen basis as ndarray. If eigenenergy basis is chosen,
-            unless energy_esys is specified, Hamiltonian has dimensions of truncated_dim
-            x truncated_dim. Otherwise, if eigenenergy basis is chosen, Hamiltonian has dimensions of m x m,
+            Hamiltonian in chosen basis as ndarray. For `energy_esys=False`, the Hamiltonian has dimensions of
+            `truncated_dim` x `truncated_dim`. For `energy_sys=esys`, the Hamiltonian has dimensions of m x m,
             for m given eigenvectors.
         """
         dimension = self.hilbertdim()
@@ -332,16 +333,16 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         Parameters
         ----------
         energy_esys:
-            If False (default), returns operator in the charge basis.
-            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If `False` (default), returns operator in the charge basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where `esys` is a tuple containing two ndarrays (eigenvalues and energy
+            eigenvectors), returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            Operator in chosen basis as ndarray. If eigenenergy basis is chosen,
-            unless energy_esys is specified, operator has dimensions of truncated_dim
-            x truncated_dim. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
+            Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
             for m given eigenvectors.
         """
         native = -8 * self.EC * self.n_operator(energy_esys=energy_esys)
@@ -357,16 +358,16 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         Parameters
         ----------
         energy_esys:
-            If False (default), returns operator in the charge basis.
-            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns operator in the charge basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where `esys` is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            Operator in chosen basis as ndarray. If eigenenergy basis is chosen,
-            unless energy_esys is specified, operator has dimensions of truncated_dim
-            x truncated_dim. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
+            Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
             for m given eigenvectors.
         """
         native = -self.cos_phi_operator()
@@ -687,16 +688,16 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         Parameters
         ----------
         energy_esys:
-            If False (default), returns operator in the charge basis.
-            If True, energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If energy_esys = esys, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            If `False` (default), returns operator in the charge basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
             returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            Operator in chosen basis as ndarray. If eigenenergy basis is chosen,
-            unless energy_esys is specified, operator has dimensions of truncated_dim
-            x truncated_dim. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
+            Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
             for m given eigenvectors.
         """
         native = (
