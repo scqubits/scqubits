@@ -28,7 +28,7 @@ from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
-from scipy import sparse, stats
+from scipy import sparse
 from scipy.sparse import csc_matrix
 from sympy import latex
 
@@ -43,7 +43,6 @@ import scqubits as scq
 import scqubits.core.discretization as discretization
 import scqubits.core.oscillator as osc
 import scqubits.core.qubit_base as base
-import scqubits.core.spec_lookup as spec_lookup
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
@@ -62,7 +61,6 @@ from scqubits.core.circuit_utils import (
     _generate_symbols_list,
     _i_d2_dphi2_operator,
     _i_d_dphi_operator,
-    _identity_theta,
     _n_theta_operator,
     _phi_operator,
     _sin_dia,
@@ -77,10 +75,9 @@ from scqubits.core.circuit_utils import (
     matrix_power_sparse,
     operator_func_factory,
 )
-from scqubits.core.namedslots_array import NamedSlotsNdarray
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
 from scqubits.io_utils.fileio import IOData
-from scqubits.io_utils.fileio_serializers import dict_deserialize, dict_serialize
+from scqubits.io_utils.fileio_serializers import dict_serialize
 from scqubits.utils.misc import (
     flatten_list,
     flatten_list_recursive,
