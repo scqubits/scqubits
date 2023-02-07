@@ -16,8 +16,7 @@ from scqubits.core.hashing_charge_basis import (
     HashingChargeBasis,
 )
 from scqubits.core.noise import NoisySystem
-from scqubits.core.operators import identity_wrap
-from scqubits.utils.spectrum_utils import order_eigensystem
+from scqubits.utils.spectrum_utils import order_eigensystem, identity_wrap
 
 
 class NoisyCurrentMirror(NoisySystem):

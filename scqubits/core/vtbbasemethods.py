@@ -15,9 +15,10 @@ import scqubits.utils.plotting as plot
 from scqubits.core import descriptors, discretization, storage
 from scqubits.core.discretization import Grid1d
 from scqubits.core.hashing import generate_next_vector, reflect_vectors
-from scqubits.core.operators import annihilation, identity_wrap
+from scqubits.core.operators import annihilation
 from scqubits.utils.cpu_switch import get_map_method
 from scqubits.utils.spectrum_utils import (
+    identity_wrap,
     order_eigensystem,
     solve_generalized_eigenvalue_problem_with_QZ,
     standardize_phases,
