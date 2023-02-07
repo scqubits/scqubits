@@ -22,8 +22,9 @@ import scipy as sp
 import scipy.constants
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from matplotlib.offsetbox import AnchoredText
 from numpy import ndarray
-from scipy.sparse.csc import csc_matrix
+from scipy.sparse import csc_matrix
 
 import scqubits.core.units as units
 import scqubits.settings as settings
@@ -92,7 +93,7 @@ NOISE_PARAMS = {
     "T": 0.015,  # Typical temperature for a superconducting circuit experiment. Units: K
     "M": 400,  # Mutual inductance between qubit and a flux line. Units: \Phi_0 / Ampere
     "R_k": sp.constants.h
-    / sp.constants.e ** 2.0,  # Normal quantum resistance, aka Klitzing constant.
+    / sp.constants.e**2.0,  # Normal quantum resistance, aka Klitzing constant.
     # Note, in some papers a superconducting quantum
     # resistance is used, and defined as: h/(2e)^2
 }
@@ -125,7 +126,7 @@ class NoisySystem(ABC):
         scale: float = 1,
         num_cpus: Optional[int] = None,
         **kwargs
-    ) -> Tuple[Figure, Axes]:
+    ) -> Tuple[Figure, Union[Axes, ndarray]]:
         r"""
         Show plots of coherence for various channels supported by the qubit as they
         vary as a function of a changing parameter.
@@ -233,17 +234,20 @@ class NoisySystem(ABC):
             plotting_options["ylabel"] = units.get_units_time_label()
 
         plotting_options.update(
-            {k: v for (k, v) in kwargs.items() if k not in ["fig_ax", "figsize"]}
+            {
+                key: value
+                for (key, value) in kwargs.items()
+                if key not in ["fig_ax", "figsize"]
+            }
         )
 
         # remember current value of param_name
         current_val = getattr(self, param_name)
 
-        for n, noise_channel in enumerate(noise_channels):  # type:ignore
+        for channel_idx, noise_channel in enumerate(noise_channels):  # type:ignore
 
             # case 1: noise_channel is a string representing the noise method
             if isinstance(noise_channel, str):
-
                 noise_channel_method = noise_channel
 
                 # calculate the noise over the full param span in param_vals
@@ -251,22 +255,22 @@ class NoisySystem(ABC):
                     [
                         scale
                         * getattr(
-                            self.set_and_return(param_name, v), noise_channel_method
+                            self.set_and_return(param_name, param_val),
+                            noise_channel_method,
                         )(
                             esys=(
-                                spectrum_data.energy_table[v_i, :],  # type:ignore
-                                spectrum_data.state_table[v_i],  # type:ignore
+                                spectrum_data.energy_table[param_idx, :],  # type:ignore
+                                spectrum_data.state_table[param_idx],  # type:ignore
                             ),
                             **common_noise_options
                         )
-                        for v_i, v in enumerate(param_vals)
+                        for param_idx, param_val in enumerate(param_vals)
                     ]
                 )
 
             # case 2: noise_channel is a tuple representing the noise method and
             # default options
             elif isinstance(noise_channel, tuple):
-
                 noise_channel_method = noise_channel[0]
 
                 options = common_noise_options.copy()
@@ -280,15 +284,16 @@ class NoisySystem(ABC):
                     [
                         scale
                         * getattr(
-                            self.set_and_return(param_name, v), noise_channel_method
+                            self.set_and_return(param_name, param_val),
+                            noise_channel_method,
                         )(
                             esys=(
-                                spectrum_data.energy_table[v_i, :],  # type:ignore
-                                spectrum_data.state_table[v_i],  # type:ignore
+                                spectrum_data.energy_table[param_idx, :],  # type:ignore
+                                spectrum_data.state_table[param_idx],  # type:ignore
                             ),
                             **options
                         )
-                        for v_i, v in enumerate(param_vals)
+                        for param_idx, param_val in enumerate(param_vals)
                     ]
                 )
 
@@ -298,12 +303,22 @@ class NoisySystem(ABC):
                     " or list of tuples}."
                 )
 
-            ax = axes.ravel()[n] if len(noise_channels) > 1 else axes
+            ax = axes.ravel()[channel_idx] if len(noise_channels) > 1 else axes
             plotting_options["fig_ax"] = fig, ax
             plotting_options["title"] = noise_channel_method
             plotting.data_vs_paramvals(
                 param_vals, noise_vals, label_list=None, **plotting_options
             )
+            # check whether rate is essentially zero and decoherence time thus
+            # excessively large
+            if np.all(noise_vals / scale > 1e12):
+                ax.get_lines()[0].set_color("0.8")
+                at = AnchoredText(
+                    "subdominant noise channel",
+                    frameon=False,
+                    loc="center",
+                )
+                ax.add_artist(at)
 
         if len(noise_channels) > 1 and len(noise_channels) % 2:
             axes.ravel()[-1].set_axis_off()
@@ -397,7 +412,6 @@ class NoisySystem(ABC):
         )
 
         if spectrum_data is None:
-
             # We have to figure out the largest energy level involved in the
             # calculations, to know how many levels we need from the diagonalization.
             # This may be hidden in noise-channel-specific options, so have to search
@@ -427,15 +441,17 @@ class NoisySystem(ABC):
         noise_vals = np.asarray(
             [
                 scale
-                * self.set_and_return(param_name, v).t1_effective(  # type: ignore
+                * self.set_and_return(
+                    param_name, param_val
+                ).t1_effective(  # type:ignore
                     noise_channels=noise_channels,
                     common_noise_options=common_noise_options,
                     esys=(
-                        spectrum_data.energy_table[v_i, :],  # type:ignore
-                        spectrum_data.state_table[v_i],  # type:ignore
+                        spectrum_data.energy_table[param_idx, :],  # type:ignore
+                        spectrum_data.state_table[param_idx],  # type:ignore
                     ),
                 )
-                for v_i, v in enumerate(param_vals)
+                for param_idx, param_val in enumerate(param_vals)
             ]
         )
 
@@ -443,12 +459,13 @@ class NoisySystem(ABC):
         setattr(self, param_name, current_val)  # type:ignore
 
         plotting_options = {
-            "fig_ax": plt.subplots(1),
             "title": "t1_effective",
             "xlabel": param_name,
             "yscale": "log",
             "grid": True,
         }
+        if "fig_ax" not in kwargs.keys():
+            plotting_options["fig_ax"] = plt.subplots(1)
 
         # Add a ylabel if we are plotting coherence times
         # and if scale is exactly 1
@@ -490,7 +507,7 @@ class NoisySystem(ABC):
             +  \frac{1}{2} \sum_j \frac{1}{T_{1}^{j}}
 
         where :math:`k` (:math:`j`) run over the relevant pure dephasing (
-        depolariztion) channels that can contribute to the effective noise. By
+        depolarization) channels that can contribute to the effective noise. By
         default all noise channels given by the method `effective_noise_channels` are
         included.
 
@@ -594,7 +611,6 @@ class NoisySystem(ABC):
         setattr(self, param_name, current_val)
 
         plotting_options = {
-            "fig_ax": plt.subplots(1),
             "title": "t2_effective",
             "xlabel": param_name,
             "yscale": "log",
@@ -604,7 +620,8 @@ class NoisySystem(ABC):
         # and if scale is exactly 1
         if not get_rate and scale == 1:
             plotting_options["ylabel"] = units.get_units_time_label()
-
+        if "fig_ax" not in kwargs.keys():
+            plotting_options["fig_ax"] = plt.subplots(1)
         # Users can overwrite plotting options
         plotting_options.update(kwargs)
 
@@ -825,7 +842,7 @@ class NoisySystem(ABC):
             +  \frac{1}{2} \sum_j \frac{1}{T_{1}^{j}},
 
         where :math:`k` (:math:`j`) run over the relevant pure dephasing (
-        depolariztion) channels that can contribute to the effective noise. By
+        depolarization) channels that can contribute to the effective noise. By
         default all the noise channels given by the method `effective_noise_channels`
         are included. Users can also provide specific noise channels, with selected
         options, to be included in the effective :math:`T_2` calculation. For
@@ -1165,7 +1182,8 @@ class NoisySystem(ABC):
         Returns
         -------
         time or rate: float
-            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
+            in inverse units.
 
         """
 
@@ -1208,7 +1226,7 @@ class NoisySystem(ABC):
         ):  # Check if the operator is given in dense form
             # if so, use numpy's vdot and dot
             rate = np.abs(np.vdot(evecs[:, i], np.dot(noise_op, evecs[:, j]))) ** 2 * s
-        else:  # Else, we have a sparse operator, use it's own dot method.
+        else:  # Else, we have a sparse operator, use its own dot method.
             rate = np.abs(np.vdot(evecs[:, i], noise_op.dot(evecs[:, j]))) ** 2 * s
 
         if get_rate:
@@ -1227,7 +1245,8 @@ class NoisySystem(ABC):
         get_rate: bool = False,
     ) -> float:
         r"""
-        :math:`T_1` due to dielectric dissipation in the Jesephson junction capacitances.
+        :math:`T_1` due to dielectric dissipation in the Josephson junction
+        capacitances.
 
         References:  Nguyen et al (2019), Smith et al (2020)
 
@@ -1430,7 +1449,7 @@ class NoisySystem(ABC):
             s = (
                 2
                 * (2 * np.pi) ** 2
-                * M ** 2
+                * M**2
                 * omega
                 * sp.constants.hbar
                 / complex(Z_fun(omega)).real

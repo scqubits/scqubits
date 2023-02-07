@@ -16,6 +16,7 @@ import os
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
+import scipy as sp
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -113,6 +114,78 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         noise_channels = cls.supported_noise_channels()
         noise_channels.remove("t1_charge_impedance")
         return noise_channels
+
+    def _hamiltonian_diagonal(self) -> ndarray:
+        dimension = self.hilbertdim()
+        return 4.0 * self.EC * (np.arange(dimension) - self.ncut - self.ng) ** 2
+
+    def _hamiltonian_offdiagonal(self) -> ndarray:
+        dimension = self.hilbertdim()
+        return np.full(shape=(dimension - 1,), fill_value=-self.EJ / 2.0)
+
+    def _evals_calc(self, evals_count: int) -> ndarray:
+        diagonal = self._hamiltonian_diagonal()
+        off_diagonal = self._hamiltonian_offdiagonal()
+
+        evals = sp.linalg.eigvalsh_tridiagonal(
+            diagonal,
+            off_diagonal,
+            select="i",
+            select_range=(0, evals_count - 1),
+            check_finite=False,
+        )
+        return evals
+
+    def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
+        diagonal = self._hamiltonian_diagonal()
+        off_diagonal = self._hamiltonian_offdiagonal()
+
+        evals, evecs = sp.linalg.eigh_tridiagonal(
+            diagonal,
+            off_diagonal,
+            select="i",
+            select_range=(0, evals_count - 1),
+            check_finite=False,
+        )
+        return evals, evecs
+
+    @staticmethod
+    def find_EJ_EC(
+        E01: float, anharmonicity: float, ng=0, ncut=30
+    ) -> Tuple[float, float]:
+        """
+        Finds the EJ and EC values given a qubit splitting `E01` and `anharmonicity`.
+
+        Parameters
+        ----------
+            E01:
+                qubit transition energy
+            anharmonicity:
+                absolute qubit anharmonicity, (E2-E1) - (E1-E0)
+            ng:
+                offset charge (default: 0)
+            ncut:
+                charge number cutoff (default: 30)
+
+        Returns
+        -------
+            A tuple of the EJ and EC values representing the best fit.
+        """
+        tmon = Transmon(EJ=10.0, EC=0.1, ng=ng, ncut=ncut)
+        start_EJ_EC = np.array([tmon.EJ, tmon.EC])
+
+        def cost_func(EJ_EC: Tuple[float, float]) -> float:
+            EJ, EC = EJ_EC
+            tmon.EJ = EJ
+            tmon.EC = EC
+            energies = tmon.eigenvals(evals_count=3)
+            computed_E01 = energies[1] - energies[0]
+            computed_anharmonicity = energies[2] - energies[1] - computed_E01
+            cost = (E01 - computed_E01) ** 2
+            cost += (anharmonicity - computed_anharmonicity) ** 2
+            return cost
+
+        return sp.optimize.minimize(cost_func, start_EJ_EC).x
 
     def n_operator(self) -> ndarray:
         """Returns charge operator `n` in the charge basis"""
@@ -284,7 +357,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         phi_basis_labels = phi_grid.make_linspace()
         phi_wavefunc_amplitudes = np.empty(phi_grid.pt_count, dtype=np.complex_)
         for k in range(phi_grid.pt_count):
-            phi_wavefunc_amplitudes[k] = (1j ** which / math.sqrt(2 * np.pi)) * np.sum(
+            phi_wavefunc_amplitudes[k] = (1j**which / math.sqrt(2 * np.pi)) * np.sum(
                 n_wavefunc.amplitudes
                 * np.exp(1j * phi_basis_labels[k] * n_wavefunc.basis_labels)
             )
@@ -440,7 +513,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         of EJ in the parent class `Transmon`"""
         return self.EJmax * np.sqrt(
             np.cos(np.pi * self.flux) ** 2
-            + self.d ** 2 * np.sin(np.pi * self.flux) ** 2
+            + self.d**2 * np.sin(np.pi * self.flux) ** 2
         )
 
     @staticmethod
@@ -475,10 +548,10 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
             * self.EJmax
             * np.cos(np.pi * self.flux)
             * np.sin(np.pi * self.flux)
-            * (self.d ** 2 - 1)
+            * (self.d**2 - 1)
             / np.sqrt(
                 np.cos(np.pi * self.flux) ** 2
-                + self.d ** 2 * np.sin(np.pi * self.flux) ** 2
+                + self.d**2 * np.sin(np.pi * self.flux) ** 2
             )
             * self.cos_phi_operator()
         )

@@ -18,6 +18,7 @@ import numpy as np
 import scipy as sp
 
 from numpy import ndarray
+from scipy.special import factorial, pbdv
 
 import scqubits.core.descriptors as descriptors
 import scqubits.core.operators as op
@@ -34,6 +35,10 @@ def harm_osc_wavefunction(
     oscillator wave function :math:`\psi_n(x) = N H_n(x/l_{osc}) \exp(-x^2/2l_\text{
     osc})`, N being the proper normalization factor.
 
+    Directly uses `scipy.special.pbdv` (implementation of the parabolic cylinder
+    function) to mitigate numerical stability issues with the more commonly used
+    expression in terms of a Gaussian and a Hermite polynomial factor.
+
     Parameters
     ----------
     n:
@@ -47,23 +52,21 @@ def harm_osc_wavefunction(
     -------
         value of harmonic oscillator wave function
     """
-    return (
-        (2.0 ** n * sp.special.gamma(n + 1.0) * l_osc) ** (-0.5)
-        * np.pi ** (-0.25)
-        * sp.special.eval_hermite(n, x / l_osc)
-        * np.exp(-(x * x) / (2 * l_osc * l_osc))
+    result = pbdv(n, np.sqrt(2.0) * x / l_osc) / np.sqrt(
+        l_osc * np.sqrt(np.pi) * factorial(n)
     )
+    return result[0]
 
 
 def convert_to_E_osc(E_kin: float, E_pot: float) -> float:
     r"""Returns the oscillator energy given a harmonic Hamiltonian of the form
-    :math:`H=\frac{1}{2}E_{\text{kin}}p^2 + \frac{1}{2}E_{\text{pot}}x^2"""
+    :math:`H=\frac{1}{2}E_{\text{kin}}p^2 + \frac{1}{2}E_{\text{pot}}x^2`"""
     return np.sqrt(E_kin * E_pot)
 
 
 def convert_to_l_osc(E_kin: float, E_pot: float) -> float:
     r"""Returns the oscillator length given a harmonic Hamiltonian of the form
-    :math:`H=\frac{1}{2}E_{\text{kin}}p^2 + \frac{1}{2}E_{\text{pot}}x^2"""
+    :math:`H=\frac{1}{2}E_{\text{kin}}p^2 + \frac{1}{2}E_{\text{pot}}x^2`"""
     return (E_kin / E_pot) ** (1 / 4)
 
 
@@ -247,6 +250,6 @@ class KerrOscillator(Oscillator, serializers.Serializable):
             number of desired eigenvalues (default value = 6)
         """
         evals = [
-            (self.E_osc + self.K) * n - self.K * n ** 2 for n in range(evals_count)
+            (self.E_osc + self.K) * n - self.K * n**2 for n in range(evals_count)
         ]
         return np.asarray(evals)

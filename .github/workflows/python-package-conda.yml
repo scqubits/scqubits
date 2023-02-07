@@ -1,4 +1,4 @@
-name: scqubits pytests using Conda environment
+name: Python Package using Conda
 
 on: [push]
 
@@ -6,29 +6,23 @@ jobs:
   build-linux:
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 5
       matrix:
-        python-version: [3.6, 3.7, 3.8]
+        python-version: [3.7, 3.8, 3.9]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
-      uses: conda-incubator/setup-miniconda@v2
+      uses: actions/setup-python@v3
       with:
-        activate-environment: foo
         python-version: ${{ matrix.python-version }}
-        channels: conda-forge
-        allow-softlinks: true
-        channel-priority: flexible
-        show-channel-urls: true
-        use-only-tar-bz2: true
     - name: Add conda to system path
       run: |
         # $CONDA is an environment variable pointing to the root of the miniconda directory
         echo $CONDA/bin >> $GITHUB_PATH
     - name: Install dependencies
       run: |
-        conda env update --file requirements.txt --name base
+        # conda env update --file environment.yml --name base
+        conda install --file requirements.txt -c conda-forge
     - name: Lint with flake8
       run: |
         conda install flake8
@@ -37,11 +31,12 @@ jobs:
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Attempt scqubits import
-      run: |
-        python -c 'import scqubits'
+      run: python -c 'import scqubits'
     - name: Install optional dependencies
+      run: conda install --file optional-requirements.txt -c conda-forge
+    - name: Run all pytests (serial)
       run: |
-        conda install --file optional-requirements.txt
-    - name: Test with pytest
+        pytest -v --pyargs scqubits
+    - name: Run all pytests (multiprocessing)
       run: |
-        pytest
+        pytest -v --pyargs scqubits --num_cpus=4

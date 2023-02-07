@@ -68,17 +68,25 @@ from scqubits.core.units import (
 from scqubits.core.zero_pi_vtb import ZeroPiVTB, ZeroPiVTBGlobal, ZeroPiVTBSqueezing
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
-from scqubits.explorer.explorer import Explorer
 
 # file IO
 from scqubits.io_utils.fileio import read, write
 
+
+# Import of custom-circuit modules needs to take place after other imports to
+# avoid circular import issues
+from scqubits.core.circuit import Circuit
+from scqubits.core.circuit_utils import truncation_template
+from scqubits.core.symbolic_circuit import SymbolicCircuit
+
+
 # GUI
 try:
+    from scqubits.ui.explorer_widget import Explorer
     from scqubits.ui.gui import GUI
 except NameError:
     warnings.warn(
-        "scqubits: could not import GUI - consider installing ipywidgets "
+        "scqubits: could not import GUI/Explorer - consider installing ipywidgets "
         "(optional dependency)?",
         ImportWarning,
     )

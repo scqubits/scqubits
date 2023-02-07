@@ -47,7 +47,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
 
     @classmethod
     @abstractmethod
-    def supported_noise_channels(self) -> List[str]:
+    def supported_noise_channels(cls) -> List[str]:
         pass
 
     def tphi_1_over_f_cc1(
@@ -196,13 +196,14 @@ class NoisyFluxQubit(NoisySystem, ABC):
         get_rate: bool = False,
         **kwargs
     ) -> float:
-        r"""Calculate the 1/f dephasing time (or rate) due to critical current noise
+        r"""
+        Calculate the 1/f dephasing time (or rate) due to critical-current noise
         from all three Josephson junctions :math:`EJ1`, :math:`EJ2` and :math:`EJ3`.
         The combined noise is calculated by summing the rates from the individual
         contributions.
 
         Parameters
-        -----------
+        ----------
         A_noise:
             noise strength
         i:
@@ -214,8 +215,10 @@ class NoisyFluxQubit(NoisySystem, ABC):
         get_rate:
             get rate or time
 
-        Returns ------- decoherence time in units of :math:`2\pi ({\rm system\,\,
-        units})`, or rate in inverse units.
+        Returns
+        -------
+            decoherence time in units of :math:`2\pi` (system units),
+            or rate in inverse units.
         """
         if "tphi_1_over_f_cc" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -538,7 +541,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def _exp_i_phi_operator(self) -> ndarray:
         dim = 2 * self.ncut + 1
         off_diag_elements = np.ones(dim - 1, dtype=np.complex_)
-        e_iphi_matrix = np.diag(off_diag_elements, k=1)
+        e_iphi_matrix = np.diag(off_diag_elements, k=-1)
         return e_iphi_matrix
 
     def _identity(self) -> ndarray:

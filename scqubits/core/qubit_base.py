@@ -87,7 +87,7 @@ class QuantumSystem(DispatchClient, ABC):
     # corresponding counts of instances
     _instance_counter: Dict[str, int] = {}
 
-    subclasses: List[ABCMeta] = []
+    _subclasses: List[ABCMeta] = []
 
     def __new__(cls, *args, **kwargs) -> "QuantumSystem":
         QuantumSystem._quantumsystem_counter += 1
@@ -114,11 +114,11 @@ class QuantumSystem(DispatchClient, ABC):
         self._id_str = id_str or self._autogenerate_id_str()
 
     def __init_subclass__(cls):
-        """Used to register all non-abstract subclasses as a list in
-        `QuantumSystem.subclasses`."""
+        """Used to register all non-abstract _subclasses as a list in
+        `QuantumSystem._subclasses`."""
         super().__init_subclass__()
         if not inspect.isabstract(cls):
-            cls.subclasses.append(cls)
+            cls._subclasses.append(cls)
 
     def __repr__(self) -> str:
         if hasattr(self, "_init_params"):
@@ -170,6 +170,26 @@ class QuantumSystem(DispatchClient, ABC):
         """Returns dimension of Hilbert space"""
 
     @classmethod
+    def get_operator_names(cls) -> List[str]:
+        """Returns a list of all operator names for the quantum system.
+        Note that this list omits any operators that start with "_".
+
+        Parameters
+        ----------
+        subsys:
+            Class instance of quantum system
+
+        Returns
+        -------
+            list of operator names
+        """
+        operator_list = []
+        for name, val in inspect.getmembers(cls):
+            if "operator" in name and name[0] != "_" and name != "get_operator_names":
+                operator_list.append(name)
+        return operator_list
+
+    @classmethod
     def create(cls) -> "QuantumSystem":
         """Use ipywidgets to create a new class instance"""
         init_params = cls.default_params()
@@ -187,7 +207,7 @@ class QuantumSystem(DispatchClient, ABC):
 
     @staticmethod
     @abstractmethod
-    def default_params():
+    def default_params() -> Dict[str, Any]:
         """Return dictionary with default parameter values for initialization of
         class instance"""
 
@@ -341,6 +361,16 @@ class QubitBaseClass(QuantumSystem, ABC):
         if filename:
             specdata.filewrite(filename)
         return specdata if return_spectrumdata else (evals, evecs)
+
+    def anharmonicity(self) -> float:
+        """Returns the qubit's anharmonicity, (E_2 - E_1) - (E_1 - E_0)."""
+        energies = self.eigenvals(evals_count=3)
+        return energies[2] - 2 * energies[1] + energies[0]
+
+    def E01(self) -> float:
+        """Returns the qubit's fundamental energy splitting, E_1 - E_0."""
+        energies = self.eigenvals(evals_count=2)
+        return energies[1] - energies[0]
 
     @overload
     def matrixelement_table(
@@ -520,14 +550,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         )
         if filename:
             specdata.filewrite(filename)
-
-        return SpectrumData(
-            eigenvalue_table,
-            self.get_initdata(),
-            param_name,
-            param_vals,
-            state_table=eigenstate_table,
-        )
+        return specdata
 
     def _compute_dispersion(
         self,
@@ -722,12 +745,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         )
 
         assert spectrumdata.state_table is not None
-        for index, paramval in tqdm(
-            enumerate(param_vals),
-            total=len(param_vals),
-            disable=settings.PROGRESSBAR_DISABLED,
-            leave=False,
-        ):
+        for index, paramval in enumerate(param_vals):
             evecs = spectrumdata.state_table[index]
             matelem_table[index] = self.matrixelement_table(
                 operator, evecs=evecs, evals_count=evals_count
@@ -898,10 +916,16 @@ class QubitBaseClass(QuantumSystem, ABC):
         assert isinstance(matrixelem_array, np.ndarray)
         if not show3d:
             return plot.matrix2d(
-                matrixelem_array, mode=mode, show_numbers=show_numbers, **kwargs
+                matrixelem_array,
+                mode=mode,
+                show_numbers=show_numbers,
+                **kwargs,
             )
         return plot.matrix(
-            matrixelem_array, mode=mode, show_numbers=show_numbers, **kwargs
+            matrixelem_array,
+            mode=mode,
+            show_numbers=show_numbers,
+            **kwargs,
         )
 
     def plot_matelem_vs_paramvals(
@@ -1065,7 +1089,8 @@ class QubitBaseClass1d(QubitBaseClass):
 
         if esys is None:
             evals_count = max(wavefunc_indices) + 1
-            evals = self.eigenvals(evals_count=evals_count)
+            esys = self.eigensys(evals_count=evals_count)
+            evals, _ = esys
         else:
             evals, _ = esys
 

@@ -18,7 +18,7 @@ import csv
 import os
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
 import numpy as np
 from numpy import ndarray
@@ -34,9 +34,8 @@ except ImportError:
 else:
     _HAS_H5PY = True
 
-
-# from scqubits.core.discretization import Grid1d
-# from scqubits.io_utils.fileio import IOData
+if TYPE_CHECKING:
+    from h5py import File, Group
 
 
 class IOWriter(ABC):
@@ -49,7 +48,7 @@ class IOWriter(ABC):
     file_handle: h5.Group, optional
     """
 
-    def __init__(self, filename: str, file_handle: Group = None) -> None:
+    def __init__(self, filename: str, file_handle: "Group" = None) -> None:
         self.filename = filename
         self.io_data: io.IOData
         self.file_handle = file_handle
@@ -71,10 +70,11 @@ class IOWriter(ABC):
         pass
 
 
+@utils.Required(h5py=_HAS_H5PY)
 class H5Writer(IOWriter):
     """Writes IOData to a custom-format h5 file"""
 
-    def write_attributes(self, h5file_group: Union[Group, File]) -> None:  # type: ignore
+    def write_attributes(self, h5file_group: Union["Group", "File"]) -> None:  # type: ignore
         """
         Attribute data consists of
 
@@ -90,13 +90,13 @@ class H5Writer(IOWriter):
             if isinstance(
                 attr_value, dict
             ):  # h5py does not serialize dicts automatically, so have to do it manually
-                group_name = "__dicts/" + attr_name
+                group_name = f"__dicts/{attr_name}"
                 h5file_group.create_group(group_name)
                 io.write(
                     attr_value, self.filename, file_handle=h5file_group[group_name]
                 )
             elif isinstance(attr_value, (list, tuple)):
-                group_name = "__lists/" + attr_name
+                group_name = f"__lists/{attr_name}"
                 h5file_group.create_group(group_name)
                 io.write(
                     attr_value, self.filename, file_handle=h5file_group[group_name]
@@ -104,7 +104,7 @@ class H5Writer(IOWriter):
             else:
                 h5file_group.attrs[attr_name] = attr_value
 
-    def write_ndarrays(self, h5file_group: Union[Group, File]) -> None:  # type: ignore
+    def write_ndarrays(self, h5file_group: Union["Group", "File"]) -> None:  # type: ignore
         """
         Writes ndarray (float or complex) data contained in `self.iodata` to the
         provided `h5py.Group` as a `h5py.Dataset`, using gzip compression.
@@ -118,7 +118,7 @@ class H5Writer(IOWriter):
                     str(array_id), data=array, dtype=array.dtype, compression="gzip"
                 )
 
-    def write_objects(self, h5file_group: Union[Group, File]) -> None:  # type: ignore
+    def write_objects(self, h5file_group: Union["Group", "File"]) -> None:  # type: ignore
         """
         Writes data representing a Python object other than ndarray, list and dict,
         contained in `self.iodata` to the provided `h5py.Group`  und
@@ -131,15 +131,14 @@ class H5Writer(IOWriter):
                 self.io_data.objects[obj_name], self.filename, file_handle=new_h5group
             )
 
-    @utils.Required(h5py=_HAS_H5PY)
-    def to_file(self, io_data: io.IOData, file_handle: Group = None) -> None:
+    def to_file(self, io_data: io.IOData, file_handle: "Group" = None) -> None:
         """
         Takes the serialized IOData and writes it either to a new h5 file with file
         name given by `self.filename` to to the given h5py.Group of an open h5 file.
         """
         self.io_data = io_data
         if file_handle is None:
-            h5file_group = h5py.File(self.filename, "w", rdcc_nbytes=1024 ** 2 * 200)
+            h5file_group = h5py.File(self.filename, "w", rdcc_nbytes=1024**2 * 200)
             _ = h5file_group.create_group("__data")
             close_when_done = True
         else:
@@ -153,19 +152,20 @@ class H5Writer(IOWriter):
             h5file_group.close()
 
 
+@utils.Required(h5py=_HAS_H5PY)
 class H5Reader:
     """
     Enables reading h5 files generated with scqubits.
     """
 
-    def __init__(self, filename: str, file_handle: Group = None) -> None:
+    def __init__(self, filename: str, file_handle: "Group" = None) -> None:
         self.filename = filename
         self.io_data = None
         self.file_handle = file_handle
 
     @staticmethod
     def h5_attrs_to_dict(
-        h5_attrs: AttributeManager,
+        h5_attrs: "AttributeManager",
     ) -> Dict[str, Union[float, str, int]]:
         """
         Converts h5 attribute data to a Python dictionary.
@@ -177,7 +177,7 @@ class H5Reader:
         """
         return {attr_name: attr_value for attr_name, attr_value in h5_attrs.items()}
 
-    def read_attributes(self, h5file_group: Union[Group, File]) -> Dict[str, Any]:
+    def read_attributes(self, h5file_group: Union["Group", "File"]) -> Dict[str, Any]:
         """
         Read data from h5 file group that is stored directly as `<h5py.Group>.attrs`,
         or saved in subgroups titled `<h5py.Group>/__lists` and `<h5py.Group>/__dicts`.
@@ -186,16 +186,16 @@ class H5Reader:
         if "__dicts" in h5file_group:
             for dict_name in h5file_group["__dicts"]:
                 attributes[dict_name] = io.read(
-                    self.filename, h5file_group["__dicts/" + dict_name]
+                    self.filename, h5file_group[f"__dicts/{dict_name}"]
                 )
         if "__lists" in h5file_group:
             for list_name in h5file_group["__lists"]:
                 attributes[list_name] = io.read(
-                    self.filename, h5file_group["__lists/" + list_name]
+                    self.filename, h5file_group[f"__lists/{list_name}"]
                 )
         return attributes
 
-    def read_ndarrays(self, h5file_group: Union[Group, File]) -> Dict[str, ndarray]:
+    def read_ndarrays(self, h5file_group: Union["Group", "File"]) -> Dict[str, ndarray]:
         """
         Read numpy array data from h5 file group.
         """
@@ -218,7 +218,9 @@ class H5Reader:
         }
         return ndarrays
 
-    def read_objects(self, h5file_group: Union[Group, File]) -> Dict[str, io.IOData]:
+    def read_objects(
+        self, h5file_group: Union["Group", "File"]
+    ) -> Dict[str, io.IOData]:
         """
         Read data from the given h5 file group that represents a Python object other
         than an ndarray, list, or dict.
@@ -229,15 +231,14 @@ class H5Reader:
             inner_objects[obj_name] = io.read(self.filename, h5file_group[obj_name])
         return inner_objects
 
-    @utils.Required(h5py=_HAS_H5PY)
-    def from_file(self, filename: str, file_handle: Group = None) -> io.IOData:
+    def from_file(self, filename: str, file_handle: "Group" = None) -> io.IOData:
         """
         Either opens a new h5 file for reading or accesses an already opened file via
         the given h5.Group handle. Reads all data from the three categories of
         attributes (incl. lists and dicts), ndarrays, and objects.
         """
         if file_handle is None:
-            h5file_group = h5py.File(filename, "r", rdcc_nbytes=1024 ** 2 * 200)
+            h5file_group = h5py.File(filename, "r", rdcc_nbytes=1024**2 * 200)
         else:
             h5file_group = file_handle
 
@@ -252,9 +253,9 @@ class H5Reader:
 
 class CSVWriter(IOWriter):
     """
-    Given filename='somename.csv', write initdata into somename.csv Then, additional
-    csv files are written for each dataset, with filenames: 'somename_' + dataname0 +
-    '.csv' etc.
+    Given `filename="somename.csv"`, write initdata into somename.csv Then, additional
+    csv files are written for each dataset, with filenames: `"somename_" + dataname0 +
+    ".csv"` etc.
     """
 
     def append_ndarray_info(self, attributes):
@@ -262,13 +263,13 @@ class CSVWriter(IOWriter):
         dimensions are available in attributes CSV file."""
         for index, dataname in enumerate(self.io_data.ndarrays.keys()):
             data = self.io_data.ndarrays[dataname]
-            attributes["dataset" + str(index)] = dataname
+            attributes[f"dataset{index}"] = dataname
 
             if data.ndim == 3:
                 slice_count = len(data)
             else:
                 slice_count = 1
-            attributes["dataset" + str(index) + ".slices"] = slice_count
+            attributes[f"dataset{index}.slices"] = slice_count
         return attributes
 
     def write_attributes(self, filename: str):  # type: ignore
@@ -283,7 +284,7 @@ class CSVWriter(IOWriter):
     def write_ndarrays(self, filename: str):  # type: ignore
         filename_stub, _ = os.path.splitext(filename)
         for dataname, dataset in self.io_data.ndarrays.items():
-            filename = filename_stub + "_" + dataname + ".csv"
+            filename = f"{filename_stub}_{dataname}.csv"
             self.write_data(filename, dataset)
 
     def write_data(self, filename: str, dataset: ndarray):  # type: ignore
@@ -359,7 +360,7 @@ class CSVReader:
         filename_stub, _ = os.path.splitext(filename)
         ndarrays = {}
         for index, dataname in enumerate(data_names):
-            data_filename = filename_stub + "_" + dataname + ".csv"
+            data_filename = f"{filename_stub}_{dataname}.csv"
             slices = data_slices[index]
             ndarrays[dataname] = self.read_data(data_filename, slices)
 

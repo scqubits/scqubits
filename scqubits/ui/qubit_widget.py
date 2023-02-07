@@ -53,7 +53,7 @@ def create_widget(
         label_str = name
         # NOTE: This will break if names of energy parameters in future qubits do not start with 'E'
         if name[0] == "E":
-            label_str += " [" + units.get_units() + "]"
+            label_str += f" [{units.get_units()}]"
         elif name == "flux":
             label_str += r" [$\Phi_0$]"
         label = ipywidgets.Label(value=label_str)
@@ -65,7 +65,6 @@ def create_widget(
         widgets[name] = enter_widget(
             value=value,
             description="",
-            disabled=False,
             layout=ipywidgets.Layout(width="150px"),
         )
         box_list.append(
