@@ -44,6 +44,8 @@ from scqubits.utils.misc import (
     number_of_lists_in_list,
 )
 
+import dill
+
 from scqubits.core.circuit_routines import CircuitRoutines
 from scqubits.core.circuit_noise import NoisyCircuit
 
@@ -188,15 +190,19 @@ class Subsystem(
         self._configure()
         self._frozen = True
 
+    # def __deepcopy__(self, memo):
+    #     cls = self.__class__
+    #     result = cls.__new__(cls)
+    #     memo[id(self)] = result
+    #     for k, v in self.__dict__.items():
+    #         result._frozen = False
+    #         setattr(result, k, copy.deepcopy(v, memo))
+    #         result._frozen = True
+    #     return result
     def __deepcopy__(self, memo):
-        cls = self.__class__
-        result = cls.__new__(cls)
-        memo[id(self)] = result
-        for k, v in self.__dict__.items():
-            result._frozen = False
-            setattr(result, k, copy.deepcopy(v, memo))
-            result._frozen = True
-        return result
+        pickle_dump = dill.dumps(self)
+        pickle_load = dill.loads(pickle_dump)
+        return pickle_load
 
     def _configure(self) -> None:
         """
@@ -342,15 +348,20 @@ class Circuit(
                 ext_basis=ext_basis,
             )
 
+    # def __deepcopy__(self, memo):
+    #     cls = self.__class__
+    #     result = cls.__new__(cls)
+    #     memo[id(self)] = result
+    #     for k, v in self.__dict__.items():
+    #         result._frozen = False
+    #         setattr(result, k, copy.deepcopy(v, memo))
+    #         result._frozen = True
+    #     return result
+
     def __deepcopy__(self, memo):
-        cls = self.__class__
-        result = cls.__new__(cls)
-        memo[id(self)] = result
-        for k, v in self.__dict__.items():
-            result._frozen = False
-            setattr(result, k, copy.deepcopy(v, memo))
-            result._frozen = True
-        return result
+        pickle_dump = dill.dumps(self)
+        pickle_load = dill.loads(pickle_dump)
+        return pickle_load
 
     def from_symbolic_hamiltonian(
         self,
@@ -1343,9 +1354,13 @@ class Circuit(
         for subsystem_index in osc_index_list:
             subsystem = self.subsystems[subsystem_index]
             if not subsystem.is_purely_harmonic:
-                raise Exception(f"the subsystem {subsystem_index} is not purely harmonic")
-            elif len(subsystem.var_categories['extended']) != 1 :
-                raise Exception(f"the subsystem has more than one harmonic oscillator mode")
+                raise Exception(
+                    f"the subsystem {subsystem_index} is not purely harmonic"
+                )
+            elif len(subsystem.var_categories["extended"]) != 1:
+                raise Exception(
+                    f"the subsystem has more than one harmonic oscillator mode"
+                )
             else:
                 osc_subsys_list.append(subsystem)
         self.hilbert_space._osc_subsys_list = osc_subsys_list
