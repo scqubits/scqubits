@@ -39,8 +39,6 @@ class ValidatedNumberField(ipyvuetify.TextField):
         self.name = kwargs.pop("name", None)
         self._type = num_type if num_type is not None else type(v_model)
 
-        # if "v_model" not in kwargs and "items" in kwargs:
-        #     kwargs["v_model"] = kwargs["items"][0]
         self._current_value = v_model
 
         super().__init__(v_model=v_model, filled=filled, **kwargs)
@@ -63,6 +61,7 @@ class ValidatedNumberField(ipyvuetify.TextField):
         )
         self.v_min = v_min
         self.v_max = v_max
+
         self.set_trait("num_value", self._num_value())
 
         self.observe(self.is_entry_valid, names="v_model")
@@ -70,8 +69,8 @@ class ValidatedNumberField(ipyvuetify.TextField):
     def is_entry_valid(self, *args, **kwargs):
         if (
             not self._typecheck_func(self.v_model)
-            or (self.v_min not in [None, ""] and self.num_value < self.v_min)
-            or (self.v_max not in [None, ""] and self.num_value > self.v_max)
+            or (self.v_min not in [None, ""] and self._type(self.v_model) < self.v_min)
+            or (self.v_max not in [None, ""] and self._type(self.v_model) > self.v_max)
         ):
             self.error = True
             self.rules = ["invalid"]

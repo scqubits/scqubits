@@ -221,8 +221,6 @@ class Explorer:
 
         panel = self.btn_panel_map[widget]
         if require_panel_uncollapse:
-            from datetime import datetime
-
             panel.v_model = 0
         else:
             for panel in self.btn_panel_map.values():

@@ -555,7 +555,7 @@ class HilbertSpace(
     @property
     def dimension(self) -> int:
         """Returns total dimension of joint Hilbert space"""
-        return np.prod(np.asarray(self.subsystem_dims))  # type:ignore
+        return np.prod(np.asarray(self.subsystem_dims)).item()
 
     @property
     def subsystem_count(self) -> int:

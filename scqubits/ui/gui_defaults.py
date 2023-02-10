@@ -253,8 +253,8 @@ paramvals_from_papers = {
 plot_choices = [
     "Energy spectrum",
     "Wavefunctions",
-    "Matrix element scan",
     "Matrix elements",
+    "Matrix element scan",
     "Coherence times",
 ]
 

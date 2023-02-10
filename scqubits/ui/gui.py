@@ -24,6 +24,7 @@ from matplotlib.figure import Axes, Figure
 import scqubits as scq
 import scqubits.ui.gui_custom_widgets as ui
 import scqubits.ui.gui_defaults as gui_defaults
+import scqubits.ui.gui_navbar as gui_navbar
 import scqubits.utils.misc as utils
 from scqubits.core.discretization import Grid1d
 from scqubits.core.qubit_base import QubitBaseClass
@@ -35,10 +36,6 @@ from scqubits.ui.gui_setup import (
     init_dict_v_noise_params,
     init_dict_v_plot_options,
     init_filename_textfield,
-    init_manual_update_btn,
-    init_manual_update_switch,
-    init_plot_choice_buttons,
-    init_qubit_dropdown,
     init_qubit_params_widgets_dict,
     init_ranges_widgets_dict,
     init_save_btn,
@@ -112,16 +109,12 @@ class GUI:
 
         # ------------------------------------------------------------------------------
 
-        self.v_qubit_choice = init_qubit_dropdown()
-        self.v_plot_choice = init_plot_choice_buttons()
-
-        self.v_manual_update_switch = init_manual_update_switch()
-        self.v_manual_update_btn = init_manual_update_btn()
+        self.navbar, self.navbar_elements = gui_navbar.create_navbar()
 
         self.v_save_btn = init_save_btn()
         self.v_save_filename = init_filename_textfield()
 
-        starting_qubit = self.v_qubit_choice.v_model
+        starting_qubit = self.navbar_elements["CHOOSE_QUBIT"].v_model
 
         self.set_qubit_and_init_qubit_widgets(starting_qubit)
 
@@ -193,9 +186,9 @@ class GUI:
         """Creates each of the tabs in self.tab_widget"""
 
         main_tab = v.Sheet(
-            class_="d-flex d-row",
+            class_="d-flex d-row px-2 mx-1",
             style_="height: 280px, max_height: 280px",
-            children=[self.main_tab_widgets()],
+            children=[self.main_tab_widgets()]
         )
         param_ranges_tab = v.Sheet(
             class_="d-flex flex-column flex-wrap overflow-auto",
@@ -232,46 +225,23 @@ class GUI:
 
         self.init_tab_widget()
 
-        manual_update_widget = v.Container(
-            class_="d-flex flex-row flex-start align-center",
-            children=[
-                self.v_manual_update_switch,
-                self.v_manual_update_btn,
-            ],
-        )
-
         save_widget = flex_row([self.v_save_btn, self.v_save_filename])
+        update_widget = flex_column([self.navbar_elements["AUTO_UPDATING"], self.navbar_elements["DO_UPDATE"]], class_="px-0", style_="width: 150px; margin-left: 50px; margin-right: 0px;")
 
         display(
             v.Container(
-                class_="d-flex ml-0 pl-0 mr-0 pr-0",
+                class_="ml-0 pl-0 mr-0 pr-0",
                 children=[
+                    self.navbar_elements["HEADER"],
                     v.Container(
                         class_="d-flex flex-row pl-0 pr-0 ml-0",
                         children=[
-                            v.Card(
-                                color=NAV_COLOR,
-                                class_="d-flex flex-column ml-0 pl-0 mr-1 pr-1",
-                                style_="max-width: 240px",
-                                children=[
-                                    v.CardTitle(children=["scqubits.GUI"]),
-                                    v.Divider(),
-                                    v.CardActions(
-                                        class_="d-flex flex-column",
-                                        children=[
-                                            self.v_qubit_choice,
-                                            self.v_plot_choice,
-                                            manual_update_widget,
-                                        ],
-                                    ),
-                                ],
-                                elevation="0",
-                            ),
+                            self.navbar,
                             v.Container(
                                 class_="d-flex flex-column align-center ml-1 pl-0 my-0 py-0",
                                 children=[
                                     self.v_tabs,
-                                    self.v_plot_output,
+                                    flex_row([update_widget, self.v_plot_output], class_="px-0"),
                                     save_widget,
                                 ],
                             ),
@@ -281,15 +251,15 @@ class GUI:
             )
         )
 
-    #
+
     def init_observe(self) -> None:
         """Links all the necessary widgets to their desired function."""
-        self.v_qubit_choice.observe(self.qubit_change, names="v_model")
-        self.v_plot_choice.observe(self.plot_option_layout_refresh, names="v_model")
-        self.v_manual_update_switch.observe(
-            self.toggle_manual_updating, names="v_model"
+        self.navbar_elements["CHOOSE_QUBIT"].observe(self.qubit_change, names="v_model")
+        self.navbar_elements["CHOOSE_PLOT"].observe(self.plot_option_layout_refresh, names="v_model")
+        self.navbar_elements["AUTO_UPDATING"].observe(
+            self.toggle_auto_updating, names="v_model"
         )
-        self.v_manual_update_btn.on_event("click", self.manual_update_button_onclick)
+        self.navbar_elements["DO_UPDATE"].on_event("click", self.manual_update_button_onclick)
         self.v_save_btn.on_event("click", self.save_button_clicked_action)
 
         self.observe_all()
@@ -330,7 +300,7 @@ class GUI:
         -------
             Method pertaining to refreshing the current plot option.
         """
-        current_plot_option = self.v_plot_choice.v_model
+        current_plot_option = self.navbar_elements["CHOOSE_PLOT"].v_model
 
         if current_plot_option == 0:
             self.evals_vs_paramvals_plot_refresh()
@@ -475,7 +445,7 @@ class GUI:
         if isinstance(widget, v.Select) and widget.multiple:
             current_values = list(widget.v_model)
             new_values = []
-            widget.items = range(int(new_min), int(new_max + 1))
+            widget.items = list(range(int(new_min), int(new_max + 1)))
             for value in current_values:
                 if value in widget.items:
                     new_values.append(value)
@@ -503,7 +473,7 @@ class GUI:
             text_widgets["max"].unobserve(self.ranges_update)
 
     def activate_auto_plot_refresh(self) -> None:
-        if self.manual_updating:
+        if self.auto_updating:
             return
 
         total_dict = {
@@ -516,7 +486,7 @@ class GUI:
                 widget.observe(self.plot_refresh, names="v_model")
 
     def deactivate_auto_plot_refresh(self) -> None:
-        if self.manual_updating:
+        if self.auto_updating:
             return
         total_dict = {
             **self.dict_v_qubit_params,
@@ -614,16 +584,16 @@ class GUI:
 
         new_qubit = change["new"]
         if new_qubit in gui_defaults.slow_qubits:
-            self.v_manual_update_switch.v_model = True
-            self.manual_updating_on()
+            self.navbar_elements["AUTO_UPDATING"].v_model = False
+            self.auto_updating_off()
         else:
-            self.v_manual_update_switch.v_model = False
-            self.manual_updating_off()
+            self.navbar_elements["AUTO_UPDATING"].v_model = True
+            self.auto_updating_on()
 
         self.set_qubit_and_init_qubit_widgets(new_qubit)
 
         self.init_tab_widget()
-        if not self.manual_updating:
+        if self.auto_updating:
             self.refresh_current_plot()
         self.observe_all()
 
@@ -641,7 +611,7 @@ class GUI:
         self.init_tab_widget()
         self.observe_all()
 
-        if not self.manual_updating:
+        if self.auto_updating:
             self.plot_refresh(change=None)
 
     def toggle_manual_wf_scaling(self, change) -> None:
@@ -681,23 +651,23 @@ class GUI:
         self.v_plot_output.clear_output()
         self.plot_renewal_requested = True
 
-    def manual_updating_on(self):
-        self.v_manual_update_btn.disabled = False
+    def auto_updating_off(self):
+        self.navbar_elements["DO_UPDATE"].disabled = False
         self.deactivate_auto_plot_refresh()
 
-    def manual_updating_off(self):
-        self.v_manual_update_btn.disabled = True
+    def auto_updating_on(self):
+        self.navbar_elements["DO_UPDATE"].disabled = True
         self.activate_auto_plot_refresh()
 
     @property
-    def manual_updating(self):
-        return self.v_manual_update_switch.v_model
+    def auto_updating(self):
+        return self.navbar_elements["AUTO_UPDATING"].v_model
 
-    def toggle_manual_updating(self, change) -> None:
+    def toggle_auto_updating(self, change) -> None:
         if change["new"]:
-            self.manual_updating_on()
+            self.auto_updating_on()
         else:
-            self.manual_updating_off()
+            self.auto_updating_off()
 
     def manual_update_button_onclick(self, widget, event, data) -> None:
         self.update_params()
@@ -706,7 +676,7 @@ class GUI:
         self.refresh_current_plot(change=None)
 
     def check_user_override_literature_params(self, change) -> None:
-        current_qubit = self.v_qubit_choice.v_model
+        current_qubit = self.navbar_elements["CHOOSE_QUBIT"].v_model
         current_dropdown_value = self.dict_v_plot_options["literature_params"].v_model
 
         if current_qubit not in gui_defaults.paramvals_from_papers.keys():
@@ -722,7 +692,7 @@ class GUI:
                     return
 
     def set_literature_params_and_refresh_plot(self, change) -> None:
-        current_qubit = self.v_qubit_choice.v_model
+        current_qubit = self.navbar_elements["CHOOSE_QUBIT"].v_model
         current_dropdown_value = self.dict_v_plot_options["literature_params"].v_model
 
         if current_dropdown_value == "User specified":
@@ -852,11 +822,11 @@ class GUI:
         else:
             do_update = True
 
-        if do_update and not self.manual_updating:
+        if do_update and self.auto_updating:
             self.refresh_current_plot(change=None)
 
     def literature_url_refresh(self, change) -> None:
-        current_qubit = self.v_qubit_choice.v_model
+        current_qubit = self.navbar_elements["CHOOSE_QUBIT"].v_model
         current_dropdown_value = self.dict_v_plot_options["literature_params"].v_model
 
         if current_dropdown_value == "User specified":
@@ -910,7 +880,7 @@ class GUI:
             if manual_scale_tf_value:
                 value_dict["scale_value"] = self.dict_v_plot_options[
                     "wavefunction_scale_slider"
-                ].num_value
+                ].v_model
             else:
                 value_dict["scale_value"] = None
             value_dict["eigenvalue_states"] = self.dict_v_plot_options[
@@ -1115,14 +1085,17 @@ class GUI:
 
         main_tab = v.Container(
             class_="d-flex flex-row mx-0 px-0",
+            style_="transform: scale(0.9)",
             children=[
                 v.Container(
-                    style_="transform: scale(0.85)",
+                    # style_="transform: scale(0.85)",
                     class_="d-flex align-start flex-column pb-0",
+                    style_="width: 48%",
                     children=plot_option_list,
                 ),
                 v.Container(
-                    style_="transform: scale(0.85); max-height: 350px",
+                    style_="max-height: 350px",
+                    # style_="transform: scale(0.85); max-height: 350px",
                     class_="d-flex align-start flex-column flex-wrap flex-align-content-start overflow-auto",
                     children=qubit_params_grid,
                 ),
@@ -1155,7 +1128,7 @@ class GUI:
         return noise_params_grid
 
     def plot_options_widgets(self) -> tuple:
-        current_plot_option = self.v_plot_choice.v_model
+        current_plot_option = self.navbar_elements["CHOOSE_PLOT"].v_model
 
         if current_plot_option == 0:
             return self.energy_spectrum_options_widgets()
@@ -1233,7 +1206,7 @@ class GUI:
             Tuple of plot options widgets
         """
         if isinstance(self.active_qubit, (scq.Snailmon, scq.FullZeroPi)):
-            plot_options_widgets_tuple = (Label(value="Not implemented"),)
+            plot_options_widgets_tuple = (v.Text(children=["Not implemented"]),)
         else:
             self.dict_v_plot_options["amplitude_mode"].v_model = self.active_defaults[
                 "mode_wavefunc"
