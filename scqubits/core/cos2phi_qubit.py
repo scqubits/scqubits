@@ -23,7 +23,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
 from scipy import sparse
-from scipy.sparse import csc_matrix, dia_matrix, coo_matrix
+from scipy.sparse import coo_matrix, csc_matrix, dia_matrix
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors

@@ -73,7 +73,7 @@ LevelsTuple = Tuple[int, ...]
 Transition = Tuple[int, int]
 TransitionsTuple = Tuple[Transition, ...]
 
-# —Generic quantum system container and Qubit base class——————————————————————————————
+# -Generic quantum system container and Qubit base class------------------------------
 
 
 class QuantumSystem(DispatchClient, ABC):
@@ -1071,7 +1071,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         return self
 
 
-# —QubitBaseClass1d——————————————————————————————————————————————————————————————————
+# -QubitBaseClass1d------------------------------------------------------------------
 
 
 class QubitBaseClass1d(QubitBaseClass):

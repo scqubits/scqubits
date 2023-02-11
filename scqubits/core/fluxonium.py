@@ -30,7 +30,6 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 
 from scqubits.core.noise import NoisySystem
-from scqubits.utils.spectrum_utils import get_matrixelement_table
 
 if TYPE_CHECKING:
     from scqubits.core.discretization import Grid1d
@@ -188,7 +187,8 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         -------
             Operator :math:`n = - i d/d\\phi` in chosen basis as ndarray. If the eigenenergy basis is chosen,
             unless energy_esys is specified, :math:`n = - i d/d\\phi` has dimensions of truncated_dim
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`n = - i d/d\\phi` has dimensions of m x m, for m given eigenvectors.
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`n = - i d/d\\phi` has dimensions of
+            m x m, for m given eigenvectors.
         """
         dimension = self.hilbertdim()
         native = (
@@ -211,16 +211,19 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the :math:`e^{i (\\alpha \\phi + \\beta) }` operator in the LC harmonic oscillator basis.
-            If `True`, the energy eigenspectrum is computed, returns the :math:`e^{i (\\alpha \\phi + \\beta) }` operator in the energy eigenbasis.
+            If `False` (default), returns the :math:`e^{i (\\alpha \\phi + \\beta) }` operator in the LC harmonic
+            oscillator basis. If `True`, the energy eigenspectrum is computed, returns the
+            :math:`e^{i (\\alpha \\phi + \\beta) }` operator in the energy eigenbasis.
             If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns the :math:`e^{i (\\alpha \\phi + \\beta) }` operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            returns the :math:`e^{i (\\alpha \\phi + \\beta) }` operator in the energy eigenbasis, and does not have to
+            recalculate eigenspectrum.
 
         Returns
         -------
-            Operator :math:`e^{i (\\alpha \\phi + \\beta) }` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`e^{i (\\alpha \\phi + \\beta) }` has dimensions of truncated_dim
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`e^{i (\\alpha \\phi + \\beta) }` has dimensions of m x m, for m given eigenvectors.
+            Operator :math:`e^{i (\\alpha \\phi + \\beta) }` in chosen basis as ndarray. If the eigenenergy basis is
+            chosen, unless energy_esys is specified, :math:`e^{i (\\alpha \\phi + \\beta) }` has dimensions of
+            `truncated_dim`x `truncated_dim`. Otherwise, if eigenenergy basis is chosen,
+            :math:`e^{i (\\alpha \\phi + \\beta) }` has dimensions of m x m, for m given eigenvectors.
         """
         exponent = 1j * (alpha * self.phi_operator())
         native = sp.linalg.expm(exponent) * cmath.exp(1j * beta)

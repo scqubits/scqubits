@@ -39,7 +39,7 @@ LevelsTuple = Tuple[int, ...]
 Transition = Tuple[int, int]
 TransitionsTuple = Tuple[Transition, ...]
 
-# —Cooper pair box / transmon——————————————————————————————————————————————
+# -Cooper pair box / transmon----------------------------------------------
 
 
 class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
@@ -579,7 +579,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         return specdata_ng_0.energy_table, np.asarray(dispersion_list)
 
 
-# — Flux-tunable Cooper pair box / transmon———————————————————————————————————————————
+# - Flux-tunable Cooper pair box / transmon-------------------------------------------
 
 
 class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
