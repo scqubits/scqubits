@@ -139,69 +139,174 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         return math.sqrt(8.0 * self.EL * self.EC)  # LC plasma oscillation energy
 
-    def phi_operator(self) -> ndarray:
+    def phi_operator(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
+        Returns the phi operator in the LC harmonic oscillator or eigenenergy basis.
+
+        Parameters
+        ----------
+        energy_esys:
+            If `False` (default), returns phi operator in the LC harmonic oscillator basis.
+            If `True`, the energy eigenspectrum is computed, returns phi operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns phi operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
         Returns
         -------
-            Returns the phi operator in the LC harmonic oscillator basis
+            Phi operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
+            unless energy_esys is specified, phi operator has dimensions of truncated_dim
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, phi operator has dimensions of m x m,
+            for m given eigenvectors.
         """
         dimension = self.hilbertdim()
-        return (
+        native = (
             (op.creation(dimension) + op.annihilation(dimension))
             * self.phi_osc()
             / math.sqrt(2)
         )
 
-    def n_operator(self) -> ndarray:
+        return self.process_op(native_op=native, energy_esys=energy_esys)
+
+    def n_operator(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
+        Returns the :math:`n = - i d/d\\phi` operator in the LC harmonic oscillator or eigenenergy basis.
+
+        Parameters
+        ----------
+        energy_esys:
+            If `False` (default), returns the :math:`n = - i d/d\\phi` operator in the LC harmonic oscillator basis.
+            If `True`, the energy eigenspectrum is computed, returns the :math:`n = - i d/d\\phi` operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns the :math:`n = - i d/d\\phi` operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
         Returns
         -------
-            Returns the :math:`n = - i d/d\\phi` operator in the LC harmonic
-            oscillator basis
+            Operator :math:`n = - i d/d\\phi` in chosen basis as ndarray. If the eigenenergy basis is chosen,
+            unless energy_esys is specified, :math:`n = - i d/d\\phi` has dimensions of truncated_dim
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`n = - i d/d\\phi` has dimensions of
+            m x m, for m given eigenvectors.
         """
         dimension = self.hilbertdim()
-        return (
+        native = (
             1j
             * (op.creation(dimension) - op.annihilation(dimension))
             / (self.phi_osc() * math.sqrt(2))
         )
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def exp_i_phi_operator(self, alpha: float = 1.0, beta: float = 0.0) -> ndarray:
+    def exp_i_phi_operator(
+        self,
+        alpha: float = 1.0,
+        beta: float = 0.0,
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+    ) -> ndarray:
         """
+        Returns the :math:`e^{i (\\alpha \\phi + \\beta) }` operator, with :math:`\\alpha` and :math:`\\beta` being
+        numbers, in the LC harmonic oscillator or eigenenergy basis.
+
+        Parameters
+        ----------
+        energy_esys:
+            If `False` (default), returns the :math:`e^{i (\\alpha \\phi + \\beta) }` operator in the LC harmonic
+            oscillator basis. If `True`, the energy eigenspectrum is computed, returns the
+            :math:`e^{i (\\alpha \\phi + \\beta) }` operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns the :math:`e^{i (\\alpha \\phi + \\beta) }` operator in the energy eigenbasis, and does not have to
+            recalculate eigenspectrum.
+
         Returns
         -------
-            Returns the :math:`e^{i (\\alpha \\phi + \\beta) }` operator in the
-            LC harmonic oscillator basis,
-            with :math:`\\alpha` and :math:`\\beta` being numbers
+            Operator :math:`e^{i (\\alpha \\phi + \\beta) }` in chosen basis as ndarray. If the eigenenergy basis is
+            chosen, unless energy_esys is specified, :math:`e^{i (\\alpha \\phi + \\beta) }` has dimensions of
+            `truncated_dim`x `truncated_dim`. Otherwise, if eigenenergy basis is chosen,
+            :math:`e^{i (\\alpha \\phi + \\beta) }` has dimensions of m x m, for m given eigenvectors.
         """
         exponent = 1j * (alpha * self.phi_operator())
-        return sp.linalg.expm(exponent) * cmath.exp(1j * beta)
+        native = sp.linalg.expm(exponent) * cmath.exp(1j * beta)
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def cos_phi_operator(self, alpha: float = 1.0, beta: float = 0.0) -> ndarray:
+    def cos_phi_operator(
+        self,
+        alpha: float = 1.0,
+        beta: float = 0.0,
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+    ) -> ndarray:
         """
+        Returns the :math:`\\cos (\\alpha \\phi + \\beta)` operator with :math:`\\alpha` and :math:`\\beta` being
+        numbers, in the LC harmonic oscillator or eigenenergy basis.
+
+        Parameters
+        ----------
+        energy_esys:
+            If `False` (default), returns the :math:`\\cos (\\alpha \\phi + \\beta)` operator in the LC harmonic oscillator basis.
+            If `True`, the energy eigenspectrum is computed, returns the :math:`\\cos (\\alpha \\phi + \\beta)` operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns the :math:`\\cos (\\alpha \\phi + \\beta)` operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
         Returns
         -------
-            Returns the :math:`\\cos (\\alpha \\phi + \\beta)` operator in the LC
-            harmonic oscillator basis,
-            with :math:`\\alpha` and :math:`\\beta` being numbers
+            Operator :math:`\\cos (\\alpha \\phi + \\beta)` in chosen basis as ndarray. If the eigenenergy basis is chosen,
+            unless energy_esys is specified, :math:`\\cos (\\alpha \\phi + \\beta)` has dimensions of truncated_dim
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\\cos (\\alpha \\phi + \\beta)` has dimensions of m x m, for m given eigenvectors.
         """
         argument = alpha * self.phi_operator() + beta * np.eye(self.hilbertdim())
-        return sp.linalg.cosm(argument)
+        native = sp.linalg.cosm(argument)
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def sin_phi_operator(self, alpha: float = 1.0, beta: float = 0.0) -> ndarray:
+    def sin_phi_operator(
+        self,
+        alpha: float = 1.0,
+        beta: float = 0.0,
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+    ) -> ndarray:
         """
+        Returns the :math:`\\sin (\\alpha \\phi + \\beta)` operator with :math:`\\alpha` and :math:`\\beta` being
+        numbers, in the LC harmonic oscillator or eigenenergy basis.
+
+        Parameters
+        ----------
+        energy_esys:
+            If `False` (default), returns the :math:`\\sin (\\alpha \\phi + \\beta)` operator in the LC harmonic oscillator basis.
+            If `True`, the energy eigenspectrum is computed, returns the :math:`\\sin (\\alpha \\phi + \\beta)` operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns the :math:`\\sin (\\alpha \\phi + \\beta)` operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
         Returns
         -------
-            Returns the :math:`\\sin (\\alpha \\phi + \\beta)` operator in the
-            LC harmonic oscillator basis
-            with :math:`\\alpha` and :math:`\\beta` being numbers
+            Operator :math:`\\sin (\\alpha \\phi + \\beta)` in chosen basis as ndarray. If the eigenenergy basis is chosen,
+            unless energy_esys is specified, :math:`\\sin (\\alpha \\phi + \\beta)` has dimensions of truncated_dim
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\\sin (\\alpha \\phi + \\beta)` has dimensions of m x m, for m given eigenvectors.
         """
         argument = alpha * self.phi_operator() + beta * np.eye(self.hilbertdim())
-        return sp.linalg.sinm(argument)
+        native = sp.linalg.sinm(argument)
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def hamiltonian(self) -> ndarray:  # follow Zhu et al., PRB 87, 024510 (2013)
-        """Construct Hamiltonian matrix in harmonic-oscillator basis, following Zhu
-        et al., PRB 87, 024510 (2013)"""
+    def hamiltonian(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:  # follow Zhu et al., PRB 87, 024510 (2013)
+        """
+        Constructs Hamiltonian matrix in harmonic-oscillator, following Zhu
+        et al., PRB 87, 024510 (2013), or eigenenergy basis.
+
+        Parameters
+        ----------
+        energy_esys:
+            If `False` (default), returns Hamiltonian in the harmonic-oscillator basis.
+            If `True`, the energy eigenspectrum is computed, returns Hamiltonian in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns Hamiltonian in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            Hamiltonian in chosen basis as ndarray. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, the Hamiltonian has dimensions of `truncated_dim`
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, Hamiltonian has dimensions of m x m,
+            for m given eigenvectors.
+        """
         dimension = self.hilbertdim()
         diag_elements = [(i + 0.5) * self.plasma_energy() for i in range(dimension)]
         lc_osc_matrix = np.diag(diag_elements)
@@ -209,23 +314,67 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         cos_matrix = self.cos_phi_operator(beta=2 * np.pi * self.flux)
 
         hamiltonian_mat = lc_osc_matrix - self.EJ * cos_matrix
-        return hamiltonian_mat
+        return self.process_hamiltonian(
+            native_hamiltonian=hamiltonian_mat, energy_esys=energy_esys
+        )
 
-    def d_hamiltonian_d_EJ(self) -> ndarray:
-        """Returns operator representing a derivative of the Hamiltonian with respect
-        to `EJ`.
-
-        The flux is grouped as in the Hamiltonian.
+    def d_hamiltonian_d_EJ(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
         """
-        return -self.cos_phi_operator(1, 2 * np.pi * self.flux)
+        Returns operator representing a derivative of the Hamiltonian with respect to
+        EJ in the harmonic-oscillator or eigenenergy basis. The flux is grouped as in the Hamiltonian.
 
-    def d_hamiltonian_d_flux(self) -> ndarray:
-        """Returns operator representing a derivative of the Hamiltonian with respect
-        to `flux`.
+        Parameters
+        ----------
+        energy_esys:
+            If `False` (default), returns operator in the charge basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
-        Flux is grouped as in the Hamiltonian.
+        Returns
+        -------
+            Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
+            for m given eigenvectors.
         """
-        return -2 * np.pi * self.EJ * self.sin_phi_operator(1, 2 * np.pi * self.flux)
+        native = -self.cos_phi_operator(1, 2 * np.pi * self.flux)
+
+        return self.process_op(native_op=native, energy_esys=energy_esys)
+
+    # def d_hamiltonian_d_flux(self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False) -> ndarray:
+    #     """Returns operator representing a derivative of the Hamiltonian with respect
+    #     to flux.
+    #
+    #     The flux is grouped as in the Hamiltonian."""
+    #     return -2 * np.pi * self.EJ * self.sin_phi_operator(1, 2 * np.pi * self.flux, energy_esys=energy_esys)
+
+    def d_hamiltonian_d_flux(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
+        """
+        Returns operator representing a derivative of the Hamiltonian with respect to
+        flux in the harmonic-oscillator or eigenenergy basis. The flux is grouped as in the Hamiltonian.
+
+        Parameters
+        ----------
+        energy_esys:
+            If `False` (default), returns operator in the charge basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
+            for m given eigenvectors.
+        """
+        native = -2 * np.pi * self.EJ * self.sin_phi_operator(1, 2 * np.pi * self.flux)
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def hilbertdim(self) -> int:
         """

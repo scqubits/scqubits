@@ -12,7 +12,7 @@
 
 import re
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Union
 
 import numpy as np
 import sympy as sm
