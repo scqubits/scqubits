@@ -13,6 +13,7 @@
 from typing import Any, Callable, List, Union
 
 import ipyvuetify
+import ipyvuetify as v
 import ipywidgets
 import traitlets
 from IPython.core.display_functions import display
@@ -40,7 +41,6 @@ class ValidatedNumberField(ipyvuetify.TextField):
         self._type = num_type if num_type is not None else type(v_model)
 
         self._current_value = v_model
-
         super().__init__(v_model=v_model, filled=filled, **kwargs)
 
         if num_type == float:
@@ -98,13 +98,11 @@ class NumberEntryWidget(ValidatedNumberField):
         v_max=None,
         s_min=None,
         s_max=None,
-        style_="",
-        class_="",
+        style_="",  # REMOVE
+        class_="",  # REMOVE
         text_kwargs=None,
         slider_kwargs=None,
     ):
-        self.class_ = class_
-        self.style_ = style_
         text_kwargs = text_kwargs or {}
         slider_kwargs = slider_kwargs or {}
 
@@ -119,7 +117,7 @@ class NumberEntryWidget(ValidatedNumberField):
         )
 
         if "style_" not in slider_kwargs:
-            slider_kwargs["style_"] = "max-width: 240px; width: 220px;"
+            slider_kwargs["style_"] = "max-width: 240px; min-width: 220px;"
         if "class_" not in slider_kwargs:
             slider_kwargs["class_"] = "pt-3"
         self.slider = ipyvuetify.Slider(
@@ -141,8 +139,8 @@ class NumberEntryWidget(ValidatedNumberField):
 
     def widget(self):
         return ipyvuetify.Container(
-            class_=self.class_ or "d-flex flex-row pr-4",
-            style_=self.style_,
+            class_="d-flex flex-row ml-2 pb-0 pt-1",
+            style_="min-width: 220px; max-width: 220px",
             children=[self, self.slider],
         )
 
@@ -249,3 +247,19 @@ class NavbarElement(ipyvuetify.ExpansionPanels):
                 ],
             ),
         )
+
+
+def flex_row(widgets: List[v.VuetifyWidget], class_="", **kwargs) -> v.Container:
+    return v.Container(
+        class_="d-flex flex-row " + class_,
+        children=widgets,
+        **kwargs
+    )
+
+
+def flex_column(widgets: List[v.VuetifyWidget], class_="", **kwargs) -> v.Container:
+    return v.Container(
+        class_="d-flex flex-column " + class_,
+        children=widgets,
+        **kwargs
+    )

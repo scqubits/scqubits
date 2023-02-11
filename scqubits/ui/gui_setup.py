@@ -11,7 +11,7 @@
 ############################################################################
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import ipyvuetify as v
 import ipywidgets
@@ -31,7 +31,6 @@ def init_qubit_dropdown():
         filled=True,
         label="Qubit",
         class_="pl-2",
-        style_="min-width: 200px",
     )
 
 
@@ -92,22 +91,6 @@ def init_manual_update_widget(switch, button):
     )
 
 
-def flex_row(widgets: List[v.VuetifyWidget], class_="", **kwargs) -> v.Container:
-    return v.Container(
-        class_="d-flex flex-row " + class_,
-        children=widgets,
-        **kwargs
-    )
-
-
-def flex_column(widgets: List[v.VuetifyWidget], class_="", **kwargs) -> v.Container:
-    return v.Container(
-        class_="d-flex flex-column " + class_,
-        children=widgets,
-        **kwargs
-    )
-
-
 def init_filename_textfield():
     return v.TextField(
         class_="ml-3 pl-3",
@@ -146,7 +129,6 @@ def init_dict_v_plot_options(
     active_qubit, active_defaults, scan_params
 ) -> Dict[str, v.VuetifyWidget]:
     """Creates all the widgets that will be used for general plotting options."""
-    # current_qubit = self.v_qubit_choice.v_model
     operator_names = active_qubit.get_operator_names()
     noise_channels = active_qubit.supported_noise_channels()
 
@@ -196,16 +178,14 @@ def init_dict_v_plot_options(
             v_model=True,
             label="Subtract E\u2080",
         ),
-        "i_text": ui.ValidatedNumberField(v_model=1, num_type=int, name="i", v_min=0),
-        "j_text": ui.ValidatedNumberField(v_model=0, num_type=int, name="j", v_min=0),
-        "t1_checkbox": v.Switch(
-            v_model=False,
-            label="Effective T1",
+        "i_text": ui.ValidatedNumberField(
+            v_model=1, num_type=int, name="i", v_min=0, dense=True
         ),
-        "t2_checkbox": v.Switch(
-            v_model=False,
-            label="Effective T2",
+        "j_text": ui.ValidatedNumberField(
+            v_model=0, num_type=int, name="j", v_min=0, dense=True
         ),
+        "t1_checkbox": v.Switch(v_model=False, label="Effective T1", dense=True),
+        "t2_checkbox": v.Switch(v_model=False, label="Effective T2", dense=True),
     }
 
     if active_qubit._sys_type in ("Transmon", "TunableTransmon", "Fluxonium"):
@@ -300,8 +280,14 @@ def init_qubit_params_widgets_dict(
                 num_type=int,
                 label=f"{param_name}",
                 v_model=param_val,
-                style_="max-width: 250px",
-                text_kwargs={"min_height": 40, "height": 40, "dense": True},
+                text_kwargs={
+                    "style_": "min-width: 80px; max-width: 90px;",
+                    "dense": True,
+                },
+                slider_kwargs={
+                    "style_": "min-width: 110px; max-width: 130px",
+                    "dense": True,
+                },
                 s_min=0,
                 s_max=None,
                 **kwargs,
@@ -313,8 +299,15 @@ def init_qubit_params_widgets_dict(
                 label=f"{param_name}",
                 step=0.01,
                 v_model=param_val,
-                style_="max-width: 250px",
-                text_kwargs={"min_height": 40, "height": 40, "dense": True},
+                style_="max-width: 220px",
+                text_kwargs={
+                    "style_": "min-width: 80px; max-width: 90px;",
+                    "dense": True,
+                },
+                slider_kwargs={
+                    "style_": "min-width: 110px; max-width: 130px",
+                    "dense": True,
+                },
                 **kwargs,
             )
     if isinstance(qubit, (scq.ZeroPi, scq.FullZeroPi)):
@@ -349,12 +342,7 @@ def init_ranges_widgets_dict(
         if widget_name == "noise_channel_multiselect":
             continue
 
-        widget_min_text = None
-        widget_max_text = None
-
-        if isinstance(widget, v.Slider) and isinstance(
-            widget.v_model, int
-        ):
+        if isinstance(widget, v.Slider) and isinstance(widget.v_model, int):
             widget_min_text = ui.ValidatedNumberField(
                 v_model=widget.min,
                 num_type=int,
@@ -362,7 +350,7 @@ def init_ranges_widgets_dict(
                 name="min",
                 v_min=0,
                 style_="width: 80px",
-                class_="mp-3",
+                class_="px-3",
             )
             widget_max_text = ui.ValidatedNumberField(
                 v_model=widget.max,
@@ -383,7 +371,7 @@ def init_ranges_widgets_dict(
                 name="min",
                 v_min=0,
                 style_="width: 80px",
-                class_="mp-3",
+                class_="px-3",
             )
             widget_max_text = ui.ValidatedNumberField(
                 v_model=widget.v_max,
@@ -394,7 +382,9 @@ def init_ranges_widgets_dict(
                 style_="width: 80px",
                 class_="px-3",
             )
-        elif isinstance(widget, ui.NumberEntryWidget) and isinstance(widget.v_model, float):
+        elif isinstance(widget, ui.NumberEntryWidget) and isinstance(
+            widget.v_model, float
+        ):
             widget_min_text = ui.ValidatedNumberField(
                 v_model=widget.v_min,
                 num_type=float,
@@ -411,7 +401,9 @@ def init_ranges_widgets_dict(
                 style_="width: 80px",
                 class_="px-3",
             )
-        elif isinstance(widget, (v.Slider, v.RangeSlider)) and isinstance(widget.v_model, float):
+        elif isinstance(widget, (v.Slider, v.RangeSlider)) and isinstance(
+            widget.v_model, float
+        ):
             widget_min_text = ui.ValidatedNumberField(
                 v_model=widget.min,
                 num_type=float,

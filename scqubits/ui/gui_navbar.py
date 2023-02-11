@@ -10,14 +10,15 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import base64, os
+import base64
+import os
 
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Tuple
 
 
 from scqubits.ui.gui_defaults import NAV_COLOR
 from scqubits.ui import gui_defaults as gui_defaults
-from scqubits.ui.gui_setup import flex_column
+from scqubits.ui.gui_custom_widgets import flex_column
 import scqubits.ui.gui_custom_widgets as ui
 
 try:
@@ -64,9 +65,7 @@ def create_navbar() -> Tuple[v.Card, dict]:
         items=gui_defaults.supported_qubits,
         filled=True,
         label="Qubit",
-        # class_="pl-2 my-0 py-0",
-        # dense=True,
-        # style_="min-width: 200px; max-width: 500px",
+        dense=True,
     )
 
     navbar_elements["CHOOSE_PLOT"] = v.BtnToggle(
@@ -96,7 +95,7 @@ def create_navbar() -> Tuple[v.Card, dict]:
     navbar_elements["AUTO_UPDATING"] = v.Switch(
         v_model=True,
         width=150,
-        label="Auto\nupdate",
+        label="Auto update",
     )
 
     navbar_elements["DO_UPDATE"] = v.Btn(
@@ -109,21 +108,22 @@ def create_navbar() -> Tuple[v.Card, dict]:
         class_="px-2",
     )
 
-    navbar_elements["HEADER"] = v.Card(
-        class_="d-flex flex-row align-left p-0 m-0",
+    navbar_elements["HEADER"] = v.Sheet(
+        class_="d-flex flex-row m-0",
+        style_="padding-right: 50%",
         height=70,
-        width="100%",
         flat=True,
+        width="100%",
         color=NAV_COLOR,
         children=[
-            v.Container(
-                class_="p-1",
-                width=60,
+            v.Card(
+                class_="p-2 mx-4",
                 color=NAV_COLOR,
-                children=[icons["qubit.png"]]
+                elevation=0,
+                children=[icons["qubit.png"]],
             ),
-            navbar_elements["CHOOSE_QUBIT"]
-        ]
+            navbar_elements["CHOOSE_QUBIT"],
+        ],
     )
 
     nav_drawer = v.NavigationDrawer(
@@ -133,63 +133,22 @@ def create_navbar() -> Tuple[v.Card, dict]:
         mini_variant_width=90,
         elevation="0",
         color=NAV_COLOR,
+        floating=True,
         width="40%",
+        height=800,
         children=[
             v.List(
                 nav=True,
                 dense=True,
                 children=[
-                    # v.ListItem(
-                    #     link=True,
-                    #     class_="align-items-bottom",
-                    #     children=[
-                    #         ui.vBtn(
-                    #             onclick=update_mini,
-                    #             color=NAV_COLOR,
-                    #             elevation=0,
-                    #             width=50,
-                    #             height=70,
-                    #             children=[icons["qubit.png"]],
-                    #         ),
-                    #         navbar_elements["CHOOSE_QUBIT"],
-                    #     ],
-                    # ),
                     v.ListItem(
                         color=NAV_COLOR,
                         class_="align-items-bottom p-0 m-0",
                         children=[navbar_elements["CHOOSE_PLOT"]],
                     )
-                    # v.ListItem(
-                    #     color=NAV_COLOR,
-                    #     class_="align-items-bottom p-0 m-0",
-                    #     children=[
-                    #         v.Container(
-                    #             class_="d-flex flex-column flex-start align-center p-0",
-                    #             children=[
-                    #                 v.Text(children=["manual updating"]),
-                    #                 navbar_elements["TOGGLE_MANUAL_UPDATING"],
-                    #                 navbar_elements["DO_UPDATE"],
-                    #             ],
-                    #         )
-                    #     ],
-                    # )
-                    # v.ListItem(
-                    #     class_="align-items-bottom",
-                    #     children=[
-                    #         self.v_nav_btn_sweep_conf,
-                    #         self.v_nav_panel_sweep_conf,
-                    #     ],
-                    # ),
-                    # v.ListItem(
-                    #     class_="align-items-bottom",
-                    #     children=[
-                    #         self.v_nav_plot_settings_btn,
-                    #         self.v_nav_plot_settings_panel,
-                    #     ],
-                    # ),
                 ],
             )
-        ],
+        ]
     )
 
     nav_drawer.on_event("update:miniVariant", update_mini)

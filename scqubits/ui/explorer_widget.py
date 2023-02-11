@@ -31,7 +31,7 @@ from scqubits.settings import matplotlib_settings
 from scqubits.ui.gui_defaults import (NAV_COLOR, composite_panel_names,
                                       default_panels, mode_dropdown_dict,
                                       mode_dropdown_list, subsys_panel_names)
-from scqubits.ui.gui_setup import flex_row
+from scqubits.ui.gui_custom_widgets import flex_row
 from scqubits.utils import misc as utils
 
 if TYPE_CHECKING:

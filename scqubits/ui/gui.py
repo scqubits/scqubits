@@ -31,8 +31,6 @@ from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.settings import matplotlib_settings
 from scqubits.ui.gui_defaults import NAV_COLOR
 from scqubits.ui.gui_setup import (
-    flex_column,
-    flex_row,
     init_dict_v_noise_params,
     init_dict_v_plot_options,
     init_filename_textfield,
@@ -40,6 +38,7 @@ from scqubits.ui.gui_setup import (
     init_ranges_widgets_dict,
     init_save_btn,
 )
+from scqubits.ui.gui_custom_widgets import flex_column, flex_row
 
 try:
     import ipyvuetify as v
@@ -62,7 +61,10 @@ _HAS_WIDGET_BACKEND = get_matplotlib_backend() == MATPLOTLIB_WIDGET_BACKEND
 
 class GUI:
     """Generates the GUI for scqubits, handling single-qubit properties"""
-    fig_ax: Optional[Tuple[Figure, Axes]] = None  # Handle to the most recently generated Figure, Axes tuple
+
+    fig_ax: Optional[
+        Tuple[Figure, Axes]
+    ] = None  # Handle to the most recently generated Figure, Axes tuple
 
     autoconnect_blacklist = [
         "info_panel",
@@ -187,8 +189,8 @@ class GUI:
 
         main_tab = v.Sheet(
             class_="d-flex d-row px-2 mx-1",
-            style_="height: 280px, max_height: 280px",
-            children=[self.main_tab_widgets()]
+            dense=True,
+            children=[self.main_tab_widgets()],
         )
         param_ranges_tab = v.Sheet(
             class_="d-flex flex-column flex-wrap overflow-auto",
@@ -226,7 +228,11 @@ class GUI:
         self.init_tab_widget()
 
         save_widget = flex_row([self.v_save_btn, self.v_save_filename])
-        update_widget = flex_column([self.navbar_elements["AUTO_UPDATING"], self.navbar_elements["DO_UPDATE"]], class_="px-0", style_="width: 150px; margin-left: 50px; margin-right: 0px;")
+        update_widget = flex_column(
+            [self.navbar_elements["AUTO_UPDATING"], self.navbar_elements["DO_UPDATE"]],
+            class_="px-0",
+            style_="width: 150px; margin-left: 50px; margin-right: 0px;",
+        )
 
         display(
             v.Container(
@@ -234,32 +240,38 @@ class GUI:
                 children=[
                     self.navbar_elements["HEADER"],
                     v.Container(
-                        class_="d-flex flex-row pl-0 pr-0 ml-0",
+                        class_="d-flex flex-row pl-0 pr-0 mt-0 pt-0 ml-0",
                         children=[
                             self.navbar,
                             v.Container(
-                                class_="d-flex flex-column align-center ml-1 pl-0 my-0 py-0",
+                                class_="d-flex flex-column align-center ml-1 px-0 mx-0 my-0 py-0",
                                 children=[
                                     self.v_tabs,
-                                    flex_row([update_widget, self.v_plot_output], class_="px-0"),
+                                    flex_row(
+                                        [update_widget, self.v_plot_output],
+                                        class_="px-0",
+                                    ),
                                     save_widget,
                                 ],
                             ),
                         ],
-                    )
+                    ),
                 ],
             )
         )
 
-
     def init_observe(self) -> None:
         """Links all the necessary widgets to their desired function."""
         self.navbar_elements["CHOOSE_QUBIT"].observe(self.qubit_change, names="v_model")
-        self.navbar_elements["CHOOSE_PLOT"].observe(self.plot_option_layout_refresh, names="v_model")
+        self.navbar_elements["CHOOSE_PLOT"].observe(
+            self.plot_option_layout_refresh, names="v_model"
+        )
         self.navbar_elements["AUTO_UPDATING"].observe(
             self.toggle_auto_updating, names="v_model"
         )
-        self.navbar_elements["DO_UPDATE"].on_event("click", self.manual_update_button_onclick)
+        self.navbar_elements["DO_UPDATE"].on_event(
+            "click", self.manual_update_button_onclick
+        )
         self.v_save_btn.on_event("click", self.save_button_clicked_action)
 
         self.observe_all()
@@ -309,10 +321,10 @@ class GUI:
             self.wavefunctions_plot_refresh()
             return
         if current_plot_option == 2:
-            self.matelem_vs_paramvals_plot_refresh()
+            self.matrixelements_plot_refresh()
             return
         if current_plot_option == 3:
-            self.matrixelements_plot_refresh()
+            self.matelem_vs_paramvals_plot_refresh()
             return
         if current_plot_option == 4:
             self.coherence_vs_paramvals_plot_refresh()
@@ -473,9 +485,6 @@ class GUI:
             text_widgets["max"].unobserve(self.ranges_update)
 
     def activate_auto_plot_refresh(self) -> None:
-        if self.auto_updating:
-            return
-
         total_dict = {
             **self.dict_v_qubit_params,
             **self.dict_v_plot_options,
@@ -605,7 +614,6 @@ class GUI:
         self.plot_refresh(change=None)
 
     def plot_option_layout_refresh(self, change) -> None:
-
         self.clear_plot()
         self.unobserve_all()
         self.init_tab_widget()
@@ -1069,7 +1077,8 @@ class GUI:
             ranges_widgets += [
                 v.Container(
                     class_="d-flex flex-row align-center",
-                    style_="max-width: 290px",
+                    style_="max-width: 290px; transform: scale(0.9)",
+                    dense=True,
                     children=[
                         v.Text(class_="pr-3", children=[widget_name]),
                         text_widgets["min"],
@@ -1088,14 +1097,12 @@ class GUI:
             style_="transform: scale(0.9)",
             children=[
                 v.Container(
-                    # style_="transform: scale(0.85)",
                     class_="d-flex align-start flex-column pb-0",
                     style_="width: 48%",
                     children=plot_option_list,
                 ),
                 v.Container(
-                    style_="max-height: 350px",
-                    # style_="transform: scale(0.85); max-height: 350px",
+                    style_="width: 100%; max-height: 350px; background-color: #fafafa",
                     class_="d-flex align-start flex-column flex-wrap flex-align-content-start overflow-auto",
                     children=qubit_params_grid,
                 ),
@@ -1107,6 +1114,7 @@ class GUI:
     def qubit_info_tab(self) -> v.Container:
         qubit_info_box = v.Container(
             class_="py-5",
+            style_="transform: scale(0.9)",
             children=[self.dict_v_plot_options["info_panel"]],
         )
 
@@ -1122,7 +1130,7 @@ class GUI:
         noise_params_grid = v.Container(
             class_="d-flex flex-column flex-wrap py-3",
             children=[],
-            style_="max-height: 400px",
+            style_="max-height: 400px; transform: scale(0.9)"
         )
         noise_params_grid.children = list(self.dict_v_noise_params.values())
         return noise_params_grid
@@ -1135,9 +1143,9 @@ class GUI:
         elif current_plot_option == 1:
             return self.wavefunctions_options_widgets()
         elif current_plot_option == 2:
-            return self.matelem_scan_options_widgets()
-        elif current_plot_option == 3:
             return self.matelem_options_widgets()
+        elif current_plot_option == 3:
+            return self.matelem_scan_options_widgets()
         elif current_plot_option == 4:
             return self.coherence_times_options_widgets()
 
@@ -1279,25 +1287,28 @@ class GUI:
         self.dict_v_plot_options["i_text"].style_ = "max-width: 50px"
         self.dict_v_plot_options["j_text"].style_ = "max-width: 50px"
         text_HBox = v.Container(
-            class_="d-flex flex-row align-center",
+            class_="d-flex flex-row align-bottom py-0",
             children=[
                 v.Text(class_="pr-3", children=["Transitions between"]),
                 self.dict_v_plot_options["i_text"],
-                v.Text(class_="px-3", children=["and"]),
+                v.Text(class_="px-3 pt-2", children=["and"]),
                 self.dict_v_plot_options["j_text"],
             ],
+            dense=True,
         )
         checkbox_HBox = flex_column(
             [
                 self.dict_v_plot_options["t1_checkbox"],
                 self.dict_v_plot_options["t2_checkbox"],
-            ]
+            ],
+            dense=True,
+            class_="py-0 my-0"
         )
 
         plot_options_widgets_tuple = (
             self.dict_v_plot_options["scan_param"],
             self.dict_v_plot_options["noise_channel_multiselect"],
-            flex_column([text_HBox, checkbox_HBox]),
+            flex_column([text_HBox, checkbox_HBox], class_="py-0"),
         )
 
         return plot_options_widgets_tuple
