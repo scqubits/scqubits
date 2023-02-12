@@ -681,7 +681,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         Returns the eigenstates for the SubSystem instance
         """
         if self.is_child:
-            subsys_index = self.parent.hilbert_space.subsys_list.index(self)
+            subsys_index = self.parent.hilbert_space.subsystem_list.index(self)
             return self.parent.hilbert_space["bare_evecs"][subsys_index][0]
         else:
             return self.eigensys()[1]
@@ -1804,7 +1804,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     self.hilbert_space["bare_evals"][sys_index][0],
                     self.hilbert_space["bare_evecs"][sys_index][0],
                 )
-                for sys_index, sys in enumerate(self.hilbert_space.subsys_list)
+                for sys_index, sys in enumerate(self.hilbert_space.subsystem_list)
             }
             hamiltonian = self.hilbert_space.hamiltonian(bare_esys=bare_esys)
             if self.type_of_matrices == "dense":
