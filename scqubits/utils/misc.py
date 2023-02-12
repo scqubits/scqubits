@@ -162,6 +162,18 @@ def check_sync_status(func: Callable) -> Callable:
     return wrapper
 
 
+def check_lookup_exists(func: Callable) -> Callable:
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if not self._lookup_exists:
+            raise Exception("Lookup data not found. For HilbertSpace: data must be generated with .generate_lookup(). "
+                            "For ParameterSweep: data should be automatically generated unless disabled manually. In "
+                            "the latter case, apply .run().")
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
+
 class DeprecationMessage:
     """Decorator class, producing an adjustable warning and info upon usage of the
     decorated function.
