@@ -1,5 +1,6 @@
 .DS_Store
 .idea/
+.asv/
 
 # Byte compiled
 ./scqubits/io_utils/__pycache__

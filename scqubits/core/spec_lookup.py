@@ -35,8 +35,6 @@ if TYPE_CHECKING:
     from scqubits import HilbertSpace
     from scqubits.core.descriptors import WatchedProperty
     from scqubits.core.param_sweep import Parameters
-    from scqubits.core.qubit_base import QuantumSystem
-    from scqubits.io_utils.fileio_qutip import QutipEigenstates
     from scqubits.utils.typedefs import QuantumSys
 
 
@@ -159,6 +157,7 @@ class SpectrumLookupMixin(MixinCompatible):
             param_indices = (param_indices,)
         return param_indices
 
+    @utils.check_lookup_exists
     @utils.check_sync_status
     def dressed_index(
         self,
@@ -186,6 +185,7 @@ class SpectrumLookupMixin(MixinCompatible):
             return None
         return self._data["dressed_indices"][param_indices + (lookup_position,)]
 
+    @utils.check_lookup_exists
     @utils.check_sync_status
     def bare_index(
         self,
@@ -260,6 +260,7 @@ class SpectrumLookupMixin(MixinCompatible):
         param_indices_tuple = self.set_npindextuple(param_indices)
         return self._data["evals"][param_indices_tuple]
 
+    @utils.check_lookup_exists
     @utils.check_sync_status
     def energy_by_bare_index(
         self,
@@ -311,6 +312,7 @@ class SpectrumLookupMixin(MixinCompatible):
             energies, sliced_energies._parameters.paramvals_by_name
         )
 
+    @utils.check_lookup_exists
     @utils.check_sync_status
     def energy_by_dressed_index(
         self,
@@ -341,6 +343,7 @@ class SpectrumLookupMixin(MixinCompatible):
             energies -= self["evals"][param_indices_tuple + (0,)]
         return energies
 
+    @utils.check_lookup_exists
     @utils.check_sync_status
     def bare_eigenstates(
         self,
@@ -357,6 +360,7 @@ class SpectrumLookupMixin(MixinCompatible):
         self.reset_preslicing()
         return self["bare_evecs"][subsys_index][param_indices_tuple]
 
+    @utils.check_lookup_exists
     @utils.check_sync_status
     def bare_eigenvals(
         self,

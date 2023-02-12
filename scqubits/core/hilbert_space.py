@@ -331,6 +331,7 @@ class HilbertSpace(
         can be supplied here upon initialization of a `HilbertSpace` instance.
     """
 
+    _lookup_exists = False
     osc_subsys_list = descriptors.ReadOnlyProperty(OscillatorList)
     qbt_subsys_list = descriptors.ReadOnlyProperty(QubitList)
     interaction_list = descriptors.WatchedProperty(
@@ -551,6 +552,7 @@ class HilbertSpace(
     # HilbertSpace: generate SpectrumLookup
     ###################################################################################
     def generate_lookup(self, update_subsystem_indices: List[int] = None) -> None:
+        self._lookup_exists = True
         bare_esys_dict = self.generate_bare_esys(
             update_subsystem_indices=update_subsystem_indices
         )
@@ -571,7 +573,7 @@ class HilbertSpace(
         )
 
     def lookup_exists(self) -> bool:
-        return "dressed_indices" in self._data
+        return self._lookup_exists
 
     def generate_bare_esys(self, update_subsystem_indices: List[int] = None) -> dict:
         # update all the subsystems when update_subsystem_indices is set to None
