@@ -921,6 +921,70 @@ class HilbertSpace(
             state_table=eigenstate_table,
         )
 
+    def op_in_dressed_eigenbasis(self, **kwargs) -> Qobj:
+        """
+        Express a subsystem operator in the dressed eigenbasis of the full system
+        (as opposed to both the "native basis" or "bare eigenbasis" of the subsystem).
+        `op_in_dressed_eigenbasis(...)` offers two different interfaces:
+
+        1. subsystem operators may be expressed as Callables
+
+            signature::
+
+                .op_in_dressed_eigenbasis(op=<Callable>)
+
+        2. subsystem operators may be passed as arrays, along with the
+           corresponding subsystem. In this case the user must additionally
+           specify if the operator is in the native, subsystem-internal
+           basis or the subsystem bare eigenbasis::
+
+                .op_in_dressed_eigenbasis(op=(<ndarray>, <subsys>),
+                                          op_in_bare_eigenbasis=<Bool>)
+        """
+        op = kwargs.pop("op")
+        if isinstance(op, Callable):
+            return self._parse_op_in_dressed_eigenbasis_callable(op=op, **kwargs)
+        else:
+            return self._parse_op_in_dressed_eigenbasis(op=op, **kwargs)
+
+    def _parse_op_in_dressed_eigenbasis_callable(self, **kwargs) -> Qobj:
+        subsys_index, op = self._parse_op(kwargs.pop("op"))
+        bare_evecs = self._data["bare_evecs"][subsys_index][0]
+        id_wrapped_op = spec_utils.identity_wrap(
+            op,
+            self.subsystem_list[subsys_index],
+            self.subsystem_list,
+            op_in_eigenbasis=False,
+            evecs=bare_evecs,
+        )
+        dressed_evecs = self._data["evecs"][0]
+        dressed_op = id_wrapped_op.transform(dressed_evecs)
+        return dressed_op
+
+    def _parse_op_in_dressed_eigenbasis(self, **kwargs) -> Qobj:
+        op, subsys = kwargs.pop("op")
+        op_in_bare_eigenbasis = kwargs.pop("op_in_bare_eigenbasis")
+        subsys_index = self.get_subsys_index(subsys)
+        if op_in_bare_eigenbasis:
+            id_wrapped_op = spec_utils.identity_wrap(
+                op,
+                self.subsystem_list[subsys_index],
+                self.subsystem_list,
+                op_in_eigenbasis=True,
+            )
+        else:
+            bare_evecs = self._data["bare_evecs"][subsys_index][0]
+            id_wrapped_op = spec_utils.identity_wrap(
+                op,
+                self.subsystem_list[subsys_index],
+                self.subsystem_list,
+                op_in_eigenbasis=False,
+                evecs=bare_evecs,
+            )
+        dressed_evecs = self._data["evecs"][0]
+        dressed_op = id_wrapped_op.transform(dressed_evecs)
+        return dressed_op
+
     ###################################################################################
     # HilbertSpace: add interaction and parsing arguments to .add_interaction
     ###################################################################################
