@@ -923,6 +923,22 @@ class HilbertSpace(
             state_table=eigenstate_table,
         )
 
+    def standardize_eigenvector_phases(self) -> None:
+        evecs = self._data["evecs"][0]
+        dims = evecs[0].dims
+        evecs_standardized = np.empty((len(evecs),), dtype=object)
+        evecs_standardized[:] = [
+            Qobj(spec_utils.standardize_phases(vec.data.toarray()), dims=dims)
+            for vec in evecs
+        ]
+        dummy_params = self._parameters.paramvals_by_name
+        evecs_wrapped = np.empty(shape=1, dtype=object)
+        evecs_wrapped[0] = evecs_standardized
+        self._data["evecs"] = NamedSlotsNdarray(
+            evecs_wrapped.view(scqubits.io_utils.fileio_qutip.QutipEigenstates),
+            dummy_params,
+        )
+
     def op_in_dressed_eigenbasis(self, **kwargs) -> Qobj:
         """
         Express a subsystem operator in the dressed eigenbasis of the full system
