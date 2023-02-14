@@ -924,6 +924,9 @@ class HilbertSpace(
         )
 
     def standardize_eigenvector_phases(self) -> None:
+        """
+        Standardize the phases of the (dressed) eigenvectors.
+        """
         evecs = self._data["evecs"][0]
         dims = evecs[0].dims
         evecs_standardized = np.empty((len(evecs),), dtype=object)
