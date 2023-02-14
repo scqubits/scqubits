@@ -166,9 +166,11 @@ def check_lookup_exists(func: Callable) -> Callable:
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
         if not self._lookup_exists:
-            raise Exception("Lookup data not found. For HilbertSpace: data must be generated with .generate_lookup(). "
-                            "For ParameterSweep: data should be automatically generated unless disabled manually. In "
-                            "the latter case, apply .run().")
+            raise Exception(
+                "Lookup data not found. For HilbertSpace: data must be generated with .generate_lookup(). "
+                "For ParameterSweep: data should be automatically generated unless disabled manually. In "
+                "the latter case, apply .run()."
+            )
         return func(self, *args, **kwargs)
 
     return wrapper
