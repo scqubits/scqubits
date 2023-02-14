@@ -410,6 +410,9 @@ class TestHilbertSpace:
         b_id_wrap = scq.utils.spectrum_utils.identity_wrap(
             osc_b.annihilation_operator(), osc_b, hilbert_space.subsystem_list
         )
+        analytic_op = np.cos(theta) * a_id_wrap - np.sin(theta) * b_id_wrap
+        # need to order this operator according to the dressed indices for later
+        # comparison with operators expressed in the dressed basis
         ordered_bare_indices = [
             hilbert_space.bare_index(idx) for idx in range(truncated_dim**2)
         ]
@@ -417,7 +420,7 @@ class TestHilbertSpace:
             qt.tensor(qt.basis(truncated_dim, idx_a), qt.basis(truncated_dim, idx_b))
             for (idx_a, idx_b) in ordered_bare_indices
         ]
-        analytic_op = np.cos(theta) * a_id_wrap - np.sin(theta) * b_id_wrap
+        # consider only matrix elements unaffected by the truncation level
         analytic_op_ordered = qt.Qobj(
             analytic_op.transform(ordered_basis_states)[0:10, 0:10]
         )
@@ -446,7 +449,7 @@ class TestHilbertSpace:
         assert analytic_op_ordered == op3
         assert analytic_op_ordered == op4
 
-    def test_HilbertSpace_op_in_dressed_basis_2(self):
+    def test_HilbertSpace_op_in_dressed_basis_native_vs_bare_basis(self):
         E_osc = 4.0
         g = 0.01
         truncated_dim = 4
@@ -463,13 +466,8 @@ class TestHilbertSpace:
         )
         hilbert_space.generate_lookup()
         op1 = hilbert_space.op_in_dressed_eigenbasis(op=tmon.n_operator)
-        # energy_esys = (np.array([0]), hilbert_space["bare_evecs"])
-        # n_op_bare_eigenbasis_v2 = tmon.n_operator(energy_esys=energy_esys)
-        n_op_bare_eigenbasis_v3 = tmon.n_operator(energy_esys=True)
-        # op2 = hilbert_space.op_in_dressed_eigenbasis(op=(n_op_bare_eigenbasis_v2, tmon), op_in_bare_eigenbasis=True)
-        op3 = hilbert_space.op_in_dressed_eigenbasis(
-            op=(n_op_bare_eigenbasis_v3, tmon), op_in_bare_eigenbasis=True
+        n_op_bare_eigenbasis_v2 = tmon.n_operator(energy_esys=True)
+        op2 = hilbert_space.op_in_dressed_eigenbasis(
+            op=(n_op_bare_eigenbasis_v2, tmon), op_in_bare_eigenbasis=True
         )
-
-        #        assert op1 == op2
-        assert op1 == op3
+        assert op1 == op2
