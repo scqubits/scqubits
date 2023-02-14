@@ -224,9 +224,9 @@ def init_dict_v_plot_options(
             gui_defaults.paramvals_from_papers[active_qubit._sys_type].keys()
         )
     dict_v_plot_options["literature_params"] = v.Select(
-        class_="pl-3 pt-5 mb-0 pb-0",
-        height=50,
+        class_="ml-3 pl-3 pt-5 mb-0 pb-0",
         label="Select qubit parameters",
+        filled=True,
         items=literature_params_dropdown_list,
         v_model=literature_params_dropdown_list[0],
     )

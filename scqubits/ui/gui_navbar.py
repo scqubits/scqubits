@@ -44,9 +44,6 @@ def create_navbar() -> Tuple[v.Card, dict]:
     # AUTO_UPDATING
     # DO_UPDATE
 
-    def update_mini(widget, event, data):
-        nav_drawer.mini_variant = not nav_drawer.mini_variant
-
     icons = {}
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons")
 
@@ -109,7 +106,7 @@ def create_navbar() -> Tuple[v.Card, dict]:
     )
 
     navbar_elements["HEADER"] = v.Sheet(
-        class_="d-flex flex-row m-0",
+        class_="d-flex flex-row m-0 pt-3",
         style_="padding-right: 50%",
         height=70,
         flat=True,
@@ -129,12 +126,10 @@ def create_navbar() -> Tuple[v.Card, dict]:
     nav_drawer = v.NavigationDrawer(
         v_model="drawer",
         permanent=True,
-        mini_variant=True,
-        mini_variant_width=90,
         elevation="0",
         color=NAV_COLOR,
         floating=True,
-        width="40%",
+        width=90,
         height=800,
         children=[
             v.List(
@@ -150,7 +145,5 @@ def create_navbar() -> Tuple[v.Card, dict]:
             )
         ]
     )
-
-    nav_drawer.on_event("update:miniVariant", update_mini)
 
     return nav_drawer, navbar_elements

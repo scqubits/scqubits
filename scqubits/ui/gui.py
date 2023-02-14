@@ -77,7 +77,7 @@ class GUI:
 
     @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
     def __init__(self):
-        self.active_qubit: QubitBaseClass = None
+        self.active_qubit = scq.Transmon
         scq.settings.PROGRESSBAR_DISABLED = False
         scq.settings.T1_DEFAULT_WARNING = False
 
@@ -99,9 +99,9 @@ class GUI:
         self.fig: Figure = None
 
         self.v_plot_output = ipywidgets.Output(
-            layout={"overflow-x": "unset !important"}
+            layout=ipywidgets.Layout(overflow="hidden")
         )
-        self.v_tabs: v.Tabs = v.Tabs(children=[], background_color=NAV_COLOR)
+        self.v_tabs: v.Tabs = v.Tabs(children=[], background_color=NAV_COLOR, height=35)
         self.dict_v_ranges: Dict[str, Dict[str, ui.ValidatedNumberField]] = {}
 
         self.dict_v_noise_params: Dict[str, ui.ValidatedNumberField] = {}
@@ -187,7 +187,7 @@ class GUI:
     def init_tab_widget(self) -> None:
         """Creates each of the tabs in self.tab_widget"""
 
-        main_tab = v.Sheet(
+        main_tab = v.Container(
             class_="d-flex d-row px-2 mx-1",
             dense=True,
             children=[self.main_tab_widgets()],
@@ -227,29 +227,42 @@ class GUI:
 
         self.init_tab_widget()
 
-        save_widget = flex_row([self.v_save_btn, self.v_save_filename])
+        save_widget = flex_row([self.v_save_btn, self.v_save_filename], class_="p-0")
         update_widget = flex_column(
             [self.navbar_elements["AUTO_UPDATING"], self.navbar_elements["DO_UPDATE"]],
             class_="px-0",
-            style_="width: 150px; margin-left: 50px; margin-right: 0px;",
+            style_="transform: scale(0.9); width: 150px; margin-left: 50px; margin-right: 0px;",
         )
 
         display(
             v.Container(
+                id="outermost_cntnr",
                 class_="ml-0 pl-0 mr-0 pr-0",
                 children=[
                     self.navbar_elements["HEADER"],
                     v.Container(
+                        id="below_header_cntnr",
                         class_="d-flex flex-row pl-0 pr-0 mt-0 pt-0 ml-0",
                         children=[
                             self.navbar,
                             v.Container(
-                                class_="d-flex flex-column align-center ml-1 px-0 mx-0 my-0 py-0",
+                                id="below_tabs_header_cntnr",
+                                class_="d-flex flex-column align-center ml-0 px-0 mx-0 my-0 py-0",
                                 children=[
                                     self.v_tabs,
-                                    flex_row(
-                                        [update_widget, self.v_plot_output],
-                                        class_="px-0",
+                                    v.Card(
+                                        id="update_and_display_card",
+                                        class_="d-flex flex-row p-0",
+                                        style_="margin-left: 24px; margin-top: 5px",
+                                        width="100%",
+                                        children=[
+                                            update_widget,
+                                            flex_column(
+                                                [self.v_plot_output],
+                                                class_="p-0 m-0",
+                                                id="matplotlib_cntnr",
+                                            ),
+                                        ],
                                     ),
                                     save_widget,
                                 ],
@@ -1093,17 +1106,21 @@ class GUI:
         qubit_params_grid = self.qubit_params_widgets()
 
         main_tab = v.Container(
+            id="main_tab_cntnr",
             class_="d-flex flex-row mx-0 px-0",
-            style_="transform: scale(0.9)",
+            width="100%",
             children=[
                 v.Container(
+                    id="plot_options_cntnr",
                     class_="d-flex align-start flex-column pb-0",
-                    style_="width: 48%",
+                    style_="width: 48%; transform: scale(0.9)",
                     children=plot_option_list,
                 ),
+                v.Divider(vertical=True),
                 v.Container(
-                    style_="width: 100%; max-height: 350px; background-color: #fafafa",
-                    class_="d-flex align-start flex-column flex-wrap flex-align-content-start overflow-auto",
+                    id="qubit_params_cntnr",
+                    style_="width: 100%; max-height: 350px; transform: scale(0.9)",
+                    class_="d-flex align-start flex-column flex-wrap flex-align-content-start overflow-auto mx-1 px-2",
                     children=qubit_params_grid,
                 ),
             ],
@@ -1130,7 +1147,7 @@ class GUI:
         noise_params_grid = v.Container(
             class_="d-flex flex-column flex-wrap py-3",
             children=[],
-            style_="max-height: 400px; transform: scale(0.9)"
+            style_="max-height: 400px; transform: scale(0.9)",
         )
         noise_params_grid.children = list(self.dict_v_noise_params.values())
         return noise_params_grid
@@ -1302,7 +1319,7 @@ class GUI:
                 self.dict_v_plot_options["t2_checkbox"],
             ],
             dense=True,
-            class_="py-0 my-0"
+            class_="py-0 my-0",
         )
 
         plot_options_widgets_tuple = (
