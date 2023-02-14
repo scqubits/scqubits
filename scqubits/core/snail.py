@@ -181,10 +181,10 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
     @staticmethod
     def default_params() -> Dict[str, Any]:
         return {
-            "EJ1": 887.3,
-            "EJ2": 887.3,
-            "EJ3": 887.3,
-            "EJ4": 117.5,
+            "EJ1": 114.2,
+            "EJ2": 114.2,
+            "EJ3": 114.2,
+            "EJ4": 28.2,
             "ECJ1": 0.2873,
             "ECJ2": 0.2873,
             "ECJ3": 0.2873,
