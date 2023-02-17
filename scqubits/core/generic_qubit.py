@@ -24,7 +24,7 @@ import scqubits.io_utils.fileio_serializers as serializers
 
 from scqubits.utils.spectrum_utils import get_matrixelement_table, order_eigensystem
 
-# —generic qubit (two-level system)——————————————————————————————————————————————
+# -generic qubit (two-level system)----------------------------------------------
 
 
 class GenericQubit(base.QuantumSystem, serializers.Serializable):

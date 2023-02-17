@@ -115,6 +115,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     StoredSweep
     """
 
+    _lookup_exists = False
     _parameters = descriptors.WatchedProperty(Parameters, "PARAMETERSWEEP_UPDATE")
     _evals_count = descriptors.WatchedProperty(int, "PARAMETERSWEEP_UPDATE")
     _data = descriptors.WatchedProperty(Dict[str, ndarray], "PARAMETERSWEEP_UPDATE")
@@ -994,6 +995,7 @@ class ParameterSweep(  # type:ignore
         data and custom sweep data."""
         # generate one dispatch before temporarily disabling CENTRAL_DISPATCH
 
+        self._lookup_exists = True
         if self._deepcopy:
             stored_hilbertspace = copy.deepcopy(self.hilbertspace)
             self._hilbertspace = copy.deepcopy(self.hilbertspace)
@@ -1325,6 +1327,7 @@ class StoredSweep(
         evals_count: int,
         _data,
     ) -> None:
+        self._lookup_exists = True
         self._parameters = Parameters(paramvals_by_name)
         self._hilbertspace = hilbertspace
         self._evals_count = evals_count

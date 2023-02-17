@@ -385,7 +385,6 @@ class SymbolicCircuit(serializers.Serializable):
         return orthogonal_evecs
 
     def purely_harmonic_transformation(self) -> Tuple[ndarray, ndarray]:
-
         trans_mat, _ = self.variable_transformation_matrix()
         c_mat = (
             trans_mat.T @ self._capacitance_matrix(substitute_params=True) @ trans_mat
@@ -588,12 +587,10 @@ class SymbolicCircuit(serializers.Serializable):
     def _parse_branches(
         branches_list, nodes: List[Node], ground_node: Optional[Node]
     ) -> Tuple[List[Branch], Dict[Union[Any, Symbol], Union[Any, float]]]:
-
         branches = []
         branch_var_dict = {}  # dict stores init values of all vars from input string
 
         for branch_list_input in branches_list:
-
             branch_type = branch_list_input[0]
             node_id1, node_id2 = branch_list_input[1], branch_list_input[2]
 

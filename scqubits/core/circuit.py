@@ -9,6 +9,7 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
+
 import copy
 import re
 import warnings
@@ -20,7 +21,7 @@ from numpy import ndarray
 from sympy import latex
 
 try:
-    from IPython.display import display, Latex
+    from IPython.display import Latex, display
 except ImportError:
     _HAS_IPYTHON = False
 else:
@@ -156,7 +157,7 @@ class Subsystem(
         }
 
         # storing the potential terms separately
-        # also bringing the potential to the same form as in the class Circuit
+        # and bringing the potential into the same form as for the class Circuit
         potential_symbolic = 0 * sm.symbols("x")
         for term in self.hamiltonian_symbolic.as_ordered_terms():
             if is_potential_term(term):
