@@ -44,6 +44,8 @@ from scqubits.utils.misc import (
     number_of_lists_in_list,
 )
 
+import dill
+
 from scqubits.core.circuit_routines import CircuitRoutines
 from scqubits.core.circuit_noise import NoisyCircuit
 
@@ -188,15 +190,19 @@ class Subsystem(
         self._configure()
         self._frozen = True
 
+    # def __deepcopy__(self, memo):
+    #     cls = self.__class__
+    #     result = cls.__new__(cls)
+    #     memo[id(self)] = result
+    #     for k, v in self.__dict__.items():
+    #         result._frozen = False
+    #         setattr(result, k, copy.deepcopy(v, memo))
+    #         result._frozen = True
+    #     return result
     def __deepcopy__(self, memo):
-        cls = self.__class__
-        result = cls.__new__(cls)
-        memo[id(self)] = result
-        for k, v in self.__dict__.items():
-            result._frozen = False
-            setattr(result, k, copy.deepcopy(v, memo))
-            result._frozen = True
-        return result
+        pickle_dump = dill.dumps(self)
+        pickle_load = dill.loads(pickle_dump)
+        return pickle_load
 
     def _configure(self) -> None:
         """
@@ -342,15 +348,20 @@ class Circuit(
                 ext_basis=ext_basis,
             )
 
+    # def __deepcopy__(self, memo):
+    #     cls = self.__class__
+    #     result = cls.__new__(cls)
+    #     memo[id(self)] = result
+    #     for k, v in self.__dict__.items():
+    #         result._frozen = False
+    #         setattr(result, k, copy.deepcopy(v, memo))
+    #         result._frozen = True
+    #     return result
+
     def __deepcopy__(self, memo):
-        cls = self.__class__
-        result = cls.__new__(cls)
-        memo[id(self)] = result
-        for k, v in self.__dict__.items():
-            result._frozen = False
-            setattr(result, k, copy.deepcopy(v, memo))
-            result._frozen = True
-        return result
+        pickle_dump = dill.dumps(self)
+        pickle_load = dill.loads(pickle_dump)
+        return pickle_load
 
     def from_symbolic_hamiltonian(
         self,
@@ -1324,3 +1335,52 @@ class Circuit(
             )
             for ibranch in range(len(self.external_fluxes))
         }
+
+    def oscillator_list(self, osc_index_list: List[int]):
+        """
+        If hierarchical diagonalization is used, specify subsystems that corresponds to
+        single-mode oscillators, if there is any. The attributes `_osc_subsys_list` and
+        `osc_subsys_list` of the `hilbert_space` attribute of the Circuit instance will
+        be assigned accordingly, enabling the correct identification of harmonic modes
+        for the dispersive regime analysis in ParameterSweep.
+
+        Parameters
+        ----------
+        osc_index_list:
+            a list of indices of subsystems that are single-mode harmonic oscillators
+        """
+        # identify if each nominated subsystem indeed have a single harmonic oscillator
+        osc_subsys_list = []
+        for subsystem_index in osc_index_list:
+            subsystem = self.subsystems[subsystem_index]
+            if not subsystem.is_purely_harmonic:
+                raise Exception(
+                    f"the subsystem {subsystem_index} is not purely harmonic"
+                )
+            elif len(subsystem.var_categories["extended"]) != 1:
+                raise Exception(
+                    f"the subsystem has more than one harmonic oscillator mode"
+                )
+            else:
+                osc_subsys_list.append(subsystem)
+        self.hilbert_space._osc_subsys_list = osc_subsys_list
+
+    def qubit_list(self, qbt_index_list: List[int]):
+        """
+        If hierarchical diagonalization is used, specify subsystems that corresponds to
+        single-mode oscillators, if there is any. The attributes `_osc_subsys_list` and
+        `osc_subsys_list` of the `hilbert_space` attribute of the Circuit instance will
+        be assigned accordingly, enabling the correct identification of harmonic modes
+        for the dispersive regime analysis in ParameterSweep.
+
+        Parameters
+        ----------
+        qbt_index_list:
+            a list of indices of subsystems that are single-mode harmonic oscillators
+        """
+        # identify if each naminated subsystem indeed have a single harmonic oscillator
+        qbt_subsys_list = []
+        for subsystem_index in qbt_index_list:
+            subsystem = self.subsystems[subsystem_index]
+            qbt_subsys_list.append(subsystem)
+        self.hilbert_space._qbt_subsys_list = qbt_subsys_list

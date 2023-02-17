@@ -45,6 +45,7 @@ def get_map_method(num_cpus: int) -> Callable:
             )
         else:
             dill.settings["recurse"] = True
+            dill.settings["protocol"] = -1
             settings.POOL = pathos.pools.ProcessPool(nodes=num_cpus)
             return settings.POOL.map
     if settings.MULTIPROC == "multiprocessing":
