@@ -288,10 +288,7 @@ class CircuitRoutines(ABC):
             ]
 
             self.symbolic_circuit.update_param_init_val(param_name, value)
-            if (
-                param_name
-                in [param.name for param in capacitance_sym_params]
-            ):
+            if param_name in [param.name for param in capacitance_sym_params]:
                 self._user_changed_parameter = True
         # regenerate symbolic hamiltonian if purely harmonic
         if self.is_child and self.is_purely_harmonic:
@@ -680,16 +677,10 @@ class CircuitRoutines(ABC):
             f"The var_index={var_index} could not be identified with any subsystem."
         )
 
-    def build_hilbertspace(self) -> None:
+    def update_interactions(self) -> None:
         """
-        Builds the HilbertSpace object for the `Circuit` instance if
+        Update interactions of the HilbertSpace object for the `Circuit` instance if
         `hierarchical_diagonalization` is set to true.
-
-        Parameters
-        ----------
-        update_subsystem_indices:
-            List of subsystem indices which need to be updated. If set to None, all the
-           are updated.
         """
         self.hilbert_space.interaction_list = []
 

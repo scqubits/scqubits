@@ -263,7 +263,7 @@ class Subsystem(
             self.affected_subsystem_indices = []
 
             self.generate_subsystems()
-            self.build_hilbertspace()
+            self.update_interactions()
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
@@ -650,7 +650,7 @@ class Circuit(
                 setattr(circuit, "_" + attrib, _modified_attributes[attrib])
         if circuit.hierarchical_diagonalization:
             circuit.generate_subsystems()
-            circuit.build_hilbertspace()
+            circuit.update_interactions()
         return circuit
 
     def _find_branch(
@@ -733,6 +733,7 @@ class Circuit(
                 self.subsystems[subsys_index].sync_parameters_with_parent()
                 if self.subsystems[subsys_index].hierarchical_diagonalization:
                     self.subsystems[subsys_index].build_hilbertspace()
+            self.update_interactions()
 
     def configure(
         self,
@@ -1140,7 +1141,7 @@ class Circuit(
             self.subsystem_trunc_dims = subsystem_trunc_dims
             self.generate_hamiltonian_sym_for_numerics()
             self.generate_subsystems()
-            self.build_hilbertspace()
+            self.update_interactions()
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
