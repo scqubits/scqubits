@@ -342,26 +342,23 @@ def example_circuit(qubit: str) -> str:
 
 def grid_operator_func_factory(inner_op: Callable, index: int) -> Callable:
     def operator_func(self: "Subsystem"):
-        if not self.hierarchical_diagonalization:
-            return self._kron_operator(
-                inner_op(self.grids_dict_for_discretized_extended_vars()[index]), index
-            )
-        else:
-            return self.identity_wrap_for_hd(
-                inner_op(self.grids_dict_for_discretized_extended_vars()[index]), index
-            ).data.tocsc()
+        return self._kron_operator(
+            inner_op(self.grids_dict_for_discretized_extended_vars()[index]), index
+        )
+
+    return operator_func
+
+
+def hierarchical_diagonalization_func_factory(symbol_name: str) -> Callable:
+    def operator_func(self: "Sybsystem"):
+        return self.get_operator_by_name(symbol_name)
 
     return operator_func
 
 
 def operator_func_factory(inner_op: Callable, index: int) -> Callable:
     def operator_func(self):
-        if not self.hierarchical_diagonalization:
-            return self._kron_operator(inner_op(self.cutoffs_dict()[index]), index)
-        else:
-            return self.identity_wrap_for_hd(
-                inner_op(self.cutoffs_dict()[index]), index
-            ).data.tocsc()
+        return self._kron_operator(inner_op(self.cutoffs_dict()[index]), index)
 
     return operator_func
 
@@ -424,11 +421,12 @@ def assemble_circuit(
     rename_parameters=False,
 ) -> Tuple[str, List[Dict[int, int]]]:
     """
-    Assemble a yaml string for a large circuit that are made of smaller sub-circuits and coupling
-    elements. This method takes a list of Sub-circuit yaml strings as the first argument, and a
-    yaml string that characterize the coupler branches as the second argument. For example, if
-    one wish to make a yaml string for a circuit consist of a grounded fluxonium capacitively
-    coupled to another fluxonium, then one need to define:
+    Assemble a yaml string for a large circuit that are made of smaller 
+    sub-circuits and coupling elements. This method takes a list of Sub-circuit yaml
+    strings as the first argument, and a yaml string that characterize the coupler
+    branches as the second argument. For example, if one wish to make a yaml string for
+    a circuit consist of a grounded fluxonium capacitively coupled to another fluxonium,
+    then one need to define:
 
     circuit_1 = '''
     branches:
