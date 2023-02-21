@@ -22,6 +22,7 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 import sympy
 import yaml
+import random
 
 from numpy import ndarray
 from scqubits.utils.misc import flatten_list, is_float_string, unique_elements_in_list
@@ -385,7 +386,6 @@ class SymbolicCircuit(serializers.Serializable):
         return orthogonal_evecs
 
     def purely_harmonic_transformation(self) -> Tuple[ndarray, ndarray]:
-
         trans_mat, _ = self.variable_transformation_matrix()
         c_mat = (
             trans_mat.T @ self._capacitance_matrix(substitute_params=True) @ trans_mat
@@ -588,12 +588,10 @@ class SymbolicCircuit(serializers.Serializable):
     def _parse_branches(
         branches_list, nodes: List[Node], ground_node: Optional[Node]
     ) -> Tuple[List[Branch], Dict[Union[Any, Symbol], Union[Any, float]]]:
-
         branches = []
         branch_var_dict = {}  # dict stores init values of all vars from input string
 
         for branch_list_input in branches_list:
-
             branch_type = branch_list_input[0]
             node_id1, node_id2 = branch_list_input[1], branch_list_input[2]
 
@@ -1593,6 +1591,14 @@ class SymbolicCircuit(serializers.Serializable):
                 for branch in self.branches
                 if is_same_branch(branch, branch_copy)
             ]
+        # if the closure branches are manually set, then the spanning tree would be all
+        # the superconducting loop branches except the closure branches
+        if self.closure_branches != []:
+            tree = [
+                branch
+                for branch in superconducting_loop_branches
+                if branch not in self.closure_branches
+            ]
 
         return tree, superconducting_loop_branches, node_sets
 
@@ -1610,7 +1616,6 @@ class SymbolicCircuit(serializers.Serializable):
         return closure_branches
 
     def _time_dependent_flux_distribution(self):
-
         # constructing the constraint matrix
         R = np.zeros([len(self.branches), len(self.closure_branches)])
         # constructing branch capacitance matrix
@@ -1702,28 +1707,31 @@ class SymbolicCircuit(serializers.Serializable):
                 break
         # find out the path from the node to the root
         current_node = node
-        ancestor_nodes_list = []
-        branch_path_to_root = []
-        # looping over the parent generations
-        for istep in range(generation - 1, -1, -1):
+        ancestor_nodes_list: List[Node] = []
+        branch_path_to_root: List[Branch] = []
+        root_node = self.nodes[0]
+        if root_node == node:
+            return (0, [], [])
+        while root_node not in ancestor_nodes_list:
+            ancestor_nodes_list = []
+            branch_path_to_root = []
+            current_node = node
+            random.shuffle(tree)
             # finding the parent of the current_node, and the branch that links the
             # parent and current_node
             for branch in tree:
-                nodes_id = [node.index for node in node_sets[istep]]
-                if (branch.nodes[1].index == current_node.index) and (
-                    branch.nodes[0].index in nodes_id
+                common_node_list = list(set(branch.nodes) - set([current_node]))
+                if (
+                    len(common_node_list) == 1
+                    and common_node_list[0] not in ancestor_nodes_list
                 ):
-                    ancestor_nodes_list.append(branch.nodes[0])
+                    second_node = common_node_list[0]
+                    ancestor_nodes_list.append(second_node)
                     branch_path_to_root.append(branch)
-                    current_node = branch.nodes[0]
-                    break
-                elif (branch.nodes[0].index == current_node.index) and (
-                    branch.nodes[1].index in nodes_id
-                ):
-                    ancestor_nodes_list.append(branch.nodes[1])
-                    branch_path_to_root.append(branch)
-                    current_node = branch.nodes[1]
-                    break
+                    current_node = second_node
+                    if current_node.index == root_node.index:
+                        break
+
         ancestor_nodes_list.reverse()
         branch_path_to_root.reverse()
         return generation, ancestor_nodes_list, branch_path_to_root

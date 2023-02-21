@@ -256,7 +256,7 @@ class Subsystem(
             self.affected_subsystem_indices = []
 
             self.generate_subsystems()
-            self.build_hilbertspace()
+            self.update_interactions()
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
@@ -360,7 +360,6 @@ class Circuit(
         truncated_dim: int,
         ext_basis: str,
     ):
-
         base.QuantumSystem.__init__(self, id_str=None)
 
         self.hamiltonian_symbolic = symbolic_hamiltonian
@@ -638,7 +637,7 @@ class Circuit(
                 setattr(circuit, "_" + attrib, _modified_attributes[attrib])
         if circuit.hierarchical_diagonalization:
             circuit.generate_subsystems()
-            circuit.build_hilbertspace()
+            circuit.update_interactions()
         return circuit
 
     def _find_branch(
@@ -720,7 +719,7 @@ class Circuit(
             for subsys_index in self.affected_subsystem_indices:
                 self.subsystems[subsys_index].sync_parameters_with_parent()
                 if self.subsystems[subsys_index].hierarchical_diagonalization:
-                    self.subsystems[subsys_index].build_hilbertspace()
+                    self.subsystems[subsys_index].update_interactions()
 
     def configure(
         self,
@@ -986,10 +985,6 @@ class Circuit(
         Exception
             when system_hierarchy is set and subsystem_trunc_dims is not set.
         """
-        if self.symbolic_circuit.is_flux_dynamic and closure_branches is not None:
-            raise Exception(
-                "The flux allocation is fixed when is_flux_dynamic is set to True. Set it to False otherwise."
-            )
         self._frozen = False
 
         system_hierarchy = system_hierarchy or self.system_hierarchy
@@ -1128,7 +1123,7 @@ class Circuit(
             self.subsystem_trunc_dims = subsystem_trunc_dims
             self.generate_hamiltonian_sym_for_numerics()
             self.generate_subsystems()
-            self.build_hilbertspace()
+            self.update_interactions()
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
