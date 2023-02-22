@@ -350,7 +350,7 @@ def grid_operator_func_factory(inner_op: Callable, index: int) -> Callable:
 
 
 def hierarchical_diagonalization_func_factory(symbol_name: str) -> Callable:
-    def operator_func(self: "Sybsystem"):
+    def operator_func(self: "Subsystem"):
         return self.get_operator_by_name(symbol_name)
 
     return operator_func
