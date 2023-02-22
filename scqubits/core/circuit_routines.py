@@ -1894,11 +1894,8 @@ class CircuitRoutines(ABC):
             terms_in_term = list(term_expr_dict.keys())
             for inner_term in terms_in_term:
                 operator_expr, parameter_expr = inner_term.as_independent(*free_var_symbols, as_Mul=True)
-                def parameter_func(t, args={"self":self, 
-                                            "sym_expr":parameter_expr, 
-                                            "func_dict":free_var_func_dict}):
-                    self = args["self"]
-                    sym_expr = args["sym_expr"]
+                def parameter_func(t, args):
+                    sym_expr = parameter_expr
                     param_symbols = self.external_fluxes + self.offset_charges + list(self.symbolic_params.keys())
                     for param in param_symbols:
                         if param in free_var_symbols:
@@ -1910,9 +1907,9 @@ class CircuitRoutines(ABC):
                 operator_matrix = self._evaluate_symbolic_expr(operator_expr)
                 if operator_matrix == 0:
                     continue
-                time_varying_hamiltonian.append((operator_matrix, parameter_func))
+                time_varying_hamiltonian.append([operator_matrix, parameter_func])
         fixed_hamiltonian = fixed_hamiltonian.subs("I", 1)
-        return [self._evaluate_symbolic_expr(fixed_hamiltonian), time_varying_hamiltonian], fixed_hamiltonian, time_dep_terms
+        return [self._evaluate_symbolic_expr(fixed_hamiltonian)] + time_varying_hamiltonian, fixed_hamiltonian, time_dep_terms
 
     def _evals_calc(self, evals_count: int) -> ndarray:
         # dimension of the hamiltonian
