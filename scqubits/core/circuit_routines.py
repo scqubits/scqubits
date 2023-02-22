@@ -193,26 +193,17 @@ class CircuitRoutines(ABC):
     def __reduce__(self):
         # needed for multiprocessing / proper pickling
         pickle_func, pickle_args, pickled_state = super().__reduce__()
-        new_pickled_state = {
-            key: value for key, value in pickled_state.items() if "_operator" not in key
-        }
-        new_pickled_state["_frozen"] = False
-
+        pickled_dict = self.__dict__
         pickled_properties = {
             property_name: property_obj
             for property_name, property_obj in self.__class__.__dict__.items()
             if isinstance(property_obj, property)
         }
-
-        return pickle_func, pickle_args, (new_pickled_state, pickled_properties)
+        return pickle_func, pickle_args, (pickled_dict, pickled_properties)
 
     def __setstate__(self, state):
-        # needed for multiprocessing / proper unpickling
-        pickled_attribs, pickled_properties = state
-        self._frozen = False
-
-        self.__dict__.update(pickled_attribs)
-        self.operators_by_name = self.set_operators()
+        pickled_dict, pickled_properties = state
+        self.__dict__ = pickled_dict
 
         for property_name, property_obj in pickled_properties.items():
             setattr(self.__class__, property_name, property_obj)
@@ -298,10 +289,7 @@ class CircuitRoutines(ABC):
             ]
 
             self.symbolic_circuit.update_param_init_val(param_name, value)
-            if (
-                param_name in [param.name for param in capacitance_sym_params]
-                and self.ext_basis == "harmonic"
-            ):
+            if param_name in [param.name for param in capacitance_sym_params]:
                 self._user_changed_parameter = True
         # regenerate symbolic hamiltonian if purely harmonic
         if self.is_child and self.is_purely_harmonic:
@@ -692,14 +680,8 @@ class CircuitRoutines(ABC):
 
     def update_interactions(self) -> None:
         """
-        Builds the HilbertSpace object for the `Circuit` instance if
+        Update interactions of the HilbertSpace object for the `Circuit` instance if
         `hierarchical_diagonalization` is set to true.
-
-        Parameters
-        ----------
-        update_subsystem_indices:
-            List of subsystem indices which need to be updated. If set to None, all the
-           are updated.
         """
         self.hilbert_space.interaction_list = []
 
@@ -740,6 +722,7 @@ class CircuitRoutines(ABC):
                     ),
                     check_validity=False,
                 )
+        self.hilbert_space._out_of_sync = False
 
     def _evaluate_symbolic_expr(self, sym_expr, bare_esys=None):
         # substitute circuit parameters
