@@ -1423,7 +1423,7 @@ class CircuitRoutines(ABC):
         self,
         operator: Optional[Union[csc_matrix, ndarray]],
         var_index: int,
-        bare_esys=None,
+        bare_esys:Optional[Dict[int, Tuple]] =None,
     ) -> qt.Qobj:
         """
         Returns an identity wrapped operator whose size is equal to the
@@ -1455,13 +1455,13 @@ class CircuitRoutines(ABC):
             operator,
             subsystem,
             op_in_eigenbasis=False,
-            evecs=bare_esys[1] if bare_esys else subsystem.get_eigenstates(),
+            evecs=bare_esys[subsystem_index][1] if bare_esys else subsystem.get_eigenstates(),
         )
         return identity_wrap(
             operator,
             subsystem,
             self.subsystems,
-            evecs=bare_esys[1] if bare_esys else subsystem.get_eigenstates(),
+            evecs=bare_esys[subsystem_index][1] if bare_esys else subsystem.get_eigenstates(),
         )
 
     def get_operator_by_name(self, operator_name: str, bare_esys=None) -> qt.Qobj:
