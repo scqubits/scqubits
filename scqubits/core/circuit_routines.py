@@ -751,6 +751,9 @@ class CircuitRoutines(ABC):
         for param in param_symbols:
             sym_expr = sym_expr.subs(param, getattr(self, param.name))
 
+        # if the expression is zero
+        if sym_expr == 0:
+            return 0
         expr_dict = sym_expr.as_coefficients_dict()
         terms = list(expr_dict.keys())
 
@@ -1848,6 +1851,68 @@ class CircuitRoutines(ABC):
                 return hamiltonian.full()
             if self.type_of_matrices == "sparse":
                 return hamiltonian.data.tocsc()
+            
+    def hamiltonian_for_mesolve(self, free_var_func_dict: Dict[str, Callable]) -> Tuple[List[Union[qt.Qobj, Tuple[qt.Qobj, Callable]]], sm.Expr, List[sm.Expr]]:
+        """
+        Returns the Hamiltonian in a format amenable to be forwarded to mesolve in
+        Qutip. Also returns the symbolic expressions of time independent and time
+        dependent terms of the Hamiltonian.
+        `free_var_func_dict` is a dictionary which has a time dependent function for every free variable given in 
+        a string. For example, to get the Hamiltonian for a circuit where Φ1 is the time varying parameter, 
+        this method can be initialized in the following way.
+        
+        ```
+        def flux_t(t):
+            return np.sin(t*2)
+        free_var_func_dict = {"Φ1": flux_t}
+        
+        
+        mesolve_input_H = self.hamiltonian_for_mesolve(free_var_func_dict)
+        ```
+        """
+        free_var_names = list(free_var_func_dict.keys())
+        free_var_symbols = [sm.symbols(sym_name) for sym_name in free_var_names]
+
+        fixed_hamiltonian = 0*sm.symbols("x")
+        time_varying_hamiltonian = []
+
+        sym_hamiltonian = self._hamiltonian_sym_for_numerics
+        sym_hamiltonian = sym_hamiltonian.subs("I",1)
+
+        expr_dict = sym_hamiltonian.as_coefficients_dict()
+        terms = list(expr_dict.keys())
+        time_dep_terms = []
+
+        for term in terms:
+            if len(list_intersection(list(term.free_symbols), free_var_symbols)) == 0:
+                fixed_hamiltonian = fixed_hamiltonian + term * expr_dict[term]
+                continue
+            # if the term does have a free variable
+            ### expand trigonometrically
+            term = term.expand(trig=True)
+            term_expr_dict = term.as_coefficients_dict()
+            terms_in_term = list(term_expr_dict.keys())
+            for inner_term in terms_in_term:
+                operator_expr, parameter_expr = inner_term.as_independent(*free_var_symbols, as_Mul=True)
+                def parameter_func(t, args={"self":self, 
+                                            "sym_expr":parameter_expr, 
+                                            "func_dict":free_var_func_dict}):
+                    self = args["self"]
+                    sym_expr = args["sym_expr"]
+                    param_symbols = self.external_fluxes + self.offset_charges + list(self.symbolic_params.keys())
+                    for param in param_symbols:
+                        if param in free_var_symbols:
+                            sym_expr = sym_expr.subs(param, free_var_func_dict[param.name](t))
+                        else:
+                            sym_expr = sym_expr.subs(param, getattr(self, param.name))
+                    return float(sym_expr)
+                time_dep_terms.append(operator_expr)
+                operator_matrix = self._evaluate_symbolic_expr(operator_expr)
+                if operator_matrix == 0:
+                    continue
+                time_varying_hamiltonian.append((operator_matrix, parameter_func))
+        fixed_hamiltonian = fixed_hamiltonian.subs("I", 1)
+        return [self._evaluate_symbolic_expr(fixed_hamiltonian), time_varying_hamiltonian], fixed_hamiltonian, time_dep_terms
 
     def _evals_calc(self, evals_count: int) -> ndarray:
         # dimension of the hamiltonian
