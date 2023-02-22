@@ -109,7 +109,6 @@ class WatchedProperty(Generic[TargetType]):
                     self.setter(instance, value, name=self.attr_name)
                 # Rely on inner_instance.attr_name to do the broadcasting.
             else:
-
                 if self.setter is None:
                     instance.__dict__[self.attr_name] = value
                 else:

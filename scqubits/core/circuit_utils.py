@@ -421,7 +421,7 @@ def assemble_circuit(
     rename_parameters=False,
 ) -> Tuple[str, List[Dict[int, int]]]:
     """
-    Assemble a yaml string for a large circuit that are made of smaller 
+    Assemble a yaml string for a large circuit that are made of smaller
     sub-circuits and coupling elements. This method takes a list of Sub-circuit yaml
     strings as the first argument, and a yaml string that characterize the coupler
     branches as the second argument. For example, if one wish to make a yaml string for

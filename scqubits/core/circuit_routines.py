@@ -115,7 +115,7 @@ class CircuitRoutines(ABC):
                 phase_variable_index.add(variable_str[1:])
         if len(periodic_charge_variable_index) > 0:
             return False
-        # further, if the hamiltonian has any DoF where only its charge 
+        # further, if the hamiltonian has any DoF where only its charge
         # or flux operator is present, return False
         if extended_charge_variable_index != phase_variable_index:
             return False

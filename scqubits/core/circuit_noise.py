@@ -357,7 +357,6 @@ class NoisyCircuit(NoisySystem, ABC):
                 get_rate: bool = False,
                 noise_op_method=noise_op_method,
             ):
-
                 return NoisySystem.t1_flux_bias_line(
                     self=self,
                     i=i,
@@ -456,7 +455,6 @@ class NoisyCircuit(NoisySystem, ABC):
             esys: Tuple[ndarray, ndarray] = None,
             get_rate: bool = False,
         ) -> float:
-
             return NoisySystem.t1_quasiparticle_tunneling(
                 self=self,
                 i=i,
@@ -484,7 +482,6 @@ class NoisyCircuit(NoisySystem, ABC):
             esys: Tuple[ndarray, ndarray] = None,
             get_rate: bool = False,
         ) -> float:
-
             return NoisySystem.t1_charge_impedance(
                 self=self,
                 i=i,
@@ -717,7 +714,6 @@ class NoisyCircuit(NoisySystem, ABC):
         self._data["t1_flux_bias_line"] = t1_flux_bias_line
 
     def generate_all_noise_methods(self):
-
         self.generate_methods_d_hamiltonian_d()
         self.generate_tphi_1_over_f_methods()
         self.generate_t1_flux_bias_line_methods()

@@ -65,6 +65,7 @@ if TYPE_CHECKING:
 from scqubits.utils.typedefs import OscillatorList, QuantumSys, QubitList
 from scqubits.core.qubit_base import QubitBaseClass
 
+
 def has_duplicate_id_str(subsystem_list: List[QuantumSys]):
     id_str_list = [obj.id_str for obj in subsystem_list]
     id_str_set = set(obj.id_str for obj in subsystem_list)
@@ -306,7 +307,12 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         idwrapped_ops_by_name = self.id_wrap_all_ops(
             subsystem_list, bare_esys=bare_esys
         )
-        idwrapped_ops_by_name.update({item[0]:item[1](bare_esys=bare_esys) for item in self.id_wrapped_operator_list})
+        idwrapped_ops_by_name.update(
+            {
+                item[0]: item[1](bare_esys=bare_esys)
+                for item in self.id_wrapped_operator_list
+            }
+        )
         hamiltonian = self.run_string_code(self.expr, idwrapped_ops_by_name)
         if not self.add_hc:
             return hamiltonian
@@ -554,7 +560,6 @@ class HilbertSpace(
     # HilbertSpace: generate SpectrumLookup
     ###################################################################################
     def generate_lookup(self, update_subsystem_indices: List[int] = None) -> None:
-
         bare_esys_dict = self.generate_bare_esys(
             update_subsystem_indices=update_subsystem_indices
         )
@@ -1022,7 +1027,13 @@ class HilbertSpace(
         if id_wrapped_operator_list == []:
             id_wrapped_operator_list = None
 
-        return InteractionTermStr(expr, operator_list, id_wrapped_operator_list=id_wrapped_operator_list, const=const, add_hc=add_hc)
+        return InteractionTermStr(
+            expr,
+            operator_list,
+            id_wrapped_operator_list=id_wrapped_operator_list,
+            const=const,
+            add_hc=add_hc,
+        )
 
     def _parse_interactionterm(self, **kwargs) -> InteractionTerm:
         g = kwargs.pop("g", None)
