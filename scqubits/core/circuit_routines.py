@@ -744,6 +744,9 @@ class CircuitRoutines(ABC):
 
         for idx, term in enumerate(terms):
             coefficient_sympy = expr_dict[term]
+            if term == 1:
+                eval_matrix_list.append(self._identity_qobj()*float(coefficient_sympy))
+                continue
             if any([arg.has(sm.cos) or arg.has(sm.sin) for arg in (1.0 * term).args]):
                 eval_matrix_list.append(
                     float(coefficient_sympy)
@@ -754,8 +757,7 @@ class CircuitRoutines(ABC):
                 power_dict = dict(term.as_powers_dict())
                 for free_sym in term.free_symbols:
                     product_matrix_list.append(
-                        self.get_operator_by_name(free_sym.name, bare_esys=bare_esys)
-                        ** (power_dict[free_sym])
+                        self.get_operator_by_name(free_sym.name, bare_esys=bare_esys, power=power_dict[free_sym])
                     )
                 eval_matrix_list.append(
                     float(coefficient_sympy)
@@ -1450,7 +1452,7 @@ class CircuitRoutines(ABC):
             evecs=bare_esys[subsystem_index][1] if bare_esys else subsystem.get_eigenstates(),
         )
 
-    def get_operator_by_name(self, operator_name: str, bare_esys=None) -> qt.Qobj:
+    def get_operator_by_name(self, operator_name: str, power: Optional[int] = None, bare_esys=None) -> qt.Qobj:
         """
         Returns the operator for the given operator symbol which has the same dimension
         as the hilbertdim of the instance from which the operator is requested.
@@ -1460,6 +1462,9 @@ class CircuitRoutines(ABC):
         operator_name:
             Name of a sympy Symbol object which should be one among the symbols in the
             attribute vars
+        power:
+            If asking for an operator raised to a certain power. Which wen set to None
+            defaults to 1
 
         Returns
         -------
@@ -1473,13 +1478,13 @@ class CircuitRoutines(ABC):
                 var_index = get_trailing_number(operator_name)
                 return qt.Qobj(getattr(self, f"Q{var_index}" + "_operator")()) ** 2
 
-            return qt.Qobj(getattr(self, operator_name + "_operator")())
+            return qt.Qobj(getattr(self, operator_name + "_operator")())**power
 
         var_index = get_trailing_number(operator_name)
         assert var_index
         subsystem_index = self.get_subsystem_index(var_index)
         subsystem = self.subsystems[subsystem_index]
-        operator = subsystem.get_operator_by_name(operator_name)
+        operator = subsystem.get_operator_by_name(operator_name, power=power)
 
         if isinstance(operator, qt.Qobj):
             operator = operator.data.tocsc()
@@ -1885,8 +1890,8 @@ class CircuitRoutines(ABC):
                             sym_expr = sym_expr.subs(param, free_var_func_dict[param.name](t))
                         else:
                             sym_expr = sym_expr.subs(param, getattr(self, param.name))
-                    return float(sym_expr)
-                time_dep_terms.append(operator_expr)
+                    return float(sym_expr)*expr_dict[inner_term]
+                time_dep_terms.append(expr_dict[inner_term]*parameter_expr*operator_expr)
                 operator_matrix = self._evaluate_symbolic_expr(operator_expr)
                 if operator_matrix == 0:
                     continue
