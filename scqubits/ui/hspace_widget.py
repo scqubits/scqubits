@@ -10,8 +10,10 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import collections
 import functools
 import importlib
+import itertools
 
 from typing import List, Union
 
@@ -42,7 +44,7 @@ import scqubits
 from scqubits.core.oscillator import Oscillator
 from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass
 from scqubits.utils import misc as utils
-from scqubits.ui.gui_custom_widgets import ValidatedNumberField
+from scqubits.ui.gui_custom_widgets import ValidatedNumberField, vChip
 
 QuantumSys = Union[QubitBaseClass, Oscillator]
 
@@ -54,11 +56,10 @@ class HilbertSpaceUi:
     @utils.Required(ipywidgets=_HAS_IPYWIDGETS)
     def __init__(self):
         """Set up all widget GUI elements and class attributes."""
-        self.status_output = v.Container(children=[])
+        self.status_output = v.Container(children=[], id="status_output")
         self.subsys_candidates_dict = self.get_subsys_candidates()
-        self.interactions_count = 0
-        self.current_interaction_key = ""
-        self.interactions_dict = {}
+        self.current_interaction_key = None
+        self.interaction_terms_dict = collections.OrderedDict()
 
         # == subsystems panel =========================================================
         self.subsys_refresh_button = v.Btn(
@@ -71,7 +72,7 @@ class HilbertSpaceUi:
 
         self.subsys_widget = v.Select(
             class_="px-2",
-            v_model="",
+            v_model=[],
             items=list(self.subsys_candidates_dict.keys()),
             menu_props={"closeOnContentClick": True},
             attach=True,
@@ -81,8 +82,8 @@ class HilbertSpaceUi:
             outlined=True,
             filled=True,
             height=40,
-            label="Select Subsystems",
-            style_="width: 70%",
+            label="Select Subsystem(s)",
+            # style_="width: 70%",
         )
 
         # == InteractionTerms list panel ==============================================
@@ -91,46 +92,67 @@ class HilbertSpaceUi:
             width=40,
             min_width=40,
             height=40,
-            class_="mt-2",
+            class_="ml-2 align-self-center",
         )
 
-        self.interact_list_widget = v.Select(
-            v_model=None,
-            items=[],
-            outlined=True,
-            filled=True,
-            height=40,
-            clearable=True,
-            label="Edit interaction terms",
-            class_="px-2",
-            style_="width: 70%",
-        )
+        # self.interact_list_widget = v.Select(
+        #     v_model=None,  # type: Union[None, str]
+        #     items=[],
+        #     outlined=True,
+        #     filled=True,
+        #     height=40,
+        #     clearable=True,
+        #     label="Edit interaction terms",
+        #     class_="px-2",
+        # )
 
+        # self.interact_display = v.BtnToggle(
+        #     v_model=None,  # type: Union[None, str]
+        #     mandatory=True,
+        #     children=[],
+        #     class_="mx-2"
+        # )
         self.interact_display = v.ChipGroup(
-            v_model="None", children=[v.Text(children=["None"])]
+            v_model=None,
+            mandatory=True,
+            children=[],
+            id="interact_display",
+            class_="ml-2 align-self-center",
+            color="primary",
+            active_class="text-primary",
         )
 
         # == Panel for specifying an InteractionTerm ==================================
         self.op1subsys_widget = v.Select(
-            items=self.subsys_widget.v_model, label="subsys1", outlined=True, dense=True
+            v_model=None,
+            items=self.subsys_widget.v_model,
+            label="subsys1",
+            outlined=True,
+            dense=True,
         )
         self.op2subsys_widget = v.Select(
-            items=self.subsys_widget.v_model, label="subsys2", outlined=True, dense=True
+            v_model=None,
+            items=self.subsys_widget.v_model,
+            label="subsys2",
+            outlined=True,
+            dense=True,
         )
         self.op1_ddown_widget = v.Select(
+            v_model=None,
             items=self.possible_operators(self.op1subsys_widget.v_model),
             label="op1",
             outlined=True,
             dense=True,
         )
         self.op2_ddown_widget = v.Select(
+            v_model=None,
             items=self.possible_operators(self.op2subsys_widget.v_model),
             label="op2",
             outlined=True,
             dense=True,
         )
         self.g_widget = ValidatedNumberField(
-            v_model="",
+            v_model="0",
             num_type=float,
             label="g_strength",
             style_="",
@@ -139,7 +161,11 @@ class HilbertSpaceUi:
             filled=False,
         )
         self.addhc_widget = v.Select(
-            label="add_hc", items=["False", "True"], outlined=True, dense=True
+            v_model="False",
+            label="add_hc",
+            items=["False", "True"],
+            outlined=True,
+            dense=True,
         )
 
         self.interact_box1 = v.Container(
@@ -152,13 +178,14 @@ class HilbertSpaceUi:
                 self.g_widget,
                 self.addhc_widget,
             ],
+            id="interact_box1",
         )
 
         self.string_expr_widget = v.TextField(
-            label="expr", placeholder="e.g., EJ * cos(op1 - op2)"
+            v_model="", label="expr", placeholder="e.g., EJ * cos(op1 - op2)"
         )
         self.interact_box2 = v.Container(
-            class_="d-flex flex-row",
+            class_="d-flex flex-column",
             children=[
                 self.string_expr_widget,
                 self.op1subsys_widget,
@@ -167,6 +194,7 @@ class HilbertSpaceUi:
                 self.op2_ddown_widget,
                 self.addhc_widget,
             ],
+            id="interact_box2",
         )
 
         self.tabs_select_interact_type = v.Tabs(
@@ -188,43 +216,69 @@ class HilbertSpaceUi:
                     style_="background-color: " + NAV_COLOR,
                 ),
             ],
+            style_="display: none !important;"
         )
         # == Central run button ==================================
         self.run_button = v.Btn(
-            children=["Create HilbertSpace"], style_="align: bottom;"
+            children=["Create HilbertSpace"], class_="m-2", style_="align: bottom;", disabled=True
+        )
+
+        self.edit_interaction_card = v.Card(
+            class_="d-flex flex-column align-self-center",
+            width=450,
+            children=[
+                v.CardTitle(children=["Edit Interaction Terms"]),
+                v.Container(
+                    class_="d-flex flex-row",
+                    children=[
+                        self.interact_new_button,
+                        self.interact_display,
+                    ],
+                ),
+                # v.Container(
+                #     class_="d-flex flex-row",
+                #     children=[
+                #         # self.interact_list_widget,
+                #         self.interact_display
+                #     ]
+                # ),
+                self.tabs_select_interact_type,
+            ],
+            id="edit_interaction_card",
+            style_="display: none !important"
         )
 
         # == Wrap everything into boxes ===============================================
-        self.all_panels = v.Container(
-            class_="d-flex flex-row",
+        self.all_panels = v.Card(
+            class_="d-flex flex-column",
             children=[
+                v.CardTitle(children=["Create Hilbert Space"]),
                 v.Container(
-                    class_="d-flex flex-column col-6",
-                    children=[
-                        v.Row(
-                            children=[self.subsys_refresh_button, self.subsys_widget],
-                        ),
-                        v.Text(children=["Interaction terms:"], class_="mr-3"),
-                        self.interact_display,
-                        v.Spacer(style_="height: 400px"),
-                        self.run_button,
-                    ],
+                    class_="d-flex flex-row align-self-left my-0 py-0",
+                    children=[self.subsys_widget, self.subsys_refresh_button],
+                    style_="width: 50%"
                 ),
-                v.Spacer(),
-                v.Sheet(
-                    children=[
-                        v.Container(
-                            class_="d-flex flex-row",
-                            children=[
-                                self.interact_new_button,
-                                self.interact_list_widget,
-                            ],
-                        ),
-                        self.tabs_select_interact_type,
-                    ],
-                    class_="mr-3 col-5",
-                    style_="background-color: " + NAV_COLOR,
-                ),
+                self.edit_interaction_card,
+                # v.Row(
+                #     children=[
+                #         v.Text(children=["Interaction terms:"], class_="mr-3"),
+                #         self.interact_new_button,
+                #         self.interact_display,
+                #     ]
+                # ),
+                # ],
+                #     ),
+                #     v.Text(children=["Interaction terms:"], class_="mr-3"),
+                #     v.Container(class_="d-flex flex-column",
+                #         children=[v.Row(class_="d-flex col-6", children=[self.interact_new_button,
+                #                   self.interact_display]),
+                #                   self.edit_interaction_sheet
+                #                   ]
+                #     ),
+                #     # v.Spacer(style_="height: 40px"),
+                # ]
+                # ),
+                self.run_button,
             ],
         )
 
@@ -237,7 +291,7 @@ class HilbertSpaceUi:
 
     @staticmethod
     def possible_operators(subsystem: str) -> List[str]:
-        if subsystem is None or subsystem == "!!disabled!!":
+        if subsystem is None:
             return []
         main = importlib.import_module("__main__")
         return [
@@ -253,52 +307,99 @@ class HilbertSpaceUi:
         tab_index = self.tabs_select_interact_type.v_model
         return interaction_types[tab_index]
 
+    def on_interact_display_click(self, *args, **kwargs):
+        active_term = self.interact_display.v_model
+        print("ACTIVE AFTER CLICK:", active_term)
+        if active_term is not None:
+            self.update_interaction_data()
+            print(self.interact_display)
+            print(self.interact_display.children[active_term])
+            self.current_interaction_key = int(self.interact_display.children[active_term].children[0][5:])
+        else:
+            self.current_interaction_key = None
+        print("WERE HERE, ", self.current_interaction_key)
+        print("sdfsdf:", self.interaction_terms_dict)
+
+        self.current_interact_change()
+        # self.update_interact_display()
+
     def update_interact_display(self):
         self.interact_display.children = [
-            v.Chip(children=[term[0]], filling=False, outlined=True)
-            for term in self.interact_list_widget.items
+            vChip(
+                children=[f"term {idx}"],
+                class_="align-self-center",
+                close=True,
+                click_close=self.del_interaction_term,
+            )
+            for idx in self.interaction_terms_dict.keys()
         ]
-        self.interact_display.v_model = [
-            term[0] for term in self.interact_list_widget.items
-        ]
+
+        if self.current_interaction_key is not None:
+            self.interact_display.v_model = self.current_interaction_key
+        else:
+            self.interact_display.v_model = None
+            self.tabs_select_interact_type.style_ = "display: none !important"
+        if self.interact_display.children:
+            self.tabs_select_interact_type.style_ = "background-color: " + NAV_COLOR
+        else:
+            self.tabs_select_interact_type.style_ = (
+                "display: none; background-color: " + NAV_COLOR
+            )
 
     def connect_ui(self):
-        def on_subsys_selected(sender, event, value):
-            self.op1subsys_widget.items = value
-            self.op2subsys_widget.items = value
+        def on_subsys_selected(*args):
+            self.op1subsys_widget.items = self.subsys_widget.v_model
+            self.op2subsys_widget.items = self.subsys_widget.v_model
+            if self.subsys_widget.v_model:
+                self.edit_interaction_card.style_ = ""
+                self.run_button.disabled = False
+            else:
+                self.edit_interaction_card.style_ = "display: none !important;"
+                self.run_button.disabled = True
 
-        def on_op_subsys1_selected(sender, event, value):
-            self.op1subsys_widget.v_model = value
+        def on_op_subsys1_selected(*args):
+            # self.op1subsys_widget.v_model = self.op
+            value = self.op1subsys_widget.v_model
             self.op1_ddown_widget.items = self.possible_operators(value)
             self.update_interaction_data()
 
-        def on_op_subsys2_selected(sender, event, value):
-            self.op2subsys_widget.v_model = value
+        def on_op_subsys2_selected(*args):
+            # self.op2subsys_widget.v_model = value
+            value = self.op2subsys_widget.v_model
             self.op2_ddown_widget.items = self.possible_operators(value)
             self.update_interaction_data()
 
-        def on_interact_list_changed(sender, event, value):
-            self.current_interaction_key = tuple(value) if value else None
-            self.current_interact_change()
-            self.update_interact_display()
 
-        def on_interact_list_click_clear(sender, event, value):
-            self.del_interaction_term()
-            self.update_interact_display()
+        # def on_interact_list_changed(*args):
+        #     if not self.interact_display.v_model:
+        #         key = None
+        #     else:
+        #         key = self.interact_display.v_model
+        #     self.current_interaction_key = key
+        #     self.current_interact_change()
+        #     self.update_interact_display()
+
+        # def on_interact_list_click_clear(sender, event, value):
+        #     self.del_interaction_term()
+        #     self.update_interact_display()
 
         def refresh_subsys_list(*args):
             self.subsys_widget.items = list(self.get_subsys_candidates().keys())
 
-        self.subsys_widget.on_event("change", on_subsys_selected)
-        self.interact_list_widget.on_event("change", on_interact_list_changed)
-        self.interact_list_widget.on_event("click:clear", on_interact_list_click_clear)
+        self.subsys_widget.observe(on_subsys_selected, names="v_model")
 
-        self.op1subsys_widget.on_event("change", on_op_subsys1_selected)
-        self.op2subsys_widget.on_event("change", on_op_subsys2_selected)
-        self.op1_ddown_widget.on_event("change", self.update_interaction_data)
-        self.op2_ddown_widget.on_event("change", self.update_interaction_data)
-        self.addhc_widget.on_event("change", self.update_interaction_data)
-        self.string_expr_widget.on_event("change", self.update_interaction_data)
+        self.interact_display.observe(self.on_interact_display_click, names="v_model")
+        # self.interact_list_widget.observe(on_interact_list_changed, names="v_model")
+
+        # self.interact_list_widget.on_event("click:clear", on_interact_list_click_clear)
+
+        self.op1subsys_widget.observe(on_op_subsys1_selected, names="v_model")
+        self.op2subsys_widget.observe(on_op_subsys2_selected, names="v_model")
+        self.op1_ddown_widget.observe(self.update_interaction_data, names="v_model")
+        self.op2_ddown_widget.observe(self.update_interaction_data, names="v_model")
+        self.addhc_widget.observe(self.update_interaction_data, names="v_model")
+        self.g_widget.observe(self.update_interaction_data, names="v_model")
+        self.string_expr_widget.observe(self.update_interaction_data, names="v_model")
 
         self.subsys_refresh_button.on_event("click", refresh_subsys_list)
         self.interact_new_button.on_event("click", self.new_interaction_term)
@@ -314,7 +415,7 @@ class HilbertSpaceUi:
 
     def finish(self, callback_func, *args, **kwargs):
         interaction_list = self.validated_interact_list()
-        if interaction_list is False:
+        if not interaction_list:
             return None
         self.status_output.children = [
             v.Alert(
@@ -326,67 +427,73 @@ class HilbertSpaceUi:
                 dismissible=True,
             )
         ]
-        callback_func(self.subsystem_list(), interaction_list)
+        callback_func(self.subsys_widget.v_model, interaction_list)
 
     def set_data(self, **kwargs):
         self.set_interact_term(**kwargs)
 
     def set_interact_term(self, **kwargs):
-        if self.current_interaction_key:
-            self.interactions_dict[self.current_interaction_key] = kwargs
+        if self.current_interaction_key is not None:
+            self.interaction_terms_dict[self.current_interaction_key] = kwargs
 
     def new_interaction_term(self, *args):
-        self.interactions_count += 1
-        self.current_interaction_key = (f"term {self.interactions_count}",)
-        self.interactions_dict[
-            self.current_interaction_key
-        ] = self.empty_interaction_term()
-        self.interact_list_widget.items = list(self.interactions_dict.keys())
-        self.interact_list_widget.v_model = self.current_interaction_key
+        if self.interaction_terms_dict is None:
+            self.current_interaction_key = 0
+        else:
+            self.update_interaction_data()
+            for idx in itertools.count(0):
+                if idx not in self.interaction_terms_dict.keys():
+                    self.current_interaction_key = idx
+                    break
+
+        self.interaction_terms_dict[self.current_interaction_key] = self.empty_interaction_term()
+        # self.interact_display.v_model = self.current_interaction_key
+        print("NEW     ", self.current_interaction_key)
+
+        print("NEW I T", self.interact_display.v_model)
+        print("NEW I T", self.interaction_terms_dict[self.current_interaction_key])
+
+        self.current_interact_change()
         self.update_interact_display()
 
     def del_interaction_term(self, *args):
-        if len(list(self.interactions_dict.keys())) > 0:
-            del self.interactions_dict[self.current_interaction_key]
-        if self.interactions_dict:
-            self.current_interaction_key = list(self.interactions_dict.keys())[0]
-            self.interact_list_widget.items = list(self.interactions_dict.keys())
+        if self.interaction_terms_dict:
+            del self.interaction_terms_dict[self.current_interaction_key]
+        if self.interaction_terms_dict:
+            self.current_interaction_key = list(self.interaction_terms_dict.keys())[0]
             self.current_interact_change()
+            self.update_interact_display()
         else:
-            self.current_interaction_key = ""
-            self.interact_list_widget.items = []
-            # self.tabs_select_interact_type.layout.display = "none"
+            self.current_interaction_key = None
+            self.update_interact_display()
 
     def current_interact_change(self, *args):
-        if (
-            not self.current_interaction_key
-            or self.current_interaction_key == "!!disabled!!"
-        ):
+        if not self.current_interaction_key:
             return
         key = self.current_interaction_key
-        interact_params = self.interactions_dict[key]
+        self.interact_display.v_model = key
+        interact_params = self.interaction_terms_dict[key]
+        print("KEY ", key, "set to ", interact_params)
         self.op1subsys_widget.v_model = interact_params["subsys1"]
         self.op1_ddown_widget.v_model = interact_params["op1"]
-        self.op2subsys_widget.v_model_ = interact_params["subsys2"]
+        self.op2subsys_widget.v_model = interact_params["subsys2"]
         self.op2_ddown_widget.v_model = interact_params["op2"]
         self.g_widget.v_model = interact_params["g_strength"]
         self.addhc_widget.v_model = interact_params["add_hc"]
         self.string_expr_widget.v_model = interact_params["string_expr"]
 
     def update_interaction_data(self, *args):
-        if (
-            not self.current_interaction_key
-            or self.current_interaction_key == "!!disabled!!"
-        ):
+        if self.current_interaction_key is None:
             return
         key = self.current_interaction_key
-        self.interactions_dict[key]["subsys1"] = self.op1subsys_widget.v_model
-        self.interactions_dict[key]["subsys2"] = self.op2subsys_widget.v_model
-        self.interactions_dict[key]["op1"] = self.op1_ddown_widget.v_model
-        self.interactions_dict[key]["op2"] = self.op2_ddown_widget.v_model
-        self.interactions_dict[key]["g_strength"] = self.g_widget.v_model
-        self.interactions_dict[key]["add_hc"] = self.addhc_widget.v_model
-        self.interactions_dict[key]["string_expr"] = self.string_expr_widget.v_model
+        print("key:", key)
+        self.interaction_terms_dict[key]["subsys1"] = self.op1subsys_widget.v_model
+        self.interaction_terms_dict[key]["subsys2"] = self.op2subsys_widget.v_model
+        self.interaction_terms_dict[key]["op1"] = self.op1_ddown_widget.v_model
+        self.interaction_terms_dict[key]["op2"] = self.op2_ddown_widget.v_model
+        self.interaction_terms_dict[key]["g_strength"] = self.g_widget.v_model
+        self.interaction_terms_dict[key]["add_hc"] = self.addhc_widget.v_model
+        self.interaction_terms_dict[key]["string_expr"] = self.string_expr_widget.v_model
 
     @staticmethod
     def empty_interaction_term():
@@ -425,7 +532,7 @@ class HilbertSpaceUi:
         subsysname_list = self.subsys_widget.v_model
 
         interaction_list = []
-        for interaction_term in self.interactions_dict.values():
+        for interaction_term in self.interaction_terms_dict.values():
             for param_name in ["subsys1", "subsys2"]:
                 if not interaction_term[param_name]:
                     self.status_output.children = [

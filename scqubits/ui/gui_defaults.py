@@ -44,7 +44,7 @@ tunabletransmon_defaults = {
     **global_defaults,
     "scan_param": "flux",
     "operator": "n_operator",
-    "EJv_max": EJ_range,
+    "EJ_max": EJ_range,
     "d": {"v_min": 0.0, "v_max": 1.0},
     "ncut": ncut_range,
 }

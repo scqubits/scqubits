@@ -70,7 +70,7 @@ def create_widget(
             filled=True,
             dense=True,
             style_="width: 40%;",
-            class_="ml-2",
+            class_="ml-2 py-0",
         )
         widgets[name].observe(callback_func, names="v_model")
         box_list.append(widgets[name])
@@ -82,7 +82,7 @@ def create_widget(
         image_widget = ipyvuetify.Container(
             children=[ipywidgets.Image(value=image, format="jpg")],
             class_="ml-3 mt-0 pt-0",
-            style_="width: 78%;",
+            style_="width: 72%;",
         )
         ui_widget = ipyvuetify.Row(
             children=[

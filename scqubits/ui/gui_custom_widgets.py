@@ -185,6 +185,19 @@ class vBtn(ipyvuetify.Btn):
             self.on_event("click", onclick)
 
 
+class vChip(ipyvuetify.Chip):
+    def __init__(self, **kwargs):
+        onclick_close = kwargs.pop("click_close", None)
+        onclick = kwargs.pop("onclick", None)
+        super().__init__(**kwargs)
+
+        if onclick_close:
+            self.on_event("click:close", onclick_close)
+        if onclick:
+            self.on_event("click", onclick)
+
+
+
 class DiscreteSetSlider(ipyvuetify.Slider):
     def __init__(self, param_vals, **kwargs):
         self.val_count = len(param_vals)

@@ -296,10 +296,10 @@ class GUI:
         self.activate_auto_plot_refresh()
 
     def unobserve_all(self):
+        self.deactivate_auto_plot_refresh()
         self.unobserve_coherence_widgets()
         self.unobserve_range_widgets()
         self.unobserve_plot_options_widget()
-        self.deactivate_auto_plot_refresh()
 
     # Retrieval Methods------------------------------------------------------------------
     def get_current_values(self) -> Dict[str, Union[int, float]]:
@@ -494,8 +494,8 @@ class GUI:
 
     def unobserve_range_widgets(self) -> None:
         for text_widgets in self.dict_v_ranges.values():
-            text_widgets["min"].unobserve(self.ranges_update)
-            text_widgets["max"].unobserve(self.ranges_update)
+            text_widgets["min"].unobserve(self.ranges_update, names="num_value")
+            text_widgets["max"].unobserve(self.ranges_update, names="num_value")
 
     def activate_auto_plot_refresh(self) -> None:
         total_dict = {
@@ -508,8 +508,6 @@ class GUI:
                 widget.observe(self.plot_refresh, names="v_model")
 
     def deactivate_auto_plot_refresh(self) -> None:
-        if self.auto_updating:
-            return
         total_dict = {
             **self.dict_v_qubit_params,
             **self.dict_v_plot_options,
@@ -517,7 +515,10 @@ class GUI:
         }
         for widget_name, widget in total_dict.items():
             if widget_name not in self.autoconnect_blacklist:
-                widget.unobserve(self.plot_refresh)
+                try:
+                    widget.unobserve(self.plot_refresh, names="v_model")
+                except ValueError:
+                    pass
 
     def observe_plot_option_widgets(self) -> None:
         if isinstance(
@@ -561,25 +562,25 @@ class GUI:
             self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)
         ):
             self.dict_v_plot_options["manual_wf_scaling"].unobserve(
-                self.toggle_manual_wf_scaling
+                self.toggle_manual_wf_scaling, names="v_model"
             )
 
-        self.dict_v_plot_options["scan_param"].unobserve(self.set_new_scan_param)
+        self.dict_v_plot_options["scan_param"].unobserve(self.set_new_scan_param, names="v_model")
         self.dict_v_plot_options["literature_params"].unobserve(
-            self.literature_url_refresh
+            self.literature_url_refresh, names="v_model"
         )
         self.dict_v_plot_options["literature_params"].unobserve(
-            self.set_literature_params_and_refresh_plot
+            self.set_literature_params_and_refresh_plot, names="v_model"
         )
-        self.dict_v_plot_options["t1_checkbox"].unobserve(self.clear_plot)
-        self.dict_v_plot_options["t2_checkbox"].unobserve(self.clear_plot)
-        self.dict_v_plot_options["show3d_matelem"].unobserve(self.clear_plot)
-        self.dict_v_plot_options["noise_channel_multiselect"].unobserve(self.clear_plot)
+        self.dict_v_plot_options["t1_checkbox"].unobserve(self.clear_plot, names="v_model")
+        self.dict_v_plot_options["t2_checkbox"].unobserve(self.clear_plot, names="v_model")
+        self.dict_v_plot_options["show3d_matelem"].unobserve(self.clear_plot, names="v_model")
+        self.dict_v_plot_options["noise_channel_multiselect"].unobserve(self.clear_plot, names="v_model")
 
         for widget_name, widget in self.dict_v_qubit_params.items():
             if "cut" in widget_name:
-                widget.unobserve(self.adjust_state_widgets)
-            widget.unobserve(self.check_user_override_literature_params)
+                widget.unobserve(self.adjust_state_widgets, names="v_model")
+            widget.unobserve(self.check_user_override_literature_params, names="v_model")
 
     def observe_coherence_widgets(self) -> None:
         self.dict_v_plot_options["i_text"].observe(
@@ -593,11 +594,11 @@ class GUI:
             widget.observe(self.check_coherence_params_bounds, names="num_value")
 
     def unobserve_coherence_widgets(self) -> None:
-        self.dict_v_plot_options["i_text"].unobserve(self.check_coherence_params_bounds)
-        self.dict_v_plot_options["j_text"].unobserve(self.check_coherence_params_bounds)
+        self.dict_v_plot_options["i_text"].unobserve(self.check_coherence_params_bounds, names="num_value")
+        self.dict_v_plot_options["j_text"].unobserve(self.check_coherence_params_bounds, names="num_value")
 
         for widget in self.dict_v_noise_params.values():
-            widget.unobserve(self.check_coherence_params_bounds)
+            widget.unobserve(self.check_coherence_params_bounds, names="num_value")
 
     # Eventhandler Methods -------------------------------------------------------------
     def qubit_change(self, change) -> None:
@@ -720,6 +721,7 @@ class GUI:
             return
 
         self.unobserve_all()
+        self.literature_url_refresh(None)
 
         params = gui_defaults.paramvals_from_papers[current_qubit][
             current_dropdown_value
@@ -892,7 +894,7 @@ class GUI:
             value_dict["scale_value"] = None
             value_dict["eigenvalue_states"] = self.dict_v_plot_options[
                 "wavefunction_state_slider"
-            ].num_value
+            ].v_model
         else:
             manual_scale_tf_value = self.dict_v_plot_options[
                 "manual_wf_scaling"
