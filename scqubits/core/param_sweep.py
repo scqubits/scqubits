@@ -114,7 +114,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     The_ParameterSweepBase class is an abstract base class for ParameterSweep and
     StoredSweep
     """
-
+    _lookup_exists = False
     _parameters = descriptors.WatchedProperty(Parameters, "PARAMETERSWEEP_UPDATE")
     _evals_count = descriptors.WatchedProperty(int, "PARAMETERSWEEP_UPDATE")
     _data = descriptors.WatchedProperty(Dict[str, ndarray], "PARAMETERSWEEP_UPDATE")
@@ -604,7 +604,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
                 transitions.append((initial_state, final_state))
                 transition_energies.append(diff_energies)
 
-        self._preslicing_reset()
+        self.reset_preslicing()
 
         if not as_specdata:
             return transitions, transition_energies
@@ -728,7 +728,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         if make_positive:
             specdata_all.energy_table = np.abs(specdata_all.energy_table)
 
-        self._preslicing_reset()
+        self.reset_preslicing()
 
         if coloring == "plain":
             return specdata_all.plot_evals_vs_paramvals()
@@ -955,7 +955,7 @@ class ParameterSweep(  # type:ignore
         self.tqdm_disabled = settings.PROGRESSBAR_DISABLED or (num_cpus > 1)
 
         self._out_of_sync = False
-        self._preslicing_reset()
+        self.reset_preslicing()
 
         dispatch.CENTRAL_DISPATCH.register("PARAMETERSWEEP_UPDATE", self)
         dispatch.CENTRAL_DISPATCH.register("HILBERTSPACE_UPDATE", self)
@@ -994,6 +994,7 @@ class ParameterSweep(  # type:ignore
         data and custom sweep data."""
         # generate one dispatch before temporarily disabling CENTRAL_DISPATCH
 
+        self._lookup_exists = True
         if self._deepcopy:
             stored_hilbertspace = copy.deepcopy(self.hilbertspace)
             self._hilbertspace = copy.deepcopy(self.hilbertspace)
@@ -1351,6 +1352,7 @@ class StoredSweep(
         evals_count: int,
         _data,
     ) -> None:
+        self._lookup_exists = True
         self._parameters = Parameters(paramvals_by_name)
         self._hilbertspace = hilbertspace
         self._evals_count = evals_count

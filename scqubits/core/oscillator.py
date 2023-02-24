@@ -70,7 +70,7 @@ def convert_to_l_osc(E_kin: float, E_pot: float) -> float:
     return (E_kin / E_pot) ** (1 / 4)
 
 
-# —Oscillator class———————————————————————————————————————————————————————————————————
+# -Oscillator class-------------------------------------------------------------------
 
 
 class Oscillator(base.QuantumSystem, serializers.Serializable):
@@ -186,7 +186,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         return 1.0j / (self.l_osc * np.sqrt(2)) * (a.T - a)
 
 
-# —KerrOscillator class———————————————————————————————————————————————————————————————————
+# -KerrOscillator class-------------------------------------------------------------------
 
 
 class KerrOscillator(Oscillator, serializers.Serializable):
@@ -218,7 +218,6 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         truncated_dim: int = _default_evals_count,
         id_str: Optional[str] = None,
     ) -> None:
-
         self.K: float = K  # type:ignore
 
         super().__init__(

@@ -36,6 +36,7 @@ import scipy as sp
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
+from scipy.sparse import csc_matrix, dia_matrix
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
@@ -72,7 +73,7 @@ LevelsTuple = Tuple[int, ...]
 Transition = Tuple[int, int]
 TransitionsTuple = Tuple[Transition, ...]
 
-# —Generic quantum system container and Qubit base class——————————————————————————————
+# -Generic quantum system container and Qubit base class------------------------------
 
 
 class QuantumSystem(DispatchClient, ABC):
@@ -229,7 +230,7 @@ class QuantumSystem(DispatchClient, ABC):
         return []
 
 
-# —QubitBaseClass———————————————————————————————————————————————————————————————————————————————————————————————————————
+# -QubitBaseClass-------------------------------------------------------------------------------------------------------
 
 
 class QubitBaseClass(QuantumSystem, ABC):
@@ -364,6 +365,83 @@ class QubitBaseClass(QuantumSystem, ABC):
         if filename:
             specdata.filewrite(filename)
         return specdata if return_spectrumdata else (evals, evecs)
+
+    def process_op(
+        self,
+        native_op: Union[ndarray, csc_matrix],
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+    ) -> Union[ndarray, csc_matrix]:
+        """Processes the operator `native_op`: either hand back `native_op` unchanged, or transform it into the
+        energy eigenbasis. (Native basis refers to the basis used internally by each qubit, e.g., charge basis in the
+        case of `Transmon`.
+
+        Parameters
+        ----------
+        native_op:
+            operator in native basis
+        energy_esys:
+            If `False` (default), returns operator in the native basis
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis
+            if energy_esys is the energy eigenspectrum, in the form of a tuple containing two ndarrays
+            (eigenvalues and energy eigenvectors), returns operator in the energy eigenbasis,
+            and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            `native_op` either unchanged or transformed into eigenenergy basis
+        """
+        if isinstance(energy_esys, bool):
+            if not energy_esys:
+                return native_op
+            esys = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            esys = energy_esys
+        evectors = esys[1][:, : self.truncated_dim]
+        return get_matrixelement_table(native_op, evectors)
+
+    def process_hamiltonian(
+        self,
+        native_hamiltonian: Union[ndarray, csc_matrix],
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+    ) -> Union[ndarray, csc_matrix]:
+        """Return qubit Hamiltonian in chosen basis: either return unchanged (i.e., in native basis) or transform
+        into eigenenergy basis
+
+        Parameters
+        ----------
+        native_hamiltonian:
+            Hamiltonian in native basis
+        energy_esys:
+            If `False` (default), returns Hamiltonian in the native basis
+            If `True`, the energy eigenspectrum is computed, returns Hamiltonian in the energy eigenbasis
+            if energy_esys is the energy eigenspectrum, in the form of a tuple containing two ndarrays
+            (eigenvalues and energy eigenvectors), returns Hamiltonian in the energy eigenbasis,
+            and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            Hamiltonian, either unchanged in native basis, or transformed into eigenenergy basis
+        """
+        if isinstance(energy_esys, bool):
+            if not energy_esys:
+                return native_hamiltonian
+            esys = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            esys = energy_esys
+        evals = esys[0][: self.truncated_dim]
+        if isinstance(native_hamiltonian, ndarray):
+            return np.diag(evals)
+        return dia_matrix(evals).tocsc()
+
+    def anharmonicity(self) -> float:
+        """Returns the qubit's anharmonicity, (E_2 - E_1) - (E_1 - E_0)."""
+        energies = self.eigenvals(evals_count=3)
+        return energies[2] - 2 * energies[1] + energies[0]
+
+    def E01(self) -> float:
+        """Returns the qubit's fundamental energy splitting, E_1 - E_0."""
+        energies = self.eigenvals(evals_count=2)
+        return energies[1] - energies[0]
 
     @overload
     def matrixelement_table(
@@ -993,7 +1071,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         return self
 
 
-# —QubitBaseClass1d——————————————————————————————————————————————————————————————————
+# -QubitBaseClass1d------------------------------------------------------------------
 
 
 class QubitBaseClass1d(QubitBaseClass):

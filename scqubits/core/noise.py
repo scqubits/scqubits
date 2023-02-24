@@ -247,7 +247,6 @@ class NoisySystem(ABC):
         current_val = getattr(self, param_name)
 
         for channel_idx, noise_channel in enumerate(noise_channels):  # type:ignore
-
             # case 1: noise_channel is a string representing the noise method
             if isinstance(noise_channel, str):
                 noise_channel_method = noise_channel
@@ -566,7 +565,6 @@ class NoisySystem(ABC):
         )
 
         if spectrum_data is None:
-
             # We have to figure out the largest energy level involved in the
             # calculations, to know how many levels we need from the diagonalization.
             # This may be hidden in noise-channel-specific options, so have to search
@@ -664,10 +662,8 @@ class NoisySystem(ABC):
         rate = 0.0
 
         for n, noise_channel in enumerate(noise_channels):
-
             # noise_channel is a string representing the noise method
             if isinstance(noise_channel, str):
-
                 noise_channel_method = noise_channel
 
                 # If dealing with a tphi noise type, the contribution of a t1 process
@@ -689,7 +685,6 @@ class NoisySystem(ABC):
 
             # noise_channel is a tuple representing the noise method and default options
             elif isinstance(noise_channel, tuple):
-
                 noise_channel_method = noise_channel[0]
 
                 # If dealing with a tphi noise type, the contribution of a t1 process
