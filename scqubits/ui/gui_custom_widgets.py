@@ -197,7 +197,6 @@ class vChip(ipyvuetify.Chip):
             self.on_event("click", onclick)
 
 
-
 class DiscreteSetSlider(ipyvuetify.Slider):
     def __init__(self, param_vals, **kwargs):
         self.val_count = len(param_vals)
@@ -263,16 +262,10 @@ class NavbarElement(ipyvuetify.ExpansionPanels):
 
 
 def flex_row(widgets: List[v.VuetifyWidget], class_="", **kwargs) -> v.Container:
-    return v.Container(
-        class_="d-flex flex-row " + class_,
-        children=widgets,
-        **kwargs
-    )
+    return v.Container(class_="d-flex flex-row " + class_, children=widgets, **kwargs)
 
 
 def flex_column(widgets: List[v.VuetifyWidget], class_="", **kwargs) -> v.Container:
     return v.Container(
-        class_="d-flex flex-column " + class_,
-        children=widgets,
-        **kwargs
+        class_="d-flex flex-column " + class_, children=widgets, **kwargs
     )

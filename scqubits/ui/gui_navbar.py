@@ -20,6 +20,7 @@ from scqubits.ui.gui_defaults import NAV_COLOR
 from scqubits.ui import gui_defaults as gui_defaults
 from scqubits.ui.gui_custom_widgets import flex_column
 import scqubits.ui.gui_custom_widgets as ui
+import scqubits.utils.misc as utils
 
 try:
     import ipyvuetify as v
@@ -37,6 +38,7 @@ else:
     _HAS_IPYTHON = True
 
 
+@utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def create_navbar() -> Tuple[v.Card, dict]:
     # Navigation bar elements are:
     # CHOOSE_QUBIT
@@ -143,7 +145,7 @@ def create_navbar() -> Tuple[v.Card, dict]:
                     )
                 ],
             )
-        ]
+        ],
     )
 
     return nav_drawer, navbar_elements

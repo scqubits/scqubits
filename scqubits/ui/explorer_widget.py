@@ -28,9 +28,14 @@ from scqubits.core.param_sweep import ParameterSlice
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.explorer import explorer_panels as panels
 from scqubits.settings import matplotlib_settings
-from scqubits.ui.gui_defaults import (NAV_COLOR, composite_panel_names,
-                                      default_panels, mode_dropdown_dict,
-                                      mode_dropdown_list, subsys_panel_names)
+from scqubits.ui.gui_defaults import (
+    NAV_COLOR,
+    composite_panel_names,
+    default_panels,
+    mode_dropdown_dict,
+    mode_dropdown_list,
+    subsys_panel_names,
+)
 from scqubits.ui.gui_custom_widgets import flex_row
 from scqubits.utils import misc as utils
 
@@ -484,7 +489,9 @@ class Explorer:
                 evals_count=int(self.ui_level_slider[full_panel_name].v_model),
             )
         elif panel_name == "Wavefunctions" and isinstance(subsys, QubitBaseClass):
-            ui_wavefunction_selector, ui_mode_dropdown = self.ui["subsys_panel_settings"][subsys_name][panel_name]
+            ui_wavefunction_selector, ui_mode_dropdown = self.ui[
+                "subsys_panel_settings"
+            ][subsys_name][panel_name]
             panels.display_bare_wavefunctions(
                 self.sweep,
                 subsys,
@@ -786,14 +793,14 @@ class Explorer:
                 ui_wavefunction_selector = ui.InitSelect(
                     label="Display wavefunctions",
                     items=list(range(subsys.truncated_dim)),
-                    v_model=0
+                    v_model=0,
                 )
             else:
                 ui_wavefunction_selector = ui.InitSelect(
                     label="Display wavefunctions",
                     multiple=True,
                     items=list(range(subsys.truncated_dim)),
-                    v_model=list(range(5))
+                    v_model=list(range(5)),
                 )
             ui_mode_dropdown = ui.InitSelect(
                 items=mode_dropdown_list,

@@ -13,8 +13,6 @@
 from pathlib import Path
 from typing import Any, Dict
 
-import ipyvuetify as v
-import ipywidgets
 import numpy as np
 
 import scqubits as scq
@@ -22,58 +20,26 @@ import scqubits.core.noise as noise
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.ui import gui_custom_widgets as ui
 from scqubits.ui import gui_defaults as gui_defaults
+import scqubits.utils.misc as utils
 
 
-def init_qubit_dropdown():
-    return v.Select(
-        v_model=gui_defaults.supported_qubits[0],
-        items=gui_defaults.supported_qubits,
-        filled=True,
-        label="Qubit",
-        class_="pl-2",
-    )
+try:
+    import ipyvuetify as v
+    import ipywidgets
+except ImportError:
+    _HAS_IPYVUETIFY = False
+else:
+    _HAS_IPYVUETIFY = True
+
+try:
+    from IPython.display import display
+except ImportError:
+    _HAS_IPYTHON = False
+else:
+    _HAS_IPYTHON = True
 
 
-def init_plot_choice_buttons():
-    return v.BtnToggle(
-        v_model=0,
-        mandatory=True,
-        style_="background: #f9fbff",
-        children=[
-            v.Col(
-                style_="background: #f9fbff",
-                children=[
-                    v.Btn(
-                        children=[plot_choice],
-                        text=True,
-                    )
-                    for plot_choice in gui_defaults.plot_choices
-                ],
-            )
-        ],
-    )
-
-
-def init_manual_update_switch():
-    return v.Switch(
-        v_model=False,
-        class_="px-4",
-        label="Manual refresh",
-    )
-
-
-def init_manual_update_btn():
-    return v.Btn(
-        children=[v.Icon(children=["mdi-refresh"])],
-        fab=True,
-        color="orange",
-        small=True,
-        disabled=True,
-        elevation="0",
-        class_="px-2",
-    )
-
-
+@utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def init_save_btn():
     return v.Btn(
         class_="ml-5 pmr-2",
@@ -84,13 +50,7 @@ def init_save_btn():
     )
 
 
-def init_manual_update_widget(switch, button):
-    return v.Container(
-        class_="d-flex flex-row flex-start align-center",
-        children=[switch, button],
-    )
-
-
+@utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def init_filename_textfield():
     return v.TextField(
         class_="ml-3 pl-3",
@@ -100,6 +60,7 @@ def init_filename_textfield():
     )
 
 
+@utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def init_noise_param_floattextfield(noise_param: str) -> ui.ValidatedNumberField:
     """
     Creates a `ValidatedNumberField` widget for each noise parameter.
@@ -125,6 +86,7 @@ def init_noise_param_floattextfield(noise_param: str) -> ui.ValidatedNumberField
     )
 
 
+@utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def init_dict_v_plot_options(
     active_qubit, active_defaults, scan_params
 ) -> Dict[str, v.VuetifyWidget]:
@@ -237,6 +199,7 @@ def init_dict_v_plot_options(
     return dict_v_plot_options
 
 
+@utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def init_dict_v_noise_params(active_qubit) -> Dict[str, v.VuetifyWidget]:
     """Creates all the widgets associated with coherence times plots"""
     dict_v_noise_params = {}
@@ -263,6 +226,7 @@ def init_dict_v_noise_params(active_qubit) -> Dict[str, v.VuetifyWidget]:
     return dict_v_noise_params
 
 
+@utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def init_qubit_params_widgets_dict(
     qubit: QubitBaseClass,
     qubit_params: Dict[str, float],
@@ -326,6 +290,7 @@ def init_qubit_params_widgets_dict(
     return dict_v_qubit_params
 
 
+@utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def init_ranges_widgets_dict(
     qubit, dict_v_plot_options, dict_v_qubit_params
 ) -> Dict[str, Any]:
