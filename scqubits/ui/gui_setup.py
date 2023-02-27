@@ -263,7 +263,6 @@ def init_qubit_params_widgets_dict(
                 label=f"{param_name}",
                 step=0.01,
                 v_model=param_val,
-                style_="max-width: 220px",
                 text_kwargs={
                     "style_": "min-width: 80px; max-width: 90px;",
                     "dense": True,

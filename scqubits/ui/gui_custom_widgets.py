@@ -10,23 +10,35 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import Any, Callable, List, Union
+from typing import List, Union
 
-import ipyvuetify
-import ipyvuetify as v
-import ipywidgets
-import traitlets
-from IPython.core.display_functions import display
-
-from scqubits.utils import misc as utils
+import scqubits.utils.misc as utils
 
 
-class ValidatedNumberField(ipyvuetify.TextField):
+try:
+    import ipyvuetify as v
+    import ipywidgets
+    import traitlets
+except ImportError:
+    _HAS_IPYVUETIFY = False
+else:
+    _HAS_IPYVUETIFY = True
+
+try:
+    from IPython.display import display
+except ImportError:
+    _HAS_IPYTHON = False
+else:
+    _HAS_IPYTHON = True
+
+
+class ValidatedNumberField(v.TextField):
     _typecheck_func: callable = None
     _type = None
     _current_value = None
     num_value = None
 
+    @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
     def __init__(
         self,
         v_model,
@@ -88,6 +100,7 @@ class ValidatedNumberField(ipyvuetify.TextField):
 
 
 class NumberEntryWidget(ValidatedNumberField):
+    @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
     def __init__(
         self,
         label,
@@ -98,14 +111,11 @@ class NumberEntryWidget(ValidatedNumberField):
         v_max=None,
         s_min=None,
         s_max=None,
-        style_="",  # REMOVE
-        class_="",  # REMOVE
         text_kwargs=None,
         slider_kwargs=None,
     ):
         text_kwargs = text_kwargs or {}
         slider_kwargs = slider_kwargs or {}
-
         super().__init__(
             label=label,
             v_model=v_model,
@@ -120,7 +130,7 @@ class NumberEntryWidget(ValidatedNumberField):
             slider_kwargs["style_"] = "max-width: 240px; min-width: 220px;"
         if "class_" not in slider_kwargs:
             slider_kwargs["class_"] = "pt-3"
-        self.slider = ipyvuetify.Slider(
+        self.slider = v.Slider(
             min=s_min, max=s_max, step=step, v_model=v_model, **slider_kwargs
         )
 
@@ -138,7 +148,7 @@ class NumberEntryWidget(ValidatedNumberField):
         display(self.widget())
 
     def widget(self):
-        return ipyvuetify.Container(
+        return v.Container(
             class_="d-flex flex-row ml-2 pb-0 pt-1",
             style_="min-width: 220px; max-width: 220px",
             children=[self, self.slider],
@@ -169,14 +179,16 @@ class NumberEntryWidget(ValidatedNumberField):
             )  # This is a hack... need to trigger final "change" event
 
 
-class InitSelect(ipyvuetify.Select):
+class InitSelect(v.Select):
+    @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
     def __init__(self, **kwargs):
         if "v_model" not in kwargs and "items" in kwargs:
             kwargs["v_model"] = kwargs["items"][0]
         super().__init__(**kwargs)
 
 
-class vBtn(ipyvuetify.Btn):
+class vBtn(v.Btn):
+    @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
     def __init__(self, **kwargs):
         onclick = kwargs.pop("onclick", None)
         super().__init__(**kwargs)
@@ -185,7 +197,8 @@ class vBtn(ipyvuetify.Btn):
             self.on_event("click", onclick)
 
 
-class vChip(ipyvuetify.Chip):
+class vChip(v.Chip):
+    @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
     def __init__(self, **kwargs):
         onclick_close = kwargs.pop("click_close", None)
         onclick = kwargs.pop("onclick", None)
@@ -197,7 +210,8 @@ class vChip(ipyvuetify.Chip):
             self.on_event("click", onclick)
 
 
-class DiscreteSetSlider(ipyvuetify.Slider):
+class DiscreteSetSlider(v.Slider):
+    @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
     def __init__(self, param_vals, **kwargs):
         self.val_count = len(param_vals)
         self.param_vals = param_vals
@@ -208,6 +222,7 @@ class DiscreteSetSlider(ipyvuetify.Slider):
 
 
 class IconButton(vBtn):
+    @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
     def __init__(self, icon_name, **kwargs):
         super().__init__(
             **kwargs,
@@ -215,24 +230,25 @@ class IconButton(vBtn):
             width=40,
             height=40,
             elevation="0",
-            children=[ipyvuetify.Icon(children=[icon_name])],
+            children=[v.Icon(children=[icon_name])],
         )
 
 
-class NavbarElement(ipyvuetify.ExpansionPanels):
+class NavbarElement(v.ExpansionPanels):
+    @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
     def __init__(
         self,
         header,
-        content: Union[None, ipyvuetify.ExpansionPanelContent] = None,
-        children: Union[None, List[ipyvuetify.VuetifyWidget]] = None,
+        content: Union[None, v.ExpansionPanelContent] = None,
+        children: Union[None, List[v.VuetifyWidget]] = None,
         **kwargs,
     ):
         assert (content and not children) or (children and not content)
 
         content = (
             content
-            if isinstance(content, ipyvuetify.ExpansionPanelContent)
-            else ipyvuetify.ExpansionPanelContent(
+            if isinstance(content, v.ExpansionPanelContent)
+            else v.ExpansionPanelContent(
                 class_="text-no-wrap", style_="transform: scale(0.9)", children=children
             )
         )
@@ -244,10 +260,10 @@ class NavbarElement(ipyvuetify.ExpansionPanels):
                 flat=True,
                 v_model=None,
                 children=[
-                    ipyvuetify.ExpansionPanel(
+                    v.ExpansionPanel(
                         accordion=True,
                         children=[
-                            ipyvuetify.ExpansionPanelHeader(
+                            v.ExpansionPanelHeader(
                                 disable_icon_rotate=True,
                                 style_="font-size: 16px; font-weight: 500",
                                 class_="text-no-wrap",
@@ -261,10 +277,12 @@ class NavbarElement(ipyvuetify.ExpansionPanels):
         )
 
 
+@utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def flex_row(widgets: List[v.VuetifyWidget], class_="", **kwargs) -> v.Container:
     return v.Container(class_="d-flex flex-row " + class_, children=widgets, **kwargs)
 
 
+@utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def flex_column(widgets: List[v.VuetifyWidget], class_="", **kwargs) -> v.Container:
     return v.Container(
         class_="d-flex flex-column " + class_, children=widgets, **kwargs

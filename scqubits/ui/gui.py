@@ -144,7 +144,6 @@ class GUI:
         self.set_qubit_params()
 
         self.dict_v_noise_params = init_dict_v_noise_params(self.active_qubit)
-
         self.dict_v_qubit_params = init_qubit_params_widgets_dict(
             qubit=self.active_qubit,
             qubit_params=self.qubit_params,
