@@ -438,6 +438,7 @@ class HilbertSpace(
 
     def __len__(self):
         return len(self._subsystems)
+
     #
     # @property
     # def _out_of_sync(self):
