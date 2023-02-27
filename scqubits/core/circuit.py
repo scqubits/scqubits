@@ -868,7 +868,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         p_symbols = _generate_symbols_list("Q", self.var_categories["extended"])
 
         if self.ext_basis == "discretized":
-
             ps_symbols = [
                 sm.symbols("Qs" + str(i)) for i in self.var_categories["extended"]
             ]
@@ -880,7 +879,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             ]
 
         elif self.ext_basis == "harmonic":
-
             a_symbols = [sm.symbols(f"a{i}") for i in self.var_categories["extended"]]
             ad_symbols = [sm.symbols(f"ad{i}") for i in self.var_categories["extended"]]
             Nh_symbols = [sm.symbols(f"Nh{i}") for i in self.var_categories["extended"]]
@@ -993,7 +991,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         hamiltonian = self._shift_harmonic_oscillator_potential(hamiltonian)
 
         if self.ext_basis == "discretized":
-
             # marking the squared momentum operators with a separate symbol
             for i in self.var_categories["extended"]:
                 hamiltonian = hamiltonian.replace(
@@ -1235,7 +1232,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         return self._sparsity_adaptive(exp_i_theta)
 
     def _evaluate_matrix_cosine_terms(self, junction_potential: sm.Expr) -> qt.Qobj:
-
         if self.hierarchical_diagonalization:
             subsystem_list = list(self.subsystems.values())
             identity = qt.tensor(
@@ -1532,7 +1528,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         ) and "*" in str(term)
 
     def _replace_mat_mul_operator(self, term: sm.Expr):
-
         if not self._is_mat_mul_replacement_necessary(term):
             return str(term)
 
@@ -1839,7 +1834,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
-
         if (
             isinstance(self, Circuit)
             and self.is_purely_harmonic
@@ -2469,7 +2463,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         return wf_dim
 
     def _dims_to_be_summed(self, var_indices: Tuple[int], num_wf_dims) -> List[int]:
-
         all_var_indices = self.var_categories_list
         non_summed_dims = []
         for var_index in all_var_indices:
@@ -2804,7 +2797,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         change_discrete_charge_to_phi: bool,
         kwargs,
     ) -> Tuple[Figure, Axes]:
-
         var_index = var_indices[0]
         wavefunc = storage.WaveFunction(
             basis_labels=grids_per_varindex_dict[var_indices[0]].make_linspace(),
