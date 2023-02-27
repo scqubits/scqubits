@@ -213,7 +213,6 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         truncated_dim: int = _default_evals_count,
         id_str: Optional[str] = None,
     ) -> None:
-
         self.K: float = K  # type:ignore
 
         super().__init__(

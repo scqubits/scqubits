@@ -163,7 +163,7 @@ def display_bare_wavefunctions(
     param_slice: "ParameterSlice",
     fig_ax: Tuple[Figure, Axes],
     mode="real",
-    which=-1
+    which=-1,
 ) -> None:
     subsys_index = sweep.get_subsys_index(subsys)
 
