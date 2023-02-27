@@ -466,7 +466,7 @@ class HilbertSpaceUi:
 
     def validated_interact_list(
         self,
-    ) -> Union[Literal[False], List[Union[scqubits.InteractionTerm, scqubits.InteractionTermStr]]]:
+    ) -> Union[Literal[False], list]:
         self.status_output.children = []
 
         main = importlib.import_module("__main__")
