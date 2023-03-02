@@ -196,11 +196,9 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
             "ng1": 0.0,
             "ng2": 0.0,
             "ng3": 0.0,
-            # "ng4": 0.0,
-            # "nt": 0.0,
             "flux": 0.0,
-            "ncut": 6,
-            "truncated_dim": 6,
+            "ncut": 20,
+            "truncated_dim": 10,
         }
 
     @classmethod
@@ -513,10 +511,6 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
             ]
         )
 
-        # m_inv = self.m_inv()
-        # c_mat_transformed = m_inv.T @ cmat @ m_inv
-        # ec_mat_full = 0.5 * np.linalg.inv(c_mat_transformed)
-
         n_op = np.arange(-self.ncut, self.ncut + 1, 1)
         n_op = sparse.diags(n_op).tocsc()
 
@@ -539,29 +533,12 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         ng3 = self.ng3 * sparse.kron(
             sparse.kron(identity, identity, format="csc"), identity, format="csc"
         )
-        # ng4 = self.ng4 * sparse.kron(
-        #     sparse.kron(identity, identity, format="csc"), identity, format="csc"
-        # )
-        # iden = sparse.kron(
-        #     sparse.kron(identity, identity, format="csc"), identity, format="csc"
-        # )
 
         nvec = np.array([n1, n2, n3])
 
-        # uncomment for user access to voltages ngs
-        # ng_vec = np.array([ng1, ng2, ng3, ng4])
-        # ng_prime_vec = m_inv[0:4, 0:3].T @ ng_vec
-        #ngvalvec = np.array([self.ng1, self.ng2, self.ng3, self.ng4])
-        #ng4_prime = (m_inv @ ngvalvec)[3]
-        #gamma = -(self.nt * m_inv[2, 3] - ng4_prime) * np.linalg.inv(ec_mat) @ ec_mat_full[0:3, 3]
-        # for i in range(3):
-        #     nvec[i] = nvec[i] - ng_prime_vec[i] - gamma[i]*iden + (self.nt-ng4_prime)*m_inv.T[i, 2]*iden
-
-        # Gives user access to 3 linearly independent ngs
         ng_prime_vec = np.array([ng1, ng2, ng3])
-        # gamma = -(self.nt - self.ng4) * m_inv[2, 3] * np.linalg.inv(ec_mat) @ ec_mat_full[0:3, 3]
         for i in range(3):
-            nvec[i] = nvec[i] - ng_prime_vec[i] # - gamma[i]*iden + (self.nt-self.ng4)*m_inv.T[i, 2]*iden
+            nvec[i] = nvec[i] - ng_prime_vec[i]
 
         return 4 * nvec.T @ ec_mat @ nvec
 
