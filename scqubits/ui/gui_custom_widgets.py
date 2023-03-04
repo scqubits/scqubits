@@ -40,6 +40,7 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
         _current_value = None
         num_value = None
 
+        @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
         def __init__(
             self,
             v_model,

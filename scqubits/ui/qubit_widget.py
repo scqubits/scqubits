@@ -14,11 +14,12 @@ from typing import Any, Callable, Dict
 
 import scqubits.core.units as units
 import scqubits.utils.misc as utils
-from scqubits.ui.gui_custom_widgets import ValidatedNumberField
+
 
 try:
     import ipyvuetify
     import ipywidgets
+    from scqubits.ui.gui_custom_widgets import ValidatedNumberField
 except ImportError:
     _HAS_IPYVUETIFY = False
 else:
