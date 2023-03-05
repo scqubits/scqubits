@@ -398,14 +398,14 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def _evals_calc(self, evals_count: int) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
         evals = sp.linalg.eigh(
-            hamiltonian_mat, eigvals=(0, evals_count - 1), eigvals_only=True
+            hamiltonian_mat, subset_by_index=(0, evals_count - 1), eigvals_only=True
         )
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = sp.linalg.eigh(
-            hamiltonian_mat, eigvals=(0, evals_count - 1), eigvals_only=False
+            hamiltonian_mat, subset_by_index=(0, evals_count - 1), eigvals_only=False
         )
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
         return evals, evecs
