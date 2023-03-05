@@ -114,6 +114,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     The_ParameterSweepBase class is an abstract base class for ParameterSweep and
     StoredSweep
     """
+
     _lookup_exists = False
     _parameters = descriptors.WatchedProperty(Parameters, "PARAMETERSWEEP_UPDATE")
     _evals_count = descriptors.WatchedProperty(int, "PARAMETERSWEEP_UPDATE")
