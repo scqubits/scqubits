@@ -24,14 +24,14 @@ def test_explorer():
         flux=0.0,
         ng=0.3,
         ncut=40,
-        truncated_dim=4,  # after diagonalization, we will keep 3 levels
+        truncated_dim=5,
     )
 
     tmon2 = scq.TunableTransmon(
         EJmax=15.0, EC=0.15, d=0.02, flux=0.0, ng=0.0, ncut=30, truncated_dim=5
     )
 
-    resonator = scq.Oscillator(E_osc=4.5, truncated_dim=4)  # up to 3 photons (0,1,2,3)
+    resonator = scq.Oscillator(E_osc=4.5, truncated_dim=4)
 
     hilbertspace = scq.HilbertSpace([tmon1, tmon2, resonator])
 
