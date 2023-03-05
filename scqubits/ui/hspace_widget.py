@@ -25,10 +25,11 @@ from scqubits.ui.gui_defaults import NAV_COLOR
 try:
     import ipywidgets
     import ipyvuetify as v
+    from scqubits.ui.gui_custom_widgets import ValidatedNumberField, vChip
 except ImportError:
-    _HAS_IPYWIDGETS = False
+    _HAS_IPYVUETIFY = False
 else:
-    _HAS_IPYWIDGETS = True
+    _HAS_IPYVUETIFY = True
 
 try:
     from IPython.display import display
@@ -42,7 +43,7 @@ import scqubits
 from scqubits.core.oscillator import Oscillator
 from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass
 from scqubits.utils import misc as utils
-from scqubits.ui.gui_custom_widgets import ValidatedNumberField, vChip
+
 
 QuantumSys = Union[QubitBaseClass, Oscillator]
 
@@ -51,7 +52,7 @@ class HilbertSpaceUi:
     """Class for setup and display of the widget used for creation of a
     HilbertSpace object."""
 
-    @utils.Required(ipywidgets=_HAS_IPYWIDGETS)
+    @utils.Required(ipyvuetify=_HAS_IPYVUETIFY)
     def __init__(self):
         """Set up all widget GUI elements and class attributes."""
         self.status_output = v.Container(children=[], id="status_output")
@@ -446,7 +447,7 @@ class HilbertSpaceUi:
             "string_expr": "",
         }
 
-    def widgets_dict(self, idx: int) -> Dict[str, v.VuetifyWidget]:
+    def widgets_dict(self, idx: int) -> Dict[str, "v.VuetifyWidget"]:
         return {
             "subsys_list": self.subsys_widget,
             "subsys1": self.op1subsys_widget[idx],
@@ -575,7 +576,7 @@ class HilbertSpaceUi:
         return interaction_list
 
 
-@utils.Required(ipywidgets=_HAS_IPYWIDGETS, IPython=_HAS_IPYTHON)
+@utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def create_hilbertspace_widget(callback_func):
     """
     Display ipywidgets interface for creating a HilbertSpace object. Typically,
