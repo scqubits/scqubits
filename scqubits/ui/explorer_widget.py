@@ -36,7 +36,6 @@ from scqubits.ui.gui_defaults import (
     mode_dropdown_list,
     subsys_panel_names,
 )
-from scqubits.ui.gui_custom_widgets import flex_row
 from scqubits.utils import misc as utils
 
 if TYPE_CHECKING:
@@ -52,6 +51,7 @@ else:
 try:
     import ipyvuetify as v
     import ipywidgets
+    from scqubits.ui.gui_custom_widgets import flex_row
 except ImportError:
     _HAS_IPYVUETIFY = False
 else:
@@ -340,7 +340,7 @@ class Explorer:
             ],
         )
 
-    def build_ui_settings_dialog(self) -> v.Dialog:
+    def build_ui_settings_dialog(self) -> "v.Dialog":
         self.ui["subsys_panel_settings"] = {
             subsys_name: {
                 panel_name: self.build_ui_settings_subsys(subsys_index, panel_name)
@@ -419,7 +419,7 @@ class Explorer:
     def param_vals(self):
         return self.sweep.param_info[self.fixed_param]
 
-    def build_ui_parameters_panel_left(self) -> List[v.VuetifyWidget]:
+    def build_ui_parameters_panel_left(self) -> List["v.VuetifyWidget"]:
         self.ui["sweep_param_dropdown"] = ui.InitSelect(
             label="Sweeping over", items=list(self.sweep.param_info.keys()), width=150
         )
@@ -450,7 +450,7 @@ class Explorer:
         ]
 
     @matplotlib.rc_context(matplotlib_settings)
-    def build_ui_figure_display(self) -> ipywidgets.Output:
+    def build_ui_figure_display(self) -> "ipywidgets.Output":
         if _HAS_WIDGET_BACKEND:
             out = self.fig.canvas
             self.fig.tight_layout()
@@ -579,7 +579,7 @@ class Explorer:
             pass
 
     @property
-    def all_selected(self) -> Dict[str, v.Switch]:
+    def all_selected(self) -> Dict[str, "v.Switch"]:
         """Returns a dictionary labeling all selected switches by their names."""
         return {
             name: [
@@ -600,13 +600,13 @@ class Explorer:
                 selected.append(panel + SEP + name)
         return selected
 
-    def create_sliders(self) -> List[v.VuetifyWidget]:
+    def create_sliders(self) -> List["v.VuetifyWidget"]:
         """Returns a list of selection sliders, one for each parameter that is part
         of the underlying ParameterSweep object."""
         sliders = [
             ui.InitSelect(
                 label=param_name,
-                items=param_array,
+                items=param_array.tolist(),
             )
             for param_name, param_array in self.sweep.param_info.items()
             if param_name != self.ui["sweep_param_dropdown"].v_model
@@ -618,7 +618,7 @@ class Explorer:
     @property
     def fixed_params(self) -> Dict[str, float]:
         sliders = self.ui["fixed_param_sliders"]
-        return {slider.description: slider.v_model for slider in sliders}
+        return {slider.label: slider.v_model for slider in sliders}
 
     def on_toggle_event(self, change):
         self.ui["panels_list"].options = self.selected_as_strings()
