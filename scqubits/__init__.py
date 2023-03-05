@@ -67,12 +67,15 @@ from scqubits.core.symbolic_circuit import SymbolicCircuit
 try:
     from scqubits.ui.explorer_widget import Explorer
     from scqubits.ui.gui import GUI
-except NameError:
-    warnings.warn(
-        "scqubits: could not import GUI/Explorer - consider installing ipywidgets "
-        "(optional dependency)?",
-        ImportWarning,
-    )
+except ImportError:
+    def Explorer(*args, **kwargs):
+        warnings.warn(
+            "scqubits: could not create Explorer - did you install the optional dependency ipyvuetify?"
+        )
+    def GUI(*args, **kwargs):
+        warnings.warn(
+            "scqubits: could not create Explorer - did you install the optional dependency ipyvuetify?"
+        )
 
 # for showing scqubits info
 from scqubits.utils.misc import about, cite
