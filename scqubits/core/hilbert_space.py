@@ -927,20 +927,9 @@ class HilbertSpace(
         """
         Standardize the phases of the (dressed) eigenvectors.
         """
-        evecs = self._data["evecs"][0]
-        dims = evecs[0].dims
-        evecs_standardized = np.empty((len(evecs),), dtype=object)
-        evecs_standardized[:] = [
-            Qobj(spec_utils.standardize_phases(vec.data.toarray()), dims=dims)
-            for vec in evecs
-        ]
-        dummy_params = self._parameters.paramvals_by_name
-        evecs_wrapped = np.empty(shape=1, dtype=object)
-        evecs_wrapped[0] = evecs_standardized
-        self._data["evecs"] = NamedSlotsNdarray(
-            evecs_wrapped.view(scqubits.io_utils.fileio_qutip.QutipEigenstates),
-            dummy_params,
-        )
+        for idx, evec in enumerate(self._data["evecs"][0]):
+            phase = spec_utils.extract_phase(evec.data.toarray())
+            self._data["evecs"][0][idx] = evec * np.exp(-1j * phase)
 
     def op_in_dressed_eigenbasis(self, **kwargs) -> Qobj:
         """
