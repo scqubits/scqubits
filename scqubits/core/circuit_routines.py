@@ -1478,7 +1478,7 @@ class CircuitRoutines(ABC):
                 var_index = get_trailing_number(operator_name)
                 return qt.Qobj(getattr(self, f"Q{var_index}" + "_operator")()) ** 2
 
-            return qt.Qobj(getattr(self, operator_name + "_operator")())**power
+            return qt.Qobj(getattr(self, operator_name + "_operator")())**(power if power else 1)
 
         var_index = get_trailing_number(operator_name)
         assert var_index
@@ -1877,13 +1877,12 @@ class CircuitRoutines(ABC):
                 continue
             # if the term does have a free variable
             ### expand trigonometrically
-            term = term.expand(trig=True)
-            term_expr_dict = term.as_coefficients_dict()
+            term_expanded = term.expand(trig=True)
+            term_expr_dict = term_expanded.as_coefficients_dict()
             terms_in_term = list(term_expr_dict.keys())
             for inner_term in terms_in_term:
                 operator_expr, parameter_expr = inner_term.as_independent(*free_var_symbols, as_Mul=True)
-                def parameter_func(t, args):
-                    sym_expr = parameter_expr
+                def parameter_func(t, args, self=self, sym_expr=parameter_expr, free_var_symbols=free_var_symbols, free_var_func_dict=free_var_func_dict):
                     param_symbols = self.external_fluxes + self.offset_charges + list(self.symbolic_params.keys())
                     for param in param_symbols:
                         if param in free_var_symbols:
@@ -1891,7 +1890,7 @@ class CircuitRoutines(ABC):
                         else:
                             sym_expr = sym_expr.subs(param, getattr(self, param.name))
                     return float(sym_expr)*expr_dict[inner_term]
-                time_dep_terms.append(expr_dict[inner_term]*parameter_expr*operator_expr)
+                time_dep_terms.append(expr_dict[term]*parameter_expr*operator_expr)
                 operator_matrix = self._evaluate_symbolic_expr(operator_expr)
                 if operator_matrix == 0:
                     continue
