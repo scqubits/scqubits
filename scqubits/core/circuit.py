@@ -27,7 +27,7 @@ from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
-from scipy import sparse, stats
+from scipy import sparse
 from scipy.sparse import csc_matrix
 from sympy import latex
 
@@ -42,7 +42,6 @@ import scqubits as scq
 import scqubits.core.discretization as discretization
 import scqubits.core.oscillator as osc
 import scqubits.core.qubit_base as base
-import scqubits.core.spec_lookup as spec_lookup
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
@@ -60,7 +59,6 @@ from scqubits.core.circuit_utils import (
     _generate_symbols_list,
     _i_d2_dphi2_operator,
     _i_d_dphi_operator,
-    _identity_theta,
     _n_theta_operator,
     _phi_operator,
     _sin_dia,
@@ -75,10 +73,9 @@ from scqubits.core.circuit_utils import (
     matrix_power_sparse,
     operator_func_factory,
 )
-from scqubits.core.namedslots_array import NamedSlotsNdarray
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
 from scqubits.io_utils.fileio import IOData
-from scqubits.io_utils.fileio_serializers import dict_deserialize, dict_serialize
+from scqubits.io_utils.fileio_serializers import dict_serialize
 from scqubits.utils.misc import (
     flatten_list,
     flatten_list_recursive,
@@ -192,7 +189,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         }
 
         # storing the potential terms separately
-        # also bringing the potential to the same form as in the class Circuit
+        # and bringing the potential into the same form as for the class Circuit
         potential_symbolic = 0 * sm.symbols("x")
         for term in self.hamiltonian_symbolic.as_ordered_terms():
             if is_potential_term(term):
@@ -682,7 +679,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         Returns the eigenstates for the SubSystem instance
         """
         if self.is_child:
-            subsys_index = self.parent.hilbert_space.subsys_list.index(self)
+            subsys_index = self.parent.hilbert_space.subsystem_list.index(self)
             return self.parent.hilbert_space["bare_evecs"][subsys_index][0]
         else:
             return self.eigensys()[1]
@@ -1800,7 +1797,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     self.hilbert_space["bare_evals"][sys_index][0],
                     self.hilbert_space["bare_evecs"][sys_index][0],
                 )
-                for sys_index, sys in enumerate(self.hilbert_space.subsys_list)
+                for sys_index, sys in enumerate(self.hilbert_space.subsystem_list)
             }
             hamiltonian = self.hilbert_space.hamiltonian(bare_esys=bare_esys)
             if self.type_of_matrices == "dense":

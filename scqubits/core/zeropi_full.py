@@ -288,16 +288,31 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         )
 
     def hamiltonian(
-        self, return_parts: bool = False
-    ) -> Union[csc_matrix, Tuple[csc_matrix, ndarray, ndarray, float]]:
-        """Returns Hamiltonian in basis obtained by discretizing phi, employing charge
-        basis for theta, and Fock basis for zeta.
+        self,
+        return_parts: bool = False,
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+    ) -> Union[csc_matrix, Tuple[csc_matrix, ndarray, ndarray, ndarray]]:
+        r"""Returns Hamiltonian in basis obtained by discretizing :math:`\phi`, employing
+        charge basis for :math:`\theta`, and Fock basis for :math:`\zeta`, or in the eigenenergy basis.
 
         Parameters
         ----------
         return_parts:
             If set to true, `hamiltonian` returns
             [hamiltonian, evals, evecs, g_coupling_matrix]
+        energy_esys:
+            If `False` (default), returns Hamiltonian in native Hamiltonian basis
+            If `True`, the energy eigenspectrum is computed, returns Hamiltonian in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns Hamiltonian in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            Hamiltonian in chosen basis as csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, the Hamiltonian has dimensions of `truncated_dim`
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, Hamiltonian has dimensions of m x m,
+            for m given eigenvectors.
+
         """
         zeropi_dim = self.zeropi_cutoff
         zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
@@ -328,48 +343,126 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         hamiltonian_mat += sparse.kron(
             zeropi_coupling, op.annihilation_sparse(zeta_dim)
         ) + sparse.kron(zeropi_coupling.conjugate().T, op.creation_sparse(zeta_dim))
-
+        hmtocsc = hamiltonian_mat.tocsc()
         if return_parts:
-            return hamiltonian_mat.tocsc(), zeropi_evals, zeropi_evecs, gmat
+            return (
+                self.process_hamiltonian(
+                    native_hamiltonian=hmtocsc, energy_esys=energy_esys
+                ),
+                zeropi_evals,
+                zeropi_evecs,
+                gmat,
+            )
+        return self.process_hamiltonian(
+            native_hamiltonian=hmtocsc, energy_esys=energy_esys
+        )
 
-        return hamiltonian_mat.tocsc()
+    def d_hamiltonian_d_flux(
+        self,
+        zeropi_evecs: ndarray = None,
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+    ) -> Union[ndarray, csc_matrix]:
+        r"""
+        Calculates a derivative of the Hamiltonian w.r.t flux, at the current value of flux,
+        as stored in the object. The returned operator is in the product basis or eigenenergy basis.
 
-    def d_hamiltonian_d_flux(self, zeropi_evecs: ndarray = None) -> csc_matrix:
-        r"""Calculates a derivative of the Hamiltonian w.r.t flux, at the current value
-        of flux, as stored in the object. The returned operator is in the product basis
+        Helper method _zeropi_operator_in_product_basis is employed which converts
+        a zeropi operator into one in the product basis. If user already has zeropi eigenvectors, user can input
+        as zeropi_evecs=ndarray.
 
-        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0.
-        So if \frac{\partial H}{ \partial \Phi_{\rm ext}}, is needed, the expr returned
-        by this function, needs to be multiplied by 1/\Phi_0.
+        Parameters
+        ----------
+        zeropi_evecs:
+            If None (default), helper method _zeropi_operator_in_product_basis calculates zeropi eigenvectors and uses
+            them to convert operator to the product basis, if product basis is chosen.
+            If zeropi_evecs = zeropievecs, where zeropievecs is an ndarray, and product basis is chosen,
+            helper method _zeropi_operator_in_product_basis uses zeropievecs to convert the operator
+            to the product basis.
+        energy_esys:
+            If `False` (default), returns operator in the product basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            matrix representing the derivative of the Hamiltonian
+            Operator in chosen basis. If product basis is chosen, operator
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
+            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
-        return self._zeropi_operator_in_product_basis(
+        native = self._zeropi_operator_in_product_basis(
             self._zeropi.d_hamiltonian_d_flux(), zeropi_evecs=zeropi_evecs
         )
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def d_hamiltonian_d_EJ(self, zeropi_evecs: ndarray = None) -> csc_matrix:
-        r"""Calculates a derivative of the Hamiltonian w.r.t EJ.
+    def d_hamiltonian_d_EJ(
+        self,
+        zeropi_evecs: ndarray = None,
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+    ) -> Union[ndarray, csc_matrix]:
+        r"""
+        Calculates a derivative of the Hamiltonian w.r.t EJ. The returned operator is in the
+        product basis or eigenenergy basis.
+
+        Helper method _zeropi_operator_in_product_basis is employed which converts
+        a zeropi operator into one in the product basis. If user already has zeropi eigenvectors, user can input
+        as zeropi_evecs=ndarray.
+
+        Parameters
+        ----------
+        zeropi_evecs:
+            If None (default), helper method _zeropi_operator_in_product_basis calculates zeropi eigenvectors and uses
+            them to convert operator to the product basis, if product basis is chosen.
+            If zeropi_evecs = zeropievecs, where zeropievecs is an ndarray, and product basis is chosen,
+            helper method _zeropi_operator_in_product_basis uses zeropievecs to convert the operator
+            to the product basis.
+        energy_esys:
+            If `False` (default), returns operator in the product basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            matrix representing the derivative of the Hamiltonian
+            Operator in chosen basis. If product basis chosen, operator
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
+            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
-        return self._zeropi_operator_in_product_basis(
+        native = self._zeropi_operator_in_product_basis(
             self._zeropi.d_hamiltonian_d_EJ(), zeropi_evecs=zeropi_evecs
         )
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
-    def d_hamiltonian_d_ng(self) -> csc_matrix:
-        r"""Calculates a derivative of the Hamiltonian w.r.t ng.
-        as stored in the object.
+    def d_hamiltonian_d_ng(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> Union[ndarray, csc_matrix]:
+        r"""
+        Calculates a derivative of the Hamiltonian w.r.t ng.
+        Returns matrix representing a derivative of the Hamiltonian in the native Hamiltonian basis
+        or eigenenergy basis.
+
+        Parameters
+        ----------
+        energy_esys:
+            If `False` (default), returns operator in the native basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            matrix representing the derivative of the Hamiltonian
+            Operator in chosen basis. If native basis chosen, operator
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
+            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
-        return -8 * self.EC * self.n_theta_operator()
+        native = -8 * self.EC * self.n_theta_operator()
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def _zeropi_operator_in_product_basis(
         self, zeropi_operator, zeropi_evecs: ndarray = None
@@ -401,33 +494,122 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             format="csc",
         )
 
-    def i_d_dphi_operator(self, zeropi_evecs: ndarray = None) -> csc_matrix:
+    def i_d_dphi_operator(
+        self,
+        zeropi_evecs: ndarray = None,
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+    ) -> Union[ndarray, csc_matrix]:
         r"""
-        Operator :math:`i d/d\phi`.
-        """
-        return self._zeropi_operator_in_product_basis(
-            self._zeropi.i_d_dphi_operator(), zeropi_evecs=zeropi_evecs
-        )
+        Returns :math:`i d/d\phi` operator in the product or eigenenergy basis.
 
-    def n_theta_operator(self, zeropi_evecs: ndarray = None) -> csc_matrix:
-        r"""
-        Operator :math:`n_\theta`.
-        """
-        return self._zeropi_operator_in_product_basis(
-            self._zeropi.n_theta_operator(), zeropi_evecs=zeropi_evecs
-        )
+        Helper method _zeropi_operator_in_product_basis is employed which converts
+        a zeropi operator into one in the product basis. If user already has zeropi eigenvectors, user can input
+        as zeropi_evecs=ndarray.
 
-    def phi_operator(self, zeropi_evecs: ndarray = None) -> csc_matrix:
-        r"""
-        Operator :math:`\phi`.
+        Parameters
+        ----------
+        zeropi_evecs:
+            If None (default), helper method _zeropi_operator_in_product_basis calculates zeropi eigenvectors and uses
+            them to convert operator to the product basis, if product basis is chosen.
+            If zeropi_evecs = zeropievecs, where zeropievecs is an ndarray, and product basis is chosen,
+            helper method _zeropi_operator_in_product_basis uses zeropievecs to convert the operator
+            to the product basis.
+        energy_esys:
+            If `False` (default), returns operator in the product basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            scipy.sparse.csc_matrix
+            Operator in chosen basis. If product basis chosen, operator
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
+            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
-        return self._zeropi_operator_in_product_basis(
+        native = self._zeropi_operator_in_product_basis(
+            self._zeropi.i_d_dphi_operator(), zeropi_evecs=zeropi_evecs
+        )
+        return self.process_op(native_op=native, energy_esys=energy_esys)
+
+    def n_theta_operator(
+        self,
+        zeropi_evecs: ndarray = None,
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+    ) -> Union[ndarray, csc_matrix]:
+        r"""
+        Returns :math:`n_\theta`  operator in the product or eigenenergy basis.
+
+        Helper method _zeropi_operator_in_product_basis is employed which converts
+        a zeropi operator into one in the product basis. If user already has zeropi eigenvectors, user can input
+        as zeropi_evecs=ndarray.
+
+        Parameters
+        ----------
+        zeropi_evecs:
+            If None (default), helper method _zeropi_operator_in_product_basis calculates zeropi eigenvectors and uses
+            them to convert operator to the product basis, if product basis is chosen.
+            If zeropi_evecs = zeropievecs, where zeropievecs is an ndarray, and product basis is chosen,
+            helper method _zeropi_operator_in_product_basis uses zeropievecs to convert the operator
+            to the product basis.
+        energy_esys:
+            If `False` (default), returns operator in the product basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            Operator in chosen basis. If product basis chosen, operator
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
+            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        """
+        native = self._zeropi_operator_in_product_basis(
+            self._zeropi.n_theta_operator(), zeropi_evecs=zeropi_evecs
+        )
+        return self.process_op(native_op=native, energy_esys=energy_esys)
+
+    def phi_operator(
+        self,
+        zeropi_evecs: ndarray = None,
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+    ) -> Union[ndarray, csc_matrix]:
+        r"""
+        Returns :math:`\phi`  operator in the product or eigenenergy basis.
+
+        Helper method _zeropi_operator_in_product_basis is employed which converts
+        a zeropi operator into one in the product basis. If user already has zeropi eigenvectors, user can input
+        as zeropi_evecs=ndarray.
+
+        Parameters
+        ----------
+        zeropi_evecs:
+            If None (default), helper method _zeropi_operator_in_product_basis calculates zeropi eigenvectors and uses
+            them to convert operator to the product basis, if product basis is chosen.
+            If zeropi_evecs = zeropievecs, where zeropievecs is an ndarray, and product basis is chosen,
+            helper method _zeropi_operator_in_product_basis uses zeropievecs to convert the operator
+            to the product basis.
+        energy_esys:
+            If `False` (default), returns operator in the product basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            Operator in chosen basis. If product basis chosen, operator
+            returned as a csc_matrix. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
+            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        """
+        native = self._zeropi_operator_in_product_basis(
             self._zeropi.phi_operator(), zeropi_evecs=zeropi_evecs
         )
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def hilbertdim(self) -> int:
         """Returns Hilbert space dimension

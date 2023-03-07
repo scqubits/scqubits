@@ -45,6 +45,7 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_qutip
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
+import scqubits.ui.hspace_widget
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
@@ -331,6 +332,7 @@ class HilbertSpace(
         can be supplied here upon initialization of a `HilbertSpace` instance.
     """
 
+    _lookup_exists = False
     osc_subsys_list = descriptors.ReadOnlyProperty(OscillatorList)
     qbt_subsys_list = descriptors.ReadOnlyProperty(QubitList)
     interaction_list = descriptors.WatchedProperty(
@@ -375,7 +377,6 @@ class HilbertSpace(
         self._current_param_indices = 0
         self._evals_count = self.dimension
         self._out_of_sync = False
-        self._out_of_sync_warning_issued = False
         # end attributes for compatibility with SpectrumLookupMixin
 
         dispatch.CENTRAL_DISPATCH.register("QUANTUMSYSTEM_UPDATE", self)
@@ -438,21 +439,6 @@ class HilbertSpace(
 
     def __len__(self):
         return len(self._subsystems)
-
-    #
-    # @property
-    # def _out_of_sync(self):
-    #     return self._out_of_sync_
-    #
-    # @_out_of_sync.setter
-    # def _out_of_sync(self, value):
-    #     if value:
-    #         self._out_of_sync = True
-    #     else:
-    #         self._out_of_sync_ = False
-    #
-    #
-    #
 
     @property
     def hilbertspace(self) -> HilbertSpace:
@@ -567,9 +553,7 @@ class HilbertSpace(
     # HilbertSpace: generate SpectrumLookup
     ###################################################################################
     def generate_lookup(self, update_subsystem_indices: List[int] = None) -> None:
-        self._out_of_sync = False
-        self._out_of_sync_warning_issued = False
-
+        self._lookup_exists = True
         bare_esys_dict = self.generate_bare_esys(
             update_subsystem_indices=update_subsystem_indices
         )
@@ -590,7 +574,7 @@ class HilbertSpace(
         )
 
     def lookup_exists(self) -> bool:
-        return "dressed_indices" in self._data
+        return self._lookup_exists
 
     def generate_bare_esys(self, update_subsystem_indices: List[int] = None) -> dict:
         # update all the subsystems when update_subsystem_indices is set to None
@@ -939,6 +923,63 @@ class HilbertSpace(
             param_vals,
             state_table=eigenstate_table,
         )
+
+    def standardize_eigenvector_phases(self) -> None:
+        """
+        Standardize the phases of the (dressed) eigenvectors.
+        """
+        for idx, evec in enumerate(self._data["evecs"][0]):
+            phase = spec_utils.extract_phase(evec.data.toarray())
+            self._data["evecs"][0][idx] = evec * np.exp(-1j * phase)
+
+    def op_in_dressed_eigenbasis(self, **kwargs) -> Qobj:
+        """
+        Express a subsystem operator in the dressed eigenbasis of the full system
+        (as opposed to both the "native basis" or "bare eigenbasis" of the subsystem).
+        `op_in_dressed_eigenbasis(...)` offers two different interfaces:
+
+        1. subsystem operators may be expressed as Callables
+
+            signature::
+
+                .op_in_dressed_eigenbasis(op=<Callable>)
+
+        2. subsystem operators may be passed as arrays, along with the
+           corresponding subsystem. In this case the user must additionally
+           specify if the operator is in the native, subsystem-internal
+           basis or the subsystem bare eigenbasis::
+
+                .op_in_dressed_eigenbasis(op=(<ndarray>, <subsys>),
+                                          op_in_bare_eigenbasis=<Bool>)
+        """
+        op_callable_or_tuple = kwargs.pop("op")
+        if isinstance(op_callable_or_tuple, Callable):
+            subsys_index, op = self._parse_op(op_callable_or_tuple)
+            return self._op_in_dressed_eigenbasis(
+                op, subsys_index, op_in_bare_eigenbasis=False
+            )
+        else:
+            op, subsys = op_callable_or_tuple
+            op_in_bare_eigenbasis = kwargs.pop("op_in_bare_eigenbasis", False)
+            subsys_index = self.get_subsys_index(subsys)
+            return self._op_in_dressed_eigenbasis(
+                op, subsys_index, op_in_bare_eigenbasis
+            )
+
+    def _op_in_dressed_eigenbasis(
+        self, op: ndarray, subsys_index: int, op_in_bare_eigenbasis: bool = False
+    ) -> Qobj:
+        bare_evecs = self._data["bare_evecs"][subsys_index][0]
+        id_wrapped_op = spec_utils.identity_wrap(
+            op,
+            self.subsystem_list[subsys_index],
+            self.subsystem_list,
+            op_in_eigenbasis=op_in_bare_eigenbasis,
+            evecs=bare_evecs,
+        )
+        dressed_evecs = self._data["evecs"][0]
+        dressed_op = id_wrapped_op.transform(dressed_evecs)
+        return dressed_op
 
     ###################################################################################
     # HilbertSpace: add interaction and parsing arguments to .add_interaction

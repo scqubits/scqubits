@@ -113,6 +113,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     StoredSweep
     """
 
+    _lookup_exists = False
     _parameters = descriptors.WatchedProperty(Parameters, "PARAMETERSWEEP_UPDATE")
     _evals_count = descriptors.WatchedProperty(int, "PARAMETERSWEEP_UPDATE")
     _data = descriptors.WatchedProperty(Dict[str, ndarray], "PARAMETERSWEEP_UPDATE")
@@ -885,7 +886,7 @@ class ParameterSweep(  # type:ignore
         sweep for a single quantum system, no interaction (default: False)
     ignore_low_overlap:
         if set to False (default), bare product states and dressed eigenstates are
-        identified if `\|<psi_bare\|psi_dressed>\|^2 > 0.5`; if True,
+        identified if `|<psi_bare|psi_dressed>|^2 > 0.5`; if True,
         then identification will always take place based on which bare product state
         has the maximum overlap
     autorun:
@@ -995,6 +996,7 @@ class ParameterSweep(  # type:ignore
         self._out_of_sync = False
         self._out_of_sync_warning_issued = False
 
+        self._lookup_exists = True
         if self._deepcopy:
             stored_hilbertspace = copy.deepcopy(self.hilbertspace)
             self._hilbertspace = copy.deepcopy(self.hilbertspace)
@@ -1326,6 +1328,7 @@ class StoredSweep(
         evals_count: int,
         _data,
     ) -> None:
+        self._lookup_exists = True
         self._parameters = Parameters(paramvals_by_name)
         self._hilbertspace = hilbertspace
         self._evals_count = evals_count
