@@ -816,12 +816,15 @@ class QubitBaseClass(QuantumSystem, ABC):
             shape=(paramvals_count, evals_count, evals_count), dtype=np.complex_
         )
 
+        paramval_before = getattr(self, param_name)
         assert spectrumdata.state_table is not None
         for index, paramval in enumerate(param_vals):
             evecs = spectrumdata.state_table[index]
+            setattr(self, param_name, paramval)
             matelem_table[index] = self.matrixelement_table(
                 operator, evecs=evecs, evals_count=evals_count
             )
+        setattr(self, param_name, paramval_before)
 
         spectrumdata.matrixelem_table = matelem_table
         return spectrumdata
