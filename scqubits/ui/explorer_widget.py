@@ -811,9 +811,7 @@ class Explorer:
             )
 
             self.ui["transitions"]["initial_bare_dressed_toggle"] = ToggleButtons(
-                options=["bare", "dressed"],
-                value="bare",
-                description=""
+                options=["bare", "dressed"], value="bare", description=""
             )
             self.ui["transitions"][
                 "initial_bare_dressed_toggle"
