@@ -887,7 +887,7 @@ class ParameterSweep(  # type:ignore
         sweep for a single quantum system, no interaction (default: False)
     ignore_low_overlap:
         if set to False (default), bare product states and dressed eigenstates are
-        identified if `\|<psi_bare\|psi_dressed>\|^2 > 0.5`; if True,
+        identified if `|<psi_bare|psi_dressed>|^2 > 0.5`; if True,
         then identification will always take place based on which bare product state
         has the maximum overlap
     autorun:

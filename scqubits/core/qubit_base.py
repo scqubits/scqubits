@@ -251,14 +251,14 @@ class QubitBaseClass(QuantumSystem, ABC):
     def _evals_calc(self, evals_count: int) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
         evals = sp.linalg.eigh(
-            hamiltonian_mat, eigvals_only=True, eigvals=(0, evals_count - 1)
+            hamiltonian_mat, eigvals_only=True, subset_by_index=(0, evals_count - 1)
         )
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = sp.linalg.eigh(
-            hamiltonian_mat, eigvals_only=False, eigvals=(0, evals_count - 1)
+            hamiltonian_mat, eigvals_only=False, subset_by_index=(0, evals_count - 1)
         )
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
@@ -816,12 +816,15 @@ class QubitBaseClass(QuantumSystem, ABC):
             shape=(paramvals_count, evals_count, evals_count), dtype=np.complex_
         )
 
+        paramval_before = getattr(self, param_name)
         assert spectrumdata.state_table is not None
         for index, paramval in enumerate(param_vals):
             evecs = spectrumdata.state_table[index]
+            setattr(self, param_name, paramval)
             matelem_table[index] = self.matrixelement_table(
                 operator, evecs=evecs, evals_count=evals_count
             )
+        setattr(self, param_name, paramval_before)
 
         spectrumdata.matrixelem_table = matelem_table
         return spectrumdata

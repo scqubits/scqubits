@@ -343,7 +343,6 @@ class GUI:
                 options=range(0, 10),
                 value=[0, 1, 2, 3, 4],
                 description="States",
-                continuous_update=False,
                 layout=std_layout,
             )
             self.qubit_plot_options_widgets["wavefunction_scale_slider"] = FloatSlider(
