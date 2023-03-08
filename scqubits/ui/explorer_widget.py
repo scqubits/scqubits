@@ -503,9 +503,9 @@ class Explorer:
         elif panel_name == "Matrix elements" and isinstance(subsys, QubitBaseClass):
             panel_widgets = self.ui["subsys_panel_settings"][subsys_name][panel_name]
             (
-                opname_dropdown,
-                matrixscan_toggle,
                 mode_dropdown,
+                opname_dropdown,
+                matrixscan_toggle
             ) = panel_widgets
             if matrixscan_toggle.v_model == "fixed":
                 panels.display_matrixelements(
@@ -818,10 +818,11 @@ class Explorer:
                 v_model="abs",
             )
             ui_matrixscan_toggle = v.Switch(
-                items=["fixed", "sweep"], style_="width: 55px", v_model=None
+                items=["fixed", "sweep"], style_="width: 55px", v_model="fixed"
             )
+            op_names = subsys.get_operator_names()
             ui_operator_dropdown = ui.InitSelect(
-                items=subsys.get_operator_names(), label="Operator", v_model=None
+                items=op_names, label="Operator", v_model=op_names[0]
             )
             ui_mode_dropdown.observe(self.update_plots, names="v_model")
             ui_operator_dropdown.observe(self.update_plots, names="v_model")

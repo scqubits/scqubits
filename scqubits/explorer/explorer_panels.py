@@ -102,7 +102,7 @@ def display_matrixelements(
         evals_count=subsys.truncated_dim,
         mode=mode_str,
         show3d=False,
-        show_numbers=True,
+        show_numbers=False,
         show_colorbar=False,
         fig_ax=fig_ax,
         title=title,
