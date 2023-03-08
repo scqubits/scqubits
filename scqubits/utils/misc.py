@@ -126,6 +126,7 @@ class Required:
     def __init__(self, **requirements) -> None:
         self.requirements_bools = list(requirements.values())
         self.requirements_names = list(requirements.keys())
+        self.missing_imports = [name for name in requirements if not requirements[name]]
 
     def __call__(self, func: Callable, *args, **kwargs) -> Callable:
         @functools.wraps(func)
@@ -133,13 +134,23 @@ class Required:
             if all(self.requirements_bools):
                 return func(*args, **kwargs)
             else:
-                raise Exception(
-                    "ImportError: use of this method requires the optional package(s):"
-                    " {}. If you wish to use this functionality, the corresponding"
-                    " package(s) must be installed manually. (Installation via `conda"
-                    " install -c conda-forge <packagename>` or `pip install"
-                    " <packagename>` is recommended.)".format(self.requirements_names)
-                )
+                with warnings.catch_warnings():
+                    if self.missing_imports == ["ipyvuetify"]:
+                        warnings.warn(
+                            "Starting with v3.2, scqubits uses the optional package 'ipyuetify' for graphical"
+                            "user interfaces. To use this functionality, add the package via "
+                            "`conda install -c conda-forge ipyvuetify` or `pip install ipyvuetify`.\n",
+                            category=Warning
+                        )
+                    else:
+                        warnings.warn(
+                            "use of this method requires the optional package(s):"
+                            " {}. If you wish to use this functionality, the corresponding"
+                            " package(s) must be installed manually. (Installation via `conda"
+                            " install -c conda-forge <packagename>` or `pip install"
+                            " <packagename>` is recommended.)".format(self.requirements_names),
+                            category=Warning,
+                        )
 
         return decorated_func
 
