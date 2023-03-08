@@ -745,7 +745,9 @@ class CircuitRoutines(ABC):
         for idx, term in enumerate(terms):
             coefficient_sympy = expr_dict[term]
             if term == 1:
-                eval_matrix_list.append(self._identity_qobj()*float(coefficient_sympy))
+                eval_matrix_list.append(
+                    self._identity_qobj() * float(coefficient_sympy)
+                )
                 continue
             if any([arg.has(sm.cos) or arg.has(sm.sin) for arg in (1.0 * term).args]):
                 eval_matrix_list.append(
@@ -757,7 +759,11 @@ class CircuitRoutines(ABC):
                 power_dict = dict(term.as_powers_dict())
                 for free_sym in term.free_symbols:
                     product_matrix_list.append(
-                        self.get_operator_by_name(free_sym.name, bare_esys=bare_esys, power=power_dict[free_sym])
+                        self.get_operator_by_name(
+                            free_sym.name,
+                            bare_esys=bare_esys,
+                            power=power_dict[free_sym],
+                        )
                     )
                 eval_matrix_list.append(
                     float(coefficient_sympy)
@@ -1411,7 +1417,7 @@ class CircuitRoutines(ABC):
         self,
         operator: Optional[Union[csc_matrix, ndarray]],
         var_index: int,
-        bare_esys:Optional[Dict[int, Tuple]] =None,
+        bare_esys: Optional[Dict[int, Tuple]] = None,
     ) -> qt.Qobj:
         """
         Returns an identity wrapped operator whose size is equal to the
@@ -1443,16 +1449,22 @@ class CircuitRoutines(ABC):
             operator,
             subsystem,
             op_in_eigenbasis=False,
-            evecs=bare_esys[subsystem_index][1] if bare_esys else subsystem.get_eigenstates(),
+            evecs=bare_esys[subsystem_index][1]
+            if bare_esys
+            else subsystem.get_eigenstates(),
         )
         return identity_wrap(
             operator,
             subsystem,
             self.subsystems,
-            evecs=bare_esys[subsystem_index][1] if bare_esys else subsystem.get_eigenstates(),
+            evecs=bare_esys[subsystem_index][1]
+            if bare_esys
+            else subsystem.get_eigenstates(),
         )
 
-    def get_operator_by_name(self, operator_name: str, power: Optional[int] = None, bare_esys=None) -> qt.Qobj:
+    def get_operator_by_name(
+        self, operator_name: str, power: Optional[int] = None, bare_esys=None
+    ) -> qt.Qobj:
         """
         Returns the operator for the given operator symbol which has the same dimension
         as the hilbertdim of the instance from which the operator is requested.
@@ -1478,7 +1490,9 @@ class CircuitRoutines(ABC):
                 var_index = get_trailing_number(operator_name)
                 return qt.Qobj(getattr(self, f"Q{var_index}" + "_operator")()) ** 2
 
-            return qt.Qobj(getattr(self, operator_name + "_operator")())**(power if power else 1)
+            return qt.Qobj(getattr(self, operator_name + "_operator")()) ** (
+                power if power else 1
+            )
 
         var_index = get_trailing_number(operator_name)
         assert var_index
@@ -1839,40 +1853,49 @@ class CircuitRoutines(ABC):
                 return hamiltonian.full()
             if self.type_of_matrices == "sparse":
                 return hamiltonian.data.tocsc()
-            
-    def hamiltonian_for_mesolve(self, free_var_func_dict: Dict[str, Callable]) -> Tuple[List[Union[qt.Qobj, Tuple[qt.Qobj, Callable]]], sm.Expr, List[sm.Expr]]:
+
+    def hamiltonian_for_mesolve(
+        self, free_var_func_dict: Dict[str, Callable]
+    ) -> Tuple[List[Union[qt.Qobj, Tuple[qt.Qobj, Callable]]], sm.Expr, List[sm.Expr]]:
         """
         Returns the Hamiltonian in a format amenable to be forwarded to mesolve in
         Qutip. Also returns the symbolic expressions of time independent and time
         dependent terms of the Hamiltonian.
         `free_var_func_dict` is a dictionary which has a tuple for every time dependent variable with the follwoing two elements:
         1 - time dependent function for the variable
-        2 - the order to which the Hamiltonian needs to be expanded around the drive amplitude 
-        For example, to get the Hamiltonian for a circuit where Φ1 is the time varying parameter and the drive is expanded to second order, 
+        2 - the order to which the Hamiltonian needs to be expanded around the drive amplitude
+        For example, to get the Hamiltonian for a circuit where Φ1 is the time varying parameter and the drive is expanded to second order,
         this method can be called in the following way:
-        
+
         ```
         def flux_t(t, args):
             return np.sin(t*2)
         def EJ_t(t, args):
             return (1-np.exp(-t/1))*0.2
         free_var_func_dict = {"Φ1": (flux_t, 2), "EJ":(EJ_t, 1)}
-        
+
         mesolve_input_H = self.hamiltonian_for_mesolve(free_var_func_dict)
         ```
         """
         free_var_names = list(free_var_func_dict.keys())
         free_var_symbols = [sm.symbols(sym_name) for sym_name in free_var_names]
 
-        fixed_hamiltonian = 0*sm.symbols("x")
+        fixed_hamiltonian = 0 * sm.symbols("x")
         time_varying_hamiltonian = []
 
         sym_hamiltonian = self._hamiltonian_sym_for_numerics
-        sym_hamiltonian = sym_hamiltonian.subs("I",1)
+        sym_hamiltonian = sym_hamiltonian.subs("I", 1)
         # series expand Hamiltonian around the bias
         for free_var in free_var_symbols:
-            sym_hamiltonian = sym_hamiltonian.subs(free_var, free_var + getattr(self, free_var.name)).expand()
-            sym_hamiltonian = sm.series(sym_hamiltonian, x=free_var, x0=0, n=free_var_func_dict[free_var.name][1] + 1).removeO()
+            sym_hamiltonian = sym_hamiltonian.subs(
+                free_var, free_var + getattr(self, free_var.name)
+            ).expand()
+            sym_hamiltonian = sm.series(
+                sym_hamiltonian,
+                x=free_var,
+                x0=0,
+                n=free_var_func_dict[free_var.name][1] + 1,
+            ).removeO()
 
         expr_dict = sym_hamiltonian.expand().as_coefficients_dict()
         terms = list(expr_dict.keys())
@@ -1884,31 +1907,63 @@ class CircuitRoutines(ABC):
                 continue
             # if the term does have a free variable
             ### expand trigonometrically
-            should_trig_expand = any([(free_sym in term.free_symbols and term.coeff(free_sym) == 0) for free_sym in free_var_symbols])
+            should_trig_expand = any(
+                [
+                    (free_sym in term.free_symbols and term.coeff(free_sym) == 0)
+                    for free_sym in free_var_symbols
+                ]
+            )
             term_expanded = term.expand(trig=should_trig_expand)
-            
+
             term_expr_dict = term_expanded.as_coefficients_dict()
             terms_in_term = list(term_expr_dict.keys())
             for inner_term in terms_in_term:
-                operator_expr, parameter_expr = inner_term.as_independent(*free_var_symbols, as_Mul=True)
-                time_dep_terms.append(expr_dict[term]*parameter_expr*operator_expr) # updating the symbolic exprs
-                
+                operator_expr, parameter_expr = inner_term.as_independent(
+                    *free_var_symbols, as_Mul=True
+                )
+                time_dep_terms.append(
+                    expr_dict[term] * parameter_expr * operator_expr
+                )  # updating the symbolic exprs
+
                 # separating the time independent constants
                 for sym in parameter_expr.free_symbols:
                     if sym not in free_var_symbols:
-                        parameter_expr = parameter_expr.subs(sym, getattr(self, sym.name))
+                        parameter_expr = parameter_expr.subs(
+                            sym, getattr(self, sym.name)
+                        )
 
-                lambdify_func = sm.lambdify(list(parameter_expr.free_symbols), parameter_expr, 'numpy')
+                lambdify_func = sm.lambdify(
+                    list(parameter_expr.free_symbols), parameter_expr, "numpy"
+                )
 
-                def parameter_func(t, args, parameter_expr=parameter_expr, self=self, free_var_func_dict=free_var_func_dict, lambdify_func=lambdify_func):
-                    return lambdify_func(*[free_var_func_dict[sym.name][0](t, None) for sym in parameter_expr.free_symbols])
+                def parameter_func(
+                    t,
+                    args,
+                    parameter_expr=parameter_expr,
+                    self=self,
+                    free_var_func_dict=free_var_func_dict,
+                    lambdify_func=lambdify_func,
+                ):
+                    return lambdify_func(
+                        *[
+                            free_var_func_dict[sym.name][0](t, None)
+                            for sym in parameter_expr.free_symbols
+                        ]
+                    )
 
-                operator_matrix = self._evaluate_symbolic_expr(operator_expr)*expr_dict[term] # also multiplying the constant to the operator
+                operator_matrix = (
+                    self._evaluate_symbolic_expr(operator_expr) * expr_dict[term]
+                )  # also multiplying the constant to the operator
                 if operator_matrix == 0:
                     continue
                 time_varying_hamiltonian.append([operator_matrix, parameter_func])
         fixed_hamiltonian = fixed_hamiltonian.subs("I", 1)
-        return [self._evaluate_symbolic_expr(fixed_hamiltonian)] + time_varying_hamiltonian, fixed_hamiltonian, time_dep_terms
+        return (
+            [self._evaluate_symbolic_expr(fixed_hamiltonian)]
+            + time_varying_hamiltonian,
+            fixed_hamiltonian,
+            time_dep_terms,
+        )
 
     def _evals_calc(self, evals_count: int) -> ndarray:
         # dimension of the hamiltonian
