@@ -396,7 +396,7 @@ def recast_esys_mapdata(
 def identity_wrap(
     operator: Union[str, ndarray, Qobj],
     subsystem: "QuantumSys",
-    subsys_list: Tuple["QuantumSys", ...],
+    subsys_list: List["QuantumSys"],
     op_in_eigenbasis: bool = False,
     evecs: ndarray = None,
 ) -> Qobj:
