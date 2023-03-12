@@ -349,7 +349,7 @@ class HilbertSpace(
                 "Subsystem list must not contain multiple objects with "
                 "the same `id_str` name."
             )
-        self._subsystems: Tuple[QuantumSys, ...] = tuple(subsystem_list)
+        self._subsystems: List[QuantumSys] = subsystem_list
         self._subsys_by_id_str = {
             obj._id_str: self[index] for index, obj in enumerate(self)
         }
@@ -530,7 +530,7 @@ class HilbertSpace(
         return self._subsystems.index(subsys)
 
     @property
-    def subsystem_list(self) -> Tuple[QuantumSys, ...]:
+    def subsystem_list(self) -> List[QuantumSys]:
         return self._subsystems
 
     @property
