@@ -76,7 +76,7 @@ except ImportError:
 
     def GUI(*args, **kwargs):
         warnings.warn(
-            "scqubits: could not create Explorer - did you install the optional dependency ipyvuetify?"
+            "scqubits: could not create GUI - did you install the optional dependency ipyvuetify?"
         )
 
 
