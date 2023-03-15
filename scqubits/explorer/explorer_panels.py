@@ -12,7 +12,6 @@
 
 from typing import TYPE_CHECKING, List, Tuple, Union
 
-# import matplotlib as mlp
 import numpy as np
 
 from matplotlib import rc_context

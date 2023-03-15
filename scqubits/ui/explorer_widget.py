@@ -63,13 +63,6 @@ MATPLOTLIB_WIDGET_BACKEND = "module://ipympl.backend_nbagg"
 _HAS_WIDGET_BACKEND = get_matplotlib_backend() == MATPLOTLIB_WIDGET_BACKEND
 
 
-@utils.Required(ipyvuetify=_HAS_IPYVUETIFY)
-def width(pixels: int, justify_content: Optional[str] = None) -> str:
-    style_str = f"width: {pixels}px;"
-    if justify_content:
-        style_str += f" justify_content: {justify_content}"
-    return style_str
-
 
 class Explorer:
     """
@@ -80,9 +73,6 @@ class Explorer:
     sweep:
         the `ParameterSweep` object to be visualized.
     """
-
-    pass
-
     @utils.Required(ipyvuetify=_HAS_IPYVUETIFY)
     def __init__(self, sweep: scq.ParameterSweep):
         """Set up all widget GUI elements and class attributes."""
