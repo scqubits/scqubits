@@ -10,7 +10,6 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import copy
 import re
 import warnings
 from typing import Any, Dict, List, Optional, Tuple, Union
