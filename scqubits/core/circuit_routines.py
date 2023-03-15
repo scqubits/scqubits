@@ -1352,10 +1352,16 @@ class CircuitRoutines(ABC):
         }
         for short_op_name, op_func in nonwrapped_ops.items():
             for sym_variable in periodic_vars[short_op_name]:
-                index = get_operator_number(sym_variable.name)
+                var_index = get_operator_number(sym_variable.name)
                 op_name = sym_variable.name + "_operator"
-                periodic_operators[op_name] = operator_func_factory(op_func, index)
-
+                if self.hierarchical_diagonalization:
+                    periodic_operators[
+                        op_name
+                    ] = hierarchical_diagonalization_func_factory(sym_variable.name)
+                else:
+                    periodic_operators[op_name] = operator_func_factory(
+                        op_func, var_index
+                    )
         return {
             **periodic_operators,
             **extended_operators,
