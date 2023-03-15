@@ -24,6 +24,36 @@ DATADIR = os.path.join(TESTDIR, "data", "")
 
 @pytest.mark.usefixtures("num_cpus")
 class TestCircuit:
+    
+    def initiate_DFC(self) -> None:
+        # generating instance of circuit for tests
+        DFC = scq.Circuit(
+            DATADIR + "circuit_DFC.yaml",
+            ext_basis="discretized",
+            initiate_sym_calc=False,
+            basis_completion="canonical",
+        )
+
+        closure_branches = [DFC.branches[0], DFC.branches[4], DFC.branches[-1]]
+        system_hierarchy = [[[1], [3]], [2], [4]]
+        subsystem_trunc_dims = [[34, [6, 6]], 6, 6]
+
+        DFC.configure(
+            closure_branches=closure_branches,
+            system_hierarchy=system_hierarchy,
+            subsystem_trunc_dims=subsystem_trunc_dims,
+        )
+
+        DFC.Φ1 = 0.5 + 0.01768
+        DFC.Φ2 = -0.2662
+        DFC.Φ3 = -0.5 + 0.01768
+
+        DFC.cutoff_ext_1 = 110
+        DFC.cutoff_ext_2 = 110
+        DFC.cutoff_ext_3 = 110
+        DFC.cutoff_ext_4 = 110
+        self.DFC = DFC
+    
     @staticmethod
     def test_sym_lagrangian():
         zp_yaml = """
@@ -222,32 +252,8 @@ class TestCircuit:
         eigs_test = circ.eigenvals()
         assert np.allclose(eigs_test, eigs_ref)
 
-    @staticmethod
-    def test_param_sweep(num_cpus):
-        DFC = scq.Circuit(
-            DATADIR + "circuit_DFC.yaml",
-            ext_basis="discretized",
-            initiate_sym_calc=False,
-            basis_completion="canonical",
-        )
-
-        closure_branches = [DFC.branches[0], DFC.branches[4], DFC.branches[-1]]
-        system_hierarchy = [[[1], [3]], [2], [4]]
-        subsystem_trunc_dims = [[34, [6, 6]], 6, 6]
-
-        DFC.configure(
-            closure_branches=closure_branches,
-            system_hierarchy=system_hierarchy,
-            subsystem_trunc_dims=subsystem_trunc_dims,
-        )
-
-        DFC.Φ1 = 0.5 + 0.01768
-        DFC.Φ2 = -0.2662
-        DFC.Φ3 = -0.5 + 0.01768
-
-        DFC.cutoff_ext_1 = 110
-        DFC.cutoff_ext_2 = 110
-        DFC.cutoff_ext_3 = 110
-        DFC.cutoff_ext_4 = 110
-
-        DFC.get_spectrum_vs_paramvals("Φ1", np.linspace(0, 1, 11), num_cpus=num_cpus)
+    # @staticmethod
+    def test_get_spectrum_vs_paramvals(self, num_cpus):
+        if not hasattr(self, "DFC"):
+            self.initiate_DFC()
+        self.DFC.get_spectrum_vs_paramvals("Φ1", np.linspace(0, 1, 11), num_cpus=num_cpus)
