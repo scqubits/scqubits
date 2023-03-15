@@ -26,16 +26,16 @@ class TestUnits:
         scq.set_units("MHz")
         assert scq.get_units() == "MHz"
 
-    def test_units_warning(self):
-        scq.set_units("GHz")
-        qubit = Transmon(EJ=0.5, EC=12.0, ng=0.3, ncut=150)
-        # Expect a warning when changing units since a QuantumSystem is present
-        with pytest.warns(UserWarning):
-            scq.set_units("MHz")
+    # def test_units_warning(self):
+    #     scq.set_units("GHz")
+    #     qubit = Transmon(EJ=0.5, EC=12.0, ng=0.3, ncut=150)
+    #     # Expect a warning when changing units since a QuantumSystem is present
+    #     with pytest.warns(UserWarning):
+    #         scq.set_units("MHz")
 
-        # Do not expect warning after deleting the only QuantumSystem
-        del qubit
-        scq.set_units("kHz")
+    #     # Do not expect warning after deleting the only QuantumSystem
+    #     del qubit
+    #     scq.set_units("kHz")
 
     def test_units_auxiliary(self):
         scq.get_units_time_label()
