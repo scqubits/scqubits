@@ -30,7 +30,6 @@ from scqubits.core.symbolic_circuit import Branch
 
 
 class NoisyCircuit(NoisySystem, ABC):
-
     def _evaluate_symbolic_expr(self, sym_expr):
         expr_dict = sym_expr.as_coefficients_dict()
         terms = list(expr_dict.keys())
@@ -123,9 +122,15 @@ class NoisyCircuit(NoisySystem, ABC):
                 return -self.junction_related_evaluation(branch, calc="dhdEJ")
 
             cc_1_over_f_methods[f"d_hamiltonian_d_EJ{branch.id_str}"] = param_derivative
-        noise_helper_methods = {**ext_flux_1_over_f_methods, **ng_1_over_f_methods, **cc_1_over_f_methods}
+        noise_helper_methods = {
+            **ext_flux_1_over_f_methods,
+            **ng_1_over_f_methods,
+            **cc_1_over_f_methods,
+        }
         for method_name in noise_helper_methods:
-            setattr(self, method_name, MethodType(noise_helper_methods[method_name], self))
+            setattr(
+                self, method_name, MethodType(noise_helper_methods[method_name], self)
+            )
         self._frozen = True
 
     def junction_related_evaluation(self, branch_junction: Branch, calc="dhdEJ"):
@@ -244,7 +249,11 @@ class NoisyCircuit(NoisySystem, ABC):
                     f"tphi_1_over_f_cc{trailing_number}"
                 ] = tphi_1_over_f_func
 
-        noise_methods = {**methods_noise_rates_from_flux, **methods_noise_rates_from_ng, **methods_noise_rates_from_cc}
+        noise_methods = {
+            **methods_noise_rates_from_flux,
+            **methods_noise_rates_from_ng,
+            **methods_noise_rates_from_cc,
+        }
         for method_name in noise_methods:
             setattr(self, method_name, MethodType(noise_methods[method_name], self))
 
@@ -367,9 +376,11 @@ class NoisyCircuit(NoisySystem, ABC):
             flux_bias_line_methods[
                 f"t1_flux_bias_line{trailing_number}"
             ] = flux_bias_noise
-        
+
         for method_name in flux_bias_line_methods:
-            setattr(self, method_name, MethodType(flux_bias_line_methods[method_name], self))
+            setattr(
+                self, method_name, MethodType(flux_bias_line_methods[method_name], self)
+            )
 
     def generate_t1_methods(self):
         t1_capacitive_methods = {}
@@ -433,7 +444,11 @@ class NoisyCircuit(NoisySystem, ABC):
             #         f"t1_quasiparticle_tunneling{branch.id_str}"
             #     ] = self.wrapper_t1_quasiparticle_tunneling(branch)
             # quasiparticle noise methods are not included yet
-        noise_methods = {**t1_capacitive_methods, **t1_inductive_methods, **t1_charge_impedance_methods}
+        noise_methods = {
+            **t1_capacitive_methods,
+            **t1_inductive_methods,
+            **t1_charge_impedance_methods,
+        }
         for method_name in noise_methods:
             setattr(self, method_name, MethodType(noise_methods[method_name], self))
         # self._data.update(t1_quasiparticle_tunneling_methods)
@@ -581,7 +596,12 @@ class NoisyCircuit(NoisySystem, ABC):
             if get_rate:
                 return total_rate
             return 1 / total_rate if total_rate != 0 else np.inf
-        setattr(self, "t1_quasiparticle_tunneling", MethodType(t1_quasiparticle_tunneling, self))
+
+        setattr(
+            self,
+            "t1_quasiparticle_tunneling",
+            MethodType(t1_quasiparticle_tunneling, self),
+        )
 
     def generate_overall_t1_inductive(self):
         def t1_method(
@@ -642,7 +662,6 @@ class NoisyCircuit(NoisySystem, ABC):
             return 1 / total_rate if total_rate != 0 else np.inf
 
         setattr(self, "t1_capacitive", MethodType(t1_method, self))
-        
 
     def generate_overall_t1_charge_impedance(self):
         def t1_method(
@@ -708,7 +727,6 @@ class NoisyCircuit(NoisySystem, ABC):
             return 1 / total_rate if total_rate != 0 else np.inf
 
         setattr(self, "t1_flux_bias_line", MethodType(t1_flux_bias_line, self))
-
 
     def generate_all_noise_methods(self):
         self.generate_methods_d_hamiltonian_d()

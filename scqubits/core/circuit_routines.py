@@ -43,7 +43,6 @@ import scqubits.core.storage as storage
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as utils
-from scqubits.utils.misc import check_sync_status_circuit
 from scqubits import get_units
 
 from scqubits import HilbertSpace, settings
@@ -64,7 +63,6 @@ from scqubits.core.circuit_utils import (
     _sin_dia_dense,
     _sin_phi,
     _sin_theta,
-    compose,
     get_operator_number,
     get_trailing_number,
     grid_operator_func_factory,
@@ -1254,7 +1252,7 @@ class CircuitRoutines(ABC):
                 )
         return junction_potential_matrix
 
-    def circuit_operator_functions(self) -> Dict[str, Callable]:
+    def _generate_operator_methods(self) -> Dict[str, Callable]:
         """
         Returns the set of operator functions to be turned into methods of the `Circuit`
         class.
@@ -1318,17 +1316,11 @@ class CircuitRoutines(ABC):
                 nonwrapped_ops["position"] = functools.partial(
                     op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2**0.5)
                 )
-                nonwrapped_ops["sin"] = compose(
-                    sp.linalg.sinm,
-                    functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
-                    ),
+                nonwrapped_ops["sin"] = functools.partial(
+                    op.sin_theta_harmonic, prefactor=osc_lengths[var_index] / (2**0.5)
                 )
-                nonwrapped_ops["cos"] = compose(
-                    sp.linalg.cosm,
-                    functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
-                    ),
+                nonwrapped_ops["cos"] = functools.partial(
+                    op.cos_theta_harmonic, prefactor=osc_lengths[var_index] / (2**0.5)
                 )
                 nonwrapped_ops["momentum"] = functools.partial(
                     op.iadag_minus_ia_sparse,
@@ -1407,11 +1399,11 @@ class CircuitRoutines(ABC):
             for subsys in self.subsystems:
                 subsys.operators_by_name = subsys.set_operators()
 
-        op_func_by_name = self.circuit_operator_functions()
+        op_func_by_name = self._generate_operator_methods()
         for op_name, op_func in op_func_by_name.items():
             setattr(self, op_name, MethodType(op_func, self))
 
-        return op_func_by_name
+        return {func_name: getattr(self, func_name) for func_name in op_func_by_name}
 
     def identity_wrap_for_hd(
         self,
@@ -1591,7 +1583,7 @@ class CircuitRoutines(ABC):
             H_string += term_string
 
         # replace all position, sin and cos operators with methods
-        H_string = re.sub(r"(?P<x>(θ\d)|(cosθ\d))", r"\g<x>_operator(self)", H_string)
+        H_string = re.sub(r"(?P<x>(θ\d)|(cosθ\d))", r"\g<x>_operator()", H_string)
 
         # replace all other operators with methods
         operator_symbols_list = flatten_list_recursive(
@@ -1606,7 +1598,7 @@ class CircuitRoutines(ABC):
         for operator_name in operator_name_list:
             if "θ" not in operator_name:
                 H_string = H_string.replace(
-                    operator_name, operator_name + "_operator(self)"
+                    operator_name, operator_name + "_operator()"
                 )
         return H_string
 
@@ -1820,11 +1812,16 @@ class CircuitRoutines(ABC):
             )
         return np.array(eigenvals), shift_operator @ np.array(eigen_vectors).T
 
-    @check_sync_status_circuit
     def hamiltonian(self) -> Union[csc_matrix, ndarray]:
         """
         Returns the Hamiltonian of the Circuit.
         """
+        # update the circuit if necessary
+        if (not hasattr(self, "parent") and self._user_changed_parameter) or (
+            self.hierarchical_diagonalization and self._out_of_sync
+        ):
+            self.update()
+
         if not self.hierarchical_diagonalization:
             if self.is_purely_harmonic:
                 return self._hamiltonian_for_harmonic_extended_vars()

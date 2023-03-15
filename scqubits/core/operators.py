@@ -164,6 +164,48 @@ def a_plus_adag(
     return a_plus_adag_sparse(dimension, prefactor=prefactor).toarray()
 
 
+def cos_theta_harmonic(
+    dimension: int, prefactor: Union[float, complex, None] = None
+) -> ndarray:
+    """Operator matrix for cos(prefactor(a+a^dag)) of size dimension x dimension in
+    sparse matrix representation.
+
+    Parameters
+    ----------
+    dimension:
+        matrix size
+    prefactor:
+        prefactor multiplying the number operator matrix
+        (if not given, this defaults to 1)
+
+    Returns
+    -------
+        prefactor (a + a^dag) as ndarray, size dimension x dimension
+    """
+    return sp.linalg.cosm(a_plus_adag_sparse(dimension, prefactor=prefactor).toarray())
+
+
+def sin_theta_harmonic(
+    dimension: int, prefactor: Union[float, complex, None] = None
+) -> ndarray:
+    """Operator matrix for sin(prefactor(a+a^dag)) of size dimension x dimension in
+    sparse matrix representation.
+
+    Parameters
+    ----------
+    dimension:
+        matrix size
+    prefactor:
+        prefactor multiplying the number operator matrix
+        (if not given, this defaults to 1)
+
+    Returns
+    -------
+        prefactor (a + a^dag) as ndarray, size dimension x dimension
+    """
+    return sp.linalg.sinm(a_plus_adag_sparse(dimension, prefactor=prefactor).toarray())
+
+
 def iadag_minus_ia_sparse(
     dimension: int, prefactor: Union[float, complex, None] = None
 ) -> csc_matrix:
