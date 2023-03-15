@@ -247,7 +247,6 @@ class Subsystem(
 
             self.generate_subsystems()
             self.update_interactions()
-            self.update_interactions()
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
