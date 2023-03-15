@@ -1499,17 +1499,21 @@ class CircuitRoutines(ABC):
         subsys_bare_esys = None
         if bare_esys and subsystem.hierarchical_diagonalization:
             if subsystem.affected_subsystem_indices != []:
-                subsystem.hilbert_space.generate_bare_esys(update_subsystem_indices=subsystem.affected_subsystem_indices)
+                subsystem.hilbert_space.generate_bare_esys(
+                    update_subsystem_indices=subsystem.affected_subsystem_indices
+                )
                 subsystem.affected_subsystem_indices = []
             subsys_bare_esys = {
-                    sys_index: (
-                        subsystem.hilbert_space["bare_evals"][sys_index][0],
-                        subsystem.hilbert_space["bare_evecs"][sys_index][0],
-                    )
-                    for sys_index, sys in enumerate(subsystem.hilbert_space.subsystem_list)
-                }
-            
-        operator = subsystem.get_operator_by_name(operator_name, power=power, bare_esys=subsys_bare_esys)
+                sys_index: (
+                    subsystem.hilbert_space["bare_evals"][sys_index][0],
+                    subsystem.hilbert_space["bare_evecs"][sys_index][0],
+                )
+                for sys_index, sys in enumerate(subsystem.hilbert_space.subsystem_list)
+            }
+
+        operator = subsystem.get_operator_by_name(
+            operator_name, power=power, bare_esys=subsys_bare_esys
+        )
 
         if isinstance(operator, qt.Qobj):
             operator = operator.data.tocsc()
