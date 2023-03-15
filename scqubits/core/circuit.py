@@ -45,8 +45,6 @@ from scqubits.utils.misc import (
     number_of_lists_in_list,
 )
 
-import dill
-
 from scqubits.core.circuit_routines import CircuitRoutines
 from scqubits.core.circuit_noise import NoisyCircuit
 
@@ -190,20 +188,6 @@ class Subsystem(
 
         self._configure()
         self._frozen = True
-
-    # def __deepcopy__(self, memo):
-    #     cls = self.__class__
-    #     result = cls.__new__(cls)
-    #     memo[id(self)] = result
-    #     for k, v in self.__dict__.items():
-    #         result._frozen = False
-    #         setattr(result, k, copy.deepcopy(v, memo))
-    #         result._frozen = True
-    #     return result
-    def __deepcopy__(self, memo):
-        pickle_dump = dill.dumps(self)
-        pickle_load = dill.loads(pickle_dump)
-        return pickle_load
 
     def _configure(self) -> None:
         """
@@ -349,21 +333,6 @@ class Circuit(
                 truncated_dim=truncated_dim,
                 ext_basis=ext_basis,
             )
-
-    # def __deepcopy__(self, memo):
-    #     cls = self.__class__
-    #     result = cls.__new__(cls)
-    #     memo[id(self)] = result
-    #     for k, v in self.__dict__.items():
-    #         result._frozen = False
-    #         setattr(result, k, copy.deepcopy(v, memo))
-    #         result._frozen = True
-    #     return result
-
-    def __deepcopy__(self, memo):
-        pickle_dump = dill.dumps(self)
-        pickle_load = dill.loads(pickle_dump)
-        return pickle_load
 
     def from_symbolic_hamiltonian(
         self,
