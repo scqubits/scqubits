@@ -77,7 +77,6 @@ class NoisyCircuit(NoisySystem, ABC):
         Generate methods which return the derivative of the Hamiltonian with respect to
         offset charges, external fluxes and junction energies.
         """
-        self._frozen = False
         hamiltonian, _ = self.generate_hamiltonian_sym_for_numerics(
             hamiltonian=self.hamiltonian_symbolic,
             shift_potential_to_origin=False,
@@ -131,7 +130,6 @@ class NoisyCircuit(NoisySystem, ABC):
             setattr(
                 self, method_name, MethodType(noise_helper_methods[method_name], self)
             )
-        self._frozen = True
 
     def junction_related_evaluation(self, branch_junction: Branch, calc="dhdEJ"):
         hamiltonian, _ = self.generate_hamiltonian_sym_for_numerics(
@@ -521,6 +519,8 @@ class NoisyCircuit(NoisySystem, ABC):
                 total: bool = True,
                 esys: Tuple[ndarray, ndarray] = None,
                 get_rate: bool = False,
+                branch_var_expr=branch_var_expr,
+                branch_param=branch_param,
             ) -> float:
                 return NoisySystem.t1_capacitive(
                     self=self,
@@ -546,6 +546,8 @@ class NoisyCircuit(NoisySystem, ABC):
                 total: bool = True,
                 esys: Tuple[ndarray, ndarray] = None,
                 get_rate: bool = False,
+                branch_var_expr=branch_var_expr,
+                branch_param=branch_param,
             ) -> float:
                 return NoisySystem.t1_inductive(
                     self=self,
@@ -729,6 +731,7 @@ class NoisyCircuit(NoisySystem, ABC):
         setattr(self, "t1_flux_bias_line", MethodType(t1_flux_bias_line, self))
 
     def generate_all_noise_methods(self):
+        self._frozen = False
         self.generate_methods_d_hamiltonian_d()
         self.generate_tphi_1_over_f_methods()
         self.generate_t1_flux_bias_line_methods()
@@ -743,3 +746,4 @@ class NoisyCircuit(NoisySystem, ABC):
         self.generate_overall_t1_flux_bias_line()
         self.generate_overall_t1_quasiparticle_tunneling()
         print("Supported noise channels:", self.supported_noise_channels())
+        self._frozen = True
