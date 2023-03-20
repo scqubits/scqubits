@@ -11,7 +11,7 @@
 ############################################################################
 
 import re
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union, Tuple, Optional
 
 import numpy as np
 import scipy as sp
@@ -356,9 +356,18 @@ def hierarchical_diagonalization_func_factory(symbol_name: str) -> Callable:
     return operator_func
 
 
-def operator_func_factory(inner_op: Callable, index: int) -> Callable:
-    def operator_func(self):
-        return self._kron_operator(inner_op(self.cutoffs_dict()[index]), index)
+def operator_func_factory(inner_op: Callable, index: int, op_type: Optional[str] = None) -> Callable:
+    def operator_func(self, op_type=op_type):
+        prefactor = None
+        if self.ext_basis == "harmonic":
+            if op_type in ["position", "sin", "cos"]:
+                prefactor = self.osc_lengths[index] / (2**0.5)
+            elif op_type == "momentum":
+                prefactor = 1 / (self.osc_lengths[index] * 2**0.5)
+        if prefactor:
+            return self._kron_operator(inner_op(self.cutoffs_dict()[index], prefactor=prefactor), index)
+        else:
+            return self._kron_operator(inner_op(self.cutoffs_dict()[index]), index)
 
     return operator_func
 

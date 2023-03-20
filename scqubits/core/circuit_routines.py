@@ -295,6 +295,10 @@ class CircuitRoutines(ABC):
             subsys_index = self.parent.subsystems.index(self)
             self.hamiltonian_symbolic = self.parent.subsystem_hamiltonians[subsys_index]
             self._configure()
+            
+        # if harmonic osc basis is used, set the oscillator parameters
+        if self.ext_basis == "harmonic":
+            self._set_harmonic_basis_osc_params()
 
         # update all subsystem instances
         if self.hierarchical_diagonalization:
@@ -1251,6 +1255,27 @@ class CircuitRoutines(ABC):
                     (cos_term_operator - cos_term_operator.dag()) * 0.5 * (-1j)
                 )
         return junction_potential_matrix
+    
+    def _set_harmonic_basis_osc_params(self):
+        osc_lengths = {}
+        osc_freqs = {}
+        hamiltonian = self._hamiltonian_sym_for_numerics
+        # substitute all the parameter values
+        hamiltonian = hamiltonian.subs(
+            [
+                (param, getattr(self, str(param)))
+                for param in list(self.symbolic_params.keys())
+                + self.external_fluxes
+                + self.offset_charges
+            ]
+        )
+        for list_idx, var_index in enumerate(self.var_categories["extended"]):
+            ECi = float(hamiltonian.coeff(f"Q{var_index}**2").cancel()) / 4
+            ELi = float(hamiltonian.coeff(f"θ{var_index}**2").cancel()) * 2
+            osc_freqs[var_index] = (8 * ELi * ECi) ** 0.5
+            osc_lengths[var_index] = (8.0 * ECi / ELi) ** 0.25
+        self.osc_lengths = osc_lengths
+        self.osc_freqs = osc_freqs
 
     def _generate_operator_methods(self) -> Dict[str, Callable]:
         """
@@ -1285,19 +1310,6 @@ class CircuitRoutines(ABC):
                         )
 
         else:  # expect that self.ext_basis is "harmonic":
-            hamiltonian = self._hamiltonian_sym_for_numerics
-            # substitute all the parameter values
-            hamiltonian = hamiltonian.subs(
-                [
-                    (param, getattr(self, str(param)))
-                    for param in list(self.symbolic_params.keys())
-                    + self.external_fluxes
-                    + self.offset_charges
-                ]
-            )
-
-            osc_lengths = {}
-            osc_freqs = {}
             nonwrapped_ops = {
                 "creation": op.creation_sparse,
                 "annihilation": op.annihilation_sparse,
@@ -1307,25 +1319,14 @@ class CircuitRoutines(ABC):
                 "cos": None,
                 "momentum": None,
             }
-
+            
+            self._set_harmonic_basis_osc_params()
             for list_idx, var_index in enumerate(self.var_categories["extended"]):
-                ECi = float(hamiltonian.coeff(f"Q{var_index}**2").cancel()) / 4
-                ELi = float(hamiltonian.coeff(f"θ{var_index}**2").cancel()) * 2
-                osc_freqs[var_index] = (8 * ELi * ECi) ** 0.5
-                osc_lengths[var_index] = (8.0 * ECi / ELi) ** 0.25
-                nonwrapped_ops["position"] = functools.partial(
-                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2**0.5)
-                )
-                nonwrapped_ops["sin"] = functools.partial(
-                    op.sin_theta_harmonic, prefactor=osc_lengths[var_index] / (2**0.5)
-                )
-                nonwrapped_ops["cos"] = functools.partial(
-                    op.cos_theta_harmonic, prefactor=osc_lengths[var_index] / (2**0.5)
-                )
-                nonwrapped_ops["momentum"] = functools.partial(
-                    op.iadag_minus_ia_sparse,
-                    prefactor=1 / (osc_lengths[var_index] * 2**0.5),
-                )
+                
+                nonwrapped_ops["position"] = op.a_plus_adag_sparse
+                nonwrapped_ops["sin"] = op.sin_theta_harmonic
+                nonwrapped_ops["cos"] = op.cos_theta_harmonic
+                nonwrapped_ops["momentum"] = op.iadag_minus_ia_sparse
 
                 for short_op_name in nonwrapped_ops.keys():
                     op_func = nonwrapped_ops[short_op_name]
@@ -1337,11 +1338,8 @@ class CircuitRoutines(ABC):
                         ] = hierarchical_diagonalization_func_factory(sym_variable.name)
                     else:
                         extended_operators[op_name] = operator_func_factory(
-                            op_func, var_index
+                            op_func, var_index, op_type=short_op_name
                         )
-
-            self.osc_lengths = osc_lengths
-            self.osc_freqs = osc_freqs
 
         # constructing the operators for periodic variables
         periodic_operators = {}
@@ -1875,7 +1873,7 @@ class CircuitRoutines(ABC):
                 return hamiltonian.data.tocsc()
 
     def hamiltonian_for_mesolve(
-        self, free_var_func_dict: Dict[str, Callable]
+        self, free_var_func_dict: Dict[str, Callable], prefactor:float = 1.0
     ) -> Tuple[List[Union[qt.Qobj, Tuple[qt.Qobj, Callable]]], sm.Expr, List[sm.Expr]]:
         """
         Returns the Hamiltonian in a format amenable to be forwarded to mesolve in
@@ -1972,7 +1970,7 @@ class CircuitRoutines(ABC):
                     )
 
                 operator_matrix = (
-                    self._evaluate_symbolic_expr(operator_expr) * expr_dict[term]
+                    self._evaluate_symbolic_expr(operator_expr) * expr_dict[term] * prefactor
                 )  # also multiplying the constant to the operator
                 if operator_matrix == 0:
                     continue
