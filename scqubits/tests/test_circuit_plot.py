@@ -28,7 +28,7 @@ circ.configure(
     system_hierarchy=system_hierarchy,
     subsystem_trunc_dims=[100, 30],
 )
-
+circ.update()
 
 def test_plot_wf():
     circ.plot_wavefunction(which=0, var_indices=(2, 3))
