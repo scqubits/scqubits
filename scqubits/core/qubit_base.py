@@ -512,12 +512,16 @@ class QubitBaseClass(QuantumSystem, ABC):
         self, paramval: float, param_name: str, evals_count: int
     ) -> Tuple[ndarray, ndarray]:
         setattr(self, param_name, paramval)
+        if hasattr(self, "hierarchical_diagonalization"):
+            self.update()
         return self.eigensys(evals_count=evals_count)
 
     def _evals_for_paramval(
         self, paramval: float, param_name: str, evals_count: int
     ) -> ndarray:
         setattr(self, param_name, paramval)
+        if hasattr(self, "hierarchical_diagonalization"):
+            self.update()
         return self.eigenvals(evals_count)
 
     def get_spectrum_vs_paramvals(
