@@ -152,6 +152,7 @@ class TestCircuit:
         DFC.cutoff_ext_2 = 110
         DFC.cutoff_ext_3 = 110
         DFC.cutoff_ext_4 = 110
+        DFC.update()
 
         eigs = DFC.eigenvals()
         generated_eigs = eigs - eigs[0]
@@ -187,6 +188,7 @@ class TestCircuit:
         DFC.cutoff_ext_2 = 110
         DFC.cutoff_ext_3 = 110
         DFC.cutoff_ext_4 = 110
+        DFC.update()
 
         eigs = DFC.eigenvals()
         generated_eigs = eigs - eigs[0]
@@ -249,6 +251,7 @@ class TestCircuit:
         DFC.cutoff_ext_2 = 110
         DFC.cutoff_ext_3 = 110
         DFC.cutoff_ext_4 = 110
+        DFC.update()
         DFC.get_spectrum_vs_paramvals("Φ1", np.linspace(0, 1, 11), num_cpus=num_cpus)
 
         paramvals_by_name = {
