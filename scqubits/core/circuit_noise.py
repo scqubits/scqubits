@@ -441,7 +441,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
         return t1_quasiparticle_tunneling
 
-    def wrapper_t1_charge_impedance(self, branch_var_expr: sm.Expr):
+    def wrapper_t1_charge_impedance(self, branch: Branch):
         def t1_charge_impedance(
             self=self,
             i: int = 1,
@@ -451,6 +451,7 @@ class NoisyCircuit(NoisySystem, ABC):
             total: bool = True,
             esys: Tuple[ndarray, ndarray] = None,
             get_rate: bool = False,
+            branch = branch
         ) -> float:
             if branch.type == "L":
                 var_str = "θ"
