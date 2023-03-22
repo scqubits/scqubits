@@ -482,7 +482,6 @@ class CircuitRoutines(ABC):
         """
         self._perform_internal_updates()
         self._set_sync_status_to_True()
-        self._user_changed_parameter = False
 
     def _perform_internal_updates(self):
         # if purely harmonic the circuit attributes should change
@@ -499,6 +498,7 @@ class CircuitRoutines(ABC):
                 self.affected_subsystem_indices = list(range(len(self.subsystems)))
 
             self.operators_by_name = self.set_operators()
+            self._user_changed_parameter = False
 
         if self.hierarchical_diagonalization:
             for subsys_index in self.affected_subsystem_indices:
