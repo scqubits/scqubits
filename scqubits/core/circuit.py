@@ -669,39 +669,6 @@ class Circuit(
                 ):
                     delattr(self, attrib)
 
-    def update(self):
-        """
-        Syncs all the parameters of the subsystems with the current Circuit instance.
-        """
-        if not self._out_of_sync and not self._user_changed_parameter:
-            return None
-
-        self._perform_internal_updates()
-        self._set_sync_status_to_True()
-        self._user_changed_parameter = False
-
-    def _perform_internal_updates(self):
-        # if purely harmonic the circuit attributes should change
-        if self._user_changed_parameter:
-            self._regenerate_sym_hamiltonian()
-            if self.is_purely_harmonic and isinstance(self, Circuit):
-                self.potential_symbolic = self.symbolic_circuit.potential_symbolic
-                self.transformation_matrix = self.symbolic_circuit.transformation_matrix
-                self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
-
-            if self.hierarchical_diagonalization:
-                self.generate_subsystems()
-                self.affected_subsystem_indices = list(range(len(self.subsystems)))
-
-            self.operators_by_name = self.set_operators()
-
-        if self.hierarchical_diagonalization:
-            for subsys_index in self.affected_subsystem_indices:
-                self.subsystems[subsys_index].sync_parameters_with_parent()
-                if self.subsystems[subsys_index].hierarchical_diagonalization:
-                    self.subsystems[subsys_index].update_interactions()
-            self.update_interactions()
-
     def configure(
         self,
         transformation_matrix: ndarray = None,

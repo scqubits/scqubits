@@ -74,6 +74,7 @@ from scqubits.core.circuit_utils import (
 from scqubits.utils.misc import (
     flatten_list_recursive,
     list_intersection,
+    check_sync_status_circuit
 )
 from scqubits.utils.plot_utils import _process_options
 from scqubits.utils.spectrum_utils import (
@@ -474,7 +475,48 @@ class CircuitRoutines(ABC):
             raise Exception(f"The subsystem provided to {self} has no subsystems.")
         if index not in self.affected_subsystem_indices:
             self.affected_subsystem_indices.append(index)
+            
+    def update(self):
+        """
+        Syncs all the parameters of the subsystems with the current instance.
+        """
+        self._perform_internal_updates()
+        self._set_sync_status_to_True()
+        self._user_changed_parameter = False
 
+    def _perform_internal_updates(self):
+        # if purely harmonic the circuit attributes should change
+        if isinstance(self, circuit.Circuit) and self._user_changed_parameter:
+            self._regenerate_sym_hamiltonian()
+            if self.is_purely_harmonic:
+                self.potential_symbolic = self.symbolic_circuit.potential_symbolic
+                self.transformation_matrix = self.symbolic_circuit.transformation_matrix
+                self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
+
+            if self.hierarchical_diagonalization:
+                self.generate_subsystems()
+                self.update_interactions()
+                self.affected_subsystem_indices = list(range(len(self.subsystems)))
+
+            self.operators_by_name = self.set_operators()
+
+        if self.hierarchical_diagonalization:
+            for subsys_index in self.affected_subsystem_indices:
+                if self._out_of_sync:
+                    self.subsystems[subsys_index].sync_parameters_with_parent()
+                if self.subsystems[subsys_index].hierarchical_diagonalization:
+                   self.subsystems[subsys_index].update()
+            self._update_bare_esys()
+
+    def _update_bare_esys(self):
+        if not self.hierarchical_diagonalization:
+            raise Exception("Hierarchical diagonalization is not used in the current instance of Subsystem/Circuit.")
+        _ = self.hilbert_space.generate_bare_esys(
+            update_subsystem_indices=self.affected_subsystem_indices
+        )
+        self._out_of_sync = False
+        self.hilbert_space._out_of_sync = False
+        self.affected_subsystem_indices = []
     # *****************************************************************
     # **** Functions to construct the operators for the Hamiltonian ****
     # *****************************************************************
@@ -724,7 +766,6 @@ class CircuitRoutines(ABC):
                     ),
                     check_validity=False,
                 )
-        self.hilbert_space._out_of_sync = False
 
     def _evaluate_symbolic_expr(self, sym_expr, bare_esys=None) -> qt.Qobj:
         # substitute circuit parameters
@@ -1852,13 +1893,6 @@ class CircuitRoutines(ABC):
                 return self._hamiltonian_for_discretized_extended_vars()
 
         else:
-            _ = self.hilbert_space.generate_bare_esys(
-                update_subsystem_indices=self.affected_subsystem_indices
-            )
-            self._out_of_sync = False
-            self.hilbert_space._out_of_sync = False
-            self.affected_subsystem_indices = []
-
             bare_esys = {
                 sys_index: (
                     self.hilbert_space["bare_evals"][sys_index][0],
