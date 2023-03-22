@@ -77,28 +77,26 @@ class NoisyCircuit(NoisySystem, ABC):
         Generate methods which return the derivative of the Hamiltonian with respect to
         offset charges, external fluxes and junction energies.
         """
-        hamiltonian, _ = self.generate_hamiltonian_sym_for_numerics(
-            hamiltonian=self.hamiltonian_symbolic,
-            shift_potential_to_origin=False,
-            return_exprs=True,
-        )
-        hamiltonian = hamiltonian.subs("I", 1)
+
         ext_flux_1_over_f_methods = {}
         ng_1_over_f_methods = {}
         cc_1_over_f_methods = {}
-        all_sym_parameters = (
-            list(self.symbolic_params.keys())
-            + self.external_fluxes
-            + self.offset_charges
-        )
-        for param_sym in self.external_fluxes + self.offset_charges:
-            diff_sym_expr = hamiltonian.diff(param_sym)
 
-            def param_derivative(
-                self=self,
-                diff_sym_expr=diff_sym_expr,
-                all_sym_parameters=all_sym_parameters,
-            ):
+        for param_sym in self.external_fluxes + self.offset_charges:
+
+            def param_derivative(self=self, param_sym=param_sym):
+                hamiltonian, _ = self.generate_hamiltonian_sym_for_numerics(
+                    hamiltonian=self.hamiltonian_symbolic,
+                    shift_potential_to_origin=False,
+                    return_exprs=True,
+                )
+                hamiltonian = hamiltonian.subs("I", 1)
+                all_sym_parameters = (
+                    list(self.symbolic_params.keys())
+                    + self.external_fluxes
+                    + self.offset_charges
+                )
+                diff_sym_expr = hamiltonian.diff(param_sym)
                 # substitute all symbolic params
                 for param in all_sym_parameters:
                     diff_sym_expr = diff_sym_expr.subs(param, getattr(self, param.name))
@@ -387,55 +385,18 @@ class NoisyCircuit(NoisySystem, ABC):
         t1_quasiparticle_tunneling_methods = {}
 
         for branch in self.branches:
-            if branch.type == "L":
-                var_str = "θ"
-            else:
-                var_str = "Q"
-
-            branch_var_expr_node = sm.symbols(f"φ{branch.nodes[0].index}") - sm.symbols(
-                f"φ{branch.nodes[1].index}"
-            )
-            branch_var_expr_node = branch_var_expr_node.subs(
-                "φ0", 0
-            )  # substituting node flux of ground to zero
-            branch_var_expr = self._transform_expr_to_new_variables(
-                branch_var_expr_node, substitute_symbol=var_str
-            )
-            # changing charge variables if necessary
-            if var_str == "Q":
-                for var_sym in branch_var_expr.free_symbols:
-                    var_index = get_trailing_number(var_sym.name)
-                    if var_index in self.var_categories["periodic"]:
-                        branch_var_expr = branch_var_expr.subs(
-                            var_sym, sm.symbols(f"n{var_index}")
-                        )
-
-            if branch.type != "L":
-                branch_param = (
-                    branch.parameters["EC"]
-                    if branch.type == "C"
-                    else branch.parameters["ECJ"]
-                )
-            else:
-                branch_param = branch.parameters["EL"]
-            if isinstance(branch_param, sm.Expr):
-                branch_param = getattr(self, branch_param.name)
 
             if branch.type == "L":
                 t1_inductive_methods[
                     f"t1_inductive{branch.id_str}"
-                ] = self.wrapper_t1_inductive_capacitive(
-                    "inductive", branch_var_expr, branch_param
-                )
+                ] = self.wrapper_t1_inductive_capacitive(branch)
             else:
                 t1_capacitive_methods[
                     f"t1_capacitive{branch.id_str}"
-                ] = self.wrapper_t1_inductive_capacitive(
-                    "capacitive", branch_var_expr, branch_param
-                )
+                ] = self.wrapper_t1_inductive_capacitive(branch)
                 t1_charge_impedance_methods[
                     f"t1_charge_impedance{branch.id_str}"
-                ] = self.wrapper_t1_charge_impedance(branch_var_expr)
+                ] = self.wrapper_t1_charge_impedance(branch)
             # # quasiparticle noise
             # if branch.type == "JJ":
             #     t1_quasiparticle_tunneling_methods[
@@ -491,6 +452,40 @@ class NoisyCircuit(NoisySystem, ABC):
             esys: Tuple[ndarray, ndarray] = None,
             get_rate: bool = False,
         ) -> float:
+            if branch.type == "L":
+                var_str = "θ"
+            else:
+                var_str = "Q"
+
+            branch_var_expr_node = sm.symbols(f"φ{branch.nodes[0].index}") - sm.symbols(
+                f"φ{branch.nodes[1].index}"
+            )
+            branch_var_expr_node = branch_var_expr_node.subs(
+                "φ0", 0
+            )  # substituting node flux of ground to zero
+            branch_var_expr = self._transform_expr_to_new_variables(
+                branch_var_expr_node, substitute_symbol=var_str
+            )
+            # changing charge variables if necessary
+            if var_str == "Q":
+                for var_sym in branch_var_expr.free_symbols:
+                    var_index = get_trailing_number(var_sym.name)
+                    if var_index in self.var_categories["periodic"]:
+                        branch_var_expr = branch_var_expr.subs(
+                            var_sym, sm.symbols(f"n{var_index}")
+                        )
+
+            if branch.type != "L":
+                branch_param = (
+                    branch.parameters["EC"]
+                    if branch.type == "C"
+                    else branch.parameters["ECJ"]
+                )
+            else:
+                branch_param = branch.parameters["EL"]
+            if isinstance(branch_param, sm.Expr):
+                branch_param = getattr(self, branch_param.name)
+                
             return NoisySystem.t1_charge_impedance(
                 self=self,
                 i=i,
@@ -506,10 +501,10 @@ class NoisyCircuit(NoisySystem, ABC):
         return t1_charge_impedance
 
     def wrapper_t1_inductive_capacitive(
-        self, noise_type: str, branch_var_expr: sm.Expr, branch_param: Union[int, float]
+        self,
+        branch: Branch,
     ):
-        if noise_type == "capacitive":
-
+        if branch.type != "L":
             def t1_method(
                 self=self,
                 i: int = 1,
@@ -519,9 +514,34 @@ class NoisyCircuit(NoisySystem, ABC):
                 total: bool = True,
                 esys: Tuple[ndarray, ndarray] = None,
                 get_rate: bool = False,
-                branch_var_expr=branch_var_expr,
-                branch_param=branch_param,
+                branch: Branch=branch,
             ) -> float:
+
+                branch_var_expr_node = sm.symbols(f"φ{branch.nodes[0].index}") - sm.symbols(
+                    f"φ{branch.nodes[1].index}"
+                )
+                branch_var_expr_node = branch_var_expr_node.subs(
+                    "φ0", 0
+                )  # substituting node flux of ground to zero
+                branch_var_expr = self._transform_expr_to_new_variables(
+                    branch_var_expr_node, substitute_symbol="Q"
+                )
+                # changing charge variables if necessary
+                for var_sym in branch_var_expr.free_symbols:
+                    var_index = get_trailing_number(var_sym.name)
+                    if var_index in self.var_categories["periodic"]:
+                        branch_var_expr = branch_var_expr.subs(
+                            var_sym, sm.symbols(f"n{var_index}")
+                        )
+
+                branch_param = (
+                    branch.parameters["EC"]
+                    if branch.type == "C"
+                    else branch.parameters["ECJ"]
+                )
+                if isinstance(branch_param, sm.Expr):
+                    branch_param = getattr(self, branch_param.name)
+
                 return NoisySystem.t1_capacitive(
                     self=self,
                     i=i,
@@ -534,33 +554,44 @@ class NoisyCircuit(NoisySystem, ABC):
                     noise_op=self._evaluate_symbolic_expr(branch_var_expr),
                     branch_params=branch_param,
                 )
-
-        elif noise_type == "inductive":
-
+        else:    
             def t1_method(
-                self=self,
-                i: int = 1,
-                j: int = 0,
-                Q_ind: Union[float, Callable] = None,
-                T: float = NOISE_PARAMS["T"],
-                total: bool = True,
-                esys: Tuple[ndarray, ndarray] = None,
-                get_rate: bool = False,
-                branch_var_expr=branch_var_expr,
-                branch_param=branch_param,
-            ) -> float:
-                return NoisySystem.t1_inductive(
                     self=self,
-                    i=i,
-                    j=j,
-                    Q_ind=Q_ind,
-                    T=T,
-                    total=total,
-                    esys=esys,
-                    get_rate=get_rate,
-                    noise_op=self._evaluate_symbolic_expr(branch_var_expr),
-                    branch_params=branch_param,
-                )
+                    i: int = 1,
+                    j: int = 0,
+                    Q_ind: Union[float, Callable] = None,
+                    T: float = NOISE_PARAMS["T"],
+                    total: bool = True,
+                    esys: Tuple[ndarray, ndarray] = None,
+                    get_rate: bool = False,
+                    branch: Branch=branch,
+                ) -> float:
+                    branch_var_expr_node = sm.symbols(f"φ{branch.nodes[0].index}") - sm.symbols(
+                        f"φ{branch.nodes[1].index}"
+                    )
+                    branch_var_expr_node = branch_var_expr_node.subs(
+                        "φ0", 0
+                    )  # substituting node flux of ground to zero
+                    branch_var_expr = self._transform_expr_to_new_variables(
+                        branch_var_expr_node, substitute_symbol="θ"
+                    )
+                    branch_param = branch.parameters["EL"]
+                    if isinstance(branch_param, sm.Expr):
+                        branch_param = getattr(self, branch_param.name)
+                        
+                    return NoisySystem.t1_inductive(
+                        self=self,
+                        i=i,
+                        j=j,
+                        Q_ind=Q_ind,
+                        T=T,
+                        total=total,
+                        esys=esys,
+                        get_rate=get_rate,
+                        noise_op=self._evaluate_symbolic_expr(branch_var_expr),
+                        branch_params=branch_param,
+                    )
+
 
         return t1_method
 
