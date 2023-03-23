@@ -559,7 +559,7 @@ class HilbertSpaceUi:
                     scqubits.InteractionTerm(
                         g_strength=interaction_term["g_strength"].num_value,
                         operator_list=operator_list,
-                        add_hc=(interaction_term["add_hc"] == "True"),
+                        add_hc=(interaction_term["add_hc"].v_model == "True"),
                     )
                 )
             else:  # current interaction type is 'InteractionTermStr'
@@ -570,7 +570,7 @@ class HilbertSpaceUi:
                             (subsys1_index, "op1", op1),
                             (subsys2_index, "op2", op2),
                         ],
-                        add_hc=(interaction_term["add_hc"] == "True"),
+                        add_hc=(interaction_term["add_hc"].v_model == "True"),
                     )
                 )
         return interaction_list
