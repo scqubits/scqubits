@@ -574,7 +574,7 @@ def matelem_vs_paramvals(
     else:
         index_pairs = select_elems
 
-    for (row, col) in index_pairs:
+    for row, col in index_pairs:
         y_vals = modefunction(specdata.matrixelem_table[:, row, col])
         axes.plot(
             x_vals,

@@ -26,9 +26,7 @@ from matplotlib import get_backend as get_matplotlib_backend
 from matplotlib.figure import Axes, Figure
 
 from scqubits.core.discretization import Grid1d
-from scqubits.core.flux_qubit import FluxQubit
-from scqubits.core.zeropi import ZeroPi
-from scqubits.core.zeropi_full import FullZeroPi
+
 
 try:
     from ipywidgets import (
@@ -345,7 +343,6 @@ class GUI:
                 options=range(0, 10),
                 value=[0, 1, 2, 3, 4],
                 description="States",
-                continuous_update=False,
                 layout=std_layout,
             )
             self.qubit_plot_options_widgets["wavefunction_scale_slider"] = FloatSlider(

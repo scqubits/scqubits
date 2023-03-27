@@ -15,6 +15,7 @@ import numpy as np
 import pytest
 
 import scqubits as scq
+import qutip as qt
 
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.utils.spectrum_utils import get_matrixelement_table
@@ -383,3 +384,90 @@ class TestHilbertSpace:
     @staticmethod
     def test_HilbertSpace_GUI():
         hilbertspace_new = scq.HilbertSpace.create()
+
+    def test_HilbertSpace_op_in_dressed_basis(self):
+        E_osc_a = 4.0
+        E_osc_b = 3.2
+        g = 0.01
+        Delta = E_osc_a - E_osc_b
+        truncated_dim = 4
+        theta = 0.5 * np.arctan(2 * g / Delta)
+        osc_a = scq.Oscillator(E_osc=E_osc_a, truncated_dim=truncated_dim)
+        osc_b = scq.Oscillator(E_osc=E_osc_b, truncated_dim=truncated_dim)
+        hilbert_space = scq.HilbertSpace([osc_a, osc_b])
+        hilbert_space.add_interaction(
+            g=g,
+            op1=osc_a.creation_operator,
+            op2=osc_b.annihilation_operator,
+            add_hc=True,
+        )
+        hilbert_space.generate_lookup()
+        hilbert_space.standardize_eigenvector_phases()
+        # analytic answer for the dressed operator based on a Bogoliubov transformation
+        a_id_wrap = scq.utils.spectrum_utils.identity_wrap(
+            osc_a.annihilation_operator(), osc_a, hilbert_space.subsystem_list
+        )
+        b_id_wrap = scq.utils.spectrum_utils.identity_wrap(
+            osc_b.annihilation_operator(), osc_b, hilbert_space.subsystem_list
+        )
+        analytic_op = np.cos(theta) * a_id_wrap - np.sin(theta) * b_id_wrap
+        # need to order this operator according to the dressed indices for later
+        # comparison with operators expressed in the dressed basis
+        ordered_bare_indices = [
+            hilbert_space.bare_index(idx) for idx in range(truncated_dim**2)
+        ]
+        ordered_basis_states = [
+            qt.tensor(qt.basis(truncated_dim, idx_a), qt.basis(truncated_dim, idx_b))
+            for (idx_a, idx_b) in ordered_bare_indices
+        ]
+        # consider only matrix elements unaffected by the truncation level
+        analytic_op_ordered = qt.Qobj(
+            analytic_op.transform(ordered_basis_states)[0:10, 0:10]
+        )
+        op1 = qt.Qobj(
+            hilbert_space.op_in_dressed_eigenbasis(op=osc_a.annihilation_operator)[
+                0:10, 0:10
+            ]
+        )
+        op2 = qt.Qobj(
+            hilbert_space.op_in_dressed_eigenbasis(
+                op=(osc_a.annihilation_operator(), osc_a)
+            )[0:10, 0:10]
+        )
+        op3 = qt.Qobj(
+            hilbert_space.op_in_dressed_eigenbasis(
+                op=(osc_a.annihilation_operator(), osc_a), op_in_bare_eigenbasis=True
+            )[0:10, 0:10]
+        )
+        op4 = qt.Qobj(
+            hilbert_space.op_in_dressed_eigenbasis(
+                op=(osc_a.annihilation_operator(), osc_a), op_in_bare_eigenbasis=False
+            )[0:10, 0:10]
+        )
+        assert analytic_op_ordered == op1
+        assert analytic_op_ordered == op2
+        assert analytic_op_ordered == op3
+        assert analytic_op_ordered == op4
+
+    def test_HilbertSpace_op_in_dressed_basis_native_vs_bare_basis(self):
+        E_osc = 4.0
+        g = 0.01
+        truncated_dim = 4
+        tmon = scq.Transmon(
+            EJ=10.0, EC=0.2, ng=0.0, ncut=15, truncated_dim=truncated_dim
+        )
+        osc = scq.Oscillator(E_osc=E_osc, truncated_dim=truncated_dim)
+        hilbert_space = scq.HilbertSpace([tmon, osc])
+        hilbert_space.add_interaction(
+            g=g,
+            op1=tmon.n_operator,
+            op2=osc.annihilation_operator,
+            add_hc=True,
+        )
+        hilbert_space.generate_lookup()
+        op1 = hilbert_space.op_in_dressed_eigenbasis(op=tmon.n_operator)
+        n_op_bare_eigenbasis_v2 = tmon.n_operator(energy_esys=True)
+        op2 = hilbert_space.op_in_dressed_eigenbasis(
+            op=(n_op_bare_eigenbasis_v2, tmon), op_in_bare_eigenbasis=True
+        )
+        assert op1 == op2

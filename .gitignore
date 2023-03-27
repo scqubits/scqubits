@@ -1,5 +1,6 @@
 .DS_Store
 .idea/
+.asv/
 
 # Byte compiled
 ./scqubits/io_utils/__pycache__
@@ -36,3 +37,4 @@ scqubits/ui/test.ipynb
 scqubits/ui/.ipynb_checkpoints/test-checkpoint.ipynb
 scqubits/.vscode/settings.json
 *.ipynb
+/.asv/
