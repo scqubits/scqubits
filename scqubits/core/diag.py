@@ -19,7 +19,6 @@ import scqubits.settings as settings
 
 from scqubits.utils.spectrum_utils import order_eigensystem, has_degeneracy
 
-
 def _setup_default_options(
     options: Dict[str, Any],
     defaults: Dict[str, Any],
@@ -52,15 +51,18 @@ def _setup_default_options(
 
 
 def _convert_evecs_to_qobjs(evecs, qobj):
-
+    """
+    Converts an ndarray containing eigenvectors (that would be typically returned from a diagonalization routine)
+    to a numpy array of qutip's Qobjs.
+    """
     evecs_count = evecs.shape[1]
-    ekets = np.empty((evecs_count,), dtype=object)
-    ekets[:] = [
+    evecs_qobj = np.empty((evecs_count,), dtype=object)
+    evecs_qobj[:] = [
         Qobj(evecs[:, i], dims=[qobj.dims[0], [1] * len(qobj.dims[0])], type="ket")
         for i in range(evecs_count)
     ]
-    norms = np.array([ket.norm() for ket in ekets])
-    return ekets / norms
+    norms = np.array([evec.norm() for evec in evecs_qobj])
+    return evecs_qobj / norms
 
 
 def scipy_dense_evals(matrix, evals_count=6, **kwargs):
@@ -284,12 +286,65 @@ def cupy_sparse_esys(matrix, evals_count=6, **kwargs):
     return evals, evecs
 
 
+def primme_sparse_esys(matrix, evals_count=6, **kwargs):
+    """
+    Diagonalization based on primme's (sparse) eighs function.
+    Both evals and evecs are returned.
+    """
+    try:
+        import primme
+    except:
+        raise ImportError("Module primme is not installed.")
+
+    m = matrix.data if isinstance(matrix, Qobj) else matrix
+
+    options = _setup_default_options(
+        kwargs,
+        dict(
+            which="SA",
+            return_eigenvectors=True,
+        ),
+    )
+    evals, evecs = primme.eigsh(m, k=evals_count, **options)
+
+    evecs = (
+        _convert_evecs_to_qobjs(evecs, matrix) if isinstance(matrix, Qobj) else evecs
+    )
+
+    return evals, evecs
+
+
+def primme_sparse_evals(matrix, evals_count=6, **kwargs):
+    """
+    Diagonalization based on primme's (sparse) eighs function.
+    Only the evals are returned.
+    """
+    try:
+        import primme
+    except:
+        raise ImportError("Module primme is not installed.")
+
+    m = matrix.data if isinstance(matrix, Qobj) else matrix
+
+    options = _setup_default_options(
+        kwargs,
+        dict(
+            which="SA",
+            return_eigenvectors=False,
+        ),
+    )
+    evals = primme.eigsh(m, k=evals_count, **options)
+
+    return evals
+
 # Default values of various noise constants and parameters.
 DIAG_METHODS = {
     "scipy_dense_evals": scipy_dense_evals,
     "scipy_dense_esys": scipy_dense_esys,
     "scipy_sparse_evals": scipy_sparse_evals,
     "scipy_sparse_esys": scipy_sparse_esys,
+    "primme_sparse_evals": primme_sparse_evals,
+    "primme_sparse_esys": primme_sparse_esys,
     "cupy_dense_evals": cupy_dense_evals,
     "cupy_dense_esys": cupy_dense_esys,
     "cupy_sparse_evals": cupy_sparse_evals,
