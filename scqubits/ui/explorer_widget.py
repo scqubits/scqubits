@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep
 
 try:
-    from IPython.display import display
+    from IPython.display import display, HTML, notebook
 except ImportError:
     _HAS_IPYTHON = False
 else:
@@ -250,7 +250,7 @@ class Explorer:
             label="Subsystem",
             filled=True,
             outlined=True,
-            height=40,
+            height=40
         )
         self.ui["subsys_dropdown"].observe(self.on_subsys_change, names="v_model")
 
