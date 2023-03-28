@@ -385,7 +385,6 @@ class NoisyCircuit(NoisySystem, ABC):
         t1_quasiparticle_tunneling_methods = {}
 
         for branch in self.branches:
-
             if branch.type == "L":
                 t1_inductive_methods[
                     f"t1_inductive{branch.id_str}"
@@ -451,7 +450,7 @@ class NoisyCircuit(NoisySystem, ABC):
             total: bool = True,
             esys: Tuple[ndarray, ndarray] = None,
             get_rate: bool = False,
-            branch = branch
+            branch=branch,
         ) -> float:
             if branch.type == "L":
                 var_str = "θ"
@@ -486,7 +485,7 @@ class NoisyCircuit(NoisySystem, ABC):
                 branch_param = branch.parameters["EL"]
             if isinstance(branch_param, sm.Expr):
                 branch_param = getattr(self, branch_param.name)
-                
+
             return NoisySystem.t1_charge_impedance(
                 self=self,
                 i=i,
@@ -506,6 +505,7 @@ class NoisyCircuit(NoisySystem, ABC):
         branch: Branch,
     ):
         if branch.type != "L":
+
             def t1_method(
                 self=self,
                 i: int = 1,
@@ -515,12 +515,11 @@ class NoisyCircuit(NoisySystem, ABC):
                 total: bool = True,
                 esys: Tuple[ndarray, ndarray] = None,
                 get_rate: bool = False,
-                branch: Branch=branch,
+                branch: Branch = branch,
             ) -> float:
-
-                branch_var_expr_node = sm.symbols(f"φ{branch.nodes[0].index}") - sm.symbols(
-                    f"φ{branch.nodes[1].index}"
-                )
+                branch_var_expr_node = sm.symbols(
+                    f"φ{branch.nodes[0].index}"
+                ) - sm.symbols(f"φ{branch.nodes[1].index}")
                 branch_var_expr_node = branch_var_expr_node.subs(
                     "φ0", 0
                 )  # substituting node flux of ground to zero
@@ -555,44 +554,45 @@ class NoisyCircuit(NoisySystem, ABC):
                     noise_op=self._evaluate_symbolic_expr(branch_var_expr),
                     branch_params=branch_param,
                 )
-        else:    
-            def t1_method(
-                    self=self,
-                    i: int = 1,
-                    j: int = 0,
-                    Q_ind: Union[float, Callable] = None,
-                    T: float = NOISE_PARAMS["T"],
-                    total: bool = True,
-                    esys: Tuple[ndarray, ndarray] = None,
-                    get_rate: bool = False,
-                    branch: Branch=branch,
-                ) -> float:
-                    branch_var_expr_node = sm.symbols(f"φ{branch.nodes[0].index}") - sm.symbols(
-                        f"φ{branch.nodes[1].index}"
-                    )
-                    branch_var_expr_node = branch_var_expr_node.subs(
-                        "φ0", 0
-                    )  # substituting node flux of ground to zero
-                    branch_var_expr = self._transform_expr_to_new_variables(
-                        branch_var_expr_node, substitute_symbol="θ"
-                    )
-                    branch_param = branch.parameters["EL"]
-                    if isinstance(branch_param, sm.Expr):
-                        branch_param = getattr(self, branch_param.name)
-                        
-                    return NoisySystem.t1_inductive(
-                        self=self,
-                        i=i,
-                        j=j,
-                        Q_ind=Q_ind,
-                        T=T,
-                        total=total,
-                        esys=esys,
-                        get_rate=get_rate,
-                        noise_op=self._evaluate_symbolic_expr(branch_var_expr),
-                        branch_params=branch_param,
-                    )
 
+        else:
+
+            def t1_method(
+                self=self,
+                i: int = 1,
+                j: int = 0,
+                Q_ind: Union[float, Callable] = None,
+                T: float = NOISE_PARAMS["T"],
+                total: bool = True,
+                esys: Tuple[ndarray, ndarray] = None,
+                get_rate: bool = False,
+                branch: Branch = branch,
+            ) -> float:
+                branch_var_expr_node = sm.symbols(
+                    f"φ{branch.nodes[0].index}"
+                ) - sm.symbols(f"φ{branch.nodes[1].index}")
+                branch_var_expr_node = branch_var_expr_node.subs(
+                    "φ0", 0
+                )  # substituting node flux of ground to zero
+                branch_var_expr = self._transform_expr_to_new_variables(
+                    branch_var_expr_node, substitute_symbol="θ"
+                )
+                branch_param = branch.parameters["EL"]
+                if isinstance(branch_param, sm.Expr):
+                    branch_param = getattr(self, branch_param.name)
+
+                return NoisySystem.t1_inductive(
+                    self=self,
+                    i=i,
+                    j=j,
+                    Q_ind=Q_ind,
+                    T=T,
+                    total=total,
+                    esys=esys,
+                    get_rate=get_rate,
+                    noise_op=self._evaluate_symbolic_expr(branch_var_expr),
+                    branch_params=branch_param,
+                )
 
         return t1_method
 

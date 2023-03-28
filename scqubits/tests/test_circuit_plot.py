@@ -30,6 +30,7 @@ circ.configure(
 )
 circ.update()
 
+
 def test_plot_wf():
     circ.plot_wavefunction(which=0, var_indices=(2, 3))
 

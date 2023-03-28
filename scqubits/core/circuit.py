@@ -76,7 +76,6 @@ class Subsystem(
         sets the truncated dimension for the current subsystem, set to 10 by default.
     """
 
-
     def __init__(
         self,
         parent: "Subsystem",
@@ -310,7 +309,6 @@ class Circuit(
         symbolic_param_dict: Dict[str, float] = None,
         symbolic_hamiltonian: sm.Expr = None,
     ):
-
         # switch used in protecting the class from erroneous addition of new attributes
         object.__setattr__(self, "_frozen", False)
 

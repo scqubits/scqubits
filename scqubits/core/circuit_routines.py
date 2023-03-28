@@ -74,7 +74,7 @@ from scqubits.core.circuit_utils import (
 from scqubits.utils.misc import (
     flatten_list_recursive,
     list_intersection,
-    check_sync_status_circuit
+    check_sync_status_circuit,
 )
 from scqubits.utils.plot_utils import _process_options
 from scqubits.utils.spectrum_utils import (
@@ -196,7 +196,9 @@ class CircuitRoutines(ABC):
         pickled_properties = {
             property_name: property_obj
             for property_name, property_obj in self.__class__.__dict__.items()
-            if isinstance(property_obj, (property, descriptors.WatchedProperty)) # WatchedProperty is not a child of property
+            if isinstance(
+                property_obj, (property, descriptors.WatchedProperty)
+            )  # WatchedProperty is not a child of property
         }
         return pickle_func, pickle_args, (pickled_dict, pickled_properties)
 
@@ -297,7 +299,7 @@ class CircuitRoutines(ABC):
             subsys_index = self.parent.subsystems.index(self)
             self.hamiltonian_symbolic = self.parent.subsystem_hamiltonians[subsys_index]
             self._configure()
-            
+
         # if harmonic osc basis is used, set the oscillator parameters
         if self.ext_basis == "harmonic":
             self._set_harmonic_basis_osc_params()
@@ -476,7 +478,7 @@ class CircuitRoutines(ABC):
             raise Exception(f"The subsystem provided to {self} has no subsystems.")
         if index not in self.affected_subsystem_indices:
             self.affected_subsystem_indices.append(index)
-            
+
     def update(self):
         """
         Syncs all the parameters of the subsystems with the current instance.
@@ -506,18 +508,21 @@ class CircuitRoutines(ABC):
                 if self._out_of_sync:
                     self.subsystems[subsys_index].sync_parameters_with_parent()
                 if self.subsystems[subsys_index].hierarchical_diagonalization:
-                   self.subsystems[subsys_index].update()
+                    self.subsystems[subsys_index].update()
             self._update_bare_esys()
 
     def _update_bare_esys(self):
         if not self.hierarchical_diagonalization:
-            raise Exception("Hierarchical diagonalization is not used in the current instance of Subsystem/Circuit.")
+            raise Exception(
+                "Hierarchical diagonalization is not used in the current instance of Subsystem/Circuit."
+            )
         _ = self.hilbert_space.generate_bare_esys(
             update_subsystem_indices=self.affected_subsystem_indices
         )
         self._out_of_sync = False
         self.hilbert_space._out_of_sync = False
         self.affected_subsystem_indices = []
+
     # *****************************************************************
     # **** Functions to construct the operators for the Hamiltonian ****
     # *****************************************************************
@@ -1297,7 +1302,7 @@ class CircuitRoutines(ABC):
                     (cos_term_operator - cos_term_operator.dag()) * 0.5 * (-1j)
                 )
         return junction_potential_matrix
-    
+
     def _set_harmonic_basis_osc_params(self):
         osc_lengths = {}
         osc_freqs = {}
@@ -1361,10 +1366,9 @@ class CircuitRoutines(ABC):
                 "cos": None,
                 "momentum": None,
             }
-            
+
             self._set_harmonic_basis_osc_params()
             for list_idx, var_index in enumerate(self.var_categories["extended"]):
-                
                 nonwrapped_ops["position"] = op.a_plus_adag_sparse
                 nonwrapped_ops["sin"] = op.sin_theta_harmonic
                 nonwrapped_ops["cos"] = op.cos_theta_harmonic
@@ -1908,7 +1912,7 @@ class CircuitRoutines(ABC):
                 return hamiltonian.data.tocsc()
 
     def hamiltonian_for_mesolve(
-        self, free_var_func_dict: Dict[str, Callable], prefactor:float = 1.0
+        self, free_var_func_dict: Dict[str, Callable], prefactor: float = 1.0
     ) -> Tuple[List[Union[qt.Qobj, Tuple[qt.Qobj, Callable]]], sm.Expr, List[sm.Expr]]:
         """
         Returns the Hamiltonian in a format amenable to be forwarded to mesolve in
@@ -2005,7 +2009,9 @@ class CircuitRoutines(ABC):
                     )
 
                 operator_matrix = (
-                    self._evaluate_symbolic_expr(operator_expr) * expr_dict[term] * prefactor
+                    self._evaluate_symbolic_expr(operator_expr)
+                    * expr_dict[term]
+                    * prefactor
                 )  # also multiplying the constant to the operator
                 if operator_matrix == 0:
                     continue
