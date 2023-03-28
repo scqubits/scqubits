@@ -499,12 +499,6 @@ class Circuit(
         self._frozen = True
         dispatch.CENTRAL_DISPATCH.register("CIRCUIT_UPDATE", self)
 
-    def __setattr__(self, name, value):
-        if not self._frozen or name in dir(self):
-            super().__setattr__(name, value)
-        else:
-            raise Exception(f"Creating new attributes is disabled [{name}, {value}].")
-
     def set_discretized_phi_range(
         self, var_indices: Tuple[int], phi_range: Tuple[float]
     ) -> None:

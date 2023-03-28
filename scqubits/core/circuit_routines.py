@@ -184,19 +184,19 @@ class CircuitRoutines(ABC):
         if not self._frozen or name in dir(self):
             super().__setattr__(name, value)
         else:
-            raise Exception("Creating new attributes is disabled.")
+            raise Exception(f"Creating new attributes is disabled: [{name}, {value}].")
 
     def __repr__(self) -> str:
         return self._id_str
 
     def __reduce__(self):
         # needed for multiprocessing / proper pickling
-        pickle_func, pickle_args, pickled_state = super().__reduce__()
+        pickle_func, pickle_args, pickled_state = object.__reduce__(self)
         pickled_dict = self.__dict__
         pickled_properties = {
             property_name: property_obj
             for property_name, property_obj in self.__class__.__dict__.items()
-            if isinstance(property_obj, property)
+            if isinstance(property_obj, (property, descriptors.WatchedProperty)) # WatchedProperty is not a child of property
         }
         return pickle_func, pickle_args, (pickled_dict, pickled_properties)
 
