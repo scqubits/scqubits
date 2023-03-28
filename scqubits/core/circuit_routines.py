@@ -202,6 +202,7 @@ class CircuitRoutines(ABC):
 
     def __setstate__(self, state):
         pickled_dict, pickled_properties = state
+        object.__setattr__(self, "_frozen", False)
         self.__dict__ = pickled_dict
 
         for property_name, property_obj in pickled_properties.items():

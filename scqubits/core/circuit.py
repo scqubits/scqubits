@@ -76,8 +76,6 @@ class Subsystem(
         sets the truncated dimension for the current subsystem, set to 10 by default.
     """
 
-    # switch used in protecting the class from erroneous addition of new attributes
-    _frozen = False
 
     def __init__(
         self,
@@ -87,6 +85,9 @@ class Subsystem(
         subsystem_trunc_dims: Optional[List] = None,
         truncated_dim: Optional[int] = 10,
     ):
+        # switch used in protecting the class from erroneous addition of new attributes
+        object.__setattr__(self, "_frozen", False)
+
         base.QuantumSystem.__init__(self, id_str=None)
 
         self.system_hierarchy = system_hierarchy
@@ -297,9 +298,6 @@ class Circuit(
         HilbertSpace, by default `None`
     """
 
-    # switch used in protecting the class from erroneous addition of new attributes
-    _frozen = False
-
     def __init__(
         self,
         input_string: str,
@@ -312,6 +310,10 @@ class Circuit(
         symbolic_param_dict: Dict[str, float] = None,
         symbolic_hamiltonian: sm.Expr = None,
     ):
+
+        # switch used in protecting the class from erroneous addition of new attributes
+        object.__setattr__(self, "_frozen", False)
+
         if not symbolic_hamiltonian:
             self.from_yaml(
                 input_string=input_string,
