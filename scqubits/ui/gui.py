@@ -271,7 +271,7 @@ class GUI:
         """Links all the necessary widgets to their desired function."""
         self.navbar_elements["CHOOSE_QUBIT"].observe(self.qubit_change, names="v_model")
         self.navbar_elements["CHOOSE_PLOT"].observe(
-            self.plot_option_layout_refresh, names="v_model"
+            self.change_plot_type, names="v_model"
         )
         self.navbar_elements["AUTO_UPDATING"].observe(
             self.toggle_auto_updating, names="v_model"
@@ -596,7 +596,7 @@ class GUI:
         self.dict_v_qubit_params[new_scan_param].disabled = True
         self.plot_refresh(change=None)
 
-    def plot_option_layout_refresh(self, change) -> None:
+    def change_plot_type(self, change) -> None:
         self.clear_plot()
 
         self.unobserve_all()
@@ -913,7 +913,6 @@ class GUI:
         scan_dropdown_value = self.dict_v_plot_options["scan_param"].v_model
         scan_slider = self.dict_v_qubit_params[scan_dropdown_value]
 
-        self.dict_v_plot_options["amplitude_mode"].v_model = "|·|"
         value_dict = {
             "scan_value": scan_dropdown_value,
             "scan_range": (scan_slider.v_min, scan_slider.v_max),
@@ -929,7 +928,6 @@ class GUI:
         self.matelem_vs_paramvals_plot(**value_dict)
 
     def matrixelements_plot_refresh(self) -> None:
-        self.dict_v_plot_options["amplitude_mode"].v_model = "|·|"
         value_dict = {
             "operator_value": self.dict_v_plot_options["operator_choice"].v_model,
             "eigenvalue_state_value": self.dict_v_plot_options["highest_state"].v_model,
@@ -1110,7 +1108,7 @@ class GUI:
 
         self.dict_v_plot_options[
             "amplitude_mode"
-        ].v_model = gui_defaults.mode_dropdown_list[0]
+        ].v_model = "Re(·)" if current_plot_option < 2 else "|·|"
 
     def qubit_info_tab(self) -> v.Container:
         qubit_info_box = v.Container(
