@@ -11,6 +11,7 @@
 # ###########################################################################
 
 import copy
+import dill
 import functools
 import inspect
 import itertools
@@ -1003,8 +1004,9 @@ class ParameterSweep(  # type:ignore
 
         self._lookup_exists = True
         if self._deepcopy:
-            stored_hilbertspace = copy.deepcopy(self.hilbertspace)
-            # self._hilbertspace = copy.deepcopy(self.hilbertspace)
+            instance_str = dill.dumps(self.hilbertspace)
+            stored_hilbertspace = dill.loads(instance_str)
+            self._hilbertspace = dill.loads(instance_str)
         else:
             self.cause_dispatch()
         settings.DISPATCH_ENABLED = False
