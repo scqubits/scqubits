@@ -90,7 +90,6 @@ def width(pixels: int, justify_content: Optional[str] = None) -> Layout:
 def boxed(pixels: int = 900) -> Layout:
     return Layout(
         width=str(pixels) + "px",
-        align="top",
         border="1px solid lightgrey",
         padding="10px 10px 10px 10px",
     )
@@ -812,10 +811,7 @@ class Explorer:
             )
 
             self.ui["transitions"]["initial_bare_dressed_toggle"] = ToggleButtons(
-                options=["bare", "dressed"],
-                value="bare",
-                description="",
-                disable=False,
+                options=["bare", "dressed"], value="bare", description=""
             )
             self.ui["transitions"][
                 "initial_bare_dressed_toggle"

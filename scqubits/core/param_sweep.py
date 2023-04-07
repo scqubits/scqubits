@@ -114,6 +114,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     The_ParameterSweepBase class is an abstract base class for ParameterSweep and
     StoredSweep
     """
+
     _lookup_exists = False
     _parameters = descriptors.WatchedProperty(Parameters, "PARAMETERSWEEP_UPDATE")
     _evals_count = descriptors.WatchedProperty(int, "PARAMETERSWEEP_UPDATE")
@@ -886,7 +887,7 @@ class ParameterSweep(  # type:ignore
         sweep for a single quantum system, no interaction (default: False)
     ignore_low_overlap:
         if set to False (default), bare product states and dressed eigenstates are
-        identified if `\|<psi_bare\|psi_dressed>\|^2 > 0.5`; if True,
+        identified if `|<psi_bare|psi_dressed>|^2 > 0.5`; if True,
         then identification will always take place based on which bare product state
         has the maximum overlap
     autorun:

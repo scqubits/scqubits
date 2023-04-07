@@ -6,7 +6,7 @@
 trigger:
   branches:
     include:
-      - master
+      - main
       - jk-devel
       - Danny_vchos
       - devel_peterg
