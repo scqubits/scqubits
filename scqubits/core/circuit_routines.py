@@ -445,6 +445,34 @@ class CircuitRoutines(ABC):
             ),
         )
 
+    def set_and_return(self, attr_name: str, value: Any) -> "QubitBaseClass":
+        """
+        Allows to set an attribute after which self is returned. This is useful for
+        doing something like example::
+
+            qubit.set_and_return('flux', 0.23).some_method()
+
+        instead of example::
+
+            qubit.flux=0.23
+            qubit.some_method()
+
+        Parameters
+        ----------
+        attr_name:
+            name of class attribute in string form
+        value:
+            value that the attribute is to be set to
+
+        Returns
+        -------
+            self
+        """
+        setattr(self, attr_name, value)
+        if hasattr(self, "hierarchical_diagonalization"):
+            self.update()
+        return self
+    
     def sync_parameters_with_parent(self):
         for param_var in (
             self.external_fluxes
