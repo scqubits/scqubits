@@ -779,7 +779,7 @@ class Explorer:
             ]
 
         if panel_name == "Wavefunctions":
-            if isinstance(subsys, (scq.FluxQubit, scq.ZeroPi, scq.Cos2PhiQubit)):
+            if isinstance(subsys, (scq.FluxQubit, scq.ZeroPi, scq.Bifluxon, scq.Cos2PhiQubit)):
                 ui_wavefunction_selector = ui.InitSelect(
                     label="Display wavefunctions",
                     items=list(range(subsys.truncated_dim)),
