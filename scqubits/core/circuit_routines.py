@@ -186,9 +186,6 @@ class CircuitRoutines(ABC):
         else:
             raise Exception(f"Creating new attributes is disabled: [{name}, {value}].")
 
-    def __repr__(self) -> str:
-        return self._id_str
-
     def __reduce__(self):
         # needed for multiprocessing / proper pickling
         pickle_func, pickle_args, pickled_state = object.__reduce__(self)
@@ -2121,6 +2118,8 @@ class CircuitRoutines(ABC):
     
     def __repr__(self) -> str:
         # string to describe the Circuit
+        if not _HAS_IPYTHON:
+            return self._id_str
         # Hamiltonian string
         H_latex_str = "$H=" + sm.printing.latex(self.sym_hamiltonian(return_expr=True)) + "$"
         # describe the variables
