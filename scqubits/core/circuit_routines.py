@@ -2090,6 +2090,46 @@ class CircuitRoutines(ABC):
                 equalities_in_latex += sm.printing.latex(eqn) + " \\\ "
             equalities_in_latex = equalities_in_latex[:-4] + " $"
             display(Latex(equalities_in_latex))
+    
+    def __repr__(self) -> str:
+        # string to describe the Circuit
+        # Hamiltonian string
+        H_latex_str = "$H=" + sm.printing.latex(self.sym_hamiltonian(return_expr=True)) + "$"
+        # describe the variables
+        var_str = "Operators (flux, charge) - cutoff: "
+        var_str += "\\\n Discrete Charge Basis:  "
+        cutoffs_dict = self.cutoffs_dict()
+        for var_index in self.var_categories["periodic"]:
+            var_str += f"$(θ{var_index}, n{var_index}) - {cutoffs_dict[var_index]}$, "
+        if self.ext_basis == "discretized":
+            var_str += "\\\nDiscretized Phi basis:  "
+        elif  self.ext_basis == "harmonic":
+            var_str += "\\\nHarmonic oscillator basis:  "
+        for var_index in self.var_categories["extended"]:
+            var_str += f"$(θ{var_index}, Q{var_index}) - {cutoffs_dict[var_index]}$, "
+        display(Latex(H_latex_str))
+        display(Latex(var_str))
+        # symbolic parameters
+        if len(self.symbolic_params) > 0:
+            sym_params_str = "Symbolic parameters (symbol, default value):  "
+            for (sym, val) in self.symbolic_params.items():
+                sym_params_str += f"$({sym.name}, {val})$, "
+            display(Latex(sym_params_str))
+        if len(self.external_fluxes) > 0:
+            sym_params_str = "External fluxes (symbol, default value):  "
+            for sym in self.external_fluxes:
+                sym_params_str += f"$({sym.name}, {getattr(self, sym.name)})$, "
+            display(Latex(sym_params_str))
+        if len(self.offset_charges) > 0:
+            sym_params_str = "Symbolic parameters (symbol, default value):  "
+            for sym in self.offset_charges:
+                sym_params_str += f"$({sym.name}, {getattr(self, sym.name)})$, "
+            display(Latex(sym_params_str))
+        if self.hierarchical_diagonalization:
+            display(Latex(f"System hierarchy: {self.system_hierarchy}"))
+            display(Latex(f"Truncated Dimensions: {self.subsystem_trunc_dims}"))
+        
+        return "Instance ID: " + self._id_str
 
     def _make_expr_human_readable(self, expr: sm.Expr, float_round: int = 6) -> sm.Expr:
         """

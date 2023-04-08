@@ -636,9 +636,6 @@ class Circuit(
     def default_params() -> Dict[str, Any]:
         return {}
 
-    def __repr__(self) -> str:
-        return self._id_str
-
     def _clear_unnecessary_attribs(self):
         """
         Clear all the attributes which are not part of the circuit description
