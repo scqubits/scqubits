@@ -890,6 +890,7 @@ class Circuit(
         # clear unnecessary attribs
         self._clear_unnecessary_attribs()
         self._frozen = True
+        self.update()
 
     def _configure(
         self,
@@ -1069,6 +1070,7 @@ class Circuit(
         # clear unnecessary attribs
         self._clear_unnecessary_attribs()
         self._frozen = True
+        self.update()
 
     def supported_noise_channels(self) -> List[str]:
         """Return a list of supported noise channels"""
