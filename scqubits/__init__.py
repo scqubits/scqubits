@@ -24,6 +24,7 @@ import warnings
 from scqubits import settings
 
 # core
+from scqubits.core.bifluxon import Bifluxon
 from scqubits.core.central_dispatch import CentralDispatch
 from scqubits.core.cos2phi_qubit import Cos2PhiQubit
 from scqubits.core.discretization import Grid1d
