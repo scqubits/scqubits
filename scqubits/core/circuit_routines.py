@@ -44,6 +44,7 @@ import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as utils
 from scqubits import get_units
+import scqubits.core.qubit_base as base
 
 from scqubits import HilbertSpace, settings
 from scqubits.core import operators as op
@@ -442,7 +443,7 @@ class CircuitRoutines(ABC):
             ),
         )
 
-    def set_and_return(self, attr_name: str, value: Any) -> "QubitBaseClass":
+    def set_and_return(self, attr_name: str, value: Any) -> base.QubitBaseClass:
         """
         Allows to set an attribute after which self is returned. This is useful for
         doing something like example::
