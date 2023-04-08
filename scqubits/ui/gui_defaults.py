@@ -149,6 +149,18 @@ cos2phiqubit_defaults = {
     "num_sample": 50,
 }
 
+bifluxon_defaults = {
+    **global_defaults,
+    "scan_param": "flux",
+    "operator": "n_theta_operator",
+    "ncut": ncut_range,
+    "EL": EL_range,
+    "ECL": EC_range,
+    "dEJ": {"v_min": 0.0, "v_max": 1.0},
+    "scale": None,
+    "num_sample": 50,
+}
+
 qubit_defaults = {
     "Transmon": transmon_defaults,
     "TunableTransmon": tunabletransmon_defaults,
@@ -158,6 +170,7 @@ qubit_defaults = {
     "FullZeroPi": fullzeropi_defaults,
     "Cos2PhiQubit": cos2phiqubit_defaults,
     "Snailmon": snailmon_defaults,
+    "Bifluxon": bifluxon_defaults
 }
 
 paramvals_from_papers = {
@@ -248,6 +261,18 @@ paramvals_from_papers = {
             "link": "https://iopscience.iop.org/article/10.1088/1367-2630/aab7cd",
         },
     },
+    "Bifluxon": {
+        "Kalashnikov et al., PRX Quantum 1, 010307 (2020)": {
+            "params": {
+                "EJ": 27.2,
+                "EL": 0.94,
+                "EC": 7.7,
+                "ECL": 10.0,
+                "dEJ": 0.0,
+            },
+            "link": "https://journals.aps.org/prxquantum/abstract/10.1103/PRXQuantum.1.010307",
+        },
+    },
 }
 
 plot_choices = [
@@ -267,9 +292,17 @@ supported_qubits = [
     "FullZeroPi",
     "Cos2PhiQubit",
     "Snailmon",
+    "Bifluxon"
 ]
 
-slow_qubits = ["FluxQubit", "ZeroPi", "FullZeroPi", "Cos2PhiQubit", "Snailmon"]
+slow_qubits = [
+    "FluxQubit",
+    "ZeroPi",
+    "FullZeroPi",
+    "Cos2PhiQubit",
+    "Snailmon",
+    "Bifluxon"
+]
 
 subsys_panel_names = [
     "Energy spectrum",

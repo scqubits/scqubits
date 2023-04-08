@@ -58,6 +58,14 @@ MATPLOTLIB_WIDGET_BACKEND = "module://ipympl.backend_nbagg"
 _HAS_WIDGET_BACKEND = get_matplotlib_backend() == MATPLOTLIB_WIDGET_BACKEND
 
 
+QUBITS_WITH_GRID_INIT = (scq.ZeroPi, scq.FullZeroPi, scq.Bifluxon)
+QUBITS_WITH_PHI_GRID = (scq.Transmon, scq.TunableTransmon, scq.Fluxonium, scq.FluxQubit, scq.Cos2PhiQubit)
+QUBITS_WITH_THETA_GRID = (scq.ZeroPi, scq.Bifluxon, scq.Cos2PhiQubit)
+QUBITS_WITHOUT_WAVEFUNCTION_PLOT = (scq.FullZeroPi, scq.Snailmon)
+QUBITS_WITH_2D_WAVEFUNCTION_PLOT = (scq.FluxQubit, scq.ZeroPi, scq.Cos2PhiQubit, scq.Bifluxon)
+
+
+
 class GUI:
     """Generates the GUI for scqubits, handling single-qubit properties"""
 
@@ -136,10 +144,10 @@ class GUI:
         QubitClass = getattr(scq, qubit_name)
         init_params = QubitClass.default_params()
 
-        if qubit_name in ["ZeroPi", "FullZeroPi"]:
+        if QubitClass in QUBITS_WITH_GRID_INIT:
             init_params["grid"] = Grid1d(-7 * np.pi, 7 * np.pi, 200)
-
         self.active_qubit = QubitClass(**init_params)
+
         self.active_qubit.truncated_dim = self.active_qubit.hilbertdim()
         self.set_qubit_params()
 
@@ -345,7 +353,7 @@ class GUI:
         """
         current_values = self.get_current_values()
 
-        if isinstance(self.active_qubit, (scq.ZeroPi, scq.FullZeroPi)):
+        if isinstance(self.active_qubit, QUBITS_WITH_GRID_INIT):
             del current_values["grid"]
             grid_min, grid_max = self.dict_v_qubit_params["grid"].v_model
             current_values["grid_min_val"] = grid_min
@@ -857,16 +865,15 @@ class GUI:
             ],
         }
 
-        if isinstance(self.active_qubit, (scq.Snailmon, scq.FullZeroPi)):
+        if isinstance(self.active_qubit, QUBITS_WITHOUT_WAVEFUNCTION_PLOT):
             return
-        elif isinstance(
-            self.active_qubit, (scq.FluxQubit, scq.ZeroPi, scq.Cos2PhiQubit)
-        ):
+        # Remainder of block only for qubits that support wavefunction plots
+        elif isinstance(self.active_qubit, QUBITS_WITH_2D_WAVEFUNCTION_PLOT):
             value_dict["scale_value"] = None
             value_dict["eigenvalue_states"] = self.dict_v_plot_options[
                 "wavefunction_state_slider"
             ].v_model
-        else:
+        else:  # qubit with 1d wavefunction
             manual_scale_tf_value = self.dict_v_plot_options[
                 "manual_wf_scaling"
             ].v_model
@@ -881,31 +888,17 @@ class GUI:
                 "multi_state_selector"
             ].v_model
 
-        if isinstance(
-            self.active_qubit,
-            (scq.Transmon, scq.TunableTransmon, scq.Fluxonium, scq.FluxQubit),
-        ):
+        if isinstance(self.active_qubit, QUBITS_WITH_PHI_GRID):
             value_dict["phi_grid"] = Grid1d(
                 min_val=self.dict_v_ranges["phi"]["min"].num_value,
                 max_val=self.dict_v_ranges["phi"]["max"].num_value,
                 pt_count=self.active_qubit._default_grid.pt_count,
             )
-        elif isinstance(self.active_qubit, scq.ZeroPi):
+        if isinstance(self.active_qubit, QUBITS_WITH_THETA_GRID):
             value_dict["theta_grid"] = Grid1d(
                 min_val=self.dict_v_ranges["theta"]["min"].num_value,
                 max_val=self.dict_v_ranges["theta"]["max"].num_value,
                 pt_count=self.active_qubit._default_grid.pt_count,
-            )
-        elif isinstance(self.active_qubit, scq.Cos2PhiQubit):
-            value_dict["phi_grid"] = Grid1d(
-                min_val=self.dict_v_ranges["phi"]["min"].num_value,
-                max_val=self.dict_v_ranges["phi"]["max"].num_value,
-                pt_count=self.active_qubit._default_phi_grid.pt_count,
-            )
-            value_dict["theta_grid"] = Grid1d(
-                min_val=self.dict_v_ranges["theta"]["min"].num_value,
-                max_val=self.dict_v_ranges["theta"]["max"].num_value,
-                pt_count=self.active_qubit._default_theta_grid.pt_count,
             )
         self.wavefunctions_plot(**value_dict)
 
@@ -1106,9 +1099,9 @@ class GUI:
             0
         ].children = self.plot_options_dict[current_plot_option]
 
-        self.dict_v_plot_options[
-            "amplitude_mode"
-        ].v_model = "Re(·)" if current_plot_option < 2 else "|·|"
+        self.dict_v_plot_options["amplitude_mode"].v_model = (
+            "Re(·)" if current_plot_option < 2 else "|·|"
+        )
 
     def qubit_info_tab(self) -> v.Container:
         qubit_info_box = v.Container(
@@ -1206,8 +1199,8 @@ class GUI:
         -------
             Tuple of plot options widgets
         """
-        if isinstance(self.active_qubit, (scq.Snailmon, scq.FullZeroPi)):
-            plot_options_widgets_tuple = (v.Text(children=["Not implemented"]),)
+        if isinstance(self.active_qubit, QUBITS_WITHOUT_WAVEFUNCTION_PLOT):
+            plot_options_widgets_tuple = (v.Text(children=["Not implemented (configuration space >2d)"]),)
         else:
             self.dict_v_plot_options["amplitude_mode"].v_model = self.active_defaults[
                 "mode_wavefunc"
@@ -1216,27 +1209,21 @@ class GUI:
                 self.dict_v_plot_options["scan_param"].v_model
             ].disabled = False
 
-            if isinstance(
-                self.active_qubit, (scq.FluxQubit, scq.ZeroPi, scq.Cos2PhiQubit)
-            ):
+            if isinstance(self.active_qubit, QUBITS_WITH_2D_WAVEFUNCTION_PLOT):
                 which_widget = self.dict_v_plot_options["wavefunction_state_slider"]
-            else:
-                which_widget = self.dict_v_plot_options["multi_state_selector"]
-
-            if isinstance(
-                self.active_qubit, (scq.ZeroPi, scq.FluxQubit, scq.Cos2PhiQubit)
-            ):
                 plot_options_widgets_tuple = (
                     which_widget,
                     self.dict_v_plot_options["amplitude_mode"],
                 )
-            else:
+            else:  # 1d wavefunction plot
+                which_widget = self.dict_v_plot_options["multi_state_selector"]
                 plot_options_widgets_tuple = (
                     which_widget,
                     self.dict_v_plot_options["amplitude_mode"],
                     self.dict_v_plot_options["manual_wf_scaling"],
                     self.dict_v_plot_options["wavefunction_scale_slider"],
                 )
+
         return plot_options_widgets_tuple
 
     def matelem_options_widgets(
@@ -1429,7 +1416,7 @@ class GUI:
         else:
             if isinstance(self.active_qubit, scq.FluxQubit):
                 grid_dict = {"phi_grid": phi_grid}
-            elif isinstance(self.active_qubit, scq.ZeroPi):
+            elif isinstance(self.active_qubit, (scq.ZeroPi, scq.Bifluxon)):
                 grid_dict = {"theta_grid": theta_grid}
             elif isinstance(self.active_qubit, scq.Cos2PhiQubit):
                 grid_dict = {"phi_grid": phi_grid, "theta_grid": theta_grid}
