@@ -273,7 +273,7 @@ def init_qubit_params_widgets_dict(
                 },
                 **kwargs,
             )
-    if isinstance(qubit, (scq.ZeroPi, scq.FullZeroPi)):
+    if isinstance(qubit, (scq.ZeroPi, scq.Bifluxon, scq.FullZeroPi)):
         grid_min = qubit.grid.min_val
         grid_max = qubit.grid.max_val
         dict_v_qubit_params["grid"] = v.RangeSlider(
@@ -436,7 +436,7 @@ def init_ranges_widgets_dict(
             "min": widget_min_text,
             "max": widget_max_text,
         }
-    elif isinstance(qubit, scq.ZeroPi):
+    elif isinstance(qubit, (scq.ZeroPi, scq.Bifluxon)):
         widget_min_text = ui.ValidatedNumberField(
             v_model=qubit._default_grid.min_val,
             num_type=float,

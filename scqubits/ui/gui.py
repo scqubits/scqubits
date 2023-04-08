@@ -593,6 +593,7 @@ class GUI:
         self.set_qubit_and_init_qubit_widgets(new_qubit)
 
         self.init_tab_widget()
+        self.change_plot_options()
         if self.auto_updating:
             self.refresh_current_plot()
         self.observe_all()
@@ -858,7 +859,6 @@ class GUI:
 
     @matplotlib.rc_context(matplotlib_settings)
     def wavefunctions_plot_refresh(self) -> None:
-        self.dict_v_plot_options["amplitude_mode"].v_model = "Re(·)"
         value_dict = {
             "mode_value": gui_defaults.mode_dropdown_dict[
                 self.dict_v_plot_options["amplitude_mode"].v_model
