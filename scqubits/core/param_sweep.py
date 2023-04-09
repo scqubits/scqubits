@@ -1004,7 +1004,7 @@ class ParameterSweep(  # type:ignore
         self._lookup_exists = True
         if self._deepcopy:
             stored_hilbertspace = copy.deepcopy(self.hilbertspace)
-            self._hilbertspace = copy.deepcopy(self.hilbertspace)
+            # self._hilbertspace = copy.deepcopy(self.hilbertspace)
         else:
             self.cause_dispatch()
         settings.DISPATCH_ENABLED = False
@@ -1284,8 +1284,14 @@ class ParameterSweep(  # type:ignore
         if update_hilbertspace:
             if self._deepcopy:
                 stored_hilbertspace = copy.deepcopy(self.hilbertspace)
-                self._hilbertspace = copy.deepcopy(self.hilbertspace)
+                # self._hilbertspace = copy.deepcopy(self.hilbertspace)
             else:
+                warnings.warn(
+                    "Updating the original hilbertspace may cause the generated spectrum "
+                    "data outdated, potentially leading to incorrect results. "
+                    "Try initializing the ParameterSweep with arguement deepcopy = True.",
+                    Warning
+                )
                 self.cause_dispatch()
             settings.DISPATCH_ENABLED = False
 
