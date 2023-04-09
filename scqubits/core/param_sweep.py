@@ -874,14 +874,20 @@ class ParameterSweep(  # type:ignore
         information is specified by a dictionary of the following form::
 
             {
-                "<parameter name 1>": [<subsystem a>],
-                "<parameter name 2>": [<subsystem b>, <subsystem c>, ...],
+                "<parameter name 1>": [<subsystem a>, <subsystem b>],
+                "<parameter name 2>": [],
+                "<parameter name 3>": None,
                 ...
             }
 
-        This indicates that changes in `<parameter name 1>` only require updates of
-        `<subsystem a>` while leaving other subsystems unchanged. Similarly, sweeping
-        `<parameter name 2>` affects `<subsystem b>`, `<subsystem c>` etc.
+        This indicates that 
+         - changes in `<parameter name 1>` only require updates of `<subsystem a>` and 
+         `<subsystem b>` while leaving other subsystems unchanged. 
+         - changes in `<parameter name 2>` affect none of the subsystems while require an 
+         update of the joint system.
+         - changes in `<parameter name 3>` affect none of the subsystems and the joint 
+         system.
+    
     bare_only:
         if set to True, only bare eigendata is calculated; useful when performing a
         sweep for a single quantum system, no interaction (default: False)
@@ -935,7 +941,7 @@ class ParameterSweep(  # type:ignore
         paramvals_by_name: Dict[str, ndarray],
         update_hilbertspace: Callable,
         evals_count: int = 20,
-        subsys_update_info: Optional[Dict[str, List[QuantumSystem]]] = None,
+        subsys_update_info: Optional[Dict[str, Union[List[QuantumSystem], None]]] = None,
         bare_only: bool = False,
         ignore_low_overlap: bool = False,
         autorun: bool = settings.AUTORUN_SWEEP,
@@ -1064,15 +1070,27 @@ class ParameterSweep(  # type:ignore
         esys_array[1] = evecs
         return esys_array
 
-    def _paramnames_no_subsys_update(self, subsystem) -> List[str]:
+    def _paramnames_no_subsys_update(self, subsystem) -> List[str]:       
         if self._subsys_update_info is None:
             return []
-        updating_parameters = [
-            name
-            for name in self._subsys_update_info.keys()
-            if subsystem in self._subsys_update_info[name]
-        ]
-        return list(set(self._parameters.names) - set(updating_parameters))
+        
+        parameters_no_update = []
+        for name in self.parameters.names:
+            # Assume changing parameters with no update info WILL update all subsystems. 
+            if name not in self._subsys_update_info.keys():
+                continue
+
+            info = self._subsys_update_info[name]
+
+            # Changing parameters with None as update info WILL NOT update any subsystems.
+            if info is None:
+                parameters_no_update.append(name)
+                continue
+
+            if subsystem not in info:
+                parameters_no_update.append(name)
+
+        return parameters_no_update
 
     def _subsys_bare_spectrum_sweep(self, subsystem) -> ndarray:
         """
@@ -1089,7 +1107,7 @@ class ParameterSweep(  # type:ignore
         """
         fixed_paramnames = self._paramnames_no_subsys_update(subsystem)
         reduced_parameters = self._parameters.create_reduced(fixed_paramnames)
-        total_count = np.prod([len(param_vals) for param_vals in reduced_parameters])
+        total_count = np.prod(reduced_parameters.counts)
 
         multi_cpu = self._num_cpus > 1
         target_map = cpu_switch.get_map_method(self._num_cpus)
@@ -1154,6 +1172,17 @@ class ParameterSweep(  # type:ignore
         esys_array[0] = evals
         esys_array[1] = evecs
         return esys_array
+    
+    def _paramnames_no_joint_sys_update(self) -> List[str]:       
+        if self._subsys_update_info is None:
+            return []
+        
+        parameters_no_update = [
+            name for name, info in self._subsys_update_info.items()
+            if info is None
+        ]
+
+        return parameters_no_update
 
     def _dressed_spectrum_sweep(
         self,
@@ -1165,9 +1194,13 @@ class ParameterSweep(  # type:ignore
             NamedSlotsNdarray[<paramname1>, <paramname2>, ...] of eigenvalues,
             likewise for eigenvectors
         """
+
+        fixed_paramnames = self._paramnames_no_joint_sys_update()
+        reduced_parameters = self._parameters.create_reduced(fixed_paramnames)
+
         multi_cpu = self._num_cpus > 1
         target_map = cpu_switch.get_map_method(self._num_cpus)
-        total_count = np.prod(self._parameters.counts)
+        total_count = np.prod(reduced_parameters.counts)
 
         with utils.InfoBar(
             "Parallel compute dressed eigensys [num_cpus={}]".format(self._num_cpus),
@@ -1182,7 +1215,7 @@ class ParameterSweep(  # type:ignore
                             self._evals_count,
                             self._update_hilbertspace,
                         ),
-                        itertools.product(*self._parameters.ranges),
+                        itertools.product(*reduced_parameters.ranges),
                     ),
                     total=total_count,
                     desc="Dressed spectrum",
@@ -1193,8 +1226,17 @@ class ParameterSweep(  # type:ignore
 
         spectrum_data_ndarray = np.asarray(spectrum_data, dtype=object)
         spectrum_data_ndarray = spectrum_data_ndarray.reshape(
-            (*self._parameters.counts, 2)
+            (*reduced_parameters.counts, 2)
         )
+
+        # Dressed spectral data was only computed once for each parameter that has no
+        # update effect on the joint system. Now extend the array to reflect this
+        # for the full parameter array by repeating
+        for name in fixed_paramnames:
+            index = self._parameters.index_by_name[name]
+            param_count = self._parameters.counts[index]
+            spectrum_data_ndarray = np.repeat(spectrum_data_ndarray, param_count, axis=index)
+
         slotparamvals_by_name = OrderedDict(self._parameters.ordered_dict.copy())
 
         evals = np.asarray(spectrum_data_ndarray[..., 0].tolist())
@@ -1234,7 +1276,7 @@ class ParameterSweep(  # type:ignore
 
     def _dispersive_coefficients(
         self,
-    ) -> Tuple[NamedSlotsNdarray, NamedSlotsNdarray, NamedSlotsNdarray]:
+    ) -> Tuple[NamedSlotsNdarray, NamedSlotsNdarray, NamedSlotsNdarray, NamedSlotsNdarray]:
         energy_0 = self[:].energy_by_dressed_index(0).toarray()
 
         lamb_data = np.empty(self.subsystem_count, dtype=object)
