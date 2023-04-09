@@ -1247,6 +1247,62 @@ class ParameterSweep(  # type:ignore
             NamedSlotsNdarray(evecs, slotparamvals_by_name),
         )
 
+    def add_sweep(
+        self, 
+        sweep_function: Union[str, Callable], 
+        sweep_name: Optional[str] = None, 
+        update_hilbertspace: bool = True, 
+        **kwargs
+    ) -> None:
+        """
+        Add a new sweep to the ParameterSweep object. The generated data is
+        subsequently accessible through <ParameterSweep>[<sweep_function>] or
+        <ParameterSweep>[<sweep_name>]
+
+        Parameters
+        ----------
+        sweep_function:
+            name of a sweep function in scq.sweeps as str, or custom function (
+            callable) provided by the user
+        sweep_name:
+            if given, the generated data is stored in <ParameterSweep>[<sweep_name>]
+            rather than [<sweep_name>]
+        update_hilbertspace:
+            if true, updated HilbertSpace object can be accessed in the sweep_funciton via
+            <ParameterSweep>.hilberspace. 
+        kwargs:
+            keyword arguments handed over to the sweep function
+
+        Returns
+        -------
+            None
+        """
+        if not callable(sweep_function):
+            super().add_sweep(sweep_function, sweep_name, **kwargs)
+            return
+
+        if update_hilbertspace:
+            if self._deepcopy:
+                stored_hilbertspace = copy.deepcopy(self.hilbertspace)
+                self._hilbertspace = copy.deepcopy(self.hilbertspace)
+            else:
+                self.cause_dispatch()
+            settings.DISPATCH_ENABLED = False
+
+            def modified_func(*args, **kwargs):
+                self._update_hilbertspace(self, *kwargs["paramvals_tuple"])
+                return sweep_function(*args, **kwargs)
+            
+        else:
+            modified_func = sweep_function
+
+        super().add_sweep(modified_func, sweep_name, **kwargs)
+
+        if update_hilbertspace:
+            if self._deepcopy:
+                self._hilbertspace = stored_hilbertspace  # restore original state
+            settings.DISPATCH_ENABLED = True
+
     def _energies_1(self, subsys):
         bare_label = np.zeros(len(self.hilbertspace))
         bare_label[self.get_subsys_index(subsys)] = 1
