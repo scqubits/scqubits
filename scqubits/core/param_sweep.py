@@ -1090,7 +1090,7 @@ class ParameterSweep(  # type:ignore
                 parameters_no_update.append(name)
                 continue
 
-            if subsystem not in info:
+            if subsystem not in info and subsystem.id_str not in info:
                 parameters_no_update.append(name)
 
         return parameters_no_update
