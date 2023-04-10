@@ -1250,6 +1250,42 @@ class ParameterSweep(  # type:ignore
             NamedSlotsNdarray(evecs, slotparamvals_by_name),
         )
 
+    def _sweep_function_keyword_modify(
+            self, 
+            sweep_function: Callable, 
+            update_hilbertspace: bool
+        ):
+        """
+        Support different keyword arguments for receiving parameters from the generator. 
+        For example, those are supported keywords and the value feeded to it when iterating
+         - paramindex_tuple / idx: a tuple containing multi-dimensional indices
+         - paramvals_tuple / vals: a tuple containing the parameter values
+
+        Returns
+        -------
+        A function for generating custom sweep with arguement (parametersweep, 
+        paramindex_tuple, paramvals_tuple, **kwargs) 
+        """
+        arguement_name = inspect.signature(sweep_function).parameters.keys()
+
+        def desired_func(parametersweep, paramindex_tuple, paramvals_tuple, **kwargs):
+            if update_hilbertspace:
+                self._update_hilbertspace(self, *paramvals_tuple)
+
+            kwargs_to_pass = {}
+            if "paramindex_tuple" in arguement_name:
+                kwargs_to_pass["paramindex_tuple"] = paramindex_tuple
+            if "idx" in arguement_name:
+                kwargs_to_pass["idx"] = paramindex_tuple
+            if "paramvals_tuple" in arguement_name:
+                kwargs_to_pass["paramvals_tuple"] = paramvals_tuple
+            if "vals" in arguement_name:
+                kwargs_to_pass["vals"] = paramvals_tuple
+
+            return sweep_function(parametersweep, **kwargs_to_pass, **kwargs)
+
+        return desired_func
+
     def add_sweep(
         self, 
         sweep_function: Union[str, Callable], 
@@ -1266,7 +1302,11 @@ class ParameterSweep(  # type:ignore
         ----------
         sweep_function:
             name of a sweep function in scq.sweeps as str, or custom function (
-            callable) provided by the user
+            callable) provided by the user. When iterating the calculation of 
+            sweep_function, the multi-dimensional indices will be fed to 
+            sweep_function's keyword argument paramindex_tuple or idx if exist, and 
+            the corresponding parameter values will be fed to paramvals_tuple or vals if 
+            exist.
         sweep_name:
             if given, the generated data is stored in <ParameterSweep>[<sweep_name>]
             rather than [<sweep_name>]
@@ -1299,13 +1339,7 @@ class ParameterSweep(  # type:ignore
                 self.cause_dispatch()
             settings.DISPATCH_ENABLED = False
 
-            def modified_func(*args, **kwargs):
-                self._update_hilbertspace(self, *kwargs["paramvals_tuple"])
-                return sweep_function(*args, **kwargs)
-            
-        else:
-            modified_func = sweep_function
-
+        modified_func = self._sweep_function_keyword_modify(sweep_function, update_hilbertspace)
         super().add_sweep(modified_func, sweep_name, **kwargs)
 
         if update_hilbertspace:
