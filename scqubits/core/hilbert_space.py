@@ -557,9 +557,6 @@ class HilbertSpace(
         dressed_esys: Optional[Tuple[ndarray, ndarray]] = None,
     ) -> None:
         self._lookup_exists = True
-        bare_esys_dict = self.generate_bare_esys(
-            update_subsystem_indices=update_subsystem_indices
-        )
         dummy_params = self._parameters.paramvals_by_name
 
         if dressed_esys is None:
