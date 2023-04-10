@@ -1006,7 +1006,7 @@ class ParameterSweep(  # type:ignore
         if self._deepcopy:
             instance_str = dill.dumps(self.hilbertspace)
             stored_hilbertspace = dill.loads(instance_str)
-            self._hilbertspace = dill.loads(instance_str)
+            # self._hilbertspace = dill.loads(instance_str)
         else:
             self.cause_dispatch()
         settings.DISPATCH_ENABLED = False
@@ -1285,8 +1285,9 @@ class ParameterSweep(  # type:ignore
 
         if update_hilbertspace:
             if self._deepcopy:
-                stored_hilbertspace = copy.deepcopy(self.hilbertspace)
-                # self._hilbertspace = copy.deepcopy(self.hilbertspace)
+                instance_str = dill.dumps(self.hilbertspace)
+                stored_hilbertspace = dill.loads(instance_str)
+                # self._hilbertspace = dill.loads(instance_str)
             else:
                 warnings.warn(
                     "Updating the original hilbertspace may cause the generated spectrum "
