@@ -17,7 +17,7 @@ jobs:
             auto-update-conda: true
             python-version: ${{ matrix.python-version }}
             channels: conda-forge
-            environment-file: requirements.txt, optional-requirements.txt
+            environment-file: requirements.txt
       - name: conda info
         shell: bash -el {0}
         run: conda info
@@ -34,7 +34,7 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Install optional dependencies
         run: |
-          # conda install --file optional-requirements.txt -c conda-forge
+          conda install --file optional-requirements.txt -c conda-forge
           # The following is a temporary workaround for h5py hdf5 incompatibilities under conda install
           conda remove h5py
           pip install h5py
