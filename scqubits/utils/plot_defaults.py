@@ -58,7 +58,7 @@ def set_wavefunction_scaling(
     # not apply additional downscaling
     Y_RANGE_THRESHOLD_FRACTION = 1 / 12
 
-    # If energy spacing is used for scaling, fill no more than this  fraction of the
+    # If energy spacing is used for scaling, fill no more than this fraction of the
     # spacing.
     FILLING_FRACTION = 0.9
 
@@ -75,8 +75,8 @@ def set_wavefunction_scaling(
     e_max = np.max(energies)
     e_min = np.min(energies)
     e_range = e_max - e_min
-    y_min = np.min(potential_vals)
-    y_max = e_max + 0.3 * e_range
+    y_min = np.min(potential_vals)  # lowest value of potential energy
+    y_max = e_max + 0.3 * e_range  # maximum eigenenergy plus padding
     y_range = y_max - y_min
 
     amplitudes = np.asarray([wavefunc.amplitudes for wavefunc in wavefunctions])
