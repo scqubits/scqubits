@@ -39,11 +39,11 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Install all dependencies
         run: |
-          conda install --file ./requirements.txt -c conda-forge
-          conda install --file ./optional-requirements.txt -c conda-forge
+          mamba install --file ./requirements.txt -c conda-forge
+          mamba install --file ./optional-requirements.txt -c conda-forge
           # The following is a temporary workaround for h5py hdf5 incompatibilities under conda install
-          conda remove h5py
-          pip install h5py
+          # conda remove h5py
+          # pip install h5py
           pip install -e .
       - name: Attempt scqubits import
         run: python -c 'import scqubits'
