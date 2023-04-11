@@ -711,6 +711,12 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
                 + self.d**2 * np.sin(np.pi * self.flux) ** 2
             )
             * self.cos_phi_operator()
+            - np.pi * self.EJmax * self.d 
+            / np.sqrt(
+                np.cos(np.pi * self.flux) ** 2
+                + self.d**2 * np.sin(np.pi * self.flux) ** 2
+            )
+            * self.sin_phi_operator()
         )
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
