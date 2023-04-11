@@ -22,6 +22,7 @@ jobs:
     - name: Install dependencies
       run: |
         # conda env update --file environment.yml --name base
+        conda update conda
         conda install --file requirements.txt -c conda-forge
     - name: Lint with flake8
       run: |
