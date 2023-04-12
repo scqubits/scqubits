@@ -365,9 +365,9 @@ def matrix_skyscraper(
         axis.set_ticks(locs + 0.5, minor=True)
         axis.set(ticks=locs + 0.5, ticklabels=locs)
 
-    axes.tick_params(axis='x', pad=-5)
-    axes.tick_params(axis='y', pad=-5)
-    axes.tick_params(axis='z', pad=-2)
+    axes.tick_params(axis="x", pad=-5)
+    axes.tick_params(axis="y", pad=-5)
+    axes.tick_params(axis="z", pad=-2)
 
     _process_options(fig, axes, opts=defaults.matrix(), **kwargs)
 
