@@ -112,7 +112,7 @@ matplotlib_settings = {
             "#F9E6BE",
         ]
     ),
-    "font.family": "IBM Plex Sans, Roboto, Arial, Helvetica, DejaVu Sans",
+    "font.family": "IBM Plex Sans, Roboto, Arial, DejaVu Sans",
     "font.size": 11,
     "font.weight": 500,
     "axes.labelsize": 11,
@@ -125,7 +125,7 @@ matplotlib_settings = {
     "ytick.color": off_black,
     "axes.labelcolor": off_black,
     "axes.edgecolor": off_black,
-    "axes.titlecolor": off_black
+    "axes.titlecolor": off_black,
 }
 
 
