@@ -681,8 +681,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
     def d_hamiltonian_d_flux(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns operator representing a derivative of the Hamiltonian with respect to
+        r"""Returns operator representing a derivative of the Hamiltonian with respect to
         `flux` in the charge or eigenenergy basis.
 
         Here, the derivative is taken with respect to flux before the qubit's :math:`\phi` degree of 
