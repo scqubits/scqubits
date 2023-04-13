@@ -2803,9 +2803,17 @@ class CircuitRoutines(ABC):
             else:
                 wf_dim = self._get_var_dim_for_reshaped_wf(var_indices, var_index)
 
+            if var_index in self.var_categories["extended"] and (
+                self.ext_basis == "harmonic"
+            ):
+                wf_ext_basis = self._basis_change_harm_osc_to_phi(
+                    wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
+                )
             if (
-                var_index in self.var_categories["extended"]
-                and self.ext_basis == "harmonic"
+                self.hierarchical_diagonalization
+                and self.subsystems[
+                    self.get_subsystem_index(var_index)
+                ].is_purely_harmonic
             ):
                 wf_ext_basis = self._basis_change_harm_osc_to_phi(
                     wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
