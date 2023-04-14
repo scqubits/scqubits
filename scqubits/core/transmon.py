@@ -39,7 +39,7 @@ LevelsTuple = Tuple[int, ...]
 Transition = Tuple[int, int]
 TransitionsTuple = Tuple[Transition, ...]
 
-# -Cooper pair box / transmon----------------------------------------------
+# Cooper pair box / transmon
 
 
 class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
