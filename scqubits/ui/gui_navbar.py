@@ -49,8 +49,7 @@ def create_navbar() -> Tuple[v.Card, dict]:
     icons = {}
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons")
 
-    file_names = ["En.png", "psi.png", "Me.png", "MeS.png", "T1.png", "qubit.png"]
-    for name in file_names:
+    for name in gui_defaults.gui_icon_filenames:
         full_path = os.path.join(path, name)
         file = open(full_path, "rb")
         image = file.read()
@@ -75,15 +74,15 @@ def create_navbar() -> Tuple[v.Card, dict]:
         children=[
             flex_column(
                 [
-                    ui.vBtn(
+                    ui.vTooltipBtn(
                         color=NAV_COLOR,
                         class_="my-4",
-                        children=[icons[name]],
+                        children=[icons[icon_filename]],
+                        tooltip=plot_type_name,
                         width=50,
                         elevation=0,
                     )
-                    for name in file_names
-                    if name != "qubit.png"
+                    for plot_type_name, icon_filename in gui_defaults.gui_plot_choice_dict.items()
                 ],
                 class_="px-0",
                 style_=f"background-color: {NAV_COLOR}",
@@ -119,7 +118,7 @@ def create_navbar() -> Tuple[v.Card, dict]:
                 class_="p-2 mx-4",
                 color=NAV_COLOR,
                 elevation=0,
-                children=[icons["qubit.png"]],
+                children=[icons["scq-logo.png"]],
             ),
             navbar_elements["CHOOSE_QUBIT"],
         ],

@@ -10,6 +10,22 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import collections
+
+
+gui_plot_choice_dict = collections.OrderedDict([
+	("Energy spectrum", "En.png"),
+	("Wavefunctions", "psi.png"),
+	("Matrix elements", "Me.png"),
+	("Matrix-element sweep", "MeS.png"),
+	("Coherence times", "T1.png")
+])
+
+gui_plot_icon_filenames = list(gui_plot_choice_dict.values())
+gui_icon_filenames = gui_plot_icon_filenames + ["scq-logo.png"]
+
+gui_plot_type_names = list(gui_plot_choice_dict.keys())
+
 
 EL_range = {"v_min": 1.0e-5, "v_max": 10.0}
 EJ_range = {"v_min": 1.0e-5, "v_max": 70.0}
@@ -235,6 +251,7 @@ paramvals_from_papers = {
     "ZeroPi": {
         "Gyenis et al., PRX Quantum 2, 010339 (2021)": {
             "params": {
+                "EJ": 6.0,
                 "EJ": 6.0,
                 "ECJ": 2.28,
                 "EC": 0.184,

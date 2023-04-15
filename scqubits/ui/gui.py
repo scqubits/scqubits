@@ -277,7 +277,7 @@ class GUI:
 
     def init_observe(self) -> None:
         """Links all the necessary widgets to their desired function."""
-        self.navbar_elements["CHOOSE_QUBIT"].observe(self.qubit_change, names="v_model")
+        self.navbar_elements["CHOOSE_QUBIT"].observe(self.change_active_qubit, names="v_model")
         self.navbar_elements["CHOOSE_PLOT"].observe(
             self.change_plot_type, names="v_model"
         )
@@ -578,7 +578,7 @@ class GUI:
             widget.unobserve(self.check_coherence_params_bounds, names="num_value")
 
     # Eventhandler Methods -------------------------------------------------------------
-    def qubit_change(self, change) -> None:
+    def change_active_qubit(self, change) -> None:
         self.clear_plot()
         self.unobserve_all()
 
@@ -1102,6 +1102,8 @@ class GUI:
         self.dict_v_plot_options["amplitude_mode"].v_model = (
             "Re(·)" if current_plot_option < 2 else "|·|"
         )
+        self.dict_v_qubit_params[self.dict_v_plot_options["scan_param"].v_model].disabled = True if current_plot_option == 0 else False
+
 
     def qubit_info_tab(self) -> v.Container:
         qubit_info_box = v.Container(
