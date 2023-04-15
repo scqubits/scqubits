@@ -140,7 +140,7 @@ class Required:
                             "Starting with v3.2, scqubits uses the optional package 'ipyuetify' for graphical"
                             "user interfaces. To use this functionality, add the package via "
                             "`conda install -c conda-forge ipyvuetify` or `pip install ipyvuetify`.\n",
-                            category=Warning
+                            category=Warning,
                         )
                     else:
                         warnings.warn(
@@ -148,7 +148,9 @@ class Required:
                             " {}. If you wish to use this functionality, the corresponding"
                             " package(s) must be installed manually. (Installation via `conda"
                             " install -c conda-forge <packagename>` or `pip install"
-                            " <packagename>` is recommended.)".format(self.requirements_names),
+                            " <packagename>` is recommended.)".format(
+                                self.requirements_names
+                            ),
                             category=Warning,
                         )
 

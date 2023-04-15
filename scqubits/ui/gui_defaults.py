@@ -13,13 +13,15 @@
 import collections
 
 
-gui_plot_choice_dict = collections.OrderedDict([
-	("Energy spectrum", "En.png"),
-	("Wavefunctions", "psi.png"),
-	("Matrix elements", "Me.png"),
-	("Matrix-element sweep", "MeS.png"),
-	("Coherence times", "T1.png")
-])
+gui_plot_choice_dict = collections.OrderedDict(
+    [
+        ("Energy spectrum", "En.png"),
+        ("Wavefunctions", "psi.png"),
+        ("Matrix elements", "Me.png"),
+        ("Matrix-element sweep", "MeS.png"),
+        ("Coherence times", "T1.png"),
+    ]
+)
 
 gui_sweep_plots = [0, 3, 4]
 
@@ -188,7 +190,7 @@ qubit_defaults = {
     "FullZeroPi": fullzeropi_defaults,
     "Cos2PhiQubit": cos2phiqubit_defaults,
     "Snailmon": snailmon_defaults,
-    "Bifluxon": bifluxon_defaults
+    "Bifluxon": bifluxon_defaults,
 }
 
 paramvals_from_papers = {
@@ -311,7 +313,7 @@ supported_qubits = [
     "FullZeroPi",
     "Cos2PhiQubit",
     "Snailmon",
-    "Bifluxon"
+    "Bifluxon",
 ]
 
 slow_qubits = [
@@ -320,7 +322,7 @@ slow_qubits = [
     "FullZeroPi",
     "Cos2PhiQubit",
     "Snailmon",
-    "Bifluxon"
+    "Bifluxon",
 ]
 
 subsys_panel_names = [

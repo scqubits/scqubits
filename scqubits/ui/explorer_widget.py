@@ -63,7 +63,6 @@ MATPLOTLIB_WIDGET_BACKEND = "module://ipympl.backend_nbagg"
 _HAS_WIDGET_BACKEND = get_matplotlib_backend() == MATPLOTLIB_WIDGET_BACKEND
 
 
-
 class Explorer:
     """
     Generates the UI for exploring `ParameterSweep` objects.
@@ -73,6 +72,7 @@ class Explorer:
     sweep:
         the `ParameterSweep` object to be visualized.
     """
+
     @utils.Required(ipyvuetify=_HAS_IPYVUETIFY)
     def __init__(self, sweep: scq.ParameterSweep):
         """Set up all widget GUI elements and class attributes."""
@@ -250,7 +250,7 @@ class Explorer:
             label="Subsystem",
             filled=True,
             outlined=True,
-            height=40
+            height=40,
         )
         self.ui["subsys_dropdown"].observe(self.on_subsys_change, names="v_model")
 
@@ -492,11 +492,7 @@ class Explorer:
             )
         elif panel_name == "Matrix elements" and isinstance(subsys, QubitBaseClass):
             panel_widgets = self.ui["subsys_panel_settings"][subsys_name][panel_name]
-            (
-                mode_dropdown,
-                opname_dropdown,
-                matrixscan_toggle
-            ) = panel_widgets
+            (mode_dropdown, opname_dropdown, matrixscan_toggle) = panel_widgets
             if matrixscan_toggle.v_model == "fixed":
                 panels.display_matrixelements(
                     sweep=self.sweep,
@@ -779,7 +775,9 @@ class Explorer:
             ]
 
         if panel_name == "Wavefunctions":
-            if isinstance(subsys, (scq.FluxQubit, scq.ZeroPi, scq.Bifluxon, scq.Cos2PhiQubit)):
+            if isinstance(
+                subsys, (scq.FluxQubit, scq.ZeroPi, scq.Bifluxon, scq.Cos2PhiQubit)
+            ):
                 ui_wavefunction_selector = ui.InitSelect(
                     label="Display wavefunctions",
                     items=list(range(subsys.truncated_dim)),

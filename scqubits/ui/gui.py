@@ -59,11 +59,21 @@ _HAS_WIDGET_BACKEND = get_matplotlib_backend() == MATPLOTLIB_WIDGET_BACKEND
 
 
 QUBITS_WITH_GRID_INIT = (scq.ZeroPi, scq.FullZeroPi, scq.Bifluxon)
-QUBITS_WITH_PHI_GRID = (scq.Transmon, scq.TunableTransmon, scq.Fluxonium, scq.FluxQubit, scq.Cos2PhiQubit)
+QUBITS_WITH_PHI_GRID = (
+    scq.Transmon,
+    scq.TunableTransmon,
+    scq.Fluxonium,
+    scq.FluxQubit,
+    scq.Cos2PhiQubit,
+)
 QUBITS_WITH_THETA_GRID = (scq.ZeroPi, scq.Bifluxon, scq.Cos2PhiQubit)
 QUBITS_WITHOUT_WAVEFUNCTION_PLOT = (scq.FullZeroPi, scq.Snailmon)
-QUBITS_WITH_2D_WAVEFUNCTION_PLOT = (scq.FluxQubit, scq.ZeroPi, scq.Cos2PhiQubit, scq.Bifluxon)
-
+QUBITS_WITH_2D_WAVEFUNCTION_PLOT = (
+    scq.FluxQubit,
+    scq.ZeroPi,
+    scq.Cos2PhiQubit,
+    scq.Bifluxon,
+)
 
 
 class GUI:
@@ -277,7 +287,9 @@ class GUI:
 
     def init_observe(self) -> None:
         """Links all the necessary widgets to their desired function."""
-        self.navbar_elements["CHOOSE_QUBIT"].observe(self.change_active_qubit, names="v_model")
+        self.navbar_elements["CHOOSE_QUBIT"].observe(
+            self.change_active_qubit, names="v_model"
+        )
         self.navbar_elements["CHOOSE_PLOT"].observe(
             self.change_plot_type, names="v_model"
         )
@@ -1103,10 +1115,13 @@ class GUI:
             "Re(·)" if current_plot_option < 2 else "|·|"
         )
         if current_plot_option in gui_defaults.gui_sweep_plots:
-            self.dict_v_qubit_params[self.dict_v_plot_options["scan_param"].v_model].disabled = True
+            self.dict_v_qubit_params[
+                self.dict_v_plot_options["scan_param"].v_model
+            ].disabled = True
         else:
-            self.dict_v_qubit_params[self.dict_v_plot_options["scan_param"].v_model].disabled = False
-
+            self.dict_v_qubit_params[
+                self.dict_v_plot_options["scan_param"].v_model
+            ].disabled = False
 
     def qubit_info_tab(self) -> v.Container:
         qubit_info_box = v.Container(
@@ -1205,7 +1220,9 @@ class GUI:
             Tuple of plot options widgets
         """
         if isinstance(self.active_qubit, QUBITS_WITHOUT_WAVEFUNCTION_PLOT):
-            plot_options_widgets_tuple = (v.Text(children=["Not implemented (configuration space >2d)"]),)
+            plot_options_widgets_tuple = (
+                v.Text(children=["Not implemented (configuration space >2d)"]),
+            )
         else:
             self.dict_v_plot_options["amplitude_mode"].v_model = self.active_defaults[
                 "mode_wavefunc"

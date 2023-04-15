@@ -103,7 +103,7 @@ class Bifluxon(base.QubitBaseClass, serializers.Serializable, NoisyBifluxon):
         ncut: int,
         dEJ: float = 0.0,
         truncated_dim: int = 6,
-        id_str: Optional[str] = None
+        id_str: Optional[str] = None,
     ) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
 
@@ -209,7 +209,6 @@ class Bifluxon(base.QubitBaseClass, serializers.Serializable, NoisyBifluxon):
         """Returns Hilbert space dimension"""
         return self.grid.pt_count * (2 * self.ncut + 1)
 
-
     def potential(self, phi: ndarray, theta: ndarray) -> ndarray:
         """
         Returns
@@ -217,9 +216,16 @@ class Bifluxon(base.QubitBaseClass, serializers.Serializable, NoisyBifluxon):
             value of the potential energy evaluated at phi, theta for Bifluxon
         """
         return (
-            -2.0 * self.EJ * np.cos(theta) * np.cos(phi/2.0 + 2.0 * np.pi * self.flux / 2.0)
-            + (1/2.0) * self.EL * phi ** 2
-            -2.0 * self.EJ * self.dEJ * np.sin(theta) * np.sin(phi/2.0 + 2.0 * np.pi * self.flux / 2.0)
+            -2.0
+            * self.EJ
+            * np.cos(theta)
+            * np.cos(phi / 2.0 + 2.0 * np.pi * self.flux / 2.0)
+            + (1 / 2.0) * self.EL * phi**2
+            - 2.0
+            * self.EJ
+            * self.dEJ
+            * np.sin(theta)
+            * np.sin(phi / 2.0 + 2.0 * np.pi * self.flux / 2.0)
         )
 
     def sparse_kinetic_mat(self) -> csc_matrix:
@@ -271,7 +277,7 @@ class Bifluxon(base.QubitBaseClass, serializers.Serializable, NoisyBifluxon):
         phi_cosby2_potential = sparse.dia_matrix(
             (phi_cosby2_vals, [0]), shape=(pt_count, pt_count)
         ).tocsc()
-        phi_sinby2_vals = np.sin(grid_linspace/2.0 + 2.0 * np.pi * self.flux / 2.0)
+        phi_sinby2_vals = np.sin(grid_linspace / 2.0 + 2.0 * np.pi * self.flux / 2.0)
         phi_sinby2_potential = sparse.dia_matrix(
             (phi_sinby2_vals, [0]), shape=(pt_count, pt_count)
         ).tocsc()
@@ -296,9 +302,12 @@ class Bifluxon(base.QubitBaseClass, serializers.Serializable, NoisyBifluxon):
         )
         if self.dEJ != 0:
             potential_mat += (
-                -2.0 * self.EJ
+                -2.0
+                * self.EJ
                 * self.dEJ
-                * sparse.kron(phi_sinby2_potential, self._identity_theta(), format="csc")
+                * sparse.kron(
+                    phi_sinby2_potential, self._identity_theta(), format="csc"
+                )
                 * self.sin_theta_operator()
             )
         return potential_mat
@@ -428,7 +437,7 @@ class Bifluxon(base.QubitBaseClass, serializers.Serializable, NoisyBifluxon):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def d_hamiltonian_d_ng(
-            self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
         r"""
         Calculates a derivative of the Hamiltonian w.r.t ng as stored in the object.

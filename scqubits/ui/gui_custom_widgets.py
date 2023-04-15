@@ -200,7 +200,6 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             if onclick:
                 self.on_event("click", onclick)
 
-
     class vTooltipBtn(v.Tooltip):
         def __init__(self, tooltip, bottom=False, left=True, **kwargs):
             self.btn = vBtn(v_on="tooltip.on", **kwargs)
