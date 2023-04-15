@@ -33,9 +33,9 @@ from scqubits.utils.typedefs import QuantumSys
 
 
 def eigsh_safe(*args, **kwargs):
-    """Wrapper method for scipy.sparse.linalg.eigsh
-    This ensures:
-    1. Always use the same "random" starting vector v0. Otherwise results show
+    """Wrapper method for `scipy.sparse.linalg.eigsh` which ensures the following.
+
+    1. Always use the same "random" starting vector v0. Otherwise, results show
        random behavior (small deviations between different runs, problem for pytests)
     2. Test for degenerate eigenvalues. If there are any, need to orthogonalize the
         eigenvectors properly."""
