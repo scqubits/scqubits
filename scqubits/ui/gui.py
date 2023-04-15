@@ -1102,7 +1102,10 @@ class GUI:
         self.dict_v_plot_options["amplitude_mode"].v_model = (
             "Re(·)" if current_plot_option < 2 else "|·|"
         )
-        self.dict_v_qubit_params[self.dict_v_plot_options["scan_param"].v_model].disabled = True if current_plot_option == 0 else False
+        if current_plot_option in gui_defaults.gui_sweep_plots:
+            self.dict_v_qubit_params[self.dict_v_plot_options["scan_param"].v_model].disabled = True
+        else:
+            self.dict_v_qubit_params[self.dict_v_plot_options["scan_param"].v_model].disabled = False
 
 
     def qubit_info_tab(self) -> v.Container:

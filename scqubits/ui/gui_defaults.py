@@ -21,6 +21,8 @@ gui_plot_choice_dict = collections.OrderedDict([
 	("Coherence times", "T1.png")
 ])
 
+gui_sweep_plots = [0, 3, 4]
+
 gui_plot_icon_filenames = list(gui_plot_choice_dict.values())
 gui_icon_filenames = gui_plot_icon_filenames + ["scq-logo.png"]
 
