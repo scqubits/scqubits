@@ -19,7 +19,7 @@ import scqubits.utils.misc as utils
 try:
     import ipyvuetify
     import ipywidgets
-    from scqubits.ui.gui_custom_widgets import ValidatedNumberField
+    from scqubits.ui.gui_custom_widgets import vValidatedNumberField
 except ImportError:
     _HAS_IPYVUETIFY = False
 else:
@@ -61,7 +61,7 @@ def create_widget(
         elif name == "flux":
             label_str += r" [Φ₀]"
 
-        widgets[name] = ValidatedNumberField(
+        widgets[name] = vValidatedNumberField(
             v_model=value,
             num_type=type(value),
             placeholder=f"enter appropriate value for {label_str}",

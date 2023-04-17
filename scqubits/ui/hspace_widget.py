@@ -25,7 +25,7 @@ from scqubits.ui.gui_defaults import NAV_COLOR
 try:
     import ipywidgets
     import ipyvuetify as v
-    from scqubits.ui.gui_custom_widgets import ValidatedNumberField, vChip
+    from scqubits.ui.gui_custom_widgets import vValidatedNumberField, vChip
 except ImportError:
     _HAS_IPYVUETIFY = False
 else:
@@ -64,7 +64,7 @@ class HilbertSpaceUi:
         self.op2subsys_widget: List[v.Select] = []
         self.op1_ddown_widget: List[v.Select] = []
         self.op2_ddown_widget: List[v.Select] = []
-        self.g_widget: List[ValidatedNumberField] = []
+        self.g_widget: List[vValidatedNumberField] = []
         self.addhc_widget: List[v.Select] = []
         self.string_expr_widget: List[v.TextField] = []
         self.interact_box1: List[v.Container] = []
@@ -217,7 +217,7 @@ class HilbertSpaceUi:
             )
         )
         self.g_widget.append(
-            ValidatedNumberField(
+            vValidatedNumberField(
                 v_model="0",
                 num_type=float,
                 label="g_strength",
