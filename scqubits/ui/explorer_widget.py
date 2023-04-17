@@ -106,28 +106,20 @@ class Explorer:
             items=list(self.sweep.param_info.keys()),
         )
 
-        self.v_sample_value = ui.vNumberEntryWidget(
-            num_type=float,
-            label="Sample Value",
-            v_model=0.2,
-            text_kwargs={
-                "style_": "min-width: 80px; max-width: 90px;",
-                "dense": True,
-            },
-            slider_kwargs={
-                "style_": "min-width: 110px; max-width: 130px",
-                "dense": True,
-            },
-            s_min=0.0,
-            s_max=1.0,
+        self.v_sample_value = ui.vDiscreteSetSlider(
+            param_name=self.v_active_sweep_param.v_model,
+            param_vals=self.param_vals,
+            filled=False,
+            class_="px-3",
+            style_="max-width: 300px"
         )
 
         self.plot_collection = ui.vCardCollection(ncols=self.ncols)
         self.gui_display = v.Container(
-            class_="d-flex flex-column mx-0 my-0 px-0 py-0",
+            class_="d-flex flex-column mx-0 px-0",
             children=[
                 v.Sheet(
-                    class_="d-flex flex-row m-0 pt-3",
+                    class_="d-flex flex-row m-0 pt-3 align-bottom",
                     height=70,
                     flat=True,
                     width="100%",
@@ -140,7 +132,7 @@ class Explorer:
                             children=[gui_defaults.icons["scq-logo.png"]],
                         ),
                         self.v_active_sweep_param,
-                        self.v_sample_value.widget(),
+                        self.v_sample_value
                     ],
                 ),
                 self.plot_collection.show(),

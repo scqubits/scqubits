@@ -227,16 +227,23 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             if onclick:
                 self.on_event("click", onclick)
 
+
     class vDiscreteSetSlider(v.Slider):
-        def __init__(self, param_vals, **kwargs):
+        def __init__(self, param_name, param_vals, **kwargs):
             self.val_count = len(param_vals)
+            self.param_name = param_name
             self.param_vals = param_vals
             super().__init__(
                 min=0, max=(self.val_count - 1), step=1, v_model=0, **kwargs
             )
+            self.update_textfield()
+            self.observe(self.update_textfield, names="v_model")
 
         def current_value(self):
             return self.param_vals[int(self.v_model)]
+
+        def update_textfield(self, *args):
+            self.label = f"{self.current_value():.3f}"
 
     class IconButton(vBtn):
         def __init__(self, icon_name, **kwargs):
