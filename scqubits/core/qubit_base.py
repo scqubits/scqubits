@@ -256,13 +256,10 @@ class QubitBaseClass(QuantumSystem, ABC):
 
         super().__init__(id_str=id_str)
         self.evals_method = evals_method
-        self.evals_method_options = (
-            {} if evals_method_options is None else evals_method_options
-        )
+        self.evals_method_options = evals_method_options
         self.esys_method = esys_method
-        self.esys_method_options = (
-            {} if esys_method_options is None else esys_method_options
-        )
+        self.esys_method_options = esys_method_options
+        
 
     @abstractmethod
     def hamiltonian(self):
@@ -334,7 +331,7 @@ class QubitBaseClass(QuantumSystem, ABC):
                 else self.evals_method
             )
             evals = diagonalizer(
-                self.hamiltonian(), evals_count, **self.evals_method_options
+                self.hamiltonian(), evals_count, **({} if self.evals_method_options is None else self.evals_method_options)
             )
 
         if filename or return_spectrumdata:
@@ -396,7 +393,7 @@ class QubitBaseClass(QuantumSystem, ABC):
                 else self.esys_method
             )
             evals, evecs = diagonalizer(
-                self.hamiltonian(), evals_count, **self.esys_method_options
+                self.hamiltonian(), evals_count, **({} if self.esys_method_options is None else self.esys_method_options)
             )
 
         if filename or return_spectrumdata:

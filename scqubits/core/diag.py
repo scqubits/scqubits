@@ -10,67 +10,155 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from numpy import ndarray
 from typing import Any, Dict, List, Optional, Tuple, Union
-
-import numpy as np
-import scipy as sp
 from qutip import Qobj
-import scqubits.settings as settings
-
+from scipy.sparse import csc_matrix
+from scqubits.io_utils.fileio_qutip import QutipEigenstates
 from scqubits.utils.spectrum_utils import order_eigensystem, has_degeneracy
 
-def _setup_default_options(
-    options: Dict[str, Any],
-    defaults: Dict[str, Any],
+import copy
+import numpy as np
+import scipy as sp
+import scqubits.settings as settings
+import warnings
+
+
+def _dict_merge(
+    d: Dict[str, Any],
+    d_other: Dict[str, Any],
     exclude: Union[List[str], None] = None,
+    overwrite=False,
 ) -> Dict[str, Any]:
     """
-    Makes a copy of the options dictionary and updates keys from defaults
-    if not already present in options.
+    Selective dictionary merge. This function makes a copy of the given
+    dictionary `d` and selectively updates/adds entries from `d_other`.
+    Whether entries in `d` are overwritten by entries in `d_other` is
+    determined by the value of the `overwrite` parameter.
 
     Parameters
     ----------
-    options:
-        dictionary of options
-    defaults:
-        dictionary of key/value pairs that are added if not already given in options
-    exclude:
-        list of potential keys in options to be excluded from being added to final dictionary
+    d: dict
+        dictionary
+    d_other:
+        second dictionary to be merged with the first
+    exclude: dict
+        list of potential keys in d_other to be excluded from being added to resulting merge
+    overwrite: bool
+        determines of keys already in d should be overwritten by those in d_other
 
     Returns
     ----------
         dictionary of options that includes desired defaults if not present beforehand
 
     """
-    exclude = {} if exclude is None else exclude
-    opts = dict(options)
-    for key in defaults:
-        if key not in opts and key not in exclude:
-            opts[key] = defaults[key]
-    return opts
+    exclude = [] if exclude is None else exclude
+
+    d_new = copy.deepcopy(d)
+    for key in d_other:
+        if key not in exclude and (overwrite or key not in d):
+            d_new[key] = d_other[key]
+
+    return d_new
 
 
-def _convert_evecs_to_qobjs(evecs, qobj):
+def _cast_matrix(
+    matrix: Union[ndarray, csc_matrix, Qobj], cast_to: str, force_cast: bool = False
+) -> Union[ndarray, csc_matrix, Qobj]:
     """
-    Converts an ndarray containing eigenvectors (that would be typically returned from a diagonalization routine)
-    to a numpy array of qutip's Qobjs.
+    Casts a given matrix into a required form ('sparse' or 'dense')
+    as defined by `cast_to` parameter.
+    Note that in some cases casting may not be explicitly needed,
+    for example: the sparse matrix routines can can often accept
+    dense matrices. The parameter `force_cast` determines if the
+    casing should be always done, or only where it is necessary.
+
+    Parameters
+    ----------
+    matrix: Qobj, ndarra or csc_matrx
+        matrix given as an ndarray, Qobj, or scipy's sparse matrix format
+    cast_to: str
+        string representing the format that matrix should be cast into: 'sparse' or 'dense'
+    force_cast: bool
+        determines of casting should be always performed or only where necessary
+
+    Returns
+    ----------
+        matrix in the right sparse or dense form
+
     """
-    evecs_count = evecs.shape[1]
+    m = matrix
+
+    if cast_to == "sparse":
+        if isinstance(matrix, Qobj):
+            m = matrix.data
+        elif isinstance(matrix, ndarray) and force_cast:
+            m = csc_matrix(m)
+
+    elif cast_to == "dense":
+        if isinstance(matrix, Qobj):
+            m = matrix.full()
+        elif sp.sparse.issparse(matrix):
+            m = matrix.toarray()
+    else:
+        raise ValueError("can only matrix to 'sparse' or 'dense' forms.")
+
+    return m
+
+
+def _convert_evecs_to_qobjs(evecs: ndarray, wrap: bool = True) -> ndarray:
+    """
+    Converts an ndarray containing eigenvectors (that would be typically returned from diagonalization routine,
+    such as eighs or eigh), to a numpy array of qutip's Qobjs.
+
+    Parameters
+    ----------
+    evecs:
+        ndarray of eigenvectors (as columns)
+    wrap:
+        determines if we wrap results in QutipEigenstates
+
+    Returns
+    ----------
+        1d ndarray of Qobjs representing eigenvectors of some operator
+
+    """
+    evecs_count, evec_dim = evecs.shape[1], evecs.shape[0]
     evecs_qobj = np.empty((evecs_count,), dtype=object)
-    evecs_qobj[:] = [
-        Qobj(evecs[:, i], dims=[qobj.dims[0], [1] * len(qobj.dims[0])], type="ket")
-        for i in range(evecs_count)
-    ]
-    norms = np.array([evec.norm() for evec in evecs_qobj])
-    return evecs_qobj / norms
+
+    for i in range(evecs_count):
+        v = Qobj(evecs[:, i], dims=[evec_dim, [1] * evec_dim], type="ket")
+        evecs_qobj[:] = v / v.norm()
+
+    # Optionally, we wrap the resulting array in QutipEigenstates as is done in HilbertSpace.
+    if wrap:
+        evecs_qobj = evecs_qobj.view(scqubits.io_utils.fileio_qutip.QutipEigenstates)
+
+    return evecs_qobj
 
 
-def scipy_dense_evals(matrix, evals_count=6, **kwargs):
+def evals_scipy_dense(
+    matrix: Union[ndarray, csc_matrix, Qobj], evals_count: int = 6, **kwargs
+) -> ndarray:
     """
     Diagonalization based on scipy's (dense) eigh function.
     Only evals are returned.
+
+    Parameters
+    ----------
+    matrix:
+        ndarray or qutip.Qobj to be diagonalized
+    evals_count:
+        how many eigenvalues should be returned
+    kwargs:
+        optional settings that are passed onto the diagonalization routine
+
+    Returns
+    ----------
+        eigenvalues of matrix
+
     """
-    m = matrix.full() if isinstance(matrix, Qobj) else matrix
+    m = _cast_matrix(matrix, "dense")
 
     evals = sp.linalg.eigh(
         m, subset_by_index=(0, evals_count - 1), eigvals_only=True, **kwargs
@@ -78,26 +166,42 @@ def scipy_dense_evals(matrix, evals_count=6, **kwargs):
     return evals
 
 
-def scipy_dense_esys(matrix, evals_count=6, **kwargs):
+def esys_scipy_dense(
+    matrix, evals_count=6, **kwargs
+) -> Union[Tuple[ndarray, ndarray], Tuple[ndarray, QutipEigenstates]]:
     """
     Diagonalization based on scipy's (dense) eigh function.
     Both evals and evecs are returned.
+
+    Parameters
+    ----------
+    matrix:
+        ndarray or qutip.Qobj to be diagonalized
+    evals_count:
+        how many eigenvalues/vectors should be returned
+    kwargs:
+        optional settings that are passed onto the diagonalization routine
+
+    Returns
+    ----------
+        a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if matrix is a Qobj instance
+
     """
-    m = matrix.full() if isinstance(matrix, Qobj) else matrix
+    m = _cast_matrix(matrix, "dense")
 
     evals, evecs = sp.linalg.eigh(m, subset_by_index=(0, evals_count - 1), **kwargs)
 
     # TODO: do we need this?
     # evals, evecs = order_eigensystem(evals, evecs)
 
-    evecs = (
-        _convert_evecs_to_qobjs(evecs, matrix) if isinstance(matrix, Qobj) else evecs
-    )
+    evecs = _convert_evecs_to_qobjs(evecs) if isinstance(matrix, Qobj) else evecs
 
     return evals, evecs
 
 
-def scipy_sparse_evals(matrix, evals_count=6, **kwargs):
+def evals_scipy_sparse(
+    matrix: Union[ndarray, csc_matrix, Qobj], evals_count: int = 6, **kwargs
+) -> ndarray:
     """
     Diagonalization based on scipy's (sparse) eigsh function.
     Only evals are returned.
@@ -111,10 +215,23 @@ def scipy_sparse_evals(matrix, evals_count=6, **kwargs):
     random behavior (small deviations between different runs, problem for pytests)
     2. We test for degenerate eigenvalues. If there are any, we orthogonalize the
     eigenvectors properly.
-    """
-    m = matrix.data if isinstance(matrix, Qobj) else matrix
 
-    options = _setup_default_options(
+    Parameters
+    ----------
+    matrix:
+        ndarray or qutip.Qobj to be diagonalized
+    evals_count:
+        how many eigenvalues should be returned
+    kwargs:
+        optional settings that are passed onto the diagonalization routine
+
+    Returns
+    ----------
+        eigenvalues of matrix
+    """
+    m = _cast_matrix(matrix, "sparse")
+
+    options = _dict_merge(
         kwargs,
         dict(
             # sigma=0.0,
@@ -131,7 +248,9 @@ def scipy_sparse_evals(matrix, evals_count=6, **kwargs):
     return evals[::-1]
 
 
-def scipy_sparse_esys(matrix, evals_count=6, **kwargs):
+def esys_scipy_sparse(
+    matrix: Union[ndarray, csc_matrix, Qobj], evals_count: int = 6, **kwargs
+) -> Union[Tuple[ndarray, ndarray], Tuple[ndarray, QutipEigenstates]]:
     """
     Diagonalization based on scipy's (sparse) eigsh function.
     Both evals and evecs are returned.
@@ -146,13 +265,27 @@ def scipy_sparse_esys(matrix, evals_count=6, **kwargs):
     2. We test for degenerate eigenvalues. If there are any, we orthogonalize the
     eigenvectors properly.
 
-    TODO: right now, this is essentially a copy/paste of spectrum_utils.eigsh_safe()
+    TODO:
+        Right now, this is essentially a copy/paste of spectrum_utils.eigsh_safe().
         When the dust settles, should combine both into one.
 
-    """
-    m = matrix.data if isinstance(matrix, Qobj) else matrix
+    Parameters
+    ----------
+    matrix:
+        ndarray or qutip.Qobj to be diagonalized
+    evals_count:
+        how many eigenvalues/vectors should be returned
+    kwargs:
+        optional settings that are passed onto the diagonalization routine
 
-    options = _setup_default_options(
+    Returns
+    ----------
+        a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if matrix is a Qobj instance
+
+    """
+    m = _cast_matrix(matrix, "sparse")
+
+    options = _dict_merge(
         kwargs,
         dict(
             # sigma=0.0,
@@ -164,21 +297,25 @@ def scipy_sparse_esys(matrix, evals_count=6, **kwargs):
         ),
     )
     evals, evecs = sp.sparse.linalg.eigsh(m, k=evals_count, **options)
+
     if has_degeneracy(evals):
         evecs, _ = sp.linalg.qr(evecs, mode="economic")
 
-    evecs = (
-        _convert_evecs_to_qobjs(evecs, matrix) if isinstance(matrix, Qobj) else evecs
-    )
+    evecs = _convert_evecs_to_qobjs(evecs) if isinstance(matrix, Qobj) else evecs
 
     return evals, evecs
 
 
-def cupy_dense_evals(matrix, evals_count=6, **kwargs):
+def evals_cupy_dense(
+    matrix: Union[ndarray, csc_matrix, Qobj], evals_count: int = 6, **kwargs
+) -> ndarray:
     """
     Diagonalization based on cuda's (dense) eigvalsh function.
     Only evals are returned.
     """
+    # m = _cast_matrix(matrix, "dense")
+    m = matrix
+
     try:
         import cupy as cp
     except:
@@ -192,7 +329,9 @@ def cupy_dense_evals(matrix, evals_count=6, **kwargs):
     return evals_gpu[:evals_count].get()
 
 
-def cupy_dense_esys(matrix, evals_count=6, **kwargs):
+def esys_cupy_dense(
+    matrix: Union[ndarray, csc_matrix, Qobj], evals_count: int = 6, **kwargs
+):
     """
     Diagonalization based on cupy's (dense) eigh function.
     Both evals and evecs are returned.
@@ -216,7 +355,9 @@ def cupy_dense_esys(matrix, evals_count=6, **kwargs):
     return evals, evecs
 
 
-def cupy_sparse_evals(matrix, evals_count=6, **kwargs):
+def evals_cupy_sparse(
+    matrix: Union[ndarray, csc_matrix, Qobj], evals_count: int = 6, **kwargs
+) -> ndarray:
     """
     Diagonalization based on cupy's (sparse) eighs function.
     Only evals are returned.
@@ -228,27 +369,30 @@ def cupy_sparse_evals(matrix, evals_count=6, **kwargs):
     """
     try:
         # from cupyx.scipy.sparse import csc_matrix
-        from cupyx.scipy.sparse.linalg import eigsh
         import cupy as cp
+        from cupyx.scipy.sparse.linalg import eigsh
     except:
         raise ImportError("Module cupyx (part of cupy) is not installed.")
 
-    m = matrix.data if isinstance(matrix, Qobj) else matrix
+    # m = _cast_matrix(matrix, "dense")
+    m = matrix
 
-    options = _setup_default_options(
+    options = _dict_merge(
         kwargs,
         dict(
             which="LA",
             return_eigenvectors=False,
         ),
     )
-    # evals_gpu = eigsh(cp.asarray(matrix), k=evals_count, **options)
-    evals_gpu = eigsh(cp.asarray(m), k=matrix.shape[0] - 3, **options)
+    evals_gpu = eigsh(cp.asarray(matrix), k=evals_count, **options)
+    # evals_gpu = eigsh(cp.asarray(m), k=matrix.shape[0] - 3, **options)
 
     return evals_gpu.get()[::-1]
 
 
-def cupy_sparse_esys(matrix, evals_count=6, **kwargs):
+def esys_cupy_sparse(
+    matrix: Union[ndarray, csc_matrix, Qobj], evals_count: int = 6, **kwargs
+):
     """
     Diagonalization based on cupy's (sparse) eighs function.
     Both evals and evecs are returned.
@@ -267,9 +411,10 @@ def cupy_sparse_esys(matrix, evals_count=6, **kwargs):
     except:
         raise ImportError("Module cupyx (part of cupy) is not installed.")
 
-    m = matrix.data if isinstance(matrix, Qobj) else matrix
+    # m = _cast_matrix(matrix, "sparse")
+    m = matrix
 
-    options = _setup_default_options(
+    options = _dict_merge(
         kwargs,
         dict(
             return_eigenvectors=True,
@@ -286,7 +431,36 @@ def cupy_sparse_esys(matrix, evals_count=6, **kwargs):
     return evals, evecs
 
 
-def primme_sparse_esys(matrix, evals_count=6, **kwargs):
+def evals_primme_sparse(
+    matrix: Union[ndarray, csc_matrix, Qobj], evals_count: int = 6, **kwargs
+) -> ndarray:
+    """
+    Diagonalization based on primme's (sparse) eighs function.
+    Only the evals are returned.
+    """
+    try:
+        import primme
+    except:
+        raise ImportError("Module primme is not installed.")
+
+    # m = _cast_matrix(matrix, "sparse")
+    m = matrix
+
+    options = _dict_merge(
+        kwargs,
+        dict(
+            # which="SA",
+            return_eigenvectors=False,
+        ),
+    )
+    evals = primme.eigsh(m, k=evals_count, **options)
+
+    return evals
+
+
+def esys_primme_sparse(
+    matrix: Union[ndarray, csc_matrix, Qobj], evals_count: int = 6, **kwargs
+):
     """
     Diagonalization based on primme's (sparse) eighs function.
     Both evals and evecs are returned.
@@ -296,9 +470,10 @@ def primme_sparse_esys(matrix, evals_count=6, **kwargs):
     except:
         raise ImportError("Module primme is not installed.")
 
-    m = matrix.data if isinstance(matrix, Qobj) else matrix
+    # m = _cast_matrix(matrix, "sparse")
+    m = matrix
 
-    options = _setup_default_options(
+    options = _dict_merge(
         kwargs,
         dict(
             which="SA",
@@ -314,117 +489,20 @@ def primme_sparse_esys(matrix, evals_count=6, **kwargs):
     return evals, evecs
 
 
-def primme_sparse_evals(matrix, evals_count=6, **kwargs):
-    """
-    Diagonalization based on primme's (sparse) eighs function.
-    Only the evals are returned.
-    """
-    try:
-        import primme
-    except:
-        raise ImportError("Module primme is not installed.")
-
-    m = matrix.data if isinstance(matrix, Qobj) else matrix
-
-    options = _setup_default_options(
-        kwargs,
-        dict(
-            which="SA",
-            return_eigenvectors=False,
-        ),
-    )
-    evals = primme.eigsh(m, k=evals_count, **options)
-
-    return evals
-
 # Default values of various noise constants and parameters.
 DIAG_METHODS = {
-    "scipy_dense_evals": scipy_dense_evals,
-    "scipy_dense_esys": scipy_dense_esys,
-    "scipy_sparse_evals": scipy_sparse_evals,
-    "scipy_sparse_esys": scipy_sparse_esys,
-    "primme_sparse_evals": primme_sparse_evals,
-    "primme_sparse_esys": primme_sparse_esys,
-    "cupy_dense_evals": cupy_dense_evals,
-    "cupy_dense_esys": cupy_dense_esys,
-    "cupy_sparse_evals": cupy_sparse_evals,
-    "cupy_sparse_esys": cupy_sparse_esys,
+    "evals_scipy_dense": evals_scipy_dense,
+    "esys_scipy_dense": esys_scipy_dense,
+    "evals_scipy_sparse": evals_scipy_sparse,
+    "esys_scipy_sparse": esys_scipy_sparse,
+    "esys_scipy_sparse_LA_shift-inverse": lambda matrix, evals_count=6, **kwargs: esys_scipy_sparse(
+        matrix, evals_count, **_dict_merge(kwargs, dict(which="LA", sigma=0))
+    ),
+    "evals_primme_sparse": evals_primme_sparse,
+    "evals_primme_sparse": evals_primme_sparse,
+    "esys_primme_sparse": esys_primme_sparse,
+    "evals_cupy_dense": evals_cupy_dense,
+    "esys_cupy_dense": esys_cupy_dense,
+    "evals_cupy_sparse": evals_cupy_sparse,
+    "esys_cupy_sparse": esys_cupy_sparse,
 }
-
-
-###################
-
-# temporary; not used beyond this point
-
-
-def scipy_eigh(matrix, evals_count=6, **kwargs):
-    """
-    Diagonalization based on scipy's (dense) eigh function.
-    """
-    # Note that eigh (dense) options formatting is different from eigsh (sparse).
-    # Here we will accept ether `eigvals_only` or `return_eigenvectors` flag
-    # in order to determine whether eigenvectors are to be calculated or not.
-    # If both options given at the same time, we raise an error, warning the user.
-    # If option not give, we assume evecs are to be calculated
-    if kwargs.has_key("eigvals_only") and kwargs.has_key("return_eigenvectors"):
-        raise RuntimeError(
-            "Only one of 'eigenvals_only' or 'return_eigenvectors' can be given."
-        )
-
-    eigvals_only = kwargs.get("eigvals_only", None)
-    if eigvals_only is None:
-        eigvals_only = not kwargs.get("return_eigenvectors", True)
-
-    options = _setup_default_options(
-        kwargs,
-        dict(
-            eigvals_only=eigvals_only,
-        ),
-        exclude=["eigvals_only", "return_eigenvectors"],
-    )
-
-    if eigvals_only:
-        evals = sp.linalg.eigh(matrix, subset_by_index=(0, evals_count - 1), **options)
-        return np.sort(evals)
-
-    else:
-        evals, evecs = sp.linalg.eigh(
-            matrix, subset_by_index=(0, evals_count - 1), **options
-        )
-        evals, evecs = order_eigensystem(evals, evecs)
-        return evals, evecs
-
-
-def scipy_eigsh(matrix, evals_count=6, **kwargs):
-    """
-    Diagonalization based on scipy's (sparse) eigsh function.
-
-    This function ensures that:
-    1. We always use the same "random" starting vector v0. Otherwise results show
-    random behavior (small deviations between different runs, problem for pytests)
-    2. We test for degenerate eigenvalues. If there are any, we orthogonalize the
-    eigenvectors properly.
-
-    TODO: right now, this is essentially a copy/paste of spectrum_utils.eigsh_safe()
-        When the dust settles, should combine both into one.
-
-    """
-    options = _setup_default_options(
-        kwargs,
-        dict(
-            sigma=0.0,
-            which="LA",
-            v0=settings.RANDOM_ARRAY[: matrix.shape[0]],
-            return_eigenvectors=True,
-        ),
-    )
-    if options["return_eigenvectors"]:
-        evals, evecs = sp.sparse.linalg.eigsh(matrix, k=evals_count, **options)
-        if has_degeneracy(evals):
-            evecs, _ = sp.linalg.qr(evecs, mode="economic")
-            return evals, evecs
-    # return np.sort(sp.sparse.linalg.eigsh(matrix, k=evals_count, **options))
-
-    return sp.sparse.linalg.eigsh(matrix, k=evals_count, **options)
-
-

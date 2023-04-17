@@ -375,14 +375,10 @@ class HilbertSpace(
         ]
 
         self.evals_method = evals_method
-        self.evals_method_options = (
-            {} if evals_method_options is None else evals_method_options
-        )
+        self.evals_method_options = evals_method_options
         self.esys_method = esys_method
-        self.esys_method_options = (
-            {} if esys_method_options is None else esys_method_options
-        )
-
+        self.esys_method_options = esys_method_options
+        
         # The following attributes are for compatibility with SpectrumLookupMixin
         self._data: Dict[str, Any] = {}
         self._parameters = Parameters({"dummy_parameter": np.array([0])})
@@ -660,7 +656,7 @@ class HilbertSpace(
             evals = diagonalizer(
                 hamiltonian_mat,
                 evals_count=evals_count,
-                **self.evals_method_options,
+                **({} if self.evals_method_options is None else self.evals_method_options),
             )
         return evals
 
@@ -698,7 +694,7 @@ class HilbertSpace(
             evals, evecs = diagonalizer(
                 hamiltonian_mat,
                 evals_count=evals_count,
-                **self.esys_method_options,
+                **({} if self.esys_method_options is None else self.esys_method_options),
             )
 
         evecs = evecs.view(scqubits.io_utils.fileio_qutip.QutipEigenstates)
