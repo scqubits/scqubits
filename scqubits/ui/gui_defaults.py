@@ -10,7 +10,15 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import collections
+import collections, os, base64
+
+try:
+    import ipyvuetify as v
+    import ipywidgets
+except ImportError:
+    _HAS_IPYVUETIFY = False
+else:
+    _HAS_IPYVUETIFY = True
 
 
 gui_plot_choice_dict = collections.OrderedDict(
@@ -27,8 +35,19 @@ gui_sweep_plots = [0, 3, 4]
 
 gui_plot_icon_filenames = list(gui_plot_choice_dict.values())
 gui_icon_filenames = gui_plot_icon_filenames + ["scq-logo.png"]
-
 gui_plot_type_names = list(gui_plot_choice_dict.keys())
+
+
+icons = {}
+if _HAS_IPYVUETIFY:
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons")
+
+    for name in gui_icon_filenames:
+        full_path = os.path.join(path, name)
+        file = open(full_path, "rb")
+        image = file.read()
+        image_base64 = base64.b64encode(image).decode("ascii")
+        icons[name] = v.Img(src=f"data:image/png;base64,{image_base64}", width=50)
 
 
 EL_range = {"v_min": 1.0e-5, "v_max": 10.0}

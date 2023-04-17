@@ -10,7 +10,11 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import collections
 from typing import List, Union
+
+import matplotlib as mp
+import numpy as np
 
 import scqubits.utils.misc as utils
 
@@ -34,7 +38,7 @@ else:
 
 if _HAS_IPYTHON and _HAS_IPYVUETIFY:
 
-    class ValidatedNumberField(v.TextField):
+    class vValidatedNumberField(v.TextField):
         _typecheck_func: callable = None
         _type = None
         _current_value = None
@@ -106,7 +110,7 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
                 self._current_value = self._type(self.v_model)
             return self._current_value
 
-    class NumberEntryWidget(ValidatedNumberField):
+    class vNumberEntryWidget(vValidatedNumberField):
         def __init__(
             self,
             label,
@@ -186,7 +190,7 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
                     self.slider.v_model
                 )  # This is a hack... need to trigger final "change" event
 
-    class InitSelect(v.Select):
+    class vInitSelect(v.Select):
         def __init__(self, **kwargs):
             if "v_model" not in kwargs and "items" in kwargs:
                 kwargs["v_model"] = kwargs["items"][0]
@@ -223,7 +227,7 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             if onclick:
                 self.on_event("click", onclick)
 
-    class DiscreteSetSlider(v.Slider):
+    class vDiscreteSetSlider(v.Slider):
         def __init__(self, param_vals, **kwargs):
             self.val_count = len(param_vals)
             self.param_vals = param_vals
@@ -245,7 +249,7 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
                 children=[v.Icon(children=[icon_name])],
             )
 
-    class NavbarElement(v.ExpansionPanels):
+    class vNavbarElement(v.ExpansionPanels):
         def __init__(
             self,
             header,
@@ -296,4 +300,182 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
     def flex_column(widgets: List[v.VuetifyWidget], class_="", **kwargs) -> v.Container:
         return v.Container(
             class_="d-flex flex-column " + class_, children=widgets, **kwargs
+        )
+
+
+class vCard:
+    def __init__(self, content_list=None, width="49.5%"):
+        content_list = content_list if content_list else []
+        self.content_row = v.Container(
+            children=content_list,
+            class_="d-flex flex-row",
+            style_="justify-content: center",
+        )
+        self.card = v.Card(
+            max_width=width,
+            min_width=width,
+            elevation=2,
+            class_="mx-1 my-1",
+            children=[self.content_row],
+        )
+
+    def set_content(self, content_list):
+        self.content_row.children = content_list
+
+
+class vClosableCard(vCard):
+    def __init__(self, content_list=None, width="49.5%"):
+        super().__init__(content_list=content_list, width=width)
+
+        self.btn = v.Btn(
+            class_="mx-1",
+            icon=True,
+            size="xx-small",
+            elevation=0,
+            children=[v.Icon(children="mdi-close-circle")],
+        )
+
+        self.settings_btn = v.Btn(
+            class_="mx-1",
+            icon=True,
+            size="xx-small",
+            elevation=0,
+            children=[v.Icon(children="mdi-settings")],
+        )
+
+        self.card.children = [
+            v.Container(
+                class_="d-flex flex-row justify-end",
+                children=[self.settings_btn, self.btn],
+            ),
+            self.content_row,
+        ]
+
+
+class vClosablePlotCard(vClosableCard):
+    def __init__(self, fig, axes, width="49%"):
+        self.fig = fig
+        self.axes = axes
+        self.output = ipywidgets.Output(layout=ipywidgets.Layout(object_fit="contain"))
+
+        super().__init__(content_list=[self.output], width=width)
+
+
+class vCardCollection:
+    def __init__(self, ncols=2):
+        self.ncols = ncols
+        self.card_dict = collections.OrderedDict()
+        self.container = v.Container(
+            children=[],
+            style_="background: #eeeeee; position: relative; top: -70px",
+            class_="d-flex flex-row flex-wrap p-0 m-0",
+            width="100%",
+        )
+
+    def choose_plot(self, *args, **kwargs):
+        fig = mp.pyplot.figure()
+        axes = fig.subplots()
+        axes.plot(np.random.random(10), np.random.random(10))
+        fig.set_figwidth(4)
+        fig.set_figheight(4)
+
+        self.new_plot_card(fig, axes)
+
+    def card_list(self):
+        """Returns the list of all the cards in the deck.
+
+        Returns
+        ------
+            A list of the cards in the deck
+        """
+        cards = list(self.card_dict.values())
+        return cards
+
+    def setup_card(self, new_card):
+        """Sets up a new card, connecting its close button to the card collection's `close_card` method."""
+        card = new_card.card
+        if isinstance(new_card, vClosableCard):
+            btn = new_card.btn
+            self.card_dict[btn] = card
+            btn.on_event("click", self.close_card)
+        else:
+            self.card_dict[None] = card
+        self.container.children = self.card_list()
+
+    def new_card(self, content_list=None, close_disabled=False):
+        """Adds a new card to the grid."""
+        if close_disabled:
+            card = vCard(content_list=content_list, width=f"{100 / self.ncols - 1}%")
+        else:
+            card = vClosableCard(
+                content_list=content_list, width=f"{100 / self.ncols - 1}%"
+            )
+        self.setup_card(card)
+
+    def new_plot_card(self, fig, axes):
+        """Adds a new plot card to the grid."""
+        closable_card = vClosablePlotCard(fig, axes, width=f"{100 / self.ncols - 1}%")
+        self.setup_card(closable_card)
+        with closable_card.output:
+            mp.pyplot.show()
+
+    def close_card(self, *args, **kwargs):
+        """Remove card from dictionary and from the grid."""
+        self.card_dict.pop(args[0])
+        self.container.children = self.card_list()
+
+    def resize_all(self, width=None, height=None):
+        """Resizes all cards in the grid.
+
+        Parameters
+        ----------
+        width:
+            width of the cards in the grid
+        height:
+            height of the cards in the grid
+        """
+        for card in self.card_list():
+            if width:
+                card.width = width
+            if height:
+                card.height = height
+
+    def change_cols(self, ncols: int):
+        """
+        Changes the number of columns in the grid by setting `self.cols` and resizing all widgets in the grid.
+
+        Parameters
+        ----------
+        ncols:
+            number of columns in the grid
+
+        """
+        self.ncols = ncols
+        self.resize_all(width=f"{100 / self.ncols - 1}%")
+
+    def show(self):
+        """
+        The show function is the main function of a component. It returns
+        a VDOM object that will be rendered in the browser. The show function
+        is called every time an event occurs, and it's return value is used to
+        update the DOM.
+
+        Returns
+        -------
+            A container with the full widget.
+        """
+        return v.Container(
+            class_="mx-0 px-0 my-0 py-0",
+            width="100%",
+            children=[
+                vBtn(
+                    fab=True,
+                    position="fixed",
+                    class_="mx-2 my-2",
+                    style_="z-index: 1000",
+                    onclick=self.choose_plot,
+                    children=[v.Icon(children="mdi-plus")],
+                ),
+                self.container,
+            ],
         )
