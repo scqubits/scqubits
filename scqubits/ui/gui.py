@@ -121,8 +121,8 @@ class GUI:
         self.v_save_btn = init_save_btn()
         self.v_save_filename = init_filename_textfield()
 
-        self.dict_v_ranges: Dict[str, Dict[str, ui.ValidatedNumberField]] = {}
-        self.dict_v_noise_params: Dict[str, ui.ValidatedNumberField] = {}
+        self.dict_v_ranges: Dict[str, Dict[str, ui.vValidatedNumberField]] = {}
+        self.dict_v_noise_params: Dict[str, ui.vValidatedNumberField] = {}
         self.dict_v_plot_options: Dict[str, Any] = {}
         self.dict_v_qubit_params: Dict[str, Any] = {}
 
@@ -304,12 +304,14 @@ class GUI:
         self.observe_all()
 
     def observe_all(self):
+        """Switch on monitoring of all widgets in the GUI."""
         self.observe_coherence_widgets()
         self.observe_range_widgets()
         self.observe_plot_option_widgets()
         self.activate_auto_plot_refresh()
 
     def unobserve_all(self):
+        """Switch off monitoring of all widgets in the GUI and stop automatic refreshing of the plot."""
         self.deactivate_auto_plot_refresh()
         self.unobserve_coherence_widgets()
         self.unobserve_range_widgets()
@@ -829,7 +831,7 @@ class GUI:
 
         if (
             change
-            and isinstance(change["owner"], ui.ValidatedNumberField)
+            and isinstance(change["owner"], ui.vValidatedNumberField)
             and change["owner"]._continuous_update_in_progress
         ):
             do_update = False

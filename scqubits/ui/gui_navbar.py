@@ -10,9 +10,6 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import base64
-import os
-
 from typing import Tuple
 
 
@@ -46,15 +43,7 @@ def create_navbar() -> Tuple[v.Card, dict]:
     # AUTO_UPDATING
     # DO_UPDATE
 
-    icons = {}
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons")
-
-    for name in gui_defaults.gui_icon_filenames:
-        full_path = os.path.join(path, name)
-        file = open(full_path, "rb")
-        image = file.read()
-        image_base64 = base64.b64encode(image).decode("ascii")
-        icons[name] = v.Img(src=f"data:image/png;base64,{image_base64}", width=50)
+    icons = gui_defaults.icons
 
     navbar_elements = {}
 
