@@ -29,7 +29,7 @@ import warnings
 
 from typing import Any, Type, Union
 
-import matplotlib as mpl
+import matplotlib.font_manager as mpl_font
 import numpy as np
 
 from cycler import cycler
@@ -93,6 +93,15 @@ NUM_CPUS = 1
 MULTIPROC = "pathos"
 
 # Matplotlib options -------------------------------------------------------------------
+# select fonts
+font_selected = None
+for font in ["IBM Plex Sans", "Roboto", "Arial", "Helvetica"]:
+    if font in mpl_font.get_font_names():
+        font_selected = font
+        break
+
+if not font_selected:
+    font_selected = "sans-serif"
 # set matplotlib defaults for use in @mpl.rc_context
 off_black = "0.2"
 matplotlib_settings = {
@@ -112,7 +121,7 @@ matplotlib_settings = {
             "#F9E6BE",
         ]
     ),
-    "font.family": "IBM Plex Sans, Roboto, Arial, DejaVu Sans",
+    "font.family": font_selected,
     "font.size": 11,
     "font.weight": 500,
     "axes.labelsize": 11,
