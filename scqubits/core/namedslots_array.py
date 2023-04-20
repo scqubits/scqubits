@@ -459,10 +459,9 @@ class Parameters:
 
         return Parameters(reduced_paramvals_by_name)
     
-    def meshgrid(
+    def meshgrid_by_name(
             self, 
             indexing: Literal['ij', 'xy'] = 'ij', 
-            return_dict: bool = True,
         ) -> Union[List["NamedSlotsNdarray"], OrderedDict[str, "NamedSlotsNdarray"]]:
         """
         Creates and returns returns a dictionary containing the meshgrids of the 
@@ -473,10 +472,6 @@ class Parameters:
         indexing: {'ij', 'xy'}
             Matrix ('ij', default) or cartesian ('xy') or indexing of output. This
             argument will be passed to the np.meshgrid() directly
-
-        return_dict:  
-            If true, return a dictionary with parameter names as keys and parameter
-            meshgrids as values. Otherwise, return a list containing oly the meshgrids.
 
         Returns
         -------
@@ -490,13 +485,10 @@ class Parameters:
             for mesh in param_mesh
         ]
         
-        if return_dict:
-            return OrderedDict(zip(
-                self.paramnames_list, 
-                param_mesh_nsarray
-            ))
-        else:
-            return param_mesh_nsarray
+        return OrderedDict(zip(
+            self.paramnames_list, 
+            param_mesh_nsarray
+        ))
 
 
 class NamedSlotsNdarray(np.ndarray, Serializable):
