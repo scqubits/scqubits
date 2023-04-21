@@ -10,9 +10,7 @@ TESTDIR = os.path.join(TESTDIR, "tests", "")
 DATADIR = os.path.join(TESTDIR, "data", "")
 
 
-circ = scq.Circuit(
-    DATADIR + "circuit_zeropi.yaml", ext_basis="harmonic"
-)
+circ = scq.Circuit(DATADIR + "circuit_zeropi.yaml", ext_basis="harmonic")
 system_hierarchy = [[1, 3], [2]]
 
 circ.EJ = 10
@@ -30,8 +28,8 @@ circ.configure(
 )
 circ.update()
 
-class TestCircuitPlot:
 
+class TestCircuitPlot:
     @staticmethod
     def test_plot_wf():
         circ.plot_wavefunction(which=0, var_indices=(2, 3))
