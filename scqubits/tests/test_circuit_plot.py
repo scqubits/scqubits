@@ -11,7 +11,7 @@ DATADIR = os.path.join(TESTDIR, "data", "")
 
 
 circ = scq.Circuit(
-    DATADIR + "circuit_zeropi.yaml", ext_basis="harmonic", initiate_sym_calc=True
+    DATADIR + "circuit_zeropi.yaml", ext_basis="harmonic"
 )
 system_hierarchy = [[1, 3], [2]]
 
@@ -30,14 +30,16 @@ circ.configure(
 )
 circ.update()
 
+class TestCircuitPlot:
 
-def test_plot_wf():
-    circ.plot_wavefunction(which=0, var_indices=(2, 3))
+    @staticmethod
+    def test_plot_wf():
+        circ.plot_wavefunction(which=0, var_indices=(2, 3))
 
-
-def test_plot_potential():
-    circ.plot_potential(
-        θ1=circ._default_grid_phi.make_linspace(),
-        θ2=circ._default_grid_phi.make_linspace(),
-        θ3=0,
-    )
+    @staticmethod
+    def test_plot_potential():
+        circ.plot_potential(
+            θ1=circ._default_grid_phi.make_linspace(),
+            θ2=circ._default_grid_phi.make_linspace(),
+            θ3=0,
+        )
