@@ -463,7 +463,7 @@ class Parameters:
     def meshgrid_by_name(
             self, 
             indexing: Literal['ij', 'xy'] = 'ij', 
-        ) -> Union[List["NamedSlotsNdarray"], OrderedDict[str, "NamedSlotsNdarray"]]:
+        ) -> OrderedDict[str, "NamedSlotsNdarray"]:
         """
         Creates and returns returns a dictionary containing the meshgrids of the 
         parameter lists. All meshgrids are instances of the NamedSlotNdarray
