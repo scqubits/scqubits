@@ -843,6 +843,28 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         )
         self._data[sweep_name] = matrix_element_data
 
+    def store_data(self, **kwargs):
+        """
+        Store data to the ParameterSweep object. The data is subsequently
+        accessible through <ParameterSweep>[<data_name>].
+
+        Parameters
+        ----------
+        kwargs:
+            keyword arguments of the form <data_name>=<data>
+
+        Returns
+        -------
+            None
+        """
+        for data_name, data in kwargs.items():
+            print(data.shape[: len(self.parameters)], np.array(self.parameters.counts))
+            if not (np.array(np.array(data.shape[: len(self.parameters)]) 
+                == self.parameters.counts)).all():
+                raise ValueError(f"The input data {data_name}'s shape does not match the" 
+                                 " shape of the swept parameters.")
+            self._data[data_name] = data
+
 
 class ParameterSweep(  # type:ignore
     ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable
@@ -949,12 +971,16 @@ class ParameterSweep(  # type:ignore
         autorun: bool = settings.AUTORUN_SWEEP,
         deepcopy: bool = False,
         num_cpus: Optional[int] = None,
+        override_update_func_check = False,     # intend to do more flexible update
     ) -> None:
         num_cpus = num_cpus or settings.NUM_CPUS
         self._parameters = Parameters(paramvals_by_name)
         self._hilbertspace = hilbertspace
         self._evals_count = evals_count
-        self._update_hilbertspace = self.set_update_func(update_hilbertspace)
+        if override_update_func_check:
+            self._update_hilbertspace = update_hilbertspace
+        else:
+            self._update_hilbertspace = self.set_update_func(update_hilbertspace)
         self._subsys_update_info = subsys_update_info
         self._data: Dict[str, Any] = {}
         self._bare_only = bare_only
