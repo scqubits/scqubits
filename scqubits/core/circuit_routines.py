@@ -37,6 +37,7 @@ else:
     _HAS_IPYTHON = True
 
 import scqubits.core.discretization as discretization
+from scqubits.core.namedslots_array import NamedSlotsNdarray
 from scqubits.core import descriptors
 import scqubits.core.oscillator as osc
 import scqubits.core.storage as storage
@@ -2094,6 +2095,46 @@ class CircuitRoutines(ABC):
             )
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
+    
+    def generate_bare_eigensys(self):
+        if not self.hierarchical_diagonalization:
+            return self.eigensys(evals_count=self.truncated_dim)
+        
+        subsys_eigensys = dict.fromkeys([i for i in range(len(self.subsystems))])
+        for idx, subsys in enumerate(self.subsystems):
+            if subsys.hierarchical_diagonalization:
+                subsys_eigensys[idx] = subsys.generate_bare_eigensys()
+            else:
+                subsys_eigensys[idx] = subsys.eigensys(evals_count=subsys.truncated_dim)
+        return self.eigensys(evals_count=self.truncated_dim), subsys_eigensys
+
+    def set_bare_eigensys(self, eigensys):
+        if not self.hierarchical_diagonalization:
+            return None
+        bare_evals = np.empty(( len(self.subsystems), ), dtype=object)
+        bare_evecs = np.empty(( len(self.subsystems), ), dtype=object)
+        
+        for subsys_idx, subsys in enumerate(self.subsystems):
+            if subsys.hierarchical_diagonalization:
+                sub_eigsys, _ = eigensys[1][subsys_idx]
+                subsys.set_bare_eigensys(eigensys[1][subsys_idx])
+            else:
+                sub_eigsys = eigensys[1][subsys_idx]
+            bare_evals[subsys_idx] = NamedSlotsNdarray(
+                np.asarray([sub_eigsys[0].tolist()]),
+                self.hilbert_space._parameters.paramvals_by_name,
+            )
+            bare_evecs[subsys_idx] = NamedSlotsNdarray(
+                np.asarray([sub_eigsys[1].tolist()]),
+                self.hilbert_space._parameters.paramvals_by_name,
+            )
+        # store eigensys of the subsystem in the HilbertSpace Lookup table    
+        self.hilbert_space._data["bare_evals"] = NamedSlotsNdarray(
+            bare_evals, {"subsys": np.arange(len(self.subsystems))}
+        )
+        self.hilbert_space._data["bare_evecs"] = NamedSlotsNdarray(
+            bare_evecs, {"subsys": np.arange(len(self.subsystems))}
+        )
 
     # ****************************************************************
     # ***** Functions for pretty display of symbolic expressions *****
