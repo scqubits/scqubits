@@ -95,13 +95,18 @@ MULTIPROC = "pathos"
 # Matplotlib options -------------------------------------------------------------------
 # select fonts
 font_selected = None
-for font in ["IBM Plex Sans", "Roboto", "Arial", "Helvetica"]:
-    if font in mpl_font.get_font_names():
-        font_selected = font
-        break
+try:
+    font_names = mpl_font.get_font_names()
+    for font in ["IBM Plex Sans", "Roboto", "Arial", "Helvetica"]:
+        if font in font_names:
+            font_selected = font
+            break
+    if not font_selected:
+        font_selected = "sans-serif"
 
-if not font_selected:
+except:
     font_selected = "sans-serif"
+
 # set matplotlib defaults for use in @mpl.rc_context
 off_black = "0.2"
 matplotlib_settings = {
