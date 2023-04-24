@@ -9,6 +9,7 @@ from scipy.sparse import diags, eye
 from scipy.sparse.linalg import LinearOperator, eigsh
 
 import scqubits.core.descriptors as descriptors
+from scqubits.core.operators import identity_wrap_array
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.core.hashing_charge_basis import (
@@ -16,7 +17,7 @@ from scqubits.core.hashing_charge_basis import (
     HashingChargeBasis,
 )
 from scqubits.core.noise import NoisySystem
-from scqubits.utils.spectrum_utils import order_eigensystem, identity_wrap
+from scqubits.utils.spectrum_utils import order_eigensystem
 
 
 class NoisyCurrentMirror(NoisySystem):
@@ -314,7 +315,7 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
         -------
             ndarray
         """
-        return identity_wrap([], [], self._identity_operator_list(), sparse=True)
+        return identity_wrap_array([], [], self._identity_operator_list(), sparse=True)
 
     def _n_operator(self) -> ndarray:
         return diags(
@@ -338,7 +339,7 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
             ndarray
         """
         number_operator = self._n_operator()
-        return identity_wrap(
+        return identity_wrap_array(
             [number_operator], [dof_index], self._identity_operator_list(), sparse=True
         )
 
@@ -359,7 +360,7 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
             ndarray
         """
         exp_i_phi_j = self._exp_i_phi_operator()
-        return identity_wrap(
+        return identity_wrap_array(
             [exp_i_phi_j], [dof_index], self._identity_operator_list(), sparse=True
         )
 
@@ -375,7 +376,7 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
         dim = self.number_degrees_freedom
         exp_i_phi_op = self._exp_i_phi_operator()
         identity_operator_list = self._identity_operator_list()
-        return identity_wrap(
+        return identity_wrap_array(
             [exp_i_phi_op for _ in range(dim)],
             [dof_index for dof_index in range(dim)],
             identity_operator_list,

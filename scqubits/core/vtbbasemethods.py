@@ -16,57 +16,13 @@ import scqubits.utils.plotting as plot
 from scqubits.core import descriptors, discretization, storage
 from scqubits.core.discretization import Grid1d
 from scqubits.core.hashing import generate_next_vector, reflect_vectors
-from scqubits.core.operators import annihilation
+from scqubits.core.operators import annihilation, identity_wrap_array
 from scqubits.utils.cpu_switch import get_map_method
 from scqubits.utils.spectrum_utils import (
     order_eigensystem,
     solve_generalized_eigenvalue_problem_with_QZ,
     standardize_phases,
 )
-
-def identity_wrap_vtb(operators, indices, identity_operator_list, sparse=False):
-    """Return operator in the full Hilbert space
-    Parameters
-    ----------
-    operators: List[ndarray]
-        list of operators, each operator defined in the Hilbert space of its subsystem
-    indices: List[int]
-        list of ints, corresponding to which degree of freedom is
-        associated with which operator. Order matters, so the i^th element of
-        indices corresponds to the i^th operator in operators. Additionally it
-        is assumed that the list of ints increases monotonically: i.e. indices=[0, 2, 3]
-        is valid as input (assuming there are at least 4 d.o.f.) but indices=[2, 0, 3] is not.
-    identity_operator_list: List[ndarray]
-        list of identity operators, one for each d.o.f.
-    sparse: Bool
-        whether or not the resulting matrix should be sparse
-    Returns
-    -------
-    ndarray
-    """
-    if sparse:
-        kron_function = kron_sparse
-    else:
-        kron_function = kron_dense
-    product_list = np.copy(identity_operator_list)
-    for (index, op) in zip(indices, operators):
-        product_list[index] = op
-    full_op = kron_function(product_list)
-    return full_op
-
-
-def kron_dense(matrix_list):
-    output = matrix_list[0]
-    for matrix in matrix_list[1:]:
-        output = np.kron(output, matrix)
-    return output
-
-
-def kron_sparse(sparse_list):
-    output = sparse_list[0]
-    for matrix in sparse_list[1:]:
-        output = sp.sparse.kron(output, matrix, format="csr")
-    return output
 
 
 class VTBBaseMethods(ABC):
@@ -414,7 +370,7 @@ class VTBBaseMethods(ABC):
         dim = self.number_degrees_freedom
         identity_operator_list = np.empty((dim, self.num_exc + 1, self.num_exc + 1))
         identity_operator_list[np.arange(dim)] = np.eye(self.num_exc + 1)
-        return identity_wrap_vtb(
+        return identity_wrap_array(
             np.array([annihilation(self.num_exc + 1)]),
             np.array([dof_index]),
             identity_operator_list,

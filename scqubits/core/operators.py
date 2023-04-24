@@ -227,3 +227,48 @@ def sigma_y() -> np.ndarray:
 
 def sigma_z() -> np.ndarray:
     return np.asarray([[1.0, 0.0], [0.0, -1.0]])
+
+
+def identity_wrap_array(operators, indices, identity_operator_list, sparse=False):
+    """Return operator in the full Hilbert space
+    Parameters
+    ----------
+    operators: List[ndarray]
+        list of operators, each operator defined in the Hilbert space of its subsystem
+    indices: List[int]
+        list of ints, corresponding to which degree of freedom is
+        associated with which operator. Order matters, so the i^th element of
+        indices corresponds to the i^th operator in operators. Additionally it
+        is assumed that the list of ints increases monotonically: i.e. indices=[0, 2, 3]
+        is valid as input (assuming there are at least 4 d.o.f.) but indices=[2, 0, 3] is not.
+    identity_operator_list: List[ndarray]
+        list of identity operators, one for each d.o.f.
+    sparse: Bool
+        whether or not the resulting matrix should be sparse
+    Returns
+    -------
+    ndarray
+    """
+    if sparse:
+        kron_function = kron_sparse
+    else:
+        kron_function = kron_dense
+    product_list = np.copy(identity_operator_list)
+    for (index, op) in zip(indices, operators):
+        product_list[index] = op
+    full_op = kron_function(product_list)
+    return full_op
+
+
+def kron_dense(matrix_list):
+    output = matrix_list[0]
+    for matrix in matrix_list[1:]:
+        output = np.kron(output, matrix)
+    return output
+
+
+def kron_sparse(sparse_list):
+    output = sparse_list[0]
+    for matrix in sparse_list[1:]:
+        output = sp.sparse.kron(output, matrix, format="csr")
+    return output
