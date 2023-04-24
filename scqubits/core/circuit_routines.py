@@ -2095,11 +2095,11 @@ class CircuitRoutines(ABC):
             )
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
-    
+
     def generate_bare_eigensys(self):
         if not self.hierarchical_diagonalization:
             return self.eigensys(evals_count=self.truncated_dim)
-        
+
         subsys_eigensys = dict.fromkeys([i for i in range(len(self.subsystems))])
         for idx, subsys in enumerate(self.subsystems):
             if subsys.hierarchical_diagonalization:
@@ -2111,9 +2111,9 @@ class CircuitRoutines(ABC):
     def set_bare_eigensys(self, eigensys):
         if not self.hierarchical_diagonalization:
             return None
-        bare_evals = np.empty(( len(self.subsystems), ), dtype=object)
-        bare_evecs = np.empty(( len(self.subsystems), ), dtype=object)
-        
+        bare_evals = np.empty((len(self.subsystems),), dtype=object)
+        bare_evecs = np.empty((len(self.subsystems),), dtype=object)
+
         for subsys_idx, subsys in enumerate(self.subsystems):
             if subsys.hierarchical_diagonalization:
                 sub_eigsys, _ = eigensys[1][subsys_idx]
@@ -2128,7 +2128,7 @@ class CircuitRoutines(ABC):
                 np.asarray([sub_eigsys[1].tolist()]),
                 self.hilbert_space._parameters.paramvals_by_name,
             )
-        # store eigensys of the subsystem in the HilbertSpace Lookup table    
+        # store eigensys of the subsystem in the HilbertSpace Lookup table
         self.hilbert_space._data["bare_evals"] = NamedSlotsNdarray(
             bare_evals, {"subsys": np.arange(len(self.subsystems))}
         )
