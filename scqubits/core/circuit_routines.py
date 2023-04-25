@@ -2842,8 +2842,20 @@ class CircuitRoutines(ABC):
             if True, colors are adjusted to use zero wavefunction amplitude as the
             neutral color in the palette
         grids_dict:
-            A dictionary which pairs var indices with the requested grids used to create
-            the plot.
+            A dictionary which pairs var indices with the grids used to create
+            the plot. The way to specify the grids is as follows:
+            1. For extended variables, the grids should be of type `discretization.Grid1d`.
+            2. When the discretized basis is used for the extended variable, the grids
+            used in the diagonalization is used to plot the wave function instead of
+            the grids specified here.
+            3. For periodic variables, only when `change_discrete_charge_to_phi` is True,
+            the grid specified here is used for plotting. The grid is specified as an integer
+            which is the number of points in the grid. The grid has a minimum and maximum value
+            of -pi and pi respectively.
+            4. If the grid is not specified for a variable that requires a grid for plotting (i.e.
+            extended variable with harmonic oscillator basis, or periodic variable with
+            `change_discrete_charge_to_phi` set to True), the default grid is used.
+
         **kwargs:
             plotting parameters
 
@@ -2860,7 +2872,7 @@ class CircuitRoutines(ABC):
         cutoffs_dict = (
             self.cutoffs_dict()
         )  # dictionary for cutoffs for each variable index
-        grids_per_varindex_dict = {}
+        grids_per_varindex_dict = grids_dict
         var_index_dims_dict = {}
         for cutoff_attrib in self.cutoff_names:
             var_index = get_trailing_number(cutoff_attrib)
