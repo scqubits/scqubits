@@ -104,7 +104,7 @@ try:
     if not font_selected:
         font_selected = "sans-serif"
 
-except:
+except AttributeError:
     font_selected = "sans-serif"
 
 # set matplotlib defaults for use in @mpl.rc_context
