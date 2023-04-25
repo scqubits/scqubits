@@ -643,7 +643,7 @@ class CircuitRoutines(ABC):
         """
         hamiltonian = self.hamiltonian_symbolic
 
-        # collecting constants
+        # collecting constants to remove them for processing the Hamiltonian
         constants = self._list_of_constants_from_expr(hamiltonian)
         self._constant_terms_in_hamiltonian = constants
         for const in constants:
@@ -1021,26 +1021,6 @@ class CircuitRoutines(ABC):
                 hamiltonian = hamiltonian.replace(
                     sm.symbols(f"Q{i}") ** 2, sm.symbols("Qs" + str(i))
                 )
-
-        # removing the constants from the Hamiltonian
-        ordered_terms = hamiltonian.as_ordered_terms()
-        constants = [
-            term
-            for term in ordered_terms
-            if (
-                set(
-                    self.external_fluxes
-                    + self.offset_charges
-                    + list(self.symbolic_params.keys())
-                    + [sm.symbols("I")]
-                )
-                & set(term.free_symbols)
-            )
-            == set(term.free_symbols)
-        ]
-        self._constant_terms_in_hamiltonian = constants
-        for const in constants:
-            hamiltonian -= const
 
         # associate an identity matrix with the external flux vars
         for ext_flux in self.external_fluxes:
@@ -1711,7 +1691,7 @@ class CircuitRoutines(ABC):
             ]
         )
         hamiltonian = hamiltonian.subs("I", 1)
-        # remove constants from the Hamiltonian
+        # add an identity operator for the constant in the symbolic expression
         constant = float(hamiltonian.as_coefficients_dict()[1])
         hamiltonian -= hamiltonian.as_coefficients_dict()[1]
         hamiltonian = hamiltonian.expand() + constant * sm.symbols("I")
@@ -1791,7 +1771,7 @@ class CircuitRoutines(ABC):
             ]
         )
         hamiltonian = hamiltonian.subs("I", 1)
-        # # remove constants from the Hamiltonian
+        # add an identity operator for the constant in the symbolic expression
         constant = float(hamiltonian.as_coefficients_dict()[1])
         hamiltonian -= hamiltonian.as_coefficients_dict()[1]
         hamiltonian = hamiltonian.expand() + constant * sm.symbols("I")
