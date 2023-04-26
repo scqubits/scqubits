@@ -39,7 +39,7 @@ LevelsTuple = Tuple[int, ...]
 Transition = Tuple[int, int]
 TransitionsTuple = Tuple[Transition, ...]
 
-# -Cooper pair box / transmon----------------------------------------------
+# Cooper pair box / transmon
 
 
 class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
@@ -681,9 +681,14 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
     def d_hamiltonian_d_flux(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns operator representing a derivative of the Hamiltonian with respect to
+        r"""Returns operator representing a derivative of the Hamiltonian with respect to
         `flux` in the charge or eigenenergy basis.
+
+        Here, the derivative is taken with respect to flux before the qubit's :math:`\phi` degree of
+        freedom in the Hamiltonian is shifted by a flux-dependent quantity :math:`\varphi_{0}`
+        (see Eq. 2.17 and surrounding text in PRA 76, 042319 (2007)). Then only after the flux
+        derivative is taken, both the Hamiltonian as well as its flux derivative are assumed to
+        be shifted by :math:`\varphi_{0}`.
 
         Parameters
         ----------
@@ -711,6 +716,14 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
                 + self.d**2 * np.sin(np.pi * self.flux) ** 2
             )
             * self.cos_phi_operator()
+            - np.pi
+            * self.EJmax
+            * self.d
+            / np.sqrt(
+                np.cos(np.pi * self.flux) ** 2
+                + self.d**2 * np.sin(np.pi * self.flux) ** 2
+            )
+            * self.sin_phi_operator()
         )
         return self.process_op(native_op=native, energy_esys=energy_esys)
 

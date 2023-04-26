@@ -37,6 +37,7 @@ else:
     _HAS_IPYTHON = True
 
 import scqubits.core.discretization as discretization
+from scqubits.core.namedslots_array import NamedSlotsNdarray
 from scqubits.core import descriptors
 import scqubits.core.oscillator as osc
 import scqubits.core.storage as storage
@@ -44,6 +45,7 @@ import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as utils
 from scqubits import get_units
+import scqubits.core.qubit_base as base
 
 from scqubits import HilbertSpace, settings
 from scqubits.core import operators as op
@@ -185,9 +187,6 @@ class CircuitRoutines(ABC):
             super().__setattr__(name, value)
         else:
             raise Exception(f"Creating new attributes is disabled: [{name}, {value}].")
-
-    def __repr__(self) -> str:
-        return self._id_str
 
     def __reduce__(self):
         # needed for multiprocessing / proper pickling
@@ -445,6 +444,34 @@ class CircuitRoutines(ABC):
             ),
         )
 
+    def set_and_return(self, attr_name: str, value: Any) -> base.QubitBaseClass:
+        """
+        Allows to set an attribute after which self is returned. This is useful for
+        doing something like example::
+
+            qubit.set_and_return('flux', 0.23).some_method()
+
+        instead of example::
+
+            qubit.flux=0.23
+            qubit.some_method()
+
+        Parameters
+        ----------
+        attr_name:
+            name of class attribute in string form
+        value:
+            value that the attribute is to be set to
+
+        Returns
+        -------
+            self
+        """
+        setattr(self, attr_name, value)
+        if hasattr(self, "hierarchical_diagonalization"):
+            self.update()
+        return self
+
     def sync_parameters_with_parent(self):
         for param_var in (
             self.external_fluxes
@@ -616,7 +643,7 @@ class CircuitRoutines(ABC):
         """
         hamiltonian = self.hamiltonian_symbolic
 
-        # collecting constants
+        # collecting constants to remove them for processing the Hamiltonian
         constants = self._list_of_constants_from_expr(hamiltonian)
         self._constant_terms_in_hamiltonian = constants
         for const in constants:
@@ -994,26 +1021,6 @@ class CircuitRoutines(ABC):
                 hamiltonian = hamiltonian.replace(
                     sm.symbols(f"Q{i}") ** 2, sm.symbols("Qs" + str(i))
                 )
-
-        # removing the constants from the Hamiltonian
-        ordered_terms = hamiltonian.as_ordered_terms()
-        constants = [
-            term
-            for term in ordered_terms
-            if (
-                set(
-                    self.external_fluxes
-                    + self.offset_charges
-                    + list(self.symbolic_params.keys())
-                    + [sm.symbols("I")]
-                )
-                & set(term.free_symbols)
-            )
-            == set(term.free_symbols)
-        ]
-        self._constant_terms_in_hamiltonian = constants
-        for const in constants:
-            hamiltonian -= const
 
         # associate an identity matrix with the external flux vars
         for ext_flux in self.external_fluxes:
@@ -1684,7 +1691,7 @@ class CircuitRoutines(ABC):
             ]
         )
         hamiltonian = hamiltonian.subs("I", 1)
-        # remove constants from the Hamiltonian
+        # add an identity operator for the constant in the symbolic expression
         constant = float(hamiltonian.as_coefficients_dict()[1])
         hamiltonian -= hamiltonian.as_coefficients_dict()[1]
         hamiltonian = hamiltonian.expand() + constant * sm.symbols("I")
@@ -1764,7 +1771,7 @@ class CircuitRoutines(ABC):
             ]
         )
         hamiltonian = hamiltonian.subs("I", 1)
-        # # remove constants from the Hamiltonian
+        # add an identity operator for the constant in the symbolic expression
         constant = float(hamiltonian.as_coefficients_dict()[1])
         hamiltonian -= hamiltonian.as_coefficients_dict()[1]
         hamiltonian = hamiltonian.expand() + constant * sm.symbols("I")
@@ -2069,6 +2076,46 @@ class CircuitRoutines(ABC):
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
 
+    def generate_bare_eigensys(self):
+        if not self.hierarchical_diagonalization:
+            return self.eigensys(evals_count=self.truncated_dim)
+
+        subsys_eigensys = dict.fromkeys([i for i in range(len(self.subsystems))])
+        for idx, subsys in enumerate(self.subsystems):
+            if subsys.hierarchical_diagonalization:
+                subsys_eigensys[idx] = subsys.generate_bare_eigensys()
+            else:
+                subsys_eigensys[idx] = subsys.eigensys(evals_count=subsys.truncated_dim)
+        return self.eigensys(evals_count=self.truncated_dim), subsys_eigensys
+
+    def set_bare_eigensys(self, eigensys):
+        if not self.hierarchical_diagonalization:
+            return None
+        bare_evals = np.empty((len(self.subsystems),), dtype=object)
+        bare_evecs = np.empty((len(self.subsystems),), dtype=object)
+
+        for subsys_idx, subsys in enumerate(self.subsystems):
+            if subsys.hierarchical_diagonalization:
+                sub_eigsys, _ = eigensys[1][subsys_idx]
+                subsys.set_bare_eigensys(eigensys[1][subsys_idx])
+            else:
+                sub_eigsys = eigensys[1][subsys_idx]
+            bare_evals[subsys_idx] = NamedSlotsNdarray(
+                np.asarray([sub_eigsys[0].tolist()]),
+                self.hilbert_space._parameters.paramvals_by_name,
+            )
+            bare_evecs[subsys_idx] = NamedSlotsNdarray(
+                np.asarray([sub_eigsys[1].tolist()]),
+                self.hilbert_space._parameters.paramvals_by_name,
+            )
+        # store eigensys of the subsystem in the HilbertSpace Lookup table
+        self.hilbert_space._data["bare_evals"] = NamedSlotsNdarray(
+            bare_evals, {"subsys": np.arange(len(self.subsystems))}
+        )
+        self.hilbert_space._data["bare_evecs"] = NamedSlotsNdarray(
+            bare_evecs, {"subsys": np.arange(len(self.subsystems))}
+        )
+
     # ****************************************************************
     # ***** Functions for pretty display of symbolic expressions *****
     # ****************************************************************
@@ -2090,6 +2137,50 @@ class CircuitRoutines(ABC):
                 equalities_in_latex += sm.printing.latex(eqn) + " \\\ "
             equalities_in_latex = equalities_in_latex[:-4] + " $"
             display(Latex(equalities_in_latex))
+
+    def __repr__(self) -> str:
+        # string to describe the Circuit
+        if not _HAS_IPYTHON:
+            return self._id_str
+        # Hamiltonian string
+        H_latex_str = (
+            "$H=" + sm.printing.latex(self.sym_hamiltonian(return_expr=True)) + "$"
+        )
+        # describe the variables
+        var_str = "Operators (flux, charge) - cutoff: "
+        var_str += "\\\n Discrete Charge Basis:  "
+        cutoffs_dict = self.cutoffs_dict()
+        for var_index in self.var_categories["periodic"]:
+            var_str += f"$(θ{var_index}, n{var_index}) - {cutoffs_dict[var_index]}$, "
+        if self.ext_basis == "discretized":
+            var_str += "\\\nDiscretized Phi basis:  "
+        elif self.ext_basis == "harmonic":
+            var_str += "\\\nHarmonic oscillator basis:  "
+        for var_index in self.var_categories["extended"]:
+            var_str += f"$(θ{var_index}, Q{var_index}) - {cutoffs_dict[var_index]}$, "
+        display(Latex(H_latex_str))
+        display(Latex(var_str))
+        # symbolic parameters
+        if len(self.symbolic_params) > 0:
+            sym_params_str = "Symbolic parameters (symbol, default value):  "
+            for sym, val in self.symbolic_params.items():
+                sym_params_str += f"$({sym.name}, {val})$, "
+            display(Latex(sym_params_str))
+        if len(self.external_fluxes) > 0:
+            sym_params_str = "External fluxes (symbol, default value):  "
+            for sym in self.external_fluxes:
+                sym_params_str += f"$({sym.name}, {getattr(self, sym.name)})$, "
+            display(Latex(sym_params_str))
+        if len(self.offset_charges) > 0:
+            sym_params_str = "Symbolic parameters (symbol, default value):  "
+            for sym in self.offset_charges:
+                sym_params_str += f"$({sym.name}, {getattr(self, sym.name)})$, "
+            display(Latex(sym_params_str))
+        if self.hierarchical_diagonalization:
+            display(Latex(f"System hierarchy: {self.system_hierarchy}"))
+            display(Latex(f"Truncated Dimensions: {self.subsystem_trunc_dims}"))
+
+        return "Instance ID: " + self._id_str
 
     def _make_expr_human_readable(self, expr: sm.Expr, float_round: int = 6) -> sm.Expr:
         """
@@ -2734,13 +2825,21 @@ class CircuitRoutines(ABC):
                 wf_dim = self._get_var_dim_for_reshaped_wf(var_indices, var_index)
 
             if (
-                var_index in self.var_categories["extended"]
-                and self.ext_basis == "harmonic"
+                self.hierarchical_diagonalization
+                and self.subsystems[
+                    self.get_subsystem_index(var_index)
+                ].is_purely_harmonic
             ):
                 wf_ext_basis = self._basis_change_harm_osc_to_phi(
                     wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
                 )
-            if (
+            elif var_index in self.var_categories["extended"] and (
+                self.ext_basis == "harmonic"
+            ):
+                wf_ext_basis = self._basis_change_harm_osc_to_phi(
+                    wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
+                )
+            elif (
                 var_index in self.var_categories["periodic"]
                 and change_discrete_charge_to_phi
             ):
