@@ -17,9 +17,10 @@ from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 import scipy as sp
-import scipy.constants
+
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.offsetbox import AnchoredText
@@ -29,7 +30,10 @@ from scipy.sparse import csc_matrix
 import scqubits.core.units as units
 import scqubits.settings as settings
 import scqubits.utils.plotting as plotting
+
 from scqubits.core.storage import SpectrumData
+from scqubits.settings import matplotlib_settings
+
 
 # flag that lets us show a warning about the default t1 behavior
 # (i.e., total=True setting) only once. Using the standard warnings
@@ -116,6 +120,7 @@ class NoisySystem(ABC):
         """
         return cls.supported_noise_channels()
 
+    @mpl.rc_context(matplotlib_settings)
     def plot_coherence_vs_paramvals(
         self,
         param_name: str,
@@ -245,7 +250,6 @@ class NoisySystem(ABC):
         current_val = getattr(self, param_name)
 
         for channel_idx, noise_channel in enumerate(noise_channels):  # type:ignore
-
             # case 1: noise_channel is a string representing the noise method
             if isinstance(noise_channel, str):
                 noise_channel_method = noise_channel
@@ -329,6 +333,7 @@ class NoisySystem(ABC):
         fig.tight_layout()
         return fig, axes
 
+    @mpl.rc_context(matplotlib_settings)
     def plot_t1_effective_vs_paramvals(
         self,
         param_name: str,
@@ -483,6 +488,7 @@ class NoisySystem(ABC):
 
         return fig, axes
 
+    @mpl.rc_context(matplotlib_settings)
     def plot_t2_effective_vs_paramvals(
         self,
         param_name: str,
@@ -564,7 +570,6 @@ class NoisySystem(ABC):
         )
 
         if spectrum_data is None:
-
             # We have to figure out the largest energy level involved in the
             # calculations, to know how many levels we need from the diagonalization.
             # This may be hidden in noise-channel-specific options, so have to search
@@ -662,10 +667,8 @@ class NoisySystem(ABC):
         rate = 0.0
 
         for n, noise_channel in enumerate(noise_channels):
-
             # noise_channel is a string representing the noise method
             if isinstance(noise_channel, str):
-
                 noise_channel_method = noise_channel
 
                 # If dealing with a tphi noise type, the contribution of a t1 process
@@ -687,7 +690,6 @@ class NoisySystem(ABC):
 
             # noise_channel is a tuple representing the noise method and default options
             elif isinstance(noise_channel, tuple):
-
                 noise_channel_method = noise_channel[0]
 
                 # If dealing with a tphi noise type, the contribution of a t1 process

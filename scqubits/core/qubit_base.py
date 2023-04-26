@@ -29,11 +29,13 @@ from typing import (
 )
 
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 import scipy as sp
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
+from scipy.sparse import csc_matrix, dia_matrix
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
@@ -44,7 +46,7 @@ import scqubits.utils.plotting as plot
 from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import DataStore, SpectrumData
-from scqubits.settings import IN_IPYTHON
+from scqubits.settings import IN_IPYTHON, matplotlib_settings
 from scqubits.utils.cpu_switch import get_map_method
 from scqubits.utils.misc import InfoBar, process_which
 from scqubits.utils.spectrum_utils import (
@@ -69,7 +71,7 @@ LevelsTuple = Tuple[int, ...]
 Transition = Tuple[int, int]
 TransitionsTuple = Tuple[Transition, ...]
 
-# —Generic quantum system container and Qubit base class——————————————————————————————
+# -Generic quantum system container and Qubit base class------------------------------
 
 
 class QuantumSystem(DispatchClient, ABC):
@@ -226,7 +228,7 @@ class QuantumSystem(DispatchClient, ABC):
         return []
 
 
-# —QubitBaseClass———————————————————————————————————————————————————————————————————————————————————————————————————————
+# -QubitBaseClass-------------------------------------------------------------------------------------------------------
 
 
 class QubitBaseClass(QuantumSystem, ABC):
@@ -247,14 +249,14 @@ class QubitBaseClass(QuantumSystem, ABC):
     def _evals_calc(self, evals_count: int) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
         evals = sp.linalg.eigh(
-            hamiltonian_mat, eigvals_only=True, eigvals=(0, evals_count - 1)
+            hamiltonian_mat, eigvals_only=True, subset_by_index=(0, evals_count - 1)
         )
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = sp.linalg.eigh(
-            hamiltonian_mat, eigvals_only=False, eigvals=(0, evals_count - 1)
+            hamiltonian_mat, eigvals_only=False, subset_by_index=(0, evals_count - 1)
         )
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
@@ -361,6 +363,73 @@ class QubitBaseClass(QuantumSystem, ABC):
         if filename:
             specdata.filewrite(filename)
         return specdata if return_spectrumdata else (evals, evecs)
+
+    def process_op(
+        self,
+        native_op: Union[ndarray, csc_matrix],
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+    ) -> Union[ndarray, csc_matrix]:
+        """Processes the operator `native_op`: either hand back `native_op` unchanged, or transform it into the
+        energy eigenbasis. (Native basis refers to the basis used internally by each qubit, e.g., charge basis in the
+        case of `Transmon`.
+
+        Parameters
+        ----------
+        native_op:
+            operator in native basis
+        energy_esys:
+            If `False` (default), returns operator in the native basis
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis
+            if energy_esys is the energy eigenspectrum, in the form of a tuple containing two ndarrays
+            (eigenvalues and energy eigenvectors), returns operator in the energy eigenbasis,
+            and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            `native_op` either unchanged or transformed into eigenenergy basis
+        """
+        if isinstance(energy_esys, bool):
+            if not energy_esys:
+                return native_op
+            esys = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            esys = energy_esys
+        evectors = esys[1][:, : self.truncated_dim]
+        return get_matrixelement_table(native_op, evectors)
+
+    def process_hamiltonian(
+        self,
+        native_hamiltonian: Union[ndarray, csc_matrix],
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+    ) -> Union[ndarray, csc_matrix]:
+        """Return qubit Hamiltonian in chosen basis: either return unchanged (i.e., in native basis) or transform
+        into eigenenergy basis
+
+        Parameters
+        ----------
+        native_hamiltonian:
+            Hamiltonian in native basis
+        energy_esys:
+            If `False` (default), returns Hamiltonian in the native basis
+            If `True`, the energy eigenspectrum is computed, returns Hamiltonian in the energy eigenbasis
+            if energy_esys is the energy eigenspectrum, in the form of a tuple containing two ndarrays
+            (eigenvalues and energy eigenvectors), returns Hamiltonian in the energy eigenbasis,
+            and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            Hamiltonian, either unchanged in native basis, or transformed into eigenenergy basis
+        """
+        if isinstance(energy_esys, bool):
+            if not energy_esys:
+                return native_hamiltonian
+            esys = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            esys = energy_esys
+        evals = esys[0][: self.truncated_dim]
+        if isinstance(native_hamiltonian, ndarray):
+            return np.diag(evals)
+        return dia_matrix(evals).tocsc()
 
     def anharmonicity(self) -> float:
         """Returns the qubit's anharmonicity, (E_2 - E_1) - (E_1 - E_0)."""
@@ -744,16 +813,20 @@ class QubitBaseClass(QuantumSystem, ABC):
             shape=(paramvals_count, evals_count, evals_count), dtype=np.complex_
         )
 
+        paramval_before = getattr(self, param_name)
         assert spectrumdata.state_table is not None
         for index, paramval in enumerate(param_vals):
             evecs = spectrumdata.state_table[index]
+            setattr(self, param_name, paramval)
             matelem_table[index] = self.matrixelement_table(
                 operator, evecs=evecs, evals_count=evals_count
             )
+        setattr(self, param_name, paramval_before)
 
         spectrumdata.matrixelem_table = matelem_table
         return spectrumdata
 
+    @mpl.rc_context(matplotlib_settings)
     def plot_evals_vs_paramvals(
         self,
         param_name: str,
@@ -795,6 +868,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         )
         return plot.evals_vs_paramvals(specdata, which=range(evals_count), **kwargs)
 
+    @mpl.rc_context(matplotlib_settings)
     def plot_dispersion_vs_paramvals(
         self,
         dispersion_name: str,
@@ -870,6 +944,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             **kwargs,
         )
 
+    @mpl.rc_context(matplotlib_settings)
     def plot_matrixelements(
         self,
         operator: str,
@@ -928,6 +1003,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             **kwargs,
         )
 
+    @mpl.rc_context(matplotlib_settings)
     def plot_matelem_vs_paramvals(
         self,
         operator: str,
@@ -1010,7 +1086,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         return self
 
 
-# —QubitBaseClass1d——————————————————————————————————————————————————————————————————
+# -QubitBaseClass1d------------------------------------------------------------------
 
 
 class QubitBaseClass1d(QubitBaseClass):
@@ -1055,6 +1131,7 @@ class QubitBaseClass1d(QubitBaseClass):
         options = {"xlabel": r"$\varphi$", "ylabel": ylabel}
         return options
 
+    @mpl.rc_context(matplotlib_settings)
     def plot_wavefunction(
         self,
         which: Union[int, Iterable[int]] = 0,

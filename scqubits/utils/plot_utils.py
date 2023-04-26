@@ -24,6 +24,7 @@ from numpy import ndarray
 
 from scqubits import settings as settings
 from scqubits.utils import plot_defaults as defaults
+from scqubits.settings import matplotlib_settings
 
 if TYPE_CHECKING:
     from scqubits.core.storage import WaveFunction
@@ -46,6 +47,7 @@ _direct_plot_options = {
 }
 
 
+@mpl.rc_context(matplotlib_settings)
 def _extract_kwargs_options(
     kwargs: Dict[str, Any], plot_type: str, direct_plot_options: Dict[str, Any] = None
 ) -> Dict[str, Any]:
@@ -78,6 +80,7 @@ def _extract_kwargs_options(
     return selected_options
 
 
+@mpl.rc_context(matplotlib_settings)
 def _process_options(
     figure: Figure, axes: Axes, opts: Dict[str, Any] = None, **kwargs
 ) -> None:
@@ -123,6 +126,7 @@ def _process_options(
         despine_axes(axes)
 
 
+@mpl.rc_context(matplotlib_settings)
 def _process_special_option(figure: Figure, axes: Axes, key: str, value: Any) -> None:
     """Processes a single 'special' option, i.e., one internal to scqubits and not to be
     handed further down to matplotlib.
@@ -141,6 +145,7 @@ def _process_special_option(figure: Figure, axes: Axes, key: str, value: Any) ->
             axes.grid(value)
 
 
+@mpl.rc_context(matplotlib_settings)
 def despine_axes(axes: Axes) -> None:
     # Hide the right and top spines
     axes.spines["right"].set_visible(False)
@@ -151,6 +156,7 @@ def despine_axes(axes: Axes) -> None:
     axes.xaxis.set_ticks_position("bottom")
 
 
+@mpl.rc_context(matplotlib_settings)
 def scale_wavefunctions(
     wavefunc_list: List["WaveFunction"],
     potential_vals: np.ndarray,
@@ -166,6 +172,7 @@ def scale_wavefunctions(
     return wavefunc_list
 
 
+@mpl.rc_context(matplotlib_settings)
 def plot_wavefunction_to_axes(
     axes: Axes, wavefunction: "WaveFunction", energy_offset: float, **kwargs
 ) -> None:
@@ -179,6 +186,7 @@ def plot_wavefunction_to_axes(
     )
 
 
+@mpl.rc_context(matplotlib_settings)
 def plot_potential_to_axes(
     axes: Axes,
     x_vals: ndarray,
@@ -199,6 +207,7 @@ def plot_potential_to_axes(
     )
 
 
+@mpl.rc_context(matplotlib_settings)
 def add_numbers_to_axes(
     axes: Axes, matrix: ndarray, modefunc: Callable, fontsize: int = 8
 ) -> None:
@@ -216,6 +225,7 @@ def add_numbers_to_axes(
             )
 
 
+@mpl.rc_context(matplotlib_settings)
 def color_normalize(vals, mode: str) -> Tuple[float, float, mpl.colors.Normalize]:
     minval = min(vals)
     maxval = max(vals)

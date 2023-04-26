@@ -93,34 +93,41 @@ NUM_CPUS = 1
 MULTIPROC = "pathos"
 
 # Matplotlib options -------------------------------------------------------------------
-# set custom matplotlib color cycle
-color_cycler = cycler(
-    color=[
-        "#016E82",
-        "#333795",
-        "#2E5EAC",
-        "#4498D3",
-        "#CD85B9",
-        "#45C3D1",
-        "#AA1D3F",
-        "#F47752",
-        "#19B35A",
-        "#EDE83B",
-        "#ABD379",
-        "#F9E6BE",
-    ]
-)
-linestyle_cycler = cycler(linestyle=["-", "--", "-.", ":"])
-mpl.rcParams["axes.prop_cycle"] = linestyle_cycler * color_cycler
+# set matplotlib defaults for use in @mpl.rc_context
+off_black = "0.2"
+matplotlib_settings = {
+    "axes.prop_cycle": cycler(
+        color=[
+            "#016E82",
+            "#333795",
+            "#2E5EAC",
+            "#4498D3",
+            "#CD85B9",
+            "#45C3D1",
+            "#AA1D3F",
+            "#F47752",
+            "#19B35A",
+            "#EDE83B",
+            "#ABD379",
+            "#F9E6BE",
+        ]
+    ),
+    "font.family": "IBM Plex Sans, Roboto, Arial, Helvetica, DejaVu Sans",
+    "font.size": 11,
+    "font.weight": 500,
+    "axes.labelsize": 11,
+    "axes.titlesize": 11,
+    "xtick.labelsize": 10,
+    "ytick.labelsize": 10,
+    "xtick.labelcolor": off_black,
+    "ytick.labelcolor": off_black,
+    "xtick.color": off_black,
+    "ytick.color": off_black,
+    "axes.labelcolor": off_black,
+    "axes.edgecolor": off_black,
+    "axes.titlecolor": off_black
+}
 
-# set matplotlib defaults
-mpl.rcParams["font.family"] = "sans-serif"
-mpl.rcParams["font.sans-serif"] = "Roboto, Arial, Helvetica, DejaVu Sans"
-mpl.rcParams["font.size"] = 11
-mpl.rcParams["axes.labelsize"] = 11
-mpl.rcParams["axes.titlesize"] = 11
-mpl.rcParams["xtick.labelsize"] = 10
-mpl.rcParams["ytick.labelsize"] = 10
 
 # toggle top and right axes on and off
 DESPINE = True

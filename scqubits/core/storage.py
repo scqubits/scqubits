@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from scqubits.core.discretization import GridSpec
 
 
-# —WaveFunction class———————————————————————————————————————————————————————————————————
+# -WaveFunction class-------------------------------------------------------------------
 
 
 class WaveFunction:
@@ -73,7 +73,7 @@ class WaveFunction:
         self.amplitudes *= FILL_FACTOR * energy_range / amplitude_range
 
 
-# —WaveFunctionOnGrid class—————————————————————————————————————————————————————————————
+# -WaveFunctionOnGrid class-------------------------------------------------------------
 
 
 class WaveFunctionOnGrid:
@@ -98,7 +98,7 @@ class WaveFunctionOnGrid:
         self.energy = energy
 
 
-# —BaseData class———————————————————————————————————————————————————————————————————————
+# -BaseData class-----------------------------------------------------------------------
 
 
 class DataStore(serializers.Serializable):
@@ -159,7 +159,7 @@ class DataStore(serializers.Serializable):
             )  # register additional dataset for file IO
 
 
-# —SpectrumData class———————————————————————————————————————————————————————————————————
+# -SpectrumData class-------------------------------------------------------------------
 
 
 class SpectrumData(DataStore):

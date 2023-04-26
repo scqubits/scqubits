@@ -19,6 +19,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 
+from matplotlib import rc_context
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
@@ -606,6 +607,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
     def slot_count(self) -> int:
         return len(self._parameters.paramvals_by_name)
 
+    @rc_context(settings.matplotlib_settings)
     def plot(self, **kwargs) -> Tuple[Figure, Axes]:
         if len(self._parameters) != 1:
             raise ValueError(

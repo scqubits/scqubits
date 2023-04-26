@@ -29,6 +29,7 @@ from scqubits.core.discretization import Grid1d
 from scqubits.core.flux_qubit import FluxQubit
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
+from scqubits.settings import matplotlib_settings
 
 try:
     from ipywidgets import (
@@ -1203,6 +1204,7 @@ class GUI:
 
         self.evals_vs_paramvals_plot(**value_dict)
 
+    @matplotlib.rc_context(matplotlib_settings)
     def wavefunctions_plot_refresh(self, change) -> None:
         value_dict = {
             "mode_value": self.qubit_plot_options_widgets[
@@ -1778,6 +1780,7 @@ class GUI:
         return plot_options_widgets_tuple
 
     # Plot functions------------------------------------------------------------------
+    @matplotlib.rc_context(matplotlib_settings)
     def evals_vs_paramvals_plot(
         self,
         scan_value: str,
@@ -1833,6 +1836,7 @@ class GUI:
                 display(self.fig)
         GUI.fig_ax = self.fig, self.fig.axes[0]
 
+    @matplotlib.rc_context(matplotlib_settings)
     def wavefunctions_plot(
         self,
         eigenvalue_states: Union[List[int], int],

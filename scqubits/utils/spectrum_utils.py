@@ -121,8 +121,8 @@ def standardize_sign(real_array: np.ndarray) -> np.ndarray:
     the sum of all amplitudes up to the wavefunctions mid-position and making it
     positive.
 
-    Summing up to the midpoint only is to address the  danger that the sum is
-    actually zero, which may is the case for odd wavefunctions taken over an interval
+    Summing up to the midpoint only is to address the danger that the sum is
+    actually zero, which may be the case for odd wavefunctions taken over an interval
     centered at zero.
     """
     halfway_position = len(real_array) // 2

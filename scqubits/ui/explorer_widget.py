@@ -36,6 +36,7 @@ from scqubits.ui.gui_defaults import (
     subsys_panel_names,
 )
 from scqubits.utils import misc as utils
+from scqubits.settings import matplotlib_settings
 
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep
@@ -90,7 +91,6 @@ def width(pixels: int, justify_content: Optional[str] = None) -> Layout:
 def boxed(pixels: int = 900) -> Layout:
     return Layout(
         width=str(pixels) + "px",
-        align="top",
         border="1px solid lightgrey",
         padding="10px 10px 10px 10px",
     )
@@ -164,6 +164,7 @@ class Explorer:
         self.gui_display.children = [self.ui_main_tab, self.ui_hbox["main_display"]]
         display(self.gui_display)
 
+    @matplotlib.rc_context(matplotlib_settings)
     def build_figure_and_axes_table(self) -> Tuple[Figure, np.ndarray]:
         # the %inline and %widget backends somehow scale differently; try to compensate
         self.figwidth = 6.4
@@ -424,6 +425,7 @@ class Explorer:
             layout=boxed(260),
         )
 
+    @matplotlib.rc_context(matplotlib_settings)
     def build_ui_figure_display(self):
         if _HAS_WIDGET_BACKEND:
             out = self.fig.canvas
@@ -438,6 +440,7 @@ class Explorer:
                 display(self.fig)
         return out
 
+    @matplotlib.rc_context(matplotlib_settings)
     def display_panel(
         self,
         full_panel_name: str,
@@ -654,6 +657,7 @@ class Explorer:
             list(self.sweep.param_info.keys()),
         )
 
+    @matplotlib.rc_context(matplotlib_settings)
     def update_layout_and_plots(self: "Explorer", change):
         panels = self.get_panels_list()
 
@@ -687,6 +691,7 @@ class Explorer:
                 self.fig.tight_layout()
                 display(self.fig)
 
+    @matplotlib.rc_context(matplotlib_settings)
     def update_plots(self: "Explorer", change):
         if not hasattr(self, "fig"):
             return
@@ -812,10 +817,7 @@ class Explorer:
             )
 
             self.ui["transitions"]["initial_bare_dressed_toggle"] = ToggleButtons(
-                options=["bare", "dressed"],
-                value="bare",
-                description="",
-                disable=False,
+                options=["bare", "dressed"], value="bare", description=""
             )
             self.ui["transitions"][
                 "initial_bare_dressed_toggle"

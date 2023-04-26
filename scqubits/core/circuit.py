@@ -9,13 +9,13 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
+
 import copy
 import functools
 import itertools
 import operator as builtin_op
 import re
 import warnings
-
 from types import MethodType
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -28,12 +28,12 @@ from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
-from scipy import sparse, stats
+from scipy import sparse
 from scipy.sparse import csc_matrix
 from sympy import latex
 
 try:
-    from IPython.display import display, Latex
+    from IPython.display import Latex, display
 except ImportError:
     _HAS_IPYTHON = False
 else:
@@ -43,13 +43,11 @@ import scqubits as scq
 import scqubits.core.discretization as discretization
 import scqubits.core.oscillator as osc
 import scqubits.core.qubit_base as base
-import scqubits.core.spec_lookup as spec_lookup
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as utils
-
 from scqubits import HilbertSpace, settings
 from scqubits.core import operators as op
 from scqubits.core.circuit_utils import (
@@ -62,7 +60,6 @@ from scqubits.core.circuit_utils import (
     _generate_symbols_list,
     _i_d2_dphi2_operator,
     _i_d_dphi_operator,
-    _identity_theta,
     _n_theta_operator,
     _phi_operator,
     _sin_dia,
@@ -77,10 +74,9 @@ from scqubits.core.circuit_utils import (
     matrix_power_sparse,
     operator_func_factory,
 )
-from scqubits.core.namedslots_array import NamedSlotsNdarray
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
 from scqubits.io_utils.fileio import IOData
-from scqubits.io_utils.fileio_serializers import dict_deserialize, dict_serialize
+from scqubits.io_utils.fileio_serializers import dict_serialize
 from scqubits.utils.misc import (
     flatten_list,
     flatten_list_recursive,
@@ -194,7 +190,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         }
 
         # storing the potential terms separately
-        # also bringing the potential to the same form as in the class Circuit
+        # and bringing the potential into the same form as for the class Circuit
         potential_symbolic = 0 * sm.symbols("x")
         for term in self.hamiltonian_symbolic.as_ordered_terms():
             if is_potential_term(term):
@@ -684,7 +680,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         Returns the eigenstates for the SubSystem instance
         """
         if self.is_child:
-            subsys_index = self.parent.hilbert_space.subsys_list.index(self)
+            subsys_index = self.parent.hilbert_space.subsystem_list.index(self)
             return self.parent.hilbert_space["bare_evecs"][subsys_index][0]
         else:
             return self.eigensys()[1]
@@ -870,7 +866,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         p_symbols = _generate_symbols_list("Q", self.var_categories["extended"])
 
         if self.ext_basis == "discretized":
-
             ps_symbols = [
                 sm.symbols("Qs" + str(i)) for i in self.var_categories["extended"]
             ]
@@ -882,7 +877,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             ]
 
         elif self.ext_basis == "harmonic":
-
             a_symbols = [sm.symbols(f"a{i}") for i in self.var_categories["extended"]]
             ad_symbols = [sm.symbols(f"ad{i}") for i in self.var_categories["extended"]]
             Nh_symbols = [sm.symbols(f"Nh{i}") for i in self.var_categories["extended"]]
@@ -995,7 +989,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         hamiltonian = self._shift_harmonic_oscillator_potential(hamiltonian)
 
         if self.ext_basis == "discretized":
-
             # marking the squared momentum operators with a separate symbol
             for i in self.var_categories["extended"]:
                 hamiltonian = hamiltonian.replace(
@@ -1237,7 +1230,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         return self._sparsity_adaptive(exp_i_theta)
 
     def _evaluate_matrix_cosine_terms(self, junction_potential: sm.Expr) -> qt.Qobj:
-
         if self.hierarchical_diagonalization:
             subsystem_list = list(self.subsystems.values())
             identity = qt.tensor(
@@ -1534,7 +1526,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         ) and "*" in str(term)
 
     def _replace_mat_mul_operator(self, term: sm.Expr):
-
         if not self._is_mat_mul_replacement_necessary(term):
             return str(term)
 
@@ -1807,7 +1798,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     self.hilbert_space["bare_evals"][sys_index][0],
                     self.hilbert_space["bare_evecs"][sys_index][0],
                 )
-                for sys_index, sys in enumerate(self.hilbert_space.subsys_list)
+                for sys_index, sys in enumerate(self.hilbert_space.subsystem_list)
             }
             hamiltonian = self.hilbert_space.hamiltonian(bare_esys=bare_esys)
             if self.type_of_matrices == "dense":
@@ -1841,7 +1832,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
-
         if (
             isinstance(self, Circuit)
             and self.is_purely_harmonic
@@ -2471,7 +2461,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         return wf_dim
 
     def _dims_to_be_summed(self, var_indices: Tuple[int], num_wf_dims) -> List[int]:
-
         all_var_indices = self.var_categories_list
         non_summed_dims = []
         for var_index in all_var_indices:
@@ -2806,7 +2795,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         change_discrete_charge_to_phi: bool,
         kwargs,
     ) -> Tuple[Figure, Axes]:
-
         var_index = var_indices[0]
         wavefunc = storage.WaveFunction(
             basis_labels=grids_per_varindex_dict[var_indices[0]].make_linspace(),
