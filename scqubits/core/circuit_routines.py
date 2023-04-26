@@ -2177,10 +2177,117 @@ class CircuitRoutines(ABC):
                 sym_params_str += f"$({sym.name}, {getattr(self, sym.name)})$, "
             display(Latex(sym_params_str))
         if self.hierarchical_diagonalization:
-            display(Latex(f"System hierarchy: {self.system_hierarchy}"))
-            display(Latex(f"Truncated Dimensions: {self.subsystem_trunc_dims}"))
+            display(
+                Latex(
+                    CircuitRoutines._return_tree_text(
+                        self.system_hierarchy, self.subsystem_trunc_dims
+                    )
+                )
+            )
+            # display(Latex(f"System hierarchy: {self.system_hierarchy}"))
+            # display(Latex(f"Truncated Dimensions: {self.subsystem_trunc_dims}"))
 
         return "Instance ID: " + self._id_str
+
+    @staticmethod
+    def _return_tree_text(
+        system_hierarchy,
+        subsystem_trunc_dim,
+        is_ancestor: bool = True,
+        prefix: str = "",
+        is_last: bool = True,
+    ):
+        """
+        Recursively generates an ASCII tree diagram as a string.
+
+        PARAMETERS
+        ----------
+        diagram_node:
+            the current node to print
+        prefix:
+            the prefix to use for printing the current node
+        is_last:
+            whether the current node is the last child of its parent
+
+        RETURNS
+        -------
+            a string representing the tree diagram
+        """
+        # Create a variable to store the tree diagram string
+        tree_txt = ""
+        # Add the prefix for the current node to the tree diagram string
+        tree_txt += prefix
+        # Add the string representation of the current node to the tree diagram string
+        if is_ancestor:
+            tree_txt += str(system_hierarchy)
+            # pad the subsystem_trunc_dim with a 1
+            subsystem_trunc_dim = [1, subsystem_trunc_dim]
+        else:
+            # Determine whether to use a vertical or horizontal line for the current node
+            if is_last:
+                tree_txt += "└─ "
+                prefix += "   "
+            else:
+                tree_txt += "├─ "
+                prefix += "│  "
+            tree_txt += str(system_hierarchy)
+        # Check if the current node is a list, and if all the items in the list are also lists
+        if isinstance(system_hierarchy, list) and all(
+            isinstance(item, list) for item in system_hierarchy
+        ):
+            if is_ancestor:
+                is_ancestor = False
+            else:
+                tree_txt += f": truncation dim. = {subsystem_trunc_dim[0]}"
+            # If the list has only one item, recursively generate the tree diagram for its child node
+            if len(system_hierarchy) == 1:
+                tree_txt += "\\\n "
+                if isinstance(subsystem_trunc_dim[1], list):
+                    tree_txt += CircuitRoutines._return_tree_text(
+                        system_hierarchy[0],
+                        subsystem_trunc_dim[1],
+                        is_ancestor,
+                        prefix,
+                        is_last,
+                    )
+                else:
+                    tree_txt += CircuitRoutines._return_tree_text(
+                        system_hierarchy[0],
+                        subsystem_trunc_dim[1],
+                        is_ancestor,
+                        prefix,
+                        is_last,
+                    )
+            # If the list has more than one item, recursively generate the tree diagram for each child node
+            else:
+                tree_txt += "\\\n"
+                for idx, item in enumerate(system_hierarchy):
+                    is_last = idx == len(system_hierarchy) - 1
+                    if isinstance(subsystem_trunc_dim[1][idx], list):
+                        tree_txt += CircuitRoutines._return_tree_text(
+                            item,
+                            subsystem_trunc_dim[1][idx],
+                            is_ancestor,
+                            prefix,
+                            is_last,
+                        )
+                    else:
+                        tree_txt += CircuitRoutines._return_tree_text(
+                            item,
+                            subsystem_trunc_dim[1][idx],
+                            is_ancestor,
+                            prefix,
+                            is_last,
+                        )
+        # If the current node is not a list, add it to the tree diagram string
+        elif isinstance(system_hierarchy, list) and not all(
+            isinstance(item, list) for item in system_hierarchy
+        ):
+            tree_txt += f": truncation dim. = {subsystem_trunc_dim} \\\n"
+        else:
+            tree_txt += "\\\n"
+        # Return the final tree diagram string
+        return tree_txt
 
     def _make_expr_human_readable(self, expr: sm.Expr, float_round: int = 6) -> sm.Expr:
         """
