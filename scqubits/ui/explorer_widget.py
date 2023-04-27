@@ -86,13 +86,10 @@ class Explorer:
                 "The widget backend requires Matplotlib >=3.5.1 for proper functioning",
                 UserWarning,
             )
-
         self.sweep = sweep
 
         self.subsys_names = [subsys.id_str for subsys in self.sweep.hilbertspace]
-        self.subsys_types = {
-            subsys.id_str: type(subsys).__name__ for subsys in self.sweep.hilbertspace
-        }
+        self.subsys_types = {subsys.id_str: type(subsys).__name__ for subsys in self.sweep.hilbertspace}
         self.subsys_types["Composite"] = "Composite"  # for use in default_panels
 
         self.ncols = ncols  # number of columns used for axes in the figure display
@@ -111,11 +108,11 @@ class Explorer:
             param_vals=self.param_vals,
             filled=False,
             class_="px-3",
-            style_="max-width: 300px"
+            style_="max-width: 300px; padding-top: 10px"
         )
 
         self.plot_collection = ui.vCardCollection(ncols=self.ncols)
-        self.gui_display = v.Container(
+        self.explorer_display = v.Container(
             class_="d-flex flex-column mx-0 px-0",
             children=[
                 v.Sheet(
@@ -139,7 +136,7 @@ class Explorer:
             ],
         )
 
-        display(self.gui_display)
+        display(self.explorer_display)
 
     @property
     def fixed_param(self):
