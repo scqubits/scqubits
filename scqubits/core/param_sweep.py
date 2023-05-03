@@ -372,7 +372,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         self, subsystems: Optional[Union[QuantumSystem, List[QuantumSystem]]]
     ) -> List[QuantumSystem]:
         if subsystems is None:
-            return self.hilbertspace.subsys_list
+            return self.hilbertspace.subsystem_list
         if isinstance(subsystems, list):
             return subsystems
         if isinstance(subsystems, QuantumSystem):
