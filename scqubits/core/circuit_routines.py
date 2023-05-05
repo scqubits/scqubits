@@ -3026,14 +3026,16 @@ class CircuitRoutines(ABC):
         which=0,
         var_indices: Tuple[int] = (1,),
         esys: Tuple[ndarray, ndarray] = None,
-        change_discrete_charge_to_phi: bool = True,
+        extended_variable_basis: str = "phi",
+        periodic_variable_basis: str = "phi",
+        mode: str = "abs",
         zero_calibrate: bool = True,
         grids_dict: Dict[int, discretization.Grid1d] = {},
         **kwargs,
     ) -> Tuple[Figure, Axes]:
         """
-        Returns the plot of the probability density of the wave function in the
-        requested variables for the current Circuit instance.
+        Returns the plot of the  wave function in the requested variables for the
+        current Circuit instance.
 
         Parameters
         ----------
@@ -3045,9 +3047,15 @@ class CircuitRoutines(ABC):
         esys:
             The object returned by the method `.eigensys`, is used to avoid the
             re-evaluation of the eigen systems if already evaluated.
-        change_discrete_charge_to_phi:
-            chooses if the discrete charge basis for the periodic variable
-            needs to be changed to phi basis.
+        extended_variable_basis:
+            Options: "phi" or "charge". Specify whether plotting wavefunctions in phi
+            or charge basis for extended variables.
+        periodic_variable_basis:
+            Options: "phi" or "charge". Specify whether plotting wavefunctions in phi
+            or discretized charge basis for periodic variables.
+        mode:
+            choice from `constants.MODE_FUNC_DICT` for processing function to be applied to
+        data
         zero_calibrate: bool, optional
             if True, colors are adjusted to use zero wavefunction amplitude as the
             neutral color in the palette
@@ -3114,7 +3122,7 @@ class CircuitRoutines(ABC):
             which=which,
             var_indices=var_indices,
             eigensys=esys,
-            change_discrete_charge_to_phi=change_discrete_charge_to_phi,
+            change_discrete_charge_to_phi=periodic_variable_basis,
             grids_dict=grids_per_varindex_dict,
         )
 
@@ -3122,7 +3130,7 @@ class CircuitRoutines(ABC):
 
         for var_index in np.sort(var_indices):
             if var_index in self.var_categories["periodic"]:
-                if not change_discrete_charge_to_phi:
+                if not periodic_variable_basis:
                     var_types.append("Charge in units of 2e, variable:")
                 else:
                     var_types.append("Dimensionless flux, discrete charge variable:")
@@ -3134,7 +3142,7 @@ class CircuitRoutines(ABC):
                 wf_plot,
                 var_indices,
                 grids_per_varindex_dict,
-                change_discrete_charge_to_phi,
+                periodic_variable_basis,
                 kwargs,
             )
 
@@ -3143,7 +3151,7 @@ class CircuitRoutines(ABC):
                 wf_plot,
                 var_indices,
                 grids_per_varindex_dict,
-                change_discrete_charge_to_phi,
+                periodic_variable_basis,
                 zero_calibrate=zero_calibrate,
                 kwargs=kwargs,
             )
