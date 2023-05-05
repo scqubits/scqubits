@@ -2773,11 +2773,11 @@ class CircuitRoutines(ABC):
         if subsystem.hierarchical_diagonalization:
             wf_shape = list(wf_new_basis.shape)
             wf_shape[wf_dim] = [
-                sub_subsys.truncated_dim for sub_subsys in subsystem.subsystems.values()
+                sub_subsys.truncated_dim for sub_subsys in subsystem.subsystems
             ]
             wf_new_basis = wf_new_basis.reshape(flatten_list_recursive(wf_shape))
             for sub_subsys_index, sub_subsys in enumerate(
-                subsystem.subsystems.values()
+                subsystem.subsystems
             ):
                 if len(set(relevant_indices) & set(sub_subsys.var_categories_list)) > 0:
                     wf_new_basis = self._recursive_basis_change(
