@@ -3034,8 +3034,20 @@ class CircuitRoutines(ABC):
         **kwargs,
     ) -> Tuple[Figure, Axes]:
         """
-        Returns the plot of the  wave function in the requested variables for the
-        current Circuit instance.
+        Returns the plot of the wave function in the requested variables for the
+        current Circuit instance. The following rules apply for how wave function
+        is precessed:
+        1. The number of variables for wave function plotting should not exceed 2.
+        2. If the number of variables for wave function plotting is smaller than
+        the number of variables in the circuit, the marginal probability distribution
+        of the state with respect to the specified variables is plotted. This means
+        the norm square of the wave function is integrated over the rest of the
+        variables and is then plotted.
+        3. If the number of variables for wave function plotting is equal to the
+        number of variables in the circuit, the wave function is plotted with the
+        operation specified by the `mode` argument. The `mode` argument can be
+        chosen from `constants.MODE_FUNC_DICT`. Options are: "abs_sqr", "abs", "real",
+        "imag".
 
         Parameters
         ----------
@@ -3043,7 +3055,7 @@ class CircuitRoutines(ABC):
             integer to choose which wave function to plot
         var_indices:
             A tuple containing the indices of the variables chosen to plot the
-            wave function in. Should not have more than 2 entries.
+            wave function in. It should not have more than 2 entries.
         esys:
             The object returned by the method `.eigensys`, is used to avoid the
             re-evaluation of the eigen systems if already evaluated.
@@ -3089,34 +3101,69 @@ class CircuitRoutines(ABC):
         var_indices = np.sort(var_indices)
         cutoffs_dict = (
             self.cutoffs_dict()
-        )  # dictionary for cutoffs for each variable index
-        grids_per_varindex_dict = grids_dict
+        )  # dictionary for cutoffs for each variable index used in diagonalization
+        grids_per_varindex_dict = {}
         var_index_dims_dict = {}
-        for cutoff_attrib in self.cutoff_names:
-            var_index = get_trailing_number(cutoff_attrib)
-            if "cutoff_n" in cutoff_attrib:
-                grids_per_varindex_dict[var_index] = (
-                    grids_per_varindex_dict[var_index]
-                    if var_index in grids_per_varindex_dict
-                    else discretization.Grid1d(
-                        -np.pi, np.pi, self._default_grid_phi.pt_count
-                    )
+        # creating a dictionary for the grids and dimensions for each variable index
+        # for plotting
+        # case 1: for periodic variables
+        for var_index in list(set(var_indices) & set(self.var_categories["periodic"])):
+            # only if the variable is periodic and the phi basis is used, the grid
+            # is specified
+            if periodic_variable_basis == "phi":
+                # if the grid number is not specified, the default grid is used
+                grid_pt_count = (
+                    grids_dict[var_index]
+                    if var_index in grids_dict
+                    else self._default_grid_phi.pt_count
                 )
-            else:
-                var_index_dims_dict[var_index] = getattr(self, cutoff_attrib)
-                if self.ext_basis == "harmonic":
-                    grid = (
-                        grids_per_varindex_dict[var_index]
-                        if var_index in grids_per_varindex_dict
-                        else self._default_grid_phi
-                    )
-                elif self.ext_basis == "discretized":
-                    grid = discretization.Grid1d(
-                        self.discretized_phi_range[var_index][0],
-                        self.discretized_phi_range[var_index][1],
-                        cutoffs_dict[var_index],
-                    )
-                grids_per_varindex_dict[var_index] = grid
+                grids_per_varindex_dict[var_index] = discretization.Grid1d(
+                    -np.pi, np.pi, grid_pt_count
+                )
+        # case 2: for extended variables
+        for var_index in list(set(var_indices) & set(self.var_categories["extended"])):
+            # if the basis is harmonic, the grid is specified based on the user-specified
+            # grid or the default grid
+            if self.ext_basis == "harmonic":
+                grids_per_varindex_dict[var_index] = (
+                    grids_dict[var_index]
+                    if var_index in grids_dict
+                    else self._default_grid_phi
+                )
+            # if the basis is discretized, the grid is specified based on the grid used
+            # in diagonalization
+            elif self.ext_basis == "discretized":
+                grids_per_varindex_dict[var_index] = discretization.Grid1d(
+                    self.discretized_phi_range[var_index][0],
+                    self.discretized_phi_range[var_index][1],
+                    cutoffs_dict[var_index],
+                )
+        # for cutoff_attrib in self.cutoff_names:
+        #     var_index = get_trailing_number(cutoff_attrib)
+        #     # case 1: for periodic variables
+        #     if "cutoff_n" in cutoff_attrib:
+        #         grids_per_varindex_dict[var_index] = (
+        #             grids_per_varindex_dict[var_index]
+        #             if var_index in grids_per_varindex_dict
+        #             else discretization.Grid1d(
+        #                 -np.pi, np.pi, self._default_grid_phi.pt_count
+        #             )
+        #         )
+        #     else:
+        #         var_index_dims_dict[var_index] = getattr(self, cutoff_attrib)
+        #         if self.ext_basis == "harmonic":
+        #             grid = (
+        #                 grids_per_varindex_dict[var_index]
+        #                 if var_index in grids_per_varindex_dict
+        #                 else self._default_grid_phi
+        #             )
+        #         elif self.ext_basis == "discretized":
+        #             grid = discretization.Grid1d(
+        #                 self.discretized_phi_range[var_index][0],
+        #                 self.discretized_phi_range[var_index][1],
+        #                 cutoffs_dict[var_index],
+        #             )
+        #         grids_per_varindex_dict[var_index] = grid
 
         wf_plot = self.generate_wf_plot_data(
             which=which,
