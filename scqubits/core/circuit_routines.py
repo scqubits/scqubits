@@ -2181,7 +2181,7 @@ class CircuitRoutines(ABC):
                 Latex(
                     CircuitRoutines._return_tree_text(
                         self.system_hierarchy, self.subsystem_trunc_dims
-                    )
+                    )[:-3]
                 )
             )
             # display(Latex(f"System hierarchy: {self.system_hierarchy}"))
@@ -2191,17 +2191,21 @@ class CircuitRoutines(ABC):
 
     @staticmethod
     def _return_tree_text(
-        system_hierarchy,
-        subsystem_trunc_dim,
+        system_hierarchy: List[Any],
+        subsystem_trunc_dim: List[Any],
         is_ancestor: bool = True,
         prefix: str = "",
         is_last: bool = True,
-    ):
+    ) -> str:
         """
         Recursively generates an ASCII tree diagram as a string.
 
         PARAMETERS
         ----------
+        system_hierarchy:
+            a list that represents the the system hierarchy
+        subsystem_trunc_dim:
+            a list that represents the truncated dimensions of the subsystems
         diagram_node:
             the current node to print
         prefix:
@@ -2225,11 +2229,11 @@ class CircuitRoutines(ABC):
         else:
             # Determine whether to use a vertical or horizontal line for the current node
             if is_last:
-                tree_txt += "└─ "
-                prefix += "   "
+                tree_txt += "$\quad$ └─ "
+                prefix += " $\quad$ "
             else:
-                tree_txt += "├─ "
-                prefix += "│  "
+                tree_txt += "$\quad$ ├─ "
+                prefix += "$\quad\,\,\,$│  "
             tree_txt += str(system_hierarchy)
         # Check if the current node is a list, and if all the items in the list are also lists
         if isinstance(system_hierarchy, list) and all(
