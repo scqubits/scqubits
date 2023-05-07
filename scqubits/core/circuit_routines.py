@@ -2776,9 +2776,7 @@ class CircuitRoutines(ABC):
                 sub_subsys.truncated_dim for sub_subsys in subsystem.subsystems
             ]
             wf_new_basis = wf_new_basis.reshape(flatten_list_recursive(wf_shape))
-            for sub_subsys_index, sub_subsys in enumerate(
-                subsystem.subsystems
-            ):
+            for sub_subsys_index, sub_subsys in enumerate(subsystem.subsystems):
                 if len(set(relevant_indices) & set(sub_subsys.var_categories_list)) > 0:
                     wf_new_basis = self._recursive_basis_change(
                         wf_new_basis,
@@ -2796,6 +2794,32 @@ class CircuitRoutines(ABC):
                     for cutoff_attrib in subsystem.cutoff_names
                 ]
                 wf_new_basis = wf_new_basis.reshape(flatten_list_recursive(wf_shape))
+        return wf_new_basis
+
+    def _basis_change_harm_osc_to_n(
+        self, wf_original_basis, wf_dim, var_index, grid_n: discretization.Grid1d
+    ):
+        """
+        Method to change the basis from harmonic oscillator to n basis
+        """
+        U_ho_n = np.array(
+            [
+                # TODO replace here by a function that returns the wavefunction in n basis
+                osc.harm_osc_wavefunction(
+                    n,
+                    grid_n.make_linspace(),
+                    abs(self.get_osc_param(var_index, which_param="length")),
+                )
+                for n in range(getattr(self, "cutoff_ext_" + str(var_index)))
+            ]
+        )
+        wf_sublist = [idx for idx, _ in enumerate(wf_original_basis.shape)]
+        U_sublist = [wf_dim, len(wf_sublist)]
+        target_sublist = wf_sublist.copy()
+        target_sublist[wf_dim] = len(wf_sublist)
+        wf_new_basis = np.einsum(
+            wf_original_basis, wf_sublist, U_ho_n.T, U_sublist, target_sublist
+        )
         return wf_new_basis
 
     def _basis_change_harm_osc_to_phi(
@@ -2822,6 +2846,12 @@ class CircuitRoutines(ABC):
             wf_original_basis, wf_sublist, U_ho_phi, U_sublist, target_sublist
         )
         return wf_ext_basis
+
+    def _basis_change_discretized_phi_to_n(
+        self, wf_original_basis, wf_dim, var_index, grid_phi: discretization.Grid1d
+    ):
+        # TODO: implement this method, which changes the discretized phi to n basis
+        pass
 
     def _basis_change_n_to_phi(
         self, wf_original_basis, wf_dim, var_index, grid_phi: discretization.Grid1d
@@ -2920,12 +2950,13 @@ class CircuitRoutines(ABC):
             )
         return wf_original_basis
 
-    def _change_to_phi_basis(
+    def _change_to_desired_basis(
         self,
         wf_original_basis: ndarray,
         var_indices: Tuple[int],
         grids_dict: Dict[int, Union[discretization.Grid1d, ndarray]],
-        change_discrete_charge_to_phi: bool,
+        periodic_variable_basis: str,
+        extended_variable_basis: str,
     ):
         wf_ext_basis = wf_original_basis
         for var_index in var_indices:
@@ -2952,7 +2983,7 @@ class CircuitRoutines(ABC):
                 )
             elif (
                 var_index in self.var_categories["periodic"]
-                and change_discrete_charge_to_phi
+                and periodic_variable_basis == "phi"
             ):
                 wf_ext_basis = self._basis_change_n_to_phi(
                     wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
@@ -2964,7 +2995,8 @@ class CircuitRoutines(ABC):
         which: int = 0,
         var_indices: Tuple[int] = (1,),
         eigensys: ndarray = None,
-        change_discrete_charge_to_phi: bool = True,
+        extended_variable_basis: str = "phi",
+        periodic_variable_basis: str = "phi",
         grids_dict: Dict[int, discretization.Grid1d] = None,
     ):
         """
@@ -2981,16 +3013,18 @@ class CircuitRoutines(ABC):
         eigensys:
             The object returned by the method instance. `eigensys` is used to avoid the
             re-evaluation of the eigensystems if already evaluated.
-        change_discrete_charge_to_phi: bool
-            boolean to choose if the discrete charge basis for the periodic variable
-            needs to be changed to phi basis.
+        extended_variable_basis: str
+            The basis in which the extended variables are plotted. Can be either
+            "phi" or "charge".
+        periodic_variable_basis: str
+            The basis in which the periodic variables are plotted. Can be either
+            "phi" or "charge".
         grids_dict:
             A dictionary which pairs var indices with the requested grids used to create
             the plot.
         """
         # checking to see if eigensys needs to be generated
         if eigensys is None:
-            evals_count = 6 if which < 6 else which
             _, wfs = self.eigensys(evals_count=which + 1)
         else:
             _, wfs = eigensys
@@ -3001,12 +3035,12 @@ class CircuitRoutines(ABC):
             wf=wf, var_indices=var_indices
         )
 
-        # making a basis change to phi for every var_index
-        wf_ext_basis = self._change_to_phi_basis(
+        # making a basis change to the desired basis for every var_index
+        wf_ext_basis = self._change_to_desired_basis(
             wf_original_basis,
             var_indices=var_indices,
             grids_dict=grids_dict,
-            change_discrete_charge_to_phi=change_discrete_charge_to_phi,
+            periodic_variable_basis=periodic_variable_basis,
         )
 
         # sum over the dimensions not relevant to the ones in var_indices
@@ -3138,57 +3172,36 @@ class CircuitRoutines(ABC):
                     self.discretized_phi_range[var_index][1],
                     cutoffs_dict[var_index],
                 )
-        # for cutoff_attrib in self.cutoff_names:
-        #     var_index = get_trailing_number(cutoff_attrib)
-        #     # case 1: for periodic variables
-        #     if "cutoff_n" in cutoff_attrib:
-        #         grids_per_varindex_dict[var_index] = (
-        #             grids_per_varindex_dict[var_index]
-        #             if var_index in grids_per_varindex_dict
-        #             else discretization.Grid1d(
-        #                 -np.pi, np.pi, self._default_grid_phi.pt_count
-        #             )
-        #         )
-        #     else:
-        #         var_index_dims_dict[var_index] = getattr(self, cutoff_attrib)
-        #         if self.ext_basis == "harmonic":
-        #             grid = (
-        #                 grids_per_varindex_dict[var_index]
-        #                 if var_index in grids_per_varindex_dict
-        #                 else self._default_grid_phi
-        #             )
-        #         elif self.ext_basis == "discretized":
-        #             grid = discretization.Grid1d(
-        #                 self.discretized_phi_range[var_index][0],
-        #                 self.discretized_phi_range[var_index][1],
-        #                 cutoffs_dict[var_index],
-        #             )
-        #         grids_per_varindex_dict[var_index] = grid
 
         wf_plot = self.generate_wf_plot_data(
             which=which,
             var_indices=var_indices,
             eigensys=esys,
-            change_discrete_charge_to_phi=periodic_variable_basis,
+            extended_variable_basis=extended_variable_basis,
+            periodic_variable_basis=periodic_variable_basis,
             grids_dict=grids_per_varindex_dict,
         )
 
         var_types = []
 
-        for var_index in np.sort(var_indices):
+        for var_index in var_indices:
             if var_index in self.var_categories["periodic"]:
-                if not periodic_variable_basis:
-                    var_types.append("Charge in units of 2e, variable:")
+                if periodic_variable_basis == "charge":
+                    var_types.append("Charge in units of 2e, periodic variable:")
                 else:
-                    var_types.append("Dimensionless flux, discrete charge variable:")
-            else:
-                var_types.append("Dimensionless flux, variable:")
+                    var_types.append("Dimensionless flux, periodic variable:")
+            if var_index in self.var_categories["extended"]:
+                if extended_variable_basis == "charge":
+                    var_types.append("Charge in units of 2e, extended variable:")
+                else:
+                    var_types.append("Dimensionless flux, extended variable:")
 
         if len(var_indices) == 1:
             return self._plot_wavefunction_1D(
                 wf_plot,
                 var_indices,
                 grids_per_varindex_dict,
+                extended_variable_basis,
                 periodic_variable_basis,
                 kwargs,
             )
@@ -3198,6 +3211,7 @@ class CircuitRoutines(ABC):
                 wf_plot,
                 var_indices,
                 grids_per_varindex_dict,
+                extended_variable_basis,
                 periodic_variable_basis,
                 zero_calibrate=zero_calibrate,
                 kwargs=kwargs,
@@ -3208,7 +3222,8 @@ class CircuitRoutines(ABC):
         wf_plot: ndarray,
         var_indices,
         grids_per_varindex_dict,
-        change_discrete_charge_to_phi: bool,
+        extended_variable_basis: str,
+        periodic_variable_basis: bool,
         zero_calibrate: bool,
         kwargs,
     ) -> Tuple[Figure, Axes]:
@@ -3216,7 +3231,7 @@ class CircuitRoutines(ABC):
         grids = []
         labels = []
         for index_order in [1, 0]:
-            if not change_discrete_charge_to_phi and (
+            if periodic_variable_basis == "charge" and (
                 var_indices[index_order] in self.var_categories["periodic"]
             ):
                 grids.append(
@@ -3250,7 +3265,7 @@ class CircuitRoutines(ABC):
         )
         # change frequency of tick mark for variables in charge basis
         # also force the tick marks to be integers
-        if not change_discrete_charge_to_phi:
+        if periodic_variable_basis == "charge":
             if var_indices[0] in self.var_categories["periodic"]:
                 if getattr(self, "cutoff_n_" + str(var_indices[0])) >= 6:
                     axes.yaxis.set_major_locator(plt.MaxNLocator(13, integer=True))
@@ -3279,7 +3294,8 @@ class CircuitRoutines(ABC):
         wf_plot: ndarray,
         var_indices,
         grids_per_varindex_dict,
-        change_discrete_charge_to_phi: bool,
+        extended_variable_basis: str,
+        periodic_variable_basis: str,
         kwargs,
     ) -> Tuple[Figure, Axes]:
         var_index = var_indices[0]
@@ -3288,7 +3304,7 @@ class CircuitRoutines(ABC):
             amplitudes=wf_plot,
         )
 
-        if not change_discrete_charge_to_phi and (
+        if periodic_variable_basis == "charge" and (
             var_indices[0] in self.var_categories["periodic"]
         ):
             kwargs = {
