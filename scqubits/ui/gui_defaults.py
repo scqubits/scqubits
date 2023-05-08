@@ -239,7 +239,7 @@ paramvals_from_papers = {
     "TunableTransmon": {
         "Arute et al. [mean], Nature 574, 505 (2019)": {
             "params": {
-                "EJv_max": 32.7,
+                "EJmax": 32.7,
                 "EC": 0.195,
             },
             "link": "https://www.nature.com/articles/s41586-019-1666-5",
