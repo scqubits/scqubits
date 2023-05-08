@@ -49,7 +49,7 @@ from scqubits.core.fluxonium import Fluxonium, FluxoniumFluxVariableAllocation
 from scqubits.core.fluxonium_vtb import FluxoniumVTB, FluxoniumVTBGlobal
 from scqubits.core.fluxonium_tunable_coupler import FluxoniumTunableCouplerGrounded, ConstructFullPulse
 from scqubits.core.generic_qubit import GenericQubit
-from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
+from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm, InteractionTermStr
 from scqubits.core.noise import calc_therm_ratio
 from scqubits.core.oscillator import KerrOscillator, Oscillator
 from scqubits.core.param_sweep import ParameterSweep
