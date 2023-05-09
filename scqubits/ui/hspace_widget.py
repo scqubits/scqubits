@@ -373,7 +373,7 @@ class HilbertSpaceUi:
             else:  # current interaction type is 'InteractionTermStr'
                 interaction_list.append(
                     scqubits.InteractionTermStr(
-                        expr=self.string_expr_widget.value,
+                        expr=interaction_term["string_expr"],
                         operator_list=[
                             (subsys1_index, "op1", op1),
                             (subsys2_index, "op2", op2),
