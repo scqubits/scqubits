@@ -858,14 +858,22 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
             None
         """
         for data_name, data in kwargs.items():
-            print(data.shape[: len(self.parameters)], np.array(self.parameters.counts))
+            data = np.array(data)
             if not (np.array(np.array(data.shape[: len(self.parameters)]) 
                 == self.parameters.counts)).all():
                 raise ValueError(f"The input data {data_name}'s shape does not match the" 
                                  " shape of the swept parameters.")
-            self._data[data_name] = data
+            
+            if data_name not in self._data.keys():
+                settings.DISPATCH_ENABLED = False
+
+            self._data[data_name] = NamedSlotsNdarray(data, self.parameters.paramvals_by_name)
+
+            if not settings.DISPATCH_ENABLED:
+                settings.DISPATCH_ENABLED = True
 
 
+ 
 class ParameterSweep(  # type:ignore
     ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable
 ):
@@ -1356,13 +1364,14 @@ class ParameterSweep(  # type:ignore
                 stored_hilbertspace = dill.loads(instance_str)
                 self._hilbertspace = dill.loads(instance_str)
             else:
-                warnings.warn(
-                    "Updating the original hilbertspace may cause the generated spectrum "
-                    "data outdated, potentially leading to incorrect results. "
-                    "Try initializing the ParameterSweep with arguement deepcopy = True.",
-                    Warning
-                )
-                self.cause_dispatch()
+                # warnings.warn(
+                #     "Updating the original hilbertspace may cause the generated spectrum "
+                #     "data outdated, potentially leading to incorrect results. "
+                #     "Try initializing the ParameterSweep with arguement deepcopy = True.",
+                #     Warning
+                # )
+                # self.cause_dispatch()
+                pass
             settings.DISPATCH_ENABLED = False
 
         modified_func = self._sweep_function_keyword_modify(sweep_function, update_hilbertspace)
