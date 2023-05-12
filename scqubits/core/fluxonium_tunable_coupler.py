@@ -1526,7 +1526,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
 
     @staticmethod
     def basis_change(op, evecs, hilbert_space, subsystem):
-        evecs_bare = hilbert_space.lookup.bare_eigenstates(subsystem)
+        evecs_bare = hilbert_space.bare_eigenstates(subsystem)
         op_id_wrap = identity_wrap(op, subsystem, hilbert_space.subsys_list, evecs=evecs_bare)
         op_new_basis = np.real(evecs.T @ op_id_wrap.data @ evecs)
         return Qobj(op_new_basis)
@@ -1540,8 +1540,8 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
     ):
         hilbert_space = self.hilbert_space_at_sweetspot(flux_shift_a, flux_shift_b)
         hilbert_space.generate_lookup()
-        evals_qobj = hilbert_space.lookup.dressed_eigenenergies()[0:num_states]
-        evecs_qobj = hilbert_space.lookup.dressed_eigenstates()[0:num_states]
+        evals_qobj = hilbert_space["evals"][0:num_states]
+        evecs_qobj = list(hilbert_space["evecs"][0][0:num_states])
         evals_zeroed = evals_qobj - evals_qobj[0]
         H_0 = Qobj(2.0 * np.pi * np.diag(evals_zeroed[0:num_states]))
         evecs_ = convert_evecs_to_ndarray(evecs_qobj).T
@@ -1579,7 +1579,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             bad_bare_labels = [(i, j, 1, 0) for i in range(2) for j in range(2)]
             bad_dressed_indices = []
             for bare_label in bad_bare_labels:
-                bad_dressed_index = hilbert_space.lookup.dressed_index(bare_label)
+                bad_dressed_index = hilbert_space.dressed_index(bare_label)
                 bad_dressed_indices.append(bad_dressed_index)
             states_to_keep = np.concatenate(
                 (np.arange(4), np.array(bad_dressed_indices))
