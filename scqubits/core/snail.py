@@ -341,8 +341,7 @@ class SNAILThreeMode(base.QubitBaseClass1d, serializers.Serializable, NoisySyste
         junc_phase_array = np.array([snail.elements[elem_idx].phi[phi_ext_val_idx] for elem_idx in range(0, 3)])
         node_phase_array = sp.linalg.inv(node_vars_to_phase_vars) @ (junc_phase_array - 2.0 * np.pi * self.flux *
                                                                      np.array([1, 0, 0]))
-        min_result = sp.optimize.minimize(self.potential, x0=node_phase_array)
-        return min_result.x
+        return node_phase_array
 
     def capacitance_matrix(self):
         """Find the capacitance matrix. We use units where e=1 (the e's cancel out anyways, once we invert
