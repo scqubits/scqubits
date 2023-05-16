@@ -72,15 +72,15 @@ class SNAIL(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     ncut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
-            self,
-            EJ: float,
-            EC: float,
-            flux: float,
-            alpha: float,
-            n: int,
-            ncut: int,
-            truncated_dim: int = 6,
-            id_str: Optional[str] = None,
+        self,
+        EJ: float,
+        EC: float,
+        flux: float,
+        alpha: float,
+        n: int,
+        ncut: int,
+        truncated_dim: int = 6,
+        id_str: Optional[str] = None,
     ) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
         self.EJ = EJ
@@ -137,17 +137,17 @@ class SNAIL(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         dim = self.hilbertdim()
         hamiltonian_mat = np.zeros((dim, dim), dtype=complex)
         hamiltonian_mat += np.diag(
-            [4.0 * self.EC * (ind - self.ncut) ** 2 / self.n ** 2 for ind in range(dim)]
+            [4.0 * self.EC * (ind - self.ncut) ** 2 / self.n**2 for ind in range(dim)]
         )
         ind_n = np.arange(dim - self.n)
         hamiltonian_mat[ind_n, ind_n + self.n] = -self.alpha * self.EJ / 2.0
         hamiltonian_mat[ind_n + self.n, ind_n] = -self.alpha * self.EJ / 2.0
         ind_1 = np.arange(dim - 1)
         hamiltonian_mat[ind_1, ind_1 + 1] = (
-                -self.n * self.EJ * np.exp(1j * 2.0 * np.pi * self.flux / self.n) / 2.0
+            -self.n * self.EJ * np.exp(1j * 2.0 * np.pi * self.flux / self.n) / 2.0
         )
         hamiltonian_mat[ind_1 + 1, ind_1] = (
-                -self.n * self.EJ * np.exp(-1j * 2.0 * np.pi * self.flux / self.n) / 2.0
+            -self.n * self.EJ * np.exp(-1j * 2.0 * np.pi * self.flux / self.n) / 2.0
         )
         return hamiltonian_mat
 
@@ -174,7 +174,7 @@ class SNAIL(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         )
 
     def numberbasis_wavefunction(
-            self, esys: Tuple[ndarray, ndarray] = None, which: int = 0
+        self, esys: Tuple[ndarray, ndarray] = None, which: int = 0
     ) -> WaveFunction:
         """Return the snail wave function in number basis. The specific index of the
         wave function to be returned is `which`.
@@ -197,10 +197,10 @@ class SNAIL(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         return storage.WaveFunction(n_vals, evecs[:, which], evals[which])
 
     def wavefunction(
-            self,
-            esys: Optional[Tuple[ndarray, ndarray]] = None,
-            which: int = 0,
-            phi_grid: Grid1d = None,
+        self,
+        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        which: int = 0,
+        phi_grid: Grid1d = None,
     ) -> WaveFunction:
         """Return the snail wave function in phase basis. The specific index of the
         wavefunction is `which`. `esys` can be provided, but if set to `None` then it is
@@ -229,8 +229,8 @@ class SNAIL(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         phi_wavefunc_amplitudes = np.empty(phi_grid.pt_count, dtype=np.complex_)
         for k in range(phi_grid.pt_count):
             phi_wavefunc_amplitudes[k] = (
-                                                 1j ** which / math.sqrt(2 * np.pi * self.n)
-                                         ) * np.sum(
+                1j**which / math.sqrt(2 * np.pi * self.n)
+            ) * np.sum(
                 n_wavefunc.amplitudes
                 * np.exp(1j * phi_basis_labels[k] * n_wavefunc.basis_labels / self.n)
             )
@@ -274,19 +274,19 @@ class SNAILThreeMode(base.QubitBaseClass1d, serializers.Serializable, NoisySyste
     """
 
     def __init__(
-            self,
-            EJ0: float,
-            EJ1: float,
-            EJ2: float,
-            EJ3: float,
-            EC0: float,
-            EC1: float,
-            EC2: float,
-            EC3: float,
-            flux: float,
-            cutoff: int = 5,
-            truncated_dim: int = 6,
-            id_str: Optional[str] = None,
+        self,
+        EJ0: float,
+        EJ1: float,
+        EJ2: float,
+        EJ3: float,
+        EC0: float,
+        EC1: float,
+        EC2: float,
+        EC3: float,
+        flux: float,
+        cutoff: int = 5,
+        truncated_dim: int = 6,
+        id_str: Optional[str] = None,
     ) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
         self.EJ0 = EJ0
@@ -313,34 +313,39 @@ class SNAILThreeMode(base.QubitBaseClass1d, serializers.Serializable, NoisySyste
             "EC2": 1.0,
             "EC3": 1.0,
             "flux": 0.0,
-            "cutoff": 5
+            "cutoff": 5,
         }
 
     def find_minimum(self):
-        """ Find the minimum (equilibrium) position of the node variables.
+        """Find the minimum (equilibrium) position of the node variables.
         Sandro's tool NINA does this computation automatically, and returns the
         equilibrium junction phases. We want the equilibirum node-variable phases,
         and the conversion is done below. Additionally, NINA solves for these positions
-        for many values of flux in a dense array. We isolate below the flux value of interest. """
+        for many values of flux in a dense array. We isolate below the flux value of interest."""
         order = 3
         # LEFT BRANCH ELEMENTS
-        J0 = J_nina(ic=self.EJ0, order=order, name='J0')
+        J0 = J_nina(ic=self.EJ0, order=order, name="J0")
         left_elements = [J0]
-        J1 = J_nina(ic=self.EJ1, order=order, name='J1')
-        J2 = J_nina(ic=self.EJ2, order=order, name='J2')
-        J3 = J_nina(ic=self.EJ3, order=order, name='J3')
+        J1 = J_nina(ic=self.EJ1, order=order, name="J1")
+        J2 = J_nina(ic=self.EJ2, order=order, name="J2")
+        J3 = J_nina(ic=self.EJ3, order=order, name="J3")
         right_elements = [J1, J2, J3]
-        snail = loop_nina(left_branch=left_elements,
-                          right_branch=right_elements,
-                          stray_inductance=False,
-                          name='SNAIL')
+        snail = loop_nina(
+            left_branch=left_elements,
+            right_branch=right_elements,
+            stray_inductance=False,
+            name="SNAIL",
+        )
         snail.interpolate_results(2.0 * np.pi * self.flux)
-        node_vars_to_phase_vars = np.array([[1.0, 0.0, 0.0],
-                                            [-1.0, 1.0, 0.0],
-                                            [0.0, -1.0, 1.0]])
-        junc_phase_array = np.array([snail.elements[elem_idx].phi[0] for elem_idx in range(0, 3)])
-        node_phase_array = sp.linalg.inv(node_vars_to_phase_vars) @ (junc_phase_array - 2.0 * np.pi * self.flux *
-                                                                     np.array([1, 0, 0]))
+        node_vars_to_phase_vars = np.array(
+            [[1.0, 0.0, 0.0], [-1.0, 1.0, 0.0], [0.0, -1.0, 1.0]]
+        )
+        junc_phase_array = np.array(
+            [snail.elements[elem_idx].phi[0] for elem_idx in range(0, 3)]
+        )
+        node_phase_array = sp.linalg.inv(node_vars_to_phase_vars) @ (
+            junc_phase_array - 2.0 * np.pi * self.flux * np.array([1, 0, 0])
+        )
         return node_phase_array
 
     def capacitance_matrix(self):
@@ -350,24 +355,29 @@ class SNAILThreeMode(base.QubitBaseClass1d, serializers.Serializable, NoisySyste
         C1 = 1 / (2 * self.EC1)
         C2 = 1 / (2 * self.EC2)
         C3 = 1 / (2 * self.EC3)
-        Cmat = np.array([[C0 + C1, -C1, 0.0],
-                         [-C1, C1 + C2, -C2],
-                         [0.0, -C2, C2 + C3]])
+        Cmat = np.array([[C0 + C1, -C1, 0.0], [-C1, C1 + C2, -C2], [0.0, -C2, C2 + C3]])
         return Cmat
 
     def gamma_matrix(self):
         """Find the inverse inductance matrix. This matrix is necessary for
-         solving for the modes of the SNAIL. See D. K. Weiss et al. PRR (2021) for more information"""
+        solving for the modes of the SNAIL. See D. K. Weiss et al. PRR (2021) for more information"""
         Phi0 = 0.5  # units where e, hbar = 1; Phi0 = hbar / (2 * e)
         nina_min = self.find_minimum()
-        g00 = self.EJ0 * np.cos(nina_min[0] + 2.0 * np.pi * self.flux) + self.EJ1 * np.cos(nina_min[1] - nina_min[0])
+        g00 = self.EJ0 * np.cos(
+            nina_min[0] + 2.0 * np.pi * self.flux
+        ) + self.EJ1 * np.cos(nina_min[1] - nina_min[0])
         g01 = self.EJ1 * np.cos(nina_min[1] - nina_min[0])
-        g11 = self.EJ1 * np.cos(nina_min[1] - nina_min[0]) + self.EJ2 * np.cos(nina_min[2] - nina_min[1])
+        g11 = self.EJ1 * np.cos(nina_min[1] - nina_min[0]) + self.EJ2 * np.cos(
+            nina_min[2] - nina_min[1]
+        )
         g12 = self.EJ2 * np.cos(nina_min[2] - nina_min[1])
-        g22 = self.EJ2 * np.cos(nina_min[2] - nina_min[1]) + self.EJ3 * np.cos(nina_min[2])
-        gamma_mat = np.array([[g00, -g01, 0.0],
-                              [-g01, g11, -g12],
-                              [0.0, -g12, g22]]) / Phi0 ** 2
+        g22 = self.EJ2 * np.cos(nina_min[2] - nina_min[1]) + self.EJ3 * np.cos(
+            nina_min[2]
+        )
+        gamma_mat = (
+            np.array([[g00, -g01, 0.0], [-g01, g11, -g12], [0.0, -g12, g22]])
+            / Phi0**2
+        )
         return gamma_mat
 
     def eigensystem_normal_modes(self) -> (ndarray, ndarray):
@@ -388,16 +398,18 @@ class SNAILThreeMode(base.QubitBaseClass1d, serializers.Serializable, NoisySyste
         Z0 = 0.25  # units where e and hbar = 1; Z0 = hbar / (2 * e)**2
         Xi_mat = np.array(
             [
-                eigenvectors[:, i]
-                * omega_squared ** (-1 / 4)
-                * np.sqrt(1.0 / Z0)
+                eigenvectors[:, i] * omega_squared ** (-1 / 4) * np.sqrt(1.0 / Z0)
                 for i, omega_squared in enumerate(omega_squared_array)
             ]
         ).T
-        assert np.allclose(Xi_mat.T @ self.capacitance_matrix() @ Xi_mat,
-                           np.diag(1./np.sqrt(omega_squared_array)) / Z0)
-        assert np.allclose(Xi_mat.T @ self.gamma_matrix() @ Xi_mat,
-                           np.diag(np.sqrt(omega_squared_array)) / Z0)
+        assert np.allclose(
+            Xi_mat.T @ self.capacitance_matrix() @ Xi_mat,
+            np.diag(1.0 / np.sqrt(omega_squared_array)) / Z0,
+        )
+        assert np.allclose(
+            Xi_mat.T @ self.gamma_matrix() @ Xi_mat,
+            np.diag(np.sqrt(omega_squared_array)) / Z0,
+        )
         return Xi_mat
 
     def hamiltonian(self):
@@ -420,19 +432,24 @@ class SNAILThreeMode(base.QubitBaseClass1d, serializers.Serializable, NoisySyste
 
     def potential(self, phi: Union[float, ndarray]) -> Union[float, ndarray]:
         """Calculate the value of the classical potential"""
-        return (-self.EJ0 * np.cos(phi[0] + 2.0 * np.pi * self.flux)
-                - self.EJ1 * np.cos(phi[1] - phi[0])
-                - self.EJ2 * np.cos(phi[2] - phi[1])
-                - self.EJ3 * np.cos(phi[2])
-                )
+        return (
+            -self.EJ0 * np.cos(phi[0] + 2.0 * np.pi * self.flux)
+            - self.EJ1 * np.cos(phi[1] - phi[0])
+            - self.EJ2 * np.cos(phi[2] - phi[1])
+            - self.EJ3 * np.cos(phi[2])
+        )
 
     def decompose_evec_in_bare_basis(self, evec):
         bare_labels = list(itertools.product(range(self.cutoff), repeat=3))
         ovlp_list = np.zeros(self.hilbertdim())
         for idx, (i, j, k) in enumerate(bare_labels):
-            bare_evec = qt.tensor(qt.basis(self.cutoff, i), qt.basis(self.cutoff, j), qt.basis(self.cutoff, k))
-            ovlp_list[idx] = np.abs(evec @ bare_evec.data.toarray())**2
-        sorted_idxs = np.argsort(1./ovlp_list)
+            bare_evec = qt.tensor(
+                qt.basis(self.cutoff, i),
+                qt.basis(self.cutoff, j),
+                qt.basis(self.cutoff, k),
+            )
+            ovlp_list[idx] = np.abs(evec @ bare_evec.data.toarray()) ** 2
+        sorted_idxs = np.argsort(1.0 / ovlp_list)
         return ovlp_list[sorted_idxs], np.array(bare_labels)[sorted_idxs]
 
     def _identity_operator(self) -> ndarray:
@@ -442,29 +459,42 @@ class SNAILThreeMode(base.QubitBaseClass1d, serializers.Serializable, NoisySyste
         return [self._identity_operator() for _ in range(3)]
 
     def identity_operator(self) -> ndarray:
-        """Returns the identity operator in the full Hilbert space
-        """
+        """Returns the identity operator in the full Hilbert space"""
         return identity_wrap_array([], [], self._identity_operator_list())
 
     def a_operator(self, dof_index):
         """Returns the annihilation operator for each normal mode"""
         dim = self.cutoff
-        a_op_wrapped = identity_wrap_array([annihilation(dim)], [dof_index], self._identity_operator_list())
+        a_op_wrapped = identity_wrap_array(
+            [annihilation(dim)], [dof_index], self._identity_operator_list()
+        )
         return a_op_wrapped
 
     def phi_operator(self, node_idx):
         """Returns the phi operator for each node variable"""
         Xi_matrix = self.Xi_matrix()
-        return (1 / np.sqrt(2)) * np.sum([Xi_matrix[node_idx, dof_idx]
-                                          * (self.a_operator(dof_idx) + self.a_operator(dof_idx).T)
-                                          for dof_idx in range(3)], axis=0, dtype=complex)
+        return (1 / np.sqrt(2)) * np.sum(
+            [
+                Xi_matrix[node_idx, dof_idx]
+                * (self.a_operator(dof_idx) + self.a_operator(dof_idx).T)
+                for dof_idx in range(3)
+            ],
+            axis=0,
+            dtype=complex,
+        )
 
     def n_operator(self, node_idx):
         """Returns the charge number operator for each node variable"""
         Xi_inv_T = inv(self.Xi_matrix()).T
-        return (-1j / np.sqrt(2)) * np.sum([Xi_inv_T[node_idx, dof_idx]
-                                            * (self.a_operator(dof_idx) - self.a_operator(dof_idx).T)
-                                            for dof_idx in range(3)], axis=0, dtype=complex)
+        return (-1j / np.sqrt(2)) * np.sum(
+            [
+                Xi_inv_T[node_idx, dof_idx]
+                * (self.a_operator(dof_idx) - self.a_operator(dof_idx).T)
+                for dof_idx in range(3)
+            ],
+            axis=0,
+            dtype=complex,
+        )
 
     def wavefunction(
         self,
@@ -472,4 +502,6 @@ class SNAILThreeMode(base.QubitBaseClass1d, serializers.Serializable, NoisySyste
         which: int = 0,
         phi_grid: Grid1d = None,
     ) -> "WaveFunction":
-        raise NotImplementedError("wavefunction method not implemented for the 3D SNAIL")
+        raise NotImplementedError(
+            "wavefunction method not implemented for the 3D SNAIL"
+        )
