@@ -334,11 +334,11 @@ class SNAILThreeMode(base.QubitBaseClass1d, serializers.Serializable, NoisySyste
                           right_branch=right_elements,
                           stray_inductance=False,
                           name='SNAIL')
-        phi_ext_val_idx = np.argmin(np.abs(snail.flux - 2.0 * np.pi * self.flux))
+        snail.interpolate_results(2.0 * np.pi * self.flux)
         node_vars_to_phase_vars = np.array([[1.0, 0.0, 0.0],
                                             [-1.0, 1.0, 0.0],
                                             [0.0, -1.0, 1.0]])
-        junc_phase_array = np.array([snail.elements[elem_idx].phi[phi_ext_val_idx] for elem_idx in range(0, 3)])
+        junc_phase_array = np.array([snail.elements[elem_idx].phi[0] for elem_idx in range(0, 3)])
         node_phase_array = sp.linalg.inv(node_vars_to_phase_vars) @ (junc_phase_array - 2.0 * np.pi * self.flux *
                                                                      np.array([1, 0, 0]))
         return node_phase_array
