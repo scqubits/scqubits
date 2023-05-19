@@ -30,6 +30,7 @@ from typing import (
 )
 
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 import scipy as sp
 
@@ -48,7 +49,7 @@ import scqubits.utils.plotting as plot
 from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import DataStore, SpectrumData
-from scqubits.settings import IN_IPYTHON
+from scqubits.settings import IN_IPYTHON, matplotlib_settings
 from scqubits.utils.cpu_switch import get_map_method
 from scqubits.utils.misc import InfoBar, process_which
 from scqubits.utils.spectrum_utils import (
@@ -829,6 +830,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         spectrumdata.matrixelem_table = matelem_table
         return spectrumdata
 
+    @mpl.rc_context(matplotlib_settings)
     def plot_evals_vs_paramvals(
         self,
         param_name: str,
@@ -870,6 +872,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         )
         return plot.evals_vs_paramvals(specdata, which=range(evals_count), **kwargs)
 
+    @mpl.rc_context(matplotlib_settings)
     def plot_dispersion_vs_paramvals(
         self,
         dispersion_name: str,
@@ -945,6 +948,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             **kwargs,
         )
 
+    @mpl.rc_context(matplotlib_settings)
     def plot_matrixelements(
         self,
         operator: str,
@@ -998,6 +1002,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             **kwargs,
         )
 
+    @mpl.rc_context(matplotlib_settings)
     def plot_matelem_vs_paramvals(
         self,
         operator: str,
@@ -1119,6 +1124,7 @@ class QubitBaseClass1d(QubitBaseClass):
         options = {"xlabel": r"$\varphi$", "ylabel": ylabel}
         return options
 
+    @mpl.rc_context(matplotlib_settings)
     def plot_wavefunction(
         self,
         which: Union[int, Iterable[int]] = 0,
