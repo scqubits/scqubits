@@ -112,7 +112,7 @@ class NoisyCircuit(NoisySystem, ABC):
                     f"d_hamiltonian_d_ng{get_trailing_number(param_sym.name)}"
                 ] = param_derivative
         ## cc noise methods
-        junction_branches = [branch for branch in self.branches if branch.type == "JJ"]
+        junction_branches = [branch for branch in self.branches if "JJ" in branch.type]
         for idx, branch in enumerate(junction_branches):
 
             def param_derivative(self=self, branch=branch):
@@ -166,7 +166,7 @@ class NoisyCircuit(NoisySystem, ABC):
         noise_type=['cc', 'ng', 'flux']; individual noise sources differentiated
         using index."""
         # calculating the rates from each of the flux sources
-        junction_branches = [branch for branch in self.branches if branch.type == "JJ"]
+        junction_branches = [branch for branch in self.branches if "JJ" in branch.type]
         methods_noise_rates_from_flux = {}
         methods_noise_rates_from_ng = {}
         methods_noise_rates_from_cc = {}
@@ -264,7 +264,7 @@ class NoisyCircuit(NoisySystem, ABC):
             **kwargs,
         ) -> float:
             tphi_times = []
-            for branch in [brnch for brnch in self.branches if brnch.type == "JJ"]:
+            for branch in [brnch for brnch in self.branches if "JJ" in branch.type]:
                 tphi_times.append(
                     getattr(self, f"tphi_1_over_f_cc{branch.id_str}")(
                         A_noise=A_noise, i=i, j=j, esys=esys, **kwargs
@@ -397,7 +397,7 @@ class NoisyCircuit(NoisySystem, ABC):
                     f"t1_charge_impedance{branch.id_str}"
                 ] = self.wrapper_t1_charge_impedance(branch)
             # # quasiparticle noise
-            # if branch.type == "JJ":
+            # if "JJ" in branch.type:
             #     t1_quasiparticle_tunneling_methods[
             #         f"t1_quasiparticle_tunneling{branch.id_str}"
             #     ] = self.wrapper_t1_quasiparticle_tunneling(branch)
@@ -613,7 +613,7 @@ class NoisyCircuit(NoisySystem, ABC):
             get_rate: bool = False,
         ) -> float:
             t1_times = []
-            for branch in [b for b in self.branches if b.type == "JJ"]:
+            for branch in [b for b in self.branches if "JJ" in b.type]:
                 t1_times.append(
                     getattr(self, f"t1_quasiparticle_tunneling{branch.id_str}")(
                         i=i,

@@ -277,7 +277,9 @@ class CircuitRoutines(ABC):
             or self.is_purely_harmonic
         ):
             capacitance_branches = [
-                branch for branch in self.branches if branch.type in ("C", "JJ")
+                branch
+                for branch in self.branches
+                if (branch.type == "C" or "JJ" in branch.type)
             ]
             capacitance_params = [
                 branch.parameters["EC"]
@@ -1207,14 +1209,16 @@ class CircuitRoutines(ABC):
         var_index = get_trailing_number(var_sym.name)
 
         if var_index in self.var_categories["periodic"]:
-            if abs(prefactor) != 1:
-                raise Exception("Prefactor for periodic variable should be 1.")
-            if prefactor > 0:
-                exp_i_theta = _exp_i_theta_operator(self.cutoffs_dict()[var_index])
-            else:
-                exp_i_theta = _exp_i_theta_operator_conjugate(
-                    self.cutoffs_dict()[var_index]
-                )
+            # if abs(prefactor) != 1:
+            #     raise Exception("Prefactor for periodic variable should be 1.")
+            # if prefactor > 0:
+            exp_i_theta = _exp_i_theta_operator(
+                self.cutoffs_dict()[var_index], prefactor
+            )
+            # else:
+            #     exp_i_theta = _exp_i_theta_operator_conjugate(
+            #         self.cutoffs_dict()[var_index]
+            #     )
         elif var_index in self.var_categories["extended"]:
             if self.ext_basis == "discretized":
                 phi_grid = discretization.Grid1d(

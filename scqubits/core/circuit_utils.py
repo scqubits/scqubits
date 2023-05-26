@@ -28,6 +28,40 @@ if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem
 
 
+def _junction_order(branch_type):
+    """
+    Returns the order of the branch if it is a JJ branch,
+    if the order is n its energy is given by cos(phi) + cos(2*phi) + ... + cos(n*phi)
+
+    Args:
+        branch (_type_): Branch
+
+    Raises:
+        ValueError: when the branch is not a josephson junction
+
+    Returns:
+        _type_: int, order of the josephson junction
+    """
+    if "JJ" not in branch_type:
+        raise ValueError("The branch is not a JJ branch")
+    if len(branch_type) > 2:
+        return int(branch_type[2:])
+    else:
+        return 1
+
+
+def _capactiance_variable_for_branch(branch_type: str):
+    """
+    Returns the parameter name that stores the capacitance of the branch
+    """
+    if "C" in branch_type:
+        return "EC"
+    elif "JJ" in branch_type:
+        return "ECJ"
+    else:
+        raise ValueError("Branch type is not a capacitor or a JJ")
+
+
 def truncation_template(
     system_hierarchy: list, individual_trunc_dim: int = 6, combined_trunc_dim: int = 30
 ) -> list:
@@ -235,13 +269,15 @@ def _n_theta_operator(ncut: int) -> csc_matrix:
     return n_theta_matrix
 
 
-def _exp_i_theta_operator(ncut) -> csc_matrix:
+def _exp_i_theta_operator(ncut, prefactor=1) -> csc_matrix:
     r"""
     Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace.
     """
+    # if type(prefactor) != int:
+    #     raise ValueError("Prefactor must be an integer")
     dim_theta = 2 * ncut + 1
     matrix = sparse.dia_matrix(
-        (np.ones(dim_theta), [-1]),
+        (np.ones(dim_theta), [-prefactor]),
         shape=(dim_theta, dim_theta),
     ).tocsc()
     return matrix
@@ -580,7 +616,7 @@ def assemble_circuit(
                 + " ,"
             )
             # identify parameter numbers
-            num_params = 2 if branch_type in ["JJ", "JJ2"] else 1
+            num_params = 2 if "JJ" in branch_type else 1
             # include parameters
             for word in subcircuit_branch[3 : 3 + num_params]:
                 if not is_float_string(word):
@@ -649,7 +685,7 @@ def assemble_circuit(
             + " ,"
         )
         # identify parameter numbers
-        num_params = 2 if branch_type in ["JJ", "JJ2"] else 1
+        num_params = 2 if "JJ" in branch_type else 1
         # include parameters
         for word in coupler_branch[3 : 3 + num_params]:
             if not is_float_string(word):

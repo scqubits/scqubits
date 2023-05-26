@@ -27,7 +27,11 @@ import random
 from numpy import ndarray
 from scqubits.utils.misc import flatten_list, is_float_string, unique_elements_in_list
 from sympy import symbols
-from scqubits.core.circuit_utils import round_symbolic_expr
+from scqubits.core.circuit_utils import (
+    round_symbolic_expr,
+    _capactiance_variable_for_branch,
+    _junction_order,
+)
 
 
 def process_word(word: str) -> Union[float, symbols]:
@@ -64,7 +68,7 @@ def parse_branch_parameters(
     """
     branch_var_dict: Dict[Symbol, float] = {}
     branch_params: List[float] = []
-    num_params = 2 if branch_type in ["JJ", "JJ2"] else 1
+    num_params = _junction_order(branch_type) + 1 if "JJ" in branch_type else 1
     for word in words[0:num_params]:
         if not is_float_string(word):
             if len(word.split("=")) > 2:
@@ -209,8 +213,15 @@ class Branch:
     def set_parameters(self, parameters) -> None:
         if self.type in ["C", "L"]:
             self.parameters = {f"E{self.type}": parameters[0]}
-        elif self.type in ["JJ", "JJ2"]:
-            self.parameters = {"EJ": parameters[0], "ECJ": parameters[1]}
+        elif "JJ" in self.type:
+            number_of_junc_params = _junction_order(self.type)
+            self.parameters = {}
+            for junc_order in range(number_of_junc_params):
+                if junc_order == 0:
+                    self.parameters["EJ"] = parameters[0]
+                else:
+                    self.parameters[f"EJ{junc_order}"] = parameters[junc_order]
+            self.parameters["ECJ"] = parameters[number_of_junc_params]
 
     def node_ids(self) -> Tuple[int, int]:
         return self.nodes[0].index, self.nodes[1].index
@@ -456,9 +467,7 @@ class SymbolicCircuit(serializers.Serializable):
         """
         # if the circuit is purely harmonic, then store the eigenfrequencies
         branch_type_list = [branch.type for branch in self.branches]
-        self.is_purely_harmonic = (
-            "JJ" not in branch_type_list and "JJ2" not in branch_type_list
-        )
+        self.is_purely_harmonic = "JJ" not in "".join(branch_type_list)
 
         if self.is_purely_harmonic:
             (
@@ -522,17 +531,17 @@ class SymbolicCircuit(serializers.Serializable):
         if self.is_any_branch_parameter_symbolic():
             # finding the unique capacitances
             uniq_capacitances = []
-            element_param = {"C": "EC", "JJ": "ECJ", "JJ2": "ECJ"}
             for c, b in enumerate(
-                [
-                    t
-                    for t in self.branches
-                    if t.type == "C" or t.type == "JJ" or t.type == "JJ2"
-                ]
+                [t for t in self.branches if t.type == "C" or "JJ" in t.type]
             ):
                 if len(set(b.nodes)) > 1:  # check to see if branch is shorted
-                    if b.parameters[element_param[b.type]] not in uniq_capacitances:
-                        uniq_capacitances.append(b.parameters[element_param[b.type]])
+                    if (
+                        b.parameters[_capactiance_variable_for_branch(b.type)]
+                        not in uniq_capacitances
+                    ):
+                        uniq_capacitances.append(
+                            b.parameters[_capactiance_variable_for_branch(b.type)]
+                        )
 
             for index, var in enumerate(uniq_capacitances):
                 L = L.subs(var, 1 / (8 * symbols(f"C{index + 1}")))
@@ -595,9 +604,10 @@ class SymbolicCircuit(serializers.Serializable):
             branch_type = branch_list_input[0]
             node_id1, node_id2 = branch_list_input[1], branch_list_input[2]
 
-            if (branch_type == "JJ" or branch_type == "JJ2") and len(
-                branch_list_input
-            ) != 5:
+            if "JJ" in branch_type:
+                num_junc_params = _junction_order(branch_type) + 4
+
+            if ("JJ" in branch_type) and len(branch_list_input) != num_junc_params:
                 raise Exception(
                     "Incorrect number of parameters: specification of JJ input in "
                     f"line: {branch_list_input}"
@@ -926,7 +936,7 @@ class SymbolicCircuit(serializers.Serializable):
         free_modes = self._independent_modes(selected_branches)
 
         # ***************************# Finding the LC Modes ****************
-        selected_branches = [branch for branch in self.branches if branch.type == "JJ"]
+        selected_branches = [branch for branch in self.branches if "JJ" in branch.type]
         LC_modes = self._independent_modes(selected_branches, single_nodes=False)
 
         # ******************* including the Σ mode ****************
@@ -1064,7 +1074,7 @@ class SymbolicCircuit(serializers.Serializable):
                 frozen_modes.append(Σ)
 
         # **************** Finding the LC Modes ****************
-        selected_branches = [branch for branch in self.branches if branch.type == "JJ"]
+        selected_branches = [branch for branch in self.branches if "JJ" in branch.type]
         LC_modes = self._independent_modes(
             selected_branches, single_nodes=False, basisvec_entries=[-1, 1]
         )
@@ -1189,8 +1199,12 @@ class SymbolicCircuit(serializers.Serializable):
     def _junction_terms(self):
         terms = 0
         # looping over all the junction terms
-        junction_branches = [branch for branch in self.branches if branch.type == "JJ"]
-        for jj_branch in junction_branches:
+        junction_branches = [branch for branch in self.branches if "JJ" in branch.type]
+        junction_branch_order = [
+            _junction_order(branch.type) for branch in junction_branches
+        ]
+
+        for branch_idx, jj_branch in enumerate(junction_branches):
             # adding external flux
             phi_ext = 0
             if jj_branch in self.closure_branches:
@@ -1202,55 +1216,64 @@ class SymbolicCircuit(serializers.Serializable):
                 phi_ext += flux_branch_assignment[int(jj_branch.id_str)]
 
             # if loop to check for the presence of ground node
-            if jj_branch.nodes[1].index == 0:
-                terms += -jj_branch.parameters["EJ"] * sympy.cos(
-                    -symbols(f"φ{jj_branch.nodes[0].index}") + phi_ext
-                )
-            elif jj_branch.nodes[0].index == 0:
-                terms += -jj_branch.parameters["EJ"] * sympy.cos(
-                    symbols(f"φ{jj_branch.nodes[1].index}") + phi_ext
-                )
-            else:
-                terms += -jj_branch.parameters["EJ"] * sympy.cos(
-                    symbols(f"φ{jj_branch.nodes[1].index}")
-                    - symbols(f"φ{jj_branch.nodes[0].index}")
-                    + phi_ext
-                )
-        return terms
-
-    def _JJ2_terms(self):
-        terms = 0
-        # looping over all the JJ2 branches
-        for jj2_branch in [t for t in self.branches if t.type == "JJ2"]:
-            # adding external flux
-            phi_ext = 0
-            if jj2_branch in self.closure_branches:
-                if not self.is_flux_dynamic:
-                    index = self.closure_branches.index(jj2_branch)
-                    phi_ext += self.external_fluxes[index]
-            if self.is_flux_dynamic:
-                flux_branch_assignment = self._time_dependent_flux_distribution()
-                phi_ext += flux_branch_assignment[int(jj2_branch.id_str)]
-
-            # if loop to check for the presence of ground node
-            if jj2_branch.nodes[1].index == 0:
-                terms += -jj2_branch.parameters["EJ"] * sympy.cos(
-                    2 * (-symbols(f"φ" + str(jj2_branch.nodes[0].index)) + phi_ext)
-                )
-            elif jj2_branch.nodes[0].index == 0:
-                terms += -jj2_branch.parameters["EJ"] * sympy.cos(
-                    2 * (symbols(f"φ{jj2_branch.nodes[1].index}") + phi_ext)
-                )
-            else:
-                terms += -jj2_branch.parameters["EJ"] * sympy.cos(
-                    2
-                    * (
-                        symbols(f"φ{jj2_branch.nodes[1].index}")
-                        - symbols(f"φ{jj2_branch.nodes[0].index}")
+            for order in range(junction_branch_order[branch_idx]):
+                junction_param = "EJ" if order == 0 else f"EJ{order}"
+                if jj_branch.nodes[1].index == 0:
+                    terms += -jj_branch.parameters[junction_param] * sympy.cos(
+                        junction_branch_order[branch_idx]
+                        * -sympy.symbols(f"φ{jj_branch.nodes[0].index}")
                         + phi_ext
                     )
-                )
+                elif jj_branch.nodes[0].index == 0:
+                    terms += -jj_branch.parameters[junction_param] * sympy.cos(
+                        junction_branch_order[branch_idx]
+                        * sympy.symbols(f"φ{jj_branch.nodes[1].index}")
+                        + phi_ext
+                    )
+                else:
+                    terms += -jj_branch.parameters[junction_param] * sympy.cos(
+                        junction_branch_order[branch_idx]
+                        * (
+                            sympy.symbols(f"φ{jj_branch.nodes[1].index}")
+                            - sympy.symbols(f"φ{jj_branch.nodes[0].index}")
+                        )
+                        + phi_ext
+                    )
         return terms
+
+    # def _JJ2_terms(self):
+    #     terms = 0
+    #     # looping over all the JJ2 branches
+    #     for jj2_branch in [t for t in self.branches if t.type == "JJ2"]:
+    #         # adding external flux
+    #         phi_ext = 0
+    #         if jj2_branch in self.closure_branches:
+    #             if not self.is_flux_dynamic:
+    #                 index = self.closure_branches.index(jj2_branch)
+    #                 phi_ext += self.external_fluxes[index]
+    #         if self.is_flux_dynamic:
+    #             flux_branch_assignment = self._time_dependent_flux_distribution()
+    #             phi_ext += flux_branch_assignment[int(jj2_branch.id_str)]
+
+    #         # if loop to check for the presence of ground node
+    #         if jj2_branch.nodes[1].index == 0:
+    #             terms += -jj2_branch.parameters["EJ"] * sympy.cos(
+    #                 2 * (-symbols(f"φ" + str(jj2_branch.nodes[0].index)) + phi_ext)
+    #             )
+    #         elif jj2_branch.nodes[0].index == 0:
+    #             terms += -jj2_branch.parameters["EJ"] * sympy.cos(
+    #                 2 * (symbols(f"φ{jj2_branch.nodes[1].index}") + phi_ext)
+    #             )
+    #         else:
+    #             terms += -jj2_branch.parameters["EJ"] * sympy.cos(
+    #                 2
+    #                 * (
+    #                     symbols(f"φ{jj2_branch.nodes[1].index}")
+    #                     - symbols(f"φ{jj2_branch.nodes[0].index}")
+    #                     + phi_ext
+    #                 )
+    #             )
+    #     return terms
 
     def _inductance_matrix(self, substitute_params: bool = False):
         """
@@ -1323,13 +1346,10 @@ class SymbolicCircuit(serializers.Serializable):
             _description_
         """
         branches_with_capacitance = [
-            branch for branch in self.branches if branch.type in ["C", "JJ", "JJ2"]
+            branch
+            for branch in self.branches
+            if ("C" == branch.type or "JJ" in branch.type)
         ]
-        capacitance_param_for_branch_type = {
-            "C": "EC",
-            "JJ": "ECJ",
-            "JJ2": "ECJ",
-        }
 
         param_init_vals_dict = self.symbolic_params
 
@@ -1346,7 +1366,7 @@ class SymbolicCircuit(serializers.Serializable):
         for branch in branches_with_capacitance:
             if len(set(branch.nodes)) > 1:  # branch if shorted is not considered
                 capacitance = branch.parameters[
-                    capacitance_param_for_branch_type[branch.type]
+                    _capactiance_variable_for_branch(branch.type)
                 ]
                 if type(capacitance) != float and substitute_params:
                     capacitance = param_init_vals_dict[capacitance]
@@ -1376,27 +1396,40 @@ class SymbolicCircuit(serializers.Serializable):
         branches_with_capacitance = [
             branch
             for branch in self.branches
-            if branch.type == "C" or branch.type == "JJ" or branch.type == "JJ2"
+            if branch.type == "C" or "JJ" in branch.type
         ]
         for c_branch in branches_with_capacitance:
-            element_param = {"C": "EC", "JJ": "ECJ", "JJ2": "ECJ"}
-
             if c_branch.nodes[1].index == 0:
                 terms += (
                     1
-                    / (16 * c_branch.parameters[element_param[c_branch.type]])
+                    / (
+                        16
+                        * c_branch.parameters[
+                            _capactiance_variable_for_branch(c_branch.type)
+                        ]
+                    )
                     * (symbols(f"vφ{c_branch.nodes[0].index}")) ** 2
                 )
             elif c_branch.nodes[0].index == 0:
                 terms += (
                     1
-                    / (16 * c_branch.parameters[element_param[c_branch.type]])
+                    / (
+                        16
+                        * c_branch.parameters[
+                            _capactiance_variable_for_branch(c_branch.type)
+                        ]
+                    )
                     * (-symbols(f"vφ{c_branch.nodes[1].index}")) ** 2
                 )
             else:
                 terms += (
                     1
-                    / (16 * c_branch.parameters[element_param[c_branch.type]])
+                    / (
+                        16
+                        * c_branch.parameters[
+                            _capactiance_variable_for_branch(c_branch.type)
+                        ]
+                    )
                     * (
                         symbols(f"vφ{c_branch.nodes[1].index}")
                         - symbols(f"vφ{c_branch.nodes[0].index}")
@@ -1646,7 +1679,7 @@ class SymbolicCircuit(serializers.Serializable):
                 R[:, closure_brnch_idx] = R[:, closure_brnch_idx] * -1
 
         for idx, branch in enumerate(self.branches):
-            if branch.type in ["JJ", "C"]:
+            if branch.type == "C" or "JJ" in branch.type:
                 EC = (
                     branch.parameters["EC"]
                     if branch.type == "C"
@@ -1850,7 +1883,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         inductor_terms_φ = self._inductor_terms()
 
-        JJ_terms_φ = self._junction_terms() + self._JJ2_terms()
+        JJ_terms_φ = self._junction_terms()  # + self._JJ2_terms()
 
         lagrangian_φ = C_terms_φ - inductor_terms_φ - JJ_terms_φ
 
