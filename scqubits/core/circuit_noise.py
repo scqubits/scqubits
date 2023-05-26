@@ -264,7 +264,7 @@ class NoisyCircuit(NoisySystem, ABC):
             **kwargs,
         ) -> float:
             tphi_times = []
-            for branch in [brnch for brnch in self.branches if "JJ" in branch.type]:
+            for branch in [brnch for brnch in self.branches if "JJ" in brnch.type]:
                 tphi_times.append(
                     getattr(self, f"tphi_1_over_f_cc{branch.id_str}")(
                         A_noise=A_noise, i=i, j=j, esys=esys, **kwargs
