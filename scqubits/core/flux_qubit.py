@@ -624,7 +624,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
             )
         )
         return self.process_op(native_op=native, energy_esys=energy_esys)
-    
+
     def d_hamiltonian_d_flux(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
@@ -647,18 +647,22 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
             x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
             for m given eigenvectors.
         """
-        native = 2j * np.pi * (
-            -0.5
-            * self.EJ3
+        native = (
+            2j
+            * np.pi
             * (
-                np.exp(1j * 2 * np.pi * self.flux)
-                * np.kron(self._exp_i_phi_operator(), self._exp_i_phi_operator().T)
-            )
-            +0.5
-            * self.EJ3
-            * (
-                np.exp(-1j * 2 * np.pi * self.flux)
-                * np.kron(self._exp_i_phi_operator().T, self._exp_i_phi_operator())
+                -0.5
+                * self.EJ3
+                * (
+                    np.exp(1j * 2 * np.pi * self.flux)
+                    * np.kron(self._exp_i_phi_operator(), self._exp_i_phi_operator().T)
+                )
+                + 0.5
+                * self.EJ3
+                * (
+                    np.exp(-1j * 2 * np.pi * self.flux)
+                    * np.kron(self._exp_i_phi_operator().T, self._exp_i_phi_operator())
+                )
             )
         )
         return self.process_op(native_op=native, energy_esys=energy_esys)
