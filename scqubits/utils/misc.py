@@ -109,7 +109,8 @@ class InfoBar:
         )
 
     def __exit__(self, *args) -> None:
-        self.tqdm_bar.close()
+        if self.tqdm_bar:
+            self.tqdm_bar.close()
 
 
 class Required:
