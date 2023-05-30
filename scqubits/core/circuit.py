@@ -305,7 +305,7 @@ class Circuit(
         ext_basis: str = "discretized",
         is_flux_dynamic: bool = False,
         initiate_sym_calc: bool = True,
-        truncated_dim: int = None,
+        truncated_dim: int = 10,
         symbolic_param_dict: Dict[str, float] = None,
         symbolic_hamiltonian: sm.Expr = None,
     ):
