@@ -385,7 +385,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
             "tphi_1_over_f_cc2",
             "tphi_1_over_f_cc3",
             "tphi_1_over_f_cc",
-            "tphi_1_over_f",
+            "tphi_1_over_f_flux",
             # 'tphi_1_over_f_ng1',
             # 'tphi_1_over_f_ng2',
             # 'tphi_1_over_f_ng',
