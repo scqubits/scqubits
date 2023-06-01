@@ -1220,19 +1220,19 @@ class SymbolicCircuit(serializers.Serializable):
                 junction_param = "EJ" if order == 0 else f"EJ{order}"
                 if jj_branch.nodes[1].index == 0:
                     terms += -jj_branch.parameters[junction_param] * sympy.cos(
-                        junction_branch_order[branch_idx]
+                        (order + 1)
                         * -sympy.symbols(f"φ{jj_branch.nodes[0].index}")
                         + phi_ext
                     )
                 elif jj_branch.nodes[0].index == 0:
                     terms += -jj_branch.parameters[junction_param] * sympy.cos(
-                        junction_branch_order[branch_idx]
+                        (order + 1)
                         * sympy.symbols(f"φ{jj_branch.nodes[1].index}")
                         + phi_ext
                     )
                 else:
                     terms += -jj_branch.parameters[junction_param] * sympy.cos(
-                        junction_branch_order[branch_idx]
+                        (order + 1)
                         * (
                             sympy.symbols(f"φ{jj_branch.nodes[1].index}")
                             - sympy.symbols(f"φ{jj_branch.nodes[0].index}")
