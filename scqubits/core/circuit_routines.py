@@ -2485,8 +2485,6 @@ class CircuitRoutines(ABC):
         potential_sym = self.potential_symbolic.subs("I", 1)
         for ext_flux in self.external_fluxes:
             potential_sym = potential_sym.subs(ext_flux, ext_flux * 2 * np.pi)
-        for var in self.external_fluxes:
-            potential_sym = potential_sym.subs(var, var * np.pi * 2)
 
         # constructing the grids
         parameters = dict.fromkeys(
