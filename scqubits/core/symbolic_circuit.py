@@ -1221,23 +1221,23 @@ class SymbolicCircuit(serializers.Serializable):
                 if jj_branch.nodes[1].index == 0:
                     terms += -jj_branch.parameters[junction_param] * sympy.cos(
                         (order + 1)
-                        * -sympy.symbols(f"φ{jj_branch.nodes[0].index}")
-                        + phi_ext
+                        * (-sympy.symbols(f"φ{jj_branch.nodes[0].index}") + phi_ext)
                     )
                 elif jj_branch.nodes[0].index == 0:
                     terms += -jj_branch.parameters[junction_param] * sympy.cos(
                         (order + 1)
-                        * sympy.symbols(f"φ{jj_branch.nodes[1].index}")
-                        + phi_ext
+                        * (sympy.symbols(f"φ{jj_branch.nodes[1].index}") + phi_ext)
                     )
                 else:
                     terms += -jj_branch.parameters[junction_param] * sympy.cos(
                         (order + 1)
                         * (
-                            sympy.symbols(f"φ{jj_branch.nodes[1].index}")
-                            - sympy.symbols(f"φ{jj_branch.nodes[0].index}")
+                            (
+                                sympy.symbols(f"φ{jj_branch.nodes[1].index}")
+                                - sympy.symbols(f"φ{jj_branch.nodes[0].index}")
+                            )
+                            + phi_ext
                         )
-                        + phi_ext
                     )
         return terms
 
