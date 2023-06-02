@@ -97,7 +97,7 @@ class InfoBar:
     def __init__(self, desc: str, num_cpus: int) -> None:
         self.desc = desc
         self.num_cpus = num_cpus
-        self.tqdm_bar: Optional[tqdm] = None
+        self.tqdm_bar = None
 
     def __enter__(self) -> None:
         self.tqdm_bar = tqdm(
@@ -109,7 +109,8 @@ class InfoBar:
         )
 
     def __exit__(self, *args) -> None:
-        self.tqdm_bar.close()
+        if self.tqdm_bar:
+            self.tqdm_bar.close()
 
 
 class Required:

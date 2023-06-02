@@ -25,6 +25,7 @@ Matplotlib.
 #    LICENSE file in the root directory of this source tree.
 #######################################################################################
 
+from typing import Any, Optional, Type, Union
 import warnings
 
 from typing import Any, Type, Union
@@ -41,7 +42,7 @@ def warning_on_one_line(
     category: Type[Warning],
     filename: str,
     lineno: int,
-    line: str = None,
+    line: Optional[str] = None,
 ) -> str:
     return "{}: {}\n {}: {}".format(category.__name__, message, filename, lineno)
 
