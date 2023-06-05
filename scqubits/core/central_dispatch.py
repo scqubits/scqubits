@@ -12,6 +12,7 @@
 
 
 import logging
+from typing import Optional
 import warnings
 import weakref
 from types import MethodType
@@ -68,7 +69,7 @@ class CentralDispatch:
         return self.clients_dict[event]
 
     def register(
-        self, event: str, who: "DispatchClient", callback: MethodType = None
+        self, event: str, who: "DispatchClient", callback: Optional[MethodType] = None
     ) -> None:
         """
         Register object `who` for event `event`. (This modifies `clients_dict`.)

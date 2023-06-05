@@ -15,7 +15,7 @@ Helper routines for writing data to files.
 
 import os
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
 
 from numpy import ndarray
 
@@ -154,8 +154,8 @@ class FileIOFactory:
     @staticmethod
     def get_reader(
         file_name: str,
-        file_handle: "h5py.Group" = None,
-        get_external_reader: Callable = None,
+        file_handle: Optional["h5py.Group"] = None,
+        get_external_reader: Optional[Callable] = None,
     ) -> Union["CSVReader", "H5Reader"]:
         """
         Based on the extension of the provided file name, return the appropriate
