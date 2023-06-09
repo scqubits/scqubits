@@ -444,11 +444,11 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     ng:
         offset charge
     ncut:
-        cutoff of charge basis, -ncut <= :math:`n_\theta` <= ncut
+        cutoff in charge basis, -ncut <= :math:`n_\theta` <= ncut
     zeta_cut:
-        number of harmonic oscillator basis for :math:`\zeta` variable
+        number of harmonic oscillator basis states for :math:`\zeta` variable
     phi_cut:
-        number of harmonic oscillator basis for :math:`\phi` variable
+        number of harmonic oscillator basis states for :math:`\phi` variable
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
