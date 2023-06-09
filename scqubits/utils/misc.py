@@ -137,9 +137,11 @@ class Required:
                 with warnings.catch_warnings():
                     if self.missing_imports == ["ipyvuetify"]:
                         warnings.warn(
-                            "Starting with v3.2, scqubits uses the optional package 'ipyuetify' for graphical"
+                            "Starting with v3.2, scqubits uses the optional package 'ipyuetify' for graphical "
                             "user interfaces. To use this functionality, add the package via "
-                            "`conda install -c conda-forge ipyvuetify` or `pip install ipyvuetify`.\n",
+                            "`conda install -c conda-forge ipyvuetify` or `pip install ipyvuetify`.\n"
+                            "For use with jupyter lab, additionally execute "
+                            "`jupyter labextension install jupyter-vuetify`.\n",
                             category=Warning,
                         )
                     else:
