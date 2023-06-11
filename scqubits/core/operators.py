@@ -10,9 +10,10 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
+import numpy.typing as npt
 import scipy as sp
 
 from numpy import ndarray
@@ -72,7 +73,7 @@ def hubbard_sparse(j1: int, j2: int, dimension: int) -> csc_matrix:
     return hubbardmat.asformat("csc")
 
 
-def number(dimension: int, prefactor: Union[float, complex] = None) -> ndarray:
+def number(dimension: int, prefactor: Optional[Union[float, complex]] = None) -> ndarray:
     """Number operator matrix of size dimension x dimension in sparse matrix
     representation. An additional prefactor can be directly included in the
     generation of the matrix by supplying 'prefactor'.
@@ -96,7 +97,7 @@ def number(dimension: int, prefactor: Union[float, complex] = None) -> ndarray:
 
 
 def number_sparse(
-    dimension: int, prefactor: Union[float, complex] = None
+    dimension: int, prefactor: Optional[Union[float, complex]] = None
 ) -> csc_matrix:
     """Number operator matrix of size dimension x dimension in sparse matrix
     representation. An additional prefactor can be directly included in the

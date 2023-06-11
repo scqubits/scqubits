@@ -10,7 +10,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, Optional
 
 import scqubits.core.units as units
 import scqubits.utils.misc as utils
@@ -32,7 +32,7 @@ else:
 
 @utils.Required(ipywidgets=_HAS_IPYWIDGETS, IPython=_HAS_IPYTHON)
 def create_widget(
-    callback_func: Callable, init_params: Dict[str, Any], image_filename: str = None
+    callback_func: Callable, init_params: Dict[str, Any], image_filename: Optional[str] = None
 ) -> None:
     """
     Displays ipywidgets for initialization of a QuantumSystem object.

@@ -10,6 +10,8 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from typing import Dict, Union, Collection
+
 import numpy as np
 
 EL_range = {"min": 1e-5, "max": 10.0}
@@ -21,7 +23,7 @@ int_range = {"min": 1, "max": 30}
 float_range = {"min": 0.0, "max": 30.0}
 ncut_range = {"min": 10, "max": 50}
 
-global_defaults = {
+global_defaults: Dict[str, Union[int, Collection[str], None]] = {
     "mode_wavefunc": "real",
     "mode_matrixelem": "abs",
     "ng": ng_range,
@@ -34,14 +36,14 @@ global_defaults = {
     "num_sample": 150,
 }
 
-transmon_defaults = {
+transmon_defaults: Dict[str, Union[int, float, Collection[str], None]] = {
     **global_defaults,
     "scan_param": "ng",
     "operator": "n_operator",
     "ncut": ncut_range,
 }
 
-tunabletransmon_defaults = {
+tunabletransmon_defaults: Dict[str, Union[int, float, Collection[str], None]] = {
     **global_defaults,
     "scan_param": "flux",
     "operator": "n_operator",
@@ -50,7 +52,7 @@ tunabletransmon_defaults = {
     "ncut": ncut_range,
 }
 
-fluxonium_defaults = {
+fluxonium_defaults: Dict[str, Union[int, float, Collection[str], None]] = {
     **global_defaults,
     "scan_param": "flux",
     "operator": "n_operator",

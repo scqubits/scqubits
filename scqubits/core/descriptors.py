@@ -12,7 +12,7 @@
 
 # Recap on descriptors: see https://realpython.com/python-descriptors/
 
-from typing import Any, Generic, Type, TypeVar
+from typing import Any, Generic, Optional, Type, TypeVar
 
 from scqubits.core.central_dispatch import DispatchClient
 
@@ -62,8 +62,8 @@ class WatchedProperty(Generic[TargetType]):
         self,
         target_type: Type[TargetType],
         event: str,
-        inner_object_name: str = None,
-        attr_name: str = None,
+        inner_object_name: Optional[str] = None,
+        attr_name: Optional[str] = None,
     ) -> None:
         self.event = event
         self.inner = inner_object_name
