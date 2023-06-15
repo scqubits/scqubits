@@ -2847,12 +2847,6 @@ class CircuitRoutines(ABC):
         )
         return wf_ext_basis
 
-    def _basis_change_discretized_phi_to_n(
-        self, wf_original_basis, wf_dim, var_index, grid_phi: discretization.Grid1d
-    ):
-        # TODO: implement this method, which changes the discretized phi to n basis
-        pass
-
     def _basis_change_n_to_phi(
         self, wf_original_basis, wf_dim, var_index, grid_phi: discretization.Grid1d
     ):
@@ -2955,8 +2949,7 @@ class CircuitRoutines(ABC):
         wf_original_basis: ndarray,
         var_indices: Tuple[int],
         grids_dict: Dict[int, Union[discretization.Grid1d, ndarray]],
-        periodic_variable_basis: str,
-        extended_variable_basis: str,
+        change_discrete_charge_to_phi: bool,
     ):
         wf_ext_basis = wf_original_basis
         for var_index in var_indices:
@@ -2983,25 +2976,25 @@ class CircuitRoutines(ABC):
                 )
             elif (
                 var_index in self.var_categories["periodic"]
-                and periodic_variable_basis == "phi"
+                and change_discrete_charge_to_phi
             ):
                 wf_ext_basis = self._basis_change_n_to_phi(
                     wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
                 )
         return wf_ext_basis
 
-    def generate_wf_plot_data(
+    # TODO:
+    def generate_probability_density_data(
         self,
         which: int = 0,
         var_indices: Tuple[int] = (1,),
         eigensys: ndarray = None,
-        extended_variable_basis: str = "phi",
-        periodic_variable_basis: str = "phi",
+        change_discrete_charge_to_phi: bool = True,
         grids_dict: Dict[int, discretization.Grid1d] = None,
     ):
         """
-        Returns the plot of the probability density of the wave function in the
-        requested variables for the current Circuit instance.
+        Returns (marginal) probability densitys of a wave function of the
+        current Circuit instance for the specified variables.
 
         Parameters
         ----------
@@ -3011,8 +3004,8 @@ class CircuitRoutines(ABC):
             A tuple containing the indices of the variables chosen to plot the
             wave function in. Should not have more than 2 entries.
         eigensys:
-            The object returned by the method instance. `eigensys` is used to avoid the
-            re-evaluation of the eigensystems if already evaluated.
+            eigenvalues and eigenstates of the Circuit instance; if not provided,
+            calling this method will perform a diagonalization to obtain these.
         extended_variable_basis: str
             The basis in which the extended variables are plotted. Can be either
             "phi" or "charge".
@@ -3040,7 +3033,7 @@ class CircuitRoutines(ABC):
             wf_original_basis,
             var_indices=var_indices,
             grids_dict=grids_dict,
-            periodic_variable_basis=periodic_variable_basis,
+            change_discrete_charge_to_phi=change_discrete_charge_to_phi,
         )
 
         # sum over the dimensions not relevant to the ones in var_indices
@@ -3055,33 +3048,25 @@ class CircuitRoutines(ABC):
         )
         return wf_plot
 
-    def plot_wavefunction(
+    def plot_probability_density(
         self,
         which=0,
         var_indices: Tuple[int] = (1,),
         esys: Tuple[ndarray, ndarray] = None,
-        extended_variable_basis: str = "phi",
-        periodic_variable_basis: str = "phi",
-        mode: str = "abs",
+        change_discrete_charge_to_phi: bool = True,
         zero_calibrate: bool = True,
         grids_dict: Dict[int, discretization.Grid1d] = {},
         **kwargs,
     ) -> Tuple[Figure, Axes]:
         """
-        Returns the plot of the wave function in the requested variables for the
-        current Circuit instance. The following rules apply for how wave function
-        is precessed:
-        1. The number of variables for wave function plotting should not exceed 2.
-        2. If the number of variables for wave function plotting is smaller than
-        the number of variables in the circuit, the marginal probability distribution
-        of the state with respect to the specified variables is plotted. This means
+        Returns the plot of the probability density function of the wave
+        function in the requested variables. At most 2 numbers of variables for
+        wavefunction can be specified as plotting axis. If the number of
+        plotting variables for wave function is smaller than the number of
+        variables in the circuit, the marginal probability distribution of the
+        state with respect to the specified variables is plotted. This means
         the norm square of the wave function is integrated over the rest of the
         variables and is then plotted.
-        3. If the number of variables for wave function plotting is equal to the
-        number of variables in the circuit, the wave function is plotted with the
-        operation specified by the `mode` argument. The `mode` argument can be
-        chosen from `constants.MODE_FUNC_DICT`. Options are: "abs_sqr", "abs", "real",
-        "imag".
 
         Parameters
         ----------
@@ -3093,15 +3078,10 @@ class CircuitRoutines(ABC):
         esys:
             The object returned by the method `.eigensys`, is used to avoid the
             re-evaluation of the eigen systems if already evaluated.
-        extended_variable_basis:
-            Options: "phi" or "charge". Specify whether plotting wavefunctions in phi
-            or charge basis for extended variables.
-        periodic_variable_basis:
-            Options: "phi" or "charge". Specify whether plotting wavefunctions in phi
-            or discretized charge basis for periodic variables.
-        mode:
-            choice from `constants.MODE_FUNC_DICT` for processing function to be applied to
-        data
+        change_discrete_charge_to_phi:
+            If True, the wave function is plotted in the phi basis for the periodic
+            variables. If False, the wave function is plotted in the charge basis
+            for the periodic variables.
         zero_calibrate: bool, optional
             if True, colors are adjusted to use zero wavefunction amplitude as the
             neutral color in the palette
@@ -3109,11 +3089,11 @@ class CircuitRoutines(ABC):
             A dictionary which pairs var indices with the grids used to create
             the plot. The way to specify the grids is as follows:
             1. For extended variables, the grids should be of type `discretization.Grid1d`.
-            2. When the discretized basis is used for the extended variable, the grids
+            2. When the discretized phi basis is used for the extended variable, the grids
             used in the diagonalization is used to plot the wave function instead of
             the grids specified here.
-            3. For periodic variables, only when `change_discrete_charge_to_phi` is True,
-            the grid specified here is used for plotting. The grid is specified as an integer
+            3. For periodic variables, only if `change_discrete_charge_to_phi` is True,
+            the grid specified here will used for plotting. The grid is specified as an integer
             which is the number of points in the grid. The grid has a minimum and maximum value
             of -pi and pi respectively.
             4. If the grid is not specified for a variable that requires a grid for plotting (i.e.
@@ -3137,14 +3117,13 @@ class CircuitRoutines(ABC):
             self.cutoffs_dict()
         )  # dictionary for cutoffs for each variable index used in diagonalization
         grids_per_varindex_dict = {}
-        var_index_dims_dict = {}
         # creating a dictionary for the grids and dimensions for each variable index
         # for plotting
         # case 1: for periodic variables
         for var_index in list(set(var_indices) & set(self.var_categories["periodic"])):
             # only if the variable is periodic and the phi basis is used, the grid
             # is specified
-            if periodic_variable_basis == "phi":
+            if change_discrete_charge_to_phi:
                 # if the grid number is not specified, the default grid is used
                 grid_pt_count = (
                     grids_dict[var_index]
@@ -3173,12 +3152,12 @@ class CircuitRoutines(ABC):
                     cutoffs_dict[var_index],
                 )
 
-        wf_plot = self.generate_wf_plot_data(
+        # generate probability density data
+        probability_density_plot = self.generate_probability_density_data(
             which=which,
             var_indices=var_indices,
             eigensys=esys,
-            extended_variable_basis=extended_variable_basis,
-            periodic_variable_basis=periodic_variable_basis,
+            change_discrete_charge_to_phi=change_discrete_charge_to_phi,
             grids_dict=grids_per_varindex_dict,
         )
 
@@ -3186,44 +3165,38 @@ class CircuitRoutines(ABC):
 
         for var_index in var_indices:
             if var_index in self.var_categories["periodic"]:
-                if periodic_variable_basis == "charge":
+                if not change_discrete_charge_to_phi:
                     var_types.append("Charge in units of 2e, periodic variable:")
                 else:
                     var_types.append("Dimensionless flux, periodic variable:")
             if var_index in self.var_categories["extended"]:
-                if extended_variable_basis == "charge":
-                    var_types.append("Charge in units of 2e, extended variable:")
-                else:
-                    var_types.append("Dimensionless flux, extended variable:")
+                var_types.append("Dimensionless flux, extended variable:")
 
         if len(var_indices) == 1:
-            return self._plot_wavefunction_1D(
-                wf_plot,
+            return self._plot_wf_pdf_1D(
+                probability_density_plot,
                 var_indices,
                 grids_per_varindex_dict,
-                extended_variable_basis,
-                periodic_variable_basis,
+                change_discrete_charge_to_phi,
                 kwargs,
             )
 
         elif len(var_indices) == 2:
-            return self._plot_wavefunction_2D(
-                wf_plot,
+            return self._plot_wf_pdf_2D(
+                probability_density_plot,
                 var_indices,
                 grids_per_varindex_dict,
-                extended_variable_basis,
-                periodic_variable_basis,
+                change_discrete_charge_to_phi,
                 zero_calibrate=zero_calibrate,
                 kwargs=kwargs,
             )
 
-    def _plot_wavefunction_2D(
+    def _plot_wf_pdf_2D(
         self,
         wf_plot: ndarray,
         var_indices,
         grids_per_varindex_dict,
-        extended_variable_basis: str,
-        periodic_variable_basis: bool,
+        change_discrete_charge_to_phi: bool,
         zero_calibrate: bool,
         kwargs,
     ) -> Tuple[Figure, Axes]:
@@ -3231,7 +3204,7 @@ class CircuitRoutines(ABC):
         grids = []
         labels = []
         for index_order in [1, 0]:
-            if periodic_variable_basis == "charge" and (
+            if not change_discrete_charge_to_phi and (
                 var_indices[index_order] in self.var_categories["periodic"]
             ):
                 grids.append(
@@ -3265,7 +3238,7 @@ class CircuitRoutines(ABC):
         )
         # change frequency of tick mark for variables in charge basis
         # also force the tick marks to be integers
-        if periodic_variable_basis == "charge":
+        if not change_discrete_charge_to_phi:
             if var_indices[0] in self.var_categories["periodic"]:
                 if getattr(self, "cutoff_n_" + str(var_indices[0])) >= 6:
                     axes.yaxis.set_major_locator(plt.MaxNLocator(13, integer=True))
@@ -3289,13 +3262,12 @@ class CircuitRoutines(ABC):
 
         return fig, axes
 
-    def _plot_wavefunction_1D(
+    def _plot_wf_pdf_1D(
         self,
         wf_plot: ndarray,
         var_indices,
         grids_per_varindex_dict,
-        extended_variable_basis: str,
-        periodic_variable_basis: str,
+        change_discrete_charge_to_phi: bool,
         kwargs,
     ) -> Tuple[Figure, Axes]:
         var_index = var_indices[0]
@@ -3304,7 +3276,7 @@ class CircuitRoutines(ABC):
             amplitudes=wf_plot,
         )
 
-        if periodic_variable_basis == "charge" and (
+        if not change_discrete_charge_to_phi and (
             var_indices[0] in self.var_categories["periodic"]
         ):
             kwargs = {

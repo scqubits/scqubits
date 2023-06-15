@@ -32,7 +32,7 @@ circ.update()
 class TestCircuitPlot:
     @staticmethod
     def test_plot_wf():
-        circ.plot_wavefunction(which=0, var_indices=(2, 3))
+        circ.plot_probability_density(which=0, var_indices=(2, 3))
 
     @staticmethod
     def test_plot_potential():
