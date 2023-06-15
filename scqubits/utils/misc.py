@@ -22,8 +22,10 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 import numpy as np
 import qutip as qt
 import scipy as sp
+import matplotlib
 
 from scqubits.settings import IN_IPYTHON
+import scqubits.settings as settings
 
 if IN_IPYTHON:
     from tqdm.notebook import tqdm
@@ -142,6 +144,58 @@ class Required:
                 )
 
         return decorated_func
+
+
+def convergence_check(func):
+    def convergence_plot(eval_count, ncuts, errors):
+        if settings.CONVERGENCE_PLOT:
+            fig, axs = matplotlib.pyplot.subplots(1, figsize=(5, 5))
+            for i in range(eval_count):
+                axs.plot(ncuts, abs(errors)[i, :], label=f"level = {i}")
+            axs.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
+            axs.set_title('Convergence Of Energy Eigenvalues')
+            axs.legend(loc="upper right")
+            axs.set_xlabel("N_Cut")
+            axs.set_ylabel("Absolute Energy Deviation")
+        else:
+            pass
+
+    @functools.wraps(func)
+    def decorate(self, eval_count=int):
+        if settings.CONVERGENCE_CHECK:
+            ncuts = []
+            input_ncut = self.ncut
+            eigenvals = func(self, eval_count)
+            start = int(eval_count/2)
+            self.ncut = start
+            previous = eigenvals
+            for test_ncut in range(start+1, start + 30):
+                self.ncut = test_ncut
+                ncuts.append(test_ncut)
+                current = func(self, eval_count)
+                error = np.array(current - previous).reshape(eval_count, 1)
+                if test_ncut == (start+ 1):
+                    errors = error
+                else:
+                    errors = np.hstack((errors, error))
+                previous = current
+                if np.all(abs(error) < abs(np.array(current).reshape(eval_count, 1) * settings.CONVERGENCE_CUTOFF)):
+                    end_ncut = test_ncut
+                    print("---------------------")
+                    print(f"The input n_cut is {input_ncut}. The eigenvalues calculated using the input n_cut is {eigenvals}")
+                    print(f"The suggested n_cut is {end_ncut}. The eigenvalues calculated using the suggested n_cut is {current}")
+                    print("---------------------")
+                    self.ncut = input_ncut
+                    eigenvals = current
+                    convergence_plot(eval_count, ncuts, errors)
+                    return eigenvals
+            convergence_plot(eval_count, ncuts, errors)
+            return eigenvals
+        else:
+            eigenvals = func(self, eval_count)
+            return eigenvals
+    return decorate
+
 
 
 def check_sync_status(func: Callable) -> Callable:

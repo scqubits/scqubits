@@ -30,6 +30,7 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
+import scqubits.utils.misc as utils
 
 from scqubits.core.noise import NOISE_PARAMS, NoisySystem
 
@@ -400,6 +401,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
         return np.linalg.inv(Cmat) / 2.0
 
+    @utils.convergence_check
     def _evals_calc(self, evals_count: int) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
         evals = sp.linalg.eigh(
@@ -696,3 +698,12 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         if "figsize" not in kwargs:
             kwargs["figsize"] = (5, 5)
         return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
+
+#print("FluxQubit")
+test = FluxQubit(1,1,1,0.01,0.01,0.01,0.001,0.001,0.001,0.001,0.4,5)
+#print(test.hamiltonian())
+#print(test._evals_calc(8))
+#print(test._esys_calc(8))
+#test.plot_potential()
+#plt.show()
+

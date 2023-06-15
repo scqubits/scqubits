@@ -10,6 +10,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+
 import os
 
 from abc import ABC, abstractmethod
@@ -27,6 +28,7 @@ import scqubits.core.qubit_base as base
 import scqubits.core.descriptors as descriptors
 import scqubits.utils.spectrum_utils as utils
 import scqubits.io_utils.fileio_serializers as serializers
+import scqubits.utils.misc as misc
 
 from scqubits.core.noise import NOISE_PARAMS, NoisySystem
 
@@ -431,6 +433,7 @@ class Snailmon(base.QubitBaseClass, serializers.Serializable, NoisySnailmon):
         ec_matrix = 0.5 * np.linalg.inv(c_mat_transformed)
         return ec_matrix
 
+    @misc.convergence_check
     def _evals_calc(
         self, evals_count: int, hamiltonian_mat: csc_matrix = None
     ) -> ndarray:

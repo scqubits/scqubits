@@ -13,6 +13,7 @@
 import math
 import os
 
+
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -30,16 +31,20 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
+import scqubits.utils.misc as utils
 
 from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 from scqubits.core.storage import WaveFunction
+
+
 
 LevelsTuple = Tuple[int, ...]
 Transition = Tuple[int, int]
 TransitionsTuple = Tuple[Transition, ...]
 
 # —Cooper pair box / transmon——————————————————————————————————————————————
+
 
 
 class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
@@ -123,6 +128,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         dimension = self.hilbertdim()
         return np.full(shape=(dimension - 1,), fill_value=-self.EJ / 2.0)
 
+    @utils.convergence_check
     def _evals_calc(self, evals_count: int) -> ndarray:
         diagonal = self._hamiltonian_diagonal()
         off_diagonal = self._hamiltonian_offdiagonal()
@@ -592,3 +598,4 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
                 )
             dispersion_list.append(list_ij)
         return specdata_flux_0.energy_table, np.asarray(dispersion_list)  # type:ignore
+

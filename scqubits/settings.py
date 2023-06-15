@@ -69,10 +69,10 @@ else:
     IN_IPYTHON = False
 
 # use vector graphics display in jupyter
-if executed_in_ipython():
-    import matplotlib_inline.backend_inline
+#if executed_in_ipython():
+   # import matplotlib_inline.backend_inline
 
-    matplotlib_inline.backend_inline.set_matplotlib_formats("pdf", "svg")
+  #  matplotlib_inline.backend_inline.set_matplotlib_formats("pdf", "svg")
 
 
 # run ParameterSweep directly upon initialization
@@ -80,6 +80,15 @@ AUTORUN_SWEEP = True
 
 # enable/disable the CENTRAL_DISPATCH system
 DISPATCH_ENABLED = True
+
+# Needs to change later
+# enable/disable the CONVERGENCE_CHECK system
+CONVERGENCE_CHECK = False
+# the threshold deviation as a percentage of the eigenvalues between two iterations to determine convergence
+CONVERGENCE_CUTOFF = 0.0001
+# enable/disable the plotting function for the CONVERGENCE_CHECK system
+CONVERGENCE_PLOT = False
+
 
 # For parallel processing --------------------------------------------------------------
 # store processing pool once generated
