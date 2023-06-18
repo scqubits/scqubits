@@ -14,6 +14,9 @@ import re
 import warnings
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+# define a type for recursive lists using forward reference and alias
+RecursiveList = List[Union[int, "RecursiveList"]]
+
 import numpy as np
 import sympy as sm
 from numpy import ndarray
@@ -56,54 +59,69 @@ class Subsystem(
     NoisyCircuit,
 ):
     """
-    Defines a subsystem for a circuit, which can further be used recursively to define
-    subsystems within subsystem.
+    Defines a subsystem for a circuit or a subsystem.
 
     Parameters
     ----------
-    parent: Subsystem
-        the instance under which the new subsystem is defined.
-    hamiltonian_symbolic: sm.Expr
-        The symbolic expression which defines the Hamiltonian for the new subsystem
-    system_hierarchy: Optional[List], optional
-        Defines the hierarchy of the new subsystem, is set to None when hierarchical
-        diagonalization is not required. by default None
-    subsystem_trunc_dims: Optional[List], optional
-        Defines the truncated dimensions for the subsystems inside the current
-        subsystem, is set to None when hierarchical diagonalization is not required,
-        by default `None`
-    truncated_dim: Optional[int], optional
-        sets the truncated dimension for the current subsystem, set to 10 by default.
+    parent:
+        The instance under which the new subsystem is defined. Can be either a Circuit
+        instance or a Subsystem instance.
+    hamiltonian_symbolic:
+        The symbolic expression which defines the Hamiltonian for the new subsystem.
+    system_hierarchy:
+        The system hierarchy within the new subsystem; has to be None when the
+        subsystem does not have any subsystem. Is set to None by default.
+        TODO: do we need to show an example?
+    subsystem_trunc_dims:
+        The truncated dimensions for the subsystems within the new subsystem;
+        has to None when the subsystem does not have any subsystem. Is set to None
+        by default.
+        TODO: do we need to show an example?
+    truncated_dim:
+        The truncated dimension for the current subsystem. Is set to 10 by default.
     """
 
     def __init__(
         self,
-        parent: "Subsystem",
+        parent: Union["Subsystem", "Circuit"],
         hamiltonian_symbolic: sm.Expr,
-        system_hierarchy: Optional[List] = None,
-        subsystem_trunc_dims: Optional[List] = None,
+        system_hierarchy: Optional[RecursiveList] = None,
+        subsystem_trunc_dims: Optional[RecursiveList] = None,
         truncated_dim: Optional[int] = 10,
     ):
-        # switch used in protecting the class from erroneous addition of new attributes
+        # attribute used in protecting the class from erroneous addition of new attributes
+        # __setattr__ method is overwritten for Circuit and SubSystem classes (see circuit_routines.py),
+        # therefore _frozen needs to be set using the Python default __setattr__ method
         object.__setattr__(self, "_frozen", False)
 
+        # defines `_sys_type` and `_id_str` attributes
         base.QuantumSystem.__init__(self, id_str=None)
 
         self.system_hierarchy = system_hierarchy
         self.truncated_dim = truncated_dim
         self.subsystem_trunc_dims = subsystem_trunc_dims
-
         self.is_child = True
         self.parent = parent
         self.hamiltonian_symbolic = hamiltonian_symbolic
-        self._default_grid_phi = self.parent._default_grid_phi
 
+        # take over parent's default grids
+        self._default_grid_phi = self.parent._default_grid_phi
+        # TODO change the name for `_default_grid_phi`? We need to fix whether we want to use `phi` or `theta`
+        # for flux/phase
+
+        # initialize the two attributes for storing junction potential and (TODO what?)
         self.junction_potential = None
         self._H_LC_str_harmonic = None
 
+        # this _make_property method is implemented in CircuitRoutines class
+        # here, a property `ext_basis` is created for the new subsystem, which is the same as the parent's
+        # `ext_basis` property
         self._make_property(
             "ext_basis", getattr(self.parent, "ext_basis"), "update_ext_basis"
         )
+        # find out external flux and offset charge sympy expressions in the new subsystem
+        # by looking up the parent's external fluxes and offset charges and checking whether they are
+        # in the new subsystem's Hamiltonian
         self.external_fluxes = [
             var
             for var in self.parent.external_fluxes
@@ -114,30 +132,37 @@ class Subsystem(
             for var in self.parent.offset_charges
             if var in self.hamiltonian_symbolic.free_symbols
         ]
-        self.symbolic_params = {
+        # find out symbolic parameters in the new subsystem by looking up the parent's symbolic parameters
+        # and checking whether they are in the new subsystem's Hamiltonian
+        # TODO why symbolic_params is a dict but external fluxes and offset charges are lists?
+        # TODO check the type annotation here
+        self.symbolic_params: Dict[sm.Expr, float] = {
             var: self.parent.symbolic_params[var]
             for var in self.parent.symbolic_params
             if var in self.hamiltonian_symbolic.free_symbols
         }
 
-        self.var_categories_list: List[int] = []
-        cutoffs: List[int] = []
+        # TODO: is `var_categories_list` actually lists of variable indices? I renamed it to `var_index_list`
+        # TODO: no other reference to `cutoffs` in anywhere else in the code, remove it?
+        # obtain variable indices and cutoffs in the subsystem by looking up the parent's variable indices and
+        # cutoffs and checking whether they are in the new subsystem's Hamiltonian
+        self.var_index_list: List[int] = []
         for var_name in self.operator_names_in_hamiltonian_symbolic():
             var_index = get_trailing_number(var_name)
-            if var_index not in self.var_categories_list and var_index is not None:
-                self.var_categories_list.append(var_index)
-                cutoffs += [self.parent.cutoffs_dict()[var_index]]
+            if var_index not in self.var_index_list and var_index is not None:
+                self.var_index_list.append(var_index)
+        self.var_index_list.sort()
 
-        self.var_categories_list.sort()
-
+        # group subsystem variable indices by their variable categories by looking up parent's var_categories
         self.var_categories: Dict[str, List[int]] = {}
         for var_type in self.parent.var_categories:
             self.var_categories[var_type] = [
                 var_index
                 for var_index in self.parent.var_categories[var_type]
-                if var_index in self.var_categories_list
+                if var_index in self.var_index_list
             ]
 
+        # generate cutoff names for the new subsystem
         self.cutoff_names: List[str] = []
         for var_type in self.var_categories.keys():
             if var_type == "periodic":
@@ -147,19 +172,23 @@ class Subsystem(
                 for var_index in self.var_categories["extended"]:
                     self.cutoff_names.append(f"cutoff_ext_{var_index}")
 
+        # carry forward the discretized phi basis range from the parent
         self.discretized_phi_range: Dict[int, Tuple[float]] = {
             idx: self.parent.discretized_phi_range[idx]
             for idx in self.parent.discretized_phi_range
-            if idx in self.var_categories_list
+            if idx in self.var_index_list
         }
 
-        # storing the potential terms separately
-        # and bringing the potential into the same form as for the class Circuit
+        # store the potential terms separately
+        # and bring the potential into the same form as for the class Circuit
+        # all cosθ<i> and sinθ<i> terms are replaced by sm.cos(1.0 * θ<i>) and sm.sin(1.0 * θ<i>)
+        # and all I terms are replaced by 1/(2*pi)
+        # TODO: what was I? Was I relate to external flux?
         potential_symbolic = 0 * sm.symbols("x")
         for term in self.hamiltonian_symbolic.as_ordered_terms():
             if is_potential_term(term):
                 potential_symbolic += term
-        for i in self.var_categories_list:
+        for i in self.var_index_list:
             potential_symbolic = (
                 potential_symbolic.replace(
                     sm.symbols(f"cosθ{i}"), sm.cos(1.0 * sm.symbols(f"θ{i}"))
@@ -167,38 +196,47 @@ class Subsystem(
                 .replace(sm.symbols(f"sinθ{i}"), sm.sin(1.0 * sm.symbols(f"θ{i}")))
                 .subs(sm.symbols("I"), 1 / (2 * np.pi))
             )
-
         self.potential_symbolic = potential_symbolic
 
+        # I removed the `system_hierarchy != []` here as it is always true
         self.hierarchical_diagonalization: bool = (
-            system_hierarchy != [] and number_of_lists_in_list(system_hierarchy) > 0
+            number_of_lists_in_list(system_hierarchy) > 0
         )
 
-        if len(self.var_categories_list) == 1 and self.ext_basis == "harmonic":
+        # TODO: why if only one variable and harmonic basis, then dense matrices?
+        # if I have two external variables, then sparse matrices?
+        if len(self.var_index_list) == 1 and self.ext_basis == "harmonic":
             self.type_of_matrices = "dense"
         else:
             self.type_of_matrices = "sparse"
 
-        # needs to be included to make sure that plot_evals_vs_paramvals works
+        # initialize `_init_params` as required by plot_evals_vs_paramvals
         self._init_params = []
 
         # attributes for purely harmonic
+        # TODO: not all subsystems are purely harmonic, do we have to have this attribute for
+        # non-purely-harmonic subsystems?
         self.normal_mode_freqs = []
 
+        # call `_configure` and then freeze the subsystem from adding new attributes
         self._configure()
         self._frozen = True
 
     def _configure(self) -> None:
         """
-        Function which is used to initiate the subsystem instance.
+        Method which is used to initiate the subsystem instance.
         """
         self._frozen = False
-        for idx, param in enumerate(self.symbolic_params):
+        # Generate properties for circuit element symbolic parameters (EJ, EC, EL)
+        # and get properties values from parent
+        # TODO double check if I understood `symbolic_params` correctly, I rewrote the iterator
+        # in a way that it looks natural for a dict
+        for param, param_val in self.symbolic_params:
             self._make_property(
                 param.name, getattr(self.parent, param.name), "update_param_vars"
             )
-
-        # getting attributes from parent
+        # Generate properties for external fluxes and offset charges and get their values from
+        # parent
         for flux in self.external_fluxes:
             self._make_property(
                 flux.name,
@@ -211,12 +249,16 @@ class Subsystem(
                 getattr(self.parent, offset_charge.name),
                 "update_external_flux_or_charge",
             )
-
+        # Generate properties for cutoffs and get their values from parent
         for cutoff_str in self.cutoff_names:
             self._make_property(
                 cutoff_str, getattr(self.parent, cutoff_str), "update_cutoffs"
             )
-        # if subsystem hamiltonian is purely harmonic
+
+        # Check if subsystem hamiltonian is purely harmonic
+        # if so, then switch the external basis to harmonic and diagonalize the hamiltonian
+        # TODO need to think about its consistency with other parts of the code where we specify
+        # basis types
         if self._is_expression_purely_harmonic(self.hamiltonian_symbolic):
             self.is_purely_harmonic = True
             self._ext_basis = (
@@ -225,36 +267,49 @@ class Subsystem(
             self._diagonalize_purely_harmonic_hamiltonian()
         else:
             self.is_purely_harmonic = False
-        # self.is_purely_harmonic = False
 
+        # TODO the following code would never run because a Circuit instance no longer inherits
+        # from Subsystem.
         # Creating the attributes for purely harmonic circuits
-        if (
-            isinstance(self, Circuit) and self.parent.is_purely_harmonic
-        ):  # assuming that the parent has only extended variables and are ordered
-            # starting from 1, 2, 3, ...
-            self.is_purely_harmonic = self.parent.is_purely_harmonic
-            self.normal_mode_freqs = self.parent.normal_mode_freqs[
-                [var_idx - 1 for var_idx in self.var_categories["extended"]]
-            ]
+        # if (
+        #     isinstance(self, Circuit) and self.parent.is_purely_harmonic
+        # ):  # assuming that the parent has only extended variables and are ordered
+        #     # starting from 1, 2, 3, ...
+        #     self.is_purely_harmonic = self.parent.is_purely_harmonic
+        #     self.normal_mode_freqs = self.parent.normal_mode_freqs[
+        #         [var_idx - 1 for var_idx in self.var_categories["extended"]]
+        #     ]
 
+        # set a `self.vars` attribute which is a dict of all variables in the subsystem
         self._set_vars()
 
+        # generate symbolic hamiltonian which is ready for numerical evaluation
         self.generate_hamiltonian_sym_for_numerics()
 
         if self.hierarchical_diagonalization:
-            # attribute to note updated subsystem indices
+            # initialize the attribute to keep track of updated subsystem indices
+            # TODO what is the need for this attribute? Do we need this for the following
+            # lines of code before the assigment line later?
             self.affected_subsystem_indices = []
 
+            # generate subsystems and interactions, perform checks on truncation indices
             self.generate_subsystems()
             self.update_interactions()
             self._check_truncation_indices()
+            # create operator methods
             self.operators_by_name = self.set_operators()
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
         else:
+            # only create operator methods if not doing hierarchical diagonalization
             self.operators_by_name = self.set_operators()
 
         if self.hierarchical_diagonalization:
-            self._out_of_sync = False  # for use with CentralDispatch
+            # set up central dispatch for the sync status of the subsystems
+            # TODO: a question: is the central dispatch here expected to be used for checking
+            # the sync status of the current subsystem or that of child subsystems?
+            # clearly, this _out_of_sync is only set for the current subsystem, only if it 
+            # has child subsystems.
+            self._out_of_sync = False
             dispatch.CENTRAL_DISPATCH.register("CIRCUIT_UPDATE", self)
         self._frozen = True
 

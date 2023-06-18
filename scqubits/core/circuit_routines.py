@@ -621,7 +621,7 @@ class CircuitRoutines(ABC):
                 while parent.is_child:
                     grandparent = parent.parent
                     # find the subsystem position of the parent system
-                    subsystem_position += f"of subsystem {grandparent.get_subsystem_index(parent.var_categories_list[0])} "
+                    subsystem_position += f"of subsystem {grandparent.get_subsystem_index(parent.var_index_list[0])} "
                     parent = grandparent
                 raise Exception(
                     f"The truncation index for {subsystem_position} exceeds the maximum"
@@ -2876,21 +2876,21 @@ class CircuitRoutines(ABC):
         if not self.hierarchical_diagonalization:
             return self.var_categories_list.index(var_index)
         for subsys in self.subsystems:
-            intersection = list_intersection(subsys.var_categories_list, wf_var_indices)
+            intersection = list_intersection(subsys.var_index_list, wf_var_indices)
             if len(intersection) > 0 and var_index not in intersection:
                 if subsys.hierarchical_diagonalization:
                     wf_dim += subsys._get_var_dim_for_reshaped_wf(
                         wf_var_indices, var_index
                     )
                 else:
-                    wf_dim += len(subsys.var_categories_list)
+                    wf_dim += len(subsys.var_index_list)
             elif len(intersection) > 0 and var_index in intersection:
                 if subsys.hierarchical_diagonalization:
                     wf_dim += subsys._get_var_dim_for_reshaped_wf(
                         wf_var_indices, var_index
                     )
                 else:
-                    wf_dim += subsys.var_categories_list.index(var_index)
+                    wf_dim += subsys.var_index_list.index(var_index)
                 break
             else:
                 wf_dim += 1
@@ -2924,7 +2924,7 @@ class CircuitRoutines(ABC):
                 wf_dim = 0
                 for sys_index in range(subsys_index):
                     if sys_index in system_hierarchy_for_vars_chosen:
-                        wf_dim += len(self.subsystems[sys_index].var_categories_list)
+                        wf_dim += len(self.subsystems[sys_index].var_index_list)
                     else:
                         wf_dim += 1
                 wf_original_basis = self._recursive_basis_change(
