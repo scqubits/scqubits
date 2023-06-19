@@ -16,12 +16,15 @@ import platform
 import warnings
 
 from collections.abc import Sequence
+from distutils.version import StrictVersion
 from io import StringIO
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
+import matplotlib
 import numpy as np
 import qutip as qt
 import scipy as sp
+from matplotlib import get_backend as get_matplotlib_backend
 
 from scqubits.settings import IN_IPYTHON
 
@@ -268,6 +271,20 @@ def tuple_to_short_str(the_tuple: tuple) -> str:
 
 
 def to_list(obj: Any) -> List[Any]:
+    """
+    Converts object to a list: if the input is already a list, it will return the same list. If the input is
+    a numpy array, it will convert to a python list. Otherwise, it will return
+    the original object in a single-elemented python list.
+
+    Parameters
+    ----------
+    obj:
+        Specify the type of object that is being passed into the function
+
+    Returns
+    -------
+        a list of the object passed in
+    """
     if isinstance(obj, list):
         return obj
     if isinstance(obj, np.ndarray):
@@ -275,7 +292,7 @@ def to_list(obj: Any) -> List[Any]:
     return [obj]
 
 
-def about(print_info=True):
+def about(print_info=True) -> Optional[str]:
     """Prints or returns a string with basic information about
     scqubits as well as installed version of various packages
     that scqubits depends on.
@@ -381,26 +398,53 @@ def flatten_list(nested_list):
     return functools.reduce(lambda a, b: a + b, nested_list)
 
 
-def flatten_list_recursive(S):
+def flatten_list_recursive(some_list: list) -> list:
     """
     Flattens a list of lists recursively.
 
     Parameters
     ----------
-
-    nested_list:
+    some_list:
         A list of lists, which can hold any class instance.
 
     Returns
     -------
     Flattened list of objects
     """
-    if S == []:
-        return S
-    if isinstance(S[0], list):
-        return flatten_list_recursive(S[0]) + flatten_list_recursive(S[1:])
-    return S[:1] + flatten_list_recursive(S[1:])
+    if some_list == []:
+        return some_list
+    if isinstance(some_list[0], list):
+        return flatten_list_recursive(some_list[0]) + flatten_list_recursive(some_list[1:])
+    return some_list[:1] + flatten_list_recursive(some_list[1:])
 
 
 def number_of_lists_in_list(list_object: list) -> int:
+
+    """
+    Takes a list as an argument and returns the number of lists in that list. (Counts lists at root level only, no
+    recursion.)
+
+    Parameters
+    ----------
+    list_object:
+        List to be analyzed
+
+    Returns
+    -------
+    The number of lists in the list
+    """
     return sum([1 for element in list_object if type(element) == list])
+
+
+def check_matplotlib_compatibility():
+    if _HAS_WIDGET_BACKEND and StrictVersion(
+            matplotlib.__version__
+    ) < StrictVersion("3.5.1"):
+        warnings.warn(
+            "The widget backend requires Matplotlib >=3.5.1 for proper functioning",
+            UserWarning,
+        )
+
+
+MATPLOTLIB_WIDGET_BACKEND = "module://ipympl.backend_nbagg"
+_HAS_WIDGET_BACKEND = get_matplotlib_backend() == MATPLOTLIB_WIDGET_BACKEND
