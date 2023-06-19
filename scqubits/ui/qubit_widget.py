@@ -70,7 +70,7 @@ def create_widget(
             outlined=True,
             filled=True,
             dense=True,
-            style_="width: 40%;",
+            style_="width: 30%;",
             class_="ml-2 py-0",
         )
         widgets[name].observe(callback_func, names="v_model")
