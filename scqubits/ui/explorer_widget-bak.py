@@ -30,11 +30,11 @@ from scqubits.explorer import explorer_panels as panels
 from scqubits.settings import matplotlib_settings
 from scqubits.ui.gui_defaults import (
     NAV_COLOR,
-    composite_panel_names,
+    composite_plot_names,
     default_panels,
     mode_dropdown_dict,
     mode_dropdown_list,
-    subsys_panel_names,
+    subsys_plot_names,
 )
 from scqubits.utils import misc as utils
 
@@ -263,7 +263,7 @@ class Explorer:
                     dense=True,
                     width=185,
                 )
-                for panel_name in subsys_panel_names
+                for panel_name in subsys_plot_names
             }
         ui_panels_switches["Composite"] = {
             panel_name: v.Switch(
@@ -272,7 +272,7 @@ class Explorer:
                 dense=True,
                 width=185,
             )
-            for panel_name in composite_panel_names
+            for panel_name in composite_plot_names
         }
         self.ui["panels_switches"] = ui_panels_switches
 
@@ -282,7 +282,7 @@ class Explorer:
                 dense=True,
                 children=[
                     self.ui["panels_switches"][subsys_name][panel_name]
-                    for panel_name in subsys_panel_names
+                    for panel_name in subsys_plot_names
                 ],
             )
 
@@ -295,7 +295,7 @@ class Explorer:
             class_="d-flex flex-column pt-0",
             children=[
                 self.ui["panels_switches"]["Composite"][panel_name]
-                for panel_name in composite_panel_names
+                for panel_name in composite_plot_names
             ],
         )
 
@@ -334,7 +334,7 @@ class Explorer:
         self.ui["subsys_panel_settings"] = {
             subsys_name: {
                 panel_name: self.build_ui_settings_subsys(subsys_index, panel_name)
-                for panel_name in subsys_panel_names
+                for panel_name in subsys_plot_names
             }
             for subsys_index, subsys_name in enumerate(self.subsys_names)
         }
@@ -343,7 +343,7 @@ class Explorer:
         self.ui["composite_panel_settings"] = {
             "Composite": {
                 panel_name: self.build_ui_settings_composite(panel_name)
-                for panel_name in composite_panel_names
+                for panel_name in composite_plot_names
             }
         }
 
@@ -418,7 +418,7 @@ class Explorer:
         )
 
         self.ui["sweep_value_slider"] = ui.DiscreteSetSlider(
-            label="",  # f"Sample point: {self.fixed_param}",  # = " {self.current},
+            label="",  # f"Sample point: {explorer.fixed_param}",  # = " {explorer.current},
             param_vals=self.param_vals,
             filled=False,
         )
@@ -701,7 +701,7 @@ class Explorer:
         if unfilled_cols_in_last_row != 0:
             for col in range(self.ncols - unfilled_cols_in_last_row, self.ncols):
                 self.axes_table[-1, col].remove()
-        # self.panel_count = len(panels)
+        # explorer.panel_count = len(panels)
         self.update_plots(None)
         plt.ion()
 

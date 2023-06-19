@@ -11,10 +11,9 @@
 ############################################################################
 
 import collections
-from typing import List, Union
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, OrderedDict, Union
 
 import matplotlib as mp
-import numpy as np
 
 import scqubits.utils.misc as utils
 
@@ -34,6 +33,9 @@ except ImportError:
     _HAS_IPYTHON = False
 else:
     _HAS_IPYTHON = True
+
+if TYPE_CHECKING:
+    from scqubits.ui.explorer_widget import PlotID
 
 
 if _HAS_IPYTHON and _HAS_IPYVUETIFY:
@@ -144,11 +146,14 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
                 min=s_min, max=s_max, step=step, v_model=v_model, **slider_kwargs
             )
 
-            self._continuous_update_in_progress = False
-            self.slider.on_event("start", self.slider_in_progress_toggle)
-            self.slider.on_event("end", self.slider_in_progress_toggle)
-            self.slider.observe(self.update_textfield, names="v_model")
+            # self._continuous_update_in_progress = False
+            # self.slider.on_event("start", self.slider_in_progress_toggle)
+            # self.slider.on_event("end", self.slider_in_progress_toggle)
+            # self.slider.on_event("click", self.slider_in_progress_toggle)
+            # self.slider.observe(self.update_textfield, names="v_model")
             self.observe(self.update_slider, names="num_value")
+
+            ipywidgets.jslink((self, "v_model"), (self.slider, "v_model"))
 
             ipywidgets.jslink((self, "v_max"), (self.slider, "max"))
             ipywidgets.jslink((self, "v_min"), (self.slider, "min"))
@@ -164,10 +169,6 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
                 children=[self, self.slider],
             )
 
-        def update_textfield(self, *args):
-            if self._continuous_update_in_progress:
-                self.v_model = self.slider.v_model
-
         def update_slider(self, *args):
             if self.error:
                 return
@@ -181,15 +182,6 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
                 self.slider.color = ""
                 self.slider.v_model = self.num_value
 
-        def slider_in_progress_toggle(self, *args):
-            self._continuous_update_in_progress = (
-                not self._continuous_update_in_progress
-            )
-            if not self._continuous_update_in_progress:
-                self.v_model = str(
-                    self.slider.v_model
-                )  # This is a hack... need to trigger final "change" event
-
     class vInitSelect(v.Select):
         def __init__(self, **kwargs):
             if "v_model" not in kwargs and "items" in kwargs:
@@ -197,12 +189,20 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             super().__init__(**kwargs)
 
     class vBtn(v.Btn):
-        def __init__(self, **kwargs):
+        def __init__(self, ref=None, **kwargs):
             onclick = kwargs.pop("onclick", None)
             super().__init__(**kwargs)
+            self.ref = ref
 
             if onclick:
                 self.on_event("click", onclick)
+
+
+    class vRefSwitch(v.Switch):
+        def __init__(self, ref, **kwargs):
+            super().__init__(**kwargs)
+            self.ref = ref
+
 
     class vTooltipBtn(v.Tooltip):
         def __init__(self, tooltip, bottom=False, left=True, **kwargs):
@@ -227,7 +227,6 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             if onclick:
                 self.on_event("click", onclick)
 
-
     class vDiscreteSetSlider(v.Slider):
         def __init__(self, param_name, param_vals, **kwargs):
             self.val_count = len(param_vals)
@@ -236,14 +235,16 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             super().__init__(
                 min=0, max=(self.val_count - 1), step=1, v_model=0, **kwargs
             )
-            self.update_textfield()
+            self.label = f"{self.param_name}={self.current_value():.3f}"
+
             self.observe(self.update_textfield, names="v_model")
 
         def current_value(self):
             return self.param_vals[int(self.v_model)]
 
         def update_textfield(self, *args):
-            self.label = f"{self.current_value():.3f}"
+            self.label = f"{self.param_name}={self.current_value():.3f}"
+
 
     class IconButton(vBtn):
         def __init__(self, icon_name, **kwargs):
@@ -310,8 +311,8 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
         )
 
 
-class vCard:
-    def __init__(self, content_list=None, width="49.5%"):
+class PanelBase:
+    def __init__(self, panel_id=None, content_list=None, width="49.5%"):
         content_list = content_list if content_list else []
         self.content_row = v.Container(
             children=content_list,
@@ -319,20 +320,22 @@ class vCard:
             style_="justify-content: center",
         )
         self.card = v.Card(
+            id=str(panel_id),
             max_width=width,
             min_width=width,
             elevation=2,
             class_="mx-1 my-1",
             children=[self.content_row],
         )
+        self.panel_id = panel_id
 
     def set_content(self, content_list):
         self.content_row.children = content_list
 
 
-class vClosableCard(vCard):
-    def __init__(self, content_list=None, width="49.5%"):
-        super().__init__(content_list=content_list, width=width)
+class ClosablePanel(PanelBase):
+    def __init__(self, panel_id: "PlotID"=None, content_list=None, width="49.5%"):
+        super().__init__(panel_id=panel_id, content_list=content_list, width=width)
 
         self.btn = v.Btn(
             class_="mx-1",
@@ -342,36 +345,60 @@ class vClosableCard(vCard):
             children=[v.Icon(children="mdi-close-circle")],
         )
 
-        self.settings_btn = v.Btn(
-            class_="mx-1",
+        self.settings_btn = vBtn(
+            # class_="mx-1",
+            style_="margin-left: auto;",
             icon=True,
             size="xx-small",
             elevation=0,
             children=[v.Icon(children="mdi-settings")],
+            ref=panel_id
+        )
+
+        self.title = v.CardTitle(
+            style_="margin-left: auto;", children=[v.Html(children=[str(panel_id)])]
         )
 
         self.card.children = [
             v.Container(
-                class_="d-flex flex-row justify-end",
-                children=[self.settings_btn, self.btn],
+                class_="d-flex flex-row justify-center",
+                children=[self.title, self.settings_btn, self.btn],
             ),
             self.content_row,
         ]
 
 
-class vClosablePlotCard(vClosableCard):
-    def __init__(self, fig, axes, width="49%"):
+class ClosablePlotPanel(ClosablePanel):
+    def __init__(self, fig: mp.figure.Figure, axes: mp.axes.Axes, panel_id: Optional["PlotID"] = None, width="49%"):
         self.fig = fig
         self.axes = axes
+        title = self.axes.title.get_text()
+        self.axes.title.set_text("")
+
         self.output = ipywidgets.Output(layout=ipywidgets.Layout(object_fit="contain"))
+        super().__init__(content_list=[self.output], panel_id=panel_id, width=width)
+        self.title.children = [
+            v.Html(
+                style_="font-weight: normal; color: 0.2;", tag="div", children=[title]
+            )
+        ]
 
-        super().__init__(content_list=[self.output], width=width)
 
-
-class vCardCollection:
-    def __init__(self, ncols=2):
+class PlotPanelCollection:
+    def __init__(
+        self,
+        toggle_switches_by_plot_id: Dict["PlotID", v.Switch],
+        ncols: int = 2,
+        plot_choice_dialog: Callable = None,
+        plot_settings_dialog: Callable = None
+    ):
         self.ncols = ncols
-        self.card_dict = collections.OrderedDict()
+        self.plot_choice_dialog = plot_choice_dialog
+        self.plot_settings_dialog = plot_settings_dialog
+        self.panel_by_btn: OrderedDict[v.Btn, ClosablePlotPanel] = collections.OrderedDict()
+        self.panel_by_id: OrderedDict[str, ClosablePlotPanel] = collections.OrderedDict()
+        self.toggle_switches_by_plot_id = toggle_switches_by_plot_id
+
         self.container = v.Container(
             children=[],
             style_="background: #eeeeee; position: relative; top: -70px",
@@ -380,56 +407,82 @@ class vCardCollection:
         )
 
     def choose_plot(self, *args, **kwargs):
-        fig = mp.pyplot.figure()
-        axes = fig.subplots()
-        axes.plot(np.random.random(10), np.random.random(10))
-        fig.set_figwidth(4)
-        fig.set_figheight(4)
+        if self.plot_choice_dialog:
+            self.plot_choice_dialog()
+        # else:
+        #     fig = mp.pyplot.figure()
+        #     axes = fig.subplots()
+        #     axes.plot(np.random.random(10), np.random.random(10))
+        #     fig.set_figwidth(4)
+        #     fig.set_figheight(4)
+        #     explorer.new_plot_card("", fig, axes)
 
-        self.new_plot_card(fig, axes)
+    def axes_list(self) -> List[mp.axes.Axes]:
+        return [panel.axes for panel in self.panel_by_btn.values()]
 
-    def card_list(self):
+    def card_list(self) -> List[v.Card]:
         """Returns the list of all the cards in the deck.
 
         Returns
         ------
             A list of the cards in the deck
         """
-        cards = list(self.card_dict.values())
+        cards = [panel.card for panel in self.panel_by_btn.values()]
         return cards
 
-    def setup_card(self, new_card):
+    def id_list(self) -> List[str]:
+        """Returns the list of all the ids in the deck.
+
+        Returns
+        ------
+            A list of the ids in the deck
+        """
+        return list(self.panel_by_id.keys())
+
+    def setup_card(self, new_panel: ClosablePanel):
         """Sets up a new card, connecting its close button to the card collection's `close_card` method."""
-        card = new_card.card
-        if isinstance(new_card, vClosableCard):
-            btn = new_card.btn
-            self.card_dict[btn] = card
-            btn.on_event("click", self.close_card)
-        else:
-            self.card_dict[None] = card
+        card = new_panel.card
+        card.id = new_panel.panel_id
+        btn = new_panel.btn
+        self.panel_by_btn[btn] = new_panel
+        self.panel_by_id[new_panel.panel_id] = new_panel
+        btn.on_event("click", self.close_panel)
+        new_panel.settings_btn.on_event("click", self.settings_dialog)
         self.container.children = self.card_list()
 
-    def new_card(self, content_list=None, close_disabled=False):
-        """Adds a new card to the grid."""
-        if close_disabled:
-            card = vCard(content_list=content_list, width=f"{100 / self.ncols - 1}%")
-        else:
-            card = vClosableCard(
-                content_list=content_list, width=f"{100 / self.ncols - 1}%"
-            )
-        self.setup_card(card)
+    # def new_panel(explorer, plot_id, content_list=None):
+    #     """Adds a new card to the grid."""
+    #     card = ClosablePanel(
+    #         content_list=content_list, plot_id=plot_id, width=f"{100 / explorer.ncols - 1}%"
+    #     )
+    #     explorer.setup_card(card)
 
-    def new_plot_card(self, fig, axes):
+    def new_plot_panel(self, panel_id: "PlotID", fig, axes):
         """Adds a new plot card to the grid."""
-        closable_card = vClosablePlotCard(fig, axes, width=f"{100 / self.ncols - 1}%")
-        self.setup_card(closable_card)
-        with closable_card.output:
+        closable_panel = ClosablePlotPanel(
+            fig, axes, panel_id=panel_id, width=f"{100 / self.ncols - 1}%"
+        )
+        self.setup_card(closable_panel)
+        with closable_panel.output:
             mp.pyplot.show()
 
-    def close_card(self, *args, **kwargs):
+    def close_panel(self, close_btn: vBtn, *args, **kwargs):
         """Remove card from dictionary and from the grid."""
-        self.card_dict.pop(args[0])
-        self.container.children = self.card_list()
+        panel_id = self.panel_by_btn[close_btn].panel_id
+
+        if self.toggle_switches_by_plot_id[panel_id].v_model:
+            self.toggle_switches_by_plot_id[panel_id].v_model = False
+        else:
+            self.panel_by_btn.pop(close_btn)
+            self.panel_by_id.pop(panel_id)
+            self.container.children = self.card_list()
+
+    def close_panel_by_id(self, panel_id: "PlotID"):
+        self.close_panel(self.panel_by_id[panel_id].btn)
+
+    def settings_dialog(self, settings_btn: vBtn, *args, **kwargs):
+        """Bring up plot panel settings dialog."""
+        self.plot_settings_dialog(settings_btn.ref)
 
     def resize_all(self, width=None, height=None):
         """Resizes all cards in the grid.
@@ -449,7 +502,7 @@ class vCardCollection:
 
     def change_cols(self, ncols: int):
         """
-        Changes the number of columns in the grid by setting `self.cols` and resizing all widgets in the grid.
+        Changes the number of columns in the grid by setting `explorer.cols` and resizing all widgets in the grid.
 
         Parameters
         ----------

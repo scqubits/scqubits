@@ -38,6 +38,7 @@ from scqubits.ui.gui_setup import (
     init_save_btn,
 )
 from scqubits.ui.gui_custom_widgets import flex_column, flex_row
+from scqubits.utils.misc import _HAS_WIDGET_BACKEND
 
 try:
     import ipyvuetify as v
@@ -53,9 +54,6 @@ except ImportError:
     _HAS_IPYTHON = False
 else:
     _HAS_IPYTHON = True
-
-MATPLOTLIB_WIDGET_BACKEND = "module://ipympl.backend_nbagg"
-_HAS_WIDGET_BACKEND = get_matplotlib_backend() == MATPLOTLIB_WIDGET_BACKEND
 
 
 QUBITS_WITH_GRID_INIT = (scq.ZeroPi, scq.FullZeroPi, scq.Bifluxon)
@@ -91,13 +89,7 @@ class GUI:
 
     @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
     def __init__(self):
-        if _HAS_WIDGET_BACKEND and StrictVersion(
-            matplotlib.__version__
-        ) < StrictVersion("3.5.1"):
-            warnings.warn(
-                "The widget backend requires Matplotlib >=3.5.1 for proper functioning",
-                UserWarning,
-            )
+        utils.check_matplotlib_compatibility()
 
         # scq.settings.PROGRESSBAR_DISABLED = False
         scq.settings.T1_DEFAULT_WARNING = False

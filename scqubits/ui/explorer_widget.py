@@ -11,34 +11,34 @@
 ############################################################################
 
 
-import warnings
-from distutils.version import StrictVersion
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+import itertools
+
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple
 
 import matplotlib
 import matplotlib.pyplot as plt
-import numpy as np
-from matplotlib import get_backend as get_matplotlib_backend
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 import scqubits as scq
+
 import scqubits.ui.gui_custom_widgets as ui
 import scqubits.ui.gui_defaults as gui_defaults
 from scqubits.core.param_sweep import ParameterSlice
-from scqubits.core.qubit_base import QubitBaseClass
+from scqubits.core.qubit_base import QubitBaseClass, QuantumSystem
 from scqubits.explorer import explorer_panels as panels
+from scqubits.explorer.explorer_settings import ExplorerSettings
 from scqubits.settings import matplotlib_settings
 from scqubits.ui.gui_defaults import (
     NAV_COLOR,
-    composite_panel_names,
     default_panels,
     mode_dropdown_dict,
-    mode_dropdown_list,
-    subsys_panel_names,
+    PlotType,
+    supported_panels,
 )
 
 from scqubits.utils import misc as utils
+from scqubits.utils.misc import _HAS_WIDGET_BACKEND
 
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep
@@ -60,9 +60,35 @@ else:
     _HAS_IPYVUETIFY = True
 
 
-SEP = " | "
-MATPLOTLIB_WIDGET_BACKEND = "module://ipympl.backend_nbagg"
-_HAS_WIDGET_BACKEND = get_matplotlib_backend() == MATPLOTLIB_WIDGET_BACKEND
+class PlotID:
+    """Class for storing plot identifiers. Used for plot panel selection."""
+
+    SEP = " | "
+
+    def __init__(self, plot_type: PlotType, subsystems: List[QuantumSystem]):
+        self.plot_type: PlotType = plot_type
+        self.subsystems: List[QuantumSystem] = subsystems
+
+    def __repr__(self):
+        return f"PlotID({self.plot_type}, {self.subsystems})"
+
+    def __str__(self):
+        subsys_names = self.subsys_ids()
+        if len(subsys_names) == 1:
+            return f"{self.plot_type.value}{self.SEP}{subsys_names[0]}"
+        return f"{self.plot_type.value}{self.SEP}{','.join(subsys_names)}"
+
+    def is_composite(self) -> bool:
+        return len(self.subsystems) > 1
+
+    def subsys_ids(self) -> List[str]:
+        return [subsys.id_str for subsys in self.subsystems]
+
+    def is_default_active(self) -> bool:
+        if self.is_composite():
+            return self.plot_type in default_panels["Composite"]
+        subsys_type_str = type(self.subsystems[0]).__name__
+        return self.plot_type in default_panels[subsys_type_str]
 
 
 class Explorer:
@@ -73,45 +99,82 @@ class Explorer:
     ----------
     sweep:
         the `ParameterSweep` object to be visualized.
+    ncols:
+        number of columns used in plot panel display
+
+    Attributes
+    ----------
+    sweep:
+        the `ParameterSweep` object to be visualized.
+    ncols:
+        number of columns used in plot panel display
+    subsystems:
+        list of subsystems in the `ParameterSweep` object
+    subsys_names:
+        list of subsystem names
+    ui:
+        dictionary of all UI elements
+    settings: ExplorerSettings
+        settings for the Explorer
+
+    Plot panels are labeled by PlotID instances where supported plot names are
+    - "Energy spectrum"
+    - "Wavefunctions" (only for subsystems who inherit from `QubitBaseClass`)
+    - "Matrix elements"
+    - "Anharmonicity" (for subsystems who inherit from `QubitBaseClass`)
+    - "Transitions"
+    - "Self-Kerr"
+    - "Cross-Kerr"
+    - "ac Stark"
     """
 
     @utils.Required(ipyvuetify=_HAS_IPYVUETIFY)
-    def __init__(self, sweep: scq.ParameterSweep, ncols=2):
+    def __init__(self, sweep: scq.ParameterSweep, ncols: int = 2):
         """Set up all widget GUI elements and class attributes."""
-
-        if _HAS_WIDGET_BACKEND and StrictVersion(
-            matplotlib.__version__
-        ) < StrictVersion("3.5.1"):
-            warnings.warn(
-                "The widget backend requires Matplotlib >=3.5.1 for proper functioning",
-                UserWarning,
-            )
         self.sweep = sweep
-
-        self.subsys_names = [subsys.id_str for subsys in self.sweep.hilbertspace]
-        self.subsys_types = {subsys.id_str: type(subsys).__name__ for subsys in self.sweep.hilbertspace}
-        self.subsys_types["Composite"] = "Composite"  # for use in default_panels
-
         self.ncols = ncols  # number of columns used for axes in the figure display
 
-        # == GUI elements =========================================================
+        self.subsystems: List[QuantumSystem] = self.sweep.hilbertspace.subsystem_list
+        self.subsys_names: List[str] = [subsys.id_str for subsys in self.subsystems]
 
-        self.v_active_sweep_param = ui.vInitSelect(
+        utils.check_matplotlib_compatibility()
+
+        # == GUI elements =========================================================
+        self.ui: Dict[str, Any] = {}
+        self.build_panel_switches()
+        self.ui["add_plot_dialog"] = self.build_ui_add_plot_dialog()
+
+        self.ui["sweep_param_dropdown"] = ui.vInitSelect(
             class_="px-2",
             style_="max-width: 200px;",
             label="Active Sweep Parameter",
             items=list(self.sweep.param_info.keys()),
         )
 
-        self.v_sample_value = ui.vDiscreteSetSlider(
-            param_name=self.v_active_sweep_param.v_model,
+        self.ui["sweep_value_slider"] = ui.vDiscreteSetSlider(
+            param_name=self.ui["sweep_param_dropdown"].v_model,
             param_vals=self.param_vals,
             filled=False,
             class_="px-3",
-            style_="max-width: 300px; padding-top: 10px"
+            style_="max-width: 300px; padding-top: 10px",
         )
 
-        self.plot_collection = ui.vCardCollection(ncols=self.ncols)
+        self.ui["sweep_param_dropdown"].observe(
+            self.update_fixed_sliders, names="v_model"
+        )
+        self.ui["sweep_value_slider"].observe(self.update_plots, names="v_model")
+
+        self.update_fixed_sliders(None)
+
+        self.plot_collection = ui.PlotPanelCollection(
+            ncols=self.ncols,
+            plot_choice_dialog=self.show_plot_choice_dialog,
+            toggle_switches_by_plot_id=self.ui["panel_switch_by_plot_id"],
+            plot_settings_dialog=self.plot_settings_dialog,
+        )
+
+        self.settings = ExplorerSettings(self)
+
         self.explorer_display = v.Container(
             class_="d-flex flex-column mx-0 px-0",
             children=[
@@ -128,829 +191,451 @@ class Explorer:
                             elevation=0,
                             children=[gui_defaults.icons["scq-logo.png"]],
                         ),
-                        self.v_active_sweep_param,
-                        self.v_sample_value
+                        self.ui["sweep_param_dropdown"],
+                        self.ui["sweep_value_slider"],
                     ],
                 ),
                 self.plot_collection.show(),
+                self.ui["add_plot_dialog"],
+                *self.settings["dialogs"].values()
             ],
         )
 
+        self.create_initial_plot_panels()
         display(self.explorer_display)
 
     @property
     def fixed_param(self):
-        return self.v_active_sweep_param.v_model
+        """Return the currently selected sweep parameter."""
+        return self.ui["sweep_param_dropdown"].v_model
 
     @property
     def param_vals(self):
+        """Return the selected value of the current sweep parameter."""
         return self.sweep.param_info[self.fixed_param]
 
-    #     self.build_navi_bar_content()
-    #     self.ui_vbox["panel_settings_dialog"] = self.build_ui_settings_dialog()
-    #     self.ui_vbox["parameters_panel_left"] = self.build_ui_parameters_panel_left()
-    #
-    #     self.ui["figure_display"] = self.build_ui_figure_display()
-    #
-    #     self.v_nav_btn_sweep_conf = ui.IconButton(
-    #         icon_name="mdi-chart-bell-curve", onclick=self.toggle_mini, color=NAV_COLOR
-    #     )
-    #     self.v_nav_panel_sweep_conf = ui.NavbarElement(
-    #         header="Sweep configure", children=self.ui_vbox["parameters_panel_left"]
-    #     )
-    #
-    #     self.v_nav_btn_composite = ui.IconButton(
-    #         icon_name="mdi-apache-kafka", onclick=self.toggle_mini, color=NAV_COLOR
-    #     )
-    #     self.v_nav_plot_panel_composite = ui.NavbarElement(
-    #         header="Composite plots", children=[self.ui_vbox["Composite"]]
-    #     )
-    #
-    #     self.v_nav_btn_subsystem = ui.IconButton(
-    #         icon_name="mdi-apps", onclick=self.toggle_mini, color=NAV_COLOR
-    #     )
-    #     self.v_nav_panel_subsystem = ui.NavbarElement(
-    #         header="Subsystem plots",
-    #         children=[self.ui["subsys_dropdown"], self.ui_vbox["current_subsys"]],
-    #     )
-    #
-    #     self.v_nav_plot_settings_btn = ui.IconButton(
-    #         icon_name="mdi-tune", onclick=self.bring_up_dialog, color=NAV_COLOR
-    #     )
-    #     self.v_nav_plot_settings_panel = ui.NavbarElement(
-    #         header="Plot settings", children=[self.ui_vbox["panels_list_group"]]
-    #     )
-    #
-    #     self.btn_panel_map = {
-    #         self.v_nav_btn_sweep_conf: self.v_nav_panel_sweep_conf,
-    #         self.v_nav_btn_composite: self.v_nav_plot_panel_composite,
-    #         self.v_nav_btn_subsystem: self.v_nav_panel_subsystem,
-    #         self.v_nav_plot_settings_btn: self.v_nav_plot_settings_panel,
-    #     }
-    #
-    #     self.navi_bar = v.NavigationDrawer(
-    #         v_model="drawer",
-    #         permanent=True,
-    #         mini_variant=True,
-    #         mini_variant_width=70,
-    #         min_width=390,
-    #         width=390,
-    #         elevation="2",
-    #         color=NAV_COLOR,
-    #         children=[
-    #             v.List(
-    #                 children=[
-    #                     v.ListItem(
-    #                         class_="align-items-bottom",
-    #                         children=[
-    #                             self.v_nav_btn_composite,
-    #                             self.v_nav_plot_panel_composite,
-    #                         ],
-    #                     ),
-    #                     v.ListItem(
-    #                         class_="align-items-bottom",
-    #                         children=[
-    #                             self.v_nav_btn_subsystem,
-    #                             self.v_nav_panel_subsystem,
-    #                         ],
-    #                     ),
-    #                     v.ListItem(
-    #                         class_="align-items-bottom",
-    #                         children=[
-    #                             self.v_nav_btn_sweep_conf,
-    #                             self.v_nav_panel_sweep_conf,
-    #                         ],
-    #                     ),
-    #                     v.ListItem(
-    #                         class_="align-items-bottom",
-    #                         children=[
-    #                             self.v_nav_plot_settings_btn,
-    #                             self.v_nav_plot_settings_panel,
-    #                         ],
-    #                     ),
-    #                 ]
-    #             )
-    #         ],
-    #     )
-    #
-    #     self.update_layout_and_plots(None)
-    #
-    #     self.full_ui = flex_row(
-    #         [
-    #             self.navi_bar,
-    #             v.Container(
-    #                 class_="d-flex flex-row overflow-auto",
-    #                 children=[self.ui["figure_display"]],
-    #             ),
-    #         ],
-    #         class_="px-0",
-    #     )
-    #
-    #     display(self.full_ui)
-    #
-    # def toggle_mini(self, widget, event, data):
-    #     require_panel_uncollapse = self.navi_bar.mini_variant
-    #
-    #     panel = self.btn_panel_map[widget]
-    #     if require_panel_uncollapse:
-    #         panel.v_model = 0
-    #     else:
-    #         for panel in self.btn_panel_map.values():
-    #             panel.v_model = None
-    #
-    #     self.navi_bar.mini_variant = not self.navi_bar.mini_variant
-    #
+    def show_plot_choice_dialog(self, *args) -> None:
+        self.ui["add_plot_dialog"].v_model = True
+
+    def close_plot_choice_dialog(self, *args) -> None:
+        self.ui["add_plot_dialog"].v_model = False
+
+    def plot_settings_dialog(self, plot_id: PlotID) -> None:
+        self.settings["dialogs"][plot_id].v_model = True
+
+    def update_switches(self) -> None:
+        for switch in self.ui["panel_switch_by_plot_id"].values():
+            switch.v_model = switch.ref in self.plot_collection.id_list()
+
+    def build_panel_switches(self) -> None:
+        # The panel switches reflect the set of panels that are currently displayed
+        ui_panel_switch_by_plot_id: Dict[PlotID, ui.vRefSwitch] = {}
+        ui_panel_switches_by_subsys_name: Dict[str, List[ui.vRefSwitch]] = {
+            "Composite": []
+        }
+
+        # Add default panels for individual subsystems
+
+        for subsys in self.subsystems:
+            ui_panel_switches_by_subsys_name[subsys.id_str] = []
+            subsys_type_str = type(subsys).__name__
+            for plot_type in supported_panels[subsys_type_str]:
+                plot_id = PlotID(plot_type, [subsys])
+                ui_panel_switch_by_plot_id[plot_id] = ui.vRefSwitch(
+                    v_model=plot_id.is_default_active(),
+                    label=plot_type.value,
+                    ref=plot_id,
+                    dense=True,
+                    width=185,
+                )
+                ui_panel_switches_by_subsys_name[subsys.id_str] += [
+                    ui_panel_switch_by_plot_id[plot_id]
+                ]
+
+        # Add composite panels
+
+        plot_id = PlotID(PlotType.TRANSITIONS, self.subsystems)
+        ui_panel_switch_by_plot_id[plot_id] = ui.vRefSwitch(
+            v_model=plot_id.is_default_active(),
+            label="Transitions",
+            ref=plot_id,
+            dense=True,
+            width=185,
+        )
+        ui_panel_switches_by_subsys_name["Composite"] += [
+            ui_panel_switch_by_plot_id[plot_id]
+        ]
+
+        for subsys1, subsys2 in itertools.combinations(self.subsystems, 2):
+            is_oscillator1 = isinstance(subsys1, scq.Oscillator)
+            is_oscillator2 = isinstance(subsys2, scq.Oscillator)
+            if any([is_oscillator1, is_oscillator2]) and not all(
+                [is_oscillator1, is_oscillator2]
+            ):
+                plot_type = PlotType.AC_STARK
+            else:
+                plot_type = PlotType.CROSS_KERR
+
+            plot_id = PlotID(plot_type, [subsys1, subsys2])
+
+            ui_panel_switch_by_plot_id[plot_id] = ui.vRefSwitch(
+                v_model=plot_id.is_default_active(),
+                label=f"{plot_type.value}: {subsys1.id_str}, {subsys2.id_str}",
+                ref=plot_id,
+                dense=True,
+                width=185,
+            )
+            ui_panel_switches_by_subsys_name["Composite"] += [
+                ui_panel_switch_by_plot_id[plot_id]
+            ]
+
+        self.ui["panel_switch_by_plot_id"] = ui_panel_switch_by_plot_id
+        self.ui["panel_switches_by_subsys_name"] = ui_panel_switches_by_subsys_name
+
+        self.ui["panel_switches"] = {}
+        for subsys_name in self.ui["panel_switches_by_subsys_name"].keys():
+            self.ui["panel_switches"][subsys_name] = v.Container(
+                class_="d-flex flex-column",
+                dense=True,
+                children=self.ui["panel_switches_by_subsys_name"][subsys_name],
+            )
+
+        for switch in self.ui["panel_switch_by_plot_id"].values():
+            switch.observe(self.on_toggle_event, names="v_model")
+
+    def build_ui_add_plot_dialog(self) -> v.Dialog:
+        return v.Dialog(
+            v_model=False,
+            width="75%",
+            children=[
+                v.Card(
+                    children=[
+                        v.Toolbar(
+                            children=[v.ToolbarTitle(children=["Choose Plot"])],
+                            color="deep-purple accent-4",
+                            dark=True,
+                        ),
+                        ui.flex_row(
+                            [
+                                ui.flex_column(
+                                    [
+                                        v.CardTitle(children="Composite-system plots"),
+                                        self.ui["panel_switches"]["Composite"],
+                                    ]
+                                ),
+                                v.Divider(vertical=True),
+                                ui.flex_column(
+                                    [
+                                        v.CardTitle(
+                                            children="Subsystem-specific plots"
+                                        ),
+                                        ui.flex_row(
+                                            [
+                                                ui.flex_column(
+                                                    [
+                                                        v.CardTitle(
+                                                            style_="font-weight: normal;",
+                                                            children=subsys_name,
+                                                        ),
+                                                        self.ui["panel_switches"][
+                                                            subsys_name
+                                                        ],
+                                                    ]
+                                                )
+                                                for subsys_name in self.subsys_names
+                                            ]
+                                        ),
+                                    ]
+                                ),
+                            ]
+                        ),
+                        v.CardActions(
+                            class_="justify-center",
+                            children=[
+                                ui.vBtn(
+                                    onclick=self.close_plot_choice_dialog,
+                                    children=["FINISH"],
+                                )
+                            ],
+                        ),
+                    ]
+                )
+            ],
+        )
+
+    @matplotlib.rc_context(matplotlib_settings)
+    def build_panel(
+        self,
+        plot_id: PlotID,
+        param_slice: ParameterSlice,
+        fig_ax: Tuple[Figure, Axes],
+    ):
+        if plot_id.plot_type == PlotType.ENERGY_SPECTRUM:
+            panel_widget = self.settings[plot_id]
+            return panels.display_bare_spectrum(
+                self.sweep,
+                plot_id.subsystems[0],
+                param_slice,
+                fig_ax,
+                subtract_ground=panel_widget[1].v_model,
+                evals_count=self.settings["level_slider"][plot_id].num_value,
+            )
+        elif plot_id.plot_type == PlotType.WAVEFUNCTIONS and isinstance(
+            plot_id.subsystems[0], QubitBaseClass
+        ):
+            ui_wavefunction_selector, ui_mode_dropdown = self.settings[plot_id]
+            return panels.display_bare_wavefunctions(
+                self.sweep,
+                plot_id.subsystems[0],
+                param_slice,
+                fig_ax,
+                mode=mode_dropdown_dict[ui_mode_dropdown.v_model],
+                which=ui_wavefunction_selector.v_model,
+            )
+        elif plot_id.plot_type == PlotType.MATRIX_ELEMENTS and isinstance(
+            plot_id.subsystems[0], QubitBaseClass
+        ):
+            ui_mode_dropdown, opname_dropdown = self.settings[plot_id]
+            return panels.display_matrixelements(
+                sweep=self.sweep,
+                subsys=plot_id.subsystems[0],
+                operator_name=opname_dropdown.v_model,
+                mode_str=mode_dropdown_dict[ui_mode_dropdown.v_model],
+                param_slice=param_slice,
+                fig_ax=fig_ax,
+            )
+        elif plot_id.plot_type == PlotType.MATRIX_ELEMENT_SCAN and isinstance(
+            plot_id.subsystems[0], QubitBaseClass
+        ):
+            ui_mode_dropdown, opname_dropdown = self.settings[plot_id]
+            return panels.display_matrixelement_sweep(
+                sweep=self.sweep,
+                subsys=plot_id.subsystems[0],
+                operator_name=opname_dropdown.v_model,
+                mode_str=mode_dropdown_dict[ui_mode_dropdown.v_model],
+                param_slice=param_slice,
+                fig_ax=fig_ax,
+            )
+        elif plot_id.plot_type == PlotType.ANHARMONICITY:
+            return panels.display_anharmonicity(
+                self.sweep, plot_id.subsystems[0], param_slice, fig_ax
+            )
+        elif plot_id.plot_type == PlotType.TRANSITIONS:
+            if self.settings["Transitions"]["initial_bare_dressed_toggle"].v_model == "bare":
+                initial_state = tuple(
+                    int(inttext.v_model)
+                    for inttext in self.settings["Transitions"]["initial_state_inttexts"]
+                )
+            else:
+                initial_state = int(
+                    self.settings["Transitions"]["initial_dressed_inttext"].v_model
+                )
+
+            subsys_name_tuple = self.settings["Transitions"][
+                "highlight_selectmultiple"
+            ].v_model
+            if subsys_name_tuple == ():
+                subsys_list = None
+            else:
+                subsys_list = [
+                    self.sweep.subsys_by_id_str(subsys_name)
+                    for subsys_name in subsys_name_tuple
+                ]
+
+            sidebands = self.settings["Transitions"]["sidebands_switch"].v_model
+            photon_number = int(self.settings["Transitions"]["photons_inttext"].v_model)
+            return panels.display_transitions(
+                self.sweep,
+                photon_number,
+                subsys_list,
+                initial_state,
+                sidebands,
+                param_slice,
+                fig_ax,
+            )
+        elif plot_id.plot_type == "Self-Kerr":
+            return panels.display_self_kerr(
+                sweep=self.sweep,
+                subsys=plot_id.subsystems[0],
+                param_slice=param_slice,
+                fig_ax=fig_ax,
+            )
+        elif plot_id.plot_type in ["Cross-Kerr", "ac Stark"]:
+            return panels.display_cross_kerr(
+                sweep=self.sweep,
+                subsys1=plot_id.subsystems[0],
+                subsys2=plot_id.subsystems[1],
+                param_slice=param_slice,
+                fig_ax=fig_ax,
+            )
+        raise NotImplementedError(f"Plot type {plot_id} not implemented.")
+
+    @property
+    def active_switches_by_plot_id(self) -> Dict[PlotID, "ui.vRefSwitch"]:
+        """Returns a dictionary labeling all selected switches by their plot_id names."""
+        return {
+            plot_id: switch
+            for plot_id, switch in self.ui["panel_switch_by_plot_id"].items()
+            if switch.v_model
+        }
+
+    @property
+    def selected_plot_id_list(self) -> List[PlotID]:
+        """Returns a list of strings capturing the names of all panels selected via
+        the switches."""
+        return list(self.active_switches_by_plot_id.keys())
+
+    def create_sliders(self) -> List["v.VuetifyWidget"]:
+        """Returns a list of selection sliders, one for each parameter that is part
+        of the underlying ParameterSweep object."""
+        sliders = [
+            ui.vInitSelect(
+                label=param_name,
+                items=param_array.tolist(),
+            )
+            for param_name, param_array in self.sweep.param_info.items()
+            if param_name != self.ui["sweep_param_dropdown"].v_model
+        ]
+        for slider in sliders:
+            slider.observe(self.update_plots, names="v_model")
+        return sliders
+
+    @property
+    def fixed_params(self) -> Dict[str, float]:
+        sliders = self.ui["fixed_param_sliders"]
+        return {slider.label: slider.v_model for slider in sliders}
+
+    @property
+    def axes_list(self) -> List[Axes]:
+        return self.plot_collection.axes_list()
+
+    @matplotlib.rc_context(matplotlib_settings)
+    def create_initial_plot_panels(self):
+        for plot_id in self.selected_plot_id_list:
+            param_slice = self.parameter_slice
+            fig = matplotlib.pyplot.figure()
+            axes = fig.subplots()
+            fig.set_figwidth(4)
+            fig.set_figheight(4)
+            fig, axes = self.build_panel(
+                plot_id, param_slice=param_slice, fig_ax=(fig, axes)
+            )
+            self.plot_collection.new_plot_panel(plot_id, fig, axes)
+
+    @matplotlib.rc_context(matplotlib_settings)
+    def on_toggle_event(self, change):
+        toggled_panel_id = change["owner"].ref
+        if change["new"]:
+            param_slice = self.parameter_slice
+
+            fig = matplotlib.pyplot.figure()
+            axes = fig.subplots()
+            fig.set_figwidth(4)
+            fig.set_figheight(4)
+            fig, axes = self.build_panel(
+                toggled_panel_id, param_slice=param_slice, fig_ax=(fig, axes)
+            )
+            self.plot_collection.new_plot_panel(toggled_panel_id, fig, axes)
+
+        else:
+            self.plot_collection.close_panel_by_id(toggled_panel_id)
+
+    def update_fixed_sliders(self, change):
+        self.ui["fixed_param_sliders"] = self.create_sliders()
+        self.ui["fixed_param_sliders_container"] = ui.flex_column(self.ui["fixed_param_sliders"])
+
+        self.ui["sweep_value_slider"].options = self.sweep.param_info[
+            self.ui["sweep_param_dropdown"].v_model
+        ]
+
+    def bare_dressed_toggle(self, change):
+        if self.ui["Transitions"]["initial_bare_dressed_toggle"].v_model == "bare":
+            self.ui["Transitions"][
+                "initial_dressed_inttext"
+            ].style_ = "display: none; max-width: 100px;"
+            for inttext in self.ui["Transitions"]["initial_state_inttexts"]:
+                inttext.style_ = "display: inline-block; max-width: 100px;"
+        else:
+            self.ui["Transitions"][
+                "initial_dressed_inttext"
+            ].style_ = "display: inherit; max-width: 100px;"
+            for inttext in self.ui["Transitions"]["initial_state_inttexts"]:
+                inttext.style_ = "display: none; max-width: 80px;"
+        self.update_plots(change)
+
+    @property
+    def parameter_slice(self):
+        return ParameterSlice(
+            self.ui["sweep_param_dropdown"].v_model,
+            self.ui["sweep_value_slider"].current_value(),
+            self.fixed_params,
+            list(self.sweep.param_info.keys()),
+        )
+
     # @matplotlib.rc_context(matplotlib_settings)
-    # def build_figure_and_axes_table(self) -> Tuple[Figure, np.ndarray]:
-    #     # the %inline and %widget backends somehow scale differently; try to compensate
-    #     self.figwidth = 6.4
-    #     self.figheight = 2.6
+    # def update_layout_and_plots(explorer: "Explorer", change):
+    #     panels = explorer.get_panel_id_list()
+    #     #
+    # nrows = len(panels) // explorer.ncols
+    # if len(panels) % explorer.ncols != 0:
+    #     nrows += 1
     #
-    #     plt.ioff()
-    #     fig = plt.figure(figsize=(self.figwidth, self.figheight))
-    #     fig.canvas.toolbar_position = "right"
-    #     fig.canvas.header_visible = False
-    #     fig.canvas.footer_visible = False
+    # for axes in explorer.fig.axes:
+    #     explorer.fig.delaxes(axes)
     #
-    #     plt.ion()
-    #
-    #     axes_table = np.array([])
-    #     return fig, axes_table
-    #
-    # def bring_up_dialog(self, *args):
-    #     self.ui_vbox["panel_settings_dialog"].v_model = True
-    #     display(self.ui_vbox["panel_settings_dialog"])
-    #
-    # def build_navi_bar_content(self) -> None:
-    #     self.ui["subsys_dropdown"] = ui.InitSelect(
-    #         items=self.subsys_names,
-    #         label="Subsystem",
-    #         filled=True,
-    #         outlined=True,
-    #         height=40,
+    # plt.ioff()
+    # if len(panels) > 0:
+    #     explorer.axes_table = explorer.fig.subplots(
+    #         ncols=explorer.ncols,
+    #         nrows=nrows,
+    #         squeeze=False,
     #     )
-    #     self.ui["subsys_dropdown"].observe(self.on_subsys_change, names="v_model")
-    #
-    #     ui_panels_switches: Dict[str, Dict[str, v.Switch]] = {}
-    #     for subsys_name in self.subsys_names:
-    #         ui_panels_switches[subsys_name] = {
-    #             panel_name: v.Switch(
-    #                 v_model=self.get_toggle_value_default(subsys_name, panel_name),
-    #                 label=panel_name,
-    #                 dense=True,
-    #                 width=185,
-    #             )
-    #             for panel_name in subsys_panel_names
-    #         }
-    #     ui_panels_switches["Composite"] = {
-    #         panel_name: v.Switch(
-    #             v_model=self.get_toggle_value_default("Composite", panel_name),
-    #             label=panel_name,
-    #             dense=True,
-    #             width=185,
-    #         )
-    #         for panel_name in composite_panel_names
-    #     }
-    #     self.ui["panels_switches"] = ui_panels_switches
-    #
-    #     for subsys_name in self.subsys_names:
-    #         self.ui_vbox[subsys_name] = v.Container(
-    #             class_="d-flex flex-column",
-    #             dense=True,
-    #             children=[
-    #                 self.ui["panels_switches"][subsys_name][panel_name]
-    #                 for panel_name in subsys_panel_names
-    #             ],
-    #         )
-    #
-    #     self.ui_vbox["current_subsys"] = v.Container(
-    #         class_="d-flex flex-column pt-0",
-    #         children=self.ui_vbox[self.ui["subsys_dropdown"].v_model].children,
-    #     )
-    #
-    #     self.ui_vbox["Composite"] = v.Container(
-    #         class_="d-flex flex-column pt-0",
-    #         children=[
-    #             self.ui["panels_switches"]["Composite"][panel_name]
-    #             for panel_name in composite_panel_names
-    #         ],
-    #     )
-    #
-    #     for _, widget_dict in self.ui["panels_switches"].items():
-    #         for widget in widget_dict.values():
-    #             widget.observe(self.on_toggle_event, names="v_model")
-    #
-    #     self.ui["strings_to_panel_switches"] = {}
-    #     for name in self.ui["panels_switches"].keys():
-    #         for panel_name in self.ui["panels_switches"][name].keys():
-    #             string_id = panel_name + SEP + name
-    #             switch = self.ui["panels_switches"][name][panel_name]
-    #             self.ui["strings_to_panel_switches"][string_id] = switch
-    #
-    #     self.ui["panels_list"] = ui.InitSelect(
-    #         items=self.selected_as_strings(), filled=True, dense=True
-    #     )
-    #     self.ui["delete_btn"] = ui.IconButton("mdi-delete", class_="ml-2")
-    #     self.ui["delete_btn"].on_event("click", self.delete_panel)
-    #     self.ui["edit_btn"] = ui.IconButton("mdi-pencil")
-    #
-    #     self.ui["edit_btn"].on_event("click", self.bring_up_dialog)
-    #
-    #     self.ui_vbox["panels_list_group"] = v.Container(
-    #         class_="d-flex flex-column mx-0 my-0 px-0 py-0",
-    #         children=[
-    #             self.ui["panels_list"],
-    #             v.Container(
-    #                 class_="d-flex flex-row mx-0 my-0 px-0 py-0",
-    #                 children=[self.ui["edit_btn"], self.ui["delete_btn"]],
-    #             ),
-    #         ],
-    #     )
-    #
-    # def build_ui_settings_dialog(self) -> "v.Dialog":
-    #     self.ui["subsys_panel_settings"] = {
-    #         subsys_name: {
-    #             panel_name: self.build_ui_settings_subsys(subsys_index, panel_name)
-    #             for panel_name in subsys_panel_names
-    #         }
-    #         for subsys_index, subsys_name in enumerate(self.subsys_names)
-    #     }
-    #
-    #     self.ui["transitions"] = {}
-    #     self.ui["composite_panel_settings"] = {
-    #         "Composite": {
-    #             panel_name: self.build_ui_settings_composite(panel_name)
-    #             for panel_name in composite_panel_names
-    #         }
-    #     }
-    #
-    #     self.ui["settings"] = {
-    #         **self.ui["subsys_panel_settings"],
-    #         **self.ui["composite_panel_settings"],
-    #     }
-    #
-    #     self.ui["panels_choice_dropdown"] = ui.InitSelect(
-    #         items=self.get_panels_list(), width=250
-    #     )
-    #     self.ui["panels_choice_dropdown"].observe(
-    #         self.activate_settings, names="v_model"
-    #     )
-    #
-    #     if self.ui["panels_choice_dropdown"].v_model:
-    #         panel_name, subsys_name = self.ui["panels_choice_dropdown"].v_model.split(
-    #             SEP
-    #         )
-    #         self.ui_hbox["panel_settings"] = v.Container(
-    #             class_="d-flex flex-row",
-    #             children=self.ui["settings"][subsys_name][panel_name],
-    #         )
-    #     else:
-    #         self.ui_hbox["panel_settings"] = v.Container(
-    #             class_="d-flex flex-row", children=[]
-    #         )
-    #
-    #     self.ui_hbox["panel_choice"] = v.Container(
-    #         class_="d-flex flex-row", children=[self.ui["panels_choice_dropdown"]]
-    #     )
-    #
-    #     return v.Dialog(
-    #         v_model="dialog",
-    #         width=800,
-    #         children=[
-    #             v.Card(
-    #                 children=[
-    #                     v.CardTitle(children=["Plot settings"]),
-    #                     v.CardText(
-    #                         children=[
-    #                             v.Container(
-    #                                 class_="d-flex flex-column",
-    #                                 children=[
-    #                                     self.ui_hbox["panel_choice"],
-    #                                     v.Spacer(),
-    #                                     self.ui_hbox["panel_settings"],
-    #                                 ],
-    #                                 style_="width: 100%",
-    #                             )
-    #                         ]
-    #                     ),
-    #                 ]
-    #             )
-    #         ],
-    #     )
-    #
-    # @property
-    # def fixed_param(self):
-    #     return self.ui["sweep_param_dropdown"].v_model
-    #
-    # @property
-    # def param_vals(self):
-    #     return self.sweep.param_info[self.fixed_param]
-    #
-    # def build_ui_parameters_panel_left(self) -> List["v.VuetifyWidget"]:
-    #     self.ui["sweep_param_dropdown"] = ui.InitSelect(
-    #         label="Sweeping over", items=list(self.sweep.param_info.keys()), width=150
-    #     )
-    #     self.ui["sweep_param_dropdown"].observe(
-    #         self.update_fixed_sliders, names="v_model"
-    #     )
-    #
-    #     self.ui["sweep_value_slider"] = ui.DiscreteSetSlider(
-    #         label="",  # f"Sample point: {self.fixed_param}",  # = " {self.current},
-    #         param_vals=self.param_vals,
-    #         filled=False,
-    #     )
-    #
-    #     self.ui["sweep_value_slider"].observe(self.update_plots, names="v_model")
-    #
-    #     self.ui["fixed_param_sliders"] = None
-    #     self.ui_vbox["fixed_param_sliders"] = v.Container(
-    #         class_="d-flex flex-column", children=[]
-    #     )
-    #     self.update_fixed_sliders(None)
-    #
-    #     return [
-    #         self.ui["sweep_param_dropdown"],
-    #         v.Spacer(),
-    #         v.ListItemTitle(style_="font-weight: 300", children=["Fixed parameter(s)"]),
-    #         self.ui["sweep_value_slider"],
-    #         *self.ui["fixed_param_sliders"],
-    #     ]
-    #
-    # @matplotlib.rc_context(matplotlib_settings)
-    # def build_ui_figure_display(self) -> "ipywidgets.Output":
-    #     if _HAS_WIDGET_BACKEND:
-    #         out = self.fig.canvas
-    #         self.fig.tight_layout()
-    #     else:
-    #         out = ipywidgets.Output(width=750)
-    #         out.layout.object_fit = "contain"
-    #         out.layout.width = "100%"
-    #         with out:
-    #             out.clear_output(wait=True)
-    #             self.fig.tight_layout()
-    #             display(self.fig)
-    #     return out
-    #
-    # @matplotlib.rc_context(matplotlib_settings)
-    # def display_panel(
-    #     self,
-    #     full_panel_name: str,
-    #     param_slice: ParameterSlice,
-    #     fig_ax: Tuple[Figure, Axes],
-    # ):
-    #     panel_name, subsys_name = full_panel_name.split(SEP)
-    #
-    #     if subsys_name == "Composite":
-    #         subsys = None
-    #     else:
-    #         subsys = self.sweep.subsys_by_id_str(subsys_name)
-    #
-    #     if panel_name == "Energy spectrum":
-    #         panel_widget = self.ui["subsys_panel_settings"][subsys_name][panel_name]
-    #         panels.display_bare_spectrum(
-    #             self.sweep,
-    #             subsys,
-    #             param_slice,
-    #             fig_ax,
-    #             subtract_ground=panel_widget[1].v_model,
-    #             evals_count=int(self.ui_level_slider[full_panel_name].v_model),
-    #         )
-    #     elif panel_name == "Wavefunctions" and isinstance(subsys, QubitBaseClass):
-    #         ui_wavefunction_selector, ui_mode_dropdown = self.ui[
-    #             "subsys_panel_settings"
-    #         ][subsys_name][panel_name]
-    #         panels.display_bare_wavefunctions(
-    #             self.sweep,
-    #             subsys,
-    #             param_slice,
-    #             fig_ax,
-    #             mode=mode_dropdown_dict[ui_mode_dropdown.v_model],
-    #             which=ui_wavefunction_selector.v_model,
-    #         )
-    #     elif panel_name == "Matrix elements" and isinstance(subsys, QubitBaseClass):
-    #         panel_widgets = self.ui["subsys_panel_settings"][subsys_name][panel_name]
-    #         (mode_dropdown, opname_dropdown, matrixscan_toggle) = panel_widgets
-    #         if matrixscan_toggle.v_model == "fixed":
-    #             panels.display_matrixelements(
-    #                 sweep=self.sweep,
-    #                 subsys=subsys,
-    #                 operator_name=opname_dropdown.v_model,
-    #                 mode_str=mode_dropdown.v_model,
-    #                 param_slice=param_slice,
-    #                 fig_ax=fig_ax,
-    #             )
-    #         else:
-    #             panels.display_matrixelement_sweep(
-    #                 sweep=self.sweep,
-    #                 subsys=subsys,
-    #                 operator_name=opname_dropdown.v_model,
-    #                 mode_str=mode_dropdown.v_model,
-    #                 param_slice=param_slice,
-    #                 fig_ax=fig_ax,
-    #             )
-    #     elif panel_name == "Anharmonicity":
-    #         panels.display_anharmonicity(self.sweep, subsys, param_slice, fig_ax)
-    #     elif panel_name == "Transitions":
-    #         if self.ui["transitions"]["initial_dressed_inttext"].disabled:
-    #             initial_state = tuple(
-    #                 inttext.v_model
-    #                 for inttext in self.ui["transitions"]["initial_state_inttexts"]
-    #             )
-    #         else:
-    #             initial_state = self.ui["transitions"][
-    #                 "initial_dressed_inttext"
-    #             ].v_model
-    #
-    #         subsys_name_tuple = self.ui["transitions"][
-    #             "highlight_selectmultiple"
-    #         ].v_model
-    #         if subsys_name_tuple == ():
-    #             subsys_list = None
-    #         else:
-    #             subsys_list = [
-    #                 self.sweep.subsys_by_id_str(subsys_name)
-    #                 for subsys_name in subsys_name_tuple
-    #             ]
-    #
-    #         sidebands = self.ui["transitions"]["sidebands_switch"].v_model
-    #         photon_number = self.ui["transitions"]["photons_inttext"].v_model
-    #         panels.display_transitions(
-    #             self.sweep,
-    #             photon_number,
-    #             subsys_list,
-    #             initial_state,
-    #             sidebands,
-    #             param_slice,
-    #             fig_ax,
-    #         )
-    #     elif panel_name == "Self-Kerr":
-    #         panels.display_self_kerr(
-    #             sweep=self.sweep,
-    #             subsys=subsys,
-    #             param_slice=param_slice,
-    #             fig_ax=fig_ax,
-    #         )
-    #     elif panel_name == "Cross-Kerr, ac-Stark":
-    #         panels.display_cross_kerr(
-    #             sweep=self.sweep,
-    #             subsys1=self.sweep.get_subsys(0),
-    #             subsys2=self.sweep.get_subsys(1),
-    #             param_slice=param_slice,
-    #             fig_ax=fig_ax,
-    #         )
-    #     elif panel_name == "Custom data":
-    #         pass
-    #
-    # @property
-    # def all_selected(self) -> Dict[str, "v.Switch"]:
-    #     """Returns a dictionary labeling all selected switches by their names."""
-    #     return {
-    #         name: [
-    #             panel
-    #             for panel in self.ui["panels_switches"][name].keys()
-    #             if self.ui["panels_switches"][name][panel].v_model
-    #         ]
-    #         for name in self.ui["panels_switches"].keys()
-    #     }
-    #
-    # def selected_as_strings(self) -> List[str]:
-    #     """Returns a list of strings capturing the names of all panels selected via
-    #     the switches."""
-    #     all_selected = self.all_selected
-    #     selected = []
-    #     for name in all_selected.keys():
-    #         for panel in all_selected[name]:
-    #             selected.append(panel + SEP + name)
-    #     return selected
-    #
-    # def create_sliders(self) -> List["v.VuetifyWidget"]:
-    #     """Returns a list of selection sliders, one for each parameter that is part
-    #     of the underlying ParameterSweep object."""
-    #     sliders = [
-    #         ui.InitSelect(
-    #             label=param_name,
-    #             items=param_array.tolist(),
-    #         )
-    #         for param_name, param_array in self.sweep.param_info.items()
-    #         if param_name != self.ui["sweep_param_dropdown"].v_model
-    #     ]
-    #     for slider in sliders:
-    #         slider.observe(self.update_plots, names="v_model")
-    #     return sliders
-    #
-    # @property
-    # def fixed_params(self) -> Dict[str, float]:
-    #     sliders = self.ui["fixed_param_sliders"]
-    #     return {slider.label: slider.v_model for slider in sliders}
-    #
-    # def on_toggle_event(self, change):
-    #     self.ui["panels_list"].options = self.selected_as_strings()
-    #     self.ui["panels_choice_dropdown"].options = self.selected_as_strings()
-    #     self.update_layout_and_plots(change)
-    #
-    # def on_subsys_change(self, change):
-    #     self.ui_vbox["current_subsys"].children = self.ui_vbox[
-    #         self.ui["subsys_dropdown"].v_model
-    #     ].children
-    #
-    # def activate_settings(self, change):
-    #     if self.ui["panels_choice_dropdown"].v_model:
-    #         panel_name, subsys_name = self.ui["panels_choice_dropdown"].v_model.split(
-    #             SEP
-    #         )
-    #         self.ui_hbox["panel_settings"].children = [
-    #             *self.ui["settings"][subsys_name][panel_name]
-    #         ]
-    #
-    # def delete_panel(self, *args):
-    #     btn_string = self.ui["panels_list"].v_model
-    #     toggle_btn = self.ui["strings_to_panel_switches"][btn_string]
-    #     toggle_btn.v_model = False  # this triggers an on_toggle_event
-    #
-    # def get_toggle_value_default(self, subsys_name, panel_name):
-    #     sys_type = self.subsys_types[subsys_name]
-    #     return panel_name in default_panels[sys_type]
-    #
-    # def get_panels_list(self):
-    #     panels_list: List[str] = []
-    #     for subsys_name, btn_dict in self.ui["panels_switches"].items():
-    #         for btn_name, btn in btn_dict.items():
-    #             if btn.v_model:
-    #                 panels_list.append(btn_name + SEP + subsys_name)
-    #     return panels_list
-    #
-    # def update_fixed_sliders(self, change):
-    #     self.ui["fixed_param_sliders"] = self.create_sliders()
-    #     self.ui_vbox["fixed_param_sliders"].children = [
-    #         *self.ui["fixed_param_sliders"],
-    #     ]
-    #     self.ui["sweep_value_slider"].label = self.ui["sweep_param_dropdown"].v_model
-    #     self.ui["sweep_value_slider"].options = self.sweep.param_info[
-    #         self.ui["sweep_param_dropdown"].v_model
-    #     ]
-    #
-    # def bare_dressed_toggle(self, change):
-    #     if self.ui["transitions"]["initial_bare_dressed_toggle"].v_model == "bare":
-    #         self.ui["transitions"]["initial_dressed_inttext"].disabled = True
-    #         for inttext in self.ui["transitions"]["initial_state_inttexts"]:
-    #             inttext.disabled = False
-    #     else:
-    #         self.ui["transitions"]["initial_dressed_inttext"].disabled = False
-    #         for inttext in self.ui["transitions"]["initial_state_inttexts"]:
-    #             inttext.disabled = True
-    #     self.update_plots(change)
-    #
-    # def fig_ax_by_index(self, index):
-    #     row_index = index // self.ncols
-    #     col_index = index % self.ncols
-    #     return self.fig, self.axes_table[row_index, col_index]
-    #
-    # @property
-    # def parameter_slice(self):
-    #     return ParameterSlice(
-    #         self.ui["sweep_param_dropdown"].v_model,
-    #         self.ui["sweep_value_slider"].current_value(),
-    #         self.fixed_params,
-    #         list(self.sweep.param_info.keys()),
-    #     )
-    #
-    # @matplotlib.rc_context(matplotlib_settings)
-    # def update_layout_and_plots(self: "Explorer", change):
-    #     panels = self.get_panels_list()
-    #
-    #     nrows = len(panels) // self.ncols
-    #     if len(panels) % self.ncols != 0:
-    #         nrows += 1
-    #
-    #     for axes in self.fig.axes:
-    #         self.fig.delaxes(axes)
-    #
-    #     plt.ioff()
-    #     if len(panels) > 0:
-    #         self.axes_table = self.fig.subplots(
-    #             ncols=self.ncols,
-    #             nrows=nrows,
-    #             squeeze=False,
-    #         )
-    #         self.fig.set_size_inches(1.1 * self.figwidth, 0.9 * self.figheight * nrows)
-    #
-    #     unfilled_cols_in_last_row = (self.ncols - len(panels) % self.ncols) % self.ncols
-    #     if unfilled_cols_in_last_row != 0:
-    #         for col in range(self.ncols - unfilled_cols_in_last_row, self.ncols):
-    #             self.axes_table[-1, col].remove()
-    #     # self.panel_count = len(panels)
-    #     self.update_plots(None)
-    #     plt.ion()
-    #
-    #     if not _HAS_WIDGET_BACKEND:
-    #         with self.ui["figure_display"]:
-    #             self.ui["figure_display"].clear_output(wait=True)
-    #             self.fig.tight_layout()
-    #             display(self.fig)
-    #
-    # @matplotlib.rc_context(matplotlib_settings)
-    # def update_plots(self: "Explorer", change):
-    #     if not hasattr(self, "fig"):
-    #         return
-    #
-    #     param_val = self.ui["sweep_value_slider"].current_value()
-    #     panels = self.get_panels_list()
-    #
-    #     param_slice = ParameterSlice(
-    #         self.ui["sweep_param_dropdown"].v_model,
-    #         param_val,
-    #         self.fixed_params,
-    #         list(self.sweep.param_info.keys()),
-    #     )
-    #
-    #     for axes in self.axes_table.flatten():
-    #         for item in axes.lines + axes.collections:
-    #             item.remove()
-    #         axes.set_prop_cycle(None)
-    #         axes.relim()
-    #         axes.autoscale_view()
-    #
-    #     for index, full_panel_name in enumerate(panels):
-    #         self.display_panel(
-    #             full_panel_name,
-    #             param_slice=param_slice,
-    #             fig_ax=self.fig_ax_by_index(index),
-    #         )
-    #
-    #     if not _HAS_WIDGET_BACKEND:
-    #         with self.ui["figure_display"]:
-    #             self.ui["figure_display"].clear_output(wait=True)
-    #             self.fig.tight_layout()
-    #             display(self.fig)
-    #     else:
-    #         self.fig.canvas.draw_idle()
-    #         self.fig.tight_layout()
-    #
-    # def build_ui_settings_subsys(self, subsys_index: int, panel_name: str):
-    #     subsys = self.sweep.get_subsys(subsys_index)
-    #     full_panel_name = panel_name + SEP + subsys.id_str
-    #
-    #     if panel_name == "Energy spectrum":
-    #         evals_count = self.sweep.subsys_evals_count(subsys_index)
-    #         self.ui_level_slider[full_panel_name] = ui.vNumberEntryWidget(
-    #             num_type=int,
-    #             label="Highest level",
-    #             v_min=1,
-    #             v_max=evals_count,
-    #             v_model=evals_count,
-    #         )
-    #         ui_subtract_ground_switch = v.Switch(
-    #             label="Subtract E\u2080", v_model=True, width=300
-    #         )
-    #         self.ui_level_slider[full_panel_name].observe(
-    #             self.update_plots, names="v_model"
-    #         )
-    #         ui_subtract_ground_switch.observe(self.update_plots, names="v_model")
-    #         return [
-    #             self.ui_level_slider[full_panel_name].widget(),
-    #             ui_subtract_ground_switch,
-    #         ]
-    #
-    #     if panel_name == "Wavefunctions":
-    #         if isinstance(
-    #             subsys, (scq.FluxQubit, scq.ZeroPi, scq.Bifluxon, scq.Cos2PhiQubit)
-    #         ):
-    #             ui_wavefunction_selector = ui.InitSelect(
-    #                 label="Display wavefunctions",
-    #                 items=list(range(subsys.truncated_dim)),
-    #                 v_model=0,
-    #             )
-    #         else:
-    #             ui_wavefunction_selector = ui.InitSelect(
-    #                 label="Display wavefunctions",
-    #                 multiple=True,
-    #                 items=list(range(subsys.truncated_dim)),
-    #                 v_model=list(range(5)),
-    #             )
-    #         ui_mode_dropdown = ui.InitSelect(
-    #             items=mode_dropdown_list,
-    #             v_model=mode_dropdown_list[0],
-    #             label="Plot amplitude as",
-    #         )
-    #         ui_wavefunction_selector.observe(self.update_plots, names="v_model")
-    #         ui_mode_dropdown.observe(self.update_plots, names="v_model")
-    #         return [ui_wavefunction_selector, ui_mode_dropdown]
-    #
-    #     if panel_name == "Matrix elements":
-    #         ui_mode_dropdown = ui.InitSelect(
-    #             items=list(zip(mode_dropdown_dict.keys(), mode_dropdown_dict.values())),
-    #             label="Plot matrix elements as",
-    #             v_model="abs",
-    #         )
-    #         ui_matrixscan_toggle = v.Switch(
-    #             items=["fixed", "sweep"], style_="width: 55px", v_model="fixed"
-    #         )
-    #         op_names = subsys.get_operator_names()
-    #         ui_operator_dropdown = ui.InitSelect(
-    #             items=op_names, label="Operator", v_model=op_names[0]
-    #         )
-    #         ui_mode_dropdown.observe(self.update_plots, names="v_model")
-    #         ui_operator_dropdown.observe(self.update_plots, names="v_model")
-    #         ui_matrixscan_toggle.observe(self.update_layout_and_plots, names="v_model")
-    #         return [ui_mode_dropdown, ui_operator_dropdown, ui_matrixscan_toggle]
-    #
-    #     return []
-    #
-    # def build_ui_settings_composite(self, panel_name: str):
-    #     if panel_name == "Transitions":
-    #         self.ui["transitions"]["initial_state_inttexts"] = [
-    #             ui.ValidatedNumberField(
-    #                 label="",
-    #                 num_type=int,
-    #                 v_min=0,
-    #                 v_max=subsys.truncated_dim,
-    #                 v_model=0,
-    #                 width=35,
-    #             )
-    #             for subsys in self.sweep.hilbertspace
-    #         ]
-    #
-    #         self.ui["transitions"]["initial_dressed_inttext"] = ui.ValidatedNumberField(
-    #             label="",
-    #             num_type=int,
-    #             v_min=0,
-    #             v_max=self.sweep.hilbertspace.dimension,
-    #             v_model=0,
-    #             width=35,
-    #             disabled=True,
-    #         )
-    #
-    #         self.ui["transitions"]["photons_inttext"] = ui.ValidatedNumberField(
-    #             num_type=int, v_model=1, v_min=1, v_max=5, label="", width=35
-    #         )
-    #         self.ui["transitions"]["highlight_selectmultiple"] = ui.InitSelect(
-    #             multiple=True,
-    #             label="",
-    #             items=self.subsys_names,
-    #             v_model=[self.subsys_names[0]],
-    #             width=185,
-    #         )
-    #
-    #         self.ui["transitions"]["initial_bare_dressed_toggle"] = v.Switch(
-    #             items=["bare", "dressed"],
-    #             v_model="bare",
-    #             disable=False,
-    #         )
-    #         self.ui["transitions"]["initial_bare_dressed_toggle"].style_ = "width: 45px"
-    #
-    #         self.ui["transitions"]["sidebands_switch"] = v.Switch(
-    #             label="show sidebands", v_model=True, width=250
-    #         )
-    #         for inttext in self.ui["transitions"]["initial_state_inttexts"]:
-    #             inttext.observe(self.update_plots, names="num_value")
-    #         self.ui["transitions"]["initial_dressed_inttext"].observe(
-    #             self.update_plots, names="num_value"
-    #         )
-    #         self.ui["transitions"]["photons_inttext"].observe(
-    #             self.update_plots, names="num_value"
-    #         )
-    #         self.ui["transitions"]["highlight_selectmultiple"].observe(
-    #             self.update_plots, names="v_model"
-    #         )
-    #         self.ui["transitions"]["sidebands_switch"].observe(
-    #             self.update_plots, names="v_model"
-    #         )
-    #         self.ui["transitions"]["initial_bare_dressed_toggle"].observe(
-    #             self.bare_dressed_toggle, names="v_model"
-    #         )
-    #
-    #         initial_state_selection = v.Container(
-    #             class_="d-flex flex-row justify-end",
-    #             children=[
-    #                 v.Text(children=["Initial state "]),
-    #                 *self.ui["transitions"]["initial_state_inttexts"],
-    #                 self.ui["transitions"]["initial_bare_dressed_toggle"],
-    #                 self.ui["transitions"]["initial_dressed_inttext"],
-    #             ],
-    #             style_="width: 400px",
-    #         )
-    #         photon_options_selection = v.Container(
-    #             class_="d-flex flex-row justify-end",
-    #             children=[
-    #                 v.Text(children=["photons"]),
-    #                 self.ui["transitions"]["photons_inttext"],
-    #                 self.ui["transitions"]["sidebands_switch"],
-    #             ],
-    #             style_="width: 400px",
-    #         )
-    #         transition_highlighting = v.Container(
-    #             class_="d-flex flex-row justify-end",
-    #             children=[
-    #                 v.Text(children=["Highlight:"]),
-    #                 self.ui["transitions"]["highlight_selectmultiple"],
-    #             ],
-    #             style_="width: 400px",
-    #         )
-    #
-    #         return [
-    #             initial_state_selection,
-    #             v.Container(
-    #                 class_="d-flex flex-column",
-    #                 children=[photon_options_selection, transition_highlighting],
-    #             ),
-    #         ]
+    #     explorer.fig.set_size_inches(1.1 * explorer.figwidth, 0.9 * explorer.figheight * nrows)
+    #
+    # unfilled_cols_in_last_row = (explorer.ncols - len(panels) % explorer.ncols) % explorer.ncols
+    # if unfilled_cols_in_last_row != 0:
+    #     for col in range(explorer.ncols - unfilled_cols_in_last_row, explorer.ncols):
+    #         explorer.axes_table[-1, col].remove()
+    # # explorer.panel_count = len(panels)
+    # explorer.update_plots(None)
+    # plt.ion()
+    #
+    # if not _HAS_WIDGET_BACKEND:
+    #     with explorer.ui["figure_display"]:
+    #         explorer.ui["figure_display"].clear_output(wait=True)
+    #         explorer.fig.tight_layout()
+    #         display(explorer.fig)
+
+    @matplotlib.rc_context(matplotlib_settings)
+    def update_plots(self: "Explorer", change):
+        param_val = self.ui["sweep_value_slider"].current_value()
+        panel_ids = self.selected_plot_id_list
+
+        param_slice = ParameterSlice(
+            self.ui["sweep_param_dropdown"].v_model,
+            param_val,
+            self.fixed_params,
+            list(self.sweep.param_info.keys()),
+        )
+
+        for axes in self.axes_list:
+            for item in axes.lines + axes.collections + axes.texts:
+                item.remove()
+            axes.set_prop_cycle(None)
+            axes.relim()
+            axes.autoscale_view()
+
+        for index, panel_id in enumerate(panel_ids):
+            fig = self.plot_collection.panel_by_id[panel_id].fig
+            ax = self.plot_collection.panel_by_id[panel_id].axes
+            output_widget = self.plot_collection.panel_by_id[panel_id].output
+            self.build_panel(panel_id, param_slice=param_slice, fig_ax=(fig, ax))
+            ax.title.set_text("")  # title is instead displayed in card header
+            if not _HAS_WIDGET_BACKEND:
+                with output_widget:
+                    output_widget.clear_output(wait=True)
+                    # fig.tight_layout()
+                    display(fig)
+            else:
+                fig.canvas.draw_idle()
+                # fig.tight_layout()

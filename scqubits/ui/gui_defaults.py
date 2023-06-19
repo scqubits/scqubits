@@ -11,6 +11,7 @@
 ############################################################################
 
 import collections, os, base64
+import enum
 
 try:
     import ipyvuetify as v
@@ -315,6 +316,7 @@ paramvals_from_papers = {
     },
 }
 
+# Plot categories available in the single-qubit GUI
 plot_choices = [
     "Energy spectrum",
     "Wavefunctions",
@@ -323,6 +325,7 @@ plot_choices = [
     "Coherence times",
 ]
 
+# The following qubits are supported by the GUI
 supported_qubits = [
     "Transmon",
     "TunableTransmon",
@@ -335,6 +338,7 @@ supported_qubits = [
     "Bifluxon",
 ]
 
+# The following qubits are supported by the GUI, but are slow, so auto-updating is disabled by default
 slow_qubits = [
     "FluxQubit",
     "ZeroPi",
@@ -344,18 +348,39 @@ slow_qubits = [
     "Bifluxon",
 ]
 
-subsys_panel_names = [
-    "Energy spectrum",
-    "Wavefunctions",
-    "Matrix elements",
-    "Anharmonicity",
-    "Self-Kerr",
-]
 
-composite_panel_names = ["Transitions", "Cross-Kerr, ac-Stark", "Custom data"]
+# Explorer plot names
+class PlotType(enum.Enum):
+    ENERGY_SPECTRUM = "Energy spectrum"
+    WAVEFUNCTIONS = "Wavefunctions"
+    MATRIX_ELEMENTS = "Matrix elements (fixed)"
+    MATRIX_ELEMENT_SCAN = "Matrix elements (sweep)"
+    ANHARMONICITY = "Anharmonicity"
+    SELF_KERR = "Self-Kerr"
+    TRANSITIONS = "Transitions"
+    CROSS_KERR = "Cross-Kerr"
+    AC_STARK = "ac Stark"
 
-common_panels = ["Energy spectrum", "Wavefunctions"]
 
+# Plot types associated with individual subsystems (used in Explorer class)
+subsys_plot_types = (
+    PlotType.ENERGY_SPECTRUM,
+    PlotType.WAVEFUNCTIONS,
+    PlotType.MATRIX_ELEMENTS,
+    PlotType.MATRIX_ELEMENT_SCAN,
+    PlotType.ANHARMONICITY,
+    PlotType.SELF_KERR,
+)
+
+
+# Plot names for composite-system plots (used in Explorer class)
+composite_plot_types = [PlotType.TRANSITIONS, PlotType.CROSS_KERR, PlotType.AC_STARK]
+
+
+# Plots that are activated for all `supported_qubits` when entering the Explorer class
+common_panels = [PlotType.ENERGY_SPECTRUM, PlotType.WAVEFUNCTIONS]
+
+# Options for plotting complex-valued data
 mode_dropdown_dict = {
     "Re(·)": "real",
     "Im(·)": "imag",
@@ -365,11 +390,19 @@ mode_dropdown_dict = {
 
 mode_dropdown_list = list(mode_dropdown_dict.keys())
 
+# Default panels for each qubit type, used as default in Explorer class
 default_panels = {qubit_name: common_panels for qubit_name in supported_qubits}
 default_panels["Oscillator"] = []
 default_panels["KerrOscillator"] = []
-default_panels["Composite"] = ["Transitions"]
+default_panels["Composite"] = [PlotType.TRANSITIONS]
 
+# Supported panels for each qubit type, used in Explorer class
+supported_panels = {qubit_name: subsys_plot_types for qubit_name in supported_qubits}
+supported_panels["Oscillator"] = [PlotType.ENERGY_SPECTRUM]
+supported_panels["KerrOscillator"] = [PlotType.ENERGY_SPECTRUM]
+supported_panels["Composite"] = composite_plot_types
+
+# Default plot options used in Explorer class
 PLOT_HEIGHT = "500px"
 FIG_WIDTH_INCHES = 6
 FIG_DPI = 150
