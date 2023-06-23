@@ -225,7 +225,7 @@ class CircuitRoutines(ABC):
         """
         cutoffs_dict = {}
 
-        for var_index in self.var_categories_list:
+        for var_index in self.var_index_list:
             for cutoff_name in self.cutoff_names:
                 if str(var_index) in cutoff_name:
                     cutoffs_dict[var_index] = getattr(self, cutoff_name)
@@ -1863,13 +1863,13 @@ class CircuitRoutines(ABC):
         linear_coeffs_q = []
         quad_coeffs_theta = []
         quad_coeffs_q = []
-        for var_index in self.var_categories_list:
+        for var_index in self.var_index_list:
             linear_coeffs_theta.append(float(hamiltonian.coeff(f"θ{var_index}")))
             linear_coeffs_q.append(float(hamiltonian.coeff(f"Q{var_index}")))
             quad_coeffs_theta.append(float(hamiltonian.coeff(f"θ{var_index}**2")))
             quad_coeffs_q.append(float(hamiltonian.coeff(f"Q{var_index}**2")))
         shift_operator = self._identity()
-        for idx, var_index in enumerate(self.var_categories_list):
+        for idx, var_index in enumerate(self.var_index_list):
             shift_operator = shift_operator @ self._kron_operator(
                 self.exp_i_operator(
                     sm.sympify(f"θ{var_index}"),
@@ -2317,7 +2317,7 @@ class CircuitRoutines(ABC):
             if isinstance(term, sm.Float):
                 expr_modified = expr_modified.subs(term, round(term, float_round))
 
-        for var_index in self.var_categories_list:
+        for var_index in self.var_index_list:
             # replace sinθ with sin(..) and similarly with cos
             expr_modified = (
                 expr_modified.replace(
@@ -2777,7 +2777,7 @@ class CircuitRoutines(ABC):
             ]
             wf_new_basis = wf_new_basis.reshape(flatten_list_recursive(wf_shape))
             for sub_subsys_index, sub_subsys in enumerate(subsystem.subsystems):
-                if len(set(relevant_indices) & set(sub_subsys.var_categories_list)) > 0:
+                if len(set(relevant_indices) & set(sub_subsys.var_index_list)) > 0:
                     wf_new_basis = self._recursive_basis_change(
                         wf_new_basis,
                         wf_dim + sub_subsys_index,
@@ -2785,7 +2785,7 @@ class CircuitRoutines(ABC):
                         relevant_indices=relevant_indices,
                     )
         else:
-            if len(set(relevant_indices) & set(subsystem.var_categories_list)) > 0:
+            if len(set(relevant_indices) & set(subsystem.var_index_list)) > 0:
                 wf_shape = list(wf_new_basis.shape)
                 wf_shape[wf_dim] = [
                     getattr(subsystem, cutoff_attrib)
@@ -2874,7 +2874,7 @@ class CircuitRoutines(ABC):
     def _get_var_dim_for_reshaped_wf(self, wf_var_indices, var_index):
         wf_dim = 0
         if not self.hierarchical_diagonalization:
-            return self.var_categories_list.index(var_index)
+            return self.var_index_list.index(var_index)
         for subsys in self.subsystems:
             intersection = list_intersection(subsys.var_index_list, wf_var_indices)
             if len(intersection) > 0 and var_index not in intersection:
@@ -2897,7 +2897,7 @@ class CircuitRoutines(ABC):
         return wf_dim
 
     def _dims_to_be_summed(self, var_indices: Tuple[int], num_wf_dims) -> List[int]:
-        all_var_indices = self.var_categories_list
+        all_var_indices = self.var_index_list
         non_summed_dims = []
         for var_index in all_var_indices:
             if var_index in var_indices:
@@ -2955,7 +2955,7 @@ class CircuitRoutines(ABC):
         for var_index in var_indices:
             # finding the dimension corresponding to the var_index
             if not self.hierarchical_diagonalization:
-                wf_dim = self.var_categories_list.index(var_index)
+                wf_dim = self.var_index_list.index(var_index)
             else:
                 wf_dim = self._get_var_dim_for_reshaped_wf(var_indices, var_index)
 

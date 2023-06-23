@@ -12,7 +12,7 @@
 
 import re
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 # define a type for recursive lists using forward reference and alias
 RecursiveList = List[Union[int, "RecursiveList"]]
@@ -70,15 +70,15 @@ class Subsystem(
         The symbolic expression which defines the Hamiltonian for the new subsystem.
     system_hierarchy:
         The system hierarchy within the new subsystem; has to be None when the
-        subsystem does not have any subsystem. Is set to None by default.
-        TODO: do we need to show an example?
+        subsystem does not have any subsystem. Set to None by default.
+        TODO: do we need to show an example? Refer to doc.
     subsystem_trunc_dims:
         The truncated dimensions for the subsystems within the new subsystem;
-        has to None when the subsystem does not have any subsystem. Is set to None
+        has to None when the subsystem does not have any subsystem. Set to None
         by default.
         TODO: do we need to show an example?
     truncated_dim:
-        The truncated dimension for the current subsystem. Is set to 10 by default.
+        The truncated dimension for the current subsystem. Set to 10 by default.
     """
 
     def __init__(
@@ -108,10 +108,13 @@ class Subsystem(
         self._default_grid_phi = self.parent._default_grid_phi
         # TODO change the name for `_default_grid_phi`? We need to fix whether we want to use `phi` or `theta`
         # for flux/phase
+        # notice that we have already method `discretized_phi_range`
+        # Sai's reasoning: phi is more familiar with the community
+        # maybe flux is a better choice?
+        # check with Jens.
 
-        # initialize the two attributes for storing junction potential and (TODO what?)
+        # initialize the two attributes for storing junction potential
         self.junction_potential = None
-        self._H_LC_str_harmonic = None
 
         # this _make_property method is implemented in CircuitRoutines class
         # here, a property `ext_basis` is created for the new subsystem, which is the same as the parent's
@@ -134,16 +137,14 @@ class Subsystem(
         ]
         # find out symbolic parameters in the new subsystem by looking up the parent's symbolic parameters
         # and checking whether they are in the new subsystem's Hamiltonian
-        # TODO why symbolic_params is a dict but external fluxes and offset charges are lists?
-        # TODO check the type annotation here
+        # Sai: make symbolic_params a list as well, store all the symbolic parameter values as properties/attributes
+        # TODO: change it to list, and whenever we fetch values, use __getattr__ to get the value.
         self.symbolic_params: Dict[sm.Expr, float] = {
             var: self.parent.symbolic_params[var]
             for var in self.parent.symbolic_params
             if var in self.hamiltonian_symbolic.free_symbols
         }
 
-        # TODO: is `var_categories_list` actually lists of variable indices? I renamed it to `var_index_list`
-        # TODO: no other reference to `cutoffs` in anywhere else in the code, remove it?
         # obtain variable indices and cutoffs in the subsystem by looking up the parent's variable indices and
         # cutoffs and checking whether they are in the new subsystem's Hamiltonian
         self.var_index_list: List[int] = []
@@ -183,7 +184,8 @@ class Subsystem(
         # and bring the potential into the same form as for the class Circuit
         # all cosθ<i> and sinθ<i> terms are replaced by sm.cos(1.0 * θ<i>) and sm.sin(1.0 * θ<i>)
         # and all I terms are replaced by 1/(2*pi)
-        # TODO: what was I? Was I relate to external flux?
+        # TODO: what was I? Was I relate to external flux? This is related to the const in cos and sin
+        # Sai: need to refactor the matter with 2pi
         potential_symbolic = 0 * sm.symbols("x")
         for term in self.hamiltonian_symbolic.as_ordered_terms():
             if is_potential_term(term):
@@ -205,6 +207,8 @@ class Subsystem(
 
         # TODO: why if only one variable and harmonic basis, then dense matrices?
         # if I have two external variables, then sparse matrices?
+        # Sai: we would have many zeros for systems with dofs > 2
+        # followup: is it true for inductively coupled fluxonia?
         if len(self.var_index_list) == 1 and self.ext_basis == "harmonic":
             self.type_of_matrices = "dense"
         else:
@@ -216,6 +220,7 @@ class Subsystem(
         # attributes for purely harmonic
         # TODO: not all subsystems are purely harmonic, do we have to have this attribute for
         # non-purely-harmonic subsystems?
+        # Sai: consider about removing it for non-purely-harmonic subsystems
         self.normal_mode_freqs = []
 
         # call `_configure` and then freeze the subsystem from adding new attributes
@@ -231,7 +236,8 @@ class Subsystem(
         # and get properties values from parent
         # TODO double check if I understood `symbolic_params` correctly, I rewrote the iterator
         # in a way that it looks natural for a dict
-        for param, param_val in self.symbolic_params:
+        # Sai: depends on how we modify symbolic_params
+        for param in self.symbolic_params.keys():
             self._make_property(
                 param.name, getattr(self.parent, param.name), "update_param_vars"
             )
@@ -259,6 +265,10 @@ class Subsystem(
         # if so, then switch the external basis to harmonic and diagonalize the hamiltonian
         # TODO need to think about its consistency with other parts of the code where we specify
         # basis types
+        # Need to cook up an example to see the impact of this change
+        # should we inform user which basis is used?
+        # currently the `_ext_basis` of the child takes the precedence over the parent when
+        # we do the diagonalization.
         if self._is_expression_purely_harmonic(self.hamiltonian_symbolic):
             self.is_purely_harmonic = True
             self._ext_basis = (
@@ -268,18 +278,6 @@ class Subsystem(
         else:
             self.is_purely_harmonic = False
 
-        # TODO the following code would never run because a Circuit instance no longer inherits
-        # from Subsystem.
-        # Creating the attributes for purely harmonic circuits
-        # if (
-        #     isinstance(self, Circuit) and self.parent.is_purely_harmonic
-        # ):  # assuming that the parent has only extended variables and are ordered
-        #     # starting from 1, 2, 3, ...
-        #     self.is_purely_harmonic = self.parent.is_purely_harmonic
-        #     self.normal_mode_freqs = self.parent.normal_mode_freqs[
-        #         [var_idx - 1 for var_idx in self.var_categories["extended"]]
-        #     ]
-
         # set a `self.vars` attribute which is a dict of all variables in the subsystem
         self._set_vars()
 
@@ -288,9 +286,9 @@ class Subsystem(
 
         if self.hierarchical_diagonalization:
             # initialize the attribute to keep track of updated subsystem indices
-            # TODO what is the need for this attribute? Do we need this for the following
+            # TODO what is the need for this attribute? Do we need this for the following
             # lines of code before the assigment line later?
-            self.affected_subsystem_indices = []
+            # self.affected_subsystem_indices = []
 
             # generate subsystems and interactions, perform checks on truncation indices
             self.generate_subsystems()
@@ -305,10 +303,7 @@ class Subsystem(
 
         if self.hierarchical_diagonalization:
             # set up central dispatch for the sync status of the subsystems
-            # TODO: a question: is the central dispatch here expected to be used for checking
-            # the sync status of the current subsystem or that of child subsystems?
-            # clearly, this _out_of_sync is only set for the current subsystem, only if it 
-            # has child subsystems.
+            # when the child is out of sync with the parent, then `_out_of_sync` is set to `True`
             self._out_of_sync = False
             dispatch.CENTRAL_DISPATCH.register("CIRCUIT_UPDATE", self)
         self._frozen = True
@@ -326,49 +321,63 @@ class Circuit(
 
     Parameters
     ----------
-    input_string: str
-        String describing the number of nodes and branches connecting then along
-        with their parameters
-    from_file: bool
-        Set to True by default, when a file name should be provided to
-        `input_string`, else the circuit graph description in YAML should be
-        provided as a string.
-    basis_completion: str
-        either "heuristic" or "canonical", defines the matrix used for completing the
-        transformation matrix. Sometimes used to change the variable transformation
-        to result in a simpler symbolic Hamiltonian, by default "heuristic"
-    ext_basis: str
-        can be "discretized" or "harmonic" which chooses whether to use discretized
-        phi or harmonic oscillator basis for extended variables,
-        by default "discretized"
-    is_flux_dynamic: bool
-        set to False by default. Indicates if the flux allocation is done by assuming
-        that flux is time dependent. When set to True, it disables the option to change
-        the closure branches.
-    initiate_sym_calc: bool
-        attribute to initiate Circuit instance, by default `True`
-    truncated_dim: Optional[int]
-        truncated dimension if the user wants to use this circuit instance in
-        HilbertSpace, by default `None`
+    input_string:
+        If `from_file = False`, expected be a yaml string describing the circuit.
+        If `from_file = True`, expected to be a path of a file that stores the yaml string for the circuit.
+    from_file:
+        If `True`, a file path should be provided for `input_string`.
+        If `False`, a yaml string describing the circuit is expected for `input_string`.
+        Set to `False` by default.
+    basis_completion:
+        Either "heuristic" or "canonical". Defines the matrix used for completing the
+        extended degrees of freedom part of the transformation matrix. Sometimes one of
+        these options may lead to a simpler symbolic Hamiltonian than the other. Set to
+        "heuristic" by default.
+        TODO need a better description for this. (Sai)
+    ext_basis:
+        Either "discretized" or "harmonic", which chooses whether to use discretized
+        flux or harmonic oscillator basis for extended degrees of freedom. Set to "discretized"
+        by default.
+    is_flux_dynamic:
+        If `True`, the flux allocation is done by assuming that flux is time dependent. The option to change
+        the closure branches is then disabled. Set to `False` by default.
+    initiate_sym_calc:
+        attribute to initiate Circuit instance, set to by default `True`
+        TODO decide whether or not to keep this argument (remove it. remove from all the inits, extinguish it)
+    truncated_dim:
+        The truncated dimension for this Circuit instance. Needed when this Circuit instance is used for
+        composing a composite system using the HilbertSpace class. Set to `None` by default.
+    symbolic_hamiltonian:
+        A sympy expression for the symbolic circuit Hamiltonian. If both the yaml string for the circuit and the
+        symbolic Hamiltonian provided, the yaml string for the circuit is neglected.
+    symbolic_param_dict:
+        A dictionary {"<symbolic parameter name>": <value>} for initial values of parameters in `symbolic_hamiltonian`.
+        Ignored if `symbolic_hamiltonian = None`.
+
+    TODO Sai: check if I am not writing nonsense for the symbolic_param_dict and symbolic_hamiltonian
     """
 
     def __init__(
         self,
-        input_string: str,
-        from_file: bool = True,
-        basis_completion="heuristic",
-        ext_basis: str = "discretized",
+        input_string: Optional[str] = None,
+        from_file: bool = False,
+        basis_completion: Literal["heuristic", "canonical"] = "heuristic",
+        ext_basis: Literal[
+            "discretized", "harmonic"
+        ] = "discretized",  # make similar changes in other places TODO
         is_flux_dynamic: bool = False,
         initiate_sym_calc: bool = True,
-        truncated_dim: int = None,
-        symbolic_param_dict: Dict[str, float] = None,
-        symbolic_hamiltonian: sm.Expr = None,
+        truncated_dim: int = 10,
+        symbolic_hamiltonian: Optional[sm.Expr] = None,
+        symbolic_param_dict: Optional[Dict[str, float]] = None,
     ):
-        # switch used in protecting the class from erroneous addition of new attributes
+        # attribute used in protecting the class from erroneous addition of new attributes
+        # __setattr__ method is overwritten for Circuit and SubSystem classes (see circuit_routines.py),
+        # therefore _frozen needs to be set using the default __setattr__ method
         object.__setattr__(self, "_frozen", False)
 
         if not symbolic_hamiltonian:
-            self.from_yaml(
+            self._init_from_yaml(
                 input_string=input_string,
                 from_file=from_file,
                 basis_completion=basis_completion,
@@ -377,9 +386,8 @@ class Circuit(
                 initiate_sym_calc=initiate_sym_calc,
                 truncated_dim=truncated_dim,
             )
-
         else:
-            self.from_symbolic_hamiltonian(
+            self._init_from_symbolic_hamiltonian(
                 symbolic_hamiltonian=symbolic_hamiltonian,
                 symbolic_param_dict=symbolic_param_dict,
                 initiate_sym_calc=initiate_sym_calc,
@@ -387,7 +395,7 @@ class Circuit(
                 ext_basis=ext_basis,
             )
 
-    def from_symbolic_hamiltonian(
+    def _init_from_symbolic_hamiltonian(
         self,
         symbolic_hamiltonian: sm.Expr,
         symbolic_param_dict: Dict[str, float],
@@ -436,10 +444,10 @@ class Circuit(
         self._frozen = True
         dispatch.CENTRAL_DISPATCH.register("CIRCUIT_UPDATE", self)
 
-    def from_yaml(
+    def _init_from_yaml(
         self,
         input_string: str,
-        from_file: bool = True,
+        from_file: bool = False,
         basis_completion="heuristic",
         ext_basis: str = "discretized",
         is_flux_dynamic: bool = False,
@@ -447,6 +455,7 @@ class Circuit(
         truncated_dim: int = None,
     ):
         """
+        # TODO rewording this docstring
         Wrapper to Circuit __init__ to create a class instance. This is deprecated and
         will not be supported in future releases.
 
@@ -456,9 +465,9 @@ class Circuit(
             String describing the number of nodes and branches connecting then along
             with their parameters
         from_file:
-            Set to True by default, when a file name should be provided to
-            `input_string`, else the circuit graph description in YAML should be
-            provided as a string.
+            When set to true, a file name should be provided to `input_string`, else
+            the circuit graph description in YAML should be provided as a string.
+            Set to True by default.
         basis_completion:
             either "heuristic" or "canonical", defines the matrix used for completing
             the transformation matrix. Sometimes used to change the variable
@@ -556,7 +565,7 @@ class Circuit(
         self, var_indices: Tuple[int], phi_range: Tuple[float]
     ) -> None:
         """
-        Sets the flux range for discretized phi basis when ext_basis is set to
+        Sets the flux range for discretized flux basis when ext_basis is set to
         'discretized'.
 
         Parameters
@@ -883,7 +892,7 @@ class Circuit(
                         )
                         self.cutoff_names.append(f"cutoff_ext_{var_index}")
 
-        self.var_categories_list = flatten_list(list(self.var_categories.values()))
+        self.var_index_list = flatten_list(list(self.var_categories.values()))
 
         # default values for the parameters
         for idx, param in enumerate(self.symbolic_params):
@@ -1050,7 +1059,7 @@ class Circuit(
                         )
                         self.cutoff_names.append(f"cutoff_ext_{var_index}")
 
-        self.var_categories_list = flatten_list(list(self.var_categories.values()))
+        self.var_index_list = flatten_list(list(self.var_categories.values()))
 
         # default values for the parameters
         for idx, param in enumerate(self.symbolic_params):
@@ -1231,7 +1240,7 @@ class Circuit(
         elif vars_type == "new":
             lagrangian = self.lagrangian_symbolic
             # replace v\theta with \theta_dot
-            for var_index in self.var_categories_list:
+            for var_index in self.var_index_list:
                 lagrangian = lagrangian.replace(
                     sm.symbols(f"vθ{var_index}"),
                     sm.symbols("\\dot{θ_" + str(var_index) + "}"),
