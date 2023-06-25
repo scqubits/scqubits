@@ -380,6 +380,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
             "tphi_1_over_f_cc2",
             "tphi_1_over_f_cc3",
             "tphi_1_over_f_cc",
+            "tphi_1_over_f_flux",
             # 'tphi_1_over_f_ng1',
             # 'tphi_1_over_f_ng2',
             # 'tphi_1_over_f_ng',
@@ -615,6 +616,48 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
             * (
                 np.exp(-1j * 2 * np.pi * self.flux)
                 * np.kron(self._exp_i_phi_operator().T, self._exp_i_phi_operator())
+            )
+        )
+        return self.process_op(native_op=native, energy_esys=energy_esys)
+
+    def d_hamiltonian_d_flux(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
+        """
+        Returns the operator representing a derivative of the Hamiltonian with respect to flux
+        in the native Hamiltonian basis or eigenenergy basis.
+
+        Parameters
+        ----------
+        energy_esys:
+            If `False` (default), returns operator in the native Hamiltonian basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
+            for m given eigenvectors.
+        """
+        native = (
+            2j
+            * np.pi
+            * (
+                -0.5
+                * self.EJ3
+                * (
+                    np.exp(1j * 2 * np.pi * self.flux)
+                    * np.kron(self._exp_i_phi_operator(), self._exp_i_phi_operator().T)
+                )
+                + 0.5
+                * self.EJ3
+                * (
+                    np.exp(-1j * 2 * np.pi * self.flux)
+                    * np.kron(self._exp_i_phi_operator().T, self._exp_i_phi_operator())
+                )
             )
         )
         return self.process_op(native_op=native, energy_esys=energy_esys)

@@ -49,7 +49,7 @@ _direct_plot_options = {
 
 @mpl.rc_context(matplotlib_settings)
 def _extract_kwargs_options(
-    kwargs: Dict[str, Any], plot_type: str, direct_plot_options: Dict[str, Any] = None
+    kwargs: Dict[str, Any], plot_type: str, direct_plot_options: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
     Select options from kwargs for a given plot_type and return them in a dictionary.
@@ -82,7 +82,7 @@ def _extract_kwargs_options(
 
 @mpl.rc_context(matplotlib_settings)
 def _process_options(
-    figure: Figure, axes: Axes, opts: Dict[str, Any] = None, **kwargs
+    figure: Figure, axes: Axes, opts: Optional[Dict[str, Any]] = None, **kwargs
 ) -> None:
     """
     Processes plotting options.

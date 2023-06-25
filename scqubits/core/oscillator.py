@@ -160,7 +160,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
             raise ValueError(
                 "Variable l_osc has to be set to something other than None\n"
                 + "in order to use the phi_operator() method. This can be done by either\n"
-                + "passing it to the class constructor, or by setting it afterwords."
+                + "passing it to the class constructor, or by setting it afterwards."
             )
         a = op.annihilation(self.truncated_dim)
         return self.l_osc / np.sqrt(2) * (a + a.T)
@@ -175,7 +175,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
             raise ValueError(
                 "Variable l_osc has to be set to something other than None\n"
                 + "in order to use the n_operator() method. This can be done by either\n"
-                + "passing it to the class constructor, or by setting it afterwords."
+                + "passing it to the class constructor, or by setting it afterwards."
             )
         a = op.annihilation(self.truncated_dim)
         return 1.0j / (self.l_osc * np.sqrt(2)) * (a.T - a)

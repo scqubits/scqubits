@@ -27,7 +27,7 @@ Matplotlib.
 
 import warnings
 
-from typing import Any, Type, Union
+from typing import Any, Optional, Type, Union
 
 import matplotlib.font_manager as mpl_font
 import numpy as np
@@ -41,7 +41,7 @@ def warning_on_one_line(
     category: Type[Warning],
     filename: str,
     lineno: int,
-    line: str = None,
+    line: Optional[str] = None,
 ) -> str:
     return "{}: {}\n {}: {}".format(category.__name__, message, filename, lineno)
 
@@ -95,12 +95,15 @@ MULTIPROC = "pathos"
 # Matplotlib options -------------------------------------------------------------------
 # select fonts
 FONT_SELECTED = None
-for font in ["IBM Plex Sans", "Roboto", "Arial", "Helvetica"]:
-    if font in mpl_font.get_font_names():
-        FONT_SELECTED = font
-        break
-
-if not FONT_SELECTED:
+try:
+    font_names = mpl_font.get_font_names()
+    for font in ["IBM Plex Sans", "Roboto", "Arial", "Helvetica"]:
+        if font in font_names:
+            FONT_SELECTED = font
+            break
+    if not FONT_SELECTED:
+        FONT_SELECTED = "sans-serif"
+except AttributeError:
     FONT_SELECTED = "sans-serif"
 
 # set matplotlib defaults for use in @mpl.rc_context
@@ -126,7 +129,7 @@ matplotlib_settings = {
     "font.size": 11,
     "font.weight": 500,
     "axes.labelsize": 11,
-    "axes.titlesize": 12,
+    "axes.titlesize": 11,
     "axes.titleweight": 500,
     "xtick.labelsize": 10,
     "ytick.labelsize": 10,

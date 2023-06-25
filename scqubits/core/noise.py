@@ -20,7 +20,6 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
 import scipy as sp
-import scipy.constants
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure

@@ -208,7 +208,7 @@ class QuantumSystem(DispatchClient, ABC):
         instance.widget()
         return instance
 
-    def widget(self, params: Dict[str, Any] = None):
+    def widget(self, params: Optional[Dict[str, Any]] = None):
         """Use ipywidgets to modify parameters of class instance"""
         init_params = params or self.get_initdata()
         init_params.pop("id_str", None)
@@ -282,7 +282,7 @@ class QubitBaseClass(QuantumSystem, ABC):
     def eigenvals(
         self,
         evals_count: int = 6,
-        filename: str = None,
+        filename: Optional[str] = None,
         return_spectrumdata: "Literal[False]" = False,
     ) -> ndarray:
         ...
@@ -299,7 +299,7 @@ class QubitBaseClass(QuantumSystem, ABC):
     def eigenvals(
         self,
         evals_count: int = 6,
-        filename: str = None,
+        filename: Optional[str] = None,
         return_spectrumdata: bool = False,
     ) -> Union[SpectrumData, ndarray]:
         """Calculates eigenvalues using `scipy.linalg.eigh`, returns numpy array of
@@ -333,7 +333,7 @@ class QubitBaseClass(QuantumSystem, ABC):
     def eigensys(
         self,
         evals_count: int = 6,
-        filename: str = None,
+        filename: Optional[str] = None,
         return_spectrumdata: "Literal[False]" = False,
     ) -> Tuple[ndarray, ndarray]:
         ...
@@ -350,7 +350,7 @@ class QubitBaseClass(QuantumSystem, ABC):
     def eigensys(
         self,
         evals_count: int = 6,
-        filename: str = None,
+        filename: Optional[str] = None,
         return_spectrumdata: bool = False,
     ) -> Union[Tuple[ndarray, ndarray], SpectrumData]:
         """Calculates eigenvalues and corresponding eigenvectors using
@@ -1145,7 +1145,7 @@ class QubitBaseClass1d(QubitBaseClass):
         mode: str = "real",
         esys: Tuple[ndarray, ndarray] = None,
         phi_grid: Grid1d = None,
-        scaling: float = None,
+        scaling: Optional[float] = None,
         **kwargs,
     ) -> Tuple[Figure, Axes]:
         """Plot 1d phase-basis wave function(s). Must be overwritten by

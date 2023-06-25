@@ -828,7 +828,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         return functools.reduce(builtin_op.mul, operator_list)
 
     def _generate_symbols_list(
-        self, var_str: str, iterable_list: List[int] or ndarray
+        self, var_str: str, iterable_list: Union[List[int], ndarray]
     ) -> List[sm.Symbol]:
         """
         Returns the list of symbols generated using the var_str + iterable as the name
