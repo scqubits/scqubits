@@ -51,9 +51,10 @@ if _HAS_IPYVUETIFY:
         icons[name] = v.Img(src=f"data:image/png;base64,{image_base64}", width=50)
 
 
-EL_range = {"v_min": 1.0e-5, "v_max": 10.0}
-EJ_range = {"v_min": 1.0e-5, "v_max": 70.0}
-EC_range = {"v_min": 1.0e-5, "v_max": 10.0}
+STEP = 1e-2
+EL_range = {"v_min": STEP, "v_max": 10.0}
+EJ_range = {"v_min": STEP, "v_max": 70.0}
+EC_range = {"v_min": STEP, "v_max": 10.0}
 flux_range = {"v_min": 0.0, "v_max": 1.0}
 ng_range = {"v_min": 0.0, "v_max": 1.0}
 int_range = {"v_min": 1, "v_max": 30}
@@ -116,8 +117,8 @@ fluxqubit_defaults = {
     "num_sample": 100,
 }
 
-snail_EJ_range = {"v_min": 1e-5, "v_max": 2e3}
-snail_EC_range = {"v_min": 1e-5, "v_max": 300.0}
+snail_EJ_range = {"v_min": STEP, "v_max": 2e3}
+snail_EC_range = {"v_min": STEP, "v_max": 300.0}
 
 snailmon_defaults = {
     **global_defaults,
@@ -398,7 +399,7 @@ default_panels["Composite"] = [PlotType.TRANSITIONS]
 
 # Supported panels for each qubit type, used in Explorer class
 supported_panels = {qubit_name: subsys_plot_types for qubit_name in supported_qubits}
-supported_panels["Oscillator"] = [PlotType.ENERGY_SPECTRUM]
+supported_panels["Oscillator"] = [PlotType.ENERGY_SPECTRUM, PlotType.SELF_KERR]
 supported_panels["KerrOscillator"] = [PlotType.ENERGY_SPECTRUM]
 supported_panels["Composite"] = composite_plot_types
 

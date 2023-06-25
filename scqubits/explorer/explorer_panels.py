@@ -18,6 +18,7 @@ from matplotlib import rc_context
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
+import scqubits.core.constants
 import scqubits.core.units as units
 import scqubits.utils.plotting as plot
 
@@ -107,6 +108,16 @@ def display_matrixelements(
         show_colorbar=True,
         fig_ax=fig_ax,
         title=title,
+    )
+    axes.text(
+        0.5,
+        1.05,
+        f"{scqubits.core.constants.MODE_STR_DICT[mode_str](operator_name)}",
+        fontsize=9,
+        fontweight=300,
+        horizontalalignment="center",
+        verticalalignment="bottom",
+        transform=axes.transAxes,
     )
     return fig, axes
 

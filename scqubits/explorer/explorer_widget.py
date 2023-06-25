@@ -144,14 +144,14 @@ class Explorer:
         self.build_panel_switches()
         self.ui["add_plot_dialog"] = self.build_ui_add_plot_dialog()
 
-        self.ui["sweep_param_dropdown"] = ui.vInitSelect(
+        self.ui["sweep_param_dropdown"] = ui.InitializedSelect(
             class_="px-2",
             style_="max-width: 200px;",
             label="Active Sweep Parameter",
             items=list(self.sweep.param_info.keys()),
         )
 
-        self.ui["sweep_value_slider"] = ui.vDiscreteSetSlider(
+        self.ui["sweep_value_slider"] = ui.DiscreteSetSlider(
             param_name=self.ui["sweep_param_dropdown"].v_model,
             param_vals=self.param_vals,
             filled=False,
@@ -229,8 +229,8 @@ class Explorer:
 
     def build_panel_switches(self) -> None:
         # The panel switches reflect the set of panels that are currently displayed
-        ui_panel_switch_by_plot_id: Dict[PlotID, ui.vRefSwitch] = {}
-        ui_panel_switches_by_subsys_name: Dict[str, List[ui.vRefSwitch]] = {
+        ui_panel_switch_by_plot_id: Dict[PlotID, ui.LinkedSwitch] = {}
+        ui_panel_switches_by_subsys_name: Dict[str, List[ui.LinkedSwitch]] = {
             "Composite": []
         }
 
@@ -241,7 +241,7 @@ class Explorer:
             subsys_type_str = type(subsys).__name__
             for plot_type in supported_panels[subsys_type_str]:
                 plot_id = PlotID(plot_type, [subsys])
-                ui_panel_switch_by_plot_id[plot_id] = ui.vRefSwitch(
+                ui_panel_switch_by_plot_id[plot_id] = ui.LinkedSwitch(
                     v_model=plot_id.is_default_active(),
                     label=plot_type.value,
                     ref=plot_id,
@@ -255,7 +255,7 @@ class Explorer:
         # Add composite panels
 
         plot_id = PlotID(PlotType.TRANSITIONS, self.subsystems)
-        ui_panel_switch_by_plot_id[plot_id] = ui.vRefSwitch(
+        ui_panel_switch_by_plot_id[plot_id] = ui.LinkedSwitch(
             v_model=plot_id.is_default_active(),
             label="Transitions",
             ref=plot_id,
@@ -278,7 +278,7 @@ class Explorer:
 
             plot_id = PlotID(plot_type, [subsys1, subsys2])
 
-            ui_panel_switch_by_plot_id[plot_id] = ui.vRefSwitch(
+            ui_panel_switch_by_plot_id[plot_id] = ui.LinkedSwitch(
                 v_model=plot_id.is_default_active(),
                 label=f"{plot_type.value}: {subsys1.id_str}, {subsys2.id_str}",
                 ref=plot_id,
@@ -352,7 +352,7 @@ class Explorer:
                         v.CardActions(
                             class_="justify-center",
                             children=[
-                                ui.vBtn(
+                                ui.LinkedButton(
                                     onclick=self.close_plot_choice_dialog,
                                     children=["FINISH"],
                                 )
@@ -453,14 +453,14 @@ class Explorer:
                 param_slice,
                 fig_ax,
             )
-        elif plot_id.plot_type == "Self-Kerr":
+        elif plot_id.plot_type == PlotType.SELF_KERR:
             return panels.display_self_kerr(
                 sweep=self.sweep,
                 subsys=plot_id.subsystems[0],
                 param_slice=param_slice,
                 fig_ax=fig_ax,
             )
-        elif plot_id.plot_type in ["Cross-Kerr", "ac Stark"]:
+        elif plot_id.plot_type in [PlotType.CROSS_KERR, PlotType.AC_STARK]:
             return panels.display_cross_kerr(
                 sweep=self.sweep,
                 subsys1=plot_id.subsystems[0],
@@ -471,7 +471,7 @@ class Explorer:
         raise NotImplementedError(f"Plot type {plot_id} not implemented.")
 
     @property
-    def active_switches_by_plot_id(self) -> Dict[PlotID, "ui.vRefSwitch"]:
+    def active_switches_by_plot_id(self) -> Dict[PlotID, "ui.LinkedSwitch"]:
         """Returns a dictionary labeling all selected switches by their plot_id names."""
         return {
             plot_id: switch
@@ -489,7 +489,7 @@ class Explorer:
         """Returns a list of selection sliders, one for each parameter that is part
         of the underlying ParameterSweep object."""
         sliders = [
-            ui.vInitSelect(
+            ui.InitializedSelect(
                 label=param_name,
                 items=param_array.tolist(),
             )
@@ -497,7 +497,7 @@ class Explorer:
             if param_name != self.ui["sweep_param_dropdown"].v_model
         ]
         for slider in sliders:
-            slider.observe(self.update_plots, names="v_model")
+            slider.observe(self.update_plots, names="num_value")
         return sliders
 
     @property

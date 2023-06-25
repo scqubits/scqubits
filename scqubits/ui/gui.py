@@ -113,8 +113,8 @@ class GUI:
         self.v_save_btn = init_save_btn()
         self.v_save_filename = init_filename_textfield()
 
-        self.dict_v_ranges: Dict[str, Dict[str, ui.vValidatedNumberField]] = {}
-        self.dict_v_noise_params: Dict[str, ui.vValidatedNumberField] = {}
+        self.dict_v_ranges: Dict[str, Dict[str, ui.ValidatedNumberField]] = {}
+        self.dict_v_noise_params: Dict[str, ui.ValidatedNumberField] = {}
         self.dict_v_plot_options: Dict[str, Any] = {}
         self.dict_v_qubit_params: Dict[str, Any] = {}
 
@@ -821,16 +821,7 @@ class GUI:
     def plot_refresh(self, change, *args):
         self.update_params()
 
-        if (
-            change
-            and isinstance(change["owner"], ui.vValidatedNumberField)
-            and change["owner"]._continuous_update_in_progress
-        ):
-            do_update = False
-        else:
-            do_update = True
-
-        if do_update and self.auto_updating:
+        if self.auto_updating:
             self.refresh_current_plot(change=None)
 
     def literature_url_refresh(self, change) -> None:

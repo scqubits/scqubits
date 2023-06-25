@@ -20,7 +20,7 @@ from scqubits.utils import misc as utils
 
 
 if TYPE_CHECKING:
-    from scqubits.ui.explorer_widget import PlotID
+    from scqubits.explorer.explorer_widget import PlotID
     from scqubits import Explorer
 
 try:
@@ -100,7 +100,7 @@ class ExplorerSettings:
             subsys = subsys[0]
             subsys_index = self.explorer.sweep.get_subsys_index(subsys)
             evals_count = self.explorer.sweep.subsys_evals_count(subsys_index)
-            self.ui["level_slider"][plot_id] = ui.vNumberEntryWidget(
+            self.ui["level_slider"][plot_id] = ui.NumberEntryWidget(
                 num_type=int,
                 label="Highest level",
                 v_min=1,
@@ -134,19 +134,19 @@ class ExplorerSettings:
             if isinstance(
                 subsys, (scq.FluxQubit, scq.ZeroPi, scq.Bifluxon, scq.Cos2PhiQubit)
             ):
-                ui_wavefunction_selector = ui.vInitSelect(
+                ui_wavefunction_selector = ui.InitializedSelect(
                     label="Display wavefunctions",
                     items=list(range(subsys.truncated_dim)),
                     v_model=0,
                 )
             else:
-                ui_wavefunction_selector = ui.vInitSelect(
+                ui_wavefunction_selector = ui.InitializedSelect(
                     label="Display wavefunctions",
                     multiple=True,
                     items=list(range(subsys.truncated_dim)),
-                    v_model=list(range(5)),
+                    v_model=list(range(subsys.truncated_dim))
                 )
-            ui_mode_dropdown = ui.vInitSelect(
+            ui_mode_dropdown = ui.InitializedSelect(
                 items=mode_dropdown_list,
                 v_model=mode_dropdown_list[0],
                 label="Plot amplitude as",
@@ -159,13 +159,13 @@ class ExplorerSettings:
 
         if plot_type == PlotType.MATRIX_ELEMENTS:
             subsys = subsys[0]
-            ui_mode_dropdown = ui.vInitSelect(
+            ui_mode_dropdown = ui.InitializedSelect(
                 items=mode_dropdown_list,
                 label="Plot matrix elements as",
                 v_model=mode_dropdown_list[2],
             )
             op_names = subsys.get_operator_names()
-            ui_operator_dropdown = ui.vInitSelect(
+            ui_operator_dropdown = ui.InitializedSelect(
                 items=op_names, label="Operator", v_model=op_names[0]
             )
             ui_mode_dropdown.observe(self.explorer.update_plots, names="v_model")
@@ -174,13 +174,13 @@ class ExplorerSettings:
 
         if plot_type == PlotType.MATRIX_ELEMENT_SCAN:
             subsys = subsys[0]
-            ui_mode_dropdown = ui.vInitSelect(
+            ui_mode_dropdown = ui.InitializedSelect(
                 items=mode_dropdown_list,
                 label="Plot matrix elements as",
                 v_model=mode_dropdown_list[2],
             )
             op_names = subsys.get_operator_names()
-            ui_operator_dropdown = ui.vInitSelect(
+            ui_operator_dropdown = ui.InitializedSelect(
                 items=op_names, label="Operator", v_model=op_names[0]
             )
             ui_mode_dropdown.observe(self.explorer.update_plots, names="v_model")
@@ -189,7 +189,7 @@ class ExplorerSettings:
 
         if plot_type == PlotType.TRANSITIONS:
             self.ui["Transitions"]["initial_state_inttexts"] = [
-                ui.vValidatedNumberField(
+                ui.ValidatedNumberField(
                     label=subsys.id_str,
                     num_type=int,
                     v_min=0,
@@ -203,7 +203,7 @@ class ExplorerSettings:
 
             self.ui["Transitions"][
                 "initial_dressed_inttext"
-            ] = ui.vValidatedNumberField(
+            ] = ui.ValidatedNumberField(
                 label="Dressed state",
                 class_="ml-4 align-bottom",
                 num_type=int,
@@ -213,7 +213,7 @@ class ExplorerSettings:
                 style_="display: none; width: 65px;",
             )
 
-            self.ui["Transitions"]["photons_inttext"] = ui.vValidatedNumberField(
+            self.ui["Transitions"]["photons_inttext"] = ui.ValidatedNumberField(
                 num_type=int,
                 class_="ml-3",
                 v_model=1,
@@ -222,7 +222,7 @@ class ExplorerSettings:
                 label="Photon number",
                 style_="max-width: 120px",
             )
-            self.ui["Transitions"]["highlight_selectmultiple"] = ui.vInitSelect(
+            self.ui["Transitions"]["highlight_selectmultiple"] = ui.InitializedSelect(
                 multiple=True,
                 label="",
                 items=self.explorer.subsys_names,
@@ -297,14 +297,14 @@ class ExplorerSettings:
 
         if plot_type in [PlotType.CROSS_KERR, PlotType.AC_STARK]:
             self.ui["kerr"] = {}
-            # self.ui["kerr"]["subsys1"] = ui.vInitSelect(
+            # self.ui["kerr"]["subsys1"] = ui.InitializedSelect(
             #     multiple=False,
             #     label="Subsystem 1",
             #     items=plot_id.subsystems,
             #     v_model=self.explorer.subsys_names[0],
             #     width=185,
             # )
-            # self.ui["kerr"]["subsys2"] = ui.vInitSelect(
+            # self.ui["kerr"]["subsys2"] = ui.InitializedSelect(
             #     multiple=False,
             #     label="Subsystem 2",
             #     items=self.explorer.subsys_names,
@@ -321,7 +321,7 @@ class ExplorerSettings:
             #     )
             # )
 
-            self.ui["kerr"]["ac_stark_ell"] = ui.vValidatedNumberField(
+            self.ui["kerr"]["ac_stark_ell"] = ui.ValidatedNumberField(
                 num_type=int,
                 class_="ml-3",
                 v_model=1,

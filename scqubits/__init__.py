@@ -66,7 +66,7 @@ from scqubits.core.symbolic_circuit import SymbolicCircuit
 
 # GUI
 try:
-    from scqubits.ui.explorer_widget import Explorer
+    from scqubits.explorer.explorer_widget import Explorer
     from scqubits.ui.gui import GUI
 except ImportError:
 

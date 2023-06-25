@@ -9,9 +9,10 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
-
+import asyncio
 import collections
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, OrderedDict, Union
+import time
+from typing import TYPE_CHECKING, Callable, Dict, List, Literal, Optional, OrderedDict, Union
 
 import matplotlib as mp
 
@@ -35,16 +36,15 @@ else:
     _HAS_IPYTHON = True
 
 if TYPE_CHECKING:
-    from scqubits.ui.explorer_widget import PlotID
+    from scqubits.explorer.explorer_widget import PlotID
 
 
 if _HAS_IPYTHON and _HAS_IPYVUETIFY:
-
-    class vValidatedNumberField(v.TextField):
+    class ValidatedNumberField(v.TextField):
         _typecheck_func: callable = None
         _type = None
-        _current_value = None
-        num_value = None
+
+        num_value = None  # must determine appropriate traitlet type dynamically
 
         @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
         def __init__(
@@ -57,23 +57,19 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             filled=True,
             **kwargs,
         ):
+            # self._continuous_update_in_progress = False  # main use in child class
             self.name = kwargs.pop("name", None)
             self._type = num_type if num_type is not None else type(v_model)
-
-            self._current_value = v_model
-            super().__init__(v_model=v_model, filled=filled, **kwargs)
-
             if num_type == float:
                 TraitletClass = traitlets.Float
-                self._typecheck_func = lambda data: utils.is_string_float(data)
+                self._typecheck_func = utils.is_string_float
                 self.step = step if step is not None else 0.1
             elif num_type == int:
                 TraitletClass = traitlets.Int
-                self._typecheck_func = lambda data: utils.is_string_int(data)
+                self._typecheck_func = utils.is_string_int
                 self.step = step if step is not None else 1
             else:
                 raise Exception(f"Not a supported number type: {num_type}")
-
             self.add_traits(
                 num_value=TraitletClass(read_only=True).tag(sync=True),
                 v_min=TraitletClass(allow_none=True).tag(sync=True),
@@ -82,11 +78,24 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             self.v_min = v_min
             self.v_max = v_max
 
-            self.set_trait("num_value", self._num_value())
+            super().__init__(v_model=v_model, filled=filled, **kwargs)
 
-            self.observe(self.is_entry_valid, names="v_model")
+        @traitlets.validate("v_model")
+        def _validate_v_model(self, state):
+            if self.is_valid():
+                self.error = False
+                self.rules = []
+            else:
+                self.error = True
+                self.rules = ["invalid"]
+            return state["value"]
 
-        def is_entry_valid(self, *args, **kwargs):
+        @traitlets.observe("v_model")
+        def _observe_v_model(self, change):
+            if not self.error:
+                self.set_trait("num_value", self._type(change["new"]))
+
+        def is_valid(self):
             if (
                 not self._typecheck_func(self.v_model)
                 or (
@@ -98,21 +107,13 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
                     and self._type(self.v_model) > self.v_max
                 )
             ):
-                self.error = True
-                self.rules = ["invalid"]
                 return False
-
-            self.rules = [True]
-            self.error = False
-            self.set_trait("num_value", self._num_value())
             return True
 
-        def _num_value(self):
-            if not self.error:
-                self._current_value = self._type(self.v_model)
-            return self._current_value
 
-    class vNumberEntryWidget(vValidatedNumberField):
+    class NumberEntryWidget(ValidatedNumberField):
+        """A widget consisting of a text field and a slider, linked to each other. The text field acts as the main
+        class, while the slider is stored as a class attribute and displayed alongside."""
         def __init__(
             self,
             label,
@@ -143,17 +144,11 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             if "class_" not in slider_kwargs:
                 slider_kwargs["class_"] = "pt-3"
             self.slider = v.Slider(
-                min=s_min, max=s_max, step=step, v_model=v_model, **slider_kwargs
+                min=s_min, max=s_max, step=step, v_model=v_model, thumb_label=True, **slider_kwargs
             )
 
-            # self._continuous_update_in_progress = False
-            # self.slider.on_event("start", self.slider_in_progress_toggle)
-            # self.slider.on_event("end", self.slider_in_progress_toggle)
-            # self.slider.on_event("click", self.slider_in_progress_toggle)
-            # self.slider.observe(self.update_textfield, names="v_model")
+            self.slider.on_event("change", self.slider_click)
             self.observe(self.update_slider, names="num_value")
-
-            ipywidgets.jslink((self, "v_model"), (self.slider, "v_model"))
 
             ipywidgets.jslink((self, "v_max"), (self.slider, "max"))
             ipywidgets.jslink((self, "v_min"), (self.slider, "min"))
@@ -162,11 +157,14 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
         def _ipython_display_(self):
             display(self.widget())
 
+        def slider_click(self, *args):
+            self.v_model = self.slider.v_model
+
         def widget(self):
             return v.Container(
                 class_="d-flex flex-row ml-2 pb-0 pt-1",
                 style_="min-width: 220px; max-width: 220px",
-                children=[self, self.slider],
+                children=[self, self.slider]
             )
 
         def update_slider(self, *args):
@@ -182,13 +180,17 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
                 self.slider.color = ""
                 self.slider.v_model = self.num_value
 
-    class vInitSelect(v.Select):
+        def update_text(self, *args):
+            if not self._continuous_update_in_progress:
+                self.v_model = self.slider.v_model
+
+    class InitializedSelect(v.Select):
         def __init__(self, **kwargs):
             if "v_model" not in kwargs and "items" in kwargs:
                 kwargs["v_model"] = kwargs["items"][0]
             super().__init__(**kwargs)
 
-    class vBtn(v.Btn):
+    class LinkedButton(v.Btn):
         def __init__(self, ref=None, **kwargs):
             onclick = kwargs.pop("onclick", None)
             super().__init__(**kwargs)
@@ -198,7 +200,7 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
                 self.on_event("click", onclick)
 
 
-    class vRefSwitch(v.Switch):
+    class LinkedSwitch(v.Switch):
         def __init__(self, ref, **kwargs):
             super().__init__(**kwargs)
             self.ref = ref
@@ -206,7 +208,7 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
 
     class vTooltipBtn(v.Tooltip):
         def __init__(self, tooltip, bottom=False, left=True, **kwargs):
-            self.btn = vBtn(v_on="tooltip.on", **kwargs)
+            self.btn = LinkedButton(v_on="tooltip.on", **kwargs)
             super().__init__(
                 bottom=bottom,
                 left=left,
@@ -216,7 +218,7 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
                 children=[tooltip],
             )
 
-    class vChip(v.Chip):
+    class ClickChip(v.Chip):
         def __init__(self, **kwargs):
             onclick_close = kwargs.pop("click_close", None)
             onclick = kwargs.pop("onclick", None)
@@ -227,7 +229,7 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             if onclick:
                 self.on_event("click", onclick)
 
-    class vDiscreteSetSlider(v.Slider):
+    class DiscreteSetSlider(v.Slider):
         def __init__(self, param_name, param_vals, **kwargs):
             self.val_count = len(param_vals)
             self.param_name = param_name
@@ -246,7 +248,7 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             self.label = f"{self.param_name}={self.current_value():.3f}"
 
 
-    class IconButton(vBtn):
+    class IconButton(LinkedButton):
         def __init__(self, icon_name, **kwargs):
             super().__init__(
                 **kwargs,
@@ -257,48 +259,48 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
                 children=[v.Icon(children=[icon_name])],
             )
 
-    class vNavbarElement(v.ExpansionPanels):
-        def __init__(
-            self,
-            header,
-            content: Union[None, v.ExpansionPanelContent] = None,
-            children: Union[None, List[v.VuetifyWidget]] = None,
-            **kwargs,
-        ):
-            assert (content and not children) or (children and not content)
-
-            content = (
-                content
-                if isinstance(content, v.ExpansionPanelContent)
-                else v.ExpansionPanelContent(
-                    class_="text-no-wrap",
-                    style_="transform: scale(0.9)",
-                    children=children,
-                )
-            )
-
-            super().__init__(
-                **kwargs,
-                **dict(
-                    transition=False,
-                    flat=True,
-                    v_model=None,
-                    children=[
-                        v.ExpansionPanel(
-                            accordion=True,
-                            children=[
-                                v.ExpansionPanelHeader(
-                                    disable_icon_rotate=True,
-                                    style_="font-size: 16px; font-weight: 500",
-                                    class_="text-no-wrap",
-                                    children=[header],
-                                ),
-                                content,
-                            ],
-                        )
-                    ],
-                ),
-            )
+    # class vNavbarElement(v.ExpansionPanels):
+    #     def __init__(
+    #         self,
+    #         header,
+    #         content: Union[None, v.ExpansionPanelContent] = None,
+    #         children: Union[None, List[v.VuetifyWidget]] = None,
+    #         **kwargs,
+    #     ):
+    #         assert (content and not children) or (children and not content)
+    #
+    #         content = (
+    #             content
+    #             if isinstance(content, v.ExpansionPanelContent)
+    #             else v.ExpansionPanelContent(
+    #                 class_="text-no-wrap",
+    #                 style_="transform: scale(0.9)",
+    #                 children=children,
+    #             )
+    #         )
+    #
+    #         super().__init__(
+    #             **kwargs,
+    #             **dict(
+    #                 transition=False,
+    #                 flat=True,
+    #                 v_model=None,
+    #                 children=[
+    #                     v.ExpansionPanel(
+    #                         accordion=True,
+    #                         children=[
+    #                             v.ExpansionPanelHeader(
+    #                                 disable_icon_rotate=True,
+    #                                 style_="font-size: 16px; font-weight: 500",
+    #                                 class_="text-no-wrap",
+    #                                 children=[header],
+    #                             ),
+    #                             content,
+    #                         ],
+    #                     )
+    #                 ],
+    #             ),
+    #         )
 
     def flex_row(widgets: List[v.VuetifyWidget], class_="", **kwargs) -> v.Container:
         return v.Container(
@@ -345,7 +347,7 @@ class ClosablePanel(PanelBase):
             children=[v.Icon(children="mdi-close-circle")],
         )
 
-        self.settings_btn = vBtn(
+        self.settings_btn = LinkedButton(
             # class_="mx-1",
             style_="margin-left: auto;",
             icon=True,
@@ -466,7 +468,7 @@ class PlotPanelCollection:
         with closable_panel.output:
             mp.pyplot.show()
 
-    def close_panel(self, close_btn: vBtn, *args, **kwargs):
+    def close_panel(self, close_btn: LinkedButton, *args, **kwargs):
         """Remove card from dictionary and from the grid."""
         panel_id = self.panel_by_btn[close_btn].panel_id
 
@@ -480,7 +482,7 @@ class PlotPanelCollection:
     def close_panel_by_id(self, panel_id: "PlotID"):
         self.close_panel(self.panel_by_id[panel_id].btn)
 
-    def settings_dialog(self, settings_btn: vBtn, *args, **kwargs):
+    def settings_dialog(self, settings_btn: LinkedButton, *args, **kwargs):
         """Bring up plot panel settings dialog."""
         self.plot_settings_dialog(settings_btn.ref)
 
@@ -528,7 +530,7 @@ class PlotPanelCollection:
             class_="mx-0 px-0 my-0 py-0",
             width="100%",
             children=[
-                vBtn(
+                LinkedButton(
                     fab=True,
                     position="fixed",
                     class_="mx-2 my-2",
