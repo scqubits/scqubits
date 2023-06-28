@@ -1199,7 +1199,7 @@ class SymbolicCircuit(serializers.Serializable):
     def _junction_terms(self):
         terms = 0
         # looping over all the junction terms
-        junction_branches = [branch for branch in self.branches if "JJ" in branch.type]
+        junction_branches = [branch for branch in self.branches if "JJ" in branch.type and "JJs" not in branch.type]
         junction_branch_order = [
             _junction_order(branch.type) for branch in junction_branches
         ]
@@ -1239,6 +1239,49 @@ class SymbolicCircuit(serializers.Serializable):
                             + phi_ext
                         )
                     )
+        return terms
+    
+    def _JJs_terms(self):
+        """To add terms for the sawtooth josephson junction
+        """
+        terms = 0
+        # looping over all the junction terms
+        junction_branches = [branch for branch in self.branches if "JJs" in branch.type]
+        
+        # defining a function for sawtooth
+        saw = sympy.Function("saw", real=True)
+
+        for branch_idx, jj_branch in enumerate(junction_branches):
+            # adding external flux
+            phi_ext = 0
+            if jj_branch in self.closure_branches:
+                if not self.is_flux_dynamic:
+                    index = self.closure_branches.index(jj_branch)
+                    phi_ext += self.external_fluxes[index]
+            if self.is_flux_dynamic:
+                flux_branch_assignment = self._time_dependent_flux_distribution()
+                phi_ext += flux_branch_assignment[int(jj_branch.id_str)]
+
+            # if loop to check for the presence of ground node
+            junction_param = "EJ"
+            if jj_branch.nodes[1].index == 0:
+                terms += jj_branch.parameters[junction_param] * saw(
+                    (-sympy.symbols(f"φ{jj_branch.nodes[0].index}") + phi_ext)
+                )
+            elif jj_branch.nodes[0].index == 0:
+                terms += jj_branch.parameters[junction_param] * saw(
+                    (sympy.symbols(f"φ{jj_branch.nodes[1].index}") + phi_ext)
+                )
+            else:
+                terms += jj_branch.parameters[junction_param] * saw(
+                    (
+                        (
+                            sympy.symbols(f"φ{jj_branch.nodes[1].index}")
+                            - sympy.symbols(f"φ{jj_branch.nodes[0].index}")
+                        )
+                        + phi_ext
+                    )
+                )
         return terms
 
     # def _JJ2_terms(self):
@@ -1883,7 +1926,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         inductor_terms_φ = self._inductor_terms()
 
-        JJ_terms_φ = self._junction_terms()  # + self._JJ2_terms()
+        JJ_terms_φ = self._junction_terms()   + self._JJs_terms()
 
         lagrangian_φ = C_terms_φ - inductor_terms_φ - JJ_terms_φ
 

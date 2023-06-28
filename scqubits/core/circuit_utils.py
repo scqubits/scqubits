@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem
 
 
-def _junction_order(branch_type):
+def _junction_order(branch_type: str) -> int:
     """
     Returns the order of the branch if it is a JJ branch,
     if the order is n its energy is given by cos(phi) + cos(2*phi) + ... + cos(n*phi)
@@ -45,9 +45,39 @@ def _junction_order(branch_type):
     if "JJ" not in branch_type:
         raise ValueError("The branch is not a JJ branch")
     if len(branch_type) > 2:
+        if branch_type[2] == "s":# adding "JJs" which is a junction with sawtooth current phase relationship
+            return 1 
         return int(branch_type[2:])
     else:
         return 1
+    
+def sawtooth_operator(x: Union[ndarray, csc_matrix]):
+    """
+    Returns the operator evaluated using applying the sawtooth_potential function on the
+    diagonal elements of the operator x 
+
+    Args:
+        x (Union[ndarray, csc_matrix]): argument of the sawtooth operator in the Hamiltonian
+    """
+    diagonal_elements = sawtooth_potential(x.diagonal())
+    
+    operator = sp.sparse.dia_matrix((diagonal_elements, 0), shape=(len(diagonal_elements),  len(diagonal_elements)))
+    return operator.tocsc()
+    
+    
+def sawtooth_potential(x: float) -> float:
+    """
+    Is the function which returns the potential of a sawtooth junction, 
+    i.e. a junction with a sawtooth current phase relationship, only in the discretized phi basis.
+    """
+    if isinstance(x,  np.ndarray) and len(x.shape) > 1:
+        I = np.identity(x.shape[0])
+    elif sp.sparse.issparse(x) and len(x.shape) > 1:
+        I = sp.sparse.identity().tocsc()
+    else:
+        I = 1
+    x_rel = (x - np.pi*I) % (2*np.pi) - np.pi*I
+    return (x_rel)**2/(np.pi)**2 # normalized to have a maximum of 1
 
 
 def _capactiance_variable_for_branch(branch_type: str):

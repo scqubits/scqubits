@@ -50,6 +50,8 @@ import scqubits.core.qubit_base as base
 from scqubits import HilbertSpace, settings
 from scqubits.core import operators as op
 from scqubits.core.circuit_utils import (
+    sawtooth_operator,
+    sawtooth_potential,
     _cos_dia,
     _cos_dia_dense,
     _cos_phi,
@@ -95,7 +97,7 @@ class CircuitRoutines(ABC):
         if (
             len(
                 set.union(
-                    *[(hamiltonian).atoms(operator) for operator in [sm.cos, sm.sin]]
+                    *[(hamiltonian).atoms(operator) for operator in [sm.cos, sm.sin, sm.Function("saw", real=True)]]
                 )
             )
             > 0
@@ -832,6 +834,11 @@ class CircuitRoutines(ABC):
                     float(coefficient_sympy)
                     * self._evaluate_matrix_cosine_terms(term, bare_esys=bare_esys)
                 )
+            elif any([arg.has(sm.Function("saw", real=True)) for arg in (1.0 * term).args]):
+                eval_matrix_list.append(
+                    float(coefficient_sympy)
+                    * self._evaluate_matrix_sawtooth_terms(term, bare_esys=bare_esys)
+                )
             else:
                 product_matrix_list = []
                 power_dict = dict(term.as_powers_dict())
@@ -1250,6 +1257,39 @@ class CircuitRoutines(ABC):
                 exp_i_theta = sparse.linalg.expm(exp_argument_op * prefactor * 1j)
 
         return self._sparsity_adaptive(exp_i_theta)
+    
+    def _evaluate_matrix_sawtooth_terms(
+        self, saw_expr: sm.Expr, bare_esys=None
+    ) -> qt.Qobj:
+        if self.hierarchical_diagonalization:
+            subsystem_list = self.subsystems
+            identity = qt.tensor(
+                [qt.identity(subsystem.truncated_dim) for subsystem in subsystem_list]
+            )
+        else:
+            identity = qt.identity(self.hilbertdim())
+
+        saw_potential_matrix = identity * 0
+        
+        saw = sm.Function("saw", real=True)
+        for saw_term in saw_expr.as_ordered_terms():
+            coefficient = float(list(saw_expr.as_coefficients_dict().values())[0])
+            saw_argument_expr = [
+                arg.args[0]
+                for arg in (1.0 * saw_term).args
+                if (arg.has(saw))
+            ][0]
+            
+            saw_argument_operator = self._evaluate_symbolic_expr(saw_argument_expr, bare_esys)
+            
+            # since this operator only works for discretized phi basis
+            
+            diagonal_elements = sawtooth_potential(saw_argument_operator.diag())
+            saw_potential_matrix += coefficient * qt.qdiags(diagonal_elements, 0, dims=saw_potential_matrix.dims)
+            
+        return saw_potential_matrix
+             
+        
 
     def _evaluate_matrix_cosine_terms(
         self, junction_potential: sm.Expr, bare_esys=None
@@ -1764,7 +1804,7 @@ class CircuitRoutines(ABC):
         else:
             return junction_potential_matrix
 
-    def _hamiltonian_for_discretized_extended_vars(self) -> csc_matrix:
+    def _evaluate_hamiltonian(self) -> csc_matrix: # TODO: needs a better name
         hamiltonian = self._hamiltonian_sym_for_numerics
         hamiltonian = hamiltonian.subs(
             [
@@ -1775,33 +1815,8 @@ class CircuitRoutines(ABC):
             ]
         )
         hamiltonian = hamiltonian.subs("I", 1)
-        # add an identity operator for the constant in the symbolic expression
-        constant = float(hamiltonian.as_coefficients_dict()[1])
-        hamiltonian -= hamiltonian.as_coefficients_dict()[1]
-        hamiltonian = hamiltonian.expand() + constant * sm.symbols("I")
-
-        junction_potential = sum(
-            [term for term in hamiltonian.as_ordered_terms() if "cos" in str(term)]
-        )
-
-        self.junction_potential = junction_potential
-        hamiltonian_LC = hamiltonian - junction_potential
-
-        H_LC_str = self._get_eval_hamiltonian_string(hamiltonian_LC)
-
-        replacement_dict: Dict[str, Any] = copy.deepcopy(self.operators_by_name)
-
-        # adding self to the list
-        replacement_dict["self"] = self
-
-        junction_potential_matrix = self._evaluate_matrix_cosine_terms(
-            junction_potential
-        ).data.tocsc()
-
-        if H_LC_str:
-            return eval(H_LC_str, replacement_dict) + junction_potential_matrix
-        else:
-            return junction_potential_matrix
+        
+        return self._sparsity_adaptive(self._evaluate_symbolic_expr(hamiltonian).data.tocsc())
 
     def _eigenvals_for_purely_harmonic(self, evals_count: int):
         """
@@ -1903,10 +1918,8 @@ class CircuitRoutines(ABC):
         if not self.hierarchical_diagonalization:
             if self.is_purely_harmonic:
                 return self._hamiltonian_for_harmonic_extended_vars()
-            elif self.ext_basis == "harmonic":
-                return self._hamiltonian_for_harmonic_extended_vars()
-            elif self.ext_basis == "discretized":
-                return self._hamiltonian_for_discretized_extended_vars()
+            else:
+                return self._evaluate_hamiltonian()
 
         else:
             bare_esys = {
@@ -2141,11 +2154,15 @@ class CircuitRoutines(ABC):
                 equalities_in_latex += sm.printing.latex(eqn) + " \\\ "
             equalities_in_latex = equalities_in_latex[:-4] + " $"
             display(Latex(equalities_in_latex))
-
+            
     def __repr__(self) -> str:
         # string to describe the Circuit
-        if not _HAS_IPYTHON:
-            return self._id_str
+        return self._id_str
+
+    def _repr_latex_(self) -> str:
+        # string to describe the Circuit
+        # if not _HAS_IPYTHON:
+        #     return self._id_str
         # Hamiltonian string
         H_latex_str = (
             "$H=" + sm.printing.latex(self.sym_hamiltonian(return_expr=True)) + "$"
@@ -2184,7 +2201,7 @@ class CircuitRoutines(ABC):
             display(Latex(f"System hierarchy: {self.system_hierarchy}"))
             display(Latex(f"Truncated Dimensions: {self.subsystem_trunc_dims}"))
 
-        return "Instance ID: " + self._id_str
+        # return "Instance ID: " + self._id_str
 
     def _make_expr_human_readable(self, expr: sm.Expr, float_round: int = 6) -> sm.Expr:
         """
@@ -2528,7 +2545,7 @@ class CircuitRoutines(ABC):
             for var_name in sweep_vars:
                 parameters[var_name] = sweep_vars[var_name]
 
-        potential_func = sm.lambdify(parameters.keys(), potential_sym, "numpy")
+        potential_func = sm.lambdify(parameters.keys(), potential_sym, [{'saw': sawtooth_potential}, 'numpy'])
 
         return potential_func(*parameters.values())
 
