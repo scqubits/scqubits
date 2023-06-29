@@ -70,13 +70,7 @@ def sawtooth_potential(x: float) -> float:
     Is the function which returns the potential of a sawtooth junction, 
     i.e. a junction with a sawtooth current phase relationship, only in the discretized phi basis.
     """
-    if isinstance(x,  np.ndarray) and len(x.shape) > 1:
-        I = np.identity(x.shape[0])
-    elif sp.sparse.issparse(x) and len(x.shape) > 1:
-        I = sp.sparse.identity().tocsc()
-    else:
-        I = 1
-    x_rel = (x - np.pi*I) % (2*np.pi) - np.pi*I
+    x_rel = (x - np.pi) % (2*np.pi) - np.pi
     return (x_rel)**2/(np.pi)**2 # normalized to have a maximum of 1
 
 
