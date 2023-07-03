@@ -979,16 +979,12 @@ class ParameterSweep(  # type:ignore
         autorun: bool = settings.AUTORUN_SWEEP,
         deepcopy: bool = False,
         num_cpus: Optional[int] = None,
-        override_update_func_check = False,     # intend to do more flexible update
     ) -> None:
         num_cpus = num_cpus or settings.NUM_CPUS
         self._parameters = Parameters(paramvals_by_name)
         self._hilbertspace = hilbertspace
         self._evals_count = evals_count
-        if override_update_func_check:
-            self._update_hilbertspace = update_hilbertspace
-        else:
-            self._update_hilbertspace = self.set_update_func(update_hilbertspace)
+        self._update_hilbertspace = self.set_update_func(update_hilbertspace)
         self._subsys_update_info = subsys_update_info
         self._data: Dict[str, Any] = {}
         self._bare_only = bare_only
