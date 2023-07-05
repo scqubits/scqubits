@@ -52,8 +52,8 @@ import scqubits.utils.spectrum_utils as spec_utils
 
 from scqubits.core.namedslots_array import NamedSlotsNdarray, Parameters
 from scqubits.core.storage import SpectrumData
-from scqubits.ui.hspace_widget import create_hilbertspace_widget
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
+
 
 if settings.IN_IPYTHON:
     from tqdm.notebook import tqdm
