@@ -25,15 +25,15 @@ import scqubits as scq
 import scqubits.ui.gui_custom_widgets as ui
 import scqubits.ui.gui_defaults as gui_defaults
 from scqubits.core.param_sweep import ParameterSlice
-from scqubits.core.qubit_base import QubitBaseClass, QuantumSystem
+from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass
 from scqubits.explorer import explorer_panels as panels
 from scqubits.explorer.explorer_settings import ExplorerSettings
 from scqubits.settings import matplotlib_settings
 from scqubits.ui.gui_defaults import (
     NAV_COLOR,
+    PlotType,
     default_panels,
     mode_dropdown_dict,
-    PlotType,
     supported_panels,
 )
 
@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep
 
 try:
-    from IPython.display import display, HTML, notebook
+    from IPython.display import HTML, display, notebook
 except ImportError:
     _HAS_IPYTHON = False
 else:
@@ -197,7 +197,7 @@ class Explorer:
                 ),
                 self.plot_collection.show(),
                 self.ui["add_plot_dialog"],
-                *self.settings["dialogs"].values()
+                *self.settings["dialogs"].values(),
             ],
         )
 
@@ -370,7 +370,7 @@ class Explorer:
         param_slice: ParameterSlice,
         fig_ax: Tuple[Figure, Axes],
     ):
-        if plot_id.plot_type == PlotType.ENERGY_SPECTRUM:
+        if plot_id.plot_type is PlotType.ENERGY_SPECTRUM:
             panel_widget = self.settings[plot_id]
             return panels.display_bare_spectrum(
                 self.sweep,
@@ -380,7 +380,7 @@ class Explorer:
                 subtract_ground=panel_widget[1].v_model,
                 evals_count=self.settings["level_slider"][plot_id].num_value,
             )
-        elif plot_id.plot_type == PlotType.WAVEFUNCTIONS and isinstance(
+        elif plot_id.plot_type is PlotType.WAVEFUNCTIONS and isinstance(
             plot_id.subsystems[0], QubitBaseClass
         ):
             ui_wavefunction_selector, ui_mode_dropdown = self.settings[plot_id]
@@ -392,7 +392,7 @@ class Explorer:
                 mode=mode_dropdown_dict[ui_mode_dropdown.v_model],
                 which=ui_wavefunction_selector.v_model,
             )
-        elif plot_id.plot_type == PlotType.MATRIX_ELEMENTS and isinstance(
+        elif plot_id.plot_type is PlotType.MATRIX_ELEMENTS and isinstance(
             plot_id.subsystems[0], QubitBaseClass
         ):
             ui_mode_dropdown, opname_dropdown = self.settings[plot_id]
@@ -404,7 +404,7 @@ class Explorer:
                 param_slice=param_slice,
                 fig_ax=fig_ax,
             )
-        elif plot_id.plot_type == PlotType.MATRIX_ELEMENT_SCAN and isinstance(
+        elif plot_id.plot_type is PlotType.MATRIX_ELEMENT_SCAN and isinstance(
             plot_id.subsystems[0], QubitBaseClass
         ):
             ui_mode_dropdown, opname_dropdown = self.settings[plot_id]
@@ -416,15 +416,20 @@ class Explorer:
                 param_slice=param_slice,
                 fig_ax=fig_ax,
             )
-        elif plot_id.plot_type == PlotType.ANHARMONICITY:
+        elif plot_id.plot_type is PlotType.ANHARMONICITY:
             return panels.display_anharmonicity(
                 self.sweep, plot_id.subsystems[0], param_slice, fig_ax
             )
-        elif plot_id.plot_type == PlotType.TRANSITIONS:
-            if self.settings["Transitions"]["initial_bare_dressed_toggle"].v_model == "bare":
+        elif plot_id.plot_type is PlotType.TRANSITIONS:
+            if (
+                self.settings["Transitions"]["initial_bare_dressed_toggle"].v_model
+                == "bare"
+            ):
                 initial_state = tuple(
                     int(inttext.v_model)
-                    for inttext in self.settings["Transitions"]["initial_state_inttexts"]
+                    for inttext in self.settings["Transitions"][
+                        "initial_state_inttexts"
+                    ]
                 )
             else:
                 initial_state = int(
@@ -453,20 +458,40 @@ class Explorer:
                 param_slice,
                 fig_ax,
             )
-        elif plot_id.plot_type == PlotType.SELF_KERR:
+        elif plot_id.plot_type is PlotType.SELF_KERR:
+            if self.settings[plot_id]:  # has settings, so must be qubit-mode self-Kerr
+                ui_state_selection = self.settings[plot_id][0]
+                which = ui_state_selection.v_model
+                return panels.display_qubit_self_kerr(
+                    sweep=self.sweep,
+                    subsys=plot_id.subsystems[0],
+                    param_slice=param_slice,
+                    fig_ax=fig_ax,
+                    which=which,
+                )
+
             return panels.display_self_kerr(
                 sweep=self.sweep,
                 subsys=plot_id.subsystems[0],
                 param_slice=param_slice,
                 fig_ax=fig_ax,
             )
-        elif plot_id.plot_type in [PlotType.CROSS_KERR, PlotType.AC_STARK]:
+        elif plot_id.plot_type is PlotType.CROSS_KERR:
             return panels.display_cross_kerr(
                 sweep=self.sweep,
                 subsys1=plot_id.subsystems[0],
                 subsys2=plot_id.subsystems[1],
                 param_slice=param_slice,
                 fig_ax=fig_ax,
+            )
+        elif plot_id.plot_type is PlotType.AC_STARK:
+            return panels.display_cross_kerr(
+                sweep=self.sweep,
+                subsys1=plot_id.subsystems[0],
+                subsys2=plot_id.subsystems[1],
+                param_slice=param_slice,
+                fig_ax=fig_ax,
+                which=self.settings.ui["kerr"]["ac_stark_ell"].v_model,
             )
         raise NotImplementedError(f"Plot type {plot_id} not implemented.")
 
@@ -542,24 +567,29 @@ class Explorer:
 
     def update_fixed_sliders(self, change):
         self.ui["fixed_param_sliders"] = self.create_sliders()
-        self.ui["fixed_param_sliders_container"] = ui.flex_column(self.ui["fixed_param_sliders"])
+        self.ui["fixed_param_sliders_container"] = ui.flex_column(
+            self.ui["fixed_param_sliders"]
+        )
 
         self.ui["sweep_value_slider"].options = self.sweep.param_info[
             self.ui["sweep_param_dropdown"].v_model
         ]
 
     def bare_dressed_toggle(self, change):
-        if self.ui["Transitions"]["initial_bare_dressed_toggle"].v_model == "bare":
-            self.ui["Transitions"][
+        if (
+            self.settings.ui["Transitions"]["initial_bare_dressed_toggle"].v_model
+            == "bare"
+        ):
+            self.settings.ui["Transitions"][
                 "initial_dressed_inttext"
             ].style_ = "display: none; max-width: 100px;"
-            for inttext in self.ui["Transitions"]["initial_state_inttexts"]:
+            for inttext in self.settings.ui["Transitions"]["initial_state_inttexts"]:
                 inttext.style_ = "display: inline-block; max-width: 100px;"
         else:
-            self.ui["Transitions"][
+            self.settings.ui["Transitions"][
                 "initial_dressed_inttext"
             ].style_ = "display: inherit; max-width: 100px;"
-            for inttext in self.ui["Transitions"]["initial_state_inttexts"]:
+            for inttext in self.settings.ui["Transitions"]["initial_state_inttexts"]:
                 inttext.style_ = "display: none; max-width: 80px;"
         self.update_plots(change)
 
@@ -571,40 +601,6 @@ class Explorer:
             self.fixed_params,
             list(self.sweep.param_info.keys()),
         )
-
-    # @matplotlib.rc_context(matplotlib_settings)
-    # def update_layout_and_plots(explorer: "Explorer", change):
-    #     panels = explorer.get_panel_id_list()
-    #     #
-    # nrows = len(panels) // explorer.ncols
-    # if len(panels) % explorer.ncols != 0:
-    #     nrows += 1
-    #
-    # for axes in explorer.fig.axes:
-    #     explorer.fig.delaxes(axes)
-    #
-    # plt.ioff()
-    # if len(panels) > 0:
-    #     explorer.axes_table = explorer.fig.subplots(
-    #         ncols=explorer.ncols,
-    #         nrows=nrows,
-    #         squeeze=False,
-    #     )
-    #     explorer.fig.set_size_inches(1.1 * explorer.figwidth, 0.9 * explorer.figheight * nrows)
-    #
-    # unfilled_cols_in_last_row = (explorer.ncols - len(panels) % explorer.ncols) % explorer.ncols
-    # if unfilled_cols_in_last_row != 0:
-    #     for col in range(explorer.ncols - unfilled_cols_in_last_row, explorer.ncols):
-    #         explorer.axes_table[-1, col].remove()
-    # # explorer.panel_count = len(panels)
-    # explorer.update_plots(None)
-    # plt.ion()
-    #
-    # if not _HAS_WIDGET_BACKEND:
-    #     with explorer.ui["figure_display"]:
-    #         explorer.ui["figure_display"].clear_output(wait=True)
-    #         explorer.fig.tight_layout()
-    #         display(explorer.fig)
 
     @matplotlib.rc_context(matplotlib_settings)
     def update_plots(self: "Explorer", change):
@@ -634,8 +630,6 @@ class Explorer:
             if not _HAS_WIDGET_BACKEND:
                 with output_widget:
                     output_widget.clear_output(wait=True)
-                    # fig.tight_layout()
                     display(fig)
             else:
                 fig.canvas.draw_idle()
-                # fig.tight_layout()

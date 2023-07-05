@@ -10,6 +10,8 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import itertools
+
 from typing import TYPE_CHECKING, Any, Dict
 
 import scqubits as scq
@@ -20,11 +22,11 @@ from scqubits.utils import misc as utils
 
 
 if TYPE_CHECKING:
-    from scqubits.explorer.explorer_widget import PlotID
     from scqubits import Explorer
+    from scqubits.explorer.explorer_widget import PlotID
 
 try:
-    from IPython.display import display, HTML, notebook
+    from IPython.display import HTML, display, notebook
 except ImportError:
     _HAS_IPYTHON = False
 else:
@@ -61,9 +63,10 @@ class ExplorerSettings:
         self.ui: Dict[str, Any] = {}
         self.ui["level_slider"]: Dict[PlotID, v.VuetifyWidget] = {}
         self.ui["Transitions"]: Dict[str, v.VuetifyWidget] = {}
+        self.ui["kerr"]: Dict[str, v.VuetifyWidget] = {}
 
         for plot_id in self.explorer.ui["panel_switch_by_plot_id"].keys():
-            self.ui[plot_id] = self.build_ui(plot_id)
+            self.ui[plot_id] = self.build_settings_ui(plot_id)
 
         self.ui["dialogs"] = {
             plot_id: v.Dialog(
@@ -92,11 +95,11 @@ class ExplorerSettings:
     def __getitem__(self, item):
         return self.ui[item]
 
-    def build_ui(self, plot_id: "PlotID"):
+    def build_settings_ui(self, plot_id: "PlotID"):
         subsys = plot_id.subsystems
         plot_type = plot_id.plot_type
 
-        if plot_type == PlotType.ENERGY_SPECTRUM:
+        if plot_type is PlotType.ENERGY_SPECTRUM:
             subsys = subsys[0]
             subsys_index = self.explorer.sweep.get_subsys_index(subsys)
             evals_count = self.explorer.sweep.subsys_evals_count(subsys_index)
@@ -129,7 +132,7 @@ class ExplorerSettings:
                 ui_subtract_ground_switch,
             ]
 
-        if plot_type == PlotType.WAVEFUNCTIONS:
+        if plot_type is PlotType.WAVEFUNCTIONS:
             subsys = subsys[0]
             if isinstance(
                 subsys, (scq.FluxQubit, scq.ZeroPi, scq.Bifluxon, scq.Cos2PhiQubit)
@@ -144,7 +147,7 @@ class ExplorerSettings:
                     label="Display wavefunctions",
                     multiple=True,
                     items=list(range(subsys.truncated_dim)),
-                    v_model=list(range(subsys.truncated_dim))
+                    v_model=list(range(subsys.truncated_dim)),
                 )
             ui_mode_dropdown = ui.InitializedSelect(
                 items=mode_dropdown_list,
@@ -157,7 +160,7 @@ class ExplorerSettings:
             ui_mode_dropdown.observe(self.explorer.update_plots, names="v_model")
             return [ui_wavefunction_selector, ui_mode_dropdown]
 
-        if plot_type == PlotType.MATRIX_ELEMENTS:
+        if plot_type is PlotType.MATRIX_ELEMENTS:
             subsys = subsys[0]
             ui_mode_dropdown = ui.InitializedSelect(
                 items=mode_dropdown_list,
@@ -172,7 +175,7 @@ class ExplorerSettings:
             ui_operator_dropdown.observe(self.explorer.update_plots, names="v_model")
             return [ui_mode_dropdown, ui_operator_dropdown]
 
-        if plot_type == PlotType.MATRIX_ELEMENT_SCAN:
+        if plot_type is PlotType.MATRIX_ELEMENT_SCAN:
             subsys = subsys[0]
             ui_mode_dropdown = ui.InitializedSelect(
                 items=mode_dropdown_list,
@@ -187,7 +190,7 @@ class ExplorerSettings:
             ui_operator_dropdown.observe(self.explorer.update_plots, names="v_model")
             return [ui_mode_dropdown, ui_operator_dropdown]
 
-        if plot_type == PlotType.TRANSITIONS:
+        if plot_type is PlotType.TRANSITIONS:
             self.ui["Transitions"]["initial_state_inttexts"] = [
                 ui.ValidatedNumberField(
                     label=subsys.id_str,
@@ -201,9 +204,7 @@ class ExplorerSettings:
                 for subsys in self.explorer.sweep.hilbertspace
             ]
 
-            self.ui["Transitions"][
-                "initial_dressed_inttext"
-            ] = ui.ValidatedNumberField(
+            self.ui["Transitions"]["initial_dressed_inttext"] = ui.ValidatedNumberField(
                 label="Dressed state",
                 class_="ml-4 align-bottom",
                 num_type=int,
@@ -295,55 +296,44 @@ class ExplorerSettings:
                 ),
             ]
 
-        if plot_type in [PlotType.CROSS_KERR, PlotType.AC_STARK]:
-            self.ui["kerr"] = {}
-            # self.ui["kerr"]["subsys1"] = ui.InitializedSelect(
-            #     multiple=False,
-            #     label="Subsystem 1",
-            #     items=plot_id.subsystems,
-            #     v_model=self.explorer.subsys_names[0],
-            #     width=185,
-            # )
-            # self.ui["kerr"]["subsys2"] = ui.InitializedSelect(
-            #     multiple=False,
-            #     label="Subsystem 2",
-            #     items=self.explorer.subsys_names,
-            #     v_model=self.explorer.subsys_names[0],
-            #     width=185,
-            # )
-            #
-            # import IPython
-            # self.ui["kerr"]["latex"] = ipywidgets.Output()
-            # self.ui["kerr"]["latex"].append_display_data(
-            #     IPython.display.Math(
-            #         r"\chi_l \hat{a}^\dagger \hat{a} |l\rangle\langle l|,\quad"
-            #         r" K \hat{a}^\dagger \hat{a} \hat{b}^\dagger \hat{b}"
-            #     )
-            # )
+        if plot_type is PlotType.SELF_KERR and isinstance(subsys[0], scq.Oscillator):
+            return []
 
-            self.ui["kerr"]["ac_stark_ell"] = ui.ValidatedNumberField(
-                num_type=int,
-                class_="ml-3",
+        if plot_type is PlotType.SELF_KERR and not isinstance(
+            subsys[0], scq.Oscillator
+        ):
+            subsys = subsys[0]
+            ui_kerr_selector = ui.InitializedSelect(
+                label="Selected pair of levels",
+                items=list(
+                    itertools.combinations_with_replacement(
+                        list(range(subsys.truncated_dim)), 2
+                    )
+                ),
+                v_model=[[1, 1], [1, 2], [2, 2]],
+                multiple=True,
+            )
+            ui_kerr_selector.observe(self.explorer.update_plots, names="v_model")
+            return [ui_kerr_selector]
+
+        if plot_type is PlotType.CROSS_KERR:
+            return []
+
+        if plot_type is PlotType.AC_STARK:
+            self.ui["kerr"]["ac_stark_ell"] = ui.InitializedSelect(
                 v_model=1,
-                v_min=1,
-                v_max=5,
-                label="l (qubit level)",
-                style_="max-width: 120px; display: none;",
+                items=list(range(1, subsys[0].truncated_dim)),
+                label="qubit level",
+            )
+            self.ui["kerr"]["ac_stark_ell"].observe(
+                self.explorer.update_plots, names="v_model"
             )
 
             return [
                 v.Container(
                     class_="d-flex flex-column",
-                    children=[
-                        # self.ui["kerr"]["latex"],
-                        ui.flex_row(
-                            [
-                                # [self.ui["kerr"]["subsys1"], self.ui["kerr"]["subsys2"],
-                                self.ui["kerr"]["ac_stark_ell"]
-                            ]
-                        ),
-                    ],
-                ),
+                    children=[self.ui["kerr"]["ac_stark_ell"]],
+                )
             ]
 
         return []
