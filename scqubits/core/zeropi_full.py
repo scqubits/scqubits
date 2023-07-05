@@ -10,8 +10,6 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import os
-
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -27,7 +25,6 @@ import scqubits.core.discretization as discretization
 import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
-import scqubits.settings as settings
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.spectrum_utils as spec_utils
 
