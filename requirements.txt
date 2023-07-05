@@ -1,5 +1,5 @@
 cycler
-matplotlib>=3.6
+matplotlib>=3.5
 numpy>=1.14.2
 pyyaml
 qutip>=4.3.1
