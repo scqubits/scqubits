@@ -150,8 +150,8 @@ DESPINE = True
 STENCIL = 7
 
 # global random number generator for consistent initial state vector v0 in ARPACK
-_seed = 63142
-_RNG = np.random.default_rng(seed=_seed)
+_SEED = 63142
+_RNG = np.random.default_rng(seed=_SEED)
 RANDOM_ARRAY = _RNG.random(size=10000000)
 
 # toggle fuzzy value-based slicing and warnings about it on and off
