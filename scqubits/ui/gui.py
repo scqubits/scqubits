@@ -11,14 +11,13 @@
 ############################################################################
 
 import math
-import warnings
-from distutils.version import StrictVersion
+
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import get_backend as get_matplotlib_backend
+
 from matplotlib.figure import Axes, Figure
 
 import scqubits as scq
@@ -26,8 +25,10 @@ import scqubits.ui.gui_custom_widgets as ui
 import scqubits.ui.gui_defaults as gui_defaults
 import scqubits.ui.gui_navbar as gui_navbar
 import scqubits.utils.misc as utils
+
 from scqubits.core.discretization import Grid1d
 from scqubits.settings import matplotlib_settings
+from scqubits.ui.gui_custom_widgets import flex_column, flex_row
 from scqubits.ui.gui_defaults import NAV_COLOR
 from scqubits.ui.gui_setup import (
     init_dict_v_noise_params,
@@ -37,7 +38,6 @@ from scqubits.ui.gui_setup import (
     init_ranges_widgets_dict,
     init_save_btn,
 )
-from scqubits.ui.gui_custom_widgets import flex_column, flex_row
 from scqubits.utils.misc import _HAS_WIDGET_BACKEND
 
 try:
