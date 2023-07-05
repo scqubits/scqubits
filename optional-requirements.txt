@@ -3,5 +3,6 @@ pytest
 ipywidgets
 ipyvuetify
 pathos>=0.3.0
+dill
 traitlets
 typing_extensions
