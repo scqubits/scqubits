@@ -10,8 +10,10 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import collections, os, base64
+import base64
+import collections
 import enum
+import os
 
 try:
     import ipyvuetify as v
