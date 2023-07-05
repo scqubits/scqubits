@@ -23,9 +23,10 @@ from scipy.sparse import csc_matrix
 from scqubits.ui.gui_defaults import NAV_COLOR
 
 try:
-    import ipywidgets
     import ipyvuetify as v
-    from scqubits.ui.gui_custom_widgets import ValidatedNumberField, ClickChip
+    import ipywidgets
+
+    from scqubits.ui.gui_custom_widgets import ClickChip, ValidatedNumberField
 except ImportError:
     _HAS_IPYVUETIFY = False
 else:
@@ -43,7 +44,6 @@ import scqubits
 from scqubits.core.oscillator import Oscillator
 from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass
 from scqubits.utils import misc as utils
-
 
 QuantumSys = Union[QubitBaseClass, Oscillator]
 
