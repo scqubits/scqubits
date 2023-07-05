@@ -13,20 +13,18 @@
 import os
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Tuple, List
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from scipy import sparse
-
 from numpy import ndarray
+from scipy import sparse
 from scipy.sparse import csc_matrix
 
-import scqubits.core.qubit_base as base
-
 import scqubits.core.descriptors as descriptors
-import scqubits.utils.spectrum_utils as utils
+import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
+import scqubits.utils.spectrum_utils as utils
 
 from scqubits.core.noise import NOISE_PARAMS, NoisySystem
 
