@@ -23,8 +23,8 @@ from matplotlib.figure import Figure
 from numpy import ndarray
 
 from scqubits import settings as settings
-from scqubits.utils import plot_defaults as defaults
 from scqubits.settings import matplotlib_settings
+from scqubits.utils import plot_defaults as defaults
 
 if TYPE_CHECKING:
     from scqubits.core.storage import WaveFunction
@@ -49,7 +49,9 @@ _direct_plot_options = {
 
 @mpl.rc_context(matplotlib_settings)
 def _extract_kwargs_options(
-    kwargs: Dict[str, Any], plot_type: str, direct_plot_options: Optional[Dict[str, Any]] = None
+    kwargs: Dict[str, Any],
+    plot_type: str,
+    direct_plot_options: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Select options from kwargs for a given plot_type and return them in a dictionary.
