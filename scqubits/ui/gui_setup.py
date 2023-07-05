@@ -17,11 +17,11 @@ import numpy as np
 
 import scqubits as scq
 import scqubits.core.noise as noise
+import scqubits.utils.misc as utils
+
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.ui import gui_custom_widgets as ui
 from scqubits.ui import gui_defaults as gui_defaults
-import scqubits.utils.misc as utils
-
 
 try:
     import ipyvuetify as v
@@ -111,6 +111,7 @@ def init_dict_v_plot_options(
             v_model=gui_defaults.mode_dropdown_list[0],
             items=gui_defaults.mode_dropdown_list,
             label="Plot as:",
+            style_="width: 250px",
         ),
         "operator_choice": v.Select(
             items=operator_names,
@@ -159,6 +160,7 @@ def init_dict_v_plot_options(
             items=list(range(0, 10)),
             v_model=[0, 1, 2, 3, 4],
             label="States",
+            style_="width: 250px",
         )
         dict_v_plot_options["wavefunction_scale_slider"] = v.Slider(
             min=0.1,
