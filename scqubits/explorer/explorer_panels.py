@@ -10,7 +10,9 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import TYPE_CHECKING, List, Tuple, Union
+import itertools
+
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -18,6 +20,7 @@ from matplotlib import rc_context
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
+import scqubits
 import scqubits.core.constants
 import scqubits.core.units as units
 import scqubits.utils.plotting as plot
@@ -244,19 +247,20 @@ def display_cross_kerr(
     subsys2: "QuantumSystem",
     param_slice: "ParameterSlice",
     fig_ax: Tuple[Figure, Axes],
+    which: Optional[Union[int, Tuple[int, int]]] = None,
 ) -> Tuple[Figure, Axes]:
     subsys1_index = sweep.get_subsys_index(subsys1)
     subsys2_index = sweep.get_subsys_index(subsys2)
     type_list = [type(sys) for sys in [subsys1, subsys2]]
     if type_list.count(Oscillator) == 1:
         title = f"AC Stark: {subsys1.id_str} + {subsys2.id_str}"
-        ylabel = rf"AC Stark Shift $\chi^{{{subsys1_index},{subsys2_index}}}$"
-        levels_list = [1]
+        ylabel = rf"AC Stark Shift $\chi^{{{subsys1_index},{subsys2_index}}}_\ell$"
+        level = which or 1
         kerr_data = sweep["chi"][subsys1_index, subsys2_index]
         if param_slice.fixed != tuple():
             kerr_data = kerr_data[param_slice.fixed]
-        label_list = []
-        kerr_datasets = [kerr_data[..., level] for level in levels_list]
+        label_list = [level]
+        kerr_datasets = [kerr_data[..., level]]
     elif type_list.count(Oscillator) == 2:
         title = r"Cross-Kerr: {} - {}".format(subsys1.id_str, subsys2.id_str)
         ylabel = r"Kerr Coefficient $K_{{},{}}$".format(subsys1_index, subsys2_index)
@@ -295,36 +299,61 @@ def display_cross_kerr(
 
 
 @rc_context(matplotlib_settings)
-def display_self_kerr(
+def display_qubit_self_kerr(
     sweep: "ParameterSweep",
     subsys: "QuantumSystem",
     param_slice: "ParameterSlice",
     fig_ax: Tuple[Figure, Axes],
+    which: Optional[List[Tuple[int, int]]] = None,
 ) -> Tuple[Figure, Axes]:
     subsys_index = sweep.get_subsys_index(subsys)
     title = r"Self-Kerr: {}".format(subsys.id_str)
-    if isinstance(subsys, Oscillator):
-        ylabel = "Kerr coefficient $K_{{{}}}$".format(subsys_index)
-    else:
-        ylabel = r"Kerr coefficient $\Lambda^{{{},{}}}_{{ll'}}$".format(
-            subsys_index, subsys_index
-        )
+    ylabel = r"Kerr coefficient $\Lambda^{{{},{}}}_{{ll}}$".format(
+        subsys_index, subsys_index
+    )
 
     kerr_data = sweep["kerr"][subsys_index, subsys_index]
     if param_slice.fixed != tuple():
         kerr_data = kerr_data[param_slice.fixed]
 
-    level_pairs = [(1, 1), (2, 2)]
+    if not which:
+        level_pairs = list(itertools.combinations(list(range(subsys.truncated_dim)), 2))
+    else:
+        level_pairs = which
 
     kerr_datasets = []
-    for level1, level2 in level_pairs:
-        kerr_datasets.append(kerr_data[..., level1, level2])
+    for pair in level_pairs:
+        kerr_datasets.append(kerr_data[..., pair[0], pair[1]])
     kerr_datasets = np.asarray(kerr_datasets).T
     kerr_namedarray = NamedSlotsNdarray(kerr_datasets, kerr_data.param_info)
 
     fig, axes = kerr_namedarray.plot(
         title=title,
-        label_list=["11", "22"],
+        label_list=level_pairs,
+        ylabel=ylabel + "[{}]".format(units.get_units()),
+        fig_ax=fig_ax,
+    )
+    axes.axvline(param_slice.param_val, color="gray", linestyle=":")
+    return fig, axes
+
+
+@rc_context(matplotlib_settings)
+def display_self_kerr(
+    sweep: "ParameterSweep",
+    subsys: Union[scqubits.Oscillator, scqubits.KerrOscillator],
+    param_slice: "ParameterSlice",
+    fig_ax: Tuple[Figure, Axes],
+) -> Tuple[Figure, Axes]:
+    subsys_index = sweep.get_subsys_index(subsys)
+    title = r"Self-Kerr: {}".format(subsys.id_str)
+
+    ylabel = "Kerr coefficient $K_{{{}}}$".format(subsys_index)
+    kerr_data = sweep["kerr"][subsys_index, subsys_index]
+    if param_slice.fixed != tuple():
+        kerr_data = kerr_data[param_slice.fixed]
+
+    fig, axes = kerr_data.plot(
+        title=title,
         ylabel=ylabel + "[{}]".format(units.get_units()),
         fig_ax=fig_ax,
     )
