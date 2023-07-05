@@ -12,12 +12,12 @@
 
 from typing import Tuple
 
-
-from scqubits.ui.gui_defaults import NAV_COLOR
-from scqubits.ui import gui_defaults as gui_defaults
-from scqubits.ui.gui_custom_widgets import flex_column
 import scqubits.ui.gui_custom_widgets as ui
 import scqubits.utils.misc as utils
+
+from scqubits.ui import gui_defaults as gui_defaults
+from scqubits.ui.gui_custom_widgets import flex_column
+from scqubits.ui.gui_defaults import NAV_COLOR
 
 try:
     import ipyvuetify as v
