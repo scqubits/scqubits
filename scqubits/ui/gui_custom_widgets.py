@@ -9,15 +9,23 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
-import asyncio
+
 import collections
-import time
-from typing import TYPE_CHECKING, Callable, Dict, List, Literal, Optional, OrderedDict, Union
+
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    OrderedDict,
+    Union,
+)
 
 import matplotlib as mp
 
 import scqubits.utils.misc as utils
-
 
 try:
     import ipyvuetify as v
@@ -40,6 +48,7 @@ if TYPE_CHECKING:
 
 
 if _HAS_IPYTHON and _HAS_IPYVUETIFY:
+
     class ValidatedNumberField(v.TextField):
         _typecheck_func: callable = None
         _type = None
@@ -110,10 +119,11 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
                 return False
             return True
 
-
     class NumberEntryWidget(ValidatedNumberField):
         """A widget consisting of a text field and a slider, linked to each other. The text field acts as the main
-        class, while the slider is stored as a class attribute and displayed alongside."""
+        class, while the slider is stored as a class attribute and displayed alongside.
+        """
+
         def __init__(
             self,
             label,
@@ -144,7 +154,12 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             if "class_" not in slider_kwargs:
                 slider_kwargs["class_"] = "pt-3"
             self.slider = v.Slider(
-                min=s_min, max=s_max, step=step, v_model=v_model, thumb_label=True, **slider_kwargs
+                min=s_min,
+                max=s_max,
+                step=step,
+                v_model=v_model,
+                thumb_label=True,
+                **slider_kwargs,
             )
 
             self.slider.on_event("change", self.slider_click)
@@ -199,12 +214,10 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             if onclick:
                 self.on_event("click", onclick)
 
-
     class LinkedSwitch(v.Switch):
         def __init__(self, ref, **kwargs):
             super().__init__(**kwargs)
             self.ref = ref
-
 
     class vTooltipBtn(v.Tooltip):
         def __init__(self, tooltip, bottom=False, left=True, **kwargs):
@@ -247,7 +260,6 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
         def update_textfield(self, *args):
             self.label = f"{self.param_name}={self.current_value():.3f}"
 
-
     class IconButton(LinkedButton):
         def __init__(self, icon_name, **kwargs):
             super().__init__(
@@ -258,49 +270,6 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
                 elevation="0",
                 children=[v.Icon(children=[icon_name])],
             )
-
-    # class vNavbarElement(v.ExpansionPanels):
-    #     def __init__(
-    #         self,
-    #         header,
-    #         content: Union[None, v.ExpansionPanelContent] = None,
-    #         children: Union[None, List[v.VuetifyWidget]] = None,
-    #         **kwargs,
-    #     ):
-    #         assert (content and not children) or (children and not content)
-    #
-    #         content = (
-    #             content
-    #             if isinstance(content, v.ExpansionPanelContent)
-    #             else v.ExpansionPanelContent(
-    #                 class_="text-no-wrap",
-    #                 style_="transform: scale(0.9)",
-    #                 children=children,
-    #             )
-    #         )
-    #
-    #         super().__init__(
-    #             **kwargs,
-    #             **dict(
-    #                 transition=False,
-    #                 flat=True,
-    #                 v_model=None,
-    #                 children=[
-    #                     v.ExpansionPanel(
-    #                         accordion=True,
-    #                         children=[
-    #                             v.ExpansionPanelHeader(
-    #                                 disable_icon_rotate=True,
-    #                                 style_="font-size: 16px; font-weight: 500",
-    #                                 class_="text-no-wrap",
-    #                                 children=[header],
-    #                             ),
-    #                             content,
-    #                         ],
-    #                     )
-    #                 ],
-    #             ),
-    #         )
 
     def flex_row(widgets: List[v.VuetifyWidget], class_="", **kwargs) -> v.Container:
         return v.Container(
@@ -336,7 +305,7 @@ class PanelBase:
 
 
 class ClosablePanel(PanelBase):
-    def __init__(self, panel_id: "PlotID"=None, content_list=None, width="49.5%"):
+    def __init__(self, panel_id: "PlotID" = None, content_list=None, width="49.5%"):
         super().__init__(panel_id=panel_id, content_list=content_list, width=width)
 
         self.btn = v.Btn(
@@ -371,7 +340,13 @@ class ClosablePanel(PanelBase):
 
 
 class ClosablePlotPanel(ClosablePanel):
-    def __init__(self, fig: mp.figure.Figure, axes: mp.axes.Axes, panel_id: Optional["PlotID"] = None, width="49%"):
+    def __init__(
+        self,
+        fig: mp.figure.Figure,
+        axes: mp.axes.Axes,
+        panel_id: Optional["PlotID"] = None,
+        width="49%",
+    ):
         self.fig = fig
         self.axes = axes
         title = self.axes.title.get_text()
@@ -392,13 +367,17 @@ class PlotPanelCollection:
         toggle_switches_by_plot_id: Dict["PlotID", v.Switch],
         ncols: int = 2,
         plot_choice_dialog: Callable = None,
-        plot_settings_dialog: Callable = None
+        plot_settings_dialog: Callable = None,
     ):
         self.ncols = ncols
         self.plot_choice_dialog = plot_choice_dialog
         self.plot_settings_dialog = plot_settings_dialog
-        self.panel_by_btn: OrderedDict[v.Btn, ClosablePlotPanel] = collections.OrderedDict()
-        self.panel_by_id: OrderedDict[str, ClosablePlotPanel] = collections.OrderedDict()
+        self.panel_by_btn: OrderedDict[
+            v.Btn, ClosablePlotPanel
+        ] = collections.OrderedDict()
+        self.panel_by_id: OrderedDict[
+            str, ClosablePlotPanel
+        ] = collections.OrderedDict()
         self.toggle_switches_by_plot_id = toggle_switches_by_plot_id
 
         self.container = v.Container(
@@ -411,13 +390,6 @@ class PlotPanelCollection:
     def choose_plot(self, *args, **kwargs):
         if self.plot_choice_dialog:
             self.plot_choice_dialog()
-        # else:
-        #     fig = mp.pyplot.figure()
-        #     axes = fig.subplots()
-        #     axes.plot(np.random.random(10), np.random.random(10))
-        #     fig.set_figwidth(4)
-        #     fig.set_figheight(4)
-        #     explorer.new_plot_card("", fig, axes)
 
     def axes_list(self) -> List[mp.axes.Axes]:
         return [panel.axes for panel in self.panel_by_btn.values()]
@@ -451,13 +423,6 @@ class PlotPanelCollection:
         btn.on_event("click", self.close_panel)
         new_panel.settings_btn.on_event("click", self.settings_dialog)
         self.container.children = self.card_list()
-
-    # def new_panel(explorer, plot_id, content_list=None):
-    #     """Adds a new card to the grid."""
-    #     card = ClosablePanel(
-    #         content_list=content_list, plot_id=plot_id, width=f"{100 / explorer.ncols - 1}%"
-    #     )
-    #     explorer.setup_card(card)
 
     def new_plot_panel(self, panel_id: "PlotID", fig, axes):
         """Adds a new plot card to the grid."""
