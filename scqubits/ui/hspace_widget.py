@@ -13,7 +13,8 @@
 import functools
 import importlib
 
-from typing import Dict, List, Literal, Union
+from typing import Dict, List, Union
+from typing_extensions import Literal
 
 import numpy as np
 
