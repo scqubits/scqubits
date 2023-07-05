@@ -12,20 +12,21 @@
 import copy
 import itertools
 import warnings
-
 from symtable import Symbol
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
 import scipy as sp
-import scqubits.io_utils.fileio_serializers as serializers
-import scqubits.settings as settings
 import sympy
 import yaml
 
 from numpy import ndarray
-from scqubits.utils.misc import flatten_list, is_string_float
 from sympy import symbols
+
+import scqubits.io_utils.fileio_serializers as serializers
+import scqubits.settings as settings
+
+from scqubits.utils.misc import flatten_list, is_string_float
 
 
 def process_word(word: str) -> Union[float, symbols]:
