@@ -415,12 +415,13 @@ def flatten_list_recursive(some_list: list) -> list:
     if some_list == []:
         return some_list
     if isinstance(some_list[0], list):
-        return flatten_list_recursive(some_list[0]) + flatten_list_recursive(some_list[1:])
+        return flatten_list_recursive(some_list[0]) + flatten_list_recursive(
+            some_list[1:]
+        )
     return some_list[:1] + flatten_list_recursive(some_list[1:])
 
 
 def number_of_lists_in_list(list_object: list) -> int:
-
     """
     Takes a list as an argument and returns the number of lists in that list. (Counts lists at root level only, no
     recursion.)
@@ -438,9 +439,9 @@ def number_of_lists_in_list(list_object: list) -> int:
 
 
 def check_matplotlib_compatibility():
-    if _HAS_WIDGET_BACKEND and StrictVersion(
-            matplotlib.__version__
-    ) < StrictVersion("3.5.1"):
+    if _HAS_WIDGET_BACKEND and StrictVersion(matplotlib.__version__) < StrictVersion(
+        "3.5.1"
+    ):
         warnings.warn(
             "The widget backend requires Matplotlib >=3.5.1 for proper functioning",
             UserWarning,
