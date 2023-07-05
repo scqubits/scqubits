@@ -17,10 +17,8 @@ from typing import (
     Callable,
     Dict,
     List,
-    Literal,
     Optional,
     OrderedDict,
-    Union,
 )
 
 import matplotlib as mp
@@ -66,7 +64,6 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             filled=True,
             **kwargs,
         ):
-            # self._continuous_update_in_progress = False  # main use in child class
             self.name = kwargs.pop("name", None)
             self._type = num_type if num_type is not None else type(v_model)
             if num_type == float:
@@ -196,8 +193,7 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
                 self.slider.v_model = self.num_value
 
         def update_text(self, *args):
-            if not self._continuous_update_in_progress:
-                self.v_model = self.slider.v_model
+            self.v_model = self.slider.v_model
 
     class InitializedSelect(v.Select):
         def __init__(self, **kwargs):
