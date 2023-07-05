@@ -1,9 +1,6 @@
 import os
-import numpy as np
 
 import scqubits as scq
-from scqubits import truncation_template
-from scqubits.core.circuit_utils import example_circuit
 
 TESTDIR, _ = os.path.split(scq.__file__)
 TESTDIR = os.path.join(TESTDIR, "tests", "")
