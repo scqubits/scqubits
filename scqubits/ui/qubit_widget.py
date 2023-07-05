@@ -35,7 +35,9 @@ else:
 
 @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def create_widget(
-    callback_func: Callable, init_params: Dict[str, Any], image_filename: Optional[str] = None
+    callback_func: Callable,
+    init_params: Dict[str, Any],
+    image_filename: Optional[str] = None,
 ) -> None:
     """
     Displays ipyvuetify for initialization of a QuantumSystem object.
@@ -83,11 +85,14 @@ def create_widget(
         image_widget = ipyvuetify.Container(
             children=[ipywidgets.Image(value=image, format="jpg")],
             class_="ml-3 mt-0 pt-0",
-            style_="width: 72%;",
+            style_="width: 65%; max-width:1000px",
         )
         ui_widget = ipyvuetify.Row(
             children=[
-                ipyvuetify.Row(children=box_list, style_="width: 22%;"),
+                ipyvuetify.Row(
+                    children=box_list,
+                    style_="max-width: 22%; align-content: flex-start;",
+                ),
                 image_widget,
             ],
             class_="ml-3 mt-4",
