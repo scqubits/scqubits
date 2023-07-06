@@ -2140,6 +2140,10 @@ class CircuitRoutines(ABC):
 
     def __repr__(self) -> str:
         # string to describe the Circuit
+        return self._id_str
+    
+    def _repr_latex_(self) -> str:
+        # string to describe the Circuit
         if not _HAS_IPYTHON:
             return self._id_str
         # Hamiltonian string
