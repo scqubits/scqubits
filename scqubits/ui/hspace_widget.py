@@ -14,7 +14,7 @@ import functools
 import importlib
 
 from typing import Dict, List, Union
-from typing_extensions import Literal
+from typing_extensions import Literal  # for Python 3.7 compatibility
 
 import numpy as np
 
