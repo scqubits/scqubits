@@ -68,7 +68,7 @@ from scqubits.core.symbolic_circuit import SymbolicCircuit
 try:
     from scqubits.explorer.explorer_widget import Explorer
     from scqubits.ui.gui import GUI
-except ImportError:
+except (ImportError, NameError):
 
     def Explorer(*args, **kwargs):
         warnings.warn(
