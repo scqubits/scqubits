@@ -26,6 +26,7 @@ import qutip as qt
 import scipy as sp
 from matplotlib import get_backend as get_matplotlib_backend
 
+import scqubits.settings
 from scqubits.settings import IN_IPYTHON
 
 if IN_IPYTHON:
@@ -105,7 +106,7 @@ class InfoBar:
     def __enter__(self) -> None:
         self.tqdm_bar = tqdm(
             total=0,
-            disable=(self.num_cpus == 1),
+            disable=(self.num_cpus == 1) or scqubits.settings.PROGRESSBAR_DISABLED,
             leave=False,
             desc=self.desc,
             bar_format="{desc}",
