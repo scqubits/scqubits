@@ -278,227 +278,227 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
         )
 
 
-class PanelBase:
-    def __init__(self, panel_id=None, content_list=None, width="49.5%"):
-        content_list = content_list if content_list else []
-        self.content_row = v.Container(
-            children=content_list,
-            class_="d-flex flex-row",
-            style_="justify-content: center",
-        )
-        self.card = v.Card(
-            id=str(panel_id),
-            max_width=width,
-            min_width=width,
-            elevation=2,
-            class_="mx-1 my-1",
-            children=[self.content_row],
-        )
-        self.panel_id = panel_id
-
-    def set_content(self, content_list):
-        self.content_row.children = content_list
-
-
-class ClosablePanel(PanelBase):
-    def __init__(self, panel_id: "PlotID" = None, content_list=None, width="49.5%"):
-        super().__init__(panel_id=panel_id, content_list=content_list, width=width)
-
-        self.btn = v.Btn(
-            class_="mx-1",
-            icon=True,
-            size="xx-small",
-            elevation=0,
-            children=[v.Icon(children="mdi-close-circle")],
-        )
-
-        self.settings_btn = LinkedButton(
-            # class_="mx-1",
-            style_="margin-left: auto;",
-            icon=True,
-            size="xx-small",
-            elevation=0,
-            children=[v.Icon(children="mdi-settings")],
-            ref=panel_id
-        )
-
-        self.title = v.CardTitle(
-            style_="margin-left: auto;", children=[v.Html(children=[str(panel_id)])]
-        )
-
-        self.card.children = [
-            v.Container(
-                class_="d-flex flex-row justify-center",
-                children=[self.title, self.settings_btn, self.btn],
-            ),
-            self.content_row,
-        ]
-
-
-class ClosablePlotPanel(ClosablePanel):
-    def __init__(
-        self,
-        fig: mp.figure.Figure,
-        axes: mp.axes.Axes,
-        panel_id: Optional["PlotID"] = None,
-        width="49%",
-    ):
-        self.fig = fig
-        self.axes = axes
-        title = self.axes.title.get_text()
-        self.axes.title.set_text("")
-
-        self.output = ipywidgets.Output(layout=ipywidgets.Layout(object_fit="contain"))
-        super().__init__(content_list=[self.output], panel_id=panel_id, width=width)
-        self.title.children = [
-            v.Html(
-                style_="font-weight: normal; color: 0.2;", tag="div", children=[title]
+    class PanelBase:
+        def __init__(self, panel_id=None, content_list=None, width="49.5%"):
+            content_list = content_list if content_list else []
+            self.content_row = v.Container(
+                children=content_list,
+                class_="d-flex flex-row",
+                style_="justify-content: center",
             )
-        ]
+            self.card = v.Card(
+                id=str(panel_id),
+                max_width=width,
+                min_width=width,
+                elevation=2,
+                class_="mx-1 my-1",
+                children=[self.content_row],
+            )
+            self.panel_id = panel_id
+
+        def set_content(self, content_list):
+            self.content_row.children = content_list
 
 
-class PlotPanelCollection:
-    def __init__(
-        self,
-        toggle_switches_by_plot_id: Dict["PlotID", v.Switch],
-        ncols: int = 2,
-        plot_choice_dialog: Callable = None,
-        plot_settings_dialog: Callable = None,
-    ):
-        self.ncols = ncols
-        self.plot_choice_dialog = plot_choice_dialog
-        self.plot_settings_dialog = plot_settings_dialog
-        self.panel_by_btn: OrderedDict[
-            v.Btn, ClosablePlotPanel
-        ] = collections.OrderedDict()
-        self.panel_by_id: OrderedDict[
-            str, ClosablePlotPanel
-        ] = collections.OrderedDict()
-        self.toggle_switches_by_plot_id = toggle_switches_by_plot_id
+    class ClosablePanel(PanelBase):
+        def __init__(self, panel_id: "PlotID" = None, content_list=None, width="49.5%"):
+            super().__init__(panel_id=panel_id, content_list=content_list, width=width)
 
-        self.container = v.Container(
-            children=[],
-            style_="background: #eeeeee; position: relative; top: -70px",
-            class_="d-flex flex-row flex-wrap p-0 m-0",
-            width="100%",
-        )
+            self.btn = v.Btn(
+                class_="mx-1",
+                icon=True,
+                size="xx-small",
+                elevation=0,
+                children=[v.Icon(children="mdi-close-circle")],
+            )
 
-    def choose_plot(self, *args, **kwargs):
-        if self.plot_choice_dialog:
-            self.plot_choice_dialog()
+            self.settings_btn = LinkedButton(
+                # class_="mx-1",
+                style_="margin-left: auto;",
+                icon=True,
+                size="xx-small",
+                elevation=0,
+                children=[v.Icon(children="mdi-settings")],
+                ref=panel_id
+            )
 
-    def axes_list(self) -> List[mp.axes.Axes]:
-        return [panel.axes for panel in self.panel_by_btn.values()]
+            self.title = v.CardTitle(
+                style_="margin-left: auto;", children=[v.Html(children=[str(panel_id)])]
+            )
 
-    def card_list(self) -> List[v.Card]:
-        """Returns the list of all the cards in the deck.
+            self.card.children = [
+                v.Container(
+                    class_="d-flex flex-row justify-center",
+                    children=[self.title, self.settings_btn, self.btn],
+                ),
+                self.content_row,
+            ]
 
-        Returns
-        ------
-            A list of the cards in the deck
-        """
-        cards = [panel.card for panel in self.panel_by_btn.values()]
-        return cards
 
-    def id_list(self) -> List[str]:
-        """Returns the list of all the ids in the deck.
+    class ClosablePlotPanel(ClosablePanel):
+        def __init__(
+            self,
+            fig: mp.figure.Figure,
+            axes: mp.axes.Axes,
+            panel_id: Optional["PlotID"] = None,
+            width="49%",
+        ):
+            self.fig = fig
+            self.axes = axes
+            title = self.axes.title.get_text()
+            self.axes.title.set_text("")
 
-        Returns
-        ------
-            A list of the ids in the deck
-        """
-        return list(self.panel_by_id.keys())
+            self.output = ipywidgets.Output(layout=ipywidgets.Layout(object_fit="contain"))
+            super().__init__(content_list=[self.output], panel_id=panel_id, width=width)
+            self.title.children = [
+                v.Html(
+                    style_="font-weight: normal; color: 0.2;", tag="div", children=[title]
+                )
+            ]
 
-    def setup_card(self, new_panel: ClosablePanel):
-        """Sets up a new card, connecting its close button to the card collection's `close_card` method."""
-        card = new_panel.card
-        card.id = new_panel.panel_id
-        btn = new_panel.btn
-        self.panel_by_btn[btn] = new_panel
-        self.panel_by_id[new_panel.panel_id] = new_panel
-        btn.on_event("click", self.close_panel)
-        new_panel.settings_btn.on_event("click", self.settings_dialog)
-        self.container.children = self.card_list()
 
-    def new_plot_panel(self, panel_id: "PlotID", fig, axes):
-        """Adds a new plot card to the grid."""
-        closable_panel = ClosablePlotPanel(
-            fig, axes, panel_id=panel_id, width=f"{100 / self.ncols - 1}%"
-        )
-        self.setup_card(closable_panel)
-        with closable_panel.output:
-            mp.pyplot.show()
+    class PlotPanelCollection:
+        def __init__(
+            self,
+            toggle_switches_by_plot_id: Dict["PlotID", v.Switch],
+            ncols: int = 2,
+            plot_choice_dialog: Callable = None,
+            plot_settings_dialog: Callable = None,
+        ):
+            self.ncols = ncols
+            self.plot_choice_dialog = plot_choice_dialog
+            self.plot_settings_dialog = plot_settings_dialog
+            self.panel_by_btn: OrderedDict[
+                v.Btn, ClosablePlotPanel
+            ] = collections.OrderedDict()
+            self.panel_by_id: OrderedDict[
+                str, ClosablePlotPanel
+            ] = collections.OrderedDict()
+            self.toggle_switches_by_plot_id = toggle_switches_by_plot_id
 
-    def close_panel(self, close_btn: LinkedButton, *args, **kwargs):
-        """Remove card from dictionary and from the grid."""
-        panel_id = self.panel_by_btn[close_btn].panel_id
+            self.container = v.Container(
+                children=[],
+                style_="background: #eeeeee; position: relative; top: -70px",
+                class_="d-flex flex-row flex-wrap p-0 m-0",
+                width="100%",
+            )
 
-        if self.toggle_switches_by_plot_id[panel_id].v_model:
-            self.toggle_switches_by_plot_id[panel_id].v_model = False
-        else:
-            self.panel_by_btn.pop(close_btn)
-            self.panel_by_id.pop(panel_id)
+        def choose_plot(self, *args, **kwargs):
+            if self.plot_choice_dialog:
+                self.plot_choice_dialog()
+
+        def axes_list(self) -> List[mp.axes.Axes]:
+            return [panel.axes for panel in self.panel_by_btn.values()]
+
+        def card_list(self) -> List[v.Card]:
+            """Returns the list of all the cards in the deck.
+
+            Returns
+            ------
+                A list of the cards in the deck
+            """
+            cards = [panel.card for panel in self.panel_by_btn.values()]
+            return cards
+
+        def id_list(self) -> List[str]:
+            """Returns the list of all the ids in the deck.
+
+            Returns
+            ------
+                A list of the ids in the deck
+            """
+            return list(self.panel_by_id.keys())
+
+        def setup_card(self, new_panel: ClosablePanel):
+            """Sets up a new card, connecting its close button to the card collection's `close_card` method."""
+            card = new_panel.card
+            card.id = new_panel.panel_id
+            btn = new_panel.btn
+            self.panel_by_btn[btn] = new_panel
+            self.panel_by_id[new_panel.panel_id] = new_panel
+            btn.on_event("click", self.close_panel)
+            new_panel.settings_btn.on_event("click", self.settings_dialog)
             self.container.children = self.card_list()
 
-    def close_panel_by_id(self, panel_id: "PlotID"):
-        self.close_panel(self.panel_by_id[panel_id].btn)
+        def new_plot_panel(self, panel_id: "PlotID", fig, axes):
+            """Adds a new plot card to the grid."""
+            closable_panel = ClosablePlotPanel(
+                fig, axes, panel_id=panel_id, width=f"{100 / self.ncols - 1}%"
+            )
+            self.setup_card(closable_panel)
+            with closable_panel.output:
+                mp.pyplot.show()
 
-    def settings_dialog(self, settings_btn: LinkedButton, *args, **kwargs):
-        """Bring up plot panel settings dialog."""
-        self.plot_settings_dialog(settings_btn.ref)
+        def close_panel(self, close_btn: LinkedButton, *args, **kwargs):
+            """Remove card from dictionary and from the grid."""
+            panel_id = self.panel_by_btn[close_btn].panel_id
 
-    def resize_all(self, width=None, height=None):
-        """Resizes all cards in the grid.
+            if self.toggle_switches_by_plot_id[panel_id].v_model:
+                self.toggle_switches_by_plot_id[panel_id].v_model = False
+            else:
+                self.panel_by_btn.pop(close_btn)
+                self.panel_by_id.pop(panel_id)
+                self.container.children = self.card_list()
 
-        Parameters
-        ----------
-        width:
-            width of the cards in the grid
-        height:
-            height of the cards in the grid
-        """
-        for card in self.card_list():
-            if width:
-                card.width = width
-            if height:
-                card.height = height
+        def close_panel_by_id(self, panel_id: "PlotID"):
+            self.close_panel(self.panel_by_id[panel_id].btn)
 
-    def change_cols(self, ncols: int):
-        """
-        Changes the number of columns in the grid by setting `explorer.cols` and resizing all widgets in the grid.
+        def settings_dialog(self, settings_btn: LinkedButton, *args, **kwargs):
+            """Bring up plot panel settings dialog."""
+            self.plot_settings_dialog(settings_btn.ref)
 
-        Parameters
-        ----------
-        ncols:
-            number of columns in the grid
+        def resize_all(self, width=None, height=None):
+            """Resizes all cards in the grid.
 
-        """
-        self.ncols = ncols
-        self.resize_all(width=f"{100 / self.ncols - 1}%")
+            Parameters
+            ----------
+            width:
+                width of the cards in the grid
+            height:
+                height of the cards in the grid
+            """
+            for card in self.card_list():
+                if width:
+                    card.width = width
+                if height:
+                    card.height = height
 
-    def show(self):
-        """
-        The show function is the main function of a component. It returns
-        a VDOM object that will be rendered in the browser. The show function
-        is called every time an event occurs, and it's return value is used to
-        update the DOM.
+        def change_cols(self, ncols: int):
+            """
+            Changes the number of columns in the grid by setting `explorer.cols` and resizing all widgets in the grid.
 
-        Returns
-        -------
-            A container with the full widget.
-        """
-        return v.Container(
-            class_="mx-0 px-0 my-0 py-0",
-            width="100%",
-            children=[
-                LinkedButton(
-                    fab=True,
-                    position="fixed",
-                    class_="mx-2 my-2",
-                    style_="z-index: 1000",
-                    onclick=self.choose_plot,
-                    children=[v.Icon(children="mdi-plus")],
-                ),
-                self.container,
-            ],
-        )
+            Parameters
+            ----------
+            ncols:
+                number of columns in the grid
+
+            """
+            self.ncols = ncols
+            self.resize_all(width=f"{100 / self.ncols - 1}%")
+
+        def show(self):
+            """
+            The show function is the main function of a component. It returns
+            a VDOM object that will be rendered in the browser. The show function
+            is called every time an event occurs, and it's return value is used to
+            update the DOM.
+
+            Returns
+            -------
+                A container with the full widget.
+            """
+            return v.Container(
+                class_="mx-0 px-0 my-0 py-0",
+                width="100%",
+                children=[
+                    LinkedButton(
+                        fab=True,
+                        position="fixed",
+                        class_="mx-2 my-2",
+                        style_="z-index: 1000",
+                        onclick=self.choose_plot,
+                        children=[v.Icon(children="mdi-plus")],
+                    ),
+                    self.container,
+                ],
+            )
