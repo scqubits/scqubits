@@ -23,10 +23,7 @@ import numpy as np
 import qutip as qt
 import scipy as sp
 
-import scqubits as scq
-import scqubits.settings as settings
 from scqubits.settings import IN_IPYTHON
-
 
 if IN_IPYTHON:
     from tqdm.notebook import tqdm
@@ -105,7 +102,7 @@ class InfoBar:
     def __enter__(self) -> None:
         self.tqdm_bar = tqdm(
             total=0,
-            disable=(self.num_cpus > 1 or settings.PROGRESSBAR_DISABLED),
+            disable=(self.num_cpus == 1),
             leave=False,
             desc=self.desc,
             bar_format="{desc}",
