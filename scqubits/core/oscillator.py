@@ -11,12 +11,10 @@
 ############################################################################
 
 import os
-
 from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
 import scipy as sp
-
 from numpy import ndarray
 from scipy.special import factorial, pbdv
 
@@ -148,7 +146,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         return op.creation(self.truncated_dim)
 
     def annihilation_operator(self) -> ndarray:
-        """Returns the creation operator"""
+        """Returns the annihilation operator"""
         return op.annihilation(self.truncated_dim)
 
     def matrixelement_table(self, *args, **kwargs) -> ndarray:
