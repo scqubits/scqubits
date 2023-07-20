@@ -616,7 +616,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
                         transitions.append((initial_state, final_state))
                         transition_energies.append(diff_energies)
 
-        self.reset_preslicing()
+        self._preslicing_reset()
 
         if not as_specdata:
             return transitions, transition_energies
@@ -794,7 +794,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         if make_positive:
             specdata_all.energy_table = np.abs(specdata_all.energy_table)
 
-        self.reset_preslicing()
+        self._preslicing_reset()
 
         if coloring == "plain":
             return specdata_all.plot_evals_vs_paramvals()
@@ -1020,7 +1020,7 @@ class ParameterSweep(  # type:ignore
         self._num_cpus = num_cpus
 
         self._out_of_sync = False
-        self.reset_preslicing()
+        self._preslicing_reset()
 
         dispatch.CENTRAL_DISPATCH.register("PARAMETERSWEEP_UPDATE", self)
         dispatch.CENTRAL_DISPATCH.register("HILBERTSPACE_UPDATE", self)
