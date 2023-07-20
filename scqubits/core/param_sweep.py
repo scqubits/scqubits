@@ -307,7 +307,9 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         return self.hilbertspace.get_initdata()
 
     def _preslicing_reset(self) -> None:
-        self._current_param_indices = slice(None, None, None)
+        self._current_param_indices = (
+            (slice(None, None, None),) * len(self._parameters)
+        )
 
     def _slice_is_1d_sweep(self, param_indices: Optional[NpIndices]) -> bool:
         param_indices = param_indices or self._current_param_indices
