@@ -307,7 +307,9 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         return self.hilbertspace.get_initdata()
 
     def _preslicing_reset(self) -> None:
-        self._current_param_indices = slice(None, None, None)
+        self._current_param_indices = (
+            (slice(None, None, None),) * len(self._parameters)
+        )
 
     def _slice_is_1d_sweep(self, param_indices: Optional[NpIndices]) -> bool:
         param_indices = param_indices or self._current_param_indices
@@ -607,7 +609,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
                 transitions.append((initial_state, final_state))
                 transition_energies.append(diff_energies)
 
-        self.reset_preslicing()
+        self._preslicing_reset()
 
         if not as_specdata:
             return transitions, transition_energies
@@ -731,7 +733,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         if make_positive:
             specdata_all.energy_table = np.abs(specdata_all.energy_table)
 
-        self.reset_preslicing()
+        self._preslicing_reset()
 
         if coloring == "plain":
             return specdata_all.plot_evals_vs_paramvals()
@@ -994,7 +996,7 @@ class ParameterSweep(  # type:ignore
         self.tqdm_disabled = settings.PROGRESSBAR_DISABLED or (num_cpus > 1)
 
         self._out_of_sync = False
-        self.reset_preslicing()
+        self._preslicing_reset()
 
         dispatch.CENTRAL_DISPATCH.register("PARAMETERSWEEP_UPDATE", self)
         dispatch.CENTRAL_DISPATCH.register("HILBERTSPACE_UPDATE", self)
