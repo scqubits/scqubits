@@ -503,6 +503,8 @@ def esys_cupy_sparse(
 DIAG_METHODS = {
     "evals_scipy_dense": evals_scipy_dense,
     "esys_scipy_dense": esys_scipy_dense,
+    "evals_scipy_sparse": evals_scipy_sparse,
+    "esys_scipy_sparse": esys_scipy_sparse,
 
     "evals_scipy_sparse_LA_shift-inverse": lambda matrix, evals_count=6, **kwargs: evals_scipy_sparse(
         matrix,
@@ -523,14 +525,6 @@ DIAG_METHODS = {
         matrix,
         evals_count,
         **_dict_merge(dict(which="LM", sigma=0), kwargs, overwrite=True)
-    ),
-    "evals_scipy_sparse_SM": lambda matrix, evals_count=6, **kwargs: evals_scipy_sparse(
-        matrix=matrix,
-        evals_count=evals_count,
-        **_dict_merge(dict(which="SM"), kwargs, overwrite=True)
-    ),
-    "esys_scipy_sparse_SM": lambda matrix, evals_count=6, **kwargs: esys_scipy_sparse(
-        matrix, evals_count, **_dict_merge(dict(which="SM"), kwargs, overwrite=True)
     ),
     "evals_primme_sparse_LA_shift-inverse": lambda matrix, evals_count=6, **kwargs: evals_primme_sparse(
         matrix=matrix,
