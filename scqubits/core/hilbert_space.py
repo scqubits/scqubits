@@ -182,7 +182,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
                     operator = operator(energy_esys=esys)
                 except TypeError:
                     operator = operator()
-                op_in_eigenbasis = True
+                op_in_eigenbasis = bool(esys)
             else:
                 op_in_eigenbasis = False
 
