@@ -32,9 +32,10 @@ def _dict_merge(
 ) -> Dict[str, Any]:
     """
     Selective dictionary merge. This function makes a copy of the given
-    dictionary `d` and selectively updates/adds entries from `d_other`.
+    dictionary `d` and selectively updates/adds entries from `d_other`,
+    as long as the keys are not given in `exclude`.
     Whether entries in `d` are overwritten by entries in `d_other` is
-    determined by the value of the `overwrite` parameter.
+    determined by the value of the `overwrite` parameter
 
     Parameters
     ----------
@@ -45,11 +46,11 @@ def _dict_merge(
     exclude: dict
         list of potential keys in d_other to be excluded from being added to resulting merge
     overwrite: bool
-        determines of keys already in d should be overwritten by those in d_other
+        determines if keys already in d should be overwritten by those in d_other
 
     Returns
     ----------
-        dictionary of options that includes desired defaults if not present beforehand
+        merged dictionary
 
     """
     exclude = [] if exclude is None else exclude
@@ -75,7 +76,7 @@ def _cast_matrix(
 
     Parameters
     ----------
-    matrix: Qobj, ndarra or csc_matrx
+    matrix: Qobj, ndarray or csc_matrx
         matrix given as an ndarray, Qobj, or scipy's sparse matrix format
     cast_to: str
         string representing the format that matrix should be cast into: 'sparse' or 'dense'
@@ -108,8 +109,9 @@ def _cast_matrix(
 
 def _convert_evecs_to_qobjs(evecs: ndarray, wrap: bool = True) -> ndarray:
     """
-    Converts an ndarray containing eigenvectors (that would be typically returned from diagonalization routine,
-    such as eighs or eigh), to a numpy array of qutip's Qobjs.
+    Converts an ndarray containing eigenvectors (that would be typically
+    returned from a diagonalization routine, such as eighs or eigh),
+    to a numpy array of qutip's Qobjs.
 
     Parameters
     ----------
@@ -135,6 +137,9 @@ def _convert_evecs_to_qobjs(evecs: ndarray, wrap: bool = True) -> ndarray:
         evecs_qobj = evecs_qobj.view(scqubits.io_utils.fileio_qutip.QutipEigenstates)
 
     return evecs_qobj
+
+
+### scipy based routines ####
 
 
 def evals_scipy_dense(
@@ -191,9 +196,6 @@ def esys_scipy_dense(
 
     evals, evecs = sp.linalg.eigh(m, subset_by_index=(0, evals_count - 1), **kwargs)
 
-    # TODO: do we need this?
-    # evals, evecs = order_eigensystem(evals, evecs)
-
     evecs = _convert_evecs_to_qobjs(evecs) if isinstance(matrix, Qobj) else evecs
 
     return evals, evecs
@@ -232,15 +234,13 @@ def evals_scipy_sparse(
     m = _cast_matrix(matrix, "sparse")
 
     options = _dict_merge(
-        kwargs,
         dict(
-            # sigma=0.0,
-            # which="LA",
-            sigma=None,
             which="SA",
             v0=settings.RANDOM_ARRAY[: matrix.shape[0]],
             return_eigenvectors=False,
         ),
+        kwargs,
+        overwrite=True,
     )
     evals = sp.sparse.linalg.eigsh(m, k=evals_count, **options)
 
@@ -286,15 +286,13 @@ def esys_scipy_sparse(
     m = _cast_matrix(matrix, "sparse")
 
     options = _dict_merge(
-        kwargs,
         dict(
-            # sigma=0.0,
-            # which="LA",
-            sigma=None,
             which="SA",
             v0=settings.RANDOM_ARRAY[: matrix.shape[0]],
             return_eigenvectors=True,
         ),
+        kwargs,
+        overwrite=True,
     )
     evals, evecs = sp.sparse.linalg.eigsh(m, k=evals_count, **options)
 
@@ -304,6 +302,9 @@ def esys_scipy_sparse(
     evecs = _convert_evecs_to_qobjs(evecs) if isinstance(matrix, Qobj) else evecs
 
     return evals, evecs
+
+
+### cupy based routines ####
 
 
 def evals_cupy_dense(
@@ -378,11 +379,12 @@ def evals_cupy_sparse(
     m = matrix
 
     options = _dict_merge(
-        kwargs,
         dict(
             which="LA",
             return_eigenvectors=False,
         ),
+        kwargs,
+        overwrite=True,
     )
     evals_gpu = eigsh(cp.asarray(matrix), k=evals_count, **options)
     # evals_gpu = eigsh(cp.asarray(m), k=matrix.shape[0] - 3, **options)
@@ -415,10 +417,11 @@ def esys_cupy_sparse(
     m = matrix
 
     options = _dict_merge(
-        kwargs,
         dict(
             return_eigenvectors=True,
         ),
+        kwargs,
+        overwrite=True,
     )
     evals_gpu, evecs_gpu = eigsh(cp.asarray(m), k=evals_count, **options)
 
@@ -429,6 +432,9 @@ def esys_cupy_sparse(
     )
 
     return evals, evecs
+
+
+### primme based routines ####
 
 
 def evals_primme_sparse(
@@ -447,11 +453,12 @@ def evals_primme_sparse(
     m = matrix
 
     options = _dict_merge(
-        kwargs,
         dict(
-            # which="SA",
+            which="SM",
             return_eigenvectors=False,
         ),
+        kwargs,
+        overwrite=True,
     )
     evals = primme.eigsh(m, k=evals_count, **options)
 
@@ -474,11 +481,12 @@ def esys_primme_sparse(
     m = matrix
 
     options = _dict_merge(
-        kwargs,
         dict(
-            which="SA",
+            which="SM",
             return_eigenvectors=True,
         ),
+        kwargs,
+        overwrite=True,
     )
     evals, evecs = primme.eigsh(m, k=evals_count, **options)
 
@@ -493,14 +501,64 @@ def esys_primme_sparse(
 DIAG_METHODS = {
     "evals_scipy_dense": evals_scipy_dense,
     "esys_scipy_dense": esys_scipy_dense,
-    "evals_scipy_sparse": evals_scipy_sparse,
-    "esys_scipy_sparse": esys_scipy_sparse,
-    "esys_scipy_sparse_LA_shift-inverse": lambda matrix, evals_count=6, **kwargs: esys_scipy_sparse(
-        matrix, evals_count, **_dict_merge(kwargs, dict(which="LA", sigma=0))
+    "evals_scipy_sparse_LA_shift-inverse": lambda matrix, evals_count=6, **kwargs: evals_scipy_sparse(
+        matrix,
+        evals_count,
+        **_dict_merge(dict(which="LA", sigma=0), kwargs, overwrite=True)
     ),
-    "evals_primme_sparse": evals_primme_sparse,
-    "evals_primme_sparse": evals_primme_sparse,
-    "esys_primme_sparse": esys_primme_sparse,
+    "esys_scipy_sparse_LA_shift-inverse": lambda matrix, evals_count=6, **kwargs: esys_scipy_sparse(
+        matrix,
+        evals_count,
+        **_dict_merge(dict(which="LA", sigma=0), kwargs, overwrite=True)
+    ),
+    "evals_scipy_sparse_LM_shift-inverse": lambda matrix, evals_count=6, **kwargs: evals_scipy_sparse(
+        matrix,
+        evals_count,
+        **_dict_merge(dict(which="LM", sigma=0), kwargs, overwrite=True)
+    ),
+    "esys_scipy_sparse_LM_shift-inverse": lambda matrix, evals_count=6, **kwargs: esys_scipy_sparse(
+        matrix,
+        evals_count,
+        **_dict_merge(dict(which="LM", sigma=0), kwargs, overwrite=True)
+    ),
+    "evals_scipy_sparse_SM": lambda matrix, evals_count=6, **kwargs: evals_scipy_sparse(
+        matrix=matrix,
+        evals_count=evals_count,
+        **_dict_merge(dict(which="SM"), kwargs, overwrite=True)
+    ),
+    "esys_scipy_sparse_SM": lambda matrix, evals_count=6, **kwargs: esys_scipy_sparse(
+        matrix, evals_count, **_dict_merge(dict(which="SM"), kwargs, overwrite=True)
+    ),
+    "evals_primme_sparse_LA_shift-inverse": lambda matrix, evals_count=6, **kwargs: evals_primme_sparse(
+        matrix=matrix,
+        evals_count=evals_count,
+        **_dict_merge(dict(which="LA", sigma=0), kwargs, overwrite=True)
+    ),
+    "esys_primme_sparse_LA_shift-inverse": lambda matrix, evals_count=6, **kwargs: esys_primme_sparse(
+        matrix=matrix,
+        evals_count=evals_count,
+        **_dict_merge(dict(which="LA", sigma=0), kwargs, overwrite=True)
+    ),
+    "evals_primme_sparse_LM_shift-inverse": lambda matrix, evals_count=6, **kwargs: evals_primme_sparse(
+        matrix=matrix,
+        evals_count=evals_count,
+        **_dict_merge(dict(which="LM", sigma=0), kwargs, overwrite=True)
+    ),
+    "esys_primme_sparse_LM_shift-inverse": lambda matrix, evals_count=6, **kwargs: esys_primme_sparse(
+        matrix=matrix,
+        evals_count=evals_count,
+        **_dict_merge(dict(which="LM", sigma=0), kwargs, overwrite=True)
+    ),
+    "evals_primme_sparse_SM": lambda matrix, evals_count=6, **kwargs: evals_primme_sparse(
+        matrix=matrix,
+        evals_count=evals_count,
+        **_dict_merge(dict(which="SM"), kwargs, overwrite=True)
+    ),
+    "esys_primme_sparse_SM": lambda matrix, evals_count=6, **kwargs: esys_primme_sparse(
+        matrix=matrix,
+        evals_count=evals_count,
+        **_dict_merge(dict(which="SM"), kwargs, overwrite=True)
+    ),
     "evals_cupy_dense": evals_cupy_dense,
     "esys_cupy_dense": esys_cupy_dense,
     "evals_cupy_sparse": evals_cupy_sparse,
