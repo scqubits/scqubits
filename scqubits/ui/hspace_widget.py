@@ -529,7 +529,9 @@ class HilbertSpaceUi:
                         )
                     ]
                     return False
-                if not isinstance(instance, (np.ndarray, csc_matrix, Qobj)) and not callable(instance):
+                if not isinstance(
+                    instance, (np.ndarray, csc_matrix, Qobj)
+                ) and not callable(instance):
                     self.status_output.children = [
                         v.Alert(
                             children=[

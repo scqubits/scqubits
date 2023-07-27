@@ -176,7 +176,7 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             return v.Container(
                 class_="d-flex flex-row ml-2 pb-0 pt-1",
                 style_="min-width: 220px; max-width: 220px",
-                children=[self, self.slider]
+                children=[self, self.slider],
             )
 
         def update_slider(self, *args):
@@ -277,7 +277,6 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             class_="d-flex flex-column " + class_, children=widgets, **kwargs
         )
 
-
     class PanelBase:
         def __init__(self, panel_id=None, content_list=None, width="49.5%"):
             content_list = content_list if content_list else []
@@ -299,7 +298,6 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
         def set_content(self, content_list):
             self.content_row.children = content_list
 
-
     class ClosablePanel(PanelBase):
         def __init__(self, panel_id: "PlotID" = None, content_list=None, width="49.5%"):
             super().__init__(panel_id=panel_id, content_list=content_list, width=width)
@@ -319,7 +317,7 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
                 size="xx-small",
                 elevation=0,
                 children=[v.Icon(children="mdi-settings")],
-                ref=panel_id
+                ref=panel_id,
             )
 
             self.title = v.CardTitle(
@@ -334,7 +332,6 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
                 self.content_row,
             ]
 
-
     class ClosablePlotPanel(ClosablePanel):
         def __init__(
             self,
@@ -348,14 +345,17 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             title = self.axes.title.get_text()
             self.axes.title.set_text("")
 
-            self.output = ipywidgets.Output(layout=ipywidgets.Layout(object_fit="contain"))
+            self.output = ipywidgets.Output(
+                layout=ipywidgets.Layout(object_fit="contain")
+            )
             super().__init__(content_list=[self.output], panel_id=panel_id, width=width)
             self.title.children = [
                 v.Html(
-                    style_="font-weight: normal; color: 0.2;", tag="div", children=[title]
+                    style_="font-weight: normal; color: 0.2;",
+                    tag="div",
+                    children=[title],
                 )
             ]
-
 
     class PlotPanelCollection:
         def __init__(
