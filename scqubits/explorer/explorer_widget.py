@@ -150,21 +150,40 @@ class Explorer:
             label="Active Sweep Parameter",
             items=list(self.sweep.param_info.keys()),
         )
-
-        self.ui["sweep_value_slider"] = ui.DiscreteSetSlider(
-            param_name=self.ui["sweep_param_dropdown"].v_model,
-            param_vals=self.param_vals,
-            filled=False,
-            class_="px-3",
-            style_="max-width: 300px; padding-top: 10px",
-        )
-
         self.ui["sweep_param_dropdown"].observe(
-            self.update_fixed_sliders, names="v_model"
+            self.update_parameter_sliders, names="v_model"
         )
-        self.ui["sweep_value_slider"].observe(self.update_plots, names="v_model")
 
-        self.update_fixed_sliders(None)
+        # self.ui["sweep_value_slider"] = ui.DiscreteSetSlider(
+        #     param_name=self.ui["sweep_param_dropdown"].v_model,
+        #     param_vals=self.param_vals,
+        #     filled=False,
+        #     class_="px-3",
+        #     style_="max-width: 300px; padding-top: 10px",
+        # )
+        #
+        #
+        # self.ui["sweep_value_slider"].observe(self.update_plots, names="v_model")
+
+        self.ui["param_sliders"] = self.create_sliders()
+        self.update_parameter_sliders(None)
+        self.ui["top_bar"] = v.Sheet(
+            class_="d-flex flex-row m-0 pt-3 align-bottom",
+            height=70,
+            flat=True,
+            width="100%",
+            color=NAV_COLOR,
+            children=[
+                v.Card(
+                    class_="p-2 mx-4",
+                    color=NAV_COLOR,
+                    elevation=0,
+                    children=[gui_defaults.icons["scq-logo.png"]],
+                ),
+                self.ui["sweep_param_dropdown"],
+                self.ui["param_sliders_container"],
+            ],
+        )
 
         self.plot_collection = ui.PlotPanelCollection(
             ncols=self.ncols,
@@ -178,23 +197,7 @@ class Explorer:
         self.explorer_display = v.Container(
             class_="d-flex flex-column mx-0 px-0",
             children=[
-                v.Sheet(
-                    class_="d-flex flex-row m-0 pt-3 align-bottom",
-                    height=70,
-                    flat=True,
-                    width="100%",
-                    color=NAV_COLOR,
-                    children=[
-                        v.Card(
-                            class_="p-2 mx-4",
-                            color=NAV_COLOR,
-                            elevation=0,
-                            children=[gui_defaults.icons["scq-logo.png"]],
-                        ),
-                        self.ui["sweep_param_dropdown"],
-                        self.ui["sweep_value_slider"],
-                    ],
-                ),
+                self.ui["top_bar"],
                 self.plot_collection.show(),
                 self.ui["add_plot_dialog"],
                 *self.settings["dialogs"].values(),
@@ -510,25 +513,29 @@ class Explorer:
         the switches."""
         return list(self.active_switches_by_plot_id.keys())
 
-    def create_sliders(self) -> List["v.VuetifyWidget"]:
+    def create_sliders(self) -> Dict[str, "v.VuetifyWidget"]:
         """Returns a list of selection sliders, one for each parameter that is part
         of the underlying ParameterSweep object."""
-        sliders = [
-            ui.InitializedSelect(
-                label=param_name,
-                items=param_array.tolist(),
+        slider_by_name = {
+            param_name: ui.DiscreteSetSlider(
+                param_name=param_name,
+                param_vals=param_array.tolist(),
+                filled=False,
+                class_="px-3",
+                style_="max-width: 300px; padding-top: 10px",
             )
             for param_name, param_array in self.sweep.param_info.items()
-            if param_name != self.ui["sweep_param_dropdown"].v_model
-        ]
-        for slider in sliders:
-            slider.observe(self.update_plots, names="num_value")
-        return sliders
+        }
+        for slider in slider_by_name.values():
+            slider.observe(self.update_plots, names="v_model")
+        return slider_by_name
 
     @property
     def fixed_params(self) -> Dict[str, float]:
         sliders = self.ui["fixed_param_sliders"]
-        return {slider.label: slider.v_model for slider in sliders}
+        return {
+            param_name: slider.current_value() for param_name, slider in sliders.items()
+        }
 
     @property
     def axes_list(self) -> List[Axes]:
@@ -565,15 +572,26 @@ class Explorer:
         else:
             self.plot_collection.close_panel_by_id(toggled_panel_id)
 
-    def update_fixed_sliders(self, change):
-        self.ui["fixed_param_sliders"] = self.create_sliders()
-        self.ui["fixed_param_sliders_container"] = ui.flex_column(
-            self.ui["fixed_param_sliders"]
+    def update_parameter_sliders(self, change):
+        current_sweep_param = self.ui["sweep_param_dropdown"].v_model
+        self.ui["fixed_param_sliders"] = self.ui["param_sliders"].copy()
+        self.ui["fixed_param_sliders"].pop(current_sweep_param)
+
+        self.ui["sweep_value_slider"] = self.ui["param_sliders"][current_sweep_param]
+
+        self.ui["param_sliders_container"] = ui.flex_row(
+            [
+                self.ui["sweep_value_slider"],
+                v.Text(children="Fixed:"),
+                *self.ui["fixed_param_sliders"].values(),
+            ]
         )
 
-        self.ui["sweep_value_slider"].options = self.sweep.param_info[
-            self.ui["sweep_param_dropdown"].v_model
-        ]
+        if "top_bar" in self.ui:
+            self.ui["top_bar"].children = self.ui["top_bar"].children[:-1] + [
+                self.ui["param_sliders_container"]
+            ]
+            self.update_plots(None)
 
     def bare_dressed_toggle(self, change):
         if (
