@@ -130,6 +130,17 @@ def _add_attribute(
     return attributes, ndarrays, objects
 
 
+def _add_boundmethod_attribute(
+    name: str,
+    obj: Any,
+    attributes: Dict[str, Any],
+    ndarrays: Dict[str, ndarray],
+    objects: Dict[str, object],
+) -> Tuple[Dict, Dict, Dict]:
+    attributes[name] = obj()
+    return attributes, ndarrays, objects
+
+
 TO_ATTRIBUTE = (Expr, str, Number, dict, OrderedDict, list, tuple, bool, np.bool_)
 TO_NDARRAY = (np.ndarray,)
 TO_OBJECT = (Serializable,)
@@ -148,6 +159,8 @@ def type_dispatch(entity: Serializable) -> Callable:
         if entity.dtype == "O":
             return _add_object
         return _add_ndarray
+    if callable(entity) and "_operator" in entity.__name__:
+        return _add_boundmethod_attribute
     # no match, try treating as object, though this may fail
     return _add_object
 

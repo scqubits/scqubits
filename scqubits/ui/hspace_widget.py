@@ -173,7 +173,7 @@ class HilbertSpaceUi:
             return []
         main = importlib.import_module("__main__")
         return [
-            method_name + "()"
+            method_name
             for method_name in dir(main.__dict__[subsystem])  # type:ignore
             if "_operator" in method_name
             and method_name[0] != "_"
@@ -374,7 +374,7 @@ class HilbertSpaceUi:
         candidates_dict = {
             name: subsys
             for name, subsys in main.__dict__.items()
-            if isinstance(subsys, QuantumSystem)
+            if isinstance(subsys, QuantumSystem) and name[0] != "_"
         }
         return candidates_dict
 
@@ -529,7 +529,7 @@ class HilbertSpaceUi:
                         )
                     ]
                     return False
-                if not isinstance(instance, (np.ndarray, csc_matrix, Qobj)):
+                if not isinstance(instance, (np.ndarray, csc_matrix, Qobj)) and not callable(instance):
                     self.status_output.children = [
                         v.Alert(
                             children=[

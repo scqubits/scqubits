@@ -92,15 +92,16 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     """
 
     g_strength = descriptors.WatchedProperty(complex, "INTERACTIONTERM_UPDATE")
+
     operator_list = descriptors.WatchedProperty(
-        List[Tuple[int, Union[ndarray, csc_matrix]]], "INTERACTIONTERM_UPDATE"
-    )
+        List[Tuple[int, Union[ndarray, csc_matrix, Callable]]], "INTERACTIONTERM_UPDATE"
+    )  # Each item in the operator_list is a tuple (subsys_index, operator)
     add_hc = descriptors.WatchedProperty(bool, "INTERACTIONTERM_UPDATE")
 
     def __init__(
         self,
         g_strength: Union[float, complex],
-        operator_list: List[Tuple[int, Union[ndarray, csc_matrix]]],
+        operator_list: List[Tuple[int, Union[ndarray, csc_matrix, Callable]]],
         add_hc: bool = False,
     ) -> None:
         self.g_strength = g_strength
@@ -162,19 +163,32 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
 
     @staticmethod
     def id_wrap_all_ops(
-        operator_list: List[Tuple[int, Union[ndarray, csc_matrix]]],
+        operator_list: List[Tuple[int, Union[ndarray, csc_matrix, Callable]]],
         subsystem_list: List[QuantumSys],
         bare_esys: Optional[Dict[int, ndarray]] = None,
-    ) -> list:
+    ) -> List[Qobj]:
         id_wrapped_operators = []
         for subsys_index, operator in operator_list:
+
             if bare_esys is not None and subsys_index in bare_esys:
-                evecs = bare_esys[subsys_index][1]
+                esys = bare_esys[subsys_index]
+                evecs = esys[1]
             else:
+                esys = None
                 evecs = None
+
+            if callable(operator):
+                try:
+                    operator = operator(energy_esys=esys)
+                except TypeError:
+                    operator = operator()
+                op_in_eigenbasis = True
+            else:
+                op_in_eigenbasis = False
+
             id_wrapped_operators.append(
                 spec_utils.identity_wrap(
-                    operator, subsystem_list[subsys_index], subsystem_list, evecs=evecs
+                    operator, subsystem_list[subsys_index], subsystem_list, evecs=evecs, op_in_eigenbasis=op_in_eigenbasis
                 )
             )
         return id_wrapped_operators
@@ -953,13 +967,15 @@ class HilbertSpace(
                                           op_in_bare_eigenbasis=<Bool>)
         """
         op_callable_or_tuple = kwargs.pop("op")
-        if isinstance(op_callable_or_tuple, Callable):
-            subsys_index, op = self._parse_op(op_callable_or_tuple)
+        if callable(op_callable_or_tuple):
+            op_callable = op_callable_or_tuple
+            subsys_index, op = self._parse_non_strbased_op(op_callable)
             return self._op_in_dressed_eigenbasis(
                 op, subsys_index, op_in_bare_eigenbasis=False
             )
         else:
-            op, subsys = op_callable_or_tuple
+            op_tuple = op_callable_or_tuple
+            op, subsys = op_tuple
             op_in_bare_eigenbasis = kwargs.pop("op_in_bare_eigenbasis", False)
             subsys_index = self.get_subsys_index(subsys)
             return self._op_in_dressed_eigenbasis(
@@ -1057,10 +1073,10 @@ class HilbertSpace(
             return None
         try:
             _ = self.interaction_hamiltonian()
-        except:
+        except Exception as inst:
             self.interaction_list.pop()
             del self._interaction_term_by_id_str[id_str]
-            raise ValueError("Invalid Interaction Term")
+            raise ValueError(f"Invalid Interaction Term. Exception: {inst}")
 
     def _parse_interactiontermstr(self, **kwargs) -> InteractionTermStr:
         expr = kwargs.pop("expr")
@@ -1071,7 +1087,7 @@ class HilbertSpace(
         for key in kwargs.keys():
             if re.match(r"op\d+$", key) is None:
                 raise TypeError("Unexpected keyword argument {}.".format(key))
-            operator_list.append(self._parse_op_by_name(kwargs[key]))
+            operator_list.append(self._parse_str_based_op(kwargs[key]))
 
         return InteractionTermStr(expr, operator_list, const=const, add_hc=add_hc)
 
@@ -1085,7 +1101,7 @@ class HilbertSpace(
         for key in kwargs.keys():
             if re.match(r"op\d+$", key) is None:
                 raise TypeError("Unexpected keyword argument {}.".format(key))
-            subsys_index, op = self._parse_op(kwargs[key])
+            subsys_index, op = self._parse_non_strbased_op(kwargs[key])
             operator_list.append((subsys_index, op))
 
         return InteractionTerm(g, operator_list, add_hc=add_hc)
@@ -1097,26 +1113,26 @@ class HilbertSpace(
             raise TypeError("Cannot interpret specified operator {}".format(op))
         return kwargs["qobj"]
 
-    def _parse_op_by_name(
-        self, op_by_name
-    ) -> Tuple[int, str, Union[ndarray, csc_matrix, dia_matrix]]:
-        if not isinstance(op_by_name, tuple):
-            raise TypeError("Cannot interpret specified operator {}".format(op_by_name))
-        if len(op_by_name) == 3:
+    def _parse_str_based_op(
+        self, keyword_value: Union[Tuple[str, ndarray, QuantumSys], Tuple[str, Callable]]
+    ) -> Tuple[int, str, Union[ndarray, csc_matrix, dia_matrix, Callable]]:
+        if not isinstance(keyword_value, tuple):
+            raise TypeError("Cannot interpret specified operator {}".format(keyword_value))
+        if len(keyword_value) == 3:
             # format expected:  (<op name as str>, <op as array>, <subsys as QuantumSystem>)
-            return self.get_subsys_index(op_by_name[2]), op_by_name[0], op_by_name[1]
+            return self.get_subsys_index(keyword_value[2]), keyword_value[0], keyword_value[1]
         # format expected (<op name as str)>, <QuantumSystem.method callable>)
         return (
-            self.get_subsys_index(op_by_name[1].__self__),
-            op_by_name[0],
-            op_by_name[1](),
+            self.get_subsys_index(keyword_value[1].__self__),
+            keyword_value[0],
+            keyword_value[1],
         )
 
-    def _parse_op(
-        self, op: Union[Callable, Tuple[Union[ndarray, csc_matrix], QuantumSys]]
-    ) -> Tuple[int, Union[ndarray, csc_matrix]]:
+    def _parse_non_strbased_op(
+        self, op: Union[Callable, Tuple[Union[ndarray, csc_matrix], QuantumSys]],
+    ) -> Tuple[int, Union[ndarray, csc_matrix, Callable]]:
         if callable(op):
-            return self.get_subsys_index(op.__self__), op()  # type:ignore
+            return self.get_subsys_index(op.__self__), op  # type:ignore
         if not isinstance(op, tuple):
             raise TypeError("Cannot interpret specified operator {}".format(op))
         if len(op) == 2:

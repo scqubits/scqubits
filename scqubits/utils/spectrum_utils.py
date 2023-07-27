@@ -12,7 +12,7 @@
 
 import cmath
 
-from typing import TYPE_CHECKING, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, Union
 
 import numpy as np
 import qutip as qt
@@ -396,7 +396,7 @@ def recast_esys_mapdata(
 
 
 def identity_wrap(
-    operator: Union[str, ndarray, Qobj],
+    operator: Union[str, ndarray, Qobj, Callable],
     subsystem: "QuantumSys",
     subsys_list: List["QuantumSys"],
     op_in_eigenbasis: bool = False,
@@ -432,6 +432,13 @@ def identity_wrap(
         eigenstates of each subsystem (unless `operator` is provided as a `Qobj`,
         in which case no conversion takes place).
     """
+    if not isinstance(operator, qt.Qobj) and callable(operator):
+        try:
+            operator = operator(energy_esys=evecs)
+        except:
+            operator = operator()
+        op_in_eigenbasis = True
+
     subsys_operator = convert_operator_to_qobj(
         operator, subsystem, op_in_eigenbasis, evecs  # type:ignore
     )
