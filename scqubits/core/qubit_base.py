@@ -266,14 +266,14 @@ class QubitBaseClass(QuantumSystem, ABC):
     def _evals_calc(self, evals_count: int) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
         evals = sp.linalg.eigh(
-            hamiltonian_mat, eigvals_only=True, subset_by_index=(0, evals_count - 1)
+            hamiltonian_mat, eigvals_only=True, subset_by_index=(0, evals_count - 1), check_finite=False
         )
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = sp.linalg.eigh(
-            hamiltonian_mat, eigvals_only=False, subset_by_index=(0, evals_count - 1)
+            hamiltonian_mat, eigvals_only=False, subset_by_index=(0, evals_count - 1), check_finite=False
         )
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
