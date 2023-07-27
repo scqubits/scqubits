@@ -25,11 +25,12 @@ Matplotlib.
 #    LICENSE file in the root directory of this source tree.
 #######################################################################################
 
+from typing import Any, Optional, Type, Union
 import warnings
 
 from typing import Any, Type, Union
 
-import matplotlib as mpl
+import matplotlib.font_manager as mpl_font
 import numpy as np
 
 from cycler import cycler
@@ -41,7 +42,7 @@ def warning_on_one_line(
     category: Type[Warning],
     filename: str,
     lineno: int,
-    line: str = None,
+    line: Optional[str] = None,
 ) -> str:
     return "{}: {}\n {}: {}".format(category.__name__, message, filename, lineno)
 
@@ -93,6 +94,20 @@ NUM_CPUS = 1
 MULTIPROC = "pathos"
 
 # Matplotlib options -------------------------------------------------------------------
+# select fonts
+font_selected = None
+try:
+    font_names = mpl_font.get_font_names()
+    for font in ["IBM Plex Sans", "Roboto", "Arial", "Helvetica"]:
+        if font in font_names:
+            font_selected = font
+            break
+    if not font_selected:
+        font_selected = "sans-serif"
+
+except AttributeError:
+    font_selected = "sans-serif"
+
 # set matplotlib defaults for use in @mpl.rc_context
 off_black = "0.2"
 matplotlib_settings = {
@@ -112,7 +127,7 @@ matplotlib_settings = {
             "#F9E6BE",
         ]
     ),
-    "font.family": "IBM Plex Sans, Roboto, Arial, DejaVu Sans",
+    "font.family": font_selected,
     "font.size": 11,
     "font.weight": 500,
     "axes.labelsize": 11,
