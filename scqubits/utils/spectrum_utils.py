@@ -434,8 +434,8 @@ def identity_wrap(
     """
     if not isinstance(operator, qt.Qobj) and callable(operator):
         try:
-            operator = operator(energy_esys=evecs)
-        except:
+            operator = operator(energy_esys=(None, evecs))
+        except TypeError:
             operator = operator()
         op_in_eigenbasis = True
 

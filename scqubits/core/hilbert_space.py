@@ -949,7 +949,11 @@ class HilbertSpace(
             phase = spec_utils.extract_phase(evec.data.toarray())
             self._data["evecs"][0][idx] = evec * np.exp(-1j * phase)
 
-    def op_in_dressed_eigenbasis(self, **kwargs) -> Qobj:
+    def op_in_dressed_eigenbasis(
+        self,
+        op: Union[Tuple[Union[np.ndarray, csc_matrix], QuantumSys], Callable],
+        **kwargs,
+    ) -> Qobj:
         """
         Express a subsystem operator in the dressed eigenbasis of the full system
         (as opposed to both the "native basis" or "bare eigenbasis" of the subsystem).
@@ -969,24 +973,23 @@ class HilbertSpace(
                 .op_in_dressed_eigenbasis(op=(<ndarray>, <subsys>),
                                           op_in_bare_eigenbasis=<Bool>)
         """
-        op_callable_or_tuple = kwargs.pop("op")
-        if callable(op_callable_or_tuple):
-            op_callable = op_callable_or_tuple
-            subsys_index, op = self._parse_non_strbased_op(op_callable)
-            return self._op_in_dressed_eigenbasis(
-                op, subsys_index, op_in_bare_eigenbasis=False
-            )
-        else:
-            op_tuple = op_callable_or_tuple
-            op, subsys = op_tuple
+        if isinstance(op, tuple):
+            op_matrix, subsys = op
             op_in_bare_eigenbasis = kwargs.pop("op_in_bare_eigenbasis", False)
             subsys_index = self.get_subsys_index(subsys)
-            return self._op_in_dressed_eigenbasis(
-                op, subsys_index, op_in_bare_eigenbasis
+            return self._op_matrix_to_dressed_eigenbasis(
+                op_matrix, subsys_index, op_in_bare_eigenbasis
             )
 
-    def _op_in_dressed_eigenbasis(
-        self, op: ndarray, subsys_index: int, op_in_bare_eigenbasis: bool = False
+        assert callable(op)
+        subsys_index = self.get_subsys_index(op.__self__)
+        return self._op_callable_to_dressed_eigenbasis(op, subsys_index)
+
+    def _op_matrix_to_dressed_eigenbasis(
+        self,
+        op: Union[np.ndarray, csc_matrix],
+        subsys_index: int,
+        op_in_bare_eigenbasis,
     ) -> Qobj:
         bare_evecs = self._data["bare_evecs"][subsys_index][0]
         id_wrapped_op = spec_utils.identity_wrap(
@@ -994,6 +997,20 @@ class HilbertSpace(
             self.subsystem_list[subsys_index],
             self.subsystem_list,
             op_in_eigenbasis=op_in_bare_eigenbasis,
+            evecs=bare_evecs,
+        )
+        dressed_evecs = self._data["evecs"][0]
+        dressed_op = id_wrapped_op.transform(dressed_evecs)
+        return dressed_op
+
+    def _op_callable_to_dressed_eigenbasis(
+        self, op: Callable, subsys_index: int
+    ) -> Qobj:
+        bare_evecs = self._data["bare_evecs"][subsys_index][0]
+        id_wrapped_op = spec_utils.identity_wrap(
+            op,
+            self.subsystem_list[subsys_index],
+            self.subsystem_list,
             evecs=bare_evecs,
         )
         dressed_evecs = self._data["evecs"][0]
