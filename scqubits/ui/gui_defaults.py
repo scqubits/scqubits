@@ -61,7 +61,7 @@ flux_range = {"v_min": 0.0, "v_max": 1.0}
 ng_range = {"v_min": 0.0, "v_max": 1.0}
 int_range = {"v_min": 1, "v_max": 30}
 float_range = {"v_min": 0.0, "v_max": 30.0}
-ncut_range = {"v_min": 10, "v_max": 50}
+ncut_range = {"v_min": 6, "v_max": 50}
 
 global_defaults = {
     "mode_wavefunc": "Re(·)",
@@ -337,8 +337,8 @@ supported_qubits = [
     "ZeroPi",
     "FullZeroPi",
     "Cos2PhiQubit",
-    "Snailmon",
-    "Bifluxon",
+    # "Snailmon",
+    # "Bifluxon",
 ]
 
 # The following qubits are supported by the GUI, but are slow, so auto-updating is disabled by default
@@ -347,8 +347,8 @@ slow_qubits = [
     "ZeroPi",
     "FullZeroPi",
     "Cos2PhiQubit",
-    "Snailmon",
-    "Bifluxon",
+    # "Snailmon",
+    # "Bifluxon",
 ]
 
 

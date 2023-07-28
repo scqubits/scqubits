@@ -24,7 +24,6 @@ import warnings
 from scqubits import settings
 
 # core
-from scqubits.core.bifluxon import Bifluxon
 from scqubits.core.central_dispatch import CentralDispatch
 from scqubits.core.cos2phi_qubit import Cos2PhiQubit
 from scqubits.core.discretization import Grid1d
@@ -39,7 +38,6 @@ from scqubits.core.hilbert_space import (
 from scqubits.core.noise import calc_therm_ratio
 from scqubits.core.oscillator import KerrOscillator, Oscillator
 from scqubits.core.param_sweep import ParameterSweep
-from scqubits.core.snail import Snailmon
 from scqubits.core.storage import DataStore, SpectrumData
 from scqubits.core.transmon import Transmon, TunableTransmon
 from scqubits.core.units import (
