@@ -11,7 +11,6 @@
 ############################################################################
 
 import math
-import os
 
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -89,9 +88,6 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         self.truncated_dim = truncated_dim
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
-        self._image_filename = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "qubit_img/fixed-transmon.jpg"
-        )
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
@@ -641,9 +637,6 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         self.truncated_dim = truncated_dim
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
-        self._image_filename = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "qubit_img/tunable-transmon.jpg"
-        )
 
     @property
     def EJ(self) -> float:  # type: ignore

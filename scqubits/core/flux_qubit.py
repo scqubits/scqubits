@@ -10,8 +10,6 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import os
-
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -355,9 +353,6 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         self._default_grid = discretization.Grid1d(
             -np.pi / 2, 3 * np.pi / 2, 100
         )  # for plotting in phi_j basis
-        self._image_filename = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "qubit_img/flux-qubit.jpg"
-        )
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
@@ -410,14 +405,20 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def _evals_calc(self, evals_count: int) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
         evals = sp.linalg.eigh(
-            hamiltonian_mat, subset_by_index=(0, evals_count - 1), eigvals_only=True
+            hamiltonian_mat,
+            subset_by_index=(0, evals_count - 1),
+            eigvals_only=True,
+            check_finite=False,
         )
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = sp.linalg.eigh(
-            hamiltonian_mat, subset_by_index=(0, evals_count - 1), eigvals_only=False
+            hamiltonian_mat,
+            subset_by_index=(0, evals_count - 1),
+            eigvals_only=False,
+            check_finite=False,
         )
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
         return evals, evecs
