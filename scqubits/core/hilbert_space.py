@@ -167,6 +167,26 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         subsystem_list: List[QuantumSys],
         bare_esys: Optional[Dict[int, ndarray]] = None,
     ) -> List[Qobj]:
+        """
+        Returns a list of identity-wrapped operators, one for each operator in
+        operator_list. Note: at this point, any callable operator is actually evaluated.
+
+        Parameters
+        ----------
+        operator_list:
+            list of tuples (subsys_index, operator)
+        subsystem_list:
+            list of all quantum systems in HilbertSpace calling ``hamiltonian``,
+            needed for identity wrapping
+        bare_esys:
+            optionally, the bare eigensystems for each subsystem can be provided to
+            speed up computation; these are provided in dict form via <subsys>: esys)
+
+        Returns
+        -------
+            list of identity-wrapped operators
+
+        """
         id_wrapped_operators = []
         for subsys_index, operator in operator_list:
             if bare_esys is not None and subsys_index in bare_esys:
