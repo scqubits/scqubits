@@ -683,7 +683,7 @@ class HilbertSpace(
 
         hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)  # type:ignore
 
-        if self.evals_method is None:
+        if not hasattr(self, "evals_method") or self.vals_method is None:
             evals = hamiltonian_mat.eigenenergies(eigvals=evals_count)
         else:
             diagonalizer = (
@@ -722,7 +722,7 @@ class HilbertSpace(
 
         hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)  # type:ignore
 
-        if self.esys_method is None:
+        if not hasattr(self, "esys_method") or self.esys_method is None:
             evals, evecs = hamiltonian_mat.eigenstates(eigvals=evals_count)
         else:
             diagonalizer = (
