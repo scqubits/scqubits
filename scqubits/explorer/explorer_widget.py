@@ -582,7 +582,7 @@ class Explorer:
         self.ui["param_sliders_container"] = ui.flex_row(
             [
                 self.ui["sweep_value_slider"],
-                v.Text(children="Fixed:"),
+                v.Text(children="Fixed:" if self.ui["fixed_param_sliders"] else ""),
                 *self.ui["fixed_param_sliders"].values(),
             ]
         )
