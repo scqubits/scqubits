@@ -323,7 +323,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         -------
             eigenvalues as ndarray or in form of a SpectrumData object
         """
-        if self.evals_method is None:
+        if not hasattr(self, "evals_method") or self.evals_method is None:
             evals = self._evals_calc(evals_count)
         else:
             diagonalizer = (
@@ -385,7 +385,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         -------
             eigenvalues, eigenvectors as numpy arrays or in form of a SpectrumData object
         """
-        if self.esys_method is None:
+        if not hasattr(self, "esys_method") or self.esys_method is None:
             evals, evecs = self._esys_calc(evals_count)
         else:
             diagonalizer = (
