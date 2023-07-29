@@ -15,6 +15,7 @@ Provides the base classes for qubits
 
 import functools
 import inspect
+import os
 
 from abc import ABC, ABCMeta, abstractmethod
 from typing import (
@@ -29,8 +30,8 @@ from typing import (
     overload,
 )
 
-import matplotlib.pyplot as plt
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
 
@@ -118,6 +119,11 @@ class QuantumSystem(DispatchClient, ABC):
     def __init__(self, id_str: Union[str, None]):
         self._sys_type = type(self).__name__
         self._id_str = id_str or self._autogenerate_id_str()
+        self._image_filename = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "qubit_img",
+            type(self).__name__ + ".jpg",
+        )
 
     def __init_subclass__(cls):
         """Used to register all non-abstract _subclasses as a list in
@@ -208,7 +214,7 @@ class QuantumSystem(DispatchClient, ABC):
         init_params = params or self.get_initdata()
         init_params.pop("id_str", None)
         ui.create_widget(
-            self.set_params, init_params, image_filename=self._image_filename
+            self.set_params_from_gui, init_params, image_filename=self._image_filename
         )
 
     @staticmethod
@@ -216,6 +222,14 @@ class QuantumSystem(DispatchClient, ABC):
     def default_params() -> Dict[str, Any]:
         """Return dictionary with default parameter values for initialization of
         class instance"""
+
+    def set_params_from_gui(self, change):
+        """
+        Set new parameters through the provided dictionary.
+        """
+        param_name = change["owner"].name
+        param_val = change["owner"].num_value
+        setattr(self, param_name, param_val)
 
     def set_params(self, **kwargs):
         """
@@ -269,14 +283,20 @@ class QubitBaseClass(QuantumSystem, ABC):
     def _evals_calc(self, evals_count: int) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
         evals = sp.linalg.eigh(
-            hamiltonian_mat, eigvals_only=True, subset_by_index=(0, evals_count - 1)
+            hamiltonian_mat,
+            eigvals_only=True,
+            subset_by_index=(0, evals_count - 1),
+            check_finite=False,
         )
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = sp.linalg.eigh(
-            hamiltonian_mat, eigvals_only=False, subset_by_index=(0, evals_count - 1)
+            hamiltonian_mat,
+            eigvals_only=False,
+            subset_by_index=(0, evals_count - 1),
+            check_finite=False,
         )
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs

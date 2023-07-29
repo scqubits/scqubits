@@ -23,7 +23,6 @@ import numpy as np
 import qutip as qt
 import scipy as sp
 import sympy as sm
-
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure

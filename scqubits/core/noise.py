@@ -16,8 +16,8 @@ import warnings
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
-import matplotlib.pyplot as plt
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
 
@@ -33,7 +33,6 @@ import scqubits.utils.plotting as plotting
 
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import matplotlib_settings
-
 
 # flag that lets us show a warning about the default t1 behavior
 # (i.e., total=True setting) only once. Using the standard warnings

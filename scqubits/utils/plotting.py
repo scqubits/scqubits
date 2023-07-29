@@ -24,6 +24,7 @@ import scqubits.core.constants as constants
 import scqubits.utils.misc as utils
 import scqubits.utils.plot_defaults as defaults
 
+from scqubits.settings import matplotlib_settings
 from scqubits.utils.plot_utils import (
     _extract_kwargs_options,
     _process_options,
@@ -33,7 +34,6 @@ from scqubits.utils.plot_utils import (
     plot_wavefunction_to_axes,
     scale_wavefunctions,
 )
-from scqubits.settings import matplotlib_settings
 
 if TYPE_CHECKING:
     from scqubits.core.storage import SpectrumData, WaveFunction, WaveFunctionOnGrid
@@ -413,12 +413,18 @@ def matrix2d(
 
     if show_colorbar:
         # add colorbar with normalized range
-        fig.colorbar(
-            mpl.cm.ScalarMappable(norm=nrm, cmap=plt.cm.viridis),
-            ax=axes,
-            fraction=0.046,
-            pad=0.04,
-        )
+        if hasattr(axes, "colorbar"):  # update existing colorbar
+            axes.colorbar.update_normal(
+                mpl.cm.ScalarMappable(norm=nrm, cmap=plt.cm.viridis)
+            )
+        else:  # create new colorbar
+            cb = fig.colorbar(
+                mpl.cm.ScalarMappable(norm=nrm, cmap=plt.cm.viridis),
+                ax=axes,
+                fraction=0.046,
+                pad=0.04,
+            )
+            axes.colorbar = cb
     cax = axes.matshow(modefunction(matrix), cmap=plt.cm.viridis, interpolation=None)
 
     if show_numbers:
@@ -576,9 +582,9 @@ def matelem_vs_paramvals(
     -------
     matplotlib objects for further editing
     """
-    assert specdata.matrixelem_table is not None, (
-        "SpectrumData is missing matrix " "element data!"
-    )
+    assert (
+        specdata.matrixelem_table is not None
+    ), "SpectrumData is missing matrix element data!"
     fig, axes = kwargs.get("fig_ax") or plt.subplots()
     x_vals = specdata.param_vals
     modefunction = constants.MODE_FUNC_DICT[mode]

@@ -66,12 +66,29 @@ class WaveFunction:
             array of potential energy values (that determine the energy range on the y axis
 
         """
+        self.amplitudes *= self.amplitude_scale_factor(potential_vals)
+
+    def amplitude_scale_factor(self, potential_vals: np.ndarray) -> float:
+        """
+        Returnn scale factor that converts the dimensionless amplitude to a (pseudo-)energy that allows us to plot
+        wavefunctions and potential energies in the same plot.
+
+        Parameters
+        ----------
+        potential_vals:
+            array of potential energy values (that determine the energy range on the y axis
+
+        Returns
+        -------
+            scale factor
+
+        """
         FILL_FACTOR = 0.1
         energy_range = np.max(potential_vals) - np.min(potential_vals)
         amplitude_range = np.max(self.amplitudes) - np.min(self.amplitudes)
         if amplitude_range < 1.0e-10:
             return 0.0
-        self.amplitudes *= FILL_FACTOR * energy_range / amplitude_range
+        return FILL_FACTOR * energy_range / amplitude_range
 
 
 # -WaveFunctionOnGrid class-------------------------------------------------------------

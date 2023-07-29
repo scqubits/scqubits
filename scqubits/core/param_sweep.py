@@ -31,7 +31,6 @@ from typing import (
 )
 
 import numpy as np
-
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
@@ -45,7 +44,6 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.plotting as plot
-
 from scqubits import settings as settings
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.namedslots_array import (
@@ -122,6 +120,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     _hilbertspace: HilbertSpace
 
     _out_of_sync = False
+    _out_of_sync_warning_issued = False
     _current_param_indices: NpIndices
 
     @property
@@ -953,7 +952,6 @@ class ParameterSweep(  # type:ignore
         self._ignore_low_overlap = ignore_low_overlap
         self._deepcopy = deepcopy
         self._num_cpus = num_cpus
-        self.tqdm_disabled = settings.PROGRESSBAR_DISABLED or (num_cpus > 1)
 
         self._out_of_sync = False
         self.reset_preslicing()
@@ -963,6 +961,10 @@ class ParameterSweep(  # type:ignore
 
         if autorun:
             self.run()
+
+    @property
+    def tqdm_disabled(self) -> bool:
+        return settings.PROGRESSBAR_DISABLED or (self._num_cpus > 1)
 
     def cause_dispatch(self) -> None:
         initial_parameters = tuple(paramvals[0] for paramvals in self._parameters)
@@ -994,6 +996,8 @@ class ParameterSweep(  # type:ignore
         """Create all sweep data: bare spectral data, dressed spectral data, lookup
         data and custom sweep data."""
         # generate one dispatch before temporarily disabling CENTRAL_DISPATCH
+        self._out_of_sync = False
+        self._out_of_sync_warning_issued = False
 
         self._lookup_exists = True
         if self._deepcopy:
@@ -1090,7 +1094,6 @@ class ParameterSweep(  # type:ignore
         reduced_parameters = self._parameters.create_reduced(fixed_paramnames)
         total_count = np.prod([len(param_vals) for param_vals in reduced_parameters])
 
-        multi_cpu = self._num_cpus > 1
         target_map = cpu_switch.get_map_method(self._num_cpus)
 
         with utils.InfoBar(
@@ -1111,7 +1114,7 @@ class ParameterSweep(  # type:ignore
                 total=total_count,
                 desc="Bare spectra",
                 leave=False,
-                disable=multi_cpu,
+                disable=self.tqdm_disabled,
             )
 
         bare_eigendata = np.asarray(list(bare_eigendata), dtype=object)
@@ -1164,7 +1167,6 @@ class ParameterSweep(  # type:ignore
             NamedSlotsNdarray[<paramname1>, <paramname2>, ...] of eigenvalues,
             likewise for eigenvectors
         """
-        multi_cpu = self._num_cpus > 1
         target_map = cpu_switch.get_map_method(self._num_cpus)
         total_count = np.prod(self._parameters.counts)
 
@@ -1186,7 +1188,7 @@ class ParameterSweep(  # type:ignore
                     total=total_count,
                     desc="Dressed spectrum",
                     leave=False,
-                    disable=multi_cpu,
+                    disable=self.tqdm_disabled,
                 )
             )
 

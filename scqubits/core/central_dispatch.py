@@ -12,10 +12,10 @@
 
 
 import logging
-from typing import Optional
 import warnings
 import weakref
 from types import MethodType
+from typing import Optional
 from weakref import WeakKeyDictionary
 
 import scqubits.settings as settings

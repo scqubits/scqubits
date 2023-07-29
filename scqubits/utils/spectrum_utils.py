@@ -12,7 +12,7 @@
 
 import cmath
 
-from typing import TYPE_CHECKING, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, Union
 
 import numpy as np
 import qutip as qt
@@ -33,9 +33,9 @@ from scqubits.utils.typedefs import QuantumSys
 
 
 def eigsh_safe(*args, **kwargs):
-    """Wrapper method for scipy.sparse.linalg.eigsh
-    This ensures:
-    1. Always use the same "random" starting vector v0. Otherwise results show
+    """Wrapper method for `scipy.sparse.linalg.eigsh` which ensures the following.
+
+    1. Always use the same "random" starting vector v0. Otherwise, results show
        random behavior (small deviations between different runs, problem for pytests)
     2. Test for degenerate eigenvalues. If there are any, need to orthogonalize the
         eigenvectors properly."""
@@ -77,7 +77,9 @@ def order_eigensystem(
     return evals, evecs
 
 
-def extract_phase(complex_array: np.ndarray, position: Optional[Tuple[int, ...]] = None) -> float:
+def extract_phase(
+    complex_array: np.ndarray, position: Optional[Tuple[int, ...]] = None
+) -> float:
     """Extracts global phase from `complex_array` at given `position`. If position is
     not specified, the `position` is set as follows. Find the maximum between the
     leftmost point and the halfway point of the wavefunction. The position of that
@@ -394,7 +396,7 @@ def recast_esys_mapdata(
 
 
 def identity_wrap(
-    operator: Union[str, ndarray, Qobj],
+    operator: Union[str, ndarray, Qobj, Callable],
     subsystem: "QuantumSys",
     subsys_list: List["QuantumSys"],
     op_in_eigenbasis: bool = False,
@@ -430,6 +432,13 @@ def identity_wrap(
         eigenstates of each subsystem (unless `operator` is provided as a `Qobj`,
         in which case no conversion takes place).
     """
+    if not isinstance(operator, qt.Qobj) and callable(operator):
+        try:
+            operator = operator(energy_esys=(None, evecs))
+        except TypeError:
+            operator = operator()
+        op_in_eigenbasis = True
+
     subsys_operator = convert_operator_to_qobj(
         operator, subsystem, op_in_eigenbasis, evecs  # type:ignore
     )
