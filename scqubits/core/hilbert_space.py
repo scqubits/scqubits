@@ -1085,6 +1085,11 @@ class HilbertSpace(
 
                 .add_interaction(qobj=<Qobj>)
 
+        Parameters
+        ----------
+        check_validity:
+            optional bool indicating whether to check the validity of the interaction;
+            switch this off for speed if you are sure the interaction is valid
         id_str:
             optional string by which this instance can be referred to in `HilbertSpace`
             and `ParameterSweep`. If not provided, an id is auto-generated.
@@ -1180,7 +1185,7 @@ class HilbertSpace(
         op: Union[Callable, Tuple[Union[ndarray, csc_matrix], QuantumSys]],
     ) -> Tuple[int, Union[ndarray, csc_matrix, Callable]]:
         if callable(op):
-            return self.get_subsys_index(op.__self__), op  # type:ignore
+            return self.get_subsys_index(op.__self__), op  # store op here, not op() [v3.2]
         if not isinstance(op, tuple):
             raise TypeError("Cannot interpret specified operator {}".format(op))
         if len(op) == 2:

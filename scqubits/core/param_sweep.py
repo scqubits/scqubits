@@ -561,7 +561,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
             whether data is handed back in raw array form or wrapped into a SpectrumData
             object (default: False)
         param_indices:
-            usually to be omitted, as param_npindices will be set via pre-slicing
+            usually to be omitted, as param_indices will be set via pre-slicing
 
         Returns
         -------
