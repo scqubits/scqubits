@@ -10,9 +10,11 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import os
 from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
+import scipy as sp
 
 from numpy import ndarray
 from scipy.special import factorial, pbdv
@@ -101,6 +103,9 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         self.truncated_dim: int = truncated_dim  # type:ignore
         self.l_osc: Union[None, float] = l_osc  # type:ignore
         self.E_osc = E_osc
+        self._image_filename = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "qubit_img/oscillator.jpg"
+        )
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
@@ -142,7 +147,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         return op.creation(self.truncated_dim)
 
     def annihilation_operator(self) -> ndarray:
-        """Returns the creation operator"""
+        """Returns the annihilation operator"""
         return op.annihilation(self.truncated_dim)
 
     def matrixelement_table(self, *args, **kwargs) -> ndarray:
@@ -219,6 +224,10 @@ class KerrOscillator(Oscillator, serializers.Serializable):
             l_osc=l_osc,
             truncated_dim=truncated_dim,
             id_str=id_str,
+        )
+
+        self._image_filename = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "qubit_img/kerr-oscillator.jpg"
         )
 
     @staticmethod
