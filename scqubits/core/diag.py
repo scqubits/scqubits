@@ -88,18 +88,18 @@ def _cast_matrix(
         matrix in the right sparse or dense form
 
     """
-    m = matrix
-
+    m=matrix
+ 
     if cast_to == "sparse":
         if isinstance(matrix, Qobj):
             m = csc_matrix(matrix.data)
-        elif isinstance(matrix, ndarray) and force_cast:
-            m = csc_matrix(m)
+        elif force_cast and isinstance(matrix, ndarray):
+            m = csc_matrix(matrix)
 
     elif cast_to == "dense":
         if isinstance(matrix, Qobj):
             m = matrix.full()
-        elif sp.sparse.issparse(matrix) and force_cast:
+        elif force_cast and sp.sparse.issparse(matrix):
             m = matrix.toarray()
     else:
         raise ValueError("Can only matrix to 'sparse' or 'dense' forms.")
@@ -112,7 +112,7 @@ def _convert_evecs_to_qobjs(evecs: ndarray, matrix_qobj, wrap: bool = True) -> n
     Converts an ndarray containing eigenvectors (that would be typically
     returned from a diagonalization routine, such as eighs or eigh),
     to a numpy array of qutip's Qobjs.
-    Potentially also wrap those into `scqubits.io_utils.fileio_qutip.QutipEigenstates`.
+    Potentially also wraps those into `scqubits.io_utils.fileio_qutip.QutipEigenstates`.
 
     Parameters
     ----------
@@ -125,7 +125,7 @@ def _convert_evecs_to_qobjs(evecs: ndarray, matrix_qobj, wrap: bool = True) -> n
 
     Returns
     ----------
-        1d ndarray of Qobjs representing eigenvectors of some operator
+        eigenvectors represented in terms of Qobjs
 
     """
     evecs_count = evecs.shape[1]
@@ -217,12 +217,6 @@ def evals_scipy_sparse(
     Note the convoluted convention when it comes to ordering and how it is related
     to the presence of `return_eigenvectors` parameter. See here for details:
     https://github.com/scipy/scipy/issues/9082
-
-    This function ensures that:
-    1. We always use the same "random" starting vector v0. Otherwise results show
-    random behavior (small deviations between different runs, problem for pytests)
-    2. We test for degenerate eigenvalues. If there are any, we orthogonalize the
-    eigenvectors properly.
 
     Parameters
     ----------
@@ -347,8 +341,21 @@ def esys_primme_sparse(
     matrix: Union[ndarray, csc_matrix, Qobj], evals_count: int, **kwargs
 ) -> Union[Tuple[ndarray, ndarray], Tuple[ndarray, QutipEigenstates]]:
     """
-    Diagonalization based on primme's (sparse) eighs function.
+    Diagonalization based on primme's (sparse) eigsh function.
     Both evals and evecs are returned.
+
+    Parameters
+    ----------
+    matrix:
+        ndarray or qutip.Qobj to be diagonalized
+    evals_count:
+        how many eigenvalues/vectors should be returned
+    kwargs:
+        optional settings that are passed onto the diagonalization routine
+
+    Returns
+    ----------
+        a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if matrix is a Qobj instance
     """
     try:
         import primme
@@ -402,6 +409,24 @@ def esys_cupy_dense(
     matrix: Union[ndarray, csc_matrix, Qobj], evals_count: int, **kwargs
 ) -> Union[Tuple[ndarray, ndarray], Tuple[ndarray, QutipEigenstates]]:
     """
+    Diagonalization based on cupy (dense)
+    Both evals and evecs are returned.
+
+    Parameters
+    ----------
+    matrix:
+        ndarray or qutip.Qobj to be diagonalized
+    evals_count:
+        how many eigenvalues/vectors should be returned
+    kwargs:
+        optional settings that are passed onto the diagonalization routine
+
+    Returns
+    ----------
+        a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if matrix is a Qobj instance
+
+
+
     Diagonalization based on cupy's (dense) eigh function.
     Both evals and evecs are returned.
     """
@@ -472,7 +497,7 @@ def esys_cupy_sparse(
     except:
         raise ImportError("Module cupyx (part of cupy) is not installed.")
 
-    m = _cast_matrix(matrix, "sparse")
+    m = cp_csc_matrix(_cast_matrix(matrix, "sparse"))
 
     options = _dict_merge(
         dict(
@@ -501,6 +526,12 @@ DIAG_METHODS = {
     # scipy sparse
     "evals_scipy_sparse": evals_scipy_sparse,
     "esys_scipy_sparse": esys_scipy_sparse,
+    "evals_scipy_sparse_SM": lambda matrix, evals_count, **kwargs: evals_scipy_sparse(
+        matrix, evals_count, **_dict_merge(dict(which="SM"), kwargs, overwrite=True)
+    ),
+    "esys_scipy_sparse_SM": lambda matrix, evals_count, **kwargs: esys_scipy_sparse(
+        matrix, evals_count, **_dict_merge(dict(which="SM"), kwargs, overwrite=True)
+    ),
     "evals_scipy_sparse_LA_shift-inverse": lambda matrix, evals_count, **kwargs: evals_scipy_sparse(
         matrix,
         evals_count,
@@ -516,21 +547,21 @@ DIAG_METHODS = {
         evals_count,
         **_dict_merge(dict(which="LM", sigma=0), kwargs, overwrite=True)
     ),
+    "esys_scipy_sparse_LM_shift-inverse": lambda matrix, evals_count, **kwargs: esys_scipy_sparse(
+        matrix,
+        evals_count,
+        **_dict_merge(dict(which="LM", sigma=0), kwargs, overwrite=True)
+    ),
     # primme sparse
     "evals_primme_sparse": evals_primme_sparse,
     "esys_primme_sparse": esys_primme_sparse,
-    "esys_scipy_sparse_SM": lambda matrix, evals_count, **kwargs: esys_scipy_sparse(
-        matrix, evals_count, **_dict_merge(dict(which="SM"), kwargs, overwrite=True)
-    ),
     "evals_primme_sparse_SM": lambda matrix, evals_count, **kwargs: evals_primme_sparse(
         matrix=matrix,
         evals_count=evals_count,
         **_dict_merge(dict(which="SM"), kwargs, overwrite=True)
     ),
-    "esys_scipy_sparse_LM_shift-inverse": lambda matrix, evals_count, **kwargs: esys_scipy_sparse(
-        matrix,
-        evals_count,
-        **_dict_merge(dict(which="LM", sigma=0), kwargs, overwrite=True)
+    "esys_primme_sparse_SM": lambda matrix, evals_count, **kwargs: esys_primme_sparse(
+        matrix, evals_count, **_dict_merge(dict(which="SM"), kwargs, overwrite=True)
     ),
     "evals_primme_sparse_LA_shift-inverse": lambda matrix, evals_count, **kwargs: evals_primme_sparse(
         matrix=matrix,
