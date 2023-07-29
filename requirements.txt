@@ -1,4 +1,5 @@
 cycler
+cython>=0.29.20,<3.0.0
 matplotlib>=3.5
 numpy>=1.14.2
 pyyaml
