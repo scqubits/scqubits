@@ -331,8 +331,9 @@ class QubitBaseClass(QuantumSystem, ABC):
                 if isinstance(self.evals_method, str)
                 else self.evals_method
             )
+            options = {} if self.esys_method_options is None else self.esys_method_options
             evals = diagonalizer(
-                self.hamiltonian(), evals_count, **({} if self.evals_method_options is None else self.evals_method_options)
+                self.hamiltonian(), evals_count, **options
             )
 
         if filename or return_spectrumdata:
@@ -385,6 +386,11 @@ class QubitBaseClass(QuantumSystem, ABC):
         -------
             eigenvalues, eigenvectors as numpy arrays or in form of a SpectrumData object
         """
+
+        print("esys_method", self.esys_method)
+        print("esys_method_options", self.esys_method_options)
+
+
         if not hasattr(self, "esys_method") or self.esys_method is None:
             evals, evecs = self._esys_calc(evals_count)
         else:
@@ -393,8 +399,9 @@ class QubitBaseClass(QuantumSystem, ABC):
                 if isinstance(self.esys_method, str)
                 else self.esys_method
             )
+            options = {} if self.esys_method_options is None else self.esys_method_options
             evals, evecs = diagonalizer(
-                self.hamiltonian(), evals_count, **({} if self.esys_method_options is None else self.esys_method_options)
+                self.hamiltonian(), evals_count, **options
             )
 
         if filename or return_spectrumdata:

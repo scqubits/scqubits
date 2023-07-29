@@ -107,7 +107,7 @@ def _cast_matrix(
     return m
 
 
-def _convert_evecs_to_qobjs(evecs: ndarray, matrix_qobj, wrap: bool = True) -> ndarray:
+def _convert_evecs_to_qobjs(evecs: ndarray, matrix_qobj, wrap: bool = False) -> ndarray:
     """
     Converts an `ndarray` containing eigenvectors (that would be typically
     returned from a diagonalization routine, such as `eighs` or `eigh`),
