@@ -135,7 +135,7 @@ class ExplorerSettings:
         if plot_type is PlotType.WAVEFUNCTIONS:
             subsys = subsys[0]
             if isinstance(
-                subsys, (scq.FluxQubit, scq.ZeroPi, scq.Bifluxon, scq.Cos2PhiQubit)
+                subsys, (scq.FluxQubit, scq.ZeroPi, scq.Cos2PhiQubit)  # scq.Bifluxon
             ):
                 ui_wavefunction_selector = ui.InitializedSelect(
                     label="Display wavefunctions",
