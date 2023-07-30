@@ -35,6 +35,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
 from qutip import Qobj
+from scipy.sparse import csc_matrix
 from typing_extensions import Literal
 
 import scqubits.core.central_dispatch as dispatch
@@ -64,11 +65,14 @@ if settings.IN_IPYTHON:
 else:
     from tqdm import tqdm
 
-from scqubits.utils.typedefs import GIndexTuple, NpIndices, QubitList
+from scqubits.utils.typedefs import GIndexTuple, NpIndices
 
 BareLabel = Tuple[int, ...]
 DressedLabel = int
 StateLabel = Union[DressedLabel, BareLabel]
+
+
+_faulty_interactionterm_warning_issued = False  # flag to ensure single-time warning
 
 
 class ParameterSlice:
@@ -959,12 +963,31 @@ class ParameterSweep(  # type:ignore
         dispatch.CENTRAL_DISPATCH.register("PARAMETERSWEEP_UPDATE", self)
         dispatch.CENTRAL_DISPATCH.register("HILBERTSPACE_UPDATE", self)
 
+        global _faulty_interactionterm_warning_issued
+        if self.faulty_interactionterm_suspected() and not _faulty_interactionterm_warning_issued:
+            warnings.warn(
+                "The interactions specified for this HilbertSpace object involve coupling operators stored as fixed "
+                "matrices. This may be unintended, as the operators of quantum systems (specifically, their "
+                "representation with respect to some basis) may change as a function of sweep parameters. \nFor that "
+                "reason, it is recommended to use coupling operators specified as callable functions.\n",
+                UserWarning,
+            )
+            _faulty_interactionterm_warning_issued = True
+
         if autorun:
             self.run()
 
     @property
     def tqdm_disabled(self) -> bool:
         return settings.PROGRESSBAR_DISABLED or (self._num_cpus > 1)
+
+    def faulty_interactionterm_suspected(self) -> bool:
+        """Check if any interaction terms are specified as fixed matrices"""
+        for interactionterm in self._hilbertspace.interaction_list:
+            for idx_operator in interactionterm.operator_list:
+                if isinstance(idx_operator[1], (ndarray, Qobj, csc_matrix)):
+                    return True
+        return False
 
     def cause_dispatch(self) -> None:
         initial_parameters = tuple(paramvals[0] for paramvals in self._parameters)
