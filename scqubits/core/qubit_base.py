@@ -408,11 +408,6 @@ class QubitBaseClass(QuantumSystem, ABC):
         -------
             eigenvalues, eigenvectors as numpy arrays or in form of a SpectrumData object
         """
-
-        print("esys_method", self.esys_method)
-        print("esys_method_options", self.esys_method_options)
-
-
         if not hasattr(self, "esys_method") or self.esys_method is None:
             evals, evecs = self._esys_calc(evals_count)
         else:
