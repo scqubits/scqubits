@@ -125,7 +125,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     ):
         base.QuantumSystem.__init__(self, id_str=None)
 
-        # This class does not yet support custom diagonalization options, but these 
+        # This class does not yet support custom diagonalization options, but these
         # still have to be defined
         self.evals_method = None
         self.evals_method_options = None
@@ -2913,7 +2913,7 @@ class Circuit(Subsystem):
             initiate_sym_calc=True,
         )
 
-        # This class does not yet support custom diagonalization options, but these 
+        # This class does not yet support custom diagonalization options, but these
         # still have to be defined
         self.evals_method = None
         self.evals_method_options = None

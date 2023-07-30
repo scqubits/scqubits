@@ -416,7 +416,7 @@ class HilbertSpace(
         self.evals_method_options = evals_method_options
         self.esys_method = esys_method
         self.esys_method_options = esys_method_options
-        
+
         # The following attributes are for compatibility with SpectrumLookupMixin
         self._data: Dict[str, Any] = {}
         self._parameters = Parameters({"dummy_parameter": np.array([0])})
@@ -694,7 +694,11 @@ class HilbertSpace(
             evals = diagonalizer(
                 hamiltonian_mat,
                 evals_count=evals_count,
-                **({} if self.evals_method_options is None else self.evals_method_options),
+                **(
+                    {}
+                    if self.evals_method_options is None
+                    else self.evals_method_options
+                ),
             )
         return evals
 
@@ -703,8 +707,8 @@ class HilbertSpace(
         evals_count: int = 6,
         bare_esys: Optional[Dict[int, Union[ndarray, List[ndarray]]]] = None,
     ) -> Tuple[ndarray, QutipEigenstates]:
-        """Calculates eigenvalues and eigenvectors of the full Hamiltonian. Qutip's 
-        `qutip.Qobj.eigenenergies()` is used by default, unless `self.evals_method` 
+        """Calculates eigenvalues and eigenvectors of the full Hamiltonian. Qutip's
+        `qutip.Qobj.eigenenergies()` is used by default, unless `self.evals_method`
         has been set to something other than `None`.
 
         Parameters
@@ -733,7 +737,9 @@ class HilbertSpace(
             evals, evecs = diagonalizer(
                 hamiltonian_mat,
                 evals_count=evals_count,
-                **({} if self.esys_method_options is None else self.esys_method_options),
+                **(
+                    {} if self.esys_method_options is None else self.esys_method_options
+                ),
             )
 
         evecs = evecs.view(scqubits.io_utils.fileio_qutip.QutipEigenstates)
@@ -1229,7 +1235,10 @@ class HilbertSpace(
         op: Union[Callable, Tuple[Union[ndarray, csc_matrix], QuantumSys]],
     ) -> Tuple[int, Union[ndarray, csc_matrix, Callable]]:
         if callable(op):
-            return self.get_subsys_index(op.__self__), op  # store op here, not op() [v3.2]
+            return (
+                self.get_subsys_index(op.__self__),
+                op,
+            )  # store op here, not op() [v3.2]
         if not isinstance(op, tuple):
             raise TypeError("Cannot interpret specified operator {}".format(op))
         if len(op) == 2:

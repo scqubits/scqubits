@@ -188,7 +188,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             "ECS"
         )  # used for file IO Serializable purposes; remove ECS as init parameter
 
-        # This class does not yet support custom diagonalization options, but these 
+        # This class does not yet support custom diagonalization options, but these
         # still have to be defined
         self.evals_method = None
         self.evals_method_options = None

@@ -55,7 +55,7 @@ from scqubits.core.zeropi_full import FullZeroPi
 # file IO
 from scqubits.io_utils.fileio import read, write
 
-# diagonalization 
+# diagonalization
 import scqubits.core.diag as diag
 from scqubits.core.diag import (
     DIAG_METHODS,

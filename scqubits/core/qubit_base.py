@@ -175,8 +175,17 @@ class QuantumSystem(DispatchClient, ABC):
     def get_initdata(self) -> Dict[str, Any]:
         """Returns dict appropriate for creating/initializing a new Serializable
         object."""
-        EXCLUDE = ["evals_method", "evals_method_options", "esys_method", "esys_method_options"]
-        initdata = {name: getattr(self, name) for name in self._init_params if name not in EXCLUDE}
+        EXCLUDE = [
+            "evals_method",
+            "evals_method_options",
+            "esys_method",
+            "esys_method_options",
+        ]
+        initdata = {
+            name: getattr(self, name)
+            for name in self._init_params
+            if name not in EXCLUDE
+        }
         return initdata
 
     @abstractmethod
@@ -270,13 +279,11 @@ class QubitBaseClass(QuantumSystem, ABC):
         esys_method: Union[str, None] = None,
         esys_method_options: Union[Dict, None] = None,
     ):
-
         super().__init__(id_str=id_str)
         self.evals_method = evals_method
         self.evals_method_options = evals_method_options
         self.esys_method = esys_method
         self.esys_method_options = esys_method_options
-        
 
     @abstractmethod
     def hamiltonian(self):
@@ -353,10 +360,10 @@ class QubitBaseClass(QuantumSystem, ABC):
                 if isinstance(self.evals_method, str)
                 else self.evals_method
             )
-            options = {} if self.esys_method_options is None else self.esys_method_options
-            evals = diagonalizer(
-                self.hamiltonian(), evals_count, **options
+            options = (
+                {} if self.esys_method_options is None else self.esys_method_options
             )
+            evals = diagonalizer(self.hamiltonian(), evals_count, **options)
 
         if filename or return_spectrumdata:
             specdata = SpectrumData(
@@ -416,10 +423,10 @@ class QubitBaseClass(QuantumSystem, ABC):
                 if isinstance(self.esys_method, str)
                 else self.esys_method
             )
-            options = {} if self.esys_method_options is None else self.esys_method_options
-            evals, evecs = diagonalizer(
-                self.hamiltonian(), evals_count, **options
+            options = (
+                {} if self.esys_method_options is None else self.esys_method_options
             )
+            evals, evecs = diagonalizer(self.hamiltonian(), evals_count, **options)
 
         if filename or return_spectrumdata:
             specdata = SpectrumData(
