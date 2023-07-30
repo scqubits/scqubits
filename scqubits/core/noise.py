@@ -223,7 +223,7 @@ class NoisySystem(ABC):
             "figsize", (4, 3) if plot_grid == (1, 1) else (8, 3 * plot_grid[0])
         )
 
-        # If axes was given in fig_as, it should support the plot structure
+        # If axes was given in fig_ax, it should support the plot structure
         # consistent with plot_grid, otherwise the plotting routine below, will fail
         fig, axes = kwargs.get("fig_ax") or plt.subplots(*plot_grid, figsize=figsize)
 

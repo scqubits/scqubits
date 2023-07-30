@@ -42,6 +42,7 @@ from scipy.sparse import csc_matrix, dia_matrix
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
+import scqubits.core.diag as diag
 import scqubits.core.units as units
 import scqubits.settings as settings
 import scqubits.ui.qubit_widget as ui
@@ -261,6 +262,22 @@ class QubitBaseClass(QuantumSystem, ABC):
     _sys_type: str
     _init_params: list
 
+    def __init__(
+        self,
+        id_str: Union[str, None],
+        evals_method: Union[str, None] = None,
+        evals_method_options: Union[Dict, None] = None,
+        esys_method: Union[str, None] = None,
+        esys_method_options: Union[Dict, None] = None,
+    ):
+
+        super().__init__(id_str=id_str)
+        self.evals_method = evals_method
+        self.evals_method_options = evals_method_options
+        self.esys_method = esys_method
+        self.esys_method_options = esys_method_options
+        
+
     @abstractmethod
     def hamiltonian(self):
         """Returns the Hamiltonian"""
@@ -328,7 +345,19 @@ class QubitBaseClass(QuantumSystem, ABC):
         -------
             eigenvalues as ndarray or in form of a SpectrumData object
         """
-        evals = self._evals_calc(evals_count)
+        if not hasattr(self, "evals_method") or self.evals_method is None:
+            evals = self._evals_calc(evals_count)
+        else:
+            diagonalizer = (
+                diag.DIAG_METHODS[self.evals_method]
+                if isinstance(self.evals_method, str)
+                else self.evals_method
+            )
+            options = {} if self.esys_method_options is None else self.esys_method_options
+            evals = diagonalizer(
+                self.hamiltonian(), evals_count, **options
+            )
+
         if filename or return_spectrumdata:
             specdata = SpectrumData(
                 energy_table=evals, system_params=self.get_initdata()
@@ -372,15 +401,26 @@ class QubitBaseClass(QuantumSystem, ABC):
         filename:
             path and filename without suffix, if file output desired
             (default value = None)
-        return_spectrumdata:
-            if set to true, the returned data is provided as a SpectrumData object
+        return_spectrumdata: if set to true, the returned data is provided as a SpectrumData object
             (default value = False)
 
         Returns
         -------
             eigenvalues, eigenvectors as numpy arrays or in form of a SpectrumData object
         """
-        evals, evecs = self._esys_calc(evals_count)
+        if not hasattr(self, "esys_method") or self.esys_method is None:
+            evals, evecs = self._esys_calc(evals_count)
+        else:
+            diagonalizer = (
+                diag.DIAG_METHODS[self.esys_method]
+                if isinstance(self.esys_method, str)
+                else self.esys_method
+            )
+            options = {} if self.esys_method_options is None else self.esys_method_options
+            evals, evecs = diagonalizer(
+                self.hamiltonian(), evals_count, **options
+            )
+
         if filename or return_spectrumdata:
             specdata = SpectrumData(
                 energy_table=evals, system_params=self.get_initdata(), state_table=evecs

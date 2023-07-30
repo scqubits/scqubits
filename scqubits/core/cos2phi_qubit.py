@@ -484,8 +484,19 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         phi_cut: int,
         truncated_dim: int = 6,
         id_str: Optional[str] = None,
+        evals_method: Optional[str] = None,
+        evals_method_options: Optional[dict] = None,
+        esys_method: Optional[str] = None,
+        esys_method_options: Optional[dict] = None,
     ) -> None:
-        base.QuantumSystem.__init__(self, id_str=id_str)
+        base.QubitBaseClass.__init__(
+            self,
+            id_str=id_str,
+            evals_method=evals_method,
+            evals_method_options=evals_method_options,
+            esys_method=esys_method,
+            esys_method_options=esys_method_options,
+        )
         self.EJ = EJ
         self.ECJ = ECJ
         self.EL = EL
