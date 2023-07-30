@@ -174,7 +174,9 @@ class QuantumSystem(DispatchClient, ABC):
     def get_initdata(self) -> Dict[str, Any]:
         """Returns dict appropriate for creating/initializing a new Serializable
         object."""
-        return {name: getattr(self, name) for name in self._init_params}
+        EXCLUDE = ["evals_method", "evals_method_options", "esys_method", "esys_method_options"]
+        initdata = {name: getattr(self, name) for name in self._init_params if name not in EXCLUDE}
+        return initdata
 
     @abstractmethod
     def hilbertdim(self) -> int:
