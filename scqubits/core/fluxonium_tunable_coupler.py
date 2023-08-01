@@ -20,8 +20,6 @@ from qutip import (
     Options, mesolve, spre, spost,
 )
 
-from scqubits.utils.cpu_switch import get_map_method
-
 qutip.settings.atol = 1e-8
 from scipy.interpolate import interp1d
 from scipy.special import jn_zeros
@@ -230,6 +228,13 @@ class FluxoniumTunableCouplerFloating:
         omega_p = self.h_o_plus().E_osc
         return np.real(evals_a[a_exc] + evals_b[b_exc] + evals_minus[minus_exc] + plus_exc * omega_p)
 
+    def bare_energy_minus(self, a_exc, b_exc, minus_exc, evals_a, evals_b, evals_minus):
+        return np.real(evals_a[a_exc] + evals_b[b_exc] + evals_minus[minus_exc])
+
+    def bare_energy_plus(self, a_exc, b_exc, plus_exc, evals_a, evals_b, evals_minus):
+        omega_p = self.h_o_plus().E_osc
+        return np.real(evals_a[a_exc] + evals_b[b_exc] + plus_exc * omega_p)
+
     def delta_func(self, a, b):
         if a == b:
             return 1.0
@@ -246,10 +251,37 @@ class FluxoniumTunableCouplerFloating:
             phi_minus_mat,
         ) = evals_and_matelems
         return np.real(((-0.5 * self.ELa - 0.5 * self.ELb)
-                * self.delta_func(p_0 % 2, (p_0+1) % 2)
+                * (self.delta_func(p_0, p_1 + 1) + self.delta_func(p_0, p_1 - 1))
                 * self.h_o_plus().l_osc / np.sqrt(2)
                 * np.sqrt(np.max([p_0, p_1]))
                 + (-0.5 * self.ELa + 0.5 * self.ELb)
+                * phi_minus_mat[m_0, m_1]
+                ) * phi_a_mat[a_0, a_1] * phi_b_mat[b_0, b_1])
+
+    def potential_matelem_plus(self, a_0, b_0, p_0, a_1, b_1, p_1, evals_and_matelems):
+        (
+            evals_a,
+            phi_a_mat,
+            evals_b,
+            phi_b_mat,
+            evals_minus,
+            phi_minus_mat,
+        ) = evals_and_matelems
+        return np.real((-0.5 * self.ELa - 0.5 * self.ELb)
+                * (self.delta_func(p_0, p_1 + 1) + self.delta_func(p_0, p_1 - 1))
+                * self.h_o_plus().l_osc / np.sqrt(2)
+                * np.sqrt(np.max([p_0, p_1])) * phi_a_mat[a_0, a_1] * phi_b_mat[b_0, b_1])
+
+    def potential_matelem_minus(self, a_0, b_0, m_0, a_1, b_1, m_1, evals_and_matelems):
+        (
+            evals_a,
+            phi_a_mat,
+            evals_b,
+            phi_b_mat,
+            evals_minus,
+            phi_minus_mat,
+        ) = evals_and_matelems
+        return np.real(((-0.5 * self.ELa + 0.5 * self.ELb)
                 * phi_minus_mat[m_0, m_1]
                 ) * phi_a_mat[a_0, a_1] * phi_b_mat[b_0, b_1])
 
@@ -259,9 +291,68 @@ class FluxoniumTunableCouplerFloating:
             return map
         return pathos.pools.ProcessPool(nodes=num_cpus).map
 
-    def fourth_order_energy_shift(self, a_exc, b_exc, highest_exc_q=3, highest_exc_m=3, highest_exc_p=3, num_cpus=1):
+    def fourth_order_energy_shift_coupler(self, a_exc, b_exc, highest_exc_q=3, highest_exc_c=3, num_cpus=1,
+                                        coupler="minus"):
         """see https://arxiv.org/pdf/2304.06087.pdf for the relevant formula and notation"""
+        if coupler == "minus":
+            potential_func = self.potential_matelem_minus
+            bare_energy_func = self.bare_energy_minus
+        elif coupler == "plus":
+            potential_func = self.potential_matelem_plus
+            bare_energy_func = self.bare_energy_plus
+        else:
+            raise RuntimeError("coupler needs to be set to 'minus' or 'plus' ")
         evals_and_matelems = self._generate_fluxonia_evals_phi_for_SW()
+        evals = (evals_and_matelems[0], evals_and_matelems[2], evals_and_matelems[4])
+        possible_int_states = list(product(range(0, highest_exc_q), range(0, highest_exc_q),
+                                           range(0, highest_exc_c)))
+        possible_int_paths = list(product(possible_int_states, possible_int_states, possible_int_states))
+        possible_paths_keys = range(len(possible_int_paths))
+        possible_paths_dict = dict(zip(possible_paths_keys, possible_int_paths))
+        init_state = (a_exc, b_exc, 0)
+        E_0 = bare_energy_func(*init_state, *evals)
+
+        def _single_path_contribution(int_path_key):
+            (int_state_1, int_state_2, int_state_3) = possible_paths_dict[int_path_key]
+            if int_state_1 == init_state or int_state_2 == init_state or int_state_3 == init_state:
+                return 0.0
+            else:
+                E_01 = E_0 - bare_energy_func(*int_state_1, *evals)
+                E_02 = E_0 - bare_energy_func(*int_state_2, *evals)
+                E_03 = E_0 - bare_energy_func(*int_state_3, *evals)
+                V01 = potential_func(*init_state, *int_state_1, evals_and_matelems)
+                V12 = potential_func(*int_state_1, *int_state_2, evals_and_matelems)
+                V23 = potential_func(*int_state_2, *int_state_3, evals_and_matelems)
+                V30 = potential_func(*int_state_3, *init_state, evals_and_matelems)
+                return V01 * V12 * V23 * V30 / (E_01 * E_02 * E_03)
+        target_map = self.get_map(num_cpus)
+        E_shift_4 = sum(target_map(_single_path_contribution, possible_paths_keys))
+        E_n_2 = 0
+        squared_sum = 0
+        for int_state in possible_int_states:
+            if int_state == init_state:
+                pass
+            else:
+                E_01 = E_0 - bare_energy_func(*int_state, *evals)
+                V01 = potential_func(*init_state, *int_state, evals_and_matelems)
+                E_n_2 += np.abs(V01)**2/E_01
+                squared_sum += np.abs(V01/E_01)**2
+        E_shift = E_shift_4 - E_n_2 * squared_sum
+        return E_shift, E_shift_4, -E_n_2 * squared_sum
+
+    def fourth_order_energy_shift(
+        self,
+        a_exc,
+        b_exc,
+        flux_a=0.5,
+        flux_b=0.5,
+        highest_exc_q=3,
+        highest_exc_m=3,
+        highest_exc_p=3,
+        num_cpus=1,
+    ):
+        """see https://arxiv.org/pdf/2304.06087.pdf for the relevant formula and notation"""
+        evals_and_matelems = self._generate_fluxonia_evals_phi_for_SW(flux_a=flux_a, flux_b=flux_b)
         evals = (evals_and_matelems[0], evals_and_matelems[2], evals_and_matelems[4])
         possible_int_states = list(product(range(0, highest_exc_q), range(0, highest_exc_q),
                                       range(0, highest_exc_m), range(0, highest_exc_p)))
@@ -286,6 +377,7 @@ class FluxoniumTunableCouplerFloating:
                 return V01 * V12 * V23 * V30 / (E_01 * E_02 * E_03)
         target_map = self.get_map(num_cpus)
         E_shift_4 = sum(target_map(_single_path_contribution, possible_paths_keys))
+        # E_shift_4 = 0.0
         E_n_2 = 0
         squared_sum = 0
         for int_state in possible_int_states:
@@ -337,6 +429,10 @@ class FluxoniumTunableCouplerFloating:
             * phi_b_mat[0, 1]
             * coupler_plus
         )
+
+    def _J(self, evals_a, phi_a_mat, evals_b, phi_b_mat, evals_minus, phi_minus_mat):
+        return (self._J_minus(evals_a, phi_a_mat, evals_b, phi_b_mat, evals_minus, phi_minus_mat)
+                + self._J_plus(evals_a, phi_a_mat, evals_b, phi_b_mat, evals_minus, phi_minus_mat))
 
     def schrieffer_wolff(self):
         (
@@ -560,295 +656,11 @@ class FluxoniumTunableCouplerFloating:
         )
         return H_2_
 
-    def _high_high_self_mat_elem(
-        self,
-        evals_minus,
-        evals_q,
-        phi_q_mat,
-        phi_minus_mat,
-        ELq,
-        ell,
-        ell_prime,
-        n_prime,
-    ):
-        f_a_dim = self.fluxonium_truncated_dim
-        f_m_dim = self.fluxonium_minus_truncated_dim
-        mat_elem = sum(
-            self._g_minus_2(
-                ell, ell_double_prime, 0, n_double_prime, phi_q_mat, phi_minus_mat, ELq
-            )
-            * self._g_minus_2(
-                ell_double_prime,
-                ell_prime,
-                n_double_prime,
-                n_prime,
-                phi_q_mat,
-                phi_minus_mat,
-                ELq,
-            )
-            / (
-                (
-                    evals_q[ell]
-                    + evals_minus[0]
-                    - evals_q[ell_double_prime]
-                    - evals_minus[n_double_prime]
-                )
-                * (
-                    evals_q[ell]
-                    + evals_minus[0]
-                    - evals_q[ell_prime]
-                    - evals_minus[n_prime]
-                )
-            )
-            for ell_double_prime in range(f_a_dim)
-            for n_double_prime in range(1, f_m_dim)
-        )
-        return mat_elem
-
-    def _high_high_cross_mat_elem(
-        self,
-        evals_minus,
-        evals_a,
-        evals_b,
-        phi_a_mat,
-        phi_b_mat,
-        phi_minus_mat,
-        ELa,
-        ELb,
-        ell,
-        m,
-        ell_prime,
-        m_prime,
-        n_prime,
-    ):
-        f_m_dim = self.fluxonium_minus_truncated_dim
-        mat_elem = sum(
-            self._g_minus_2(
-                ell, ell_prime, 0, n_double_prime, phi_a_mat, phi_minus_mat, ELa
-            )
-            * self._g_minus_2(
-                m, m_prime, n_double_prime, n_prime, phi_b_mat, phi_minus_mat, ELb
-            )
-            / (
-                (
-                    evals_a[ell]
-                    + evals_minus[0]
-                    - evals_a[ell_prime]
-                    - evals_minus[n_double_prime]
-                )
-                * (
-                    evals_a[ell]
-                    + evals_b[m]
-                    + evals_minus[0]
-                    - evals_a[ell_prime]
-                    - evals_b[m_prime]
-                    - evals_minus[n_prime]
-                )
-            )
-            for n_double_prime in range(1, f_m_dim)
-        )
-        return mat_elem
-
-    def _low_high_cross_mat_elem(
-        self,
-        evals_minus,
-        evals_a,
-        evals_b,
-        phi_a_mat,
-        phi_b_mat,
-        phi_minus_mat,
-        ELa,
-        ELb,
-        ell,
-        m,
-        ell_prime,
-        m_prime,
-        n,
-    ):
-        mat_elem = (
-            self._g_minus(ell, ell_prime, 0, phi_a_mat, phi_minus_mat, ELa)
-            * self._g_minus(m, m_prime, n, phi_b_mat, phi_minus_mat, ELb)
-            / (
-                (
-                    evals_a[ell]
-                    + evals_b[m]
-                    + evals_minus[0]
-                    - evals_a[ell_prime]
-                    - evals_b[m_prime]
-                    - evals_minus[n]
-                )
-                * (evals_b[m] + evals_minus[0] - evals_b[m_prime] - evals_minus[n])
-            )
-        )
-        mat_elem += (
-            self._g_minus(ell, ell_prime, n, phi_a_mat, phi_minus_mat, ELa)
-            * self._g_minus(m, m_prime, 0, phi_b_mat, phi_minus_mat, ELb)
-            / (
-                (
-                    evals_a[ell]
-                    + evals_b[m]
-                    + evals_minus[0]
-                    - evals_a[ell_prime]
-                    - evals_b[m_prime]
-                    - evals_minus[n]
-                )
-                * (evals_a[ell] + evals_minus[0] - evals_a[ell_prime] - evals_minus[n])
-            )
-        )
-        return mat_elem
-
-    def _low_high_self_mat_elem(
-        self, evals_minus, evals_q, phi_q_mat, phi_minus_mat, ELq, ell, ell_prime, n
-    ):
-        f_a_dim = self.fluxonium_truncated_dim
-        mat_elem = sum(
-            self._g_minus(ell, ell_double_prime, 0, phi_q_mat, phi_minus_mat, ELq)
-            * self._g_minus(
-                ell_double_prime, ell_prime, n, phi_q_mat, phi_minus_mat, ELq
-            )
-            / (
-                (evals_q[ell] + evals_minus[0] - evals_q[ell_prime] - evals_minus[n])
-                * (
-                    evals_q[ell_double_prime]
-                    + evals_minus[0]
-                    - evals_q[ell_prime]
-                    - evals_minus[n]
-                )
-            )
-            for ell_double_prime in range(f_a_dim)
-        )
-        return mat_elem
-
-    def _low_high_mat_elem(
-        self,
-        evals_minus,
-        evals_a,
-        evals_b,
-        phi_a_mat,
-        phi_b_mat,
-        phi_minus_mat,
-        ELa,
-        ELb,
-        ell,
-        m,
-        ell_prime,
-        m_prime,
-        n,
-    ):
-        mat_elem = self._low_high_self_mat_elem(
-            evals_minus, evals_a, phi_a_mat, phi_minus_mat, ELa, ell, ell_prime, n
-        )
-        mat_elem += self._low_high_self_mat_elem(
-            evals_minus, evals_b, phi_b_mat, phi_minus_mat, ELb, m, m_prime, n
-        )
-        mat_elem += -self._low_high_cross_mat_elem(
-            evals_minus,
-            evals_a,
-            evals_b,
-            phi_a_mat,
-            phi_b_mat,
-            phi_minus_mat,
-            ELa,
-            ELb,
-            ell,
-            m,
-            ell_prime,
-            m_prime,
-            n,
-        )
-        return mat_elem
-
-    def _high_high_mat_elem(
-        self,
-        evals_minus,
-        evals_a,
-        evals_b,
-        phi_a_mat,
-        phi_b_mat,
-        phi_minus_mat,
-        ELa,
-        ELb,
-        ell,
-        m,
-        ell_prime,
-        m_prime,
-        n_prime,
-    ):
-        mat_elem = self._high_high_self_mat_elem(
-            evals_minus, evals_a, phi_a_mat, phi_minus_mat, ELa, ell, ell_prime, n_prime
-        )
-        mat_elem += self._high_high_self_mat_elem(
-            evals_minus, evals_b, phi_b_mat, phi_minus_mat, ELb, m, m_prime, n_prime
-        )
-        mat_elem += -self._high_high_cross_mat_elem(
-            evals_minus,
-            evals_a,
-            evals_b,
-            phi_a_mat,
-            phi_b_mat,
-            phi_minus_mat,
-            ELa,
-            ELb,
-            ell,
-            m,
-            ell_prime,
-            m_prime,
-            n_prime,
-        )
-        return mat_elem
-
-    def _eps_ab_2(
-        self,
-        ell,
-        m,
-        ell_prime,
-        m_prime,
-        n,
-        evals_minus,
-        evals_a,
-        evals_b,
-        phi_a_mat,
-        phi_b_mat,
-        phi_minus_mat,
-    ):
-        assert ell != ell_prime and m != m_prime
-        low_high = self._low_high_cross_mat_elem(
-            evals_minus,
-            evals_a,
-            evals_b,
-            phi_a_mat,
-            phi_b_mat,
-            phi_minus_mat,
-            self.ELa,
-            self.ELb,
-            ell,
-            m,
-            ell_prime,
-            m_prime,
-            n,
-        )
-        high_high = self._high_high_cross_mat_elem(
-            evals_minus,
-            evals_a,
-            evals_b,
-            phi_a_mat,
-            phi_b_mat,
-            phi_minus_mat,
-            self.ELa,
-            self.ELb,
-            ell,
-            m,
-            ell_prime,
-            m_prime,
-            n,
-        )
-        return low_high - high_high
-
-    def _generate_fluxonia_evals_phi_for_SW(self):
+    def _generate_fluxonia_evals_phi_for_SW(self, flux_a=0.5, flux_b=0.5):
         fluxonium_a = self.fluxonium_a()
         fluxonium_b = self.fluxonium_b()
-        fluxonium_a.flux = 0.5
-        fluxonium_b.flux = 0.5
+        fluxonium_a.flux = flux_a
+        fluxonium_b.flux = flux_b
         fluxonium_minus = self.fluxonium_minus()
         evals_a, _, phi_a_mat = self.signed_evals_evecs_phi_mat_qubit_instance(
             fluxonium_a
@@ -860,533 +672,6 @@ class FluxoniumTunableCouplerFloating:
             fluxonium_minus
         )
         return evals_a, phi_a_mat, evals_b, phi_b_mat, evals_minus, phi_minus_mat
-
-    def second_order_generator(self):
-        f_a_dim = f_b_dim = self.fluxonium_truncated_dim
-        f_m_dim = self.fluxonium_minus_truncated_dim
-        (
-            evals_a,
-            phi_a_mat,
-            evals_b,
-            phi_b_mat,
-            evals_minus,
-            phi_minus_mat,
-        ) = self._generate_fluxonia_evals_phi_for_SW()
-        low_high = sum(
-            self._low_high_mat_elem(
-                evals_minus,
-                evals_a,
-                evals_b,
-                phi_a_mat,
-                phi_b_mat,
-                phi_minus_mat,
-                self.ELa,
-                self.ELb,
-                ell,
-                m,
-                ell_prime,
-                m_prime,
-                n,
-            )
-            * self._bare_product_state_all(ell, m, 0, 0)
-            * self._bare_product_state_all(ell_prime, m_prime, n, 0).dag()
-            for ell in range(2)
-            for m in range(2)
-            for ell_prime in range(f_a_dim)
-            for m_prime in range(f_b_dim)
-            for n in range(1, f_m_dim)
-        )
-        S2 = -low_high + low_high.dag()
-        high_high = sum(
-            self._high_high_mat_elem(
-                evals_minus,
-                evals_a,
-                evals_b,
-                phi_a_mat,
-                phi_b_mat,
-                phi_minus_mat,
-                self.ELa,
-                self.ELb,
-                ell,
-                m,
-                ell_prime,
-                m_prime,
-                n_prime,
-            )
-            * self._bare_product_state_all(ell, m, 0, 0)
-            * self._bare_product_state_all(ell_prime, m_prime, n_prime, 0).dag()
-            for ell in range(2)
-            for m in range(2)
-            for ell_prime in range(f_a_dim)
-            for m_prime in range(f_b_dim)
-            for n_prime in range(1, f_m_dim)
-        )
-        S2 += high_high - high_high.dag()
-        return S2
-
-    def _single_qubit_first_order(
-        self, evals_minus, evals_i, phi_i_mat, phi_minus_mat, ELi, i, j
-    ):
-        f_m_dim = self.fluxonium_minus_truncated_dim
-        return sum(
-            phi_minus_mat[0, n]
-            * (
-                self._eps_1(
-                    evals_minus, evals_i, phi_i_mat, phi_minus_mat, ELi, i, j, n
-                )
-                + self._eps_1(
-                    evals_minus, evals_i, phi_i_mat, phi_minus_mat, self.ELa, j, i, n
-                )
-            )
-            for n in range(1, f_m_dim)
-        )
-
-    def H_c_diag(self, ell, m):
-        (
-            evals_a,
-            phi_a_mat,
-            evals_b,
-            phi_b_mat,
-            evals_minus,
-            phi_minus_mat,
-        ) = self._generate_fluxonia_evals_phi_for_SW()
-        zeroth_order = -0.25 * self.EL_tilda() * phi_minus_mat[0, 0]
-        first_order_a = self.ELa * sum(
-            phi_a_mat[ell, ell_prime]
-            * self._eps_1(
-                evals_minus,
-                evals_a,
-                phi_a_mat,
-                phi_minus_mat,
-                self.ELa,
-                i=ell,
-                j=ell_prime,
-                n=0,
-            )
-            for ell_prime in range(2, self.fluxonium_truncated_dim)
-        )
-        first_order_b = self.ELb * sum(
-            phi_b_mat[m, m_prime]
-            * self._eps_1(
-                evals_minus,
-                evals_b,
-                phi_b_mat,
-                phi_minus_mat,
-                self.ELb,
-                i=m,
-                j=m_prime,
-                n=0,
-            )
-            for m_prime in range(2, self.fluxonium_truncated_dim)
-        )
-        return zeroth_order + first_order_a + first_order_b
-
-    def _single_qubit_H_c(
-        self, ell, evals_q, phi_q_mat, evals_minus, phi_minus_mat, ELq, which=0
-    ):
-        ell_prime = (ell + 1) % 2
-        zeroth_order = 0.5 * ELq * phi_q_mat[0, 1]
-        first_order = (
-            -0.25
-            * self.EL_tilda()
-            * self._single_qubit_first_order(
-                evals_minus, evals_q, phi_q_mat, phi_minus_mat, ELq, ell, ell_prime
-            )
-        )
-        return (-1) ** which * (zeroth_order + first_order)
-
-    def H_c_XI(self, ell):
-        (
-            evals_a,
-            phi_a_mat,
-            _,
-            _,
-            evals_minus,
-            phi_minus_mat,
-        ) = self._generate_fluxonia_evals_phi_for_SW()
-        return self._single_qubit_H_c(
-            ell, evals_a, phi_a_mat, evals_minus, phi_minus_mat, self.ELa, which=0
-        )
-
-    def H_c_IX(self, m):
-        (
-            _,
-            _,
-            evals_b,
-            phi_b_mat,
-            evals_minus,
-            phi_minus_mat,
-        ) = self._generate_fluxonia_evals_phi_for_SW()
-        return self._single_qubit_H_c(
-            m, evals_b, phi_b_mat, evals_minus, phi_minus_mat, self.ELb, which=1
-        )
-
-    def H_c_XX_onlyS1(self, ell, m):
-        return -0.25 * self.EL_tilda() * self.theta_minus_XX_onlyS1(ell, m)
-
-    def H_c_XX(self, ell, m):
-        return -0.25 * self.EL_tilda() * self.theta_minus_XX(ell, m)
-
-    def _first_order_generator_squared(
-        self,
-        evals_a,
-        phi_a_mat,
-        evals_b,
-        phi_b_mat,
-        evals_minus,
-        phi_minus_mat,
-        ell,
-        ell_prime,
-        m,
-        m_prime,
-        n,
-        n_prime,
-    ):
-        return self._eps_1(
-            evals_minus,
-            evals_a,
-            phi_a_mat,
-            phi_minus_mat,
-            self.ELa,
-            i=ell,
-            j=ell_prime,
-            n=n,
-        ) * self._eps_1(
-            evals_minus,
-            evals_b,
-            phi_b_mat,
-            phi_minus_mat,
-            self.ELb,
-            i=m_prime,
-            j=m,
-            n=n_prime,
-        ) + self._eps_1(
-            evals_minus,
-            evals_a,
-            phi_a_mat,
-            phi_minus_mat,
-            self.ELa,
-            i=ell_prime,
-            j=ell,
-            n=n,
-        ) * self._eps_1(
-            evals_minus,
-            evals_b,
-            phi_b_mat,
-            phi_minus_mat,
-            self.ELb,
-            i=m,
-            j=m_prime,
-            n=n_prime,
-        )
-
-    def theta_minus_XX(self, ell, m):
-        return self.theta_minus_XX_onlyS1(ell, m) + self.theta_minus_XX_onlyS2(ell, m)
-
-    def theta_minus_XX_onlyS2(self, ell, m):
-        (
-            evals_a,
-            phi_a_mat,
-            evals_b,
-            phi_b_mat,
-            evals_minus,
-            phi_minus_mat,
-        ) = self._generate_fluxonia_evals_phi_for_SW()
-        f_m_dim = self.fluxonium_minus_truncated_dim
-        ell_prime = (ell + 1) % 2
-        m_prime = (m + 1) % 2
-        S2_contr = sum(
-            (
-                self._eps_ab_2(
-                    ell,
-                    m,
-                    ell_prime,
-                    m_prime,
-                    n,
-                    evals_minus,
-                    evals_a,
-                    evals_b,
-                    phi_a_mat,
-                    phi_b_mat,
-                    phi_minus_mat,
-                )
-                + self._eps_ab_2(
-                    ell_prime,
-                    m_prime,
-                    ell,
-                    m,
-                    n,
-                    evals_minus,
-                    evals_a,
-                    evals_b,
-                    phi_a_mat,
-                    phi_b_mat,
-                    phi_minus_mat,
-                )
-            )
-            * phi_minus_mat[0, n]
-            for n in range(1, f_m_dim)
-        )
-        return S2_contr
-
-    def theta_minus_XX_onlyS1(self, ell, m):
-        (
-            evals_a,
-            phi_a_mat,
-            evals_b,
-            phi_b_mat,
-            evals_minus,
-            phi_minus_mat,
-        ) = self._generate_fluxonia_evals_phi_for_SW()
-        f_m_dim = self.fluxonium_minus_truncated_dim
-        ell_prime = (ell + 1) % 2
-        m_prime = (m + 1) % 2
-        S1_m_contr = sum(
-            self._first_order_generator_squared(
-                evals_a,
-                phi_a_mat,
-                evals_b,
-                phi_b_mat,
-                evals_minus,
-                phi_minus_mat,
-                ell,
-                ell_prime,
-                m,
-                m_prime,
-                n,
-                n_prime,
-            )
-            * phi_minus_mat[n, n_prime]
-            for n in range(1, f_m_dim)
-            for n_prime in range(1, f_m_dim)
-        )
-        S1_0_contr = (
-            sum(
-                self._first_order_generator_squared(
-                    evals_a,
-                    phi_a_mat,
-                    evals_b,
-                    phi_b_mat,
-                    evals_minus,
-                    phi_minus_mat,
-                    ell,
-                    ell_prime,
-                    m,
-                    m_prime,
-                    n,
-                    n,
-                )
-                for n in range(1, f_m_dim)
-            )
-            * phi_minus_mat[0, 0]
-        )
-        return -S1_m_contr + S1_0_contr
-
-    def H_q_diag(self, ell, which="a"):
-        (
-            evals_a,
-            phi_a_mat,
-            evals_b,
-            phi_b_mat,
-            evals_minus,
-            phi_minus_mat,
-        ) = self._generate_fluxonia_evals_phi_for_SW()
-        if which is "a":
-            evals_q, phi_q_mat, ELq, pref = evals_a, phi_a_mat, self.ELa, 1.0
-        else:
-            evals_q, phi_q_mat, ELq, pref = evals_b, phi_b_mat, self.ELb, -1.0
-        zeroth_order = 0.5 * ELq * pref * phi_minus_mat[0, 0]
-        first_order = (
-            -ELq
-            * 2.0
-            * sum(
-                phi_q_mat[ell, ell_prime]
-                * self._eps_1(
-                    evals_minus,
-                    evals_q,
-                    phi_q_mat,
-                    phi_minus_mat,
-                    ELq,
-                    i=ell,
-                    j=ell_prime,
-                    n=0,
-                )
-                for ell_prime in range(2, self.fluxonium_truncated_dim)
-            )
-        )
-        return pref * (zeroth_order - first_order)
-
-    def _H_q_eps_prod(
-        self, evals_q, phi_q_mat, evals_minus, phi_minus_mat, ELq, ell, ell_prime, n
-    ):
-        return self._eps_1(
-            evals_minus,
-            evals_q,
-            phi_q_mat,
-            phi_minus_mat,
-            ELq,
-            i=ell,
-            j=ell_prime,
-            n=n,
-        ) + self._eps_1(
-            evals_minus,
-            evals_q,
-            phi_q_mat,
-            phi_minus_mat,
-            ELq,
-            i=ell_prime,
-            j=ell,
-            n=n,
-        )
-
-    def H_q_correct_X(self, ell, which="a"):
-        (
-            evals_a,
-            phi_a_mat,
-            evals_b,
-            phi_b_mat,
-            evals_minus,
-            phi_minus_mat,
-        ) = self._generate_fluxonia_evals_phi_for_SW()
-        if which is "a":
-            evals_q, phi_q_mat, ELq = evals_a, phi_a_mat, self.ELa
-        else:
-            evals_q, phi_q_mat, ELq = evals_b, phi_b_mat, self.ELb
-        ell_prime = (ell + 1) % 2
-        ell_osc = self.h_o_plus().l_osc
-        zeroth_order = -ELq * phi_q_mat[0, 1]
-        first_order_minus = (
-            0.5
-            * ELq
-            * sum(
-                phi_minus_mat[0, n]
-                * self._H_q_eps_prod(
-                    evals_q,
-                    phi_q_mat,
-                    evals_minus,
-                    phi_minus_mat,
-                    ELq,
-                    ell,
-                    ell_prime,
-                    n,
-                )
-                for n in range(1, self.fluxonium_minus_truncated_dim)
-            )
-        )
-        first_order_plus = (
-            0.5
-            * ELq
-            * (ell_osc / np.sqrt(2))
-            * (
-                self._eps_1_plus(evals_q, phi_q_mat, ELq, i=ell, j=ell_prime)
-                + self._eps_1_plus(evals_q, phi_q_mat, ELq, i=ell_prime, j=ell)
-            )
-        )
-        return zeroth_order + first_order_plus + first_order_minus
-
-    def H_q_wrong_X(self, m, which="a"):
-        (
-            evals_a,
-            phi_a_mat,
-            evals_b,
-            phi_b_mat,
-            evals_minus,
-            phi_minus_mat,
-        ) = self._generate_fluxonia_evals_phi_for_SW()
-        # note the switch below
-        if which is "a":
-            evals_q, phi_q_mat, ELq = evals_b, phi_b_mat, self.ELb
-            EL_outside = self.ELa
-        else:
-            evals_q, phi_q_mat, ELq = evals_a, phi_a_mat, self.ELa
-            EL_outside = self.ELb
-        m_prime = (m + 1) % 2
-        ell_osc = self.h_o_plus().l_osc
-        first_order_minus = (
-            -0.5
-            * EL_outside
-            * sum(
-                phi_minus_mat[0, n]
-                * (
-                    self._H_q_eps_prod(
-                        evals_q,
-                        phi_q_mat,
-                        evals_minus,
-                        phi_minus_mat,
-                        ELq,
-                        m,
-                        m_prime,
-                        n,
-                    )
-                )
-                for n in range(1, self.fluxonium_minus_truncated_dim)
-            )
-        )
-        first_order_plus = (
-            0.5
-            * EL_outside
-            * (ell_osc / np.sqrt(2))
-            * (
-                self._eps_1_plus(evals_q, phi_q_mat, ELq, i=m, j=m_prime)
-                + self._eps_1_plus(evals_q, phi_q_mat, ELq, i=m_prime, j=m)
-            )
-        )
-        return first_order_plus + first_order_minus
-
-    def H_q_XX(self, ell, m, which="a"):
-        if which is "a":
-            ELq, pref = self.ELa, 1.0
-        else:
-            ELq, pref = self.ELb, -1.0
-        return 0.5 * ELq * pref * self.theta_minus_XX(ell, m)
-
-    def construct_H_q_eff(self, which="a"):
-        qubit_idx_range = [0, 1]
-        two_qubit_idxs = list(product(qubit_idx_range, qubit_idx_range))
-        H_q = np.zeros((4, 4))
-        for ell, m in two_qubit_idxs:
-            for ell_prime, m_prime in two_qubit_idxs:
-                if which == "a":
-                    idx_comp_row = ell
-                    idx_comp_col = ell_prime
-                else:
-                    idx_comp_row = m
-                    idx_comp_col = m_prime
-                row_idx = 2 * ell + m
-                col_idx = 2 * ell_prime + m_prime
-                if ell == ell_prime and m == m_prime:
-                    H_q[row_idx, col_idx] = self.H_q_diag(ell, which=which)
-                elif ell == (ell_prime + 1) % 2 and m == (m_prime + 1) % 2:
-                    H_q[row_idx, col_idx] = self.H_q_XX(ell, m)
-                elif idx_comp_row == (idx_comp_col + 1) % 2:
-                    H_q[row_idx, col_idx] = self.H_q_correct_X(
-                        idx_comp_row, which=which
-                    )
-                else:
-                    # m entry below doesn't matter
-                    H_q[row_idx, col_idx] = self.H_q_wrong_X(0, which=which)
-        return H_q
-
-    def construct_H_c_eff(self, only_S1=False):
-        qubit_idx_range = [0, 1]
-        two_qubit_idxs = list(product(qubit_idx_range, qubit_idx_range))
-        H_c = np.zeros((4, 4))
-        for ell, m in two_qubit_idxs:
-            for ell_prime, m_prime in two_qubit_idxs:
-                row_idx = 2 * ell + m
-                col_idx = 2 * ell_prime + m_prime
-                if ell == ell_prime and m == m_prime:
-                    H_c[row_idx, col_idx] = self.H_c_diag(ell, m)
-                elif ell == (ell_prime + 1) % 2 and m == (m_prime + 1) % 2:
-                    if not only_S1:
-                        H_c[row_idx, col_idx] = self.H_c_XX(ell, m)
-                    else:
-                        H_c[row_idx, col_idx] = self.H_c_XX_onlyS1(ell, m)
-                elif ell == (ell_prime + 1) % 2:
-                    H_c[row_idx, col_idx] = self.H_c_XI(ell)
-                else:
-                    H_c[row_idx, col_idx] = self.H_c_IX(m)
-        return H_c
 
     @staticmethod
     def _avg_and_rel_dev(A, B):
@@ -1419,52 +704,6 @@ class FluxoniumTunableCouplerFloating:
             * phi_i_mat[i, j]
             / (self.h_o_plus().E_osc + evals_i[j] - evals_i[i])
         ) / np.sqrt(2)
-
-    def H_c_qobj(self):
-        fluxonium_a = self.fluxonium_a()
-        fluxonium_b = self.fluxonium_b()
-        fluxonium_minus = self.fluxonium_minus()
-        ELa = fluxonium_a.EL
-        ELb = fluxonium_b.EL
-        ELt = self.EL_tilda()
-        f_m_dim = fluxonium_minus.truncated_dim
-        f_a_dim = fluxonium_a.truncated_dim
-        f_b_dim = fluxonium_b.truncated_dim
-        evals_a, _, phi_a_mat = self.signed_evals_evecs_phi_mat_qubit_instance(
-            fluxonium_a
-        )
-        evals_b, _, phi_b_mat = self.signed_evals_evecs_phi_mat_qubit_instance(
-            fluxonium_b
-        )
-        evals_minus, _, phi_minus_mat = self.signed_evals_evecs_phi_mat_qubit_instance(
-            fluxonium_minus
-        )
-        return (
-            -0.25
-            * ELt
-            * tensor(
-                qeye(f_a_dim),
-                qeye(f_b_dim),
-                Qobj(phi_minus_mat),
-                qeye(self.h_o_truncated_dim),
-            )
-            + 0.5
-            * ELa
-            * tensor(
-                Qobj(phi_a_mat),
-                qeye(f_b_dim),
-                qeye(f_m_dim),
-                qeye(self.h_o_truncated_dim),
-            )
-            - 0.5
-            * ELb
-            * tensor(
-                qeye(f_a_dim),
-                Qobj(phi_b_mat),
-                qeye(f_m_dim),
-                qeye(self.h_o_truncated_dim),
-            )
-        )
 
     def _bare_product_state_all(self, ell, m, n, p):
         return tensor(
@@ -1584,27 +823,6 @@ class FluxoniumTunableCouplerFloating:
             fluxonium_minus.phi_operator(), evecs_minus
         )
         return np.real(phi_minus_mat[0, 0])
-
-    def _setup_effective_calculation(self):
-        fluxonium_a = self.fluxonium_a()
-        fluxonium_b = self.fluxonium_b()
-        fluxonium_minus = self.fluxonium_minus()
-        evals_minus, evecs_minus = fluxonium_minus.eigensys(
-            evals_count=fluxonium_minus.truncated_dim
-        )
-        phi_minus_mat = get_matrixelement_table(
-            fluxonium_minus.phi_operator(), evecs_minus
-        )
-        chi_m = sum(
-            abs(phi_minus_mat[0, m]) ** 2 / (evals_minus[m] - evals_minus[0])
-            for m in range(1, fluxonium_minus.truncated_dim)
-        )
-        E_La_shift = self.ELa ** 2 * (0.5 * chi_m + 1.0 / self.EL_tilda())
-        fluxonium_a.EL = self.ELa - E_La_shift
-        E_Lb_shift = self.ELb ** 2 * (0.5 * chi_m + 1.0 / self.EL_tilda())
-        fluxonium_b.EL = self.ELb - E_Lb_shift
-        J = self.ELa * self.ELb * (0.5 * chi_m - 1.0 / self.EL_tilda())
-        return fluxonium_a, fluxonium_b, J
 
     def hilbert_space_at_sweetspot(self, flux_shift_a=None, flux_shift_b=None):
         if flux_shift_a is None and flux_shift_b is None:
@@ -1823,77 +1041,6 @@ class FluxoniumTunableCouplerFloating:
             coeff = np.trace((pauli * matrix).data.toarray())
             pauli_list.append((pauli_name[j], coeff))
         return pauli_list
-
-    def born_oppenheimer_effective_hamiltonian_static(self):
-        (fluxonium_a, fluxonium_b, J) = self._setup_effective_calculation()
-        fluxonium_a.truncated_dim = self.fluxonium_truncated_dim
-        fluxonium_b.truncated_dim = self.fluxonium_truncated_dim
-        hilbert_space = HilbertSpace([fluxonium_a, fluxonium_b])
-        hilbert_space.add_interaction(
-            g_strength=J, op1=fluxonium_a.phi_operator, op2=fluxonium_b.phi_operator
-        )
-        hilbert_space.add_interaction(
-            g_strength=-8.0 * self.off_diagonal_charging(),
-            op1=fluxonium_a.n_operator,
-            op2=fluxonium_b.n_operator,
-        )
-        return hilbert_space.hamiltonian()
-
-    def born_oppenheimer_effective_hamiltonian(self):
-        (fluxonium_a, fluxonium_b, J) = self._setup_effective_calculation()
-        g_s_expect = self.fluxonium_minus_gs_expect()
-        EL_bar_a = fluxonium_a.EL
-        EL_bar_b = fluxonium_b.EL
-        fluxonium_a.flux, fluxonium_b.flux = 0.5, 0.5
-        fluxonium_a.truncated_dim, fluxonium_b.truncated_dim = 2, 2
-        hilbert_space = HilbertSpace([fluxonium_a, fluxonium_b])
-        phi_a_coeff = -(
-            EL_bar_a * 2.0 * np.pi * (self.flux_a - 0.5)
-            + 0.5 * self.ELa * g_s_expect
-            + J * 2.0 * np.pi * (self.flux_b - 0.5)
-        )
-        phi_b_coeff = -(
-            EL_bar_b * 2.0 * np.pi * (self.flux_b - 0.5)
-            - 0.5 * self.ELb * g_s_expect
-            + J * 2.0 * np.pi * (self.flux_a - 0.5)
-        )
-        hilbert_space.add_interaction(
-            g_strength=phi_a_coeff, op1=fluxonium_a.phi_operator
-        )
-        hilbert_space.add_interaction(
-            g_strength=phi_b_coeff, op1=fluxonium_b.phi_operator
-        )
-        hilbert_space.add_interaction(
-            g_strength=J, op1=fluxonium_a.phi_operator, op2=fluxonium_b.phi_operator
-        )
-        hilbert_space.add_interaction(
-            g_strength=-8.0 * self.off_diagonal_charging(),
-            op1=fluxonium_a.n_operator,
-            op2=fluxonium_b.n_operator,
-        )
-        return hilbert_space.hamiltonian()
-
-    @staticmethod
-    def _single_hamiltonian_effective(fluxonium_instance, hilbert_space):
-        dim = fluxonium_instance.truncated_dim
-        evals, evecs = fluxonium_instance.eigensys(evals_count=dim)
-        phi_mat = get_matrixelement_table(fluxonium_instance.phi_operator(), evecs)
-        n_mat = get_matrixelement_table(fluxonium_instance.n_operator(), evecs)
-        phi_ops = sum(
-            [
-                phi_mat[j][k] * hilbert_space.hubbard_operator(j, k, fluxonium_instance)
-                for j in range(dim)
-                for k in range(dim)
-            ]
-        )
-        n_ops = sum(
-            [
-                n_mat[j][k] * hilbert_space.hubbard_operator(j, k, fluxonium_instance)
-                for j in range(dim)
-                for k in range(dim)
-            ]
-        )
-        return phi_ops, n_ops
 
     def fluxonium_a(self):
         return Fluxonium(
