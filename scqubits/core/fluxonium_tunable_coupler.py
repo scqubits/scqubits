@@ -228,13 +228,6 @@ class FluxoniumTunableCouplerFloating:
         omega_p = self.h_o_plus().E_osc
         return np.real(evals_a[a_exc] + evals_b[b_exc] + evals_minus[minus_exc] + plus_exc * omega_p)
 
-    def bare_energy_minus(self, a_exc, b_exc, minus_exc, evals_a, evals_b, evals_minus):
-        return np.real(evals_a[a_exc] + evals_b[b_exc] + evals_minus[minus_exc])
-
-    def bare_energy_plus(self, a_exc, b_exc, plus_exc, evals_a, evals_b, evals_minus):
-        omega_p = self.h_o_plus().E_osc
-        return np.real(evals_a[a_exc] + evals_b[b_exc] + plus_exc * omega_p)
-
     def delta_func(self, a, b):
         if a == b:
             return 1.0
@@ -258,87 +251,11 @@ class FluxoniumTunableCouplerFloating:
                 * phi_minus_mat[m_0, m_1]
                 ) * phi_a_mat[a_0, a_1] * phi_b_mat[b_0, b_1])
 
-    def potential_matelem_plus(self, a_0, b_0, p_0, a_1, b_1, p_1, evals_and_matelems):
-        (
-            evals_a,
-            phi_a_mat,
-            evals_b,
-            phi_b_mat,
-            evals_minus,
-            phi_minus_mat,
-        ) = evals_and_matelems
-        return np.real((-0.5 * self.ELa - 0.5 * self.ELb)
-                * (self.delta_func(p_0, p_1 + 1) + self.delta_func(p_0, p_1 - 1))
-                * self.h_o_plus().l_osc / np.sqrt(2)
-                * np.sqrt(np.max([p_0, p_1])) * phi_a_mat[a_0, a_1] * phi_b_mat[b_0, b_1])
-
-    def potential_matelem_minus(self, a_0, b_0, m_0, a_1, b_1, m_1, evals_and_matelems):
-        (
-            evals_a,
-            phi_a_mat,
-            evals_b,
-            phi_b_mat,
-            evals_minus,
-            phi_minus_mat,
-        ) = evals_and_matelems
-        return np.real(((-0.5 * self.ELa + 0.5 * self.ELb)
-                * phi_minus_mat[m_0, m_1]
-                ) * phi_a_mat[a_0, a_1] * phi_b_mat[b_0, b_1])
-
     @staticmethod
     def get_map(num_cpus: int = 1):
         if num_cpus == 1:
             return map
         return pathos.pools.ProcessPool(nodes=num_cpus).map
-
-    def fourth_order_energy_shift_coupler(self, a_exc, b_exc, highest_exc_q=3, highest_exc_c=3, num_cpus=1,
-                                        coupler="minus"):
-        """see https://arxiv.org/pdf/2304.06087.pdf for the relevant formula and notation"""
-        if coupler == "minus":
-            potential_func = self.potential_matelem_minus
-            bare_energy_func = self.bare_energy_minus
-        elif coupler == "plus":
-            potential_func = self.potential_matelem_plus
-            bare_energy_func = self.bare_energy_plus
-        else:
-            raise RuntimeError("coupler needs to be set to 'minus' or 'plus' ")
-        evals_and_matelems = self._generate_fluxonia_evals_phi_for_SW()
-        evals = (evals_and_matelems[0], evals_and_matelems[2], evals_and_matelems[4])
-        possible_int_states = list(product(range(0, highest_exc_q), range(0, highest_exc_q),
-                                           range(0, highest_exc_c)))
-        possible_int_paths = list(product(possible_int_states, possible_int_states, possible_int_states))
-        possible_paths_keys = range(len(possible_int_paths))
-        possible_paths_dict = dict(zip(possible_paths_keys, possible_int_paths))
-        init_state = (a_exc, b_exc, 0)
-        E_0 = bare_energy_func(*init_state, *evals)
-
-        def _single_path_contribution(int_path_key):
-            (int_state_1, int_state_2, int_state_3) = possible_paths_dict[int_path_key]
-            if int_state_1 == init_state or int_state_2 == init_state or int_state_3 == init_state:
-                return 0.0
-            else:
-                E_01 = E_0 - bare_energy_func(*int_state_1, *evals)
-                E_02 = E_0 - bare_energy_func(*int_state_2, *evals)
-                E_03 = E_0 - bare_energy_func(*int_state_3, *evals)
-                V01 = potential_func(*init_state, *int_state_1, evals_and_matelems)
-                V12 = potential_func(*int_state_1, *int_state_2, evals_and_matelems)
-                V23 = potential_func(*int_state_2, *int_state_3, evals_and_matelems)
-                V30 = potential_func(*int_state_3, *init_state, evals_and_matelems)
-                return V01 * V12 * V23 * V30 / (E_01 * E_02 * E_03)
-        target_map = self.get_map(num_cpus)
-        E_shift_4 = sum(target_map(_single_path_contribution, possible_paths_keys))
-        E_n_2 = 0
-        squared_sum = 0
-        for int_state in possible_int_states:
-            if int_state == init_state:
-                pass
-            else:
-                E_01 = E_0 - bare_energy_func(*int_state, *evals)
-                V01 = potential_func(*init_state, *int_state, evals_and_matelems)
-                E_n_2 += np.abs(V01)**2/E_01
-                squared_sum += np.abs(V01/E_01)**2
-        E_shift = E_shift_4 - E_n_2 * squared_sum
-        return E_shift, E_shift_4, -E_n_2 * squared_sum
 
     def fourth_order_energy_shift(
         self,
@@ -1967,9 +1884,42 @@ if __name__ == "__main__":
         ECc=E_C, ECm=ECm, EL1=E_L1, EL2=E_L2, EJC=E_J,
         fluxonium_minus_truncated_dim=6, h_o_truncated_dim=6
     )
-    highest_exc_m = 3
+    highest_exc_m = 4
     highest_exc_p = 3
     highest_exc_q = 2
+
+    (E00, E00_4, E_00_2) = FTC_grounded.fourth_order_energy_shift_coupler(
+        0, 0, highest_exc_q=highest_exc_q, highest_exc_c=highest_exc_m, num_cpus=8, coupler="minus")
+    (E01, E01_4, E_01_2) = FTC_grounded.fourth_order_energy_shift_coupler(
+        0, 1, highest_exc_q=highest_exc_q, highest_exc_c=highest_exc_m, num_cpus=8, coupler="minus")
+    (E10, E10_4, E_10_2) = FTC_grounded.fourth_order_energy_shift_coupler(
+        1, 0, highest_exc_q=highest_exc_q, highest_exc_c=highest_exc_m, num_cpus=8, coupler="minus")
+    (E11, E11_4, E_11_2) = FTC_grounded.fourth_order_energy_shift_coupler(
+        1, 1, highest_exc_q=highest_exc_q, highest_exc_c=highest_exc_m, num_cpus=8, coupler="minus")
+
+    print("minus")
+    print("00", E00, E00_4, E_00_2)
+    print("01", E01, E01_4, E_01_2)
+    print("10", E10, E10_4, E_10_2)
+    print("11", E11, E11_4, E_11_2)
+    print("eta", E11 - E10 - E01 + E00)
+
+    (E00, E00_4, E_00_2) = FTC_grounded.fourth_order_energy_shift_coupler(
+        0, 0, highest_exc_q=highest_exc_q, highest_exc_c=highest_exc_m, num_cpus=8, coupler="plus")
+    (E01, E01_4, E_01_2) = FTC_grounded.fourth_order_energy_shift_coupler(
+        0, 1, highest_exc_q=highest_exc_q, highest_exc_c=highest_exc_m, num_cpus=8, coupler="plus")
+    (E10, E10_4, E_10_2) = FTC_grounded.fourth_order_energy_shift_coupler(
+        1, 0, highest_exc_q=highest_exc_q, highest_exc_c=highest_exc_m, num_cpus=8, coupler="plus")
+    (E11, E11_4, E_11_2) = FTC_grounded.fourth_order_energy_shift_coupler(
+        1, 1, highest_exc_q=highest_exc_q, highest_exc_c=highest_exc_m, num_cpus=8, coupler="plus")
+
+    print("plus")
+    print("00", E00, E00_4, E_00_2)
+    print("01", E01, E01_4, E_01_2)
+    print("10", E10, E10_4, E_10_2)
+    print("11", E11, E11_4, E_11_2)
+    print("eta", E11 - E10 - E01 + E00)
+
     (E00, E00_4, E_00_2) = FTC_grounded.fourth_order_energy_shift(0, 0, highest_exc_q=highest_exc_q, highest_exc_m=highest_exc_m,
                                                                   highest_exc_p=highest_exc_p, num_cpus=8)
     (E01, E01_4, E_01_2) = FTC_grounded.fourth_order_energy_shift(0, 1, highest_exc_q=highest_exc_q, highest_exc_m=highest_exc_m,

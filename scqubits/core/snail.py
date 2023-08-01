@@ -346,6 +346,8 @@ class SNAILThreeMode(base.QubitBaseClass1d, serializers.Serializable, NoisySyste
         node_phase_array = sp.linalg.inv(node_vars_to_phase_vars) @ (
             junc_phase_array - 2.0 * np.pi * self.flux * np.array([1, 0, 0])
         )
+        min_result = sp.optimize.minimize(self.potential, x0=node_phase_array)
+        # assert np.allclose(min_result.x, node_phase_array)
         return node_phase_array
 
     def capacitance_matrix(self):
