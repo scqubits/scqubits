@@ -4,6 +4,7 @@ from itertools import product
 from typing import Optional, Callable, Tuple
 
 import numpy as np
+import pathos
 from numpy import ndarray
 import qutip
 from qutip import (
@@ -18,6 +19,9 @@ from qutip import (
     sesolve,
     Options, mesolve, spre, spost,
 )
+
+from scqubits.utils.cpu_switch import get_map_method
+
 qutip.settings.atol = 1e-8
 from scipy.interpolate import interp1d
 from scipy.special import jn_zeros
@@ -39,7 +43,8 @@ from scqubits.utils.spectrum_utils import (
 )
 
 
-class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializable):
+#class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializable):
+class FluxoniumTunableCouplerFloating:
     def __init__(
         self,
         EJa,
@@ -65,7 +70,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         h_o_truncated_dim=3,
         id_str: Optional[str] = None,
     ):
-        base.QuantumSystem.__init__(self, id_str=id_str)
+#        base.QuantumSystem.__init__(self, id_str=id_str)
         self.EJa = EJa
         self.EJb = EJb
         self.ECg_top = ECg_top
@@ -211,17 +216,110 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
         return coupler_minus_sum + coupler_plus_sum + high_fluxonium_sum
 
-    def _J(self, evals_a, phi_a_mat, evals_b, phi_b_mat, evals_minus, phi_minus_mat):
+    def _g_minus(self, ell, ell_prime, n, phi_q_mat, phi_minus_mat, EL, n_prime=0):
+        return 0.5 * EL * phi_q_mat[ell, ell_prime] * phi_minus_mat[n_prime, n]
+
+    def _g_minus_2(self, ell, ell_prime, n, n_prime, phi_q_mat, phi_minus_mat, EL):
+        """relevant for second order generator"""
+        return 0.5 * EL * phi_q_mat[ell, ell_prime] * phi_minus_mat[n, n_prime]
+
+    def _g_plus(self, ell, ell_prime, phi_q_mat, EL):
+        return 0.5 * EL * phi_q_mat[ell, ell_prime] * self.h_o_plus().l_osc / np.sqrt(2)
+
+    def bare_energy(self, a_exc, b_exc, minus_exc, plus_exc, evals_a, evals_b, evals_minus):
+        omega_p = self.h_o_plus().E_osc
+        return np.real(evals_a[a_exc] + evals_b[b_exc] + evals_minus[minus_exc] + plus_exc * omega_p)
+
+    def delta_func(self, a, b):
+        if a == b:
+            return 1.0
+        else:
+            return 0.0
+
+    def potential_matelem(self, a_0, b_0, m_0, p_0, a_1, b_1, m_1, p_1, evals_and_matelems):
+        (
+            evals_a,
+            phi_a_mat,
+            evals_b,
+            phi_b_mat,
+            evals_minus,
+            phi_minus_mat,
+        ) = evals_and_matelems
+        return np.real(((-0.5 * self.ELa - 0.5 * self.ELb)
+                * self.delta_func(p_0 % 2, (p_0+1) % 2)
+                * self.h_o_plus().l_osc / np.sqrt(2)
+                * np.sqrt(np.max([p_0, p_1]))
+                + (-0.5 * self.ELa + 0.5 * self.ELb)
+                * phi_minus_mat[m_0, m_1]
+                ) * phi_a_mat[a_0, a_1] * phi_b_mat[b_0, b_1])
+
+    @staticmethod
+    def get_map(num_cpus: int = 1):
+        if num_cpus == 1:
+            return map
+        return pathos.pools.ProcessPool(nodes=num_cpus).map
+
+    def fourth_order_energy_shift(self, a_exc, b_exc, highest_exc_q=3, highest_exc_m=3, highest_exc_p=3, num_cpus=1):
+        """see https://arxiv.org/pdf/2304.06087.pdf for the relevant formula and notation"""
+        evals_and_matelems = self._generate_fluxonia_evals_phi_for_SW()
+        evals = (evals_and_matelems[0], evals_and_matelems[2], evals_and_matelems[4])
+        possible_int_states = list(product(range(0, highest_exc_q), range(0, highest_exc_q),
+                                      range(0, highest_exc_m), range(0, highest_exc_p)))
+        possible_int_paths = list(product(possible_int_states, possible_int_states, possible_int_states))
+        possible_paths_keys = range(len(possible_int_paths))
+        possible_paths_dict = dict(zip(possible_paths_keys, possible_int_paths))
+        init_state = (a_exc, b_exc, 0, 0)
+        E_0 = self.bare_energy(a_exc, b_exc, 0, 0, *evals)
+
+        def _single_path_contribution(int_path_key):
+            (int_state_1, int_state_2, int_state_3) = possible_paths_dict[int_path_key]
+            if int_state_1 == init_state or int_state_2 == init_state or int_state_3 == init_state:
+                return 0.0
+            else:
+                E_01 = E_0 - self.bare_energy(*int_state_1, *evals)
+                E_02 = E_0 - self.bare_energy(*int_state_2, *evals)
+                E_03 = E_0 - self.bare_energy(*int_state_3, *evals)
+                V01 = self.potential_matelem(*init_state, *int_state_1, evals_and_matelems)
+                V12 = self.potential_matelem(*int_state_1, *int_state_2, evals_and_matelems)
+                V23 = self.potential_matelem(*int_state_2, *int_state_3, evals_and_matelems)
+                V30 = self.potential_matelem(*int_state_3, *init_state, evals_and_matelems)
+                return V01 * V12 * V23 * V30 / (E_01 * E_02 * E_03)
+        target_map = self.get_map(num_cpus)
+        E_shift_4 = sum(target_map(_single_path_contribution, possible_paths_keys))
+        E_n_2 = 0
+        squared_sum = 0
+        for int_state in possible_int_states:
+            if int_state == init_state:
+                pass
+            else:
+                E_01 = E_0 - self.bare_energy(*int_state, *evals)
+                V01 = self.potential_matelem(*init_state, *int_state, evals_and_matelems)
+                E_n_2 += V01**2/E_01
+                squared_sum += (V01/E_01)**2
+        E_shift = E_shift_4 - E_n_2 * squared_sum
+        return E_shift, E_shift_4, -E_n_2 * squared_sum
+
+    def _J_minus(self, evals_a, phi_a_mat, evals_b, phi_b_mat, evals_minus, phi_minus_mat):
         coupler_minus_sum = sum(
             phi_minus_mat[0, n] ** 2
             * (
-                1.0 / (evals_a[0] + evals_minus[n] - evals_a[1] - evals_minus[0])
-                + 1.0 / (evals_b[0] + evals_minus[n] - evals_b[1] - evals_minus[0])
-                + 1.0 / (evals_a[1] + evals_minus[n] - evals_a[0] - evals_minus[0])
-                + 1.0 / (evals_b[1] + evals_minus[n] - evals_b[0] - evals_minus[0])
+                    1.0 / (evals_a[0] + evals_minus[n] - evals_a[1] - evals_minus[0])
+                    + 1.0 / (evals_b[0] + evals_minus[n] - evals_b[1] - evals_minus[0])
+                    + 1.0 / (evals_a[1] + evals_minus[n] - evals_a[0] - evals_minus[0])
+                    + 1.0 / (evals_b[1] + evals_minus[n] - evals_b[0] - evals_minus[0])
             )
             for n in range(1, self.fluxonium_minus_truncated_dim)
         )
+        return (
+            0.5
+            * (self.ELa / 2)
+            * (self.ELb / 2)
+            * phi_a_mat[0, 1]
+            * phi_b_mat[0, 1]
+            * coupler_minus_sum
+        )
+
+    def _J_plus(self, evals_a, phi_a_mat, evals_b, phi_b_mat, evals_minus, phi_minus_mat):
         omega_p = self.h_o_plus().E_osc
         ECp = self.h_o_plus_charging_energy()
         ELc = self.EL_tilda() / 4
@@ -237,7 +335,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             * (self.ELb / 2)
             * phi_a_mat[0, 1]
             * phi_b_mat[0, 1]
-            * (coupler_plus + coupler_minus_sum)
+            * coupler_plus
         )
 
     def schrieffer_wolff(self):
@@ -265,7 +363,8 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             0, evals_b, phi_b_mat, evals_minus, phi_minus_mat, self.ELb
         )
         delta_b = delta_b_0 - delta_b_1
-        J = self._J(evals_a, phi_a_mat, evals_b, phi_b_mat, evals_minus, phi_minus_mat)
+        J = (self._J_plus(evals_a, phi_a_mat, evals_b, phi_b_mat, evals_minus, phi_minus_mat)
+             + self._J_minus(evals_a, phi_a_mat, evals_b, phi_b_mat, evals_minus, phi_minus_mat))
         H = (
             -0.5 * (omega_a - delta_a) * tensor(sigmaz(), qeye(2))
             - 0.5 * (omega_b - delta_b) * tensor(qeye(2), sigmaz())
@@ -1302,16 +1401,6 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             (ELq * dELq + ELc * dELc) * self.h_o_plus().l_osc * phi_minus_mat[0, 0]
         ) / (4 * np.sqrt(2))
 
-    def _g_minus(self, ell, ell_prime, n, phi_q_mat, phi_minus_mat, EL):
-        return 0.5 * EL * phi_q_mat[ell, ell_prime] * phi_minus_mat[0, n]
-
-    def _g_minus_2(self, ell, ell_prime, n, n_prime, phi_q_mat, phi_minus_mat, EL):
-        """relevant for second order generator"""
-        return 0.5 * EL * phi_q_mat[ell, ell_prime] * phi_minus_mat[n, n_prime]
-
-    def _g_plus(self, ell, ell_prime, phi_q_mat, EL):
-        return 0.5 * EL * phi_q_mat[ell, ell_prime] * self.h_o_plus().l_osc / np.sqrt(2)
-
     def _eps_1(self, evals_minus, evals_i, phi_i_mat, phi_minus_mat, EL, i=0, j=1, n=1):
         """works for both qubits, need to feed in the right energies, phi_mat and EL"""
         return (
@@ -1644,7 +1733,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         self.flux_c = flux_c
         return self._evals_zeroed()[3]
 
-    def _cost_function_just_shift_positions(self, flux_a):
+    def _cost_function_E11_just_shift_positions(self, flux_a):
         """For efficiency we make the approximation that the flux shifts are equivalent"""
         flux_shift_a = flux_a - 0.5
         flux_b = 0.5 - flux_shift_a
@@ -1652,7 +1741,15 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         self.flux_b = flux_b
         return self._evals_zeroed()[3]
 
-    def find_flux_shift_exact(self, epsilon=1e-4):
+    def _cost_function_ZZ_just_shift_positions(self, flux_a):
+        flux_shift_a = flux_a - 0.5
+        flux_b = 0.5 - flux_shift_a
+        self.flux_a = flux_a
+        self.flux_b = flux_b
+        evals = self._evals_zeroed()
+        return np.abs(evals[3] - evals[2] - evals[1] + evals[0])
+
+    def find_flux_shift_exact(self, epsilon=1e-4, min_ZZ=False):
         """near the off position, we want to find the exact qubit fluxes necessary to
         put the qubits at their sweet spots. To do this we acknowledge that the qubits
         are (nearly) uncoupled, therefore each excited state is nearly a product state.
@@ -1661,13 +1758,22 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         flux_shift_a_seed, _ = self.find_flux_shift()
 
         result = minimize(
-            self._cost_function_just_shift_positions,
+            self._cost_function_E11_just_shift_positions,
             x0=np.array([0.5 + flux_shift_a_seed]),
             bounds=((0.5, 0.6),),
             tol=epsilon,
         )
         assert result.success
-        return result.x[0] - 0.5
+        if min_ZZ is False:
+            return result.x[0] - 0.5
+        else:
+            ZZ_result = minimize(
+                self._cost_function_ZZ_just_shift_positions,
+                x0=result.x,
+                bounds=((0.5, 0.6),),
+                tol=epsilon,
+            )
+            return result.x[0] - 0.5, ZZ_result.x[0] - 0.5
 
     def find_off_position_and_flux_shift_exact(self, epsilon=1e-4):
         (
@@ -2689,3 +2795,44 @@ class ConstructFullPulse(serializers.Serializable):
             fill_value="extrapolate",
         )
         return spline_a, spline_b, spline_c, total_times_a, total_times_b, total_times_c
+
+
+if __name__ == "__main__":
+    E_C = 11
+    ECm = 50.0
+    E_L1 = 3.52
+    E_L2 = 3.52
+    E_La = 0.271
+    E_Lb = 0.266
+    E_J = 4.246
+    E_Ja = 5.837
+    E_Jb = 4.930
+    E_Ca = 0.892
+    E_Cb = 0.8655
+
+    flux_c, flux_s = 0.2662, 0.01768
+
+    FTC_grounded = FluxoniumTunableCouplerGrounded(
+        EJa=E_Ja, EJb=E_Jb, EC_twoqubit=np.inf,
+        ECq1=E_Ca, ECq2=E_Cb, ELa=E_La, ELb=E_Lb,
+        flux_a=0.5, flux_b=0.5, flux_c=0.30,
+        fluxonium_cutoff=110, fluxonium_truncated_dim=8,
+        ECc=E_C, ECm=ECm, EL1=E_L1, EL2=E_L2, EJC=E_J,
+        fluxonium_minus_truncated_dim=6, h_o_truncated_dim=6
+    )
+    highest_exc_m = 3
+    highest_exc_p = 3
+    highest_exc_q = 2
+    (E00, E00_4, E_00_2) = FTC_grounded.fourth_order_energy_shift(0, 0, highest_exc_q=highest_exc_q, highest_exc_m=highest_exc_m,
+                                                                  highest_exc_p=highest_exc_p, num_cpus=8)
+    (E01, E01_4, E_01_2) = FTC_grounded.fourth_order_energy_shift(0, 1, highest_exc_q=highest_exc_q, highest_exc_m=highest_exc_m,
+                                                                  highest_exc_p=highest_exc_p, num_cpus=8)
+    (E10, E10_4, E_10_2) = FTC_grounded.fourth_order_energy_shift(1, 0, highest_exc_q=highest_exc_q, highest_exc_m=highest_exc_m,
+                                                                  highest_exc_p=highest_exc_p, num_cpus=8)
+    (E11, E11_4, E_11_2) = FTC_grounded.fourth_order_energy_shift(1, 1, highest_exc_q=highest_exc_q, highest_exc_m=highest_exc_m,
+                                                                  highest_exc_p=highest_exc_p, num_cpus=8)
+    print("00", E00, E00_4, E_00_2)
+    print("01", E01, E01_4, E_01_2)
+    print("10", E10, E10_4, E_10_2)
+    print("11", E11, E11_4, E_11_2)
+    print("eta", E11 - E10 - E01 + E00)
