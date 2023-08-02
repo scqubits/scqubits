@@ -112,6 +112,7 @@ class Subsystem(
         # Sai's reasoning: phi is more familiar with the community
         # maybe flux is a better choice?
         # check with Jens.
+        # new name: discretization_range? discretization_min_max? discretization_bounds?
 
         # initialize the two attributes for storing junction potential
         self.junction_potential = None
@@ -803,7 +804,7 @@ class Circuit(
                     system_hierarchy=old_system_hierarchy,
                     subsystem_trunc_dims=old_subsystem_trunc_dims,
                 )
-            raise Exception("Configure failed due to incorrect parameters.")
+            raise RuntimeError("Configure failed due to incorrect parameters.")
 
     def _read_symbolic_hamiltonian(
         self, symbolic_hamiltonian: sm.Expr
