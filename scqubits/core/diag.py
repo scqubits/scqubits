@@ -589,6 +589,10 @@ def evals_jax_dense(
     If available, different backends/devics (e.g., particular GPUs) can be set
     though jax's interface, see https://jax.readthedocs.io/en/latest/user_guides.html
 
+    Note, that jax's documentation is inconsistent, and `eigvals` and/or
+    `subset_by_index` seems not to be implemented. Hence, here we calculate all the
+    eigenvalues, but then only return the requested subset.
+
     Parameters
     ----------
     matrix:
@@ -610,11 +614,9 @@ def evals_jax_dense(
 
     m = _cast_matrix(matrix, "dense")
 
-    evals, evecs = jax.scipy.linalg.eigh(
-        m, subset_by_index=(0, evals_count - 1), eigvals_only=True, **kwargs
-    )
+    evals = jax.scipy.linalg.eigh(m, eigvals_only=True, **kwargs)
 
-    return evals
+    return evals[:evals_count]
 
 
 def esys_jax_dense(
@@ -627,6 +629,9 @@ def esys_jax_dense(
     If available, different backends/devics (e.g., particular GPUs) can be set
     though jax's interface, see https://jax.readthedocs.io/en/latest/user_guides.html
 
+    Note, that jax's documentation is inconsistent, and `eigvals` and/or
+    `subset_by_index` seems not to be implemented. Hence, here we calculate all the
+    eigenvalues, but then only return the requested subset.
 
     Parameters
     ----------
@@ -649,15 +654,12 @@ def esys_jax_dense(
 
     m = _cast_matrix(matrix, "dense")
 
-    evals, evecs = jax.scipy.linalg.eigh(
-        m, subset_by_index=(0, evals_count - 1), eigvals_only=False, **kwargs
-    )
+    evals, evecs = jax.scipy.linalg.eigh(m, eigvals_only=False, **kwargs)
 
     evecs = (
         _convert_evecs_to_qobjs(evecs, matrix) if isinstance(matrix, Qobj) else evecs
     )
-
-    return evals, evecs
+    return evals[:evals_count], evecs[:, :evals_count]
 
 
 # Default values of various noise constants and parameters.
