@@ -203,6 +203,8 @@ class StandardTests(BaseTest):
         return self.eigenvecs(io_type, evecs_reference)
 
     def test_plot_wavefunction(self, io_type):
+        if "plot_wavefunction" not in dir(self.qbt_type):
+            pytest.skip("This is expected, no reason for concern.")
         testname = self.file_str + "_1." + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type(**specdata.system_params)
@@ -263,9 +265,9 @@ class StandardTests(BaseTest):
         )
 
     def test_plot_potential(self, io_type):
+        if "plot_potential" not in dir(self.qbt_type):
+            pytest.skip("This is expected, no reason for concern.")
         testname = self.file_str + "_1.hdf5"
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type(**specdata.system_params)
-        if "plot_potential" not in dir(self.qbt):
-            pytest.skip("This is expected, no reason for concern.")
         self.qbt.plot_potential()

@@ -120,18 +120,32 @@ class SpectrumLookupMixin(MixinCompatible):
         """
         For a single set of parameter values, specified by a tuple of indices
         ``param_indices``, create an array of the dressed-state indices in an order
-        that corresponds one to one to the bare product states with largest overlap
+        that corresponds one-to-one to the bare product states with largest overlap
         (whenever possible).
 
         Parameters
         ----------
         param_indices:
             indices of the parameter values
+            Length of tuple must match the number of parameters in the `ParameterSweep` object inheriting from
+            `SpectrumLookupMixin`.
 
         Returns
         -------
-            dressed-state indices
+            1d array of dressed-state indices
+            Dimensions: (`self.hilbertspace.dimension`,)
+
+            Array which contains the dressed-state indices in an order that corresponds to the canonically ordered bare
+            product state basis, i.e. (0,0,0), (0,0,1), (0,0,2), ..., (0,1,0), (0,1,1), (0,1,2), ... etc.
+            For example, for two subsystems with two states each, the array [0, 2, 1, 3] would mean:
+            (0,0) corresponds to the dressed state 0,
+            (0,1) corresponds to the dressed state 2,
+            (1,0) corresponds to the dressed state 1,
+            (1,1) corresponds to the dressed state 3.
         """
+        # Overlaps between dressed energy eigenstates and bare product states, <e1, e2, ...| E_j>
+        # Since the Hamiltonian matrix is explicitly constructed in the bare product states basis, this is just the same
+        # as the matrix of eigenvectors handed back when diagonalizing the Hamiltonian matrix.
         overlap_matrix = spec_utils.convert_evecs_to_ndarray(
             self._data["evecs"][param_indices]
         )
@@ -152,6 +166,9 @@ class SpectrumLookupMixin(MixinCompatible):
     def set_npindextuple(
         self, param_indices: Optional[NpIndices] = None
     ) -> NpIndexTuple:
+        """
+        Convert the NpIndices parameter indices to a tuple of NpIndices.
+        """
         param_indices = param_indices or self._current_param_indices
         if not isinstance(param_indices, tuple):
             param_indices = (param_indices,)
@@ -162,7 +179,7 @@ class SpectrumLookupMixin(MixinCompatible):
     def dressed_index(
         self,
         bare_labels: Tuple[int, ...],
-        param_indices: Optional[NpIndices] = None,
+        param_npindices: Optional[NpIndices] = None,
     ) -> Union[ndarray, int, None]:
         """
         For given bare product state return the corresponding dressed-state index.
@@ -171,19 +188,24 @@ class SpectrumLookupMixin(MixinCompatible):
         ----------
         bare_labels:
             bare_labels = (index, index2, ...)
-        param_indices:
+            Dimension: (`self.hilbertspace.subsystem_count`,)
+        param_npindices:
             indices of parameter values of interest
+            Depending on the nature of the slice, this can be a single parameter point or multiple ones.
 
         Returns
         -------
-            dressed state index closest to the specified bare state
+            dressed state index closest to the specified bare state with excitation numbers given by `bare_labels`.
+            If `param_npindices` spans multiple parameter points, then this returns a corresponding 1d array of
+            length dictated by the number of parameter points.
         """
-        param_indices = self.set_npindextuple(param_indices)
+        param_npindices = self.set_npindextuple(param_npindices)
         try:
             lookup_position = self._bare_product_states_labels.index(bare_labels)
         except ValueError:
             return None
-        return self._data["dressed_indices"][param_indices + (lookup_position,)]
+
+        return self._data["dressed_indices"][param_npindices + (lookup_position,)]
 
     @utils.check_lookup_exists
     @utils.check_sync_status
@@ -266,7 +288,7 @@ class SpectrumLookupMixin(MixinCompatible):
         self,
         bare_tuple: Tuple[int, ...],
         subtract_ground: bool = False,
-        param_indices: Optional[NpIndices] = None,
+        param_npindices: Optional[NpIndices] = None,
     ) -> Union[float, NamedSlotsNdarray]:  # the return value may also be np.nan
         """
         Look up dressed energy most closely corresponding to the given bare-state labels
@@ -277,28 +299,28 @@ class SpectrumLookupMixin(MixinCompatible):
             bare state indices
         subtract_ground:
             whether to subtract the ground state energy
-        param_indices:
+        param_npindices:
             indices specifying the set of parameters
 
         Returns
         -------
             dressed energies, if lookup successful, otherwise nan;
         """
-        param_indices = self.set_npindextuple(param_indices)
-        dressed_index = self.dressed_index(bare_tuple, param_indices)
+        param_npindices = self.set_npindextuple(param_npindices)
+        dressed_index = self.dressed_index(bare_tuple, param_npindices)
 
         if dressed_index is None:
             return np.nan  # type:ignore
         if isinstance(dressed_index, numbers.Number):
-            energy = self["evals"][param_indices + (dressed_index,)]
+            energy = self["evals"][param_npindices + (dressed_index,)]
             if subtract_ground:
-                energy -= self["evals"][param_indices + (0,)]
+                energy -= self["evals"][param_npindices + (0,)]
             return energy
 
         dressed_index = np.asarray(dressed_index)
         energies = np.empty_like(dressed_index, dtype=np.float_)
         it = np.nditer(dressed_index, flags=["multi_index", "refs_ok"])
-        sliced_energies = self["evals"][param_indices]
+        sliced_energies = self["evals"][param_npindices]
 
         for location in it:
             location = location.tolist()

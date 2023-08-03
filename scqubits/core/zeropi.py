@@ -10,7 +10,6 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import os
 import warnings
 
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -30,7 +29,6 @@ import scqubits.core.discretization as discretization
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
-import scqubits.settings as settings
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as utils
@@ -125,8 +123,19 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         ECS: float = None,
         truncated_dim: int = 6,
         id_str: Optional[str] = None,
+        evals_method: Optional[str] = None,
+        evals_method_options: Optional[dict] = None,
+        esys_method: Optional[str] = None,
+        esys_method_options: Optional[dict] = None,
     ) -> None:
-        base.QuantumSystem.__init__(self, id_str=id_str)
+        base.QubitBaseClass.__init__(
+            self,
+            id_str=id_str,
+            evals_method=evals_method,
+            evals_method_options=evals_method_options,
+            esys_method=esys_method,
+            esys_method_options=esys_method_options,
+        )
 
         self.EJ = EJ
         self.EL = EL
@@ -154,9 +163,6 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         self._init_params.remove(
             "ECS"
         )  # used in for file Serializable purposes; remove ECS as init parameter
-        self._image_filename = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "qubit_img/zeropi.jpg"
-        )
         dispatch.CENTRAL_DISPATCH.register("GRID_UPDATE", self)
 
     @staticmethod
@@ -202,10 +208,10 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         init_params["grid_min_val"] = self.grid.min_val
         init_params["grid_pt_count"] = self.grid.pt_count
         ui.create_widget(
-            self.set_params, init_params, image_filename=self._image_filename
+            self.set_params_from_gui, init_params, image_filename=self._image_filename
         )
 
-    def set_params(self, **kwargs) -> None:
+    def set_params_from_gui(self, **kwargs) -> None:
         phi_grid = discretization.Grid1d(
             kwargs.pop("grid_min_val"),
             kwargs.pop("grid_max_val"),

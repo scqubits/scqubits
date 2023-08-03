@@ -16,6 +16,9 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import sympy as sm
+from matplotlib import pyplot as plt
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from numpy import ndarray
 from sympy import latex
 
@@ -88,6 +91,13 @@ class Subsystem(
         object.__setattr__(self, "_frozen", False)
 
         base.QuantumSystem.__init__(self, id_str=None)
+
+        # This class does not yet support custom diagonalization options, but these
+        # still have to be defined
+        self.evals_method = None
+        self.evals_method_options = None
+        self.esys_method = None
+        self.esys_method_options = None
 
         self.system_hierarchy = system_hierarchy
         self.truncated_dim = truncated_dim
@@ -441,6 +451,13 @@ class Circuit(
             initiate_sym_calc=True,
             is_flux_dynamic=is_flux_dynamic,
         )
+
+        # This class does not yet support custom diagonalization options, but these
+        # still have to be defined
+        self.evals_method = None
+        self.evals_method_options = None
+        self.esys_method = None
+        self.esys_method_options = None
 
         sm.init_printing(pretty_print=False, order="none")
         self.is_child = False
