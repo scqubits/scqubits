@@ -614,7 +614,8 @@ def evals_jax_dense(
 
     m = _cast_matrix(matrix, "dense")
 
-    evals = jax.scipy.linalg.eigh(m, eigvals_only=True, **kwargs)
+    # We explicitly cast to a numpy array
+    evals = np.asarray(jax.scipy.linalg.eigh(m, eigvals_only=True, **kwargs))
 
     return evals[:evals_count]
 
@@ -631,7 +632,7 @@ def esys_jax_dense(
 
     Note, that jax's documentation is inconsistent, and `eigvals` and/or
     `subset_by_index` seems not to be implemented. Hence, here we calculate all the
-    eigenvalues, but then only return the requested subset.
+    eigenvalues and eigenvectors, but then only return the requested subset.
 
     Parameters
     ----------
@@ -655,6 +656,10 @@ def esys_jax_dense(
     m = _cast_matrix(matrix, "dense")
 
     evals, evecs = jax.scipy.linalg.eigh(m, eigvals_only=False, **kwargs)
+
+    # We explicitly cast to numpy arrays 
+    evals, evecs = np.asarray(evals), np.asarray(evcs)
+
 
     evecs = (
         _convert_evecs_to_qobjs(evecs, matrix) if isinstance(matrix, Qobj) else evecs
