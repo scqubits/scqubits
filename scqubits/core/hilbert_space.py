@@ -1202,7 +1202,7 @@ class HilbertSpace(
                 continue
             if re.match(r"op\d+$", key) is None:
                 raise TypeError("Unexpected keyword argument {}.".format(key))
-            operator_list.append(self._parse_op_by_name(kwargs[key]))
+            operator_list.append(self._parse_str_based_op(kwargs[key]))
         if id_wrapped_operator_list == []:
             id_wrapped_operator_list = None
 
