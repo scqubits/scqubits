@@ -67,7 +67,7 @@ EXTRAS_REQUIRE = {
     "graphics": ["matplotlib-label-lines (>=0.3.6)"],
     "explorer": ["ipywidgets (>=7.5)"],
     "h5-support": ["h5py (>=2.10)"],
-    "pathos": ["pathos", "dill"]
+    "pathos": ["pathos", "dill"],
 }
 
 TESTS_REQUIRE = ["h5py (>=2.7.1)", "pathos", "dill", "ipywidgets", "pytest"]
