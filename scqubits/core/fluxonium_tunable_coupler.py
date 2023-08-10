@@ -234,7 +234,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         else:
             return 0.0
 
-    def potential_matelem(self, a_0, b_0, m_0, p_0, a_1, b_1, m_1, p_1, evals_and_matelems):
+    def potential_matelem(self, a_0, b_0, m_0, p_0, a_1, b_1, m_1, p_1, evals_and_matelems, flux_a=0.5, flux_b=0.5):
         (
             evals_a,
             phi_a_mat,
@@ -243,13 +243,23 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             evals_minus,
             phi_minus_mat,
         ) = evals_and_matelems
-        return np.real(((-0.5 * self.ELa - 0.5 * self.ELb)
-                * (self.delta_func(p_0, p_1 + 1) + self.delta_func(p_0, p_1 - 1))
+        delta_flux_a = flux_a - 0.5
+        delta_flux_b = flux_b - 0.5
+        theta_plus = ((self.delta_func(p_0, p_1 + 1) + self.delta_func(p_0, p_1 - 1))
                 * self.h_o_plus().l_osc / np.sqrt(2)
-                * np.sqrt(np.max([p_0, p_1]))
+                * np.sqrt(np.max([p_0, p_1])))
+        coupler_part = np.real(((-0.5 * self.ELa - 0.5 * self.ELb)
+                * theta_plus
                 + (-0.5 * self.ELa + 0.5 * self.ELb)
                 * phi_minus_mat[m_0, m_1]
                 ) * phi_a_mat[a_0, a_1] * phi_b_mat[b_0, b_1])
+        flux_part_a = 0.5 * self.ELa * delta_flux_a * (
+            -2.0 * phi_a_mat[a_0, a_1] + theta_plus + phi_minus_mat[m_0, m_1]
+        )
+        flux_part_b = 0.5 * self.ELb * delta_flux_b * (
+                -2.0 * phi_b_mat[b_0, b_1] + theta_plus - phi_minus_mat[m_0, m_1]
+        )
+        return coupler_part + flux_part_a + flux_part_b
 
     @staticmethod
     def get_map(num_cpus: int = 1):
@@ -269,12 +279,11 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         num_cpus=1,
     ):
         """see https://arxiv.org/pdf/2304.06087.pdf for the relevant formula and notation"""
-        evals_and_matelems = self._generate_fluxonia_evals_phi_for_SW(flux_a=flux_a, flux_b=flux_b)
+        evals_and_matelems = self._generate_fluxonia_evals_phi_for_SW(flux_a=0.5, flux_b=0.5)
         evals = (evals_and_matelems[0], evals_and_matelems[2], evals_and_matelems[4])
         possible_int_states = list(product(range(0, highest_exc_q), range(0, highest_exc_q),
                                       range(0, highest_exc_m), range(0, highest_exc_p)))
         possible_int_paths_3 = list(product(possible_int_states, possible_int_states, possible_int_states))
-        possible_int_paths_2 = list(product(possible_int_states, possible_int_states))
         init_state = (a_exc, b_exc, 0, 0)
         E_0 = self.bare_energy(a_exc, b_exc, 0, 0, *evals)
 
@@ -286,34 +295,24 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
                 E_01 = E_0 - self.bare_energy(*int_state_1, *evals)
                 E_02 = E_0 - self.bare_energy(*int_state_2, *evals)
                 E_03 = E_0 - self.bare_energy(*int_state_3, *evals)
-                V01 = self.potential_matelem(*init_state, *int_state_1, evals_and_matelems)
-                V12 = self.potential_matelem(*int_state_1, *int_state_2, evals_and_matelems)
-                V23 = self.potential_matelem(*int_state_2, *int_state_3, evals_and_matelems)
-                V30 = self.potential_matelem(*int_state_3, *init_state, evals_and_matelems)
+                V01 = self.potential_matelem(
+                    *init_state, *int_state_1, evals_and_matelems, flux_a=flux_a, flux_b=flux_b
+                )
+                V12 = self.potential_matelem(
+                    *int_state_1, *int_state_2, evals_and_matelems, flux_a=flux_a, flux_b=flux_b
+                )
+                V23 = self.potential_matelem(
+                    *int_state_2, *int_state_3, evals_and_matelems, flux_a=flux_a, flux_b=flux_b
+                )
+                V30 = self.potential_matelem(
+                    *int_state_3, *init_state, evals_and_matelems, flux_a=flux_a, flux_b=flux_b
+                )
                 return V01 * V12 * V23 * V30 / (E_01 * E_02 * E_03)
 
-        def _single_path_contribution_3(int_path):
-            (int_state_1, int_state_2) = int_path
-            if int_state_1 == init_state or int_state_2 == init_state:
-                return 0.0
-            else:
-                E_01 = E_0 - self.bare_energy(*int_state_1, *evals)
-                E_02 = E_0 - self.bare_energy(*int_state_2, *evals)
-                V01 = self.potential_matelem(*init_state, *int_state_1, evals_and_matelems)
-                V12 = self.potential_matelem(*int_state_1, *int_state_2, evals_and_matelems)
-                V20 = self.potential_matelem(*int_state_2, *init_state, evals_and_matelems)
-                return V01 * V12 * V20 / (E_01**2 * E_02)
         target_map = self.get_map(num_cpus)
         E_shift_4 = sum(target_map(_single_path_contribution_4, possible_int_paths_3))
-        Vnn = self.potential_matelem(*init_state, *init_state, evals_and_matelems)
-        if Vnn != 0.0:
-            print("here")
-            E_shift_3 = sum(target_map(_single_path_contribution_3, possible_int_paths_2))
-        else:
-            E_shift_3 = 0.0
         E_n_2 = 0
         squared_sum = 0
-        cubed_sum = 0
         for int_state in possible_int_states:
             if int_state == init_state:
                 pass
@@ -322,31 +321,8 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
                 V01 = self.potential_matelem(*init_state, *int_state, evals_and_matelems)
                 E_n_2 += V01**2/E_01
                 squared_sum += (V01/E_01)**2
-                cubed_sum += V01**2 / E_01**3
-        E_shift = (E_shift_4
-                   - E_n_2 * squared_sum
-                   - 2.0 * Vnn * E_shift_3
-                   + Vnn**2 * cubed_sum
-                   )
+        E_shift = (E_shift_4 - E_n_2 * squared_sum)
         return E_shift
-
-    # def _single_path_contr(int_path):
-    #     E_denoms = []
-    #     V_nums = []
-    #     for i, int_state in enumerate(int_path):
-    #         if int_state == init_state:
-    #             return 0.0
-    #         if i == 0:
-    #             prev_int_state = init_state
-    #         E_denoms.append(E_0 - self.bare_energy(*int_state, *evals))
-    #         V_nums.append(self.potential_matelem(
-    #             *prev_int_state,
-    #             *int_state,
-    #             evals_and_matelems)
-    #         )
-    #         prev_int_state = int_state
-    #     V_nums.append(self.potential_matelem(*int_path[-1], *init_state, evals_and_matelems))
-    #     return np.prod(V_nums) / np.prod(E_denoms)
 
     def _J_minus(self, evals_a, phi_a_mat, evals_b, phi_b_mat, evals_minus, phi_minus_mat):
         coupler_minus_sum = sum(

@@ -144,14 +144,22 @@ class GatesErrorBudget:
         real_prop = propagator(H, tlist, c_op_list=c_ops, args=args)
         return real_prop[-1]
 
-
-    def run_gate_gaussian_counter(self, gate_time, c_ops, amp=None, omega_d=None, gate_type="iswap", gate_params=None):
+    def run_gate_gaussian_counter(
+            self,
+            gate_time,
+            c_ops,
+            amp=None,
+            omega_d=None,
+            gate_type="iswap",
+            gate_params=None
+    ):
         XX = tensor(sigmax(), sigmax())
         XY = tensor(sigmax(), sigmay())
         YX = tensor(sigmay(), sigmax())
         YY = tensor(sigmay(), sigmay())
         omega_a = gate_params["omega_a"]
         omega_b = gate_params["omega_b"]
+        phase = gate_params["phase"]
         if gate_type == "iswap" and omega_d is None:
             omega_d = omega_b - omega_a
         elif gate_type == "bswap" and omega_d is None:
@@ -164,25 +172,25 @@ class GatesErrorBudget:
 
         def XX_coeff(t, args=None):
             return (amp * self.gaussian(t, args=args)
-                    * np.cos(omega_d * t)
+                    * np.cos(omega_d * t + phase)
                     * np.cos(omega_a * t)
                     * np.cos(omega_b * t))
 
         def XY_coeff(t, args=None):
             return (amp * self.gaussian(t, args=args)
-                    * np.cos(omega_d * t)
+                    * np.cos(omega_d * t + phase)
                     * np.cos(omega_a * t)
                     * np.sin(omega_b * t))
 
         def YX_coeff(t, args=None):
             return (amp * self.gaussian(t, args=args)
-                    * np.cos(omega_d * t)
+                    * np.cos(omega_d * t + phase)
                     * np.sin(omega_a * t)
                     * np.cos(omega_b * t))
 
         def YY_coeff(t, args=None):
             return (amp * self.gaussian(t, args=args)
-                    * np.cos(omega_d * t)
+                    * np.cos(omega_d * t + phase)
                     * np.sin(omega_a * t)
                     * np.sin(omega_b * t))
 
