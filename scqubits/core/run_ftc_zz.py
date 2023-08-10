@@ -57,8 +57,8 @@ def run_ftc_zz(
         highest_exc_p=highest_exc_p, num_cpus=num_cpus)
     data_dict = {"eta": E11 - E10 - E01 + E00}
     param_dict = {"highest_exc_q": highest_exc_q, "highest_exc_m": highest_exc_m, "highest_exc_p": highest_exc_p,
-                  "flux_q_max": flux_q_max, "flux_c_max": flux_c_max}
-    filepath = str(idx).zfill(5)+"ZZ_shift_vs_flux.h5py"
+                  "flux_q_max": flux_q_max, "flux_c_max": flux_c_max, "idx": idx, "num_pts": num_pts}
+    filepath = str(idx).zfill(5)+"_ZZ_shift_vs_flux.h5py"
     write_to_h5(filepath, data_dict, param_dict)
 
 

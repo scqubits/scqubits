@@ -41,8 +41,8 @@ from scqubits.utils.spectrum_utils import (
 )
 
 
-#class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializable):
-class FluxoniumTunableCouplerFloating:
+class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializable):
+#class FluxoniumTunableCouplerFloating:
     def __init__(
         self,
         EJa,
@@ -273,14 +273,13 @@ class FluxoniumTunableCouplerFloating:
         evals = (evals_and_matelems[0], evals_and_matelems[2], evals_and_matelems[4])
         possible_int_states = list(product(range(0, highest_exc_q), range(0, highest_exc_q),
                                       range(0, highest_exc_m), range(0, highest_exc_p)))
-        possible_int_paths = list(product(possible_int_states, possible_int_states, possible_int_states))
-        possible_paths_keys = range(len(possible_int_paths))
-        possible_paths_dict = dict(zip(possible_paths_keys, possible_int_paths))
+        possible_int_paths_3 = list(product(possible_int_states, possible_int_states, possible_int_states))
+        possible_int_paths_2 = list(product(possible_int_states, possible_int_states))
         init_state = (a_exc, b_exc, 0, 0)
         E_0 = self.bare_energy(a_exc, b_exc, 0, 0, *evals)
 
-        def _single_path_contribution(int_path_key):
-            (int_state_1, int_state_2, int_state_3) = possible_paths_dict[int_path_key]
+        def _single_path_contribution_4(int_path):
+            (int_state_1, int_state_2, int_state_3) = int_path
             if int_state_1 == init_state or int_state_2 == init_state or int_state_3 == init_state:
                 return 0.0
             else:
@@ -292,11 +291,29 @@ class FluxoniumTunableCouplerFloating:
                 V23 = self.potential_matelem(*int_state_2, *int_state_3, evals_and_matelems)
                 V30 = self.potential_matelem(*int_state_3, *init_state, evals_and_matelems)
                 return V01 * V12 * V23 * V30 / (E_01 * E_02 * E_03)
+
+        def _single_path_contribution_3(int_path):
+            (int_state_1, int_state_2) = int_path
+            if int_state_1 == init_state or int_state_2 == init_state:
+                return 0.0
+            else:
+                E_01 = E_0 - self.bare_energy(*int_state_1, *evals)
+                E_02 = E_0 - self.bare_energy(*int_state_2, *evals)
+                V01 = self.potential_matelem(*init_state, *int_state_1, evals_and_matelems)
+                V12 = self.potential_matelem(*int_state_1, *int_state_2, evals_and_matelems)
+                V20 = self.potential_matelem(*int_state_2, *init_state, evals_and_matelems)
+                return V01 * V12 * V20 / (E_01**2 * E_02)
         target_map = self.get_map(num_cpus)
-        E_shift_4 = sum(target_map(_single_path_contribution, possible_paths_keys))
-        # E_shift_4 = 0.0
+        E_shift_4 = sum(target_map(_single_path_contribution_4, possible_int_paths_3))
+        Vnn = self.potential_matelem(*init_state, *init_state, evals_and_matelems)
+        if Vnn != 0.0:
+            print("here")
+            E_shift_3 = sum(target_map(_single_path_contribution_3, possible_int_paths_2))
+        else:
+            E_shift_3 = 0.0
         E_n_2 = 0
         squared_sum = 0
+        cubed_sum = 0
         for int_state in possible_int_states:
             if int_state == init_state:
                 pass
@@ -305,8 +322,31 @@ class FluxoniumTunableCouplerFloating:
                 V01 = self.potential_matelem(*init_state, *int_state, evals_and_matelems)
                 E_n_2 += V01**2/E_01
                 squared_sum += (V01/E_01)**2
-        E_shift = E_shift_4 - E_n_2 * squared_sum
-        return E_shift, E_shift_4, -E_n_2 * squared_sum
+                cubed_sum += V01**2 / E_01**3
+        E_shift = (E_shift_4
+                   - E_n_2 * squared_sum
+                   - 2.0 * Vnn * E_shift_3
+                   + Vnn**2 * cubed_sum
+                   )
+        return E_shift
+
+    # def _single_path_contr(int_path):
+    #     E_denoms = []
+    #     V_nums = []
+    #     for i, int_state in enumerate(int_path):
+    #         if int_state == init_state:
+    #             return 0.0
+    #         if i == 0:
+    #             prev_int_state = init_state
+    #         E_denoms.append(E_0 - self.bare_energy(*int_state, *evals))
+    #         V_nums.append(self.potential_matelem(
+    #             *prev_int_state,
+    #             *int_state,
+    #             evals_and_matelems)
+    #         )
+    #         prev_int_state = int_state
+    #     V_nums.append(self.potential_matelem(*int_path[-1], *init_state, evals_and_matelems))
+    #     return np.prod(V_nums) / np.prod(E_denoms)
 
     def _J_minus(self, evals_a, phi_a_mat, evals_b, phi_b_mat, evals_minus, phi_minus_mat):
         coupler_minus_sum = sum(
@@ -1887,49 +1927,18 @@ if __name__ == "__main__":
     highest_exc_m = 4
     highest_exc_p = 3
     highest_exc_q = 2
+    evals = FTC_grounded.eigenvals()
 
-    (E00, E00_4, E_00_2) = FTC_grounded.fourth_order_energy_shift_coupler(
-        0, 0, highest_exc_q=highest_exc_q, highest_exc_c=highest_exc_m, num_cpus=8, coupler="minus")
-    (E01, E01_4, E_01_2) = FTC_grounded.fourth_order_energy_shift_coupler(
-        0, 1, highest_exc_q=highest_exc_q, highest_exc_c=highest_exc_m, num_cpus=8, coupler="minus")
-    (E10, E10_4, E_10_2) = FTC_grounded.fourth_order_energy_shift_coupler(
-        1, 0, highest_exc_q=highest_exc_q, highest_exc_c=highest_exc_m, num_cpus=8, coupler="minus")
-    (E11, E11_4, E_11_2) = FTC_grounded.fourth_order_energy_shift_coupler(
-        1, 1, highest_exc_q=highest_exc_q, highest_exc_c=highest_exc_m, num_cpus=8, coupler="minus")
-
-    print("minus")
-    print("00", E00, E00_4, E_00_2)
-    print("01", E01, E01_4, E_01_2)
-    print("10", E10, E10_4, E_10_2)
-    print("11", E11, E11_4, E_11_2)
-    print("eta", E11 - E10 - E01 + E00)
-
-    (E00, E00_4, E_00_2) = FTC_grounded.fourth_order_energy_shift_coupler(
-        0, 0, highest_exc_q=highest_exc_q, highest_exc_c=highest_exc_m, num_cpus=8, coupler="plus")
-    (E01, E01_4, E_01_2) = FTC_grounded.fourth_order_energy_shift_coupler(
-        0, 1, highest_exc_q=highest_exc_q, highest_exc_c=highest_exc_m, num_cpus=8, coupler="plus")
-    (E10, E10_4, E_10_2) = FTC_grounded.fourth_order_energy_shift_coupler(
-        1, 0, highest_exc_q=highest_exc_q, highest_exc_c=highest_exc_m, num_cpus=8, coupler="plus")
-    (E11, E11_4, E_11_2) = FTC_grounded.fourth_order_energy_shift_coupler(
-        1, 1, highest_exc_q=highest_exc_q, highest_exc_c=highest_exc_m, num_cpus=8, coupler="plus")
-
-    print("plus")
-    print("00", E00, E00_4, E_00_2)
-    print("01", E01, E01_4, E_01_2)
-    print("10", E10, E10_4, E_10_2)
-    print("11", E11, E11_4, E_11_2)
-    print("eta", E11 - E10 - E01 + E00)
-
-    (E00, E00_4, E_00_2) = FTC_grounded.fourth_order_energy_shift(0, 0, highest_exc_q=highest_exc_q, highest_exc_m=highest_exc_m,
+    E00 = FTC_grounded.fourth_order_energy_shift(0, 0, highest_exc_q=highest_exc_q, highest_exc_m=highest_exc_m,
                                                                   highest_exc_p=highest_exc_p, num_cpus=8)
-    (E01, E01_4, E_01_2) = FTC_grounded.fourth_order_energy_shift(0, 1, highest_exc_q=highest_exc_q, highest_exc_m=highest_exc_m,
+    E01 = FTC_grounded.fourth_order_energy_shift(0, 1, highest_exc_q=highest_exc_q, highest_exc_m=highest_exc_m,
                                                                   highest_exc_p=highest_exc_p, num_cpus=8)
-    (E10, E10_4, E_10_2) = FTC_grounded.fourth_order_energy_shift(1, 0, highest_exc_q=highest_exc_q, highest_exc_m=highest_exc_m,
+    E10 = FTC_grounded.fourth_order_energy_shift(1, 0, highest_exc_q=highest_exc_q, highest_exc_m=highest_exc_m,
                                                                   highest_exc_p=highest_exc_p, num_cpus=8)
-    (E11, E11_4, E_11_2) = FTC_grounded.fourth_order_energy_shift(1, 1, highest_exc_q=highest_exc_q, highest_exc_m=highest_exc_m,
+    E11 = FTC_grounded.fourth_order_energy_shift(1, 1, highest_exc_q=highest_exc_q, highest_exc_m=highest_exc_m,
                                                                   highest_exc_p=highest_exc_p, num_cpus=8)
-    print("00", E00, E00_4, E_00_2)
-    print("01", E01, E01_4, E_01_2)
-    print("10", E10, E10_4, E_10_2)
-    print("11", E11, E11_4, E_11_2)
+    print("00", E00)
+    print("01", E01)
+    print("10", E10)
+    print("11", E11)
     print("eta", E11 - E10 - E01 + E00)
