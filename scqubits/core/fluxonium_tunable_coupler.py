@@ -253,10 +253,10 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
                 + (-0.5 * self.ELa + 0.5 * self.ELb)
                 * phi_minus_mat[m_0, m_1]
                 ) * phi_a_mat[a_0, a_1] * phi_b_mat[b_0, b_1])
-        flux_part_a = 0.5 * self.ELa * delta_flux_a * (
+        flux_part_a = 0.5 * self.ELa * 2.0 * np.pi * delta_flux_a * (
             -2.0 * phi_a_mat[a_0, a_1] + theta_plus + phi_minus_mat[m_0, m_1]
         )
-        flux_part_b = 0.5 * self.ELb * delta_flux_b * (
+        flux_part_b = 0.5 * self.ELb * 2.0 * np.pi * delta_flux_b * (
                 -2.0 * phi_b_mat[b_0, b_1] + theta_plus - phi_minus_mat[m_0, m_1]
         )
         return coupler_part + flux_part_a + flux_part_b

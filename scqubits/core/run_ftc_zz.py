@@ -3,6 +3,9 @@ from itertools import product
 
 import numpy as np
 import h5py
+import sys
+sys.path.append("/gpfs/gibbs/project/puri/dkw34/FTC/")
+sys.path.append("/gpfs/gibbs/project/puri/dkw34/FTC/scqubits/")
 
 import scqubits as scq
 
