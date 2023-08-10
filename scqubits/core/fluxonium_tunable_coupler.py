@@ -318,7 +318,9 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
                 pass
             else:
                 E_01 = E_0 - self.bare_energy(*int_state, *evals)
-                V01 = self.potential_matelem(*init_state, *int_state, evals_and_matelems)
+                V01 = self.potential_matelem(
+                    *init_state, *int_state, evals_and_matelems, flux_a=flux_a, flux_b=flux_b
+                )
                 E_n_2 += V01**2/E_01
                 squared_sum += (V01/E_01)**2
         E_shift = (E_shift_4 - E_n_2 * squared_sum)
