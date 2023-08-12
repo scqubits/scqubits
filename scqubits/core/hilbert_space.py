@@ -1021,19 +1021,26 @@ class HilbertSpace(
 
     def op_in_dressed_eigenbasis(
         self,
-        op: Union[Tuple[Union[np.ndarray, csc_matrix], QuantumSys], Callable],
+        op_callable_or_tuple: Union[Tuple[Union[np.ndarray, csc_matrix], QuantumSys], Callable],
+        truncated_dim: Optional[int] = None,
         **kwargs,
     ) -> Qobj:
         """
         Express a subsystem operator in the dressed eigenbasis of the full system
         (as opposed to both the "native basis" or "bare eigenbasis" of the subsystem).
+        The returned operator should not retain memory of the Hilbert-space sizes
+        of the underlying subsystems, thus we modify the dims of the returned operator.
+        truncated_dim should be set to the cutoff Hilbert-space size of the dressed system:
+        if it is set to the default value None, no cutoff of the resulting operator is made but
+        the dims of the resulting Qobj will be [[dimension], [dimension]]
+
         `op_in_dressed_eigenbasis(...)` offers two different interfaces:
 
         1. subsystem operators may be expressed as Callables
 
             signature::
 
-                .op_in_dressed_eigenbasis(op=<Callable>)
+                .op_in_dressed_eigenbasis(op=<Callable>, truncated_dim=<int>)
 
         2. subsystem operators may be passed as arrays, along with the
            corresponding subsystem. In this case the user must additionally
@@ -1041,26 +1048,20 @@ class HilbertSpace(
            basis or the subsystem bare eigenbasis::
 
                 .op_in_dressed_eigenbasis(op=(<ndarray>, <subsys>),
+                                          truncated_dim=<int>,
                                           op_in_bare_eigenbasis=<Bool>)
         """
-        if isinstance(op, tuple):
-            op_matrix, subsys = op
+        if truncated_dim is None:
+            truncated_dim = self.dimension
+        if isinstance(op_callable_or_tuple, tuple):
+            op, subsys = op_callable_or_tuple
             op_in_bare_eigenbasis = kwargs.pop("op_in_bare_eigenbasis", False)
             subsys_index = self.get_subsys_index(subsys)
-            return self._op_matrix_to_dressed_eigenbasis(
-                op_matrix, subsys_index, op_in_bare_eigenbasis
-            )
-
-        assert callable(op)
-        subsys_index = self.get_subsys_index(op.__self__)
-        return self._op_callable_to_dressed_eigenbasis(op, subsys_index)
-
-    def _op_matrix_to_dressed_eigenbasis(
-        self,
-        op: Union[np.ndarray, csc_matrix],
-        subsys_index: int,
-        op_in_bare_eigenbasis,
-    ) -> Qobj:
+        else:
+            assert callable(op_callable_or_tuple)
+            op = op_callable_or_tuple
+            op_in_bare_eigenbasis = False
+            subsys_index = self.get_subsys_index(op.__self__)
         bare_evecs = self._data["bare_evecs"][subsys_index][0]
         id_wrapped_op = spec_utils.identity_wrap(
             op,
@@ -1070,22 +1071,12 @@ class HilbertSpace(
             evecs=bare_evecs,
         )
         dressed_evecs = self._data["evecs"][0]
-        dressed_op = id_wrapped_op.transform(dressed_evecs)
-        return dressed_op
-
-    def _op_callable_to_dressed_eigenbasis(
-        self, op: Callable, subsys_index: int
-    ) -> Qobj:
-        bare_evecs = self._data["bare_evecs"][subsys_index][0]
-        id_wrapped_op = spec_utils.identity_wrap(
-            op,
-            self.subsystem_list[subsys_index],
-            self.subsystem_list,
-            evecs=bare_evecs,
+        dressed_op_data = id_wrapped_op.transform(dressed_evecs).data.toarray()
+        dressed_op_truncated = Qobj(
+            dressed_op_data[0:truncated_dim, 0:truncated_dim],
+            dims=[[truncated_dim], [truncated_dim]],
         )
-        dressed_evecs = self._data["evecs"][0]
-        dressed_op = id_wrapped_op.transform(dressed_evecs)
-        return dressed_op
+        return dressed_op_truncated
 
     ###################################################################################
     # HilbertSpace: add interaction and parsing arguments to .add_interaction
