@@ -28,6 +28,8 @@ from typing import (
     Tuple,
     Union,
     overload,
+    TypeVar,
+    Type,
 )
 
 import matplotlib as mpl
@@ -76,6 +78,9 @@ LevelsTuple = Tuple[int, ...]
 Transition = Tuple[int, int]
 TransitionsTuple = Tuple[Transition, ...]
 
+# annotate the types will inherit from Serializable
+QubitType = TypeVar("QubitType", bound="QuantumSystem")
+
 # -Generic quantum system container and Qubit base class------------------------------
 
 
@@ -96,7 +101,7 @@ class QuantumSystem(DispatchClient, ABC):
 
     _subclasses: List[ABCMeta] = []
 
-    def __new__(cls, *args, **kwargs) -> "QuantumSystem":
+    def __new__(cls: Type[QubitType], *args, **kwargs) -> QubitType:
         QuantumSystem._quantumsystem_counter += 1
 
         if cls.__name__ not in QuantumSystem._instance_counter:
