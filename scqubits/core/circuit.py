@@ -23,7 +23,6 @@ import numpy as np
 import qutip as qt
 import scipy as sp
 import sympy as sm
-
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -125,6 +124,13 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         truncated_dim: Optional[int] = 10,
     ):
         base.QuantumSystem.__init__(self, id_str=None)
+
+        # This class does not yet support custom diagonalization options, but these
+        # still have to be defined
+        self.evals_method = None
+        self.evals_method_options = None
+        self.esys_method = None
+        self.esys_method_options = None
 
         self.system_hierarchy = system_hierarchy
         self.truncated_dim = truncated_dim
@@ -2906,6 +2912,13 @@ class Circuit(Subsystem):
             basis_completion=basis_completion,
             initiate_sym_calc=True,
         )
+
+        # This class does not yet support custom diagonalization options, but these
+        # still have to be defined
+        self.evals_method = None
+        self.evals_method_options = None
+        self.esys_method = None
+        self.esys_method_options = None
 
         sm.init_printing(pretty_print=False, order="none")
         self.is_child = False

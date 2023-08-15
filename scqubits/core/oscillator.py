@@ -15,6 +15,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
 import scipy as sp
+
 from numpy import ndarray
 from scipy.special import factorial, pbdv
 
@@ -226,7 +227,7 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         )
 
         self._image_filename = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "qubit_img/kerr-oscillator.jpg"
+            os.path.dirname(os.path.abspath(__file__)), "qubit_img/KerrOscillator.jpg"
         )
 
     @staticmethod

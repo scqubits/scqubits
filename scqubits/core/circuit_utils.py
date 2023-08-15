@@ -11,12 +11,10 @@
 ############################################################################
 
 import re
-
 from typing import TYPE_CHECKING, Any, Callable, List, Union
 
 import numpy as np
 import sympy as sm
-
 from numpy import ndarray
 from scipy import sparse
 from scipy.sparse import csc_matrix

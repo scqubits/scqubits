@@ -27,6 +27,7 @@ from scqubits import settings
 from scqubits.core.central_dispatch import CentralDispatch
 from scqubits.core.cos2phi_qubit import Cos2PhiQubit
 from scqubits.core.discretization import Grid1d
+from scqubits.core.diag import DIAG_METHODS
 from scqubits.core.flux_qubit import FluxQubit
 from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.generic_qubit import GenericQubit
@@ -54,6 +55,11 @@ from scqubits.core.zeropi_full import FullZeroPi
 # file IO
 from scqubits.io_utils.fileio import read, write
 
+# diagonalization
+import scqubits.core.diag as diag
+from scqubits.core.diag import (
+    DIAG_METHODS,
+)
 
 # Import of custom-circuit modules needs to take place after other imports to
 # avoid circular import issues
@@ -64,14 +70,20 @@ from scqubits.core.symbolic_circuit import SymbolicCircuit
 
 # GUI
 try:
-    from scqubits.ui.explorer_widget import Explorer
+    from scqubits.explorer.explorer_widget import Explorer
     from scqubits.ui.gui import GUI
-except NameError:
-    warnings.warn(
-        "scqubits: could not import GUI/Explorer - consider installing ipywidgets "
-        "(optional dependency)?",
-        ImportWarning,
-    )
+except (ImportError, NameError):
+
+    def Explorer(*args, **kwargs):
+        warnings.warn(
+            "scqubits: could not create Explorer - did you install the optional dependency ipyvuetify?"
+        )
+
+    def GUI(*args, **kwargs):
+        warnings.warn(
+            "scqubits: could not create GUI - did you install the optional dependency ipyvuetify?"
+        )
+
 
 # for showing scqubits info
 from scqubits.utils.misc import about, cite
