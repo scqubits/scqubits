@@ -13,7 +13,7 @@
 import cmath
 import math
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import scipy as sp
@@ -60,6 +60,14 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     id_str: str
         optional string by which this instance can be referred to in `HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
+    esys_method:
+        method for esys diagonalization, callable or string representation
+    esys_method_options:
+        dictionary with esys diagonalization options
+    evals_method:
+        method for evals diagonalization, callable or string representation
+    evals_method_options:
+        dictionary with evals diagonalization options
     """
     EJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     EC = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
@@ -76,10 +84,10 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         cutoff: int,
         truncated_dim: int = 6,
         id_str: Optional[str] = None,
-        evals_method: Optional[str] = None,
-        evals_method_options: Optional[dict] = None,
-        esys_method: Optional[str] = None,
-        esys_method_options: Optional[dict] = None,
+        evals_method: Union[Callable, str, None] = None,
+        evals_method_options: Union[dict, None] = None,
+        esys_method: Union[Callable, str, None] = None,
+        esys_method_options: Union[dict, None] = None,
     ) -> None:
         base.QubitBaseClass.__init__(
             self,
