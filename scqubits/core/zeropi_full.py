@@ -101,6 +101,14 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
     id_str:
         optional string by which this instance can be referred to in `HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
+    esys_method: 
+        method for esys diagonalization, callable or string representation 
+    esys_method_options: 
+        dictionary with esys diagonalization options 
+    evals_method: 
+        method for evals diagonalization, callable or string representation 
+    evals_method_options: 
+        dictionary with evals diagonalization options 
     """
     EJ = descriptors.WatchedProperty(
         float, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
