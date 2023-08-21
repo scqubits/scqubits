@@ -373,7 +373,6 @@ class Circuit(
         truncated_dim: int,
         ext_basis: str,
     ):
-
         self.hamiltonian_symbolic = symbolic_hamiltonian
 
         self.symbolic_params = {}

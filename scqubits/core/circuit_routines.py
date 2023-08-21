@@ -503,7 +503,7 @@ class CircuitRoutines(ABC):
 
     def receive(self, event: str, sender: object, **kwargs) -> None:
         """
-        Method to help the CentralDispatch keep track of the sync status in Circuit and SubSystem modules 
+        Method to help the CentralDispatch keep track of the sync status in Circuit and SubSystem modules
         """
         if sender is self:
             self.broadcast("QUANTUMSYSTEM_UPDATE")
@@ -2689,9 +2689,7 @@ class CircuitRoutines(ABC):
                 sub_subsys.truncated_dim for sub_subsys in subsystem.subsystems
             ]
             wf_new_basis = wf_new_basis.reshape(flatten_list_recursive(wf_shape))
-            for sub_subsys_index, sub_subsys in enumerate(
-                subsystem.subsystems
-            ):
+            for sub_subsys_index, sub_subsys in enumerate(subsystem.subsystems):
                 if len(set(relevant_indices) & set(sub_subsys.var_categories_list)) > 0:
                     wf_new_basis = self._recursive_basis_change(
                         wf_new_basis,
@@ -2799,8 +2797,8 @@ class CircuitRoutines(ABC):
         self, wf: ndarray, var_indices: Tuple[int]
     ) -> ndarray:
         """
-        This method changes the basis of the wavefunction when hierarchical diagonalization is used. 
-        Then reshapes the wavefunction to represent each of the variable indices as a separate dimension. 
+        This method changes the basis of the wavefunction when hierarchical diagonalization is used.
+        Then reshapes the wavefunction to represent each of the variable indices as a separate dimension.
         """
         if self.hierarchical_diagonalization:
             system_hierarchy_for_vars_chosen = list(
@@ -2836,16 +2834,14 @@ class CircuitRoutines(ABC):
                 ]
             )
         return wf_original_basis
-    
+
     def _ext_basis_for_var_index(self, var_index: int) -> str:
         """
         Returns the ext_basis of the subsystem with no further subsystems to which the
         var_index belongs.
         """
         if self.hierarchical_diagonalization:
-            subsys = self.subsystems[
-                        self.get_subsystem_index(var_index)
-                    ]
+            subsys = self.subsystems[self.get_subsystem_index(var_index)]
             return subsys._ext_basis_for_var_index(var_index)
         else:
             return self.ext_basis
@@ -2955,7 +2951,7 @@ class CircuitRoutines(ABC):
     ) -> Tuple[Figure, Axes]:
         """
         Returns the plot of the probability density of the wave function in the
-        requested variables for the current Circuit instance. Only works when the number of 
+        requested variables for the current Circuit instance. Only works when the number of
         var_indices is a maximum of 2.
 
         Parameters
