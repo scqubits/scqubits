@@ -91,6 +91,9 @@ from abc import ABC
 class CircuitRoutines(ABC):
     @staticmethod
     def _is_expression_purely_harmonic(hamiltonian):
+        """
+        Method used to check if the hamiltonian is purely harmonic.
+        """
         # if the hamiltonian contains any cos or sin term, return False
         if (
             len(
@@ -169,6 +172,9 @@ class CircuitRoutines(ABC):
     def _transform_hamiltonian_purely_harmonic(
         self, hamiltonian: sm.Expr, transformation_matrix: ndarray
     ):
+        """
+        Transforms the hamiltonian to a set of new variables using the transformation matrix.
+        """
         ext_var_indices = self.var_categories["extended"]
         num_vars = len(ext_var_indices)
         Q_vars = [sm.symbols(f"Q{ext_var_indices[idx]}") for idx in range(num_vars)]
@@ -183,6 +189,9 @@ class CircuitRoutines(ABC):
         return hamiltonian
 
     def __setattr__(self, name, value):
+        """
+        Modifying the __setattr__ method to prevent creation of new attributes using the _frozen attribute.
+        """
         if not self._frozen or name in dir(self):
             super().__setattr__(name, value)
         else:
@@ -234,7 +243,7 @@ class CircuitRoutines(ABC):
     def _regenerate_sym_hamiltonian(self) -> None:
         """
         Regenerates the system Hamiltonian from the symbolic circuit when needed (for
-        example when the circuit is large and circuit parameters are changed).
+        example when the circuit is large and circuit capacitance energies are changed).
         """
         if (
             not self.is_child
@@ -473,6 +482,9 @@ class CircuitRoutines(ABC):
         return self
 
     def sync_parameters_with_parent(self):
+        """
+        Method syncs the parameters of the subsystem with the parent instance.
+        """
         for param_var in (
             self.external_fluxes
             + self.offset_charges
@@ -490,6 +502,9 @@ class CircuitRoutines(ABC):
                 subsys._out_of_sync = False
 
     def receive(self, event: str, sender: object, **kwargs) -> None:
+        """
+        Method to help the CentralDispatch keep track of the sync status in Circuit and SubSystem modules 
+        """
         if sender is self:
             self.broadcast("QUANTUMSYSTEM_UPDATE")
             if self.hierarchical_diagonalization:
@@ -501,6 +516,9 @@ class CircuitRoutines(ABC):
             self.hilbert_space._out_of_sync = True
 
     def _store_updated_subsystem_index(self, index: int) -> None:
+        """
+        Stores the index of the subsystem which is modified in affected_subsystem_indices
+        """
         if not self.hierarchical_diagonalization:
             raise Exception(f"The subsystem provided to {self} has no subsystems.")
         if index not in self.affected_subsystem_indices:
@@ -2664,11 +2682,11 @@ class CircuitRoutines(ABC):
         if subsystem.hierarchical_diagonalization:
             wf_shape = list(wf_new_basis.shape)
             wf_shape[wf_dim] = [
-                sub_subsys.truncated_dim for sub_subsys in subsystem.subsystems.values()
+                sub_subsys.truncated_dim for sub_subsys in subsystem.subsystems
             ]
             wf_new_basis = wf_new_basis.reshape(flatten_list_recursive(wf_shape))
             for sub_subsys_index, sub_subsys in enumerate(
-                subsystem.subsystems.values()
+                subsystem.subsystems
             ):
                 if len(set(relevant_indices) & set(sub_subsys.var_categories_list)) > 0:
                     wf_new_basis = self._recursive_basis_change(
@@ -2776,6 +2794,10 @@ class CircuitRoutines(ABC):
     def _reshape_and_change_to_variable_basis(
         self, wf: ndarray, var_indices: Tuple[int]
     ) -> ndarray:
+        """
+        This method changes the basis of the wavefunction when hierarchical diagonalization is used. 
+        Then reshapes the wavefunction to represent each of the variable indices as a separate dimension. 
+        """
         if self.hierarchical_diagonalization:
             system_hierarchy_for_vars_chosen = list(
                 set([self.get_subsystem_index(index) for index in var_indices])
@@ -2810,6 +2832,19 @@ class CircuitRoutines(ABC):
                 ]
             )
         return wf_original_basis
+    
+    def _ext_basis_for_var_index(self, var_index: int) -> str:
+        """
+        Returns the ext_basis of the subsystem with no further subsystems to which the
+        var_index belongs.
+        """
+        if self.hierarchical_diagonalization:
+            subsys = self.subsystems[
+                        self.get_subsystem_index(var_index)
+                    ]
+            return subsys._ext_basis_for_var_index(var_index)
+        else:
+            return self.ext_basis
 
     def _change_to_phi_basis(
         self,
@@ -2818,6 +2853,9 @@ class CircuitRoutines(ABC):
         grids_dict: Dict[int, Union[discretization.Grid1d, ndarray]],
         change_discrete_charge_to_phi: bool,
     ):
+        """
+        Changes the basis of the varaible indices to discretized phi basis which is amenable to plotting
+        """
         wf_ext_basis = wf_original_basis
         for var_index in var_indices:
             # finding the dimension corresponding to the var_index
@@ -2826,18 +2864,7 @@ class CircuitRoutines(ABC):
             else:
                 wf_dim = self._get_var_dim_for_reshaped_wf(var_indices, var_index)
 
-            if (
-                self.hierarchical_diagonalization
-                and self.subsystems[
-                    self.get_subsystem_index(var_index)
-                ].is_purely_harmonic
-            ):
-                wf_ext_basis = self._basis_change_harm_osc_to_phi(
-                    wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
-                )
-            elif var_index in self.var_categories["extended"] and (
-                self.ext_basis == "harmonic"
-            ):
+            if self._ext_basis_for_var_index(var_index) == "harmonic":
                 wf_ext_basis = self._basis_change_harm_osc_to_phi(
                     wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
                 )
@@ -2859,7 +2886,7 @@ class CircuitRoutines(ABC):
         grids_dict: Dict[int, discretization.Grid1d] = None,
     ):
         """
-        Returns the plot of the probability density of the wave function in the
+        Returns the array of the probability density of the wave function in the
         requested variables for the current Circuit instance.
 
         Parameters
@@ -2924,7 +2951,8 @@ class CircuitRoutines(ABC):
     ) -> Tuple[Figure, Axes]:
         """
         Returns the plot of the probability density of the wave function in the
-        requested variables for the current Circuit instance.
+        requested variables for the current Circuit instance. Only works when the number of 
+        var_indices is a maximum of 2.
 
         Parameters
         ----------
