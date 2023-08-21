@@ -735,6 +735,10 @@ class CircuitRoutines(ABC):
                 subsystem_trunc_dims=self.subsystem_trunc_dims[index][1]
                 if type(self.subsystem_trunc_dims[index]) == list
                 else None,
+                evals_method=self.evals_method,
+                evals_method_options=self.evals_method_options,
+                esys_method=self.esys_method,
+                esys_method_options=self.esys_method_options,
             )
             for index in range(len(self.system_hierarchy))
         ]
