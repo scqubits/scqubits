@@ -335,7 +335,7 @@ def evals_primme_sparse(
     try:
         import primme
     except:
-        raise ImportError("Module primme is not installed.")
+        raise ImportError("Package primme is not installed.")
 
     m = _cast_matrix(matrix, "sparse")
 
@@ -378,7 +378,7 @@ def esys_primme_sparse(
     try:
         import primme
     except:
-        raise ImportError("Module primme is not installed.")
+        raise ImportError("Package primme is not installed.")
 
     m = _cast_matrix(matrix, "sparse")
 
@@ -429,7 +429,7 @@ def evals_cupy_dense(
     try:
         import cupy as cp
     except:
-        raise ImportError("Module cupy is not installed.")
+        raise ImportError("Package cupy is not installed.")
 
     m = _cast_matrix(matrix, "dense")
 
@@ -465,7 +465,7 @@ def esys_cupy_dense(
     try:
         import cupy as cp
     except:
-        raise ImportError("Module cupy is not installed.")
+        raise ImportError("Package cupy is not installed.")
 
     m = _cast_matrix(matrix, "dense")
 
@@ -508,7 +508,7 @@ def evals_cupy_sparse(
         from cupyx.scipy.sparse import csc_matrix as cp_csc_matrix
         from cupyx.scipy.sparse.linalg import eigsh
     except:
-        raise ImportError("Module cupyx (part of cupy) is not installed.")
+        raise ImportError("Package cupyx (part of cupy) is not installed.")
 
     m = cp_csc_matrix(_cast_matrix(matrix, "sparse"))
 
@@ -553,7 +553,7 @@ def esys_cupy_sparse(
         from cupyx.scipy.sparse import csc_matrix as cp_csc_matrix
         from cupyx.scipy.sparse.linalg import eigsh
     except:
-        raise ImportError("Module cupyx (part of cupy) is not installed.")
+        raise ImportError("Package cupyx (part of cupy) is not installed.")
 
     m = cp_csc_matrix(_cast_matrix(matrix, "sparse"))
 
@@ -574,6 +574,97 @@ def esys_cupy_sparse(
     )
 
     return evals, evecs
+
+
+### jax based routines ####
+
+
+def evals_jax_dense(
+    matrix, evals_count, **kwargs
+) -> Union[Tuple[ndarray, ndarray], Tuple[ndarray, QutipEigenstates]]:
+    """
+    Diagonalization based on jax's (dense) jax.scipy.linalg.eigh function.
+    Only eigenvalues are returned.
+
+    If available, different backends/devics (e.g., particular GPUs) can be set
+    though jax's interface, see https://jax.readthedocs.io/en/latest/user_guides.html
+
+    Note, that jax's documentation is inconsistent, and `eigvals` and/or
+    `subset_by_index` seems not to be implemented. Hence, here we calculate all the
+    eigenvalues, but then only return the requested subset.
+
+    Parameters
+    ----------
+    matrix:
+        ndarray or qutip.Qobj to be diagonalized
+    evals_count:
+        how many eigenvalues should be returned
+    kwargs:
+        optional settings that are passed onto the diagonalization routine
+
+    Returns
+    ----------
+        eigenvalues of matrix
+
+    """
+    try:
+        import jax
+    except:
+        raise ImportError("Package jax is not installed.")
+
+    m = _cast_matrix(matrix, "dense")
+
+    # We explicitly cast to a numpy array
+    evals = np.asarray(jax.scipy.linalg.eigh(m, eigvals_only=True, **kwargs))
+
+    return evals[:evals_count]
+
+
+def esys_jax_dense(
+    matrix, evals_count, **kwargs
+) -> Union[Tuple[ndarray, ndarray], Tuple[ndarray, QutipEigenstates]]:
+    """
+    Diagonalization based on jax's (dense) jax.scipy.linalg.eigh function.
+    Both evals and evecs are returned.
+
+    If available, different backends/devics (e.g., particular GPUs) can be set
+    though jax's interface, see https://jax.readthedocs.io/en/latest/user_guides.html
+
+    Note, that jax's documentation is inconsistent, and `eigvals` and/or
+    `subset_by_index` seems not to be implemented. Hence, here we calculate all the
+    eigenvalues and eigenvectors, but then only return the requested subset.
+
+    Parameters
+    ----------
+    matrix:
+        ndarray or qutip.Qobj to be diagonalized
+    evals_count:
+        how many eigenvalues/vectors should be returned
+    kwargs:
+        optional settings that are passed onto the diagonalization routine
+
+    Returns
+    ----------
+        a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if matrix is a Qobj instance
+
+    """
+    try:
+        import jax
+    except:
+        raise ImportError("Package jax is not installed.")
+
+    m = _cast_matrix(matrix, "dense")
+
+    evals, evecs = jax.scipy.linalg.eigh(m, eigvals_only=False, **kwargs)
+
+    # We explicitly cast to numpy arrays 
+    evals, evecs = np.asarray(evals), np.asarray(evcs)
+
+
+    evecs = (
+        _convert_evecs_to_qobjs(evecs, matrix) if isinstance(matrix, Qobj) else evecs
+    )
+    return evals[:evals_count], evecs[:, :evals_count]
 
 
 # Default values of various noise constants and parameters.
@@ -647,4 +738,7 @@ DIAG_METHODS = {
     # cupy sparse
     "evals_cupy_sparse": evals_cupy_sparse,
     "esys_cupy_sparse": esys_cupy_sparse,
+    # jax dense
+    "evals_jax_dense": evals_jax_dense,
+    "esys_jax_dense": esys_jax_dense,
 }
