@@ -11,18 +11,18 @@
 ############################################################################
 
 import re
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union, Tuple, Optional
+from typing import TYPE_CHECKING, Any, Callable, List, Union, Optional, Tuple, Dict
 
 import numpy as np
 import scipy as sp
 import sympy as sm
-import yaml
 from numpy import ndarray
 from scipy import sparse
 from scipy.sparse import csc_matrix
+import yaml
 
 from scqubits.core import discretization as discretization
-from scqubits.utils.misc import flatten_list_recursive, is_float_string
+from scqubits.utils.misc import flatten_list_recursive, is_string_float
 
 if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem
@@ -643,7 +643,7 @@ def assemble_circuit(
             num_params = 2 if "JJ" in branch_type else 1
             # include parameters
             for word in subcircuit_branch[3 : 3 + num_params]:
-                if not is_float_string(word):
+                if not is_string_float(word):
                     if not rename_parameters:
                         if len(word.split("=")) == 2:
                             param_str, init_val = word.split("=")
@@ -712,7 +712,7 @@ def assemble_circuit(
         num_params = 2 if "JJ" in branch_type else 1
         # include parameters
         for word in coupler_branch[3 : 3 + num_params]:
-            if not is_float_string(word):
+            if not is_string_float(word):
                 if not rename_parameters:
                     if len(word.split("=")) == 2:
                         param_str, init_val = word.split("=")

@@ -11,7 +11,6 @@
 ############################################################################
 
 import math
-import os
 
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -445,11 +444,11 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     ng:
         offset charge
     ncut:
-        cutoff of charge basis, -ncut <= :math:`n_\theta` <= ncut
+        cutoff in charge basis, -ncut <= :math:`n_\theta` <= ncut
     zeta_cut:
-        number of harmonic oscillator basis for :math:`\zeta` variable
+        number of harmonic oscillator basis states for :math:`\zeta` variable
     phi_cut:
-        number of harmonic oscillator basis for :math:`\phi` variable
+        number of harmonic oscillator basis states for :math:`\phi` variable
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
@@ -485,8 +484,19 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         phi_cut: int,
         truncated_dim: int = 6,
         id_str: Optional[str] = None,
+        evals_method: Optional[str] = None,
+        evals_method_options: Optional[dict] = None,
+        esys_method: Optional[str] = None,
+        esys_method_options: Optional[dict] = None,
     ) -> None:
-        base.QuantumSystem.__init__(self, id_str=id_str)
+        base.QubitBaseClass.__init__(
+            self,
+            id_str=id_str,
+            evals_method=evals_method,
+            evals_method_options=evals_method_options,
+            esys_method=esys_method,
+            esys_method_options=esys_method_options,
+        )
         self.EJ = EJ
         self.ECJ = ECJ
         self.EL = EL
@@ -503,10 +513,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         self._default_phi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self._default_zeta_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self._default_theta_grid = discretization.Grid1d(-0.5 * np.pi, 1.5 * np.pi, 100)
-        self._image_filename = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "qubit_img/cos2phi-qubit.jpg",
-        )
 
     @staticmethod
     def default_params() -> Dict[str, Any]:

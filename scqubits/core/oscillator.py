@@ -11,7 +11,6 @@
 ############################################################################
 
 import os
-
 from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
@@ -148,7 +147,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         return op.creation(self.truncated_dim)
 
     def annihilation_operator(self) -> ndarray:
-        """Returns the creation operator"""
+        """Returns the annihilation operator"""
         return op.annihilation(self.truncated_dim)
 
     def matrixelement_table(self, *args, **kwargs) -> ndarray:
@@ -228,7 +227,7 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         )
 
         self._image_filename = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "qubit_img/kerr-oscillator.jpg"
+            os.path.dirname(os.path.abspath(__file__)), "qubit_img/KerrOscillator.jpg"
         )
 
     @staticmethod

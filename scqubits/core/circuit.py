@@ -12,10 +12,13 @@
 
 import re
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, Callable
 
 import numpy as np
 import sympy as sm
+from matplotlib import pyplot as plt
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from numpy import ndarray
 from sympy import latex
 
@@ -83,11 +86,29 @@ class Subsystem(
         system_hierarchy: Optional[List] = None,
         subsystem_trunc_dims: Optional[List] = None,
         truncated_dim: Optional[int] = 10,
+        evals_method: Union[Callable, str, None] = None,
+        evals_method_options: Union[dict, None] = None,
+        esys_method: Union[Callable, str, None] = None,
+        esys_method_options: Union[dict, None] = None,
     ):
         # switch used in protecting the class from erroneous addition of new attributes
         object.__setattr__(self, "_frozen", False)
 
-        base.QuantumSystem.__init__(self, id_str=None)
+        base.QubitBaseClass.__init__(
+            self,
+            id_str=None,
+            evals_method=evals_method,
+            evals_method_options=evals_method_options,
+            esys_method=esys_method,
+            esys_method_options=esys_method_options,
+        )
+
+        # This class does not yet support custom diagonalization options, but these
+        # still have to be defined
+        self.evals_method = None
+        self.evals_method_options = None
+        self.esys_method = None
+        self.esys_method_options = None
 
         self.system_hierarchy = system_hierarchy
         self.truncated_dim = truncated_dim
@@ -308,9 +329,21 @@ class Circuit(
         truncated_dim: int = 10,
         symbolic_param_dict: Dict[str, float] = None,
         symbolic_hamiltonian: sm.Expr = None,
+        evals_method: Union[Callable, str, None] = None,
+        evals_method_options: Union[dict, None] = None,
+        esys_method: Union[Callable, str, None] = None,
+        esys_method_options: Union[dict, None] = None,
     ):
         # switch used in protecting the class from erroneous addition of new attributes
         object.__setattr__(self, "_frozen", False)
+        base.QubitBaseClass.__init__(
+            self,
+            id_str=None,
+            evals_method=evals_method,
+            evals_method_options=evals_method_options,
+            esys_method=esys_method,
+            esys_method_options=esys_method_options,
+        )
 
         if not symbolic_hamiltonian:
             self.from_yaml(
@@ -340,8 +373,6 @@ class Circuit(
         truncated_dim: int,
         ext_basis: str,
     ):
-        base.QuantumSystem.__init__(self, id_str=None)
-
         self.hamiltonian_symbolic = symbolic_hamiltonian
 
         self.symbolic_params = {}
@@ -427,7 +458,6 @@ class Circuit(
         #     "supported in the future. Use `Circuit` to initialize a Circuit instance.",
         #     np.VisibleDeprecationWarning,
         # )
-        base.QuantumSystem.__init__(self, id_str=None)
         if basis_completion not in ["heuristic", "canonical"]:
             raise Exception(
                 "Invalid choice for basis_completion: must be 'heuristic' or "
@@ -441,6 +471,13 @@ class Circuit(
             initiate_sym_calc=True,
             is_flux_dynamic=is_flux_dynamic,
         )
+
+        # This class does not yet support custom diagonalization options, but these
+        # still have to be defined
+        self.evals_method = None
+        self.evals_method_options = None
+        self.esys_method = None
+        self.esys_method_options = None
 
         sm.init_printing(pretty_print=False, order="none")
         self.is_child = False

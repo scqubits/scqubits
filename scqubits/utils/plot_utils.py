@@ -23,8 +23,8 @@ from matplotlib.figure import Figure
 from numpy import ndarray
 
 from scqubits import settings as settings
-from scqubits.utils import plot_defaults as defaults
 from scqubits.settings import matplotlib_settings
+from scqubits.utils import plot_defaults as defaults
 
 if TYPE_CHECKING:
     from scqubits.core.storage import WaveFunction
@@ -49,7 +49,9 @@ _direct_plot_options = {
 
 @mpl.rc_context(matplotlib_settings)
 def _extract_kwargs_options(
-    kwargs: Dict[str, Any], plot_type: str, direct_plot_options: Dict[str, Any] = None
+    kwargs: Dict[str, Any],
+    plot_type: str,
+    direct_plot_options: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Select options from kwargs for a given plot_type and return them in a dictionary.
@@ -82,7 +84,7 @@ def _extract_kwargs_options(
 
 @mpl.rc_context(matplotlib_settings)
 def _process_options(
-    figure: Figure, axes: Axes, opts: Dict[str, Any] = None, **kwargs
+    figure: Figure, axes: Axes, opts: Optional[Dict[str, Any]] = None, **kwargs
 ) -> None:
     """
     Processes plotting options.
@@ -162,8 +164,11 @@ def scale_wavefunctions(
     potential_vals: np.ndarray,
     scaling: Optional[float],
 ) -> List["WaveFunction"]:
+    scale_factors = np.array(
+        [wavefunc.amplitude_scale_factor(potential_vals) for wavefunc in wavefunc_list]
+    )
     for wavefunc in wavefunc_list:
-        wavefunc.rescale_to_potential(potential_vals)
+        wavefunc.rescale(np.max(scale_factors))
     adaptive_scalefactor = scaling or defaults.set_wavefunction_scaling(
         wavefunc_list, potential_vals
     )

@@ -16,8 +16,8 @@ import warnings
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
-import matplotlib.pyplot as plt
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
 import qutip as qt
@@ -35,7 +35,6 @@ import scqubits.utils.plotting as plotting
 
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import matplotlib_settings
-
 
 # flag that lets us show a warning about the default t1 behavior
 # (i.e., total=True setting) only once. Using the standard warnings
@@ -226,7 +225,7 @@ class NoisySystem(ABC):
             "figsize", (4, 3) if plot_grid == (1, 1) else (8, 3 * plot_grid[0])
         )
 
-        # If axes was given in fig_as, it should support the plot structure
+        # If axes was given in fig_ax, it should support the plot structure
         # consistent with plot_grid, otherwise the plotting routine below, will fail
         fig, axes = kwargs.get("fig_ax") or plt.subplots(*plot_grid, figsize=figsize)
 

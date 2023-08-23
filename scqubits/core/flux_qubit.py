@@ -10,8 +10,6 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import os
-
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -337,8 +335,19 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         ncut: int,
         truncated_dim: int = 6,
         id_str: Optional[str] = None,
+        evals_method: Optional[str] = None,
+        evals_method_options: Optional[dict] = None,
+        esys_method: Optional[str] = None,
+        esys_method_options: Optional[dict] = None,
     ) -> None:
-        base.QuantumSystem.__init__(self, id_str=id_str)
+        base.QubitBaseClass.__init__(
+            self,
+            id_str=id_str,
+            evals_method=evals_method,
+            evals_method_options=evals_method_options,
+            esys_method=esys_method,
+            esys_method_options=esys_method_options,
+        )
         self.EJ1 = EJ1
         self.EJ2 = EJ2
         self.EJ3 = EJ3
@@ -355,9 +364,6 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         self._default_grid = discretization.Grid1d(
             -np.pi / 2, 3 * np.pi / 2, 100
         )  # for plotting in phi_j basis
-        self._image_filename = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "qubit_img/flux-qubit.jpg"
-        )
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
@@ -385,6 +391,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
             "tphi_1_over_f_cc2",
             "tphi_1_over_f_cc3",
             "tphi_1_over_f_cc",
+            "tphi_1_over_f_flux",
             # 'tphi_1_over_f_ng1',
             # 'tphi_1_over_f_ng2',
             # 'tphi_1_over_f_ng',
@@ -409,14 +416,20 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def _evals_calc(self, evals_count: int) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
         evals = sp.linalg.eigh(
-            hamiltonian_mat, subset_by_index=(0, evals_count - 1), eigvals_only=True
+            hamiltonian_mat,
+            subset_by_index=(0, evals_count - 1),
+            eigvals_only=True,
+            check_finite=False,
         )
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = sp.linalg.eigh(
-            hamiltonian_mat, subset_by_index=(0, evals_count - 1), eigvals_only=False
+            hamiltonian_mat,
+            subset_by_index=(0, evals_count - 1),
+            eigvals_only=False,
+            check_finite=False,
         )
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
         return evals, evecs
@@ -620,6 +633,48 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
             * (
                 np.exp(-1j * 2 * np.pi * self.flux)
                 * np.kron(self._exp_i_phi_operator().T, self._exp_i_phi_operator())
+            )
+        )
+        return self.process_op(native_op=native, energy_esys=energy_esys)
+
+    def d_hamiltonian_d_flux(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
+        """
+        Returns the operator representing a derivative of the Hamiltonian with respect to flux
+        in the native Hamiltonian basis or eigenenergy basis.
+
+        Parameters
+        ----------
+        energy_esys:
+            If `False` (default), returns operator in the native Hamiltonian basis.
+            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
+            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+
+        Returns
+        -------
+            Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
+            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
+            for m given eigenvectors.
+        """
+        native = (
+            2j
+            * np.pi
+            * (
+                -0.5
+                * self.EJ3
+                * (
+                    np.exp(1j * 2 * np.pi * self.flux)
+                    * np.kron(self._exp_i_phi_operator(), self._exp_i_phi_operator().T)
+                )
+                + 0.5
+                * self.EJ3
+                * (
+                    np.exp(-1j * 2 * np.pi * self.flux)
+                    * np.kron(self._exp_i_phi_operator().T, self._exp_i_phi_operator())
+                )
             )
         )
         return self.process_op(native_op=native, energy_esys=energy_esys)
