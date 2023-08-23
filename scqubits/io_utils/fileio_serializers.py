@@ -59,7 +59,7 @@ class Serializable(Protocol):
             SERIALIZABLE_REGISTRY[cls.__name__] = cls
 
     @classmethod
-    def deserialize(cls, io_data: "IOData") -> "Serializable":
+    def deserialize(cls: Type[SerializableType], io_data: "IOData") -> SerializableType:
         """
         Take the given IOData and return an instance of the described class,
         initialized with the data stored in io_data.
