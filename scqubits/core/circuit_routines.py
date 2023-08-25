@@ -100,7 +100,10 @@ class CircuitRoutines(ABC):
         if (
             len(
                 set.union(
-                    *[(hamiltonian).atoms(operator) for operator in [sm.cos, sm.sin, sm.Function("saw", real=True)]]
+                    *[
+                        (hamiltonian).atoms(operator)
+                        for operator in [sm.cos, sm.sin, sm.Function("saw", real=True)]
+                    ]
                 )
             )
             > 0
@@ -856,7 +859,9 @@ class CircuitRoutines(ABC):
                     float(coefficient_sympy)
                     * self._evaluate_matrix_cosine_terms(term, bare_esys=bare_esys)
                 )
-            elif any([arg.has(sm.Function("saw", real=True)) for arg in (1.0 * term).args]):
+            elif any(
+                [arg.has(sm.Function("saw", real=True)) for arg in (1.0 * term).args]
+            ):
                 eval_matrix_list.append(
                     float(coefficient_sympy)
                     * self._evaluate_matrix_sawtooth_terms(term, bare_esys=bare_esys)
@@ -1279,7 +1284,7 @@ class CircuitRoutines(ABC):
                 exp_i_theta = sparse.linalg.expm(exp_argument_op * prefactor * 1j)
 
         return self._sparsity_adaptive(exp_i_theta)
-    
+
     def _evaluate_matrix_sawtooth_terms(
         self, saw_expr: sm.Expr, bare_esys=None
     ) -> qt.Qobj:
@@ -1292,26 +1297,26 @@ class CircuitRoutines(ABC):
             identity = qt.identity(self.hilbertdim())
 
         saw_potential_matrix = identity * 0
-        
+
         saw = sm.Function("saw", real=True)
         for saw_term in saw_expr.as_ordered_terms():
             coefficient = float(list(saw_expr.as_coefficients_dict().values())[0])
             saw_argument_expr = [
-                arg.args[0]
-                for arg in (1.0 * saw_term).args
-                if (arg.has(saw))
+                arg.args[0] for arg in (1.0 * saw_term).args if (arg.has(saw))
             ][0]
-            
-            saw_argument_operator = self._evaluate_symbolic_expr(saw_argument_expr, bare_esys)
-            
+
+            saw_argument_operator = self._evaluate_symbolic_expr(
+                saw_argument_expr, bare_esys
+            )
+
             # since this operator only works for discretized phi basis
-            
+
             diagonal_elements = sawtooth_potential(saw_argument_operator.diag())
-            saw_potential_matrix += coefficient * qt.qdiags(diagonal_elements, 0, dims=saw_potential_matrix.dims)
-            
+            saw_potential_matrix += coefficient * qt.qdiags(
+                diagonal_elements, 0, dims=saw_potential_matrix.dims
+            )
+
         return saw_potential_matrix
-             
-        
 
     def _evaluate_matrix_cosine_terms(
         self, junction_potential: sm.Expr, bare_esys=None
@@ -1826,7 +1831,7 @@ class CircuitRoutines(ABC):
         else:
             return junction_potential_matrix
 
-    def _evaluate_hamiltonian(self) -> csc_matrix: # TODO: needs a better name
+    def _evaluate_hamiltonian(self) -> csc_matrix:  # TODO: needs a better name
         hamiltonian = self._hamiltonian_sym_for_numerics
         hamiltonian = hamiltonian.subs(
             [
@@ -1837,8 +1842,10 @@ class CircuitRoutines(ABC):
             ]
         )
         hamiltonian = hamiltonian.subs("I", 1)
-        
-        return self._sparsity_adaptive(self._evaluate_symbolic_expr(hamiltonian).data.tocsc())
+
+        return self._sparsity_adaptive(
+            self._evaluate_symbolic_expr(hamiltonian).data.tocsc()
+        )
 
     def _eigenvals_for_purely_harmonic(self, evals_count: int):
         """
@@ -2176,7 +2183,7 @@ class CircuitRoutines(ABC):
                 equalities_in_latex += sm.printing.latex(eqn) + " \\\ "
             equalities_in_latex = equalities_in_latex[:-4] + " $"
             display(Latex(equalities_in_latex))
-            
+
     def __repr__(self) -> str:
         # string to describe the Circuit
         return self._id_str
@@ -2678,7 +2685,9 @@ class CircuitRoutines(ABC):
             for var_name in sweep_vars:
                 parameters[var_name] = sweep_vars[var_name]
 
-        potential_func = sm.lambdify(parameters.keys(), potential_sym, [{'saw': sawtooth_potential}, 'numpy'])
+        potential_func = sm.lambdify(
+            parameters.keys(), potential_sym, [{"saw": sawtooth_potential}, "numpy"]
+        )
 
         return potential_func(*parameters.values())
 
@@ -3020,17 +3029,14 @@ class CircuitRoutines(ABC):
                 wf_dim = self.var_index_list.index(var_index)
             else:
                 wf_dim = self._get_var_dim_for_reshaped_wf(var_indices, var_index)
-                
+
             var_basis = self._basis_for_var_index(var_index)
 
             if var_basis == "harmonic":
                 wf_ext_basis = self._basis_change_harm_osc_to_phi(
                     wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
                 )
-            elif (
-                var_basis == "periodic"
-                and change_discrete_charge_to_phi
-            ):
+            elif var_basis == "periodic" and change_discrete_charge_to_phi:
                 wf_ext_basis = self._basis_change_n_to_phi(
                     wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
                 )
@@ -3324,14 +3330,15 @@ class CircuitRoutines(ABC):
         kwargs,
     ) -> Tuple[Figure, Axes]:
         var_index = var_indices[0]
-        wavefunc = storage.WaveFunction(
-            basis_labels=grids_per_varindex_dict[var_indices[0]].make_linspace(),
-            amplitudes=wf_plot,
-        )
 
         if not change_discrete_charge_to_phi and (
             var_indices[0] in self.var_categories["periodic"]
         ):
+            ncut = self.cutoffs_dict()[var_indices[0]]
+            wavefunc = storage.WaveFunction(
+                basis_labels=np.linspace(-ncut, ncut, 2 * ncut + 1),
+                amplitudes=wf_plot,
+            )
             kwargs = {
                 **defaults.wavefunction1d_discrete("abs_sqr"),
                 **kwargs,
@@ -3349,6 +3356,10 @@ class CircuitRoutines(ABC):
                     plt.MaxNLocator(1 + 2 * getattr(self, "cutoff_n_" + str(var_index)))
                 )
         else:
+            wavefunc = storage.WaveFunction(
+                basis_labels=grids_per_varindex_dict[var_indices[0]].make_linspace(),
+                amplitudes=wf_plot,
+            )
             fig, axes = plot.wavefunction1d_nopotential(
                 wavefunc,
                 0,
