@@ -1,5 +1,5 @@
 import numpy as np
-from qutip import destroy, sigmaz, tensor, sigmax, sigmay, propagator, Qobj, qeye
+from qutip import destroy, sigmaz, tensor, sigmax, sigmay, propagator, Qobj, qeye, Options
 from scipy.special import erf
 import scipy as sp
 
@@ -144,6 +144,39 @@ class GatesErrorBudget:
         real_prop = propagator(H, tlist, c_op_list=c_ops, args=args)
         return real_prop[-1]
 
+    def run_gate_gaussian_counter_single(
+            self,
+            gate_time,
+            c_ops,
+            amp=None,
+            omega_d=None,
+            gate_params=None,
+    ):
+        if omega_d is None:
+            omega_d = gate_params["omega"]
+        sigma = gate_time / 4
+        if amp is None:
+            amp = np.sqrt(2.0 * np.pi) / (gate_time * erf(np.sqrt(2)))
+        omega = gate_params["omega"]
+        args = {"gate_time": gate_time, "sigma": sigma}
+        tlist = np.linspace(0.0, gate_time, int(gate_time / self.dt))
+        phase = gate_params["phase"]
+
+        def X_coeff(t, args=None):
+            return (amp * self.gaussian(t, args=args)
+                    * np.cos(omega_d * t + phase)
+                    * np.cos(omega * t))
+
+        def Y_coeff(t, args=None):
+            return (amp * self.gaussian(t, args=args)
+                    * np.cos(omega_d * t + phase)
+                    * np.sin(omega * t))
+
+        H = [[sigmax(), X_coeff], [sigmay(), Y_coeff]]
+        options = Options(rtol=1e-10, atol=1e-10, nsteps=2000)
+        real_prop = propagator(H, tlist, c_op_list=c_ops, args=args, options=options)
+        return real_prop[-1]
+
     def run_gate_gaussian_counter(
             self,
             gate_time,
@@ -195,7 +228,8 @@ class GatesErrorBudget:
                     * np.sin(omega_b * t))
 
         H = [[XX, XX_coeff], [YY, YY_coeff], [XY, XY_coeff], [YX, YX_coeff]]
-        real_prop = propagator(H, tlist, c_op_list=c_ops, args=args)
+        options = Options(rtol=1e-10, atol=1e-10, nsteps=2000)
+        real_prop = propagator(H, tlist, c_op_list=c_ops, args=args, options=options)
         return real_prop[-1]
 
     def run_gate_rectangular(self, gate_time, c_ops, amp=None, gate_type="iswap"):
@@ -241,10 +275,31 @@ class GatesErrorBudget:
     def estimated_infidelity(gate_time, Gamma, dim=4):
         return (dim / (2 * (dim + 1))) * gate_time * Gamma
 
+# if __name__=="__main__":
+#     omega = 2.0 * np.pi * 0.0484  #0.0618  # #
+#     gate_params = {"omega": omega, "phase": 0.0}
+#     T1a = 180000.  # 100 us
+#     T1b = 300000.  # 100 us
+#     T2a = 250000.
+#     T2b = 300000
+#     Gamma_1s = [1 / T1a, 1 / T1b]
+#     Gamma_2s = [1 / T2a, 1 / T2b]
+#     gateserrorbudgeta = GatesErrorBudget([1 / T1a, ], [1/T2a, ])
+#     gate_time = 83.3  #65.1  #
+#     gate = gateserrorbudgeta.run_gate_gaussian_counter_single(
+#         gate_time, [], gate_params=gate_params
+#     )
+#     # X/2
+#     ideal_gate = Qobj((1 / np.sqrt(2)) * np.array([[1, -1j],
+#                                                    [-1j, 1]]))
+#     infidel = 1 - calc_fidel_2(gate, ideal_gate)
+#     print(0)
+
 
 if __name__ == "__main__":
     omega_a = 2.0 * np.pi * 0.0484
     omega_b = 2.0 * np.pi * 0.0618
+    gate_params = {"omega_a": omega_a, "omega_b": omega_b, "phase": 0.0}
     T1a = 180000.  # 100 us
     T1b = 300000.  # 100 us
     T2a = 250000.
@@ -259,31 +314,49 @@ if __name__ == "__main__":
     c_ops_str = ["sz", "sm", "sp", "all"]
     sqbswap = gateserrorbudget.ideal_sqbswap()
     sqiswap = gateserrorbudget.ideal_sqiswap()
-    gate_time = 101.62
-    gate_params = {"omega_a": omega_a, "omega_b": omega_b, "alpha": 0.01 * 2.0 * np.pi * 0.29 * 3,
-                   "beta": 0.01 * 2.0 * np.pi * 0.29 * 3}
-    gate = gateserrorbudget.run_gate_gaussian_crosstalk(gate_time, [], gate_type="bswap", gate_params=gate_params)
-    infidel = 1 - calc_fidel_4(gate, sqbswap)
-    print("crosstalk", infidel)
-    #opt_result, (init_amp, init_omega_d) = gateserrorbudget.optimize_gate_params(gate_time, gate_type="bswap")
-    for idx, c_ops in enumerate(c_ops_list):
-        gate = gateserrorbudget.run_gate_gaussian(gate_time, c_ops, gate_type="bswap")
-        chi_real = my_to_chi(gate)
-        infidel = 1 - calc_fidel_chi(chi_real, my_to_chi(sqbswap))
-        print(c_ops_str[idx], infidel)
-    # beyond RWA contrs
-    gate_params = {"omega_a": omega_a, "omega_b": omega_b}
-    gate = gateserrorbudget.run_gate_gaussian_counter(gate_time, [], gate_type="bswap", gate_params=gate_params)
+    gate_time = 101.6
+    sigma = gate_time / 4
+    amp = np.pi / (2 * np.sqrt(2.0 * np.pi * sigma ** 2) * erf(np.sqrt(2)))
+    gate = gateserrorbudget.run_gate_gaussian_counter(gate_time, [], gate_type="bswap", gate_params=gate_params,
+                                                      amp=amp)
     infidel = 1 - calc_fidel_4(gate, sqbswap)
     print("beyond RWA", infidel)
+    gate_params = {"omega_a": omega_a, "omega_b": omega_b,
+                   "alpha": 2.0 * np.pi * 0.001 * 2.0 * np.pi * 0.29 * 3,
+                   "beta": 2.0 * np.pi * 0.001 * 2.0 * np.pi * 0.29 * 3, "phase": 0.0}
+    gate = gateserrorbudget.run_gate_gaussian_crosstalk(gate_time, [], gate_type="bswap", gate_params=gate_params)
+    infidel = 1 - calc_fidel_4(gate, sqbswap)
+    # sqiswap
+    gate_time = 257.8
+    gate = gateserrorbudget.run_gate_gaussian_crosstalk(gate_time, [], gate_type="iswap", gate_params=gate_params)
+    infidel = 1 - calc_fidel_4(gate, sqiswap)
+    print("crosstalk", infidel)
+    # #opt_result, (init_amp, init_omega_d) = gateserrorbudget.optimize_gate_params(gate_time, gate_type="bswap")
+    # for idx, c_ops in enumerate(c_ops_list):
+    #     gate = gateserrorbudget.run_gate_gaussian(gate_time, c_ops, gate_type="bswap")
+    #     chi_real = my_to_chi(gate)
+    #     infidel = 1 - calc_fidel_chi(chi_real, my_to_chi(sqbswap))
+    #     print(c_ops_str[idx], infidel)
+    # # beyond RWA contrs
+    # gate = gateserrorbudget.run_gate_gaussian_counter(gate_time, [], gate_type="bswap", gate_params=gate_params)
+    # infidel = 1 - calc_fidel_4(gate, sqbswap)
+    # print("beyond RWA", infidel)
     gate_time = 257.0
     #opt_result, (init_amp, init_omega_d) = gateserrorbudget.optimize_gate_params(gate_time, gate_type="iswap")
-    for idx, c_ops in enumerate(c_ops_list):
-        gate = gateserrorbudget.run_gate_gaussian(gate_time, c_ops, gate_type="iswap")
-        chi_real = my_to_chi(gate)
-        infidel = 1 - calc_fidel_chi(chi_real, my_to_chi(sqiswap))
-        print(c_ops_str[idx], infidel)
-    gate = gateserrorbudget.run_gate_gaussian_counter(gate_time, [], gate_type="iswap", gate_params=gate_params)
+    # for idx, c_ops in enumerate(c_ops_list):
+    #     gate = gateserrorbudget.run_gate_gaussian(gate_time, c_ops, gate_type="iswap")
+    #     chi_real = my_to_chi(gate)
+    #     infidel = 1 - calc_fidel_chi(chi_real, my_to_chi(sqiswap))
+    #     print(c_ops_str[idx], infidel)
+    sigma = gate_time / 4
+    amp = np.pi / (2 * np.sqrt(2.0 * np.pi * sigma ** 2) * erf(np.sqrt(2)))
+    gate = gateserrorbudget.run_gate_gaussian_counter(gate_time, [], gate_type="iswap", gate_params=gate_params,
+                                                      amp=amp)
+    # testgate = gate.data.toarray()
+    # testgatedims = gate.dims
+    # testgate[0, 0] = testgate[3, 3] = 1.0
+    # testgate[0, 3] = testgate[3, 0] = 0.0
+    # gate = Qobj(testgate, dims=testgatedims)
     infidel = 1 - calc_fidel_4(gate, sqiswap)
     print("beyond RWA", infidel)
     print(0.0)
