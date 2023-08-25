@@ -2835,16 +2835,19 @@ class CircuitRoutines(ABC):
             )
         return wf_original_basis
 
-    def _ext_basis_for_var_index(self, var_index: int) -> str:
+    def _basis_for_var_index(self, var_index: int) -> str:
         """
         Returns the ext_basis of the subsystem with no further subsystems to which the
         var_index belongs.
         """
         if self.hierarchical_diagonalization:
             subsys = self.subsystems[self.get_subsystem_index(var_index)]
-            return subsys._ext_basis_for_var_index(var_index)
+            return _ext_basis_for_var_index(subsys, var_index)
         else:
-            return self.ext_basis
+            if var_index in self.var_categories["extended"]:
+                return self.ext_basis
+            else:
+                return "periodic"
 
     def _change_to_phi_basis(
         self,
@@ -2864,7 +2867,7 @@ class CircuitRoutines(ABC):
             else:
                 wf_dim = self._get_var_dim_for_reshaped_wf(var_indices, var_index)
                 
-            var_basis = self._ext_basis_for_var_index(var_index)
+            var_basis = self._basis_for_var_index(var_index)
 
             if var_basis == "harmonic":
                 wf_ext_basis = self._basis_change_harm_osc_to_phi(
