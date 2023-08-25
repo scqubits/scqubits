@@ -2859,7 +2859,7 @@ class CircuitRoutines(ABC):
         """
         if self.hierarchical_diagonalization:
             subsys = self.subsystems[self.get_subsystem_index(var_index)]
-            return _ext_basis_for_var_index(subsys, var_index)
+            return subsys._basis_for_var_index(var_index)
         else:
             if var_index in self.var_categories["extended"]:
                 return self.ext_basis
