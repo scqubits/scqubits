@@ -129,6 +129,7 @@ class TestCircuit:
         )
         DFC = scq.Circuit(
             DATADIR + "circuit_DFC.yaml",
+            from_file=True,
             ext_basis="harmonic",
             initiate_sym_calc=False,
             basis_completion="canonical",
@@ -165,6 +166,7 @@ class TestCircuit:
         )
         DFC = scq.Circuit(
             DATADIR + "circuit_DFC.yaml",
+            from_file=True,
             ext_basis="discretized",
             initiate_sym_calc=False,
             basis_completion="canonical",
@@ -228,6 +230,7 @@ class TestCircuit:
     def test_get_spectrum_vs_paramvals(num_cpus):
         DFC = scq.Circuit(
             DATADIR + "circuit_DFC.yaml",
+            from_file=True,
             ext_basis="discretized",
             initiate_sym_calc=False,
             basis_completion="canonical",
