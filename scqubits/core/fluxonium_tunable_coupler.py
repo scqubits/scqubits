@@ -248,11 +248,12 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         theta_plus = ((self.delta_func(p_0, p_1 + 1) + self.delta_func(p_0, p_1 - 1))
                 * self.h_o_plus().l_osc / np.sqrt(2)
                 * np.sqrt(np.max([p_0, p_1])))
-        coupler_part = np.real(((-0.5 * self.ELa - 0.5 * self.ELb)
-                * theta_plus
-                + (-0.5 * self.ELa + 0.5 * self.ELb)
+        coupler_part = np.real(
+            (-0.5 * self.ELa * phi_a_mat[a_0, a_1] - 0.5 * self.ELb * phi_b_mat[b_0, b_1])
+            * theta_plus
+            + (-0.5 * self.ELa * phi_a_mat[a_0, a_1] + 0.5 * self.ELb * phi_b_mat[b_0, b_1])
                 * phi_minus_mat[m_0, m_1]
-                ) * phi_a_mat[a_0, a_1] * phi_b_mat[b_0, b_1])
+        )
         flux_part_a = 0.5 * self.ELa * 2.0 * np.pi * delta_flux_a * (
             -2.0 * phi_a_mat[a_0, a_1] + theta_plus + phi_minus_mat[m_0, m_1]
         )
@@ -782,7 +783,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
     ):
         hilbert_space = self.hilbert_space_at_sweetspot(flux_shift_a, flux_shift_b)
         hilbert_space.generate_lookup()
-        evals_qobj = hilbert_space["evals"][0:num_states]
+        evals_qobj = hilbert_space["evals"][0][0:num_states]
         evecs_qobj = list(hilbert_space["evecs"][0][0:num_states])
         evals_zeroed = evals_qobj - evals_qobj[0]
         H_0 = Qobj(2.0 * np.pi * np.diag(evals_zeroed[0:num_states]))
