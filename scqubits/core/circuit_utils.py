@@ -28,6 +28,64 @@ if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem
 
 
+def _junction_order(branch_type: str) -> int:
+    """
+    Returns the order of the branch if it is a JJ branch,
+    if the order is n its energy is given by cos(phi) + cos(2*phi) + ... + cos(n*phi)
+
+    Args:
+        branch (_type_): Branch
+
+    Raises:
+        ValueError: when the branch is not a josephson junction
+
+    Returns:
+        _type_: int, order of the josephson junction
+    """
+    if "JJ" not in branch_type:
+        raise ValueError("The branch is not a JJ branch")
+    if len(branch_type) > 2:
+        if branch_type[2] == "s":# adding "JJs" which is a junction with sawtooth current phase relationship
+            return 1 
+        return int(branch_type[2:])
+    else:
+        return 1
+    
+def sawtooth_operator(x: Union[ndarray, csc_matrix]):
+    """
+    Returns the operator evaluated using applying the sawtooth_potential function on the
+    diagonal elements of the operator x 
+
+    Args:
+        x (Union[ndarray, csc_matrix]): argument of the sawtooth operator in the Hamiltonian
+    """
+    diagonal_elements = sawtooth_potential(x.diagonal())
+    
+    operator = sp.sparse.dia_matrix((diagonal_elements, 0), shape=(len(diagonal_elements),  len(diagonal_elements)))
+    return operator.tocsc()
+    
+    
+def sawtooth_potential(x: float) -> float:
+    """
+    Is the function which returns the potential of a sawtooth junction, 
+    i.e. a junction with a sawtooth current phase relationship, only in the discretized phi basis.
+    """
+    x_rel = (x - np.pi) % (2*np.pi) - np.pi
+    return (x_rel)**2/(np.pi)**2 # normalized to have a maximum of 1
+
+
+def _capactiance_variable_for_branch(branch_type: str):
+    """
+    Returns the parameter name that stores the capacitance of the branch
+    """
+    if "C" in branch_type:
+        return "EC"
+    elif "JJ" in branch_type:
+        return "ECJ"
+    else:
+        raise ValueError("Branch type is not a capacitor or a JJ")
+
+
 def truncation_template(
     system_hierarchy: list, individual_trunc_dim: int = 6, combined_trunc_dim: int = 30
 ) -> list:
@@ -235,13 +293,15 @@ def _n_theta_operator(ncut: int) -> csc_matrix:
     return n_theta_matrix
 
 
-def _exp_i_theta_operator(ncut) -> csc_matrix:
+def _exp_i_theta_operator(ncut, prefactor=1) -> csc_matrix:
     r"""
     Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace.
     """
+    # if type(prefactor) != int:
+    #     raise ValueError("Prefactor must be an integer")
     dim_theta = 2 * ncut + 1
     matrix = sparse.dia_matrix(
-        (np.ones(dim_theta), [-1]),
+        (np.ones(dim_theta), [-prefactor]),
         shape=(dim_theta, dim_theta),
     ).tocsc()
     return matrix
@@ -580,7 +640,7 @@ def assemble_circuit(
                 + " ,"
             )
             # identify parameter numbers
-            num_params = 2 if branch_type in ["JJ", "JJ2"] else 1
+            num_params = 2 if "JJ" in branch_type else 1
             # include parameters
             for word in subcircuit_branch[3 : 3 + num_params]:
                 if not is_string_float(word):
@@ -649,7 +709,7 @@ def assemble_circuit(
             + " ,"
         )
         # identify parameter numbers
-        num_params = 2 if branch_type in ["JJ", "JJ2"] else 1
+        num_params = 2 if "JJ" in branch_type else 1
         # include parameters
         for word in coupler_branch[3 : 3 + num_params]:
             if not is_string_float(word):
