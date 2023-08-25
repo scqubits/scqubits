@@ -2846,6 +2846,7 @@ class CircuitRoutines(ABC):
                 wf_new_basis = wf_new_basis.reshape(flatten_list_recursive(wf_shape))
         return wf_new_basis
 
+    #TODO: incomplete implementation of basis change
     def _basis_change_harm_osc_to_n(
         self, wf_original_basis, wf_dim, var_index, grid_n: discretization.Grid1d
     ):
@@ -3012,7 +3013,7 @@ class CircuitRoutines(ABC):
             else:
                 return "periodic"
 
-    def _change_to_desired_basis(
+    def _change_to_phi_basis(
         self,
         wf_original_basis: ndarray,
         var_indices: Tuple[int],
@@ -3088,7 +3089,7 @@ class CircuitRoutines(ABC):
         )
 
         # making a basis change to the desired basis for every var_index
-        wf_ext_basis = self._change_to_desired_basis(
+        wf_ext_basis = self._change_to_phi_basis(
             wf_original_basis,
             var_indices=var_indices,
             grids_dict=grids_dict,
