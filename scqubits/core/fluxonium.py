@@ -12,7 +12,6 @@
 
 import cmath
 import math
-import os
 
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
@@ -77,8 +76,19 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         cutoff: int,
         truncated_dim: int = 6,
         id_str: Optional[str] = None,
+        evals_method: Optional[str] = None,
+        evals_method_options: Optional[dict] = None,
+        esys_method: Optional[str] = None,
+        esys_method_options: Optional[dict] = None,
     ) -> None:
-        base.QuantumSystem.__init__(self, id_str=id_str)
+        base.QubitBaseClass.__init__(
+            self,
+            id_str=id_str,
+            evals_method=evals_method,
+            evals_method_options=evals_method_options,
+            esys_method=esys_method,
+            esys_method_options=esys_method_options,
+        )
         self.EJ = EJ
         self.EC = EC
         self.EL = EL
@@ -86,9 +96,6 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         self.cutoff = cutoff
         self.truncated_dim = truncated_dim
         self._default_grid = discretization.Grid1d(-4.5 * np.pi, 4.5 * np.pi, 151)
-        self._image_filename = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "qubit_img/fluxonium.jpg"
-        )
 
     @staticmethod
     def default_params() -> Dict[str, Any]:

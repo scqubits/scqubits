@@ -10,27 +10,69 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import numpy as np
+import base64
+import collections
+import enum
+import os
 
-EL_range = {"min": 1e-5, "max": 10.0}
-EJ_range = {"min": 1e-5, "max": 70.0}
-EC_range = {"min": 1e-5, "max": 10.0}
-flux_range = {"min": 0.0, "max": 1.0}
-ng_range = {"min": 0.0, "max": 1.0}
-int_range = {"min": 1, "max": 30}
-float_range = {"min": 0.0, "max": 30.0}
-ncut_range = {"min": 10, "max": 50}
+try:
+    import ipyvuetify as v
+    import ipywidgets
+except ImportError:
+    _HAS_IPYVUETIFY = False
+else:
+    _HAS_IPYVUETIFY = True
+
+
+gui_plot_choice_dict = collections.OrderedDict(
+    [
+        ("Energy spectrum", "En.png"),
+        ("Wavefunctions", "psi.png"),
+        ("Matrix elements", "Me.png"),
+        ("Matrix-element sweep", "MeS.png"),
+        ("Coherence times", "T1.png"),
+    ]
+)
+
+gui_sweep_plots = [0, 3, 4]
+
+gui_plot_icon_filenames = list(gui_plot_choice_dict.values())
+gui_icon_filenames = gui_plot_icon_filenames + ["scq-logo.png"]
+gui_plot_type_names = list(gui_plot_choice_dict.keys())
+
+
+icons = {}
+if _HAS_IPYVUETIFY:
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons")
+
+    for name in gui_icon_filenames:
+        full_path = os.path.join(path, name)
+        file = open(full_path, "rb")
+        image = file.read()
+        image_base64 = base64.b64encode(image).decode("ascii")
+        icons[name] = v.Img(src=f"data:image/png;base64,{image_base64}", width=50)
+
+
+STEP = 1e-2
+EL_range = {"v_min": STEP, "v_max": 10.0}
+EJ_range = {"v_min": STEP, "v_max": 70.0}
+EC_range = {"v_min": STEP, "v_max": 10.0}
+flux_range = {"v_min": 0.0, "v_max": 1.0}
+ng_range = {"v_min": 0.0, "v_max": 1.0}
+int_range = {"v_min": 1, "v_max": 30}
+float_range = {"v_min": 0.0, "v_max": 30.0}
+ncut_range = {"v_min": 6, "v_max": 50}
 
 global_defaults = {
-    "mode_wavefunc": "real",
-    "mode_matrixelem": "abs",
+    "mode_wavefunc": "Re(·)",
+    "mode_matrixelem": "|·|",
     "ng": ng_range,
     "flux": flux_range,
     "EJ": EJ_range,
     "EC": EC_range,
     "int": int_range,
     "float": float_range,
-    "scale": 1,
+    "scale": 1.0,
     "num_sample": 150,
 }
 
@@ -45,8 +87,8 @@ tunabletransmon_defaults = {
     **global_defaults,
     "scan_param": "flux",
     "operator": "n_operator",
-    "EJmax": EJ_range,
-    "d": {"min": 0.0, "max": 1.0},
+    "EJ_max": EJ_range,
+    "d": {"v_min": 0.0, "v_max": 1.0},
     "ncut": ncut_range,
 }
 
@@ -55,7 +97,7 @@ fluxonium_defaults = {
     "scan_param": "flux",
     "operator": "n_operator",
     "EL": EL_range,
-    "cutoff": {"min": 10, "max": 120},
+    "cutoff": {"v_min": 10, "v_max": 120},
 }
 
 fluxqubit_defaults = {
@@ -77,6 +119,33 @@ fluxqubit_defaults = {
     "num_sample": 100,
 }
 
+snail_EJ_range = {"v_min": STEP, "v_max": 2e3}
+snail_EC_range = {"v_min": STEP, "v_max": 300.0}
+
+snailmon_defaults = {
+    **global_defaults,
+    "scan_param": "flux",
+    "operator": "n_1_operator",
+    "ncut": ncut_range,
+    "EJ1": snail_EJ_range,
+    "EJ2": snail_EJ_range,
+    "EJ3": snail_EJ_range,
+    "EJ4": snail_EJ_range,
+    "ECJ1": snail_EC_range,
+    "ECJ2": snail_EC_range,
+    "ECJ3": snail_EC_range,
+    "ECJ4": snail_EC_range,
+    "ECg1": snail_EC_range,
+    "ECg2": snail_EC_range,
+    "ECg3": snail_EC_range,
+    "ECg4": snail_EC_range,
+    "ng1": ng_range,
+    "ng2": ng_range,
+    "ng3": ng_range,
+    "scale": None,
+    "num_sample": 100,
+}
+
 zeropi_defaults = {
     **global_defaults,
     "scan_param": "flux",
@@ -84,8 +153,8 @@ zeropi_defaults = {
     "ncut": ncut_range,
     "EL": EL_range,
     "ECJ": EC_range,
-    "dEJ": {"min": 0.0, "max": 1.0},
-    "dCJ": {"min": 0.0, "max": 1.0},
+    "dEJ": {"v_min": 0.0, "v_max": 1.0},
+    "dCJ": {"v_min": 0.0, "v_max": 1.0},
     "scale": None,
     "num_sample": 50,
 }
@@ -97,12 +166,12 @@ fullzeropi_defaults = {
     "ncut": ncut_range,
     "EL": EL_range,
     "ECJ": EC_range,
-    "dEJ": {"min": 0.0, "max": 1.0},
-    "dCJ": {"min": 0.0, "max": 1.0},
-    "dEL": {"min": 0.0, "max": 1.0},
-    "dC": {"min": 0.0, "max": 1.0},
-    "zeropi_cutoff": {"min": 5, "max": 30},
-    "zeta_cutoff": {"min": 5, "max": 30},
+    "dEJ": {"v_min": 0.0, "v_max": 1.0},
+    "dCJ": {"v_min": 0.0, "v_max": 1.0},
+    "dEL": {"v_min": 0.0, "v_max": 1.0},
+    "dC": {"v_min": 0.0, "v_max": 1.0},
+    "zeropi_cutoff": {"v_min": 5, "v_max": 30},
+    "zeta_cutoff": {"v_min": 5, "v_max": 30},
     "scale": None,
     "num_sample": 50,
 }
@@ -113,12 +182,24 @@ cos2phiqubit_defaults = {
     "operator": "phi_operator",
     "EL": EL_range,
     "ECJ": EC_range,
-    "dEJ": {"min": 0, "max": 0.99},
-    "dL": {"min": 0, "max": 0.99},
-    "dCJ": {"min": 0, "max": 0.99},
+    "dEJ": {"v_min": 0, "v_max": 0.99},
+    "dL": {"v_min": 0, "v_max": 0.99},
+    "dCJ": {"v_min": 0, "v_max": 0.99},
     "ncut": ncut_range,
-    "zeta_cut": {"min": 10, "max": 50},
-    "phi_cut": {"min": 5, "max": 30},
+    "zeta_cut": {"v_min": 10, "v_max": 50},
+    "phi_cut": {"v_min": 5, "v_max": 30},
+    "scale": None,
+    "num_sample": 50,
+}
+
+bifluxon_defaults = {
+    **global_defaults,
+    "scan_param": "flux",
+    "operator": "n_theta_operator",
+    "ncut": ncut_range,
+    "EL": EL_range,
+    "ECL": EC_range,
+    "dEJ": {"v_min": 0.0, "v_max": 1.0},
     "scale": None,
     "num_sample": 50,
 }
@@ -131,6 +212,8 @@ qubit_defaults = {
     "ZeroPi": zeropi_defaults,
     "FullZeroPi": fullzeropi_defaults,
     "Cos2PhiQubit": cos2phiqubit_defaults,
+    "Snailmon": snailmon_defaults,
+    "Bifluxon": bifluxon_defaults,
 }
 
 paramvals_from_papers = {
@@ -196,6 +279,7 @@ paramvals_from_papers = {
         "Gyenis et al., PRX Quantum 2, 010339 (2021)": {
             "params": {
                 "EJ": 6.0,
+                "EJ": 6.0,
                 "ECJ": 2.28,
                 "EC": 0.184,
                 "EL": 0.38,
@@ -221,16 +305,30 @@ paramvals_from_papers = {
             "link": "https://iopscience.iop.org/article/10.1088/1367-2630/aab7cd",
         },
     },
+    "Bifluxon": {
+        "Kalashnikov et al., PRX Quantum 1, 010307 (2020)": {
+            "params": {
+                "EJ": 27.2,
+                "EL": 0.94,
+                "EC": 7.7,
+                "ECL": 10.0,
+                "dEJ": 0.0,
+            },
+            "link": "https://journals.aps.org/prxquantum/abstract/10.1103/PRXQuantum.1.010307",
+        },
+    },
 }
 
+# Plot categories available in the single-qubit GUI
 plot_choices = [
     "Energy spectrum",
     "Wavefunctions",
-    "Matrix element scan",
     "Matrix elements",
+    "Matrix element scan",
     "Coherence times",
 ]
 
+# The following qubits are supported by the GUI
 supported_qubits = [
     "Transmon",
     "TunableTransmon",
@@ -239,34 +337,76 @@ supported_qubits = [
     "ZeroPi",
     "FullZeroPi",
     "Cos2PhiQubit",
+    # "Snailmon",
+    # "Bifluxon",
 ]
 
-slow_qubits = ["FluxQubit", "ZeroPi", "FullZeroPi", "Cos2PhiQubit"]
-
-subsys_panel_names = [
-    "Energy spectrum",
-    "Wavefunctions",
-    "Matrix elements",
-    "Anharmonicity",
-    "Self-Kerr",
+# The following qubits are supported by the GUI, but are slow, so auto-updating is disabled by default
+slow_qubits = [
+    "FluxQubit",
+    "ZeroPi",
+    "FullZeroPi",
+    "Cos2PhiQubit",
+    # "Snailmon",
+    # "Bifluxon",
 ]
 
-composite_panel_names = ["Transitions", "Cross-Kerr, ac-Stark", "Custom data"]
 
-common_panels = ["Energy spectrum", "Wavefunctions"]
+# Explorer plot names
+class PlotType(enum.Enum):
+    ENERGY_SPECTRUM = "Energy spectrum"
+    WAVEFUNCTIONS = "Wavefunctions"
+    MATRIX_ELEMENTS = "Matrix elements (fixed)"
+    MATRIX_ELEMENT_SCAN = "Matrix elements (sweep)"
+    ANHARMONICITY = "Anharmonicity"
+    SELF_KERR = "Self-Kerr"
+    TRANSITIONS = "Transitions"
+    CROSS_KERR = "Cross-Kerr"
+    AC_STARK = "ac Stark"
 
-mode_dropdown_list = [
-    ("Re(·)", "real"),
-    ("Im(·)", "imag"),
-    ("|·|", "abs"),
-    ("|\u00B7|\u00B2", "abs_sqr"),
-]
 
+# Plot types associated with individual subsystems (used in Explorer class)
+subsys_plot_types = (
+    PlotType.ENERGY_SPECTRUM,
+    PlotType.WAVEFUNCTIONS,
+    PlotType.MATRIX_ELEMENTS,
+    PlotType.MATRIX_ELEMENT_SCAN,
+    PlotType.ANHARMONICITY,
+    PlotType.SELF_KERR,
+)
+
+
+# Plot names for composite-system plots (used in Explorer class)
+composite_plot_types = [PlotType.TRANSITIONS, PlotType.CROSS_KERR, PlotType.AC_STARK]
+
+
+# Plots that are activated for all `supported_qubits` when entering the Explorer class
+common_panels = [PlotType.ENERGY_SPECTRUM, PlotType.WAVEFUNCTIONS]
+
+# Options for plotting complex-valued data
+mode_dropdown_dict = {
+    "Re(·)": "real",
+    "Im(·)": "imag",
+    "|·|": "abs",
+    "|\u00B7|\u00B2": "abs_sqr",
+}
+
+mode_dropdown_list = list(mode_dropdown_dict.keys())
+
+# Default panels for each qubit type, used as default in Explorer class
 default_panels = {qubit_name: common_panels for qubit_name in supported_qubits}
 default_panels["Oscillator"] = []
 default_panels["KerrOscillator"] = []
-default_panels["Composite"] = ["Transitions"]
+default_panels["Composite"] = [PlotType.TRANSITIONS]
 
+# Supported panels for each qubit type, used in Explorer class
+supported_panels = {qubit_name: subsys_plot_types for qubit_name in supported_qubits}
+supported_panels["Oscillator"] = [PlotType.ENERGY_SPECTRUM, PlotType.SELF_KERR]
+supported_panels["KerrOscillator"] = [PlotType.ENERGY_SPECTRUM]
+supported_panels["Composite"] = composite_plot_types
+
+# Default plot options used in Explorer class
 PLOT_HEIGHT = "500px"
 FIG_WIDTH_INCHES = 6
 FIG_DPI = 150
+NAV_COLOR = "#deebf9"

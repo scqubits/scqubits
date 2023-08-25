@@ -15,6 +15,7 @@ Provides the base classes for qubits
 
 import functools
 import inspect
+import os
 
 from abc import ABC, ABCMeta, abstractmethod
 from typing import (
@@ -29,8 +30,8 @@ from typing import (
     overload,
 )
 
-import matplotlib.pyplot as plt
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
 
@@ -41,6 +42,7 @@ from scipy.sparse import csc_matrix, dia_matrix
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
+import scqubits.core.diag as diag
 import scqubits.core.units as units
 import scqubits.settings as settings
 import scqubits.ui.qubit_widget as ui
@@ -117,6 +119,11 @@ class QuantumSystem(DispatchClient, ABC):
     def __init__(self, id_str: Union[str, None]):
         self._sys_type = type(self).__name__
         self._id_str = id_str or self._autogenerate_id_str()
+        self._image_filename = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "qubit_img",
+            type(self).__name__ + ".jpg",
+        )
 
     def __init_subclass__(cls):
         """Used to register all non-abstract _subclasses as a list in
@@ -168,7 +175,18 @@ class QuantumSystem(DispatchClient, ABC):
     def get_initdata(self) -> Dict[str, Any]:
         """Returns dict appropriate for creating/initializing a new Serializable
         object."""
-        return {name: getattr(self, name) for name in self._init_params}
+        EXCLUDE = [
+            "evals_method",
+            "evals_method_options",
+            "esys_method",
+            "esys_method_options",
+        ]
+        initdata = {
+            name: getattr(self, name)
+            for name in self._init_params
+            if name not in EXCLUDE
+        }
+        return initdata
 
     @abstractmethod
     def hilbertdim(self) -> int:
@@ -202,12 +220,12 @@ class QuantumSystem(DispatchClient, ABC):
         instance.widget()
         return instance
 
-    def widget(self, params: Dict[str, Any] = None):
+    def widget(self, params: Optional[Dict[str, Any]] = None):
         """Use ipywidgets to modify parameters of class instance"""
         init_params = params or self.get_initdata()
         init_params.pop("id_str", None)
         ui.create_widget(
-            self.set_params, init_params, image_filename=self._image_filename
+            self.set_params_from_gui, init_params, image_filename=self._image_filename
         )
 
     @staticmethod
@@ -215,6 +233,14 @@ class QuantumSystem(DispatchClient, ABC):
     def default_params() -> Dict[str, Any]:
         """Return dictionary with default parameter values for initialization of
         class instance"""
+
+    def set_params_from_gui(self, change):
+        """
+        Set new parameters through the provided dictionary.
+        """
+        param_name = change["owner"].name
+        param_val = change["owner"].num_value
+        setattr(self, param_name, param_val)
 
     def set_params(self, **kwargs):
         """
@@ -245,6 +271,20 @@ class QubitBaseClass(QuantumSystem, ABC):
     _sys_type: str
     _init_params: list
 
+    def __init__(
+        self,
+        id_str: Union[str, None],
+        evals_method: Union[str, None] = None,
+        evals_method_options: Union[Dict, None] = None,
+        esys_method: Union[str, None] = None,
+        esys_method_options: Union[Dict, None] = None,
+    ):
+        super().__init__(id_str=id_str)
+        self.evals_method = evals_method
+        self.evals_method_options = evals_method_options
+        self.esys_method = esys_method
+        self.esys_method_options = esys_method_options
+
     @abstractmethod
     def hamiltonian(self):
         """Returns the Hamiltonian"""
@@ -252,14 +292,20 @@ class QubitBaseClass(QuantumSystem, ABC):
     def _evals_calc(self, evals_count: int) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
         evals = sp.linalg.eigh(
-            hamiltonian_mat, eigvals_only=True, subset_by_index=(0, evals_count - 1)
+            hamiltonian_mat,
+            eigvals_only=True,
+            subset_by_index=(0, evals_count - 1),
+            check_finite=False,
         )
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = sp.linalg.eigh(
-            hamiltonian_mat, eigvals_only=False, subset_by_index=(0, evals_count - 1)
+            hamiltonian_mat,
+            eigvals_only=False,
+            subset_by_index=(0, evals_count - 1),
+            check_finite=False,
         )
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
@@ -268,7 +314,7 @@ class QubitBaseClass(QuantumSystem, ABC):
     def eigenvals(
         self,
         evals_count: int = 6,
-        filename: str = None,
+        filename: Optional[str] = None,
         return_spectrumdata: "Literal[False]" = False,
     ) -> ndarray:
         ...
@@ -285,7 +331,7 @@ class QubitBaseClass(QuantumSystem, ABC):
     def eigenvals(
         self,
         evals_count: int = 6,
-        filename: str = None,
+        filename: Optional[str] = None,
         return_spectrumdata: bool = False,
     ) -> Union[SpectrumData, ndarray]:
         """Calculates eigenvalues using `scipy.linalg.eigh`, returns numpy array of
@@ -306,7 +352,19 @@ class QubitBaseClass(QuantumSystem, ABC):
         -------
             eigenvalues as ndarray or in form of a SpectrumData object
         """
-        evals = self._evals_calc(evals_count)
+        if not hasattr(self, "evals_method") or self.evals_method is None:
+            evals = self._evals_calc(evals_count)
+        else:
+            diagonalizer = (
+                diag.DIAG_METHODS[self.evals_method]
+                if isinstance(self.evals_method, str)
+                else self.evals_method
+            )
+            options = (
+                {} if self.esys_method_options is None else self.esys_method_options
+            )
+            evals = diagonalizer(self.hamiltonian(), evals_count, **options)
+
         if filename or return_spectrumdata:
             specdata = SpectrumData(
                 energy_table=evals, system_params=self.get_initdata()
@@ -319,7 +377,7 @@ class QubitBaseClass(QuantumSystem, ABC):
     def eigensys(
         self,
         evals_count: int = 6,
-        filename: str = None,
+        filename: Optional[str] = None,
         return_spectrumdata: "Literal[False]" = False,
     ) -> Tuple[ndarray, ndarray]:
         ...
@@ -336,7 +394,7 @@ class QubitBaseClass(QuantumSystem, ABC):
     def eigensys(
         self,
         evals_count: int = 6,
-        filename: str = None,
+        filename: Optional[str] = None,
         return_spectrumdata: bool = False,
     ) -> Union[Tuple[ndarray, ndarray], SpectrumData]:
         """Calculates eigenvalues and corresponding eigenvectors using
@@ -350,15 +408,26 @@ class QubitBaseClass(QuantumSystem, ABC):
         filename:
             path and filename without suffix, if file output desired
             (default value = None)
-        return_spectrumdata:
-            if set to true, the returned data is provided as a SpectrumData object
+        return_spectrumdata: if set to true, the returned data is provided as a SpectrumData object
             (default value = False)
 
         Returns
         -------
             eigenvalues, eigenvectors as numpy arrays or in form of a SpectrumData object
         """
-        evals, evecs = self._esys_calc(evals_count)
+        if not hasattr(self, "esys_method") or self.esys_method is None:
+            evals, evecs = self._esys_calc(evals_count)
+        else:
+            diagonalizer = (
+                diag.DIAG_METHODS[self.esys_method]
+                if isinstance(self.esys_method, str)
+                else self.esys_method
+            )
+            options = (
+                {} if self.esys_method_options is None else self.esys_method_options
+            )
+            evals, evecs = diagonalizer(self.hamiltonian(), evals_count, **options)
+
         if filename or return_spectrumdata:
             specdata = SpectrumData(
                 energy_table=evals, system_params=self.get_initdata(), state_table=evecs
@@ -1135,7 +1204,7 @@ class QubitBaseClass1d(QubitBaseClass):
         mode: str = "real",
         esys: Tuple[ndarray, ndarray] = None,
         phi_grid: Grid1d = None,
-        scaling: float = None,
+        scaling: Optional[float] = None,
         **kwargs,
     ) -> Tuple[Figure, Axes]:
         """Plot 1d phase-basis wave function(s). Must be overwritten by

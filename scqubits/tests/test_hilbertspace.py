@@ -13,9 +13,9 @@
 
 import numpy as np
 import pytest
+import qutip as qt
 
 import scqubits as scq
-import qutip as qt
 
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.utils.spectrum_utils import get_matrixelement_table

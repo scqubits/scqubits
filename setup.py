@@ -52,8 +52,8 @@ EXTRA_KWARGS = {}
 
 # version information about scqubits goes here
 MAJOR = 3
-MINOR = 1
-MICRO = 1
+MINOR = 2
+MICRO = 0
 ISRELEASED = True
 
 VERSION = "%d.%d.%d" % (MAJOR, MINOR, MICRO)
@@ -68,10 +68,9 @@ EXTRAS_REQUIRE = {
     "explorer": ["ipywidgets (>=7.5)"],
     "h5-support": ["h5py (>=2.10)"],
     "pathos": ["pathos", "dill"],
-    "fitting": ["lmfit"],
 }
 
-TESTS_REQUIRE = ["h5py (>=2.7.1)", "pathos", "dill", "ipywidgets", "pytest", "lmfit"]
+TESTS_REQUIRE = ["h5py (>=2.7.1)", "pathos", "dill", "ipywidgets", "pytest"]
 
 PACKAGES = [
     "scqubits",

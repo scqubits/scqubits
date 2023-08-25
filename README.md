@@ -8,6 +8,15 @@ scqubits: superconducting qubits in Python
 
 [J. Koch](https://github.com/jkochNU), [P. Groszkowski](https://github.com/petergthatsme)
 
+<br>
+
+> **Join the scqubits mailing list!** Receive information about new releases
+> and opportunities to contribute
+> to new developments.
+> |[SIGN UP](https://sites.northwestern.edu/koch/scqubits-news-sign-up/)|
+> |---------------------------------------------------------------------|
+
+<br>
 
 scqubits is an open-source Python library for simulating superconducting qubits. It is meant to give the user
 a convenient way to obtain energy spectra of common superconducting qubits, plot energy levels as a function of
@@ -20,15 +29,15 @@ If scqubits is helpful to you in your research, please support its continued
 development and maintenance. Use of scqubits in research publications is 
 appropriately acknowledged by citing:
 
->  Peter Groszkowski and Jens Koch,<br> 
->  *scqubits:  a Python package for superconducting qubits*,<br>
->  Quantum 5, 583 (2021).<br>
->  https://quantum-journal.org/papers/q-2021-11-17-583/
->
->  Sai Pavan Chitta, Tianpu Zhao, Ziwen Huang, Ian Mondragon-Shem, and Jens Koch,<br>
->  *Computer-aided quantization and numerical analysis of superconducting circuits*,<br>
->  arXiv:2206.08320 (2022).<br>
->  https://arxiv.org/abs/2206.08320
+&nbsp; &nbsp; Peter Groszkowski and Jens Koch,<br> 
+&nbsp; &nbsp; *scqubits:  a Python package for superconducting qubits*,<br>
+&nbsp; &nbsp; Quantum 5, 583 (2021).<br>
+&nbsp; &nbsp; https://quantum-journal.org/papers/q-2021-11-17-583/
+
+&nbsp; &nbsp; Sai Pavan Chitta, Tianpu Zhao, Ziwen Huang, Ian Mondragon-Shem, and Jens Koch,<br>
+&nbsp; &nbsp; *Computer-aided quantization and numerical analysis of superconducting circuits*,<br>
+&nbsp; &nbsp; New J. Phys. 24 103020 (2022).<br>
+&nbsp; &nbsp; https://iopscience.iop.org/article/10.1088/1367-2630/ac94f2
 
 
 

@@ -12,26 +12,27 @@
 import copy
 import itertools
 import warnings
-
 from symtable import Symbol
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
 import scipy as sp
-import scqubits.io_utils.fileio_serializers as serializers
-import scqubits.settings as settings
 import sympy
 import yaml
 import random
 
 from numpy import ndarray
-from scqubits.utils.misc import flatten_list, is_float_string, unique_elements_in_list
 from sympy import symbols
 from scqubits.core.circuit_utils import round_symbolic_expr
 
+import scqubits.io_utils.fileio_serializers as serializers
+import scqubits.settings as settings
+
+from scqubits.utils.misc import flatten_list, is_string_float, unique_elements_in_list
+
 
 def process_word(word: str) -> Union[float, symbols]:
-    if is_float_string(word):
+    if is_string_float(word):
         return float(word)
     return symbols(word)
 
@@ -66,7 +67,7 @@ def parse_branch_parameters(
     branch_params: List[float] = []
     num_params = 2 if branch_type in ["JJ", "JJ2"] else 1
     for word in words[0:num_params]:
-        if not is_float_string(word):
+        if not is_string_float(word):
             if len(word.split("=")) > 2:
                 raise Exception("Syntax error in branch specification.")
             if len(word.split("=")) == 2:

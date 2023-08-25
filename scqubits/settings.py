@@ -27,7 +27,7 @@ Matplotlib.
 
 import warnings
 
-from typing import Any, Type, Union
+from typing import Any, Optional, Type, Union
 
 import matplotlib.font_manager as mpl_font
 import numpy as np
@@ -41,7 +41,7 @@ def warning_on_one_line(
     category: Type[Warning],
     filename: str,
     lineno: int,
-    line: str = None,
+    line: Optional[str] = None,
 ) -> str:
     return "{}: {}\n {}: {}".format(category.__name__, message, filename, lineno)
 
@@ -94,21 +94,20 @@ MULTIPROC = "pathos"
 
 # Matplotlib options -------------------------------------------------------------------
 # select fonts
-font_selected = None
+FONT_SELECTED = None
 try:
     font_names = mpl_font.get_font_names()
     for font in ["IBM Plex Sans", "Roboto", "Arial", "Helvetica"]:
         if font in font_names:
-            font_selected = font
+            FONT_SELECTED = font
             break
-    if not font_selected:
-        font_selected = "sans-serif"
-
+    if not FONT_SELECTED:
+        FONT_SELECTED = "sans-serif"
 except AttributeError:
-    font_selected = "sans-serif"
+    FONT_SELECTED = "sans-serif"
 
 # set matplotlib defaults for use in @mpl.rc_context
-off_black = "0.2"
+OFF_BLACK = "0.2"
 matplotlib_settings = {
     "axes.prop_cycle": cycler(
         color=[
@@ -126,20 +125,21 @@ matplotlib_settings = {
             "#F9E6BE",
         ]
     ),
-    "font.family": font_selected,
+    "font.family": FONT_SELECTED,
     "font.size": 11,
     "font.weight": 500,
     "axes.labelsize": 11,
     "axes.titlesize": 11,
+    "axes.titleweight": 500,
     "xtick.labelsize": 10,
     "ytick.labelsize": 10,
-    "xtick.labelcolor": off_black,
-    "ytick.labelcolor": off_black,
-    "xtick.color": off_black,
-    "ytick.color": off_black,
-    "axes.labelcolor": off_black,
-    "axes.edgecolor": off_black,
-    "axes.titlecolor": off_black,
+    "xtick.labelcolor": OFF_BLACK,
+    "ytick.labelcolor": OFF_BLACK,
+    "xtick.color": OFF_BLACK,
+    "ytick.color": OFF_BLACK,
+    "axes.labelcolor": OFF_BLACK,
+    "axes.edgecolor": OFF_BLACK,
+    "axes.titlecolor": OFF_BLACK,
 }
 
 
@@ -150,9 +150,9 @@ DESPINE = True
 STENCIL = 7
 
 # global random number generator for consistent initial state vector v0 in ARPACK
-SEED = 63142
-RNG = np.random.default_rng(seed=SEED)
-RANDOM_ARRAY = RNG.random(size=10000000)
+_SEED = 63142
+_RNG = np.random.default_rng(seed=_SEED)
+RANDOM_ARRAY = _RNG.random(size=10000000)
 
 # toggle fuzzy value-based slicing and warnings about it on and off
 FUZZY_SLICING = False

@@ -16,13 +16,17 @@ import platform
 import warnings
 
 from collections.abc import Sequence
+from distutils.version import StrictVersion
 from io import StringIO
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
+import matplotlib
 import numpy as np
 import qutip as qt
 import scipy as sp
+from matplotlib import get_backend as get_matplotlib_backend
 
+import scqubits.settings
 from scqubits.settings import IN_IPYTHON
 
 if IN_IPYTHON:
@@ -97,19 +101,20 @@ class InfoBar:
     def __init__(self, desc: str, num_cpus: int) -> None:
         self.desc = desc
         self.num_cpus = num_cpus
-        self.tqdm_bar: Optional[tqdm] = None
+        self.tqdm_bar = None
 
     def __enter__(self) -> None:
         self.tqdm_bar = tqdm(
             total=0,
-            disable=(self.num_cpus == 1),
+            disable=(self.num_cpus == 1) or scqubits.settings.PROGRESSBAR_DISABLED,
             leave=False,
             desc=self.desc,
             bar_format="{desc}",
         )
 
     def __exit__(self, *args) -> None:
-        self.tqdm_bar.close()
+        if self.tqdm_bar:
+            self.tqdm_bar.close()
 
 
 class Required:
@@ -126,6 +131,7 @@ class Required:
     def __init__(self, **requirements) -> None:
         self.requirements_bools = list(requirements.values())
         self.requirements_names = list(requirements.keys())
+        self.missing_imports = [name for name in requirements if not requirements[name]]
 
     def __call__(self, func: Callable, *args, **kwargs) -> Callable:
         @functools.wraps(func)
@@ -133,13 +139,27 @@ class Required:
             if all(self.requirements_bools):
                 return func(*args, **kwargs)
             else:
-                raise Exception(
-                    "ImportError: use of this method requires the optional package(s):"
-                    " {}. If you wish to use this functionality, the corresponding"
-                    " package(s) must be installed manually. (Installation via `conda"
-                    " install -c conda-forge <packagename>` or `pip install"
-                    " <packagename>` is recommended.)".format(self.requirements_names)
-                )
+                with warnings.catch_warnings():
+                    if self.missing_imports == ["ipyvuetify"]:
+                        warnings.warn(
+                            "Starting with v3.2, scqubits uses the optional package 'ipyuetify' for graphical "
+                            "user interfaces. To use this functionality, add the package via "
+                            "`conda install -c conda-forge ipyvuetify` or `pip install ipyvuetify`.\n"
+                            "For use with jupyter lab, additionally execute "
+                            "`jupyter labextension install jupyter-vuetify`.\n",
+                            category=Warning,
+                        )
+                    else:
+                        warnings.warn(
+                            "use of this method requires the optional package(s):"
+                            " {}. If you wish to use this functionality, the corresponding"
+                            " package(s) must be installed manually. (Installation via `conda"
+                            " install -c conda-forge <packagename>` or `pip install"
+                            " <packagename>` is recommended.)".format(
+                                self.requirements_names
+                            ),
+                            category=Warning,
+                        )
 
         return decorated_func
 
@@ -147,16 +167,17 @@ class Required:
 def check_sync_status(func: Callable) -> Callable:
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
-        if self._out_of_sync:
+        if self._out_of_sync and not self._out_of_sync_warning_issued:
             with warnings.catch_warnings():
                 warnings.simplefilter("always")
                 warnings.warn(
-                    "[scqubits] Some system parameters have been changed and"
+                    "[scqubits] Some quantum system parameters have been changed and"
                     " generated spectrum data could be outdated, potentially leading to"
                     " incorrect results. Spectral data can be refreshed via"
                     " <HilbertSpace>.generate_lookup() or <ParameterSweep>.run()",
                     Warning,
                 )
+            self._out_of_sync_warning_issued = True
         return func(self, *args, **kwargs)
 
     return wrapper
@@ -270,6 +291,20 @@ def tuple_to_short_str(the_tuple: tuple) -> str:
 
 
 def to_list(obj: Any) -> List[Any]:
+    """
+    Converts object to a list: if the input is already a list, it will return the same list. If the input is
+    a numpy array, it will convert to a python list. Otherwise, it will return
+    the original object in a single-elemented python list.
+
+    Parameters
+    ----------
+    obj:
+        Specify the type of object that is being passed into the function
+
+    Returns
+    -------
+        a list of the object passed in
+    """
     if isinstance(obj, list):
         return obj
     if isinstance(obj, np.ndarray):
@@ -277,7 +312,7 @@ def to_list(obj: Any) -> List[Any]:
     return [obj]
 
 
-def about(print_info=True):
+def about(print_info=True) -> Optional[str]:
     """Prints or returns a string with basic information about
     scqubits as well as installed version of various packages
     that scqubits depends on.
@@ -346,9 +381,17 @@ def cite(print_info=True):
         return fs.getvalue()
 
 
-def is_float_string(the_string: str) -> bool:
+def is_string_float(the_string: str) -> bool:
     try:
         float(the_string)
+        return True
+    except ValueError:
+        return False
+
+
+def is_string_int(the_string: str) -> bool:
+    try:
+        int(the_string)
         return True
     except ValueError:
         return False
@@ -375,25 +418,26 @@ def flatten_list(nested_list):
     return functools.reduce(lambda a, b: a + b, nested_list)
 
 
-def flatten_list_recursive(S):
+def flatten_list_recursive(some_list: list) -> list:
     """
     Flattens a list of lists recursively.
 
     Parameters
     ----------
-
-    nested_list:
+    some_list:
         A list of lists, which can hold any class instance.
 
     Returns
     -------
     Flattened list of objects
     """
-    if S == []:
-        return S
-    if isinstance(S[0], list):
-        return flatten_list_recursive(S[0]) + flatten_list_recursive(S[1:])
-    return S[:1] + flatten_list_recursive(S[1:])
+    if some_list == []:
+        return some_list
+    if isinstance(some_list[0], list):
+        return flatten_list_recursive(some_list[0]) + flatten_list_recursive(
+            some_list[1:]
+        )
+    return some_list[:1] + flatten_list_recursive(some_list[1:])
 
 
 def unique_elements_in_list(list_object: list) -> list:
@@ -413,4 +457,31 @@ def unique_elements_in_list(list_object: list) -> list:
 
 
 def number_of_lists_in_list(list_object: list) -> int:
+    """
+    Takes a list as an argument and returns the number of lists in that list. (Counts lists at root level only, no
+    recursion.)
+
+    Parameters
+    ----------
+    list_object:
+        List to be analyzed
+
+    Returns
+    -------
+    The number of lists in the list
+    """
     return sum([1 for element in list_object if type(element) == list])
+
+
+def check_matplotlib_compatibility():
+    if _HAS_WIDGET_BACKEND and StrictVersion(matplotlib.__version__) < StrictVersion(
+        "3.5.1"
+    ):
+        warnings.warn(
+            "The widget backend requires Matplotlib >=3.5.1 for proper functioning",
+            UserWarning,
+        )
+
+
+MATPLOTLIB_WIDGET_BACKEND = "module://ipympl.backend_nbagg"
+_HAS_WIDGET_BACKEND = get_matplotlib_backend() == MATPLOTLIB_WIDGET_BACKEND
