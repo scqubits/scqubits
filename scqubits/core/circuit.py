@@ -369,8 +369,8 @@ class Circuit(
         is_flux_dynamic: bool = False,
         initiate_sym_calc: bool = True,
         truncated_dim: int = 10,
-        symbolic_hamiltonian: Optional[sm.Expr] = None,
-        symbolic_param_dict: Optional[Dict[str, float]] = None,
+        symbolic_param_dict: Dict[str, float] = None,
+        symbolic_hamiltonian: sm.Expr = None,
     ):
         # attribute used in protecting the class from erroneous addition of new attributes
         # __setattr__ method is overwritten for Circuit and SubSystem classes (see circuit_routines.py),

@@ -2140,6 +2140,10 @@ class CircuitRoutines(ABC):
 
     def __repr__(self) -> str:
         # string to describe the Circuit
+        return self._id_str
+    
+    def _repr_latex_(self) -> str:
+        # string to describe the Circuit
         if not _HAS_IPYTHON:
             return self._id_str
         # Hamiltonian string
@@ -2592,8 +2596,6 @@ class CircuitRoutines(ABC):
         potential_sym = self.potential_symbolic.subs("I", 1)
         for ext_flux in self.external_fluxes:
             potential_sym = potential_sym.subs(ext_flux, ext_flux * 2 * np.pi)
-        for var in self.external_fluxes:
-            potential_sym = potential_sym.subs(var, var * np.pi * 2)
 
         # constructing the grids
         parameters = dict.fromkeys(
