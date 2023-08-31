@@ -29,6 +29,7 @@
 
 /.vscode/
 /.pytest_cache/
+__pycache__
 /.coverage
 /.ipynb_checkpoints/
 /example/
@@ -37,3 +38,5 @@ scqubits/ui/.ipynb_checkpoints/test-checkpoint.ipynb
 scqubits/.vscode/settings.json
 *.ipynb
 /.asv/
+
+*.yml
