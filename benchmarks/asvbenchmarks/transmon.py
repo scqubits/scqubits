@@ -1,14 +1,20 @@
 import numpy as np
 from scqubits import Transmon
+import time
+
+import os
 import sys
 
-import time
-from benchmarks.asvconftest import StandardTests
+current = os.path.dirname(os.path.realpath(__file__))
+print("Current: ", current)
+parent = os.path.dirname(current)
+print("Parent: ", parent)
+sys.path.append(parent)
+
+import asvconftest
+from asvconftest import StandardTests
 
 
-def time_one():
-    time.sleep(0.1) 
-'''
 class TestTransmon(StandardTests):
     @classmethod
     def setup_class(cls):
@@ -23,4 +29,3 @@ class TestTransmon(StandardTests):
     def test_plot_n_wavefunction(self):
         self.qbt = Transmon(EJ=1.0, EC=1.0, ng=0.0, ncut=10)
         self.qbt.plot_n_wavefunction(esys=None, which=1, mode="real")
- '''
