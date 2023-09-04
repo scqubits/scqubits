@@ -40,3 +40,4 @@ scqubits/.vscode/settings.json
 /.asv/
 
 *.yml
+src/
