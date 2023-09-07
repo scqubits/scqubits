@@ -18,6 +18,7 @@ carried out with the help of Numpy and Scipy; plotting capabilities rely on
 Matplotlib."""
 #######################################################################################
 
+this is an error
 
 import warnings
 

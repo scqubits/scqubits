@@ -74,6 +74,7 @@ TESTS_REQUIRE = ["h5py (>=2.7.1)", "pathos", "dill", "ipywidgets", "pytest"]
 
 PACKAGES = [
     "scqubits",
+    "scqubits/benchmarks",
     "scqubits/core",
     "scqubits/tests",
     "scqubits/utils",
