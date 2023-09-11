@@ -1,0 +1,81 @@
+name: Benchmark with ASV
+
+on:
+  push:
+    branches: asvDevBranch
+  pull_request:
+    branches: asvDevBranch
+  schedule:
+  - cron: "0 2 * * 1"
+
+jobs:
+  asvAllBenchMarks:
+    if: github.event_name == 'push'
+    name: BenchmarkAllCommits
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 8
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.9'
+    - name: Add conda to system path
+      run: |
+        echo $CONDA/bin >> $GITHUB_PATH
+    - name: create environment.yml
+      run: |
+        conda install asv
+        conda install --yes --file requirements.txt
+        conda env export > environment.yml --no-builds
+    - name: Setup with asv
+      run: |
+        pip install -e .
+        asv machine --machine github-actions --yes
+    - name: test with asv
+      run: |
+        asv run -j 8 --interleave-rounds --skip-existing HEAD
+    - name: Upload results to git
+      run: |
+        git config --global user.email "$GIT_AUTHOR_EMAIL"
+        git config --global user.name "$GIT_AUTHOR_NAME"
+        git fetch
+        git switch gh-pages
+        git pull
+        git switch main
+        asv gh-pages --no-push
+        git push origin gh-pages:gh-pages
+      env:
+        GIT_AUTHOR_NAME: ${{ github.actor }}
+        GIT_AUTHOR_EMAIL: ${{ github.actor }}@users.noreply.github.com
+  asvContinuous:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 8
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.9'
+    - name: Add conda to system path
+      run: |
+        echo $CONDA/bin >> $GITHUB_PATH
+    - name: create environment.yml
+      run: |
+        conda install asv
+        pip install scqubits
+        conda env export > environment.yml --no-builds
+    - name: Setup with asv
+      run: |
+        git fetch origin $GITHUB_BASE_REF:base $GITHUB_REF:pr
+        pip install -e .
+        asv machine --machine github-actions --yes
+    - name: asv continuous check
+      run: asv continuous --interleave-processes --only-changed -f 1.25 base pr
