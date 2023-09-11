@@ -4,10 +4,10 @@
     "version": 1,
 
     // The name of the project being benchmarked
-    "project": "project",
+    "project": "scqubits",
 
     // The project's homepage
-    "project_url": "https://github.com/scqubits/scqubits",
+    "project_url": "https://github.com/scqubits/scqubits/",
 
     // The URL or local path of the source code repository for the
     // project being benchmarked
@@ -23,10 +23,7 @@
     //
     // "install_command": ["in-dir={env_dir} python -mpip install {wheel_file}"],
     // "uninstall_command": ["return-code=any python -mpip uninstall -y {project}"],
-    // "build_command": [
-    //     "python setup.py build",
-    //     "PIP_NO_BUILD_ISOLATION=false python -mpip wheel --no-deps --no-index -w {build_cache_dir} {build_dir}"
-    // ],
+    "build_command": ["PIP_NO_BUILD_ISOLATION=false python -mpip wheel --no-deps --no-index -w {build_cache_dir} ."],
 
     // List of branches to benchmark. If not provided, defaults to "master"
     // (for git) or "default" (for mercurial).
@@ -83,17 +80,24 @@
     // during the benchmark phase, but will not trigger creation of
     // new environments.  A value of ``null`` means that the variable
     // will not be set for the current combination.
-    //
-    // "matrix": {
-    //     "req": {
-    //         "numpy": ["1.6", "1.7"],
-    //         "six": ["", null],  // test with and without six installed
-    //         "pip+emcee": [""]   // emcee is only available for install with pip.
-    //     },
-    //     "env": {"ENV_VAR_1": ["val1", "val2"]},
-    //     "env_nobuild": {"ENV_VAR_2": ["val3", null]},
-    // },
-
+    
+     //"matrix": {
+     //   "req": {
+     //       "cycler": [""],
+     //       "pip": [""],
+     //       "cython": [""],
+     //       "matplotlib": [""],
+     //       "numpy": [""],
+     //       "pyyaml": [""],
+     //       "qutip": [""],
+     //       "scipy": [""],
+     //       "sympy": [""],
+     //       "tqdm": [""],
+     //       "typing_extensions": [""],
+     //       "pip+scqubits": ["../scqubits"]
+     //   }
+    //},
+    
     // Combinations of libraries/python versions can be excluded/included
     // from the set to test. Each entry is a dictionary containing additional
     // key-value pairs to include/exclude.
