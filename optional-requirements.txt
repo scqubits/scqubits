@@ -6,3 +6,4 @@ pathos>=0.3.0
 dill
 traitlets
 typing_extensions
+asv
