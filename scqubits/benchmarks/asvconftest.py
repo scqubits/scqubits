@@ -24,14 +24,6 @@ class BaseTest:
 
     qbt = None  # class instance of qubit to be tested
 
-    def time_file_io(self):
-        self.qbt = self.qbt_type.create()
-        #self.qbt.filewrite(self.tmpdir + "test.h5")
-        #qbt_copy = scq.read(self.tmpdir + "test.h5")
-        #assert self.qbt == qbt_copy
-
-
-'''
     def set_tmpdir(self, request):
         """Pytest fixture that provides a temporary directory for writing test files"""
         setattr(self, "tmpdir", request.getfixturevalue("tmpdir"))
@@ -119,8 +111,14 @@ class BaseTest:
             filename=self.tmpdir + "test",
             num_cpus=num_cpus,
         )
-'''
 
+'''
+    def time_file_io(self):
+        self.qbt = self.qbt_type.create()
+        #self.qbt.filewrite(self.tmpdir + "test.h5")
+        #qbt_copy = scq.read(self.tmpdir + "test.h5")
+        #assert self.qbt == qbt_copy
+'''
 
 class StandardTests(BaseTest):
     @classmethod
@@ -133,14 +131,13 @@ class StandardTests(BaseTest):
         cls.param_name = ""
         cls.param_list = None
     
-'''
     def time_hamiltonian_is_hermitian(self, io_type):
         testname = self.file_str + "_1." + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type(**specdata.system_params)
         hamiltonian = self.qbt.hamiltonian()
         assert np.isclose(np.max(np.abs(hamiltonian - hamiltonian.conj().T)), 0.0)
-    
+    '''
     def time_eigenvals(self, io_type):
         testname = self.file_str + "_1." + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
