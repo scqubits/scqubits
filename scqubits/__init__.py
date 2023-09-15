@@ -101,43 +101,11 @@ except ImportError:
         ImportWarning,
     )
 
-# specify public modules
-__all__ = [
-    "settings",
-    "CentralDispatch",
-    "Cos2PhiQubit",
-    "FluxQubit",
-    "Fluxonium",
-    "GenericQubit",
-    "Grid1d",
-    "HilbertSpace",
-    "InteractionTerm",
-    "InteractionTermStr",
-    "KerrOscillator",
-    "Oscillator",
-    "ParameterSweep",
-    "SpectrumData",
-    "Transmon",
-    "TunableTransmon",
-    "ZeroPi",
-    "FullZeroPi",
-    "calc_therm_ratio",
-    "Circuit",
-    "truncation_template",
-    "SymbolicCircuit",
-    "DataStore",
-    "from_standard_units",
-    "get_units",
-    "get_units_time_label",
-    "set_units",
-    "show_supported_units",
-    "to_standard_units",
-    "read",
-    "write",
-    "Explorer",
-    "GUI",
-    "about",
-    "cite",
-    "identity_wrap",
-    "__version__",
-]
+# build a public API list by finding all names not starting with underscore
+import scqubits as _scq
+from scqubits.utils.misc import inspect_public_API as _inspect_public_API
+__all__ = _inspect_public_API(
+    _scq, 
+    public_names = ["__version__",],
+    private_names = ["utils", "ui", "warnings",],
+)
