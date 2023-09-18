@@ -33,20 +33,6 @@ class BaseTest:
     def teardown_class(cls):
         plt.close("all")
 
-    def eigenvals(self, io_type, evals_reference):
-        evals_count = len(evals_reference)
-        evals_tst = self.qbt.eigenvals(
-            evals_count=evals_count, filename=self.tmpdir + "test." + io_type
-        )
-        assert np.allclose(evals_reference, evals_tst)
-
-    def eigenvecs(self, io_type, evecs_reference):
-        evals_count = evecs_reference.shape[1]
-        _, evecs_tst = self.qbt.eigensys(
-            evals_count=evals_count, filename=self.tmpdir + "test." + io_type
-        )
-        assert np.allclose(np.abs(evecs_reference), np.abs(evecs_tst))
-
     def plot_evals_vs_paramvals(self, num_cpus, param_name, param_list):
         self.qbt.plot_evals_vs_paramvals(
             param_name,
@@ -121,27 +107,14 @@ class BaseTest:
 
 class StandardTests(BaseTest):
    
-    def time_hamiltonian_is_hermitian(self, io_type):
-        testname = self.file_str + "_1." + io_type
-        specdata = SpectrumData.create_from_file(DATADIR + testname)
-        self.qbt = self.qbt_type(**specdata.system_params)
-        hamiltonian = self.qbt.hamiltonian()
-        assert np.isclose(np.max(np.abs(hamiltonian - hamiltonian.conj().T)), 0.0)
-    '''
-    def time_eigenvals(self, io_type):
-        testname = self.file_str + "_1." + io_type
-        specdata = SpectrumData.create_from_file(DATADIR + testname)
-        self.qbt = self.qbt_type(**specdata.system_params)
-        evals_reference = specdata.energy_table
-        return self.eigenvals(io_type, evals_reference)
+    def time_eigenvals(self):
+        self.qbt = self.qbt_type.create()
+        return self.qbt.eigenvals()
 
     def time_eigenvecs(self, io_type):
-        testname = self.file_str + "_2." + io_type
-        specdata = SpectrumData.create_from_file(DATADIR + testname)
-        self.qbt = self.qbt_type(**specdata.system_params)
-        evecs_reference = specdata.state_table
-        return self.eigenvecs(io_type, evecs_reference)
-
+        self.qbt = self.qbt_type.create()
+        return self.qbt.eigenvecs()
+    '''
     def time_plot_wavefunction(self, io_type):
         if "plot_wavefunction" not in dir(self.qbt_type):
             pytest.skip("This is expected, no reason for concern.")
@@ -150,28 +123,12 @@ class StandardTests(BaseTest):
         self.qbt = self.qbt_type(**specdata.system_params)
         self.qbt.plot_wavefunction(esys=None, which=5, mode="real")
         self.qbt.plot_wavefunction(esys=None, which=9, mode="abs_sqr")
-
+    
     def time_plot_evals_vs_paramvals(self, num_cpus, io_type):
         testname = self.file_str + "_1." + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type(**specdata.system_params)
         return self.plot_evals_vs_paramvals(num_cpus, self.param_name, self.param_list)
-
-    def time_get_spectrum_vs_paramvals(self, num_cpus, io_type):
-        testname = self.file_str + "_4." + io_type
-        specdata = SpectrumData.create_from_file(DATADIR + testname)
-        self.qbt = self.qbt_type(**specdata.system_params)
-        self.param_list = specdata.param_vals
-        evecs_reference = specdata.state_table
-        evals_reference = specdata.energy_table
-        return self.get_spectrum_vs_paramvals(
-            num_cpus,
-            io_type,
-            self.param_name,
-            self.param_list,
-            evals_reference,
-            evecs_reference,
-        )
 
     def time_matrixelement_table(self, io_type):
         testname = self.file_str + "_5." + io_type
@@ -211,4 +168,4 @@ class StandardTests(BaseTest):
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type(**specdata.system_params)
         self.qbt.plot_potential()
-        '''
+'''

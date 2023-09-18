@@ -21,3 +21,7 @@ class TestTransmon(asvtest.StandardTests):
     def time_plot_n_wavefunction(self):
         self.qbt = Transmon(EJ=1.0, EC=1.0, ng=0.0, ncut=10)
         self.qbt.plot_n_wavefunction(esys=None, which=1, mode="real")
+
+    def time_get_spectrum_vs_paramvals(self):
+        ng_list = np.linspace(-2, 2, 50)
+        return self.qbt.get_spectrum_vs_paramvals('ng', ng_list, evals_count=4, subtract_ground=False, get_eigenstates=True)
