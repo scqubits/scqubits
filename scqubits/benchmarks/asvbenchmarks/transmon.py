@@ -9,7 +9,7 @@ from scqubits import Fluxonium
 class TestQubit:
 
     def time_transmon_get_spectrum_vs_paramvals(self):
-        CPB = Transmon.create()
+        CPB = Fluxonium.create()
         ng_list = np.linspace(-2, 2, 100)
         return CPB.get_spectrum_vs_paramvals('ng', ng_list, evals_count=4, subtract_ground=False, get_eigenstates=True)
     
