@@ -8,7 +8,7 @@ from scqubits.benchmarks.asvconftest import StandardTests
 
 
 class TestTransmon(StandardTests):
-    def setup_class(self):
+    def setup(self):
         self.qbt = None
         self.qbt_type = Transmon
         self.file_str = "transmon"
