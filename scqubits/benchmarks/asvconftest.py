@@ -112,13 +112,11 @@ class BaseTest:
             num_cpus=num_cpus,
         )
 
-'''
     def time_file_io(self):
         self.qbt = self.qbt_type.create()
         #self.qbt.filewrite(self.tmpdir + "test.h5")
         #qbt_copy = scq.read(self.tmpdir + "test.h5")
         #assert self.qbt == qbt_copy
-'''
 
 class StandardTests(BaseTest):
     @classmethod
