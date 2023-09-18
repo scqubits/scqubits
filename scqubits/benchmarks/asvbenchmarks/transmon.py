@@ -4,10 +4,11 @@ from scqubits import Transmon
 import os
 import sys
 
-from scqubits.benchmarks.asvconftest import StandardTests
+# from scqubits.benchmarks.asvconftest import StandardTests
+import scqubits.benchmarks.asvconftest as asvtest
 
 
-class TestTransmon(StandardTests):
+class TestTransmon(asvtest.StandardTests):
     def setup(self):
         self.qbt = None
         self.qbt_type = Transmon
