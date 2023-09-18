@@ -23,6 +23,7 @@ class BaseTest:
     """Used as base class for the pytests of qubit classes"""
 
     qbt = None  # class instance of qubit to be tested
+    qbt_type = None
 
     def set_tmpdir(self, request):
         """Pytest fixture that provides a temporary directory for writing test files"""
@@ -119,16 +120,7 @@ class BaseTest:
         #assert self.qbt == qbt_copy
 
 class StandardTests(BaseTest):
-    @classmethod
-    def setup_class(cls):
-        cls.qbt = None
-        cls.qbt_type = None
-        cls.file_str = ""
-        cls.op1_str = ""
-        cls.op2_str = ""
-        cls.param_name = ""
-        cls.param_list = None
-    
+   
     def time_hamiltonian_is_hermitian(self, io_type):
         testname = self.file_str + "_1." + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
