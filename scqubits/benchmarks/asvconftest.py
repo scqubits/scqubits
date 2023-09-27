@@ -19,6 +19,7 @@ TESTDIR, _ = os.path.split(scqubits.__file__)
 TESTDIR = os.path.join(TESTDIR, "tests", "")  # local scqubits directory holding tests
 DATADIR = os.path.join(TESTDIR, "data", "")  # local data collection within scqubits
 
+
 class BaseTest:
     """Used as base class for the pytests of qubit classes"""
 
@@ -101,12 +102,12 @@ class BaseTest:
 
     def time_file_io(self):
         self.qbt = self.qbt_type.create()
-        #self.qbt.filewrite(self.tmpdir + "test.h5")
-        #qbt_copy = scq.read(self.tmpdir + "test.h5")
-        #assert self.qbt == qbt_copy
+        # self.qbt.filewrite(self.tmpdir + "test.h5")
+        # qbt_copy = scq.read(self.tmpdir + "test.h5")
+        # assert self.qbt == qbt_copy
+
 
 class StandardTests(BaseTest):
-   
     def time_eigenvals(self):
         self.qbt = self.qbt_type.create()
         return self.qbt.eigenvals()
@@ -114,7 +115,8 @@ class StandardTests(BaseTest):
     def time_eigenvecs(self, io_type):
         self.qbt = self.qbt_type.create()
         return self.qbt.eigenvecs()
-    '''
+
+    """
     def time_plot_wavefunction(self, io_type):
         if "plot_wavefunction" not in dir(self.qbt_type):
             pytest.skip("This is expected, no reason for concern.")
@@ -168,4 +170,4 @@ class StandardTests(BaseTest):
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type(**specdata.system_params)
         self.qbt.plot_potential()
-'''
+"""
