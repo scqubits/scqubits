@@ -107,5 +107,5 @@ from scqubits.utils.misc import inspect_public_API as _inspect_public_API
 __all__ = _inspect_public_API(
     _scq, 
     public_names = ["__version__",],
-    private_names = ["utils", "ui", "warnings",],
+    private_names = ["utils", "ui", "warnings", "io_utils", "version"],
 )
