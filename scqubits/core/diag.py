@@ -657,9 +657,8 @@ def esys_jax_dense(
 
     evals, evecs = jax.scipy.linalg.eigh(m, eigvals_only=False, **kwargs)
 
-    # We explicitly cast to numpy arrays 
-    evals, evecs = np.asarray(evals), np.asarray(evcs)
-
+    # We explicitly cast to numpy arrays
+    evals, evecs = np.asarray(evals), np.asarray(evecs)
 
     evecs = (
         _convert_evecs_to_qobjs(evecs, matrix) if isinstance(matrix, Qobj) else evecs
