@@ -449,6 +449,7 @@ def check_matplotlib_compatibility():
             UserWarning,
         )
 
+
 def inspect_public_API(
     module: Any,
     public_names: List[str] = [],
@@ -467,18 +468,10 @@ def inspect_public_API(
         Names that should be excluded from the public API
     """
     for name, obj in inspect.getmembers(module):
-        if (
-            name.startswith("_") 
-            or name in public_names 
-            or name in private_names
-        ):
+        if name.startswith("_") or name in public_names or name in private_names:
             continue
 
-        if (
-            inspect.isclass(obj) 
-            or inspect.isfunction(obj) 
-            or inspect.ismodule(obj)
-        ):
+        if inspect.isclass(obj) or inspect.isfunction(obj) or inspect.ismodule(obj):
             public_names.append(name)
         elif not callable(obj) and name.isupper():  # constants
             public_names.append(name)

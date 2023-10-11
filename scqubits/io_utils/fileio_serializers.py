@@ -38,6 +38,7 @@ SERIALIZABLE_REGISTRY = {}
 # annotate the types will inherit from Serializable
 SerializableType = TypeVar("SerializableType", bound="Serializable")
 
+
 @runtime_checkable
 class Serializable(Protocol):
     """Mix-in class that makes descendant classes serializable."""

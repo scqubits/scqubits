@@ -368,14 +368,14 @@ class HilbertSpace(
         (optional) typically, interaction terms are added one by one by means of the
         `add_interaction` method. Alternatively, a list of interaction term objects
         can be supplied here upon initialization of a `HilbertSpace` instance.
-    esys_method: 
-        method for esys diagonalization, callable or string representation 
-    esys_method_options: 
-        dictionary with esys diagonalization options 
-    evals_method: 
-        method for evals diagonalization, callable or string representation 
-    evals_method_options: 
-        dictionary with evals diagonalization options 
+    esys_method:
+        method for esys diagonalization, callable or string representation
+    esys_method_options:
+        dictionary with esys diagonalization options
+    evals_method:
+        method for evals diagonalization, callable or string representation
+    evals_method_options:
+        dictionary with evals diagonalization options
     """
 
     _lookup_exists = False
@@ -1029,7 +1029,9 @@ class HilbertSpace(
 
     def op_in_dressed_eigenbasis(
         self,
-        op_callable_or_tuple: Union[Tuple[Union[np.ndarray, csc_matrix], QuantumSys], Callable],
+        op_callable_or_tuple: Union[
+            Tuple[Union[np.ndarray, csc_matrix], QuantumSys], Callable
+        ],
         truncated_dim: Optional[int] = None,
         **kwargs,
     ) -> Qobj:
