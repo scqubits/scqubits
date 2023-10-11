@@ -10,7 +10,8 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, Callable
+
 
 import numpy as np
 
@@ -100,6 +101,14 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
     id_str:
         optional string by which this instance can be referred to in `HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
+    esys_method: 
+        method for esys diagonalization, callable or string representation 
+    esys_method_options: 
+        dictionary with esys diagonalization options 
+    evals_method: 
+        method for evals diagonalization, callable or string representation 
+    evals_method_options: 
+        dictionary with evals diagonalization options 
     """
     EJ = descriptors.WatchedProperty(
         float, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
@@ -162,6 +171,10 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         ECS: float = None,
         truncated_dim: int = 6,
         id_str: Optional[str] = None,
+        evals_method: Union[Callable, str, None] = None,
+        evals_method_options: Union[dict, None] = None,
+        esys_method: Union[Callable, str, None] = None,
+        esys_method_options: Union[dict, None] = None,
     ) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
         self._zeropi = scqubits.ZeroPi(
@@ -179,6 +192,10 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             # the zeropi_cutoff defines the truncated_dim of the "base" zeropi object
             truncated_dim=zeropi_cutoff,
             id_str=self._id_str + " [interior ZeroPi]",
+            evals_method=evals_method,
+            evals_method_options=evals_method_options,
+            esys_method=esys_method,
+            esys_method_options=esys_method_options,
         )
         self.dC = dC
         self.dEL = dEL
@@ -187,13 +204,6 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         self._init_params.remove(
             "ECS"
         )  # used for file IO Serializable purposes; remove ECS as init parameter
-
-        # This class does not yet support custom diagonalization options, but these
-        # still have to be defined
-        self.evals_method = None
-        self.evals_method_options = None
-        self.esys_method = None
-        self.esys_method_options = None
 
         dispatch.CENTRAL_DISPATCH.register("GRID_UPDATE", self)
 
@@ -290,6 +300,38 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             "Cannot directly set `E_zeta`. Instead one can set its value through `EL`"
             " or `EC`."
         )
+
+    @property
+    def esys_method(self) -> Union[Callable, str, None]:
+        return self._zeropi.esys_method
+
+    @esys_method.setter
+    def esys_method(self, value: Union[Callable, str, None] = None) -> None:
+        self._zeropi.esys_method = value
+
+    @property
+    def esys_method_options(self) -> Union[dict, None]:
+        return self._zeropi.esys_method_options
+
+    @esys_method_options.setter
+    def esys_method_options(self, value: Union[dict, None] = None) -> None:
+        self._zeropi.esys_merthod_options = value
+
+    @property
+    def evals_method(self) -> Union[Callable, str, None]:
+        return self._zeropi.evals_method
+
+    @evals_method.setter
+    def evals_method(self, value: Union[Callable, str, None] = None) -> None:
+        self._zeropi.evals_method = value
+
+    @property
+    def evals_method_options(self) -> Union[dict, None]:
+        return self._zeropi.evals_method_options
+
+    @evals_method_options.setter
+    def evals_method_options(self, value: Union[dict, None] = None) -> None:
+        self._zeropi.evals_merthod_options = value
 
     def hamiltonian(
         self,
