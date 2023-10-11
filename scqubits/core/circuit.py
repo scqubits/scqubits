@@ -122,15 +122,20 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         system_hierarchy: Optional[List] = None,
         subsystem_trunc_dims: Optional[List] = None,
         truncated_dim: Optional[int] = 10,
+        evals_method: Union[Callable, str, None] = None,
+        evals_method_options: Union[dict, None] = None,
+        esys_method: Union[Callable, str, None] = None,
+        esys_method_options: Union[dict, None] = None,
     ):
-        base.QuantumSystem.__init__(self, id_str=None)
-
-        # This class does not yet support custom diagonalization options, but these
-        # still have to be defined
-        self.evals_method = None
-        self.evals_method_options = None
-        self.esys_method = None
-        self.esys_method_options = None
+        # base.QuantumSystem.__init__(self, id_str=None)
+        base.QubitBaseClass.__init__(
+            self,
+            id_str=None,
+            evals_method=evals_method,
+            evals_method_options=evals_method_options,
+            esys_method=esys_method,
+            esys_method_options=esys_method_options,
+        )
 
         self.system_hierarchy = system_hierarchy
         self.truncated_dim = truncated_dim
@@ -671,6 +676,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                         subsystem_trunc_dims=self.subsystem_trunc_dims[index][1]
                         if type(self.subsystem_trunc_dims[index]) == list
                         else None,
+                        evals_method=self.evals_method,
+                        evals_method_options=self.evals_method_options,
+                        esys_method=self.esys_method,
+                        esys_method_options=self.esys_method_options,
                     )
                     for index in range(len(self.system_hierarchy))
                 ],
@@ -2898,8 +2907,21 @@ class Circuit(Subsystem):
         ext_basis: str = "discretized",
         initiate_sym_calc: bool = True,
         truncated_dim: int = None,
+        evals_method: Union[Callable, str, None] = None,
+        evals_method_options: Union[dict, None] = None,
+        esys_method: Union[Callable, str, None] = None,
+        esys_method_options: Union[dict, None] = None,
     ):
-        base.QuantumSystem.__init__(self, id_str=None)
+        # base.QuantumSystem.__init__(self, id_str=None)
+        base.QubitBaseClass.__init__(
+            self,
+            id_str=None,
+            evals_method=evals_method,
+            evals_method_options=evals_method_options,
+            esys_method=esys_method,
+            esys_method_options=esys_method_options,
+        )
+
         if basis_completion not in ["heuristic", "canonical"]:
             raise Exception(
                 "Invalid choice for basis_completion: must be 'heuristic' or "
@@ -2912,13 +2934,6 @@ class Circuit(Subsystem):
             basis_completion=basis_completion,
             initiate_sym_calc=True,
         )
-
-        # This class does not yet support custom diagonalization options, but these
-        # still have to be defined
-        self.evals_method = None
-        self.evals_method_options = None
-        self.esys_method = None
-        self.esys_method_options = None
 
         sm.init_printing(pretty_print=False, order="none")
         self.is_child = False
@@ -3012,6 +3027,10 @@ class Circuit(Subsystem):
         ext_basis: str = "discretized",
         initiate_sym_calc: bool = True,
         truncated_dim: int = None,
+        evals_method: Union[Callable, str, None] = None,
+        evals_method_options: Union[dict, None] = None,
+        esys_method: Union[Callable, str, None] = None,
+        esys_method_options: Union[dict, None] = None,
     ):
         """
         Wrapper to Circuit __init__ to create a class instance. This is deprecated and
@@ -3053,6 +3072,10 @@ class Circuit(Subsystem):
             ext_basis=ext_basis,
             initiate_sym_calc=initiate_sym_calc,
             truncated_dim=truncated_dim,
+            evals_method=evals_method,
+            evals_method_options=evals_method_options,
+            esys_method=esys_method,
+            esys_method_options=esys_method_options,
         )
 
     def dict_for_serialization(self):

@@ -368,6 +368,14 @@ class HilbertSpace(
         (optional) typically, interaction terms are added one by one by means of the
         `add_interaction` method. Alternatively, a list of interaction term objects
         can be supplied here upon initialization of a `HilbertSpace` instance.
+    esys_method: 
+        method for esys diagonalization, callable or string representation 
+    esys_method_options: 
+        dictionary with esys diagonalization options 
+    evals_method: 
+        method for evals diagonalization, callable or string representation 
+    evals_method_options: 
+        dictionary with evals diagonalization options 
     """
 
     _lookup_exists = False
@@ -382,10 +390,10 @@ class HilbertSpace(
         subsystem_list: List[QuantumSys],
         interaction_list: List[Union[InteractionTerm, InteractionTermStr]] = None,
         ignore_low_overlap: bool = False,
-        evals_method: Optional[str] = None,
-        evals_method_options: Optional[dict] = None,
-        esys_method: Optional[str] = None,
-        esys_method_options: Optional[dict] = None,
+        evals_method: Union[Callable, str, None] = None,
+        evals_method_options: Union[dict, None] = None,
+        esys_method: Union[Callable, str, None] = None,
+        esys_method_options: Union[dict, None] = None,
     ) -> None:
         if has_duplicate_id_str(subsystem_list):
             raise ValueError(

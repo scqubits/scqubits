@@ -1249,7 +1249,7 @@ class NoisySystem(ABC):
         :math:`T_1` due to dielectric dissipation in the Josephson junction
         capacitances.
 
-        References:  Nguyen et al (2019), Smith et al (2020)
+        References: Smith et al (2020), see also Nguyen et al (2019).
 
         Parameters
         ----------
@@ -1488,7 +1488,7 @@ class NoisySystem(ABC):
         r"""
         :math:`T_1` due to inductive dissipation in a superinductor.
 
-        References: Nguyen et al (2019), Smith et al (2020)
+        References: Smith et al (2020), see also Nguyen et al (2019).
 
         Parameters
         ----------

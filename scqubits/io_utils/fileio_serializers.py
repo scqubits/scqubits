@@ -18,7 +18,7 @@ import inspect
 from abc import ABCMeta
 from collections import OrderedDict
 from numbers import Number
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Tuple, Union, TypeVar, Type
 
 import numpy as np
 
@@ -35,6 +35,8 @@ if TYPE_CHECKING:
 
 SERIALIZABLE_REGISTRY = {}
 
+# annotate the types will inherit from Serializable
+SerializableType = TypeVar("SerializableType", bound="Serializable")
 
 @runtime_checkable
 class Serializable(Protocol):
@@ -42,7 +44,7 @@ class Serializable(Protocol):
 
     _subclasses: List[ABCMeta] = []
 
-    def __new__(cls: Any, *args, **kwargs) -> "Serializable":
+    def __new__(cls: Type[SerializableType], *args, **kwargs) -> SerializableType:
         """Modified `__new__` to set up `cls._init_params`. The latter is used to
         record which of the `__init__` parameters are to be stored/read in file IO."""
         cls._init_params = get_init_params(cls)
@@ -57,7 +59,7 @@ class Serializable(Protocol):
             SERIALIZABLE_REGISTRY[cls.__name__] = cls
 
     @classmethod
-    def deserialize(cls, io_data: "IOData") -> "Serializable":
+    def deserialize(cls: Type[SerializableType], io_data: "IOData") -> SerializableType:
         """
         Take the given IOData and return an instance of the described class,
         initialized with the data stored in io_data.
