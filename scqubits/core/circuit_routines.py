@@ -1120,7 +1120,7 @@ class CircuitRoutines(ABC):
 
     # helper functions
     def _kron_operator(
-        self, operator: Union[csc_matrix, ndarray], index: int
+        self, operator: Union[csc_matrix, ndarray], var_index: int
     ) -> Union[csc_matrix, ndarray]:
         """
         Identity wraps the operator with identities generated for all the other variable
@@ -1140,6 +1140,7 @@ class CircuitRoutines(ABC):
         var_index_list = (
             self.var_categories["periodic"] + self.var_categories["extended"]
         )
+        var_index_pos = var_index_list.index(var_index)
 
         cutoff_names = np.fromiter(self._collect_cutoff_values(), dtype=int)  # [
 
@@ -1149,20 +1150,20 @@ class CircuitRoutines(ABC):
             matrix_format = "csc"
 
         if len(var_index_list) > 1:
-            if index > var_index_list[0]:
+            if var_index_pos > 0:
                 identity_left = sparse.identity(
-                    np.prod(cutoff_names[: var_index_list.index(index)]),
+                    np.prod(cutoff_names[: var_index_list.index(var_index)]),
                     format=matrix_format,
                 )
-            if index < var_index_list[-1]:
+            if var_index_pos < len(var_index_list) - 1:
                 identity_right = sparse.identity(
-                    np.prod(cutoff_names[var_index_list.index(index) + 1 :]),
+                    np.prod(cutoff_names[var_index_list.index(var_index) + 1 :]),
                     format=matrix_format,
                 )
 
-            if index == var_index_list[0]:
+            if var_index == var_index_list[0]:
                 return sparse.kron(operator, identity_right, format=matrix_format)
-            elif index == var_index_list[-1]:
+            elif var_index == var_index_list[-1]:
                 return sparse.kron(identity_left, operator, format=matrix_format)
             else:
                 return sparse.kron(
