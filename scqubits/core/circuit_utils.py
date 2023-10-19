@@ -65,13 +65,22 @@ def sawtooth_operator(x: Union[ndarray, csc_matrix]):
     return operator.tocsc()
     
     
-def sawtooth_potential(x: float) -> float:
-    """
-    Is the function which returns the potential of a sawtooth junction, 
-    i.e. a junction with a sawtooth current phase relationship, only in the discretized phi basis.
-    """
-    x_rel = (x - np.pi) % (2*np.pi) - np.pi
-    return (x_rel)**2/(np.pi)**2 # normalized to have a maximum of 1
+# def sawtooth_potential(x: float) -> float:
+#     """
+#     Is the function which returns the potential of a sawtooth junction, 
+#     i.e. a junction with a sawtooth current phase relationship, only in the discretized phi basis.
+#     """
+#     x_rel = (x - np.pi) % (2*np.pi) - np.pi
+#     return (x_rel)**2/(np.pi)**2 # normalized to have a maximum of 1
+
+def sawtooth_potential(phi_pts):
+    # definition from Andras
+    skewness=0.99
+    N = 1000
+    V = np.zeros_like(phi_pts)
+    for idx in range(1, N+1):
+        V += (skewness + 1) * (-skewness)**(idx-1) * np.cos(idx * phi_pts)/idx**2
+    return -V
 
 
 def _capactiance_variable_for_branch(branch_type: str):
