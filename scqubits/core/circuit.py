@@ -121,6 +121,7 @@ class Subsystem(
 
         self.junction_potential = None
         self._H_LC_str_harmonic = None
+        self._set_manual_ext_basis = parent._set_manual_ext_basis if hasattr(parent, "_set_manual_ext_basis") else None
 
         self._make_property(
             "ext_basis", getattr(self.parent, "ext_basis"), "update_ext_basis"
@@ -238,7 +239,7 @@ class Subsystem(
                 cutoff_str, getattr(self.parent, cutoff_str), "update_cutoffs"
             )
         # if subsystem hamiltonian is purely harmonic
-        if self._is_expression_purely_harmonic(self.hamiltonian_symbolic):
+        if self._is_expression_purely_harmonic(self.hamiltonian_symbolic) and not self._set_manual_ext_basis:
             self.is_purely_harmonic = True
             self._ext_basis = (
                 "harmonic"  # using harmonic oscillator basis for purely harmonic
@@ -847,8 +848,7 @@ class Circuit(
                 self.ext_basis = "harmonic"
 
         # initiating the class properties
-        if not hasattr(self, "cutoff_names"):
-            self.cutoff_names = []
+        self.cutoff_names = []
         for var_type in self.var_categories.keys():
             if var_type == "periodic":
                 for idx, var_index in enumerate(self.var_categories["periodic"]):
@@ -856,14 +856,14 @@ class Circuit(
                         self._make_property(
                             f"cutoff_n_{var_index}", 5, "update_cutoffs"
                         )
-                        self.cutoff_names.append(f"cutoff_n_{var_index}")
+                    self.cutoff_names.append(f"cutoff_n_{var_index}")
             if var_type == "extended":
                 for idx, var_index in enumerate(self.var_categories["extended"]):
                     if not hasattr(self, f"_cutoff_ext_{var_index}"):
                         self._make_property(
                             f"cutoff_ext_{var_index}", 30, "update_cutoffs"
                         )
-                        self.cutoff_names.append(f"cutoff_ext_{var_index}")
+                    self.cutoff_names.append(f"cutoff_ext_{var_index}")
 
         self.var_categories_list = flatten_list(list(self.var_categories.values()))
 
@@ -1014,8 +1014,7 @@ class Circuit(
                 self.ext_basis = "harmonic"
 
         # initiating the class properties
-        if not hasattr(self, "cutoff_names"):
-            self.cutoff_names = []
+        self.cutoff_names = []
         for var_type in self.var_categories.keys():
             if var_type == "periodic":
                 for idx, var_index in enumerate(self.var_categories["periodic"]):
@@ -1023,14 +1022,14 @@ class Circuit(
                         self._make_property(
                             f"cutoff_n_{var_index}", 5, "update_cutoffs"
                         )
-                        self.cutoff_names.append(f"cutoff_n_{var_index}")
+                    self.cutoff_names.append(f"cutoff_n_{var_index}")
             if var_type == "extended":
                 for idx, var_index in enumerate(self.var_categories["extended"]):
                     if not hasattr(self, f"_cutoff_ext_{var_index}"):
                         self._make_property(
                             f"cutoff_ext_{var_index}", 30, "update_cutoffs"
                         )
-                        self.cutoff_names.append(f"cutoff_ext_{var_index}")
+                    self.cutoff_names.append(f"cutoff_ext_{var_index}")
 
         self.var_categories_list = flatten_list(list(self.var_categories.values()))
 
