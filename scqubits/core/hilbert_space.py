@@ -415,7 +415,10 @@ class HilbertSpace(
         }
 
         self._osc_subsys_list = [
-            subsys for subsys in self if isinstance(subsys, osc.Oscillator) or (hasattr(subsys, "is_purely_harmonic") and subsys.is_purely_harmonic)
+            subsys
+            for subsys in self
+            if isinstance(subsys, osc.Oscillator)
+            or (hasattr(subsys, "is_purely_harmonic") and subsys.is_purely_harmonic)
         ]
         self._qbt_subsys_list = [
             subsys for subsys in self if subsys not in self._osc_subsys_list
