@@ -999,11 +999,14 @@ class SymbolicCircuit(serializers.Serializable):
             "extended": [],
             "free": [],
             "frozen": [],
+            "sigma": [],
         }
-
+        sigma_mode_found = False
         for x, mode in enumerate(user_given_modes):
             # calculate the number of periodic modes
             if self._mode_in_subspace(Σ, [mode]) and not self.is_grounded:
+                sigma_mode_found = True
+                var_categories_user["sigma"].append(x + 1)
                 continue
 
             if self._mode_in_subspace(mode, frozen_modes):
@@ -1037,6 +1040,11 @@ class SymbolicCircuit(serializers.Serializable):
                     + str(num_extra_modes)
                     + "\n"
                 )
+        if not self.is_grounded and not sigma_mode_found:
+            raise Exception(
+                "This circuit is not grounded, and so has a sigma mode. This transformation does not have a sigma mode."
+            )
+        print(var_categories_user)
 
         return var_categories_user
 
@@ -1178,6 +1186,7 @@ class SymbolicCircuit(serializers.Serializable):
             "frozen": [
                 i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_frozen
             ],
+            "sigma": pos_Σ,
         }
 
         return np.array(new_basis), var_categories
@@ -1200,7 +1209,11 @@ class SymbolicCircuit(serializers.Serializable):
     def _junction_terms(self):
         terms = 0
         # looping over all the junction terms
-        junction_branches = [branch for branch in self.branches if "JJ" in branch.type and "JJs" not in branch.type]
+        junction_branches = [
+            branch
+            for branch in self.branches
+            if "JJ" in branch.type and "JJs" not in branch.type
+        ]
         junction_branch_order = [
             _junction_order(branch.type) for branch in junction_branches
         ]
@@ -1241,14 +1254,13 @@ class SymbolicCircuit(serializers.Serializable):
                         )
                     )
         return terms
-    
+
     def _JJs_terms(self):
-        """To add terms for the sawtooth josephson junction
-        """
+        """To add terms for the sawtooth josephson junction"""
         terms = 0
         # looping over all the junction terms
         junction_branches = [branch for branch in self.branches if "JJs" in branch.type]
-        
+
         # defining a function for sawtooth
         saw = sympy.Function("saw", real=True)
 
@@ -1927,7 +1939,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         inductor_terms_φ = self._inductor_terms()
 
-        JJ_terms_φ = self._junction_terms()   + self._JJs_terms()
+        JJ_terms_φ = self._junction_terms() + self._JJs_terms()
 
         lagrangian_φ = C_terms_φ - inductor_terms_φ - JJ_terms_φ
 
@@ -1967,44 +1979,41 @@ class SymbolicCircuit(serializers.Serializable):
 
         transformation_matrix = self.transformation_matrix
 
-        # Excluding the frozen modes based on how they are organized in the method
-        # variable_transformation_matrix
-        if self.is_grounded:
-            num_frozen_modes = len(self.var_categories["frozen"])
-        else:
-            num_frozen_modes = len(self.var_categories["frozen"]) + 1
-        num_nodes = len(self._node_list_without_ground)
-
         # generating the C_mat_θ by inverting the capacitance matrix
         if self.is_any_branch_parameter_symbolic() and not substitute_params:
             C_mat_θ = (
                 transformation_matrix.T
                 * self._capacitance_matrix()
                 * transformation_matrix
-            )[
-                0 : num_nodes - num_frozen_modes,
-                0 : num_nodes - num_frozen_modes,
-            ].inv()  # excluding the frozen modes
+            )
+            for frozen_idx in (
+                self.var_categories["frozen"] + self.var_categories["sigma"]
+            ):
+                C_mat_θ.row_del(frozen_idx - 1)
+                C_mat_θ.col_del(frozen_idx - 1)  # excluding the frozen modes
+            C_mat_θ = C_mat_θ.inv()
         else:
-            C_mat_θ = np.linalg.inv(
-                (
-                    transformation_matrix.T
-                    @ self._capacitance_matrix(substitute_params=substitute_params)
-                    @ transformation_matrix
-                )[
-                    0 : num_nodes - num_frozen_modes,
-                    0 : num_nodes - num_frozen_modes,
-                ]
-            )  # excluding the frozen modes
+            C_mat_θ = (
+                transformation_matrix.T
+                @ self._capacitance_matrix(substitute_params=substitute_params)
+                @ transformation_matrix
+            )
+            for frozen_idx in (
+                self.var_categories["frozen"] + self.var_categories["sigma"]
+            ):
+                C_mat_θ = np.delete(C_mat_θ, frozen_idx - 1, axis=0)
+                C_mat_θ = np.delete(
+                    C_mat_θ, frozen_idx - 1, axis=1
+                )  # excluding the frozen modes
+            C_mat_θ = np.linalg.inv(C_mat_θ)
 
         p_θ_vars = [
-            symbols(f"Q{i}") if i not in self.var_categories["free"]
+            symbols(f"Q{i}")
+            for i in self.var_categories["periodic"] + self.var_categories["extended"]
             # replacing the free charge with 0, as it would not affect the circuit
             # Lagrangian.
-            else 0
-            for i in range(
-                1, len(self._node_list_without_ground) + 1 - num_frozen_modes
-            )
+        ] + [
+            0 for i in self.var_categories["free"]
         ]  # defining the momentum variables
 
         # generating the kinetic energy terms for the Hamiltonian
