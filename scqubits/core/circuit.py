@@ -121,7 +121,11 @@ class Subsystem(
 
         self.junction_potential = None
         self._H_LC_str_harmonic = None
-        self._set_manual_ext_basis = parent._set_manual_ext_basis if hasattr(parent, "_set_manual_ext_basis") else None
+        self._set_manual_ext_basis = (
+            parent._set_manual_ext_basis
+            if hasattr(parent, "_set_manual_ext_basis")
+            else None
+        )
 
         self._make_property(
             "ext_basis", getattr(self.parent, "ext_basis"), "update_ext_basis"
@@ -239,7 +243,10 @@ class Subsystem(
                 cutoff_str, getattr(self.parent, cutoff_str), "update_cutoffs"
             )
         # if subsystem hamiltonian is purely harmonic
-        if self._is_expression_purely_harmonic(self.hamiltonian_symbolic) and not self._set_manual_ext_basis:
+        if (
+            self._is_expression_purely_harmonic(self.hamiltonian_symbolic)
+            and not self._set_manual_ext_basis
+        ):
             self.is_purely_harmonic = True
             self._ext_basis = (
                 "harmonic"  # using harmonic oscillator basis for purely harmonic
@@ -485,6 +492,7 @@ class Circuit(
         self.symbolic_circuit: SymbolicCircuit = symbolic_circuit
 
         self._make_property("ext_basis", ext_basis, "update_ext_basis")
+        self.hierarchical_diagonalization: bool = False
         self.truncated_dim: int = truncated_dim
         self.system_hierarchy: list = None
         self.subsystem_trunc_dims: list = None
@@ -964,9 +972,17 @@ class Circuit(
         """
         self._frozen = False
 
+        # reinitiate the symbolic circuit when the transformation matrix and closure branches are provided
+        if transformation_matrix is not None or closure_branches is not None:
+            self.symbolic_circuit.configure(
+                transformation_matrix=transformation_matrix,
+                closure_branches=closure_branches,
+            )
+
         system_hierarchy = system_hierarchy or self.system_hierarchy
         subsystem_trunc_dims = subsystem_trunc_dims or self.subsystem_trunc_dims
         closure_branches = closure_branches or self.closure_branches
+
         if transformation_matrix is None:
             if hasattr(
                 self, "transformation_matrix"
@@ -975,11 +991,6 @@ class Circuit(
 
         self.hierarchical_diagonalization = (
             True if system_hierarchy is not None else False
-        )
-
-        self.symbolic_circuit.configure(
-            transformation_matrix=transformation_matrix,
-            closure_branches=closure_branches,
         )
 
         # copying all the required attributes
@@ -1004,14 +1015,6 @@ class Circuit(
         ]
         for attr in required_attributes:
             setattr(self, attr, getattr(self.symbolic_circuit, attr))
-
-        if self.is_purely_harmonic:
-            self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
-            if self.ext_basis != "harmonic":
-                warnings.warn(
-                    "Purely harmonic circuits need ext_basis to be set to 'harmonic'"
-                )
-                self.ext_basis = "harmonic"
 
         # initiating the class properties
         self.cutoff_names = []
@@ -1058,7 +1061,7 @@ class Circuit(
 
         # changing the matrix type if necessary
         if (
-            len(flatten_list(self.var_categories.values())) == 1
+            len((self.var_categories["extended"] + self.var_categories["periodic"])) == 1
             and self.ext_basis == "harmonic"
         ):
             self.type_of_matrices = "dense"
@@ -1081,6 +1084,14 @@ class Circuit(
             self.hierarchical_diagonalization = (
                 system_hierarchy != [] and number_of_lists_in_list(system_hierarchy) > 0
             )
+        
+        if self.is_purely_harmonic:
+            self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
+            if self.ext_basis != "harmonic":
+                warnings.warn(
+                    "Purely harmonic circuits need ext_basis to be set to 'harmonic'"
+                )
+                self.ext_basis = "harmonic"
 
         if not self.hierarchical_diagonalization:
             self.generate_hamiltonian_sym_for_numerics()
