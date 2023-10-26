@@ -1044,7 +1044,6 @@ class SymbolicCircuit(serializers.Serializable):
             raise Exception(
                 "This circuit is not grounded, and so has a sigma mode. This transformation does not have a sigma mode."
             )
-        print(var_categories_user)
 
         return var_categories_user
 

@@ -1061,7 +1061,8 @@ class Circuit(
 
         # changing the matrix type if necessary
         if (
-            len((self.var_categories["extended"] + self.var_categories["periodic"])) == 1
+            len((self.var_categories["extended"] + self.var_categories["periodic"]))
+            == 1
             and self.ext_basis == "harmonic"
         ):
             self.type_of_matrices = "dense"
@@ -1084,7 +1085,7 @@ class Circuit(
             self.hierarchical_diagonalization = (
                 system_hierarchy != [] and number_of_lists_in_list(system_hierarchy) > 0
             )
-        
+
         if self.is_purely_harmonic:
             self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
             if self.ext_basis != "harmonic":

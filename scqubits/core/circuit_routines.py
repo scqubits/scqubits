@@ -1941,7 +1941,8 @@ class CircuitRoutines(ABC):
         """
         # update the circuit if necessary
         if (not hasattr(self, "parent") and self._user_changed_parameter) or (
-            self.hierarchical_diagonalization and self._out_of_sync
+            self.hierarchical_diagonalization
+            and (self._out_of_sync or len(self.affected_subsystem_indices) > 0)
         ):
             self.update()
 
