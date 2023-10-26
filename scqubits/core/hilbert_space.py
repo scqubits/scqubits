@@ -34,7 +34,7 @@ import numpy as np
 import qutip as qt
 
 from numpy import ndarray
-from qutip.qobj import Qobj
+from qutip import Qobj
 from scipy.sparse import csc_matrix, dia_matrix
 
 import scqubits.core.central_dispatch as dispatch
