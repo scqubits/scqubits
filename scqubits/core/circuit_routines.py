@@ -2480,7 +2480,7 @@ class CircuitRoutines(ABC):
                     [
                         (symbol, 1)
                         for symbol in self.external_fluxes
-                        + self.offset_charges
+                        + self.offset_charges + list(self.symbolic_params.keys())
                         + [sm.symbols("I")]
                     ]
                 )
