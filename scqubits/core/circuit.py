@@ -66,6 +66,8 @@ class Subsystem(
     ----------
     parent: Subsystem
         the instance under which the new subsystem is defined.
+    ext_basis: str
+        The basis that should be used for extended variables
     hamiltonian_symbolic: sm.Expr
         The symbolic expression which defines the Hamiltonian for the new subsystem
     system_hierarchy: Optional[List], optional
@@ -83,6 +85,7 @@ class Subsystem(
         self,
         parent: "Subsystem",
         hamiltonian_symbolic: sm.Expr,
+        ext_basis: str,
         system_hierarchy: Optional[List] = None,
         subsystem_trunc_dims: Optional[List] = None,
         truncated_dim: Optional[int] = 10,
@@ -127,9 +130,7 @@ class Subsystem(
             else None
         )
 
-        self._make_property(
-            "ext_basis", getattr(self.parent, "ext_basis"), "update_ext_basis"
-        )
+        self._make_property("ext_basis", ext_basis, "update_ext_basis")
         self.external_fluxes = [
             var
             for var in self.parent.external_fluxes
@@ -245,12 +246,9 @@ class Subsystem(
         # if subsystem hamiltonian is purely harmonic
         if (
             self._is_expression_purely_harmonic(self.hamiltonian_symbolic)
-            and not self._set_manual_ext_basis
+            and self.ext_basis == "harmonic"
         ):
             self.is_purely_harmonic = True
-            self._ext_basis = (
-                "harmonic"  # using harmonic oscillator basis for purely harmonic
-            )
             self._diagonalize_purely_harmonic_hamiltonian()
         else:
             self.is_purely_harmonic = False
@@ -266,21 +264,19 @@ class Subsystem(
                 [var_idx - 1 for var_idx in self.var_categories["extended"]]
             ]
 
-        self._set_vars()
-
-        self.generate_hamiltonian_sym_for_numerics()
-
         if self.hierarchical_diagonalization:
             # attribute to note updated subsystem indices
             self.affected_subsystem_indices = []
-
             self.generate_subsystems()
+            self._ext_basis = self.get_ext_basis()
             self.update_interactions()
             self._check_truncation_indices()
-            self.operators_by_name = self.set_operators()
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
         else:
-            self.operators_by_name = self.set_operators()
+            self.generate_hamiltonian_sym_for_numerics()
+
+        self._set_vars()
+        self.operators_by_name = self.set_operators()
 
         if self.hierarchical_diagonalization:
             self._out_of_sync = False  # for use with CentralDispatch
@@ -542,33 +538,6 @@ class Circuit(
             self.configure()
         self._frozen = True
         dispatch.CENTRAL_DISPATCH.register("CIRCUIT_UPDATE", self)
-
-    def set_discretized_phi_range(
-        self, var_indices: Tuple[int], phi_range: Tuple[float]
-    ) -> None:
-        """
-        Sets the flux range for discretized phi basis when ext_basis is set to
-        'discretized'.
-
-        Parameters
-        ----------
-        var_indices:
-            list of var_indices whose range needs to be changed
-        phi_range:
-            The desired range for each of the discretized phi variables
-        """
-        if self.ext_basis != "discretized":
-            raise Exception(
-                "Discretized phi range is only used when ext_basis is set to "
-                "'discretized'."
-            )
-        for var_index in var_indices:
-            if var_index not in self.var_categories["extended"]:
-                raise Exception(
-                    f"Variable with index {var_index} is not an extended variable."
-                )
-            self.discretized_phi_range[var_index] = phi_range
-        self.operators_by_name = self.set_operators()
 
     def dict_for_serialization(self):
         # setting the __init__params attribute
@@ -1067,8 +1036,6 @@ class Circuit(
         ):
             self.type_of_matrices = "dense"
 
-        self._set_vars()  # setting the attribute vars to store operator symbols
-
         if (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES:
             self.hamiltonian_symbolic = (
                 self.symbolic_circuit.generate_symbolic_hamiltonian(
@@ -1096,7 +1063,6 @@ class Circuit(
 
         if not self.hierarchical_diagonalization:
             self.generate_hamiltonian_sym_for_numerics()
-            self.operators_by_name = self.set_operators()
         else:
             # list for updating necessary subsystems when calling build hilbertspace
             self.affected_subsystem_indices = []
@@ -1111,10 +1077,13 @@ class Circuit(
             self.subsystem_trunc_dims = subsystem_trunc_dims
             self.generate_hamiltonian_sym_for_numerics()
             self.generate_subsystems()
+            self._ext_basis = self.get_ext_basis()
             self.update_interactions()
             self._check_truncation_indices()
-            self.operators_by_name = self.set_operators()
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
+
+        self._set_vars()  # setting the attribute vars to store operator symbols
+        self.operators_by_name = self.set_operators()
         # clear unnecessary attribs
         self._clear_unnecessary_attribs()
         self._frozen = True

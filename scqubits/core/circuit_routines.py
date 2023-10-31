@@ -79,6 +79,7 @@ from scqubits.utils.misc import (
     flatten_list_recursive,
     list_intersection,
     check_sync_status_circuit,
+    unique_elements_in_list,
 )
 from scqubits.utils.plot_utils import _process_options
 from scqubits.utils.spectrum_utils import (
@@ -316,8 +317,8 @@ class CircuitRoutines(ABC):
             self._configure()
 
         # if harmonic osc basis is used, set the oscillator parameters
-        if self.ext_basis == "harmonic":
-            self._set_harmonic_basis_osc_params()
+        # if self.ext_basis == "harmonic":
+        self._set_harmonic_basis_osc_params()
 
         # update all subsystem instances
         if self.hierarchical_diagonalization:
@@ -460,6 +461,47 @@ class CircuitRoutines(ABC):
             ),
         )
 
+    def set_discretized_phi_range(
+        self, var_indices: Tuple[int], phi_range: Tuple[float]
+    ) -> None:
+        """
+        Sets the flux range for discretized phi basis when ext_basis is set to
+        'discretized'.
+
+        Parameters
+        ----------
+        var_indices:
+            list of var_indices whose range needs to be changed
+        phi_range:
+            The desired range for each of the discretized phi variables
+        """
+        if self.hierarchical_diagonalization:
+            for var_index in var_indices:
+                if self._basis_for_var_index(var_index) != "discretized":
+                    raise Exception(
+                        "The variable with var index: ",
+                        var_index,
+                        " is not set to discretized phi basis.",
+                    )
+                subsys_index = self.get_subsystem_index(var_index)
+                self.subsystems[subsys_index].set_discretized_phi_range(
+                    (var_index,), phi_range
+                )
+        else:
+            if self.ext_basis != "discretized":
+                raise Exception(
+                    "The basis for variable indices: ",
+                    var_indices,
+                    " is not set to discretized phi basis.",
+                )
+            for var_index in var_indices:
+                if var_index not in self.var_categories["extended"]:
+                    raise Exception(
+                        f"Variable with index {var_index} is not an extended variable."
+                    )
+                self.discretized_phi_range[var_index] = phi_range
+        self.operators_by_name = self.set_operators()
+
     def set_and_return(self, attr_name: str, value: Any) -> base.QubitBaseClass:
         """
         Allows to set an attribute after which self is returned. This is useful for
@@ -488,6 +530,18 @@ class CircuitRoutines(ABC):
             self.update()
         return self
 
+    def get_ext_basis(self):
+        """
+        Get the ext_basis object for the Circuit instance, according to the setting in self.hierarchical_diagonalization
+        """
+        if not self.hierarchical_diagonalization:
+            return self.ext_basis
+        else:
+            ext_basis = []
+            for subsys in self.subsystems:
+                ext_basis.append(subsys.get_ext_basis())
+            return ext_basis
+
     def sync_parameters_with_parent(self):
         """
         Method syncs the parameters of the subsystem with the parent instance.
@@ -498,6 +552,15 @@ class CircuitRoutines(ABC):
             + list(self.symbolic_params.keys())
         ):
             setattr(self, param_var.name, getattr(self.parent, param_var.name))
+
+        # sync discretized phi range
+        for var_index in self.var_categories["extended"]:
+            self.discretized_phi_range[var_index] = self.parent.discretized_phi_range[
+                var_index
+            ]
+        # sync ext_basis
+        subsys_index_in_parent = self.parent.subsystems.index(self)
+        self.ext_basis = self.parent.ext_basis[subsys_index_in_parent]
 
     def _set_sync_status_to_True(self):
         if not self.hierarchical_diagonalization:
@@ -739,6 +802,13 @@ class CircuitRoutines(ABC):
                 truncated_dim=self.subsystem_trunc_dims[index][0]
                 if type(self.subsystem_trunc_dims[index]) == list
                 else self.subsystem_trunc_dims[index],
+                ext_basis=(
+                    "harmonic"
+                    if self._is_expression_purely_harmonic(systems_sym[index])
+                    else self.ext_basis
+                )
+                if not isinstance(self.ext_basis, list)
+                else self.ext_basis[index],
                 subsystem_trunc_dims=self.subsystem_trunc_dims[index][1]
                 if type(self.subsystem_trunc_dims[index]) == list
                 else None,
@@ -908,7 +978,29 @@ class CircuitRoutines(ABC):
     def _set_vars(self):
         """
         Sets the attribute vars which is a dictionary containing all the Sympy Symbol
-        objects for all the operators present in the circuit
+        objects for all the operators present in the circuit with no HD
+        """
+        if not self.hierarchical_diagonalization:
+            return self._set_vars_no_hd()
+        vars = {"periodic": {}, "extended": {}, "identity": [sm.symbols("I")]}
+        for subsys in self.subsystems:
+            subsys._set_vars()
+            for var_type in ["periodic", "extended"]:
+                for operator_type in subsys.vars[var_type]:
+                    if operator_type not in vars[var_type]:
+                        vars[var_type][operator_type] = subsys.vars[var_type][
+                            operator_type
+                        ]
+                    else:
+                        vars[var_type][operator_type] = unique_elements_in_list(
+                            vars[var_type][operator_type]
+                            + subsys.vars[var_type][operator_type]
+                        )
+        self.vars = vars
+
+    def _set_vars_no_hd(self):
+        """
+        Method to set the attribute vars when hierarchical diagonalization is not used.
         """
         # Defining the list of variables for periodic operators
         periodic_symbols_sin = _generate_symbols_list(
@@ -1413,6 +1505,15 @@ class CircuitRoutines(ABC):
 
         # constructing the operators for extended variables
         extended_operators = {}
+
+        if self.hierarchical_diagonalization:
+            for var_type in extended_vars:
+                for sym_variable in extended_vars[var_type]:
+                    op_name = sym_variable.name + "_operator"
+                    extended_operators[
+                        op_name
+                    ] = hierarchical_diagonalization_func_factory(sym_variable.name)
+
         if self.ext_basis == "discretized":
             nonwrapped_ops = {
                 "position": _phi_operator,
@@ -1426,16 +1527,11 @@ class CircuitRoutines(ABC):
                     index = int(get_trailing_number(sym_variable.name))
                     op_func = nonwrapped_ops[short_op_name]
                     op_name = sym_variable.name + "_operator"
-                    if self.hierarchical_diagonalization:
-                        extended_operators[
-                            op_name
-                        ] = hierarchical_diagonalization_func_factory(sym_variable.name)
-                    else:
-                        extended_operators[op_name] = grid_operator_func_factory(
-                            op_func, index
-                        )
+                    extended_operators[op_name] = grid_operator_func_factory(
+                        op_func, index
+                    )
 
-        else:  # expect that self.ext_basis is "harmonic":
+        elif self.ext_basis == "harmonic":
             nonwrapped_ops = {
                 "creation": op.creation_sparse,
                 "annihilation": op.annihilation_sparse,
@@ -1457,14 +1553,9 @@ class CircuitRoutines(ABC):
                     op_func = nonwrapped_ops[short_op_name]
                     sym_variable = extended_vars[short_op_name][list_idx]
                     op_name = sym_variable.name + "_operator"
-                    if self.hierarchical_diagonalization:
-                        extended_operators[
-                            op_name
-                        ] = hierarchical_diagonalization_func_factory(sym_variable.name)
-                    else:
-                        extended_operators[op_name] = operator_func_factory(
-                            op_func, var_index, op_type=short_op_name
-                        )
+                    extended_operators[op_name] = operator_func_factory(
+                        op_func, var_index, op_type=short_op_name
+                    )
 
         # constructing the operators for periodic variables
         periodic_operators = {}
@@ -2204,14 +2295,35 @@ class CircuitRoutines(ABC):
         cutoffs_dict = self.cutoffs_dict()
         for var_index in self.var_categories["periodic"]:
             var_str += f"$(θ{var_index}, n{var_index}) - {cutoffs_dict[var_index]}$, "
-        if self.ext_basis == "discretized":
-            var_str += "\\\nDiscretized Phi basis:  "
-        elif self.ext_basis == "harmonic":
-            var_str += "\\\nHarmonic oscillator basis:  "
+
+        var_str_discretized = "\\\nDiscretized Phi basis:  "
+        var_str_harmonic = "\\\nHarmonic oscillator basis:  "
+
         for var_index in self.var_categories["extended"]:
-            var_str += f"$(θ{var_index}, Q{var_index}) - {cutoffs_dict[var_index]}$, "
+            var_index_basis = self._basis_for_var_index(var_index)
+            if var_index_basis == "discretized":
+                var_str_discretized += (
+                    f"$(θ{var_index}, Q{var_index}) - {cutoffs_dict[var_index]}$, "
+                )
+            if var_index_basis == "harmonic":
+                var_str_harmonic += (
+                    f"$(θ{var_index}, Q{var_index}) - {cutoffs_dict[var_index]}$, "
+                )
+
+        if var_str_discretized == "\\\nDiscretized Phi basis:  ":
+            var_str_discretized = ""
+        if var_str_harmonic == "\\\nHarmonic oscillator basis:  ":
+            var_str_harmonic = ""
+
         display(Latex(H_latex_str))
-        display(Latex(var_str))
+        display(
+            Latex(
+                var_str
+                + var_str_discretized
+                + ("\n" if var_str_discretized else "")
+                + var_str_harmonic
+            )
+        )
         # symbolic parameters
         if len(self.symbolic_params) > 0:
             sym_params_str = "Symbolic parameters (symbol, default value):  "
@@ -2480,7 +2592,8 @@ class CircuitRoutines(ABC):
                     [
                         (symbol, 1)
                         for symbol in self.external_fluxes
-                        + self.offset_charges + list(self.symbolic_params.keys())
+                        + self.offset_charges
+                        + list(self.symbolic_params.keys())
                         + [sm.symbols("I")]
                     ]
                 )
@@ -3023,6 +3136,7 @@ class CircuitRoutines(ABC):
         var_index_dims_dict = {}
         for cutoff_attrib in self.cutoff_names:
             var_index = get_trailing_number(cutoff_attrib)
+            ext_basis = self._basis_for_var_index(var_index)
             if "cutoff_n" in cutoff_attrib:
                 grids_per_varindex_dict[var_index] = (
                     grids_per_varindex_dict[var_index]
@@ -3033,13 +3147,13 @@ class CircuitRoutines(ABC):
                 )
             else:
                 var_index_dims_dict[var_index] = getattr(self, cutoff_attrib)
-                if self.ext_basis == "harmonic":
+                if ext_basis == "harmonic":
                     grid = (
                         grids_per_varindex_dict[var_index]
                         if var_index in grids_per_varindex_dict
                         else self._default_grid_phi
                     )
-                elif self.ext_basis == "discretized":
+                elif ext_basis == "discretized":
                     grid = discretization.Grid1d(
                         self.discretized_phi_range[var_index][0],
                         self.discretized_phi_range[var_index][1],
