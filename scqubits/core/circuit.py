@@ -124,11 +124,6 @@ class Subsystem(
 
         self.junction_potential = None
         self._H_LC_str_harmonic = None
-        self._set_manual_ext_basis = (
-            parent._set_manual_ext_basis
-            if hasattr(parent, "_set_manual_ext_basis")
-            else None
-        )
 
         self._make_property("ext_basis", ext_basis, "update_ext_basis")
         self.external_fluxes = [
