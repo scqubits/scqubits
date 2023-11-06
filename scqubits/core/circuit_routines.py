@@ -315,7 +315,6 @@ class CircuitRoutines(ABC):
             self.symbolic_circuit.update_param_init_val(param_name, value)
             if param_name in [param.name for param in capacitance_sym_params]:
                 self._user_changed_parameter = True
-                self.affected_subsystem_indices = list(range(len(self.subsystems)))
         # regenerate symbolic hamiltonian if purely harmonic
         if self.is_child and self.is_purely_harmonic:
             # copy the Hamiltonian from the parent
@@ -330,6 +329,7 @@ class CircuitRoutines(ABC):
         # update all subsystem instances
         if self.hierarchical_diagonalization:
             if isinstance(self, circuit.Circuit) and self._user_changed_parameter:
+                self.affected_subsystem_indices = list(range(len(self.subsystems)))
                 return None
             for subsys_idx, subsys in enumerate(self.subsystems):
                 if hasattr(subsys, param_name):
