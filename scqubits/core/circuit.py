@@ -85,7 +85,7 @@ class Subsystem(
         self,
         parent: "Subsystem",
         hamiltonian_symbolic: sm.Expr,
-        ext_basis: str,
+        ext_basis: Union[str, List],
         system_hierarchy: Optional[List] = None,
         subsystem_trunc_dims: Optional[List] = None,
         truncated_dim: Optional[int] = 10,
@@ -247,7 +247,6 @@ class Subsystem(
             self._diagonalize_purely_harmonic_hamiltonian()
         else:
             self.is_purely_harmonic = False
-        # self.is_purely_harmonic = False
 
         # Creating the attributes for purely harmonic circuits
         if (

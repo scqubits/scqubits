@@ -251,16 +251,22 @@ class CircuitRoutines(ABC):
         Regenerates the system Hamiltonian from the symbolic circuit when needed (for
         example when the circuit is large and circuit capacitance energies are changed).
         """
-        if (
-            not self.is_child
-            and (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES
-        ):
+        self.symbolic_circuit.configure(
+            transformation_matrix=self.symbolic_circuit.transformation_matrix,
+            closure_branches=self.symbolic_circuit.closure_branches,
+        )
+        if (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES:
             self.hamiltonian_symbolic = (
                 self.symbolic_circuit.generate_symbolic_hamiltonian(
                     substitute_params=True
                 )
             )
-            self.generate_hamiltonian_sym_for_numerics()
+        # if the flux is static, remove the linear terms from the potential
+        if not self.symbolic_circuit.is_flux_dynamic:
+            self.hamiltonian_symbolic = self._shift_harmonic_oscillator_potential(
+                self.hamiltonian_symbolic
+            )
+        self.generate_hamiltonian_sym_for_numerics()
 
     def _set_property_and_update_param_vars(
         self, param_name: str, value: float
@@ -309,6 +315,7 @@ class CircuitRoutines(ABC):
             self.symbolic_circuit.update_param_init_val(param_name, value)
             if param_name in [param.name for param in capacitance_sym_params]:
                 self._user_changed_parameter = True
+                self.affected_subsystem_indices = list(range(len(self.subsystems)))
         # regenerate symbolic hamiltonian if purely harmonic
         if self.is_child and self.is_purely_harmonic:
             # copy the Hamiltonian from the parent
@@ -611,9 +618,8 @@ class CircuitRoutines(ABC):
                 self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
 
             if self.hierarchical_diagonalization:
-                self.generate_subsystems()
+                self.generate_subsystems(only_update_subsystems=True)
                 self.update_interactions()
-                self.affected_subsystem_indices = list(range(len(self.subsystems)))
 
             self.operators_by_name = self.set_operators()
             self._user_changed_parameter = False
@@ -724,7 +730,7 @@ class CircuitRoutines(ABC):
                     "Truncated dimension must be a positive integer."
                 )
 
-    def generate_subsystems(self):
+    def generate_subsystems(self, only_update_subsystems: bool = False):
         """
         Generates the subsystems (child instances of Circuit) depending on the attribute
         `self.system_hierarchy`
@@ -779,48 +785,58 @@ class CircuitRoutines(ABC):
 
         if len(constants) > 0:
             systems_sym[0] += sum(constants)
-        # storing data in class attributes
-        self.subsystem_hamiltonians: Dict[int, sm.Expr] = dict(
-            zip(
-                range(len(self.system_hierarchy)),
-                [systems_sym[index] for index in range(len(self.system_hierarchy))],
-            )
-        )
 
-        self.subsystem_interactions: Dict[int, sm.Expr] = dict(
-            zip(
-                range(len(self.system_hierarchy)),
-                [interaction_sym[index] for index in range(len(self.system_hierarchy))],
-            )
-        )
-
-        self.subsystems: List["circuit.Subsystem"] = [
-            circuit.Subsystem(
-                self,
-                systems_sym[index],
-                system_hierarchy=self.system_hierarchy[index],
-                truncated_dim=self.subsystem_trunc_dims[index][0]
-                if type(self.subsystem_trunc_dims[index]) == list
-                else self.subsystem_trunc_dims[index],
-                ext_basis=(
-                    "harmonic"
-                    if self._is_expression_purely_harmonic(systems_sym[index])
-                    else self.ext_basis
+        if only_update_subsystems:
+            for subsys_index, subsys in enumerate(self.subsystems):
+                subsys.hamiltonian_symbolic = systems_sym[subsys_index]
+                subsys._configure()
+                # if subsys.hierarchical_diagonalization:
+                #     subsys._user_changed_parameter = True
+        else:
+            # storing data in class attributes
+            self.subsystem_hamiltonians: Dict[int, sm.Expr] = dict(
+                zip(
+                    range(len(self.system_hierarchy)),
+                    [systems_sym[index] for index in range(len(self.system_hierarchy))],
                 )
-                if not isinstance(self.ext_basis, list)
-                else self.ext_basis[index],
-                subsystem_trunc_dims=self.subsystem_trunc_dims[index][1]
-                if type(self.subsystem_trunc_dims[index]) == list
-                else None,
-                evals_method=self.evals_method,
-                evals_method_options=self.evals_method_options,
-                esys_method=self.esys_method,
-                esys_method_options=self.esys_method_options,
             )
-            for index in range(len(self.system_hierarchy))
-        ]
 
-        self.hilbert_space = HilbertSpace(self.subsystems)
+            self.subsystem_interactions: Dict[int, sm.Expr] = dict(
+                zip(
+                    range(len(self.system_hierarchy)),
+                    [
+                        interaction_sym[index]
+                        for index in range(len(self.system_hierarchy))
+                    ],
+                )
+            )
+            self.subsystems: List["circuit.Subsystem"] = [
+                circuit.Subsystem(
+                    self,
+                    systems_sym[index],
+                    system_hierarchy=self.system_hierarchy[index],
+                    truncated_dim=self.subsystem_trunc_dims[index][0]
+                    if type(self.subsystem_trunc_dims[index]) == list
+                    else self.subsystem_trunc_dims[index],
+                    ext_basis=(
+                        "harmonic"
+                        if self._is_expression_purely_harmonic(systems_sym[index])
+                        else self.ext_basis
+                    )
+                    if not isinstance(self.ext_basis, list)
+                    else self.ext_basis[index],
+                    subsystem_trunc_dims=self.subsystem_trunc_dims[index][1]
+                    if type(self.subsystem_trunc_dims[index]) == list
+                    else None,
+                    evals_method=self.evals_method,
+                    evals_method_options=self.evals_method_options,
+                    esys_method=self.esys_method,
+                    esys_method_options=self.esys_method_options,
+                )
+                for index in range(len(self.system_hierarchy))
+            ]
+
+            self.hilbert_space = HilbertSpace(self.subsystems)
 
     def get_eigenstates(self) -> ndarray:
         """
@@ -1130,7 +1146,6 @@ class CircuitRoutines(ABC):
         self,
         hamiltonian: Optional[sm.Expr] = None,
         return_exprs=False,
-        shift_potential_to_origin=True,
     ):
         """
         Generates a symbolic expression which is ready for numerical evaluation starting
