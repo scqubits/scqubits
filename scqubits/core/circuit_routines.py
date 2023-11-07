@@ -1349,8 +1349,9 @@ class CircuitRoutines(ABC):
         when `ext_basis` is set to "harmonic".
         """
         var_index = get_trailing_number(var_sym.name)
+        var_basis = self._basis_for_var_index(var_index)
 
-        if var_index in self.var_categories["periodic"]:
+        if var_basis == "periodic":
             # if abs(prefactor) != 1:
             #     raise Exception("Prefactor for periodic variable should be 1.")
             # if prefactor > 0:
@@ -1361,35 +1362,34 @@ class CircuitRoutines(ABC):
             #     exp_i_theta = _exp_i_theta_operator_conjugate(
             #         self.cutoffs_dict()[var_index]
             #     )
-        elif var_index in self.var_categories["extended"]:
-            if self.ext_basis == "discretized":
-                phi_grid = discretization.Grid1d(
-                    self.discretized_phi_range[var_index][0],
-                    self.discretized_phi_range[var_index][1],
-                    self.cutoffs_dict()[var_index],
+        elif var_basis == "discretized":
+            phi_grid = discretization.Grid1d(
+                self.discretized_phi_range[var_index][0],
+                self.discretized_phi_range[var_index][1],
+                self.cutoffs_dict()[var_index],
+            )
+            if "θ" in var_sym.name:
+                diagonal = np.exp(phi_grid.make_linspace() * prefactor * 1j)
+                exp_i_theta = sparse.dia_matrix(
+                    (diagonal, [0]), shape=(phi_grid.pt_count, phi_grid.pt_count)
+                ).tocsc()
+            elif "Q" in var_sym.name:
+                exp_i_theta = sp.linalg.expm(
+                    _i_d_dphi_operator(phi_grid).toarray() * prefactor * 1j
                 )
-                if "θ" in var_sym.name:
-                    diagonal = np.exp(phi_grid.make_linspace() * prefactor * 1j)
-                    exp_i_theta = sparse.dia_matrix(
-                        (diagonal, [0]), shape=(phi_grid.pt_count, phi_grid.pt_count)
-                    ).tocsc()
-                elif "Q" in var_sym.name:
-                    exp_i_theta = sp.linalg.expm(
-                        _i_d_dphi_operator(phi_grid).toarray() * prefactor * 1j
-                    )
-            elif self.ext_basis == "harmonic":
-                osc_length = self.osc_lengths[var_index]
-                if "θ" in var_sym.name:
-                    exp_argument_op = op.a_plus_adag_sparse(
-                        self.cutoffs_dict()[var_index],
-                        prefactor=(osc_length / 2**0.5),
-                    )
-                elif "Q" in var_sym.name:
-                    exp_argument_op = op.iadag_minus_ia_sparse(
-                        self.cutoffs_dict()[var_index],
-                        prefactor=(osc_length * 2**0.5) ** -1,
-                    )
-                exp_i_theta = sparse.linalg.expm(exp_argument_op * prefactor * 1j)
+        elif var_basis == "harmonic":
+            osc_length = self.osc_lengths[var_index]
+            if "θ" in var_sym.name:
+                exp_argument_op = op.a_plus_adag_sparse(
+                    self.cutoffs_dict()[var_index],
+                    prefactor=(osc_length / 2**0.5),
+                )
+            elif "Q" in var_sym.name:
+                exp_argument_op = op.iadag_minus_ia_sparse(
+                    self.cutoffs_dict()[var_index],
+                    prefactor=(osc_length * 2**0.5) ** -1,
+                )
+            exp_i_theta = sparse.linalg.expm(exp_argument_op * prefactor * 1j)
 
         return self._sparsity_adaptive(exp_i_theta)
 

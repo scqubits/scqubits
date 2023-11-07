@@ -261,6 +261,7 @@ class Subsystem(
         if self.hierarchical_diagonalization:
             # attribute to note updated subsystem indices
             self.affected_subsystem_indices = []
+            self._hamiltonian_sym_for_numerics = self.hamiltonian_symbolic.copy()
             self.generate_subsystems()
             self._ext_basis = self.get_ext_basis()
             self.update_interactions()
@@ -270,6 +271,7 @@ class Subsystem(
             self.generate_hamiltonian_sym_for_numerics()
 
         self._set_vars()
+        self._set_harmonic_basis_osc_params()
         self.operators_by_name = self.set_operators()
 
         if self.hierarchical_diagonalization:
@@ -1078,6 +1080,7 @@ class Circuit(
 
         self._set_vars()  # setting the attribute vars to store operator symbols
         self.operators_by_name = self.set_operators()
+        self._set_harmonic_basis_osc_params()
         # clear unnecessary attribs
         self._clear_unnecessary_attribs()
         self._frozen = True
