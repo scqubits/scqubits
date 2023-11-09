@@ -124,6 +124,8 @@ class Subsystem(
 
         self.junction_potential = None
         self._H_LC_str_harmonic = None
+        # attribute to keep track if the symbolic Hamiltonian needs to be updated
+        self._make_property("_user_changed_parameter", False, "update_user_changed_parameter")
 
         self._make_property("ext_basis", ext_basis, "update_ext_basis")
         self.external_fluxes = [
@@ -176,21 +178,8 @@ class Subsystem(
         }
 
         # storing the potential terms separately
-        # and bringing the potential into the same form as for the class Circuit
-        potential_symbolic = 0 * sm.symbols("x")
-        for term in self.hamiltonian_symbolic.as_ordered_terms():
-            if is_potential_term(term):
-                potential_symbolic += term
-        for i in self.var_categories_list:
-            potential_symbolic = (
-                potential_symbolic.replace(
-                    sm.symbols(f"cosθ{i}"), sm.cos(1.0 * sm.symbols(f"θ{i}"))
-                )
-                .replace(sm.symbols(f"sinθ{i}"), sm.sin(1.0 * sm.symbols(f"θ{i}")))
-                .subs(sm.symbols("I"), 1 / (2 * np.pi))
-            )
 
-        self.potential_symbolic = potential_symbolic
+        self.potential_symbolic = self.generate_sym_potential()
 
         self.hierarchical_diagonalization: bool = (
             system_hierarchy != [] and number_of_lists_in_list(system_hierarchy) > 0
@@ -403,9 +392,7 @@ class Circuit(
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
         self._out_of_sync = False  # for use with CentralDispatch
-        self._user_changed_parameter = (
-            False  # to track parameter changes in the circuit
-        )
+        self._make_property("_user_changed_parameter", False, "update_user_changed_parameter")
 
         if initiate_sym_calc:
             self.configure()
@@ -526,9 +513,7 @@ class Circuit(
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
         self._out_of_sync = False  # for use with CentralDispatch
-        self._user_changed_parameter = (
-            False  # to track parameter changes in the circuit
-        )
+        self._make_property("_user_changed_parameter", False, "update_user_changed_parameter")
 
         if initiate_sym_calc:
             self.configure()
@@ -1032,12 +1017,7 @@ class Circuit(
         ):
             self.type_of_matrices = "dense"
 
-        if (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES:
-            self.hamiltonian_symbolic = (
-                self.symbolic_circuit.generate_symbolic_hamiltonian(
-                    substitute_params=True
-                )
-            )
+        self.hamiltonian_symbolic = self.symbolic_circuit.hamiltonian_symbolic
         # if the flux is static, remove the linear terms from the potential
         if not self.symbolic_circuit.is_flux_dynamic:
             self.hamiltonian_symbolic = self._shift_harmonic_oscillator_potential(

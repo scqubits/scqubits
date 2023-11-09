@@ -39,6 +39,7 @@ from qutip import Qobj
 from scipy.sparse import csc_matrix
 from typing_extensions import Literal
 
+import scqubits as scq
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
 import scqubits.core.sweeps as sweeps
@@ -1035,7 +1036,11 @@ class ParameterSweep(  # type:ignore
             self.cause_dispatch()
         settings.DISPATCH_ENABLED = False
 
-        self._data["bare_evals"], self._data["bare_evecs"] = self._bare_spectrum_sweep()
+        (
+            self._data["bare_evals"],
+            self._data["bare_evecs"],
+            self._data["circuit_esys"],
+        ) = self._bare_spectrum_sweep()
         if not self._bare_only:
             self._data["evals"], self._data["evecs"] = self._dressed_spectrum_sweep()
             self._data["dressed_indices"] = self.generate_lookup()
@@ -1065,21 +1070,40 @@ class ParameterSweep(  # type:ignore
         """
         bare_evals = np.empty((self.subsystem_count,), dtype=object)
         bare_evecs = np.empty((self.subsystem_count,), dtype=object)
+        # creating data arrays for subsystems, to store the esys for all subsystems when HD is used
+        circuit_esys = []
 
         for subsys_index, subsystem in enumerate(self.hilbertspace):
             bare_esys = self._subsys_bare_spectrum_sweep(subsystem)
+            if (
+                hasattr(subsystem, "hierarchical_diagonalization")
+                and subsystem.hierarchical_diagonalization
+            ):
+                evals = np.empty_like(bare_esys[..., 0])
+                evecs = np.empty_like(bare_esys[..., 0])
+                for array_index, esys in np.ndenumerate(bare_esys[..., 0]):
+                    evals[array_index] = esys[0]
+                    evecs[array_index] = esys[1]
+            else:
+                evals = bare_esys[..., 0]
+                evecs = bare_esys[..., 1]
             bare_evals[subsys_index] = NamedSlotsNdarray(
-                np.asarray(bare_esys[..., 0].tolist()),
+                np.asarray(evals.tolist()),
                 self._parameters.paramvals_by_name,
             )
             bare_evecs[subsys_index] = NamedSlotsNdarray(
-                np.asarray(bare_esys[..., 1].tolist()),
+                np.asarray(evecs.tolist()),
                 self._parameters.paramvals_by_name,
             )
+            circuit_esys.append(bare_esys)
 
         return (
             NamedSlotsNdarray(bare_evals, {"subsys": np.arange(self.subsystem_count)}),
             NamedSlotsNdarray(bare_evecs, {"subsys": np.arange(self.subsystem_count)}),
+            {
+                subsys_index: circuit_esys[subsys_index]
+                for subsys_index in np.arange(self.subsystem_count)
+            },
         )
 
     def _update_subsys_compute_esys(
@@ -1089,6 +1113,9 @@ class ParameterSweep(  # type:ignore
         paramval_tuple: Tuple[float],
     ) -> ndarray:
         update_func(self, *paramval_tuple)
+        # use the Circuit method to return esys for all the subsystems when HD is used
+        if isinstance(subsystem, (scq.Circuit, scq.core.circuit.Subsystem)):
+            return subsystem.generate_bare_eigensys()
         evals, evecs = subsystem.eigensys(evals_count=subsystem.truncated_dim)
         esys_array = np.empty(shape=(2,), dtype=object)
         esys_array[0] = evals
@@ -1167,7 +1194,6 @@ class ParameterSweep(  # type:ignore
     ) -> ndarray:
         paramval_tuple = self._parameters[paramindex_tuple]
         update_func(self, *paramval_tuple)
-
         assert self._data is not None
         bare_esys: Dict[int, List[ndarray]] = {
             subsys_index: [
@@ -1176,6 +1202,20 @@ class ParameterSweep(  # type:ignore
             ]
             for subsys_index, _ in enumerate(self.hilbertspace)
         }
+        # update the lookuptables for subsystems when they use HD
+        for subsys_index, subsys in enumerate(hilbertspace.subsystem_list):
+            if (
+                hasattr(subsys, "hierarchical_diagonalization")
+                and subsys.hierarchical_diagonalization
+            ):
+                subsys.set_bare_eigensys(
+                    self._data["circuit_esys"][subsys_index][paramindex_tuple]
+                )
+        if hasattr(hilbertspace.subsystem_list[0], "parent"):
+            print("set sync status to true")
+            hilbertspace.subsystem_list[0].parent._set_sync_status_to_True(
+                reset_affected_subsystem_indices=True
+            )
 
         evals, evecs = hilbertspace.eigensys(
             evals_count=evals_count, bare_esys=bare_esys  # type:ignore

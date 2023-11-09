@@ -498,13 +498,24 @@ class SymbolicCircuit(serializers.Serializable):
         self._set_external_fluxes(closure_branches=closure_branches)
         self._set_offset_charges()
         # setting the branch parameter variables
+
+        # calculating the Hamiltonian directly when the number of nodes is less than 3
+        substitue_params = False
+        if (
+            len(self.nodes) >= settings.SYM_INVERSION_MAX_NODES
+            or len(self.var_categories["frozen"]) > 0
+        ):  # only calculate the symbolic hamiltonian when the number of nodes is less
+            # than 3. Else, the calculation will be skipped to the end when numerical
+            # Hamiltonian of the circuit is requested.
+            substitue_params = True
+
         # Calculate the Lagrangian
         (
             self._lagrangian_symbolic,
             self.potential_symbolic,
             self.lagrangian_node_vars,
             self.potential_node_vars,
-        ) = self.generate_symbolic_lagrangian()
+        ) = self.generate_symbolic_lagrangian(substitute_params=substitue_params)
 
         # replacing energies with capacitances in the kinetic energy of the Lagrangian
         (
@@ -512,13 +523,9 @@ class SymbolicCircuit(serializers.Serializable):
             self.lagrangian_node_vars,
         ) = self._replace_energies_with_capacitances_L()
 
-        # calculating the Hamiltonian directly when the number of nodes is less than 3
-        if (
-            len(self.nodes) <= settings.SYM_INVERSION_MAX_NODES
-        ):  # only calculate the symbolic hamiltonian when the number of nodes is less
-            # than 3. Else, the calculation will be skipped to the end when numerical
-            # Hamiltonian of the circuit is requested.
-            self.hamiltonian_symbolic = self.generate_symbolic_hamiltonian()
+        self.hamiltonian_symbolic = self.generate_symbolic_hamiltonian(
+            substitute_params=substitue_params
+        )
 
     def _replace_energies_with_capacitances_L(self):
         """
@@ -1185,7 +1192,7 @@ class SymbolicCircuit(serializers.Serializable):
             "frozen": [
                 i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_frozen
             ],
-            "sigma": pos_Σ,
+            "sigma": [i + 1 for i in range(len(pos_list)) if pos_list[i] == pos_Σ[0]],
         }
 
         return np.array(new_basis), var_categories
@@ -1493,7 +1500,7 @@ class SymbolicCircuit(serializers.Serializable):
                 )
         return terms
 
-    def _inductor_terms(self):
+    def _inductor_terms(self, substitute_params: bool = False):
         terms = 0
         for l_branch in [branch for branch in self.branches if branch.type == "L"]:
             # adding external flux
@@ -1529,6 +1536,10 @@ class SymbolicCircuit(serializers.Serializable):
                     )
                     ** 2
                 )
+        # substitute params if necessary
+        if substitute_params:
+            for symbol in self.symbolic_params:
+                terms = terms.subs(symbol.name, self.symbolic_params[symbol])
         return terms
 
     def _spanning_tree(self):
@@ -1892,7 +1903,7 @@ class SymbolicCircuit(serializers.Serializable):
             self.offset_charges = self.offset_charges + [symbols(f"ng{p}")]
 
     def generate_symbolic_lagrangian(
-        self,
+        self, substitute_params: bool = False
     ) -> Tuple[sympy.Expr, sympy.Expr, sympy.Expr, sympy.Expr]:
         r"""
         Returns four symbolic expressions: lagrangian_θ, potential_θ, lagrangian_φ,
@@ -1936,7 +1947,7 @@ class SymbolicCircuit(serializers.Serializable):
                 0
             ] * 0.5  # in terms of new variables
 
-        inductor_terms_φ = self._inductor_terms()
+        inductor_terms_φ = self._inductor_terms(substitute_params=substitute_params)
 
         JJ_terms_φ = self._junction_terms() + self._JJs_terms()
 
@@ -1964,7 +1975,9 @@ class SymbolicCircuit(serializers.Serializable):
 
         return lagrangian_θ, potential_θ, lagrangian_φ, potential_φ
 
-    def generate_symbolic_hamiltonian(self, substitute_params=False) -> sympy.Expr:
+    def generate_symbolic_hamiltonian(
+        self, substitute_params=False, reevaluate_lagrangian: bool = False
+    ) -> sympy.Expr:
         r"""
         Returns the Hamiltonian of the circuit in terms of the new variables
         :math:`\theta_i`.
@@ -1975,9 +1988,18 @@ class SymbolicCircuit(serializers.Serializable):
             When set to True, the symbols defined for branch parameters will be
             substituted with the numerical values in the respective Circuit attributes.
         """
+        if reevaluate_lagrangian:
+            _, potential_symbolic, _, _ = self.generate_symbolic_lagrangian(
+                substitute_params=substitute_params
+            )
+        else:
+            potential_symbolic = self.potential_symbolic
 
         transformation_matrix = self.transformation_matrix
 
+        frozen_indices = [
+            i - 1 for i in self.var_categories["frozen"] + self.var_categories["sigma"]
+        ]
         # generating the C_mat_θ by inverting the capacitance matrix
         if self.is_any_branch_parameter_symbolic() and not substitute_params:
             C_mat_θ = (
@@ -1985,11 +2007,10 @@ class SymbolicCircuit(serializers.Serializable):
                 * self._capacitance_matrix()
                 * transformation_matrix
             )
-            for frozen_idx in (
-                self.var_categories["frozen"] + self.var_categories["sigma"]
-            ):
-                C_mat_θ.row_del(frozen_idx - 1)
-                C_mat_θ.col_del(frozen_idx - 1)  # excluding the frozen modes
+            relevant_indices = [
+                i for i in range(C_mat_θ.shape[0]) if i not in frozen_indices
+            ]
+            C_mat_θ = C_mat_θ[relevant_indices, relevant_indices]
             C_mat_θ = C_mat_θ.inv()
         else:
             C_mat_θ = (
@@ -1997,13 +2018,8 @@ class SymbolicCircuit(serializers.Serializable):
                 @ self._capacitance_matrix(substitute_params=substitute_params)
                 @ transformation_matrix
             )
-            for frozen_idx in (
-                self.var_categories["frozen"] + self.var_categories["sigma"]
-            ):
-                C_mat_θ = np.delete(C_mat_θ, frozen_idx - 1, axis=0)
-                C_mat_θ = np.delete(
-                    C_mat_θ, frozen_idx - 1, axis=1
-                )  # excluding the frozen modes
+            C_mat_θ = np.delete(C_mat_θ, frozen_indices, 0)
+            C_mat_θ = np.delete(C_mat_θ, frozen_indices, 1)
             C_mat_θ = np.linalg.inv(C_mat_θ)
 
         p_θ_vars = [
@@ -2025,7 +2041,7 @@ class SymbolicCircuit(serializers.Serializable):
                 0
             ] * 0.5  # in terms of new variables
 
-        hamiltonian_symbolic = C_terms_new + self.potential_symbolic
+        hamiltonian_symbolic = C_terms_new + potential_symbolic
 
         # adding the offset charge variables
         for var_index in self.var_categories["periodic"]:
@@ -2034,4 +2050,4 @@ class SymbolicCircuit(serializers.Serializable):
                 symbols(f"n{var_index}") + symbols(f"ng{var_index}"),
             )
 
-        return round_symbolic_expr(hamiltonian_symbolic.expand(), 20)
+        return round_symbolic_expr(hamiltonian_symbolic.expand(), 14)

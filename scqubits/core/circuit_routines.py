@@ -50,6 +50,7 @@ import scqubits.core.qubit_base as base
 from scqubits import HilbertSpace, settings
 from scqubits.core import operators as op
 from scqubits.core.circuit_utils import (
+    is_potential_term,
     sawtooth_operator,
     sawtooth_potential,
     _cos_dia,
@@ -246,28 +247,6 @@ class CircuitRoutines(ABC):
                     cutoffs_dict[var_index] = getattr(self, cutoff_name)
         return cutoffs_dict
 
-    def _regenerate_sym_hamiltonian(self) -> None:
-        """
-        Regenerates the system Hamiltonian from the symbolic circuit when needed (for
-        example when the circuit is large and circuit capacitance energies are changed).
-        """
-        self.symbolic_circuit.configure(
-            transformation_matrix=self.symbolic_circuit.transformation_matrix,
-            closure_branches=self.symbolic_circuit.closure_branches,
-        )
-        if (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES:
-            self.hamiltonian_symbolic = (
-                self.symbolic_circuit.generate_symbolic_hamiltonian(
-                    substitute_params=True
-                )
-            )
-        # if the flux is static, remove the linear terms from the potential
-        if not self.symbolic_circuit.is_flux_dynamic:
-            self.hamiltonian_symbolic = self._shift_harmonic_oscillator_potential(
-                self.hamiltonian_symbolic
-            )
-        self.generate_hamiltonian_sym_for_numerics()
-
     def _set_property_and_update_param_vars(
         self, param_name: str, value: float
     ) -> None:
@@ -294,7 +273,10 @@ class CircuitRoutines(ABC):
         # large circuits
 
         if (hasattr(self, "symbolic_circuit")) and (
-            (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES
+            (
+                (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES
+                or len(self.var_categories["frozen"]) > 0
+            )
             or self.is_purely_harmonic
         ):
             capacitance_branches = [
@@ -313,8 +295,8 @@ class CircuitRoutines(ABC):
             ]
 
             self.symbolic_circuit.update_param_init_val(param_name, value)
-            if param_name in [param.name for param in capacitance_sym_params]:
-                self._user_changed_parameter = True
+            # if param_name in [param.name for param in capacitance_sym_params]:
+            self._user_changed_parameter = True
         # regenerate symbolic hamiltonian if purely harmonic
         if self.is_child and self.is_purely_harmonic:
             # copy the Hamiltonian from the parent
@@ -322,17 +304,16 @@ class CircuitRoutines(ABC):
             self.hamiltonian_symbolic = self.parent.subsystem_hamiltonians[subsys_index]
             self._configure()
 
-        # if harmonic osc basis is used, set the oscillator parameters
-        # if self.ext_basis == "harmonic":
+        # set the oscillator parameters, for the extended variables (taking the coefficient of Q^2 and theta^2)
         self._set_harmonic_basis_osc_params()
 
         # update all subsystem instances
         if self.hierarchical_diagonalization:
             if isinstance(self, circuit.Circuit) and self._user_changed_parameter:
                 self.affected_subsystem_indices = list(range(len(self.subsystems)))
-                return None
             for subsys_idx, subsys in enumerate(self.subsystems):
-                if hasattr(subsys, param_name):
+                subsys._user_changed_parameter = self._user_changed_parameter
+                if not subsys._user_changed_parameter and hasattr(subsys, param_name):
                     self._store_updated_subsystem_index(subsys_idx)
                     setattr(subsys, param_name, value)
 
@@ -390,6 +371,15 @@ class CircuitRoutines(ABC):
                 if hasattr(subsys, param_name):
                     self._store_updated_subsystem_index(subsys_idx)
                     setattr(subsys, param_name, value)
+                    
+    def _set_property_and_update_user_changed_parameter(self, param_name: str, value: str) -> None:
+        """
+        Setter method for changing the attrubute _user_changed_parameter
+        """
+        setattr(self, f"_{param_name}", value)
+        if self.hierarchical_diagonalization:
+            for subsys in self.subsystems:
+                setattr(subsys, param_name, value)
 
     def _set_property_and_update_ext_basis(self, param_name: str, value: str) -> None:
         """
@@ -399,7 +389,7 @@ class CircuitRoutines(ABC):
         self._configure()
 
     def _make_property(
-        self, attrib_name: str, init_val: Union[int, float], property_update_type: str
+        self, attrib_name: str, init_val: Union[int, float], property_update_type: str, use_central_dispatch: bool = True
     ) -> None:
         """
         Creates a class instance property with the name attrib_name which is initialized
@@ -459,14 +449,22 @@ class CircuitRoutines(ABC):
                 obj._set_property_and_update_ext_basis(name, value)
                 if old_dispatch_status:
                     settings.DISPATCH_ENABLED = True
+                    
+        elif property_update_type == "update_user_changed_parameter":
 
-        setattr(
-            self.__class__,
-            attrib_name,
-            descriptors.WatchedProperty(
-                float, "CIRCUIT_UPDATE", fget=getter, fset=setter, attr_name=attrib_name
-            ),
-        )
+            def setter(obj, value, name=attrib_name):
+                obj._set_property_and_update_user_changed_parameter(name, value)
+
+        if use_central_dispatch:
+            setattr(
+                self.__class__,
+                attrib_name,
+                descriptors.WatchedProperty(
+                    float, "CIRCUIT_UPDATE", fget=getter, fset=setter, attr_name=attrib_name
+                ),
+            )
+        else:
+            setattr(self, attrib_name, property(fget=getter, fset=setter))
 
     def set_discretized_phi_range(
         self, var_indices: Tuple[int], phi_range: Tuple[float]
@@ -569,10 +567,12 @@ class CircuitRoutines(ABC):
         subsys_index_in_parent = self.parent.subsystems.index(self)
         self.ext_basis = self.parent.ext_basis[subsys_index_in_parent]
 
-    def _set_sync_status_to_True(self):
+    def _set_sync_status_to_True(self, reset_affected_subsystem_indices: bool = False):
         if not self.hierarchical_diagonalization:
             return None
         self._out_of_sync = False
+        if reset_affected_subsystem_indices:
+            self.affected_subsystem_indices = []
         for subsys in self.subsystems:
             if subsys.hierarchical_diagonalization:
                 subsys._set_sync_status_to_True()
@@ -601,6 +601,39 @@ class CircuitRoutines(ABC):
         if index not in self.affected_subsystem_indices:
             self.affected_subsystem_indices.append(index)
 
+    def fetch_symbolic_hamiltonian(self):
+        """
+        Method to fetch the symbolic hamiltonian of an instance.
+        """
+        if isinstance(self, circuit.Circuit):
+            # when the Circuit instance is created from a symbolic Hamiltonian, or nothing is updated or changed
+            if not hasattr(self, "symbolic_circuit") or not (
+                self._out_of_sync or self._user_changed_parameter
+            ):
+                return self.hamiltonian_symbolic
+
+            if self._user_changed_parameter:
+                self.symbolic_circuit.configure(
+                    transformation_matrix=self.symbolic_circuit.transformation_matrix,
+                    closure_branches=self.symbolic_circuit.closure_branches,
+                )
+                hamiltonian_symbolic = self.symbolic_circuit.hamiltonian_symbolic
+
+            # if the flux is static, remove the linear terms from the potential
+            if not self.symbolic_circuit.is_flux_dynamic:
+                hamiltonian_symbolic = self._shift_harmonic_oscillator_potential(
+                    hamiltonian_symbolic
+                )
+
+            return hamiltonian_symbolic
+        else:
+            full_hamiltonian = self.parent.fetch_symbolic_hamiltonian()
+            hamiltonian, _ = self._sym_hamiltonian_for_var_indices(
+                full_hamiltonian,
+                self.var_categories["periodic"] + self.var_categories["extended"],
+            )
+            return hamiltonian
+
     def update(self):
         """
         Syncs all the parameters of the subsystems with the current instance.
@@ -610,8 +643,10 @@ class CircuitRoutines(ABC):
 
     def _perform_internal_updates(self):
         # if purely harmonic the circuit attributes should change
-        if isinstance(self, circuit.Circuit) and self._user_changed_parameter:
-            self._regenerate_sym_hamiltonian()
+        if self._user_changed_parameter:
+            self.hamiltonian_symbolic = self.fetch_symbolic_hamiltonian()
+            self.potential_symbolic = self.generate_sym_potential()
+            self.generate_hamiltonian_sym_for_numerics()
             if self.is_purely_harmonic:
                 self.potential_symbolic = self.symbolic_circuit.potential_symbolic
                 self.transformation_matrix = self.symbolic_circuit.transformation_matrix
@@ -622,7 +657,6 @@ class CircuitRoutines(ABC):
                 self.update_interactions()
 
             self.operators_by_name = self.set_operators()
-            self._user_changed_parameter = False
 
         if self.hierarchical_diagonalization:
             for subsys_index in self.affected_subsystem_indices:
@@ -631,6 +665,7 @@ class CircuitRoutines(ABC):
                 if self.subsystems[subsys_index].hierarchical_diagonalization:
                     self.subsystems[subsys_index].update()
             self._update_bare_esys()
+        self._user_changed_parameter = False
 
     def _update_bare_esys(self):
         if not self.hierarchical_diagonalization:
@@ -658,7 +693,7 @@ class CircuitRoutines(ABC):
             )
         return grids
 
-    def _constants_in_subsys(self, H_sys: sm.Expr) -> sm.Expr:
+    def _constants_in_subsys(self, H_sys: sm.Expr, constants_expr: sm.Expr) -> sm.Expr:
         """
         Returns an expression of constants that belong to the subsystem with the
         Hamiltonian H_sys
@@ -674,11 +709,10 @@ class CircuitRoutines(ABC):
         """
         constant_expr = 0
         subsys_free_symbols = set(H_sys.free_symbols)
-        constant_terms = self._constant_terms_in_hamiltonian.copy()
+        constant_terms = constants_expr.copy()
         for term in constant_terms:
             if set(term.free_symbols) & subsys_free_symbols == set(term.free_symbols):
                 constant_expr += term
-                self._constant_terms_in_hamiltonian.remove(term)
         return constant_expr
 
     def _list_of_constants_from_expr(self, expr: sm.Expr) -> List[sm.Expr]:
@@ -730,6 +764,56 @@ class CircuitRoutines(ABC):
                     "Truncated dimension must be a positive integer."
                 )
 
+    def _sym_hamiltonian_for_var_indices(
+        self, hamiltonian_expr: sm.Expr, subsys_index_list: List[int]
+    ) -> sm.Expr:
+        """
+        Returns the symbolic Hamiltonian and interaction terms of the subsystem corresponding to the set of variable indices in subsys_index_list
+
+        Args:
+            hamiltonian_expr (sm.Expr): The full Hamiltonian expression
+            subsys_index_list (List[int]): A list or nested list of variable indices
+
+        Returns:
+            sm.Expr: Subsystem Hamiltonian for the given variable indices
+        """
+        # collecting constants to remove them for processing the Hamiltonian
+        constants = self._list_of_constants_from_expr(hamiltonian_expr)
+        for const in constants:
+            hamiltonian_expr -= const
+
+        non_operator_symbols = (
+            self.offset_charges
+            + self.external_fluxes
+            + list(self.symbolic_params.keys())
+            + [sm.symbols("I")]
+        )
+
+        subsys_index_list = flatten_list_recursive(subsys_index_list)
+
+        hamiltonian_terms = hamiltonian_expr.as_ordered_terms()
+
+        H_sys = 0 * sm.symbols("x")  # making an empty symbolic expression
+        H_int = 0 * sm.symbols("x")
+        for term in hamiltonian_terms:
+            term_operator_indices = [
+                get_trailing_number(var_sym.name)
+                for var_sym in term.free_symbols
+                if var_sym not in non_operator_symbols
+            ]
+            term_operator_indices_unique = list(set(term_operator_indices))
+
+            if len(set(term_operator_indices_unique) - set(subsys_index_list)) == 0:
+                H_sys += term
+
+            if (
+                len(set(term_operator_indices_unique) - set(subsys_index_list)) > 0
+                and len(set(term_operator_indices_unique) & set(subsys_index_list)) > 0
+            ):
+                H_int += term
+
+        return H_sys + self._constants_in_subsys(H_sys, constants), H_int
+
     def generate_subsystems(self, only_update_subsystems: bool = False):
         """
         Generates the subsystems (child instances of Circuit) depending on the attribute
@@ -739,7 +823,7 @@ class CircuitRoutines(ABC):
 
         # collecting constants to remove them for processing the Hamiltonian
         constants = self._list_of_constants_from_expr(hamiltonian)
-        self._constant_terms_in_hamiltonian = constants
+        # self._constant_terms_in_hamiltonian = constants
         for const in constants:
             hamiltonian -= const
 
@@ -779,7 +863,7 @@ class CircuitRoutines(ABC):
                     H_int += term
 
             # adding constants
-            systems_sym.append(H_sys + self._constants_in_subsys(H_sys))
+            systems_sym.append(H_sys + self._constants_in_subsys(H_sys, constants))
             interaction_sym.append(H_int)
             hamiltonian -= H_sys + H_int  # removing the terms added to a subsystem
 
@@ -790,6 +874,7 @@ class CircuitRoutines(ABC):
             for subsys_index, subsys in enumerate(self.subsystems):
                 subsys.hamiltonian_symbolic = systems_sym[subsys_index]
                 subsys._configure()
+                self.subsystem_interactions[subsys_index] = interaction_sym[subsys_index] 
                 # if subsys.hierarchical_diagonalization:
                 #     subsys._user_changed_parameter = True
         else:
@@ -1142,6 +1227,22 @@ class CircuitRoutines(ABC):
         return round_symbolic_expr(hamiltonian.expand(), 20)
         # * ##########################################################################
 
+    def generate_sym_potential(self):
+        # and bringing the potential into the same form as for the class Circuit
+        potential_symbolic = 0 * sm.symbols("x")
+        for term in self.hamiltonian_symbolic.as_ordered_terms():
+            if is_potential_term(term):
+                potential_symbolic += term
+        for i in self.var_categories_list:
+            potential_symbolic = (
+                potential_symbolic.replace(
+                    sm.symbols(f"cosθ{i}"), sm.cos(1.0 * sm.symbols(f"θ{i}"))
+                )
+                .replace(sm.symbols(f"sinθ{i}"), sm.sin(1.0 * sm.symbols(f"θ{i}")))
+                .subs(sm.symbols("I"), 1 / (2 * np.pi))
+            )
+        return potential_symbolic
+    
     def generate_hamiltonian_sym_for_numerics(
         self,
         hamiltonian: Optional[sm.Expr] = None,
@@ -2046,7 +2147,7 @@ class CircuitRoutines(ABC):
         Returns the Hamiltonian of the Circuit.
         """
         # update the circuit if necessary
-        if (not hasattr(self, "parent") and self._user_changed_parameter) or (
+        if (self._user_changed_parameter) or (
             self.hierarchical_diagonalization
             and (self._out_of_sync or len(self.affected_subsystem_indices) > 0)
         ):
