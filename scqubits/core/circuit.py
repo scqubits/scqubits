@@ -125,7 +125,9 @@ class Subsystem(
         self.junction_potential = None
         self._H_LC_str_harmonic = None
         # attribute to keep track if the symbolic Hamiltonian needs to be updated
-        self._make_property("_user_changed_parameter", False, "update_user_changed_parameter")
+        self._make_property(
+            "_user_changed_parameter", False, "update_user_changed_parameter"
+        )
 
         self._make_property("ext_basis", ext_basis, "update_ext_basis")
         self.external_fluxes = [
@@ -392,7 +394,9 @@ class Circuit(
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
         self._out_of_sync = False  # for use with CentralDispatch
-        self._make_property("_user_changed_parameter", False, "update_user_changed_parameter")
+        self._make_property(
+            "_user_changed_parameter", False, "update_user_changed_parameter"
+        )
 
         if initiate_sym_calc:
             self.configure()
@@ -513,7 +517,9 @@ class Circuit(
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
         self._out_of_sync = False  # for use with CentralDispatch
-        self._make_property("_user_changed_parameter", False, "update_user_changed_parameter")
+        self._make_property(
+            "_user_changed_parameter", False, "update_user_changed_parameter"
+        )
 
         if initiate_sym_calc:
             self.configure()

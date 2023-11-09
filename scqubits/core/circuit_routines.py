@@ -371,8 +371,10 @@ class CircuitRoutines(ABC):
                 if hasattr(subsys, param_name):
                     self._store_updated_subsystem_index(subsys_idx)
                     setattr(subsys, param_name, value)
-                    
-    def _set_property_and_update_user_changed_parameter(self, param_name: str, value: str) -> None:
+
+    def _set_property_and_update_user_changed_parameter(
+        self, param_name: str, value: str
+    ) -> None:
         """
         Setter method for changing the attrubute _user_changed_parameter
         """
@@ -389,7 +391,11 @@ class CircuitRoutines(ABC):
         self._configure()
 
     def _make_property(
-        self, attrib_name: str, init_val: Union[int, float], property_update_type: str, use_central_dispatch: bool = True
+        self,
+        attrib_name: str,
+        init_val: Union[int, float],
+        property_update_type: str,
+        use_central_dispatch: bool = True,
     ) -> None:
         """
         Creates a class instance property with the name attrib_name which is initialized
@@ -449,7 +455,7 @@ class CircuitRoutines(ABC):
                 obj._set_property_and_update_ext_basis(name, value)
                 if old_dispatch_status:
                     settings.DISPATCH_ENABLED = True
-                    
+
         elif property_update_type == "update_user_changed_parameter":
 
             def setter(obj, value, name=attrib_name):
@@ -460,7 +466,11 @@ class CircuitRoutines(ABC):
                 self.__class__,
                 attrib_name,
                 descriptors.WatchedProperty(
-                    float, "CIRCUIT_UPDATE", fget=getter, fset=setter, attr_name=attrib_name
+                    float,
+                    "CIRCUIT_UPDATE",
+                    fget=getter,
+                    fset=setter,
+                    attr_name=attrib_name,
                 ),
             )
         else:
@@ -874,7 +884,9 @@ class CircuitRoutines(ABC):
             for subsys_index, subsys in enumerate(self.subsystems):
                 subsys.hamiltonian_symbolic = systems_sym[subsys_index]
                 subsys._configure()
-                self.subsystem_interactions[subsys_index] = interaction_sym[subsys_index] 
+                self.subsystem_interactions[subsys_index] = interaction_sym[
+                    subsys_index
+                ]
                 # if subsys.hierarchical_diagonalization:
                 #     subsys._user_changed_parameter = True
         else:
@@ -1242,7 +1254,7 @@ class CircuitRoutines(ABC):
                 .subs(sm.symbols("I"), 1 / (2 * np.pi))
             )
         return potential_symbolic
-    
+
     def generate_hamiltonian_sym_for_numerics(
         self,
         hamiltonian: Optional[sm.Expr] = None,
