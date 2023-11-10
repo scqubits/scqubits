@@ -1212,7 +1212,6 @@ class ParameterSweep(  # type:ignore
                     self._data["circuit_esys"][subsys_index][paramindex_tuple]
                 )
         if hasattr(hilbertspace.subsystem_list[0], "parent"):
-            print("set sync status to true")
             hilbertspace.subsystem_list[0].parent._set_sync_status_to_True(
                 reset_affected_subsystem_indices=True
             )
