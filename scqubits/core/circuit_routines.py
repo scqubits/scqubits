@@ -657,8 +657,8 @@ class CircuitRoutines(ABC):
             self.hamiltonian_symbolic = self.fetch_symbolic_hamiltonian()
             self.potential_symbolic = self.generate_sym_potential()
             self.generate_hamiltonian_sym_for_numerics()
-            if self.is_purely_harmonic:
-                self.potential_symbolic = self.symbolic_circuit.potential_symbolic
+            # copy the transformation matrix and normal_mode_freqs if self is a Circuit instance.
+            if self.is_purely_harmonic and not self.is_child:
                 self.transformation_matrix = self.symbolic_circuit.transformation_matrix
                 self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
 
