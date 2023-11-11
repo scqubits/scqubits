@@ -1098,11 +1098,13 @@ class Circuit(
             supported_channels.remove("t1_charge_impedance")
         return supported_channels
 
-    def variable_transformation(self) -> None:
+    def variable_transformation(self, new_vars_to_node_vars=True) -> None:
         """
         Prints the variable transformation used in this circuit
         """
         trans_mat = self.transformation_matrix
+        if new_vars_to_node_vars:
+            trans_mat = np.linalg.inv(trans_mat)
         theta_vars = [
             sm.symbols(f"θ{index}")
             for index in range(
@@ -1115,15 +1117,20 @@ class Circuit(
                 1, len(self.symbolic_circuit._node_list_without_ground) + 1
             )
         ]
-        node_var_eqns = []
+        var_eqns = []
         for idx, node_var in enumerate(node_vars):
-            node_var_eqns.append(
-                sm.Eq(node_vars[idx], np.sum(trans_mat[idx, :] * theta_vars))
-            )
+            if not new_vars_to_node_vars:
+                var_eqns.append(
+                    sm.Eq(node_vars[idx], np.sum(trans_mat[idx, :] * theta_vars))
+                )
+            else:
+                var_eqns.append(
+                    sm.Eq(theta_vars[idx], np.sum(trans_mat[idx, :] * node_vars))
+                )
         if _HAS_IPYTHON:
-            self.print_expr_in_latex(node_var_eqns)
+            self.print_expr_in_latex(var_eqns)
         else:
-            print(node_var_eqns)
+            print(var_eqns)
 
     def sym_lagrangian(
         self,
