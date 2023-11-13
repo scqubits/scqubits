@@ -500,14 +500,14 @@ class SymbolicCircuit(serializers.Serializable):
         # setting the branch parameter variables
 
         # calculating the Hamiltonian directly when the number of nodes is less than 3
-        substitue_params = False
+        substitute_params = False
         if (
             len(self.nodes) >= settings.SYM_INVERSION_MAX_NODES
             or len(self.var_categories["frozen"]) > 0
         ):  # only calculate the symbolic hamiltonian when the number of nodes is less
             # than 3. Else, the calculation will be skipped to the end when numerical
             # Hamiltonian of the circuit is requested.
-            substitue_params = True
+            substitute_params = True
 
         # Calculate the Lagrangian
         (
@@ -515,7 +515,7 @@ class SymbolicCircuit(serializers.Serializable):
             self.potential_symbolic,
             self.lagrangian_node_vars,
             self.potential_node_vars,
-        ) = self.generate_symbolic_lagrangian(substitute_params=substitue_params)
+        ) = self.generate_symbolic_lagrangian(substitute_params=substitute_params)
 
         # replacing energies with capacitances in the kinetic energy of the Lagrangian
         (
@@ -524,7 +524,7 @@ class SymbolicCircuit(serializers.Serializable):
         ) = self._replace_energies_with_capacitances_L()
 
         self.hamiltonian_symbolic = self.generate_symbolic_hamiltonian(
-            substitute_params=substitue_params
+            substitute_params=substitute_params
         )
 
     def _replace_energies_with_capacitances_L(self):

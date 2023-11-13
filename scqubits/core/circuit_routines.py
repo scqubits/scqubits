@@ -93,6 +93,8 @@ from abc import ABC
 
 
 class CircuitRoutines(ABC):
+    _read_only_attributes = ["ext_basis", "transformation_matrix", "hierarchical_diagonalization", "system_hierarchy", "subsystem_trunc_dims",
+                             "discretized_phi_range", "cutoff_names", "closure_branches", "external_fluxes", "is_flux_dynamic"]
     @staticmethod
     def _is_expression_purely_harmonic(hamiltonian):
         """
@@ -173,7 +175,7 @@ class CircuitRoutines(ABC):
         self.normal_mode_freqs = normal_mode_freqs_sq**0.5
 
         self._hamiltonian_sym_for_numerics = (
-            self._transform_hamiltonian_purely_harmonic(hamiltonian, eig_vecs)
+            self._transform_hamiltonian_purely_harmonic(hamiltonian, eig_vecs).expand()
         )
 
     def _transform_hamiltonian_purely_harmonic(
@@ -199,6 +201,8 @@ class CircuitRoutines(ABC):
         """
         Modifying the __setattr__ method to prevent creation of new attributes using the _frozen attribute.
         """
+        if self._frozen and name in self._read_only_attributes:
+            raise Exception(f"{name} is a read only attribute. Please use configure method to change this property of Circuit/Subsystem instance.")
         if not self._frozen or name in dir(self):
             super().__setattr__(name, value)
         else:
@@ -474,7 +478,7 @@ class CircuitRoutines(ABC):
                 ),
             )
         else:
-            setattr(self, attrib_name, property(fget=getter, fset=setter))
+            setattr(self.__class__, attrib_name, property(fget=getter, fset=setter))
 
     def set_discretized_phi_range(
         self, var_indices: Tuple[int], phi_range: Tuple[float]
@@ -644,37 +648,41 @@ class CircuitRoutines(ABC):
             )
             return hamiltonian
 
-    def update(self):
+    def update(self, calculate_bare_esys:bool=True):
         """
         Syncs all the parameters of the subsystems with the current instance.
         """
-        self._perform_internal_updates()
+        self._perform_internal_updates(calculate_bare_esys=calculate_bare_esys)
         self._set_sync_status_to_True()
 
-    def _perform_internal_updates(self):
+    def _perform_internal_updates(self, fetch_hamiltonian: bool=True, calculate_bare_esys: bool=True):
         # if purely harmonic the circuit attributes should change
         if self._user_changed_parameter:
-            self.hamiltonian_symbolic = self.fetch_symbolic_hamiltonian()
+            if fetch_hamiltonian:
+                self.hamiltonian_symbolic = self.fetch_symbolic_hamiltonian()
             self.potential_symbolic = self.generate_sym_potential()
             self.generate_hamiltonian_sym_for_numerics()
             # copy the transformation matrix and normal_mode_freqs if self is a Circuit instance.
-            if self.is_purely_harmonic and not self.is_child:
-                self.transformation_matrix = self.symbolic_circuit.transformation_matrix
-                self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
+            if self.is_purely_harmonic:
+                if not self.is_child:
+                    self.transformation_matrix = self.symbolic_circuit.transformation_matrix
+                self._diagonalize_purely_harmonic_hamiltonian()
+            else:
+                self._set_harmonic_basis_osc_params()
 
             if self.hierarchical_diagonalization:
                 self.generate_subsystems(only_update_subsystems=True)
                 self.update_interactions()
-
+                # self._hamiltonian_sym_for_numerics = self.hamiltonian_symbolic.copy()
+                
             self.operators_by_name = self.set_operators()
 
         if self.hierarchical_diagonalization:
-            for subsys_index in self.affected_subsystem_indices:
-                if self._out_of_sync:
-                    self.subsystems[subsys_index].sync_parameters_with_parent()
-                if self.subsystems[subsys_index].hierarchical_diagonalization:
-                    self.subsystems[subsys_index].update()
-            self._update_bare_esys()
+            self.affected_subsystem_indices = list(range(len(self.subsystems)))
+            for subsys in self.subsystems:
+                subsys._perform_internal_updates(fetch_hamiltonian=False, calculate_bare_esys=calculate_bare_esys)
+            if calculate_bare_esys:
+                self._update_bare_esys()
         self._user_changed_parameter = False
 
     def _update_bare_esys(self):
@@ -887,8 +895,6 @@ class CircuitRoutines(ABC):
                 self.subsystem_interactions[subsys_index] = interaction_sym[
                     subsys_index
                 ]
-                # if subsys.hierarchical_diagonalization:
-                #     subsys._user_changed_parameter = True
         else:
             # storing data in class attributes
             self.subsystem_hamiltonians: Dict[int, sm.Expr] = dict(
@@ -967,7 +973,7 @@ class CircuitRoutines(ABC):
             f"The var_index={var_index} could not be identified with any subsystem."
         )
 
-    def update_interactions(self) -> None:
+    def update_interactions(self, recursive=False) -> None:
         """
         Update interactions of the HilbertSpace object for the `Circuit` instance if
         `hierarchical_diagonalization` is set to true.
@@ -1011,7 +1017,12 @@ class CircuitRoutines(ABC):
                     ),
                     check_validity=False,
                 )
+        if recursive:
+            for subsys in self.subsystems:
+                if subsys.hierarchical_diagonalization:
+                    subsys.update_interactions(recursive=recursive)
 
+    @check_sync_status_circuit
     def _evaluate_symbolic_expr(self, sym_expr, bare_esys=None) -> qt.Qobj:
         # substitute circuit parameters
         param_symbols = (
@@ -1802,6 +1813,7 @@ class CircuitRoutines(ABC):
             else subsystem.get_eigenstates(),
         )
 
+    @check_sync_status_circuit
     def get_operator_by_name(
         self, operator_name: str, power: Optional[int] = None, bare_esys=None
     ) -> qt.Qobj:
@@ -1840,11 +1852,6 @@ class CircuitRoutines(ABC):
         subsystem = self.subsystems[subsystem_index]
         subsys_bare_esys = None
         if bare_esys and subsystem.hierarchical_diagonalization:
-            if subsystem.affected_subsystem_indices != []:
-                subsystem.hilbert_space.generate_bare_esys(
-                    update_subsystem_indices=subsystem.affected_subsystem_indices
-                )
-                subsystem.affected_subsystem_indices = []
             subsys_bare_esys = {
                 sys_index: (
                     subsystem.hilbert_space["bare_evals"][sys_index][0],
@@ -2067,6 +2074,7 @@ class CircuitRoutines(ABC):
             self._evaluate_symbolic_expr(hamiltonian).data.tocsc()
         )
 
+    @check_sync_status_circuit
     def _eigenvals_for_purely_harmonic(self, evals_count: int):
         """
         Returns Hamiltonian for purely harmonic circuits. Hierarchical diagonalization
@@ -2104,6 +2112,7 @@ class CircuitRoutines(ABC):
 
         return energies, excitation_indices
 
+    @check_sync_status_circuit
     def _eigensys_for_purely_harmonic(self, evals_count: int):
         eigenvals, excitation_numbers = self._eigenvals_for_purely_harmonic(
             evals_count=evals_count
@@ -2154,17 +2163,11 @@ class CircuitRoutines(ABC):
             )
         return np.array(eigenvals), shift_operator @ np.array(eigen_vectors).T
 
+    @check_sync_status_circuit
     def hamiltonian(self) -> Union[csc_matrix, ndarray]:
         """
         Returns the Hamiltonian of the Circuit.
         """
-        # update the circuit if necessary
-        if (self._user_changed_parameter) or (
-            self.hierarchical_diagonalization
-            and (self._out_of_sync or len(self.affected_subsystem_indices) > 0)
-        ):
-            self.update()
-
         if not self.hierarchical_diagonalization:
             if self.is_purely_harmonic:
                 return self._hamiltonian_for_harmonic_extended_vars()
@@ -2185,6 +2188,7 @@ class CircuitRoutines(ABC):
             if self.type_of_matrices == "sparse":
                 return hamiltonian.data.tocsc()
 
+    @check_sync_status_circuit
     def hamiltonian_for_mesolve(
         self, free_var_func_dict: Dict[str, Callable], prefactor: float = 1.0
     ) -> Tuple[List[Union[qt.Qobj, Tuple[qt.Qobj, Callable]]], sm.Expr, List[sm.Expr]]:
