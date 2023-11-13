@@ -1211,7 +1211,9 @@ class ParameterSweep(  # type:ignore
                 subsys.set_bare_eigensys(
                     self._data["circuit_esys"][subsys_index][paramindex_tuple]
                 )
-        if hasattr(hilbertspace.subsystem_list[0], "parent"): # update necessary interactions and attributes
+        if hasattr(
+            hilbertspace.subsystem_list[0], "parent"
+        ):  # update necessary interactions and attributes
             hilbertspace.subsystem_list[0].parent.update(calculate_bare_esys=False)
 
         evals, evecs = hilbertspace.eigensys(

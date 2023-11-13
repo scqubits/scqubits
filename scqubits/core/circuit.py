@@ -126,7 +126,10 @@ class Subsystem(
         self._H_LC_str_harmonic = None
         # attribute to keep track if the symbolic Hamiltonian needs to be updated
         self._make_property(
-            "_user_changed_parameter", False, "update_user_changed_parameter", use_central_dispatch=False
+            "_user_changed_parameter",
+            False,
+            "update_user_changed_parameter",
+            use_central_dispatch=False,
         )
 
         self._make_property("ext_basis", ext_basis, "update_ext_basis")
@@ -395,7 +398,10 @@ class Circuit(
         self._init_params = []
         self._out_of_sync = False  # for use with CentralDispatch
         self._make_property(
-            "_user_changed_parameter", False, "update_user_changed_parameter", use_central_dispatch=False
+            "_user_changed_parameter",
+            False,
+            "update_user_changed_parameter",
+            use_central_dispatch=False,
         )
 
         if initiate_sym_calc:
@@ -518,7 +524,10 @@ class Circuit(
         self._init_params = []
         self._out_of_sync = False  # for use with CentralDispatch
         self._make_property(
-            "_user_changed_parameter", False, "update_user_changed_parameter", use_central_dispatch=False
+            "_user_changed_parameter",
+            False,
+            "update_user_changed_parameter",
+            use_central_dispatch=False,
         )
 
         if initiate_sym_calc:

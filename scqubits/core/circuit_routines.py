@@ -93,8 +93,19 @@ from abc import ABC
 
 
 class CircuitRoutines(ABC):
-    _read_only_attributes = ["ext_basis", "transformation_matrix", "hierarchical_diagonalization", "system_hierarchy", "subsystem_trunc_dims",
-                             "discretized_phi_range", "cutoff_names", "closure_branches", "external_fluxes", "is_flux_dynamic"]
+    _read_only_attributes = [
+        "ext_basis",
+        "transformation_matrix",
+        "hierarchical_diagonalization",
+        "system_hierarchy",
+        "subsystem_trunc_dims",
+        "discretized_phi_range",
+        "cutoff_names",
+        "closure_branches",
+        "external_fluxes",
+        "is_flux_dynamic",
+    ]
+
     @staticmethod
     def _is_expression_purely_harmonic(hamiltonian):
         """
@@ -202,7 +213,9 @@ class CircuitRoutines(ABC):
         Modifying the __setattr__ method to prevent creation of new attributes using the _frozen attribute.
         """
         if self._frozen and name in self._read_only_attributes:
-            raise Exception(f"{name} is a read only attribute. Please use configure method to change this property of Circuit/Subsystem instance.")
+            raise Exception(
+                f"{name} is a read only attribute. Please use configure method to change this property of Circuit/Subsystem instance."
+            )
         if not self._frozen or name in dir(self):
             super().__setattr__(name, value)
         else:
@@ -648,14 +661,16 @@ class CircuitRoutines(ABC):
             )
             return hamiltonian
 
-    def update(self, calculate_bare_esys:bool=True):
+    def update(self, calculate_bare_esys: bool = True):
         """
         Syncs all the parameters of the subsystems with the current instance.
         """
         self._perform_internal_updates(calculate_bare_esys=calculate_bare_esys)
         self._set_sync_status_to_True()
 
-    def _perform_internal_updates(self, fetch_hamiltonian: bool=True, calculate_bare_esys: bool=True):
+    def _perform_internal_updates(
+        self, fetch_hamiltonian: bool = True, calculate_bare_esys: bool = True
+    ):
         # if purely harmonic the circuit attributes should change
         if self._user_changed_parameter:
             if fetch_hamiltonian:
@@ -665,7 +680,9 @@ class CircuitRoutines(ABC):
             # copy the transformation matrix and normal_mode_freqs if self is a Circuit instance.
             if self.is_purely_harmonic:
                 if not self.is_child:
-                    self.transformation_matrix = self.symbolic_circuit.transformation_matrix
+                    self.transformation_matrix = (
+                        self.symbolic_circuit.transformation_matrix
+                    )
                 self._diagonalize_purely_harmonic_hamiltonian()
             else:
                 self._set_harmonic_basis_osc_params()
@@ -674,13 +691,15 @@ class CircuitRoutines(ABC):
                 self.generate_subsystems(only_update_subsystems=True)
                 self.update_interactions()
                 # self._hamiltonian_sym_for_numerics = self.hamiltonian_symbolic.copy()
-                
+
             self.operators_by_name = self.set_operators()
 
         if self.hierarchical_diagonalization:
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
             for subsys in self.subsystems:
-                subsys._perform_internal_updates(fetch_hamiltonian=False, calculate_bare_esys=calculate_bare_esys)
+                subsys._perform_internal_updates(
+                    fetch_hamiltonian=False, calculate_bare_esys=calculate_bare_esys
+                )
             if calculate_bare_esys:
                 self._update_bare_esys()
         self._user_changed_parameter = False
