@@ -665,8 +665,10 @@ class CircuitRoutines(ABC):
         """
         Syncs all the parameters of the subsystems with the current instance.
         """
+        self._frozen = False
         self._perform_internal_updates(calculate_bare_esys=calculate_bare_esys)
         self._set_sync_status_to_True()
+        self._frozen = True
 
     def _perform_internal_updates(
         self, fetch_hamiltonian: bool = True, calculate_bare_esys: bool = True
