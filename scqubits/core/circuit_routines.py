@@ -21,6 +21,7 @@ import numpy as np
 import qutip as qt
 import scipy as sp
 import sympy as sm
+import dill
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -48,6 +49,8 @@ from scqubits import get_units
 import scqubits.core.qubit_base as base
 
 from scqubits import HilbertSpace, settings
+from scqubits.io_utils.fileio_serializers import dict_serialize
+from scqubits.io_utils.fileio import IOData
 from scqubits.core import operators as op
 from scqubits.core.circuit_utils import (
     is_potential_term,
@@ -105,6 +108,21 @@ class CircuitRoutines(ABC):
         "external_fluxes",
         "is_flux_dynamic",
     ]
+    
+    # methods for serialization
+    def serialize(self) -> "IOData":
+        obj_in_bytes = dill.dumps(self)
+        initdata = {"subsystem_in_hex": obj_in_bytes.hex()}
+        if hasattr(self, "_id_str"):
+            initdata["id_str"] = self._id_str  # type:ignore
+        iodata = dict_serialize(initdata)
+        iodata.typename = type(self).__name__
+        return iodata
+        
+    @classmethod
+    def deserialize(cls, io_data: "IOData"):
+        obj_in_bytes = bytes.fromhex(io_data.as_kwargs()["subsystem_in_hex"])
+        return dill.loads(obj_in_bytes)
 
     @staticmethod
     def _is_expression_purely_harmonic(hamiltonian):
