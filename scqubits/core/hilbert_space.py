@@ -536,7 +536,7 @@ class HilbertSpace(
         """
         Convert the content of the current class instance into IOData format.
         """
-        init_parameters = self._init_params
+        init_parameters = self._init_params.copy()
         init_parameters.remove("ignore_low_overlap")
         init_parameters.append("_ignore_low_overlap")
         initdata = {name: getattr(self, name) for name in init_parameters}
