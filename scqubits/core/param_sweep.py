@@ -1100,10 +1100,7 @@ class ParameterSweep(  # type:ignore
         return (
             NamedSlotsNdarray(bare_evals, {"subsys": np.arange(self.subsystem_count)}),
             NamedSlotsNdarray(bare_evecs, {"subsys": np.arange(self.subsystem_count)}),
-            {
-                subsys_index: circuit_esys[subsys_index]
-                for subsys_index in np.arange(self.subsystem_count)
-            },
+            circuit_esys,
         )
 
     def _update_subsys_compute_esys(
