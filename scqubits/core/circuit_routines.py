@@ -123,6 +123,21 @@ class CircuitRoutines(ABC):
     def deserialize(cls, io_data: "IOData"):
         obj_in_bytes = bytes.fromhex(io_data.as_kwargs()["subsystem_in_hex"])
         return dill.loads(obj_in_bytes)
+    
+    def return_root_child(self, var_index:int):
+        if not self.hierarchical_diagonalization and var_index in self.var_categories_list:
+            return self
+        for subsys in self.subsystems:
+            if var_index in subsys.var_categories_list:
+                return subsys.return_root_child(var_index)
+    
+    def return_parent_circuit(self):
+        """
+        Returns the parent Circuit instance.
+        """
+        if not self.is_child:
+            return self
+        return self.parent.return_parent_circuit()
 
     @staticmethod
     def _is_expression_purely_harmonic(hamiltonian):
@@ -1630,10 +1645,12 @@ class CircuitRoutines(ABC):
             operator_list = []
             for idx, var_symbol in enumerate(cos_argument_expr.free_symbols):
                 prefactor = float(cos_argument_expr.coeff(var_symbol))
+                child_circuit = self.return_root_child(var_indices[idx])
+                operator_bare = child_circuit._kron_operator(self.exp_i_operator(var_symbol, prefactor), var_indices[idx])
                 operator_list.append(
                     self.identity_wrap_for_hd(
-                        self.exp_i_operator(var_symbol, prefactor),
-                        var_indices[idx],
+                        operator_bare,
+                        child_circuit,
                         bare_esys=bare_esys,
                     )
                 )
@@ -1803,10 +1820,18 @@ class CircuitRoutines(ABC):
 
         return {func_name: getattr(self, func_name) for func_name in op_func_by_name}
 
+    def is_subsystem(self, instance):
+        """
+        Returns true if the instance is a subsystem of self (regardless of the hierarchy)
+        """
+        if len(set(self.var_categories_list) & set(instance.var_categories_list)) > 0:
+            return True
+        return False
+    
     def identity_wrap_for_hd(
         self,
         operator: Optional[Union[csc_matrix, ndarray]],
-        var_index: int,
+        child_instance,
         bare_esys: Optional[Dict[int, Tuple]] = None,
     ) -> qt.Qobj:
         """
@@ -1818,19 +1843,19 @@ class CircuitRoutines(ABC):
         ----------
         operator:
             operator in the form of csc_matrix, ndarray
-        var_index:
-            integer which represents which variable index the given operator belongs to
+        instance:
+            The subsystem to which the operator belongs
 
         Returns
         -------
             identity wrapped operator.
         """
         if not self.hierarchical_diagonalization:
-            return qt.Qobj(self._kron_operator(operator, var_index))
-
-        subsystem_index = self.get_subsystem_index(var_index)
+            return qt.Qobj(operator)
+        
+        subsystem_index = [subsys_index for subsys_index in range(len(self.subsystems)) if self.subsystems[subsys_index].is_subsystem(child_instance)][0]
         subsystem = self.subsystems[subsystem_index]
-        operator = subsystem.identity_wrap_for_hd(operator, var_index=var_index)
+        operator = subsystem.identity_wrap_for_hd(operator, child_instance)
 
         if isinstance(operator, qt.Qobj):
             operator = operator.full()
