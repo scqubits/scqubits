@@ -19,7 +19,7 @@ import qutip as qt
 import copy
 
 from scqubits.core.noise import NOISE_PARAMS, NoisySystem
-from scqubits.core.circuit_utils import get_trailing_number
+from scqubits.core.circuit_utils import get_trailing_number, keep_terms_for_subsystem
 
 from types import MethodType
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -84,23 +84,23 @@ class NoisyCircuit(NoisySystem, ABC):
 
         for param_sym in self.external_fluxes + self.offset_charges:
 
-            def param_derivative(self=self, param_sym=param_sym):
-                hamiltonian, _ = self.generate_hamiltonian_sym_for_numerics(
-                    hamiltonian=self.hamiltonian_symbolic,
-                    shift_potential_to_origin=False,
-                    return_exprs=True,
-                )
+            def param_derivative(self, param_sym=param_sym):
+                parent_instance = self.return_parent_circuit()
+                hamiltonian = parent_instance.fetch_symbolic_hamiltonian()
+                hamiltonian = parent_instance._hamiltonian_sym_for_numerics
                 hamiltonian = hamiltonian.subs("I", 1)
                 all_sym_parameters = (
-                    list(self.symbolic_params.keys())
-                    + self.external_fluxes
-                    + self.offset_charges
+                    list(parent_instance.symbolic_params.keys())
+                    + parent_instance.external_fluxes
+                    + parent_instance.offset_charges
                 )
-                diff_sym_expr = hamiltonian.diff(param_sym)
+                diff_sym_expr = hamiltonian.diff("Φ1")
                 # substitute all symbolic params
                 for param in all_sym_parameters:
-                    diff_sym_expr = diff_sym_expr.subs(param, getattr(self, param.name))
-                # evaluate the expression
+                    diff_sym_expr = diff_sym_expr.subs(param, getattr(parent_instance, param.name))
+                # remove variables if they do not belong to self
+                diff_sym_expr = keep_terms_for_subsystem(diff_sym_expr, self)
+                # evaluate the expression 
                 return self._evaluate_symbolic_expr(diff_sym_expr)
 
             if param_sym in self.external_fluxes:
@@ -115,7 +115,7 @@ class NoisyCircuit(NoisySystem, ABC):
         junction_branches = [branch for branch in self.branches if "JJ" in branch.type]
         for idx, branch in enumerate(junction_branches):
 
-            def param_derivative(self=self, branch=branch):
+            def param_derivative(self, branch=branch):
                 return -self.junction_related_evaluation(branch, calc="dhdEJ")
 
             cc_1_over_f_methods[f"d_hamiltonian_d_EJ{branch.id_str}"] = param_derivative
@@ -124,19 +124,19 @@ class NoisyCircuit(NoisySystem, ABC):
             **ng_1_over_f_methods,
             **cc_1_over_f_methods,
         }
+        self.noise_helper_methods = noise_helper_methods
         for method_name in noise_helper_methods:
             setattr(
                 self, method_name, MethodType(noise_helper_methods[method_name], self)
             )
 
     def junction_related_evaluation(self, branch_junction: Branch, calc="dhdEJ"):
-        hamiltonian, _ = self.generate_hamiltonian_sym_for_numerics(
-            hamiltonian=self.hamiltonian_symbolic,
-            shift_potential_to_origin=False,
-            return_exprs=True,
-        )
-        for sym in self.offset_charges + list(self.symbolic_params.keys()):
-            hamiltonian = hamiltonian.subs(sym, getattr(self, sym.name))
+        parent_instance = self.return_parent_circuit()
+        hamiltonian = parent_instance.fetch_symbolic_hamiltonian()
+        hamiltonian = parent_instance._hamiltonian_sym_for_numerics
+        
+        for sym in parent_instance.offset_charges + list(parent_instance.symbolic_params.keys()):
+            hamiltonian = hamiltonian.subs(sym, getattr(parent_instance, sym.name))
         hamiltonian = hamiltonian.subs("I", 1)
         branch_cos_node_expr = sm.cos(
             sm.symbols(f"φ{branch_junction.nodes[0].index}")
@@ -145,20 +145,24 @@ class NoisyCircuit(NoisySystem, ABC):
         branch_cos_node_expr = branch_cos_node_expr.subs(
             "φ0", 0
         )  # setting ground node to zero.
-        branch_cos_expr = self._transform_expr_to_new_variables(branch_cos_node_expr)
+        branch_cos_expr = parent_instance._transform_expr_to_new_variables(branch_cos_node_expr)
         expr_dict = hamiltonian.as_coefficients_dict()
         for term, coefficient in expr_dict.items():
             term_without_ext_flux = copy.copy(term)
-            for flux in self.external_fluxes:
+            for flux in parent_instance.external_fluxes:
                 term_without_ext_flux = term_without_ext_flux.subs(flux, 0)
             if term_without_ext_flux == branch_cos_expr:
                 break
         # substitute external flux
-        for flux in self.external_fluxes:
-            term = term.subs(flux, getattr(self, flux.name))
+        for flux in parent_instance.external_fluxes:
+            term = term.subs(flux, getattr(parent_instance, flux.name))
         if calc == "sin_phi_qp":
             term = term.subs(sm.cos, sm.sin)
             term = term.subs(term.args[0], term.args[0] / 2)
+    
+        # remove variables if they do not belong to self
+        term = keep_terms_for_subsystem(term, self)
+        # evaluate the expression 
         return self._evaluate_symbolic_expr(term)
 
     def generate_tphi_1_over_f_methods(self):

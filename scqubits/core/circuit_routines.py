@@ -1853,7 +1853,7 @@ class CircuitRoutines(ABC):
         if not self.hierarchical_diagonalization:
             return qt.Qobj(operator)
         
-        subsystem_index = [subsys_index for subsys_index in range(len(self.subsystems)) if self.subsystems[subsys_index].is_subsystem(child_instance)][0]
+        subsystem_index = [subsys_index for subsys_index, subsys in enumerate(self.subsystems) if subsys.is_subsystem(child_instance)][0]
         subsystem = self.subsystems[subsystem_index]
         operator = subsystem.identity_wrap_for_hd(operator, child_instance)
 
