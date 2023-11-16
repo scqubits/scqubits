@@ -157,12 +157,12 @@ def matrix_element(
         op_matrix = operator
 
     if isinstance(state1, qt.Qobj):
-        vec1 = state1.data.toarray()
+        vec1 = state1.data.to_array()
     else:
         vec1 = state1
 
     if isinstance(state2, qt.Qobj):
-        vec2 = state2.data.toarray()
+        vec2 = state2.data.to_array()
     else:
         vec2 = state2
 
@@ -313,8 +313,8 @@ def convert_matrix_to_qobj(
         if evecs is None:
             _, evecs = subsystem.eigensys(evals_count=dim)
         operator_matrixelements = get_matrixelement_table(operator, evecs)
-        return qt.Qobj(inpt=operator_matrixelements)
-    return qt.Qobj(inpt=operator[:dim, :dim])
+        return qt.Qobj(operator_matrixelements)
+    return qt.Qobj(operator[:dim, :dim])
 
 
 def convert_opstring_to_qobj(
@@ -327,7 +327,7 @@ def convert_opstring_to_qobj(
     if evecs is None:
         _, evecs = subsystem.eigensys(evals_count=dim)
     operator_matrixelements = subsystem.matrixelement_table(operator, evecs=evecs)
-    return qt.Qobj(inpt=operator_matrixelements)
+    return qt.Qobj(operator_matrixelements)
 
 
 def convert_operator_to_qobj(

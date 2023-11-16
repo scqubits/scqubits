@@ -34,7 +34,6 @@ import numpy as np
 import qutip as qt
 
 from numpy import ndarray
-from qutip import Qobj
 from scipy.sparse import csc_matrix, dia_matrix
 
 import scqubits.core.central_dispatch as dispatch
@@ -134,7 +133,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         self,
         subsystem_list: List[QuantumSys],
         bare_esys: Optional[Dict[int, ndarray]] = None,
-    ) -> Qobj:
+    ) -> qt.Qobj:
         """
         Returns the full Hamiltonian of the interacting quantum system described by the
         HilbertSpace object
@@ -152,7 +151,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         -------
             Hamiltonian in `qutip.Qobj` format
         """
-        hamiltonian = cast(Qobj, self.g_strength)
+        hamiltonian = cast(qt.Qobj, self.g_strength)
         id_wrapped_ops = self.id_wrap_all_ops(
             self.operator_list, subsystem_list, bare_esys=bare_esys
         )
@@ -167,7 +166,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         operator_list: List[Tuple[int, Union[ndarray, csc_matrix, Callable]]],
         subsystem_list: List[QuantumSys],
         bare_esys: Optional[Dict[int, ndarray]] = None,
-    ) -> List[Qobj]:
+    ) -> List[qt.Qobj]:
         """
         Returns a list of identity-wrapped operators, one for each operator in
         operator_list. Note: at this point, any callable operator is actually evaluated.
@@ -298,10 +297,10 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         return string
 
     def run_string_code(
-        self, expression: str, idwrapped_ops_by_name: Dict[str, Qobj]
-    ) -> Qobj:
+        self, expression: str, idwrapped_ops_by_name: Dict[str, qt.Qobj]
+    ) -> qt.Qobj:
         expression = self.parse_qutip_functions(expression)
-        idwrapped_ops_by_name["Qobj"] = Qobj
+        idwrapped_ops_by_name["Qobj"] = qt.Qobj
 
         main = importlib.import_module("__main__")
         answer = eval(
@@ -313,7 +312,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         self,
         subsys_list: List[QuantumSys],
         bare_esys: Optional[Dict[int, ndarray]] = None,
-    ) -> Dict[str, Qobj]:
+    ) -> Dict[str, qt.Qobj]:
         idwrapped_ops_by_name = {}
         for subsys_index, name, op in self.operator_list:
             if bare_esys and subsys_index in bare_esys:
@@ -329,7 +328,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         self,
         subsystem_list: List[QuantumSys],
         bare_esys: Optional[Dict[int, ndarray]] = None,
-    ) -> Qobj:
+    ) -> qt.Qobj:
         """
         Parameters
         ----------
@@ -781,7 +780,7 @@ class HilbertSpace(
     def hamiltonian(
         self,
         bare_esys: Optional[Dict[int, ndarray]] = None,
-    ) -> Qobj:
+    ) -> qt.Qobj:
         """
         Parameters
         ----------
@@ -798,7 +797,7 @@ class HilbertSpace(
         hamiltonian += self.interaction_hamiltonian(bare_esys=bare_esys)
         return hamiltonian
 
-    def bare_hamiltonian(self, bare_esys: Optional[Dict[int, ndarray]] = None) -> Qobj:
+    def bare_hamiltonian(self, bare_esys: Optional[Dict[int, ndarray]] = None) -> qt.Qobj:
         """
         Parameters
         ----------
@@ -811,7 +810,7 @@ class HilbertSpace(
             composite Hamiltonian composed of bare Hamiltonians of subsystems
             independent of the external parameter
         """
-        bare_hamiltonian = Qobj(0)
+        bare_hamiltonian = qt.Qobj(0, dims=[self.subsystem_dims]*2) if qt.__version__ >= '5.0.0' else qt.Qobj(0)
         for subsys_index, subsys in enumerate(self):
             if bare_esys is not None and subsys_index in bare_esys:
                 evals = bare_esys[subsys_index][0]
@@ -822,7 +821,7 @@ class HilbertSpace(
 
     def interaction_hamiltonian(
         self, bare_esys: Optional[Dict[int, ndarray]] = None
-    ) -> Qobj:
+    ) -> qt.Qobj:
         """
         Returns the interaction Hamiltonian, based on the interaction terms specified
         for the current HilbertSpace object
@@ -838,11 +837,11 @@ class HilbertSpace(
             interaction Hamiltonian
         """
         if not self.interaction_list:
-            return Qobj(0)
+            return qt.Qobj(0, dims=[self.subsystem_dims]*2) if qt.__version__ >= '5.0.0' else qt.Qobj(0)
 
         operator_list = []
         for term in self.interaction_list:
-            if isinstance(term, Qobj):
+            if isinstance(term, qt.Qobj):
                 operator_list.append(term)
             elif isinstance(term, (InteractionTerm, InteractionTermStr)):
                 operator_list.append(
@@ -856,7 +855,7 @@ class HilbertSpace(
         hamiltonian = sum(operator_list)
         return hamiltonian
 
-    def diag_hamiltonian(self, subsystem: QuantumSys, evals: ndarray = None) -> Qobj:
+    def diag_hamiltonian(self, subsystem: QuantumSys, evals: ndarray = None) -> qt.Qobj:
         """Returns a `qutip.Qobj` which has the eigenenergies of the object `subsystem`
         on the diagonal.
 
@@ -871,14 +870,14 @@ class HilbertSpace(
 
         if evals is None:
             evals = subsystem.eigenvals(evals_count=evals_count)
-        diag_qt_op = qt.Qobj(inpt=np.diagflat(evals[0:evals_count]))  # type:ignore
+        diag_qt_op = qt.Qobj(np.diagflat(evals[0:evals_count]))  # type:ignore
         return spec_utils.identity_wrap(diag_qt_op, subsystem, self.subsystem_list)
 
     ###################################################################################
     # HilbertSpace: identity wrapping, operators
     ###################################################################################
 
-    def diag_operator(self, diag_elements: ndarray, subsystem: QuantumSys) -> Qobj:
+    def diag_operator(self, diag_elements: ndarray, subsystem: QuantumSys) -> qt.Qobj:
         """For given diagonal elements of a diagonal operator in `subsystem`, return
         the `Qobj` operator for the full Hilbert space (perform wrapping in
         identities for other subsystems).
@@ -896,7 +895,7 @@ class HilbertSpace(
         diag_matrix[index, index] = diag_elements
         return spec_utils.identity_wrap(diag_matrix, subsystem, self.subsystem_list)
 
-    def hubbard_operator(self, j: int, k: int, subsystem: QuantumSys) -> Qobj:
+    def hubbard_operator(self, j: int, k: int, subsystem: QuantumSys) -> qt.Qobj:
         """Hubbard operator :math:`|j\\rangle\\langle k|` for system `subsystem`
 
         Parameters
@@ -910,7 +909,7 @@ class HilbertSpace(
         operator = qt.states.basis(dim, j) * qt.states.basis(dim, k).dag()
         return spec_utils.identity_wrap(operator, subsystem, self.subsystem_list)
 
-    def annihilate(self, subsystem: QuantumSys) -> Qobj:
+    def annihilate(self, subsystem: QuantumSys) -> qt.Qobj:
         """Annihilation operator a for `subsystem`
 
         Parameters
@@ -1024,7 +1023,7 @@ class HilbertSpace(
         Standardize the phases of the (dressed) eigenvectors.
         """
         for idx, evec in enumerate(self._data["evecs"][0]):
-            phase = spec_utils.extract_phase(evec.data.toarray())
+            phase = spec_utils.extract_phase(evec.data.to_array())
             self._data["evecs"][0][idx] = evec * np.exp(-1j * phase)
 
     def op_in_dressed_eigenbasis(
@@ -1034,7 +1033,7 @@ class HilbertSpace(
         ],
         truncated_dim: Optional[int] = None,
         **kwargs,
-    ) -> Qobj:
+    ) -> qt.Qobj:
         """
         Express a subsystem operator in the dressed eigenbasis of the full system
         (as opposed to both the "native basis" or "bare eigenbasis" of the subsystem).
@@ -1081,8 +1080,8 @@ class HilbertSpace(
             evecs=bare_evecs,
         )
         dressed_evecs = self._data["evecs"][0]
-        dressed_op_data = id_wrapped_op.transform(dressed_evecs).data.toarray()
-        dressed_op_truncated = Qobj(
+        dressed_op_data = id_wrapped_op.transform(dressed_evecs).data.to_array()
+        dressed_op_truncated = qt.Qobj(
             dressed_op_data[0:truncated_dim, 0:truncated_dim],
             dims=[[truncated_dim], [truncated_dim]],
         )
@@ -1203,9 +1202,9 @@ class HilbertSpace(
         return InteractionTerm(g, operator_list, add_hc=add_hc)
 
     @staticmethod
-    def _parse_qobj(**kwargs) -> Qobj:
+    def _parse_qobj(**kwargs) -> qt.Qobj:
         op = kwargs["qobj"]
-        if len(kwargs) > 1 or not isinstance(op, Qobj):
+        if len(kwargs) > 1 or not isinstance(op, qt.Qobj):
             raise TypeError("Cannot interpret specified operator {}".format(op))
         return kwargs["qobj"]
 

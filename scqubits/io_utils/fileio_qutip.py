@@ -33,7 +33,7 @@ class QutipEigenstates(np.ndarray, Serializable):
         evec_array = io_data.ndarrays["evecs"]
         qt_eigenstates = np.asarray(
             [
-                qt.Qobj(inpt=evec, dims=qobj_dims, shape=qobj_shape, type="ket")
+                qt.Qobj(evec, dims=qobj_dims, shape=qobj_shape, type="ket")
                 for evec in evec_array
             ],
             dtype=np.dtype("O"),
