@@ -234,7 +234,7 @@ def remove_nones(dict_data: Dict[str, Any]) -> Dict[str, Any]:
 def qt_ket_to_ndarray(qobj_ket: qt.Qobj) -> np.ndarray:
     # Qutip's `.eigenstates()` returns an object-valued ndarray, each idx_entry of which
     # is a Qobj ket.
-    return np.asarray(qobj_ket.to("dense")) if qt.__version__ >= '5.0.0' else np.asarray(qobj_ket.data.todense())
+    return qobj_ket.to("dense").data.as_ndarray() if qt.__version__ >= '5.0.0' else np.asarray(qobj_ket.data.todense())
 
 
 def get_shape(lst, shape=()):

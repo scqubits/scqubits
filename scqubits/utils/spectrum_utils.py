@@ -20,7 +20,7 @@ import scipy as sp
 
 from numpy import ndarray
 from qutip import Qobj
-from scipy.sparse import csc_matrix, dia_matrix
+from scipy.sparse import csc_matrix, dia_matrix, csr_matrix
 
 import scqubits.settings as settings
 
@@ -338,7 +338,7 @@ def convert_operator_to_qobj(
 ) -> qt.Qobj:
     if isinstance(operator, qt.Qobj):
         return operator
-    if isinstance(operator, (np.ndarray, csc_matrix, dia_matrix)):
+    if isinstance(operator, (np.ndarray, csc_matrix, csr_matrix, dia_matrix)):
         return convert_matrix_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)
     if isinstance(operator, str):
         return convert_opstring_to_qobj(operator, subsystem, evecs)

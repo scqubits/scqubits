@@ -833,7 +833,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                             subsys_index
                         ].get_operator_by_name(operator_sym.name)
                         if isinstance(operator_matrix, qt.Qobj):
-                            operator_matrix = operator_matrix.to("csr") if qt.__version__ >= '5.0.0' else operator_matrix.data.tocsc()
+                            operator_matrix = operator_matrix.to("csr").data.as_scipy() if qt.__version__ >= '5.0.0' else operator_matrix.data.tocsc()
                         operator_dict[subsys_index] *= identity_wrap(
                             operator_matrix,
                             self.subsystems[subsys_index],
@@ -1516,7 +1516,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         operator = subsystem.get_operator_by_name(operator_name)
 
         if isinstance(operator, qt.Qobj):
-            operator = operator.to("csr") if qt.__version__ >= '5.0.0' else operator.data.tocsc()
+            operator = operator.to("csc").data.as_nparray() if qt.__version__ >= '5.0.0' else operator.data.tocsc()
 
         operator = convert_matrix_to_qobj(
             operator,
@@ -1697,7 +1697,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         replacement_dict["self"] = self
 
         junction_potential_matrix = self._evaluate_matrix_cosine_terms(junction_potential)
-        junction_potential_matrix = junction_potential_matrix.to("csr") if qt.__version__ >= '5.0.0' else junction_potential_matrix.data.tocsc()
+        junction_potential_matrix = junction_potential_matrix.to("csr").data.as_scipy() if qt.__version__ >= '5.0.0' else junction_potential_matrix.data.tocsc()
 
         return eval(H_LC_str, replacement_dict) + junction_potential_matrix
 
@@ -1732,7 +1732,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         replacement_dict["self"] = self
 
         junction_potential_matrix = self._evaluate_matrix_cosine_terms(junction_potential)
-        junction_potential_matrix = junction_potential_matrix.to("csr") if qt.__version__ >= '5.0.0' else junction_potential_matrix.data.tocsc()
+        junction_potential_matrix = junction_potential_matrix.to("csr").data.as_scipy() if qt.__version__ >= '5.0.0' else junction_potential_matrix.data.tocsc()
 
         return eval(H_LC_str, replacement_dict) + junction_potential_matrix
 
@@ -1817,7 +1817,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             if self.type_of_matrices == "dense":
                 return hamiltonian.full()
             if self.type_of_matrices == "sparse":
-                return hamiltonian.to("csr") if qt.__version__ >= '5.0.0' else hamiltonian.data.tocsc()
+                return hamiltonian.to("csr").data.as_scipy() if qt.__version__ >= '5.0.0' else hamiltonian.data.tocsc()
 
     def _evals_calc(self, evals_count: int) -> ndarray:
         # dimension of the hamiltonian
