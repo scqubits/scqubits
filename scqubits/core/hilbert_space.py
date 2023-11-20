@@ -1023,7 +1023,8 @@ class HilbertSpace(
         Standardize the phases of the (dressed) eigenvectors.
         """
         for idx, evec in enumerate(self._data["evecs"][0]):
-            phase = spec_utils.extract_phase(evec.data.to_array())
+            array = evec.data.to_array() if qt.__version__ >= '5.0.0' else evec.data.toarray()
+            phase = spec_utils.extract_phase(array)
             self._data["evecs"][0][idx] = evec * np.exp(-1j * phase)
 
     def op_in_dressed_eigenbasis(
@@ -1080,7 +1081,7 @@ class HilbertSpace(
             evecs=bare_evecs,
         )
         dressed_evecs = self._data["evecs"][0]
-        dressed_op_data = id_wrapped_op.transform(dressed_evecs).data.to_array()
+        dressed_op_data = id_wrapped_op.transform(dressed_evecs).data.to_array() if qt.__version__ >= '5.0.0' else id_wrapped_op.transform(dressed_evecs).data.toarray()
         dressed_op_truncated = qt.Qobj(
             dressed_op_data[0:truncated_dim, 0:truncated_dim],
             dims=[[truncated_dim], [truncated_dim]],
