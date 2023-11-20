@@ -1516,7 +1516,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         operator = subsystem.get_operator_by_name(operator_name)
 
         if isinstance(operator, qt.Qobj):
-            operator = operator.to("csc").data.as_nparray() if qt.__version__ >= '5.0.0' else operator.data.tocsc()
+            operator = operator.to("csr").data.as_nparray() if qt.__version__ >= '5.0.0' else operator.data.tocsc()
 
         operator = convert_matrix_to_qobj(
             operator,
