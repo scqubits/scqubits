@@ -188,7 +188,7 @@ class Subsystem(
             system_hierarchy != [] and number_of_lists_in_list(system_hierarchy) > 0
         )
 
-        if len(self.var_categories_list) == 1 and self.ext_basis == "harmonic":
+        if len(self.var_categories_list) == 1:
             self.type_of_matrices = "dense"
         else:
             self.type_of_matrices = "sparse"
@@ -774,7 +774,6 @@ class Circuit(
         # changing the matrix type if necessary
         if (
             len(flatten_list(self.var_categories.values())) == 1
-            and self.ext_basis == "harmonic"
         ):
             self.type_of_matrices = "dense"
 
@@ -936,7 +935,6 @@ class Circuit(
         if (
             len((self.var_categories["extended"] + self.var_categories["periodic"]))
             == 1
-            and self.ext_basis == "harmonic"
         ):
             self.type_of_matrices = "dense"
 
