@@ -552,19 +552,20 @@ class CircuitRoutines(ABC):
                 self.subsystems[subsys_index].set_discretized_phi_range(
                     (var_index,), phi_range
                 )
-        else:
-            if self.ext_basis != "discretized":
+                self._store_updated_subsystem_index(subsys_index)
+        elif self.ext_basis != "discretized":
+            raise Exception(
+                "The basis for variable indices: ",
+                var_indices,
+                " is not set to discretized phi basis.",
+            )
+            
+        for var_index in var_indices:
+            if var_index not in self.var_categories["extended"]:
                 raise Exception(
-                    "The basis for variable indices: ",
-                    var_indices,
-                    " is not set to discretized phi basis.",
+                    f"Variable with index {var_index} is not an extended variable."
                 )
-            for var_index in var_indices:
-                if var_index not in self.var_categories["extended"]:
-                    raise Exception(
-                        f"Variable with index {var_index} is not an extended variable."
-                    )
-                self.discretized_phi_range[var_index] = phi_range
+            self.discretized_phi_range[var_index] = phi_range
         self.operators_by_name = self.set_operators()
 
     def set_and_return(self, attr_name: str, value: Any) -> base.QubitBaseClass:
