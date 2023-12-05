@@ -772,9 +772,7 @@ class Circuit(
                 )
 
         # changing the matrix type if necessary
-        if (
-            len(flatten_list(self.var_categories.values())) == 1
-        ):
+        if len(flatten_list(self.var_categories.values())) == 1:
             self.type_of_matrices = "dense"
 
         self._set_vars()  # setting the attribute vars to store operator symbols

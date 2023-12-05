@@ -432,6 +432,7 @@ def hierarchical_diagonalization_func_factory(symbol_name: str) -> Callable:
 
     return operator_func
 
+
 def keep_terms_for_subsystem(sym_expr, subsys, substitute_zero=False):
     if substitute_zero:
         for var_sym in sym_expr.free_symbols:
@@ -439,10 +440,13 @@ def keep_terms_for_subsystem(sym_expr, subsys, substitute_zero=False):
         return sym_expr
     terms = sym_expr.as_ordered_terms()
     for term in terms:
-        var_indices = [get_trailing_number(sym_var.name) for sym_var in list(term.free_symbols)]
+        var_indices = [
+            get_trailing_number(sym_var.name) for sym_var in list(term.free_symbols)
+        ]
         if len(set(var_indices) & set(subsys.var_categories_list)) == 0:
             sym_expr = sym_expr - term
     return sym_expr
+
 
 def operator_func_factory(
     inner_op: Callable, index: int, op_type: Optional[str] = None

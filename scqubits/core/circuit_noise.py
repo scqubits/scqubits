@@ -77,8 +77,10 @@ class NoisyCircuit(NoisySystem, ABC):
                 diff_sym_expr = hamiltonian.diff(param_sym)
                 # substitute all symbolic params
                 for param in all_sym_parameters:
-                    diff_sym_expr = diff_sym_expr.subs(param, getattr(parent_instance, param.name))
-                # evaluate the expression 
+                    diff_sym_expr = diff_sym_expr.subs(
+                        param, getattr(parent_instance, param.name)
+                    )
+                # evaluate the expression
                 return parent_instance._evaluate_symbolic_expr(diff_sym_expr)
 
             if param_sym in self.external_fluxes:
@@ -107,7 +109,7 @@ class NoisyCircuit(NoisySystem, ABC):
             setattr(
                 self, method_name, MethodType(noise_helper_methods[method_name], self)
             )
-    
+
     def _transform_expr_to_new_variables(
         self, expr_node_vars: sm.Expr, substitute_symbol: Optional[str] = None
     ):
@@ -132,8 +134,10 @@ class NoisyCircuit(NoisySystem, ABC):
         parent_instance = self.return_parent_circuit()
         hamiltonian = parent_instance.fetch_symbolic_hamiltonian()
         hamiltonian = parent_instance._hamiltonian_sym_for_numerics
-        
-        for sym in parent_instance.offset_charges + list(parent_instance.symbolic_params.keys()):
+
+        for sym in parent_instance.offset_charges + list(
+            parent_instance.symbolic_params.keys()
+        ):
             hamiltonian = hamiltonian.subs(sym, getattr(parent_instance, sym.name))
         hamiltonian = hamiltonian.subs("I", 1)
         branch_cos_node_expr = sm.cos(
@@ -143,7 +147,9 @@ class NoisyCircuit(NoisySystem, ABC):
         branch_cos_node_expr = branch_cos_node_expr.subs(
             "φ0", 0
         )  # setting ground node to zero.
-        branch_cos_expr = parent_instance._transform_expr_to_new_variables(branch_cos_node_expr)
+        branch_cos_expr = parent_instance._transform_expr_to_new_variables(
+            branch_cos_node_expr
+        )
         expr_dict = hamiltonian.as_coefficients_dict()
         for term, coefficient in expr_dict.items():
             term_without_ext_flux = copy.copy(term)
@@ -157,8 +163,8 @@ class NoisyCircuit(NoisySystem, ABC):
         if calc == "sin_phi_qp":
             term = term.subs(sm.cos, sm.sin)
             term = term.subs(term.args[0], term.args[0] / 2)
-    
-        # evaluate the expression 
+
+        # evaluate the expression
         return parent_instance._evaluate_symbolic_expr(term)
 
     def generate_tphi_1_over_f_methods(self):
@@ -453,7 +459,9 @@ class NoisyCircuit(NoisySystem, ABC):
             branch=branch,
         ) -> float:
             parent_circuit = self.return_parent_circuit()
-            branch_var_expr = parent_circuit.symbolic_circuit._branch_sym_expr(branch, return_charge = False if branch.type == "L" else True)
+            branch_var_expr = parent_circuit.symbolic_circuit._branch_sym_expr(
+                branch, return_charge=False if branch.type == "L" else True
+            )
 
             if branch.type != "L":
                 branch_param = (
@@ -498,7 +506,9 @@ class NoisyCircuit(NoisySystem, ABC):
                 branch: Branch = branch,
             ) -> float:
                 parent_circuit = self.return_parent_circuit()
-                branch_charge_expr = parent_circuit.symbolic_circuit._branch_sym_expr(branch, return_charge = True)
+                branch_charge_expr = parent_circuit.symbolic_circuit._branch_sym_expr(
+                    branch, return_charge=True
+                )
 
                 branch_param = (
                     branch.parameters["EC"]
@@ -507,7 +517,7 @@ class NoisyCircuit(NoisySystem, ABC):
                 )
                 if isinstance(branch_param, sm.Expr):
                     branch_param = getattr(parent_circuit, branch_param.name)
-                    
+
                 return NoisySystem.t1_capacitive(
                     self=self,
                     i=i,
@@ -535,10 +545,12 @@ class NoisyCircuit(NoisySystem, ABC):
                 branch: Branch = branch,
             ) -> float:
                 parent_circuit = self.return_parent_circuit()
-                branch_var_expr = parent_circuit.symbolic_circuit._branch_sym_expr(branch)
-                
+                branch_var_expr = parent_circuit.symbolic_circuit._branch_sym_expr(
+                    branch
+                )
+
                 branch_param = branch.parameters["EL"]
-                
+
                 if isinstance(branch_param, sm.Expr):
                     branch_param = getattr(parent_circuit, branch_param.name)
 
@@ -723,7 +735,7 @@ class NoisyCircuit(NoisySystem, ABC):
             if get_rate:
                 return total_rate
             return 1 / total_rate if total_rate != 0 else np.inf
-        
+
         setattr(self, "t1_flux_bias_line", MethodType(t1_flux_bias_line, self))
 
     def generate_all_noise_methods(self):

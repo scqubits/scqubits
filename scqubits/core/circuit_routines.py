@@ -108,7 +108,7 @@ class CircuitRoutines(ABC):
         "external_fluxes",
         "is_flux_dynamic",
     ]
-    
+
     # methods for serialization
     def serialize(self) -> "IOData":
         obj_in_bytes = dill.dumps(self)
@@ -118,19 +118,22 @@ class CircuitRoutines(ABC):
         iodata = dict_serialize(initdata)
         iodata.typename = type(self).__name__
         return iodata
-        
+
     @classmethod
     def deserialize(cls, io_data: "IOData"):
         obj_in_bytes = bytes.fromhex(io_data.as_kwargs()["subsystem_in_hex"])
         return dill.loads(obj_in_bytes)
-    
-    def return_root_child(self, var_index:int):
-        if not self.hierarchical_diagonalization and var_index in self.var_categories_list:
+
+    def return_root_child(self, var_index: int):
+        if (
+            not self.hierarchical_diagonalization
+            and var_index in self.var_categories_list
+        ):
             return self
         for subsys in self.subsystems:
             if var_index in subsys.var_categories_list:
                 return subsys.return_root_child(var_index)
-    
+
     def return_parent_circuit(self):
         """
         Returns the parent Circuit instance.
@@ -559,7 +562,7 @@ class CircuitRoutines(ABC):
                 var_indices,
                 " is not set to discretized phi basis.",
             )
-            
+
         for var_index in var_indices:
             if var_index not in self.var_categories["extended"]:
                 raise Exception(
@@ -1647,7 +1650,9 @@ class CircuitRoutines(ABC):
             for idx, var_symbol in enumerate(cos_argument_expr.free_symbols):
                 prefactor = float(cos_argument_expr.coeff(var_symbol))
                 child_circuit = self.return_root_child(var_indices[idx])
-                operator_bare = child_circuit._kron_operator(self.exp_i_operator(var_symbol, prefactor), var_indices[idx])
+                operator_bare = child_circuit._kron_operator(
+                    self.exp_i_operator(var_symbol, prefactor), var_indices[idx]
+                )
                 operator_list.append(
                     self.identity_wrap_for_hd(
                         operator_bare,
@@ -1828,7 +1833,7 @@ class CircuitRoutines(ABC):
         if len(set(self.var_categories_list) & set(instance.var_categories_list)) > 0:
             return True
         return False
-    
+
     def identity_wrap_for_hd(
         self,
         operator: Optional[Union[csc_matrix, ndarray]],
@@ -1853,8 +1858,12 @@ class CircuitRoutines(ABC):
         """
         if not self.hierarchical_diagonalization:
             return qt.Qobj(operator)
-        
-        subsystem_index = [subsys_index for subsys_index, subsys in enumerate(self.subsystems) if subsys.is_subsystem(child_instance)][0]
+
+        subsystem_index = [
+            subsys_index
+            for subsys_index, subsys in enumerate(self.subsystems)
+            if subsys.is_subsystem(child_instance)
+        ][0]
         subsystem = self.subsystems[subsystem_index]
         operator = subsystem.identity_wrap_for_hd(operator, child_instance)
 
