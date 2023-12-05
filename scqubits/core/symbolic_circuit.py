@@ -1539,7 +1539,7 @@ class SymbolicCircuit(serializers.Serializable):
                     ** 2
                 )
         # substitute params if necessary
-        if substitute_params:
+        if substitute_params and terms != 0:
             for symbol in self.symbolic_params:
                 terms = terms.subs(symbol.name, self.symbolic_params[symbol])
         return terms
@@ -1569,9 +1569,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         # Make a copy of self; do not need symbolic expressions etc., so do a minimal
         # initialization only
-        circ_copy = SymbolicCircuit.from_yaml(
-            self.input_string, from_file=False, initiate_sym_calc=False
-        )
+        circ_copy = copy.deepcopy(self)
 
         # **************** removing all the capacitive branches and updating the nodes *
         # identifying capacitive branches
@@ -1904,6 +1902,78 @@ class SymbolicCircuit(serializers.Serializable):
         for p in self.var_categories["periodic"]:
             self.offset_charges = self.offset_charges + [symbols(f"ng{p}")]
 
+    def _branch_sym_expr(self, branch: Branch, return_charge: bool = False, substitute_params: bool = True):
+        """
+        Returns the voltage across the branch in terms of the charge operators
+        
+        Args:
+            branch (Branch): A branch of the instance
+        """
+        transformation_matrix = self.transformation_matrix
+
+        if return_charge:
+            frozen_indices = [
+                i - 1 for i in self.var_categories["frozen"] + self.var_categories["sigma"]
+            ]
+            # generating the C_mat_θ by inverting the capacitance matrix
+            if self.is_any_branch_parameter_symbolic() and not substitute_params:
+                C_mat_θ = (
+                    transformation_matrix.T
+                    * self._capacitance_matrix()
+                    * transformation_matrix
+                )
+                relevant_indices = [
+                    i for i in range(C_mat_θ.shape[0]) if i not in frozen_indices
+                ]
+                C_mat_θ = C_mat_θ[relevant_indices, relevant_indices]
+                C_mat_θ = C_mat_θ.inv()
+            else:
+                C_mat_θ = (
+                    transformation_matrix.T
+                    @ self._capacitance_matrix(substitute_params=substitute_params)
+                    @ transformation_matrix
+                )
+                C_mat_θ = np.delete(C_mat_θ, frozen_indices, 0)
+                C_mat_θ = np.delete(C_mat_θ, frozen_indices, 1)
+                C_mat_θ = np.linalg.inv(C_mat_θ)
+            p_θ_vars = [
+                symbols(f"Q{i}")
+                for i in self.var_categories["periodic"] + self.var_categories["extended"] + self.var_categories["free"]
+                # replacing the free charge with 0, as it would not affect the circuit
+                # Lagrangian.
+            ]
+            node_id1, node_id2 = [node.index - (1 if not self.is_grounded else 0) for node in branch.nodes]
+            voltages = C_mat_θ * sympy.Matrix(p_θ_vars)
+
+            if not self.is_grounded:
+                voltages = list(voltages) + [0]
+
+            node_voltages = list(np.linalg.inv(self.transformation_matrix) * sympy.Matrix(voltages))
+            if self.is_grounded:
+                node_voltages = [0] + node_voltages
+
+            branch_voltage_expr = node_voltages[node_id1] - node_voltages[node_id2]
+            # adding the offset charge variables
+            for var_index in self.var_categories["periodic"]:
+                branch_voltage_expr = branch_voltage_expr.subs(
+                    symbols(f"Q{var_index}"),
+                    symbols(f"n{var_index}") + symbols(f"ng{var_index}"),
+                )
+            return branch_voltage_expr * (1/(8*branch.parameters["EC"]) if branch.type == "C" else 1/(8*branch.parameters["ECJ"]))
+        
+        node_id1, node_id2 = [node.index for node in branch.nodes]
+        expr_node_vars = symbols(f"φ{node_id1}") - symbols(f"φ{node_id2}")
+        expr_node_vars = expr_node_vars.subs(
+            "φ0", 0
+        )  # substituting node flux of ground to zero
+        num_vars = len(self._node_list_without_ground)
+        new_vars = [symbols(f"θ{index}") for index in range(1, 1 + num_vars)]
+        old_vars = [symbols(f"φ{index}") for index in range(1, 1 + num_vars)]
+        transformed_expr = transformation_matrix.dot(new_vars)
+        for idx, var in enumerate(old_vars):
+            expr_node_vars = expr_node_vars.subs(var, transformed_expr[idx])
+        return expr_node_vars
+            
     def generate_symbolic_lagrangian(
         self, substitute_params: bool = False
     ) -> Tuple[sympy.Expr, sympy.Expr, sympy.Expr, sympy.Expr]:
@@ -1957,7 +2027,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         potential_φ = inductor_terms_φ + JJ_terms_φ
         potential_θ = (
-            potential_φ.copy()
+            potential_φ.copy() if potential_φ != 0 else symbols("x")*0
         )  # copying the potential in terms of the old variables to make substitutions
 
         for index in range(
