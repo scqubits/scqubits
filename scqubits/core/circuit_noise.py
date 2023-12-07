@@ -54,20 +54,27 @@ class NoisyCircuit(NoisySystem, ABC):
                     * functools.reduce(builtin_op.mul, product_matrix_list)
                 )
         return sum(eval_matrix_list)
-    
+
     @staticmethod
     def Q_from_branch(branch):
         if all(["Q_" in key for key in branch.aux_params]):
             key = "Q_" + ("ind" if branch.type == "L" else "cap")
             Q_str = branch.aux_params[key]
             if not is_string_float(Q_str):
+
                 def Q_func(omega, T):
                     return eval(Q_str)
+
             else:
                 if branch.type != "L":
+
                     def Q_func(omega, T):
-                        return eval(f"({float(Q_str)} * (2 * np.pi * 6e9 / np.abs(units.to_standard_units(omega))) ** 0.7)")
+                        return eval(
+                            f"({float(Q_str)} * (2 * np.pi * 6e9 / np.abs(units.to_standard_units(omega))) ** 0.7)"
+                        )
+
                 else:
+
                     def Q_func(omega, T):
                         therm_ratio = abs(calc_therm_ratio(omega, T))
                         therm_ratio_500MHz = calc_therm_ratio(
@@ -84,6 +91,7 @@ class NoisyCircuit(NoisySystem, ABC):
                                 * np.sinh(1 / 2 * therm_ratio)
                             )
                         )
+
             return Q_func
         raise Exception("Quality factor not defined for this branch.")
 

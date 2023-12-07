@@ -34,6 +34,7 @@ import scqubits.settings as settings
 
 from scqubits.utils.misc import flatten_list, is_string_float, unique_elements_in_list
 
+
 def process_word(word: str) -> Union[float, symbols]:
     if is_string_float(word):
         return float(word)
@@ -203,7 +204,7 @@ class Branch:
         self.aux_params = aux_params
         self.nodes[0].branches.append(self)
         self.nodes[1].branches.append(self)
-            
+
     def __str__(self) -> str:
         return (
             "Branch "
@@ -643,7 +644,7 @@ class SymbolicCircuit(serializers.Serializable):
                         branch_type,
                         parameters,
                         id_str=str(len(branches)),
-                        aux_params=aux_params
+                        aux_params=aux_params,
                     )
                 )
             elif node_id2 == 0:
@@ -654,7 +655,7 @@ class SymbolicCircuit(serializers.Serializable):
                         branch_type,
                         parameters,
                         id_str=str(len(branches)),
-                        aux_params=aux_params
+                        aux_params=aux_params,
                     )
                 )
             else:
@@ -665,7 +666,7 @@ class SymbolicCircuit(serializers.Serializable):
                         branch_type,
                         parameters,
                         id_str=str(len(branches)),
-                        aux_params=aux_params
+                        aux_params=aux_params,
                     )
                 )
         return branches, branch_var_dict
