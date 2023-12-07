@@ -34,7 +34,6 @@ import scqubits.settings as settings
 
 from scqubits.utils.misc import flatten_list, is_string_float, unique_elements_in_list
 
-
 def process_word(word: str) -> Union[float, symbols]:
     if is_string_float(word):
         return float(word)
@@ -69,8 +68,9 @@ def parse_branch_parameters(
     """
     branch_var_dict: Dict[Symbol, float] = {}
     branch_params: List[float] = []
+    aux_params: Dict[Symbol, float] = {}
     num_params = _junction_order(branch_type) + 1 if "JJ" in branch_type else 1
-    for word in words[0:num_params]:
+    for idx, word in enumerate(words):
         if not is_string_float(word):
             if len(word.split("=")) > 2:
                 raise Exception("Syntax error in branch specification.")
@@ -81,14 +81,19 @@ def parse_branch_parameters(
                 params = [process_word(word)]
         else:
             params = [float(word)]
-
-        if len(params) == 1:
-            branch_params.append(params[0])
+        if idx < num_params:
+            if len(params) == 1:
+                branch_params.append(params[0])
+            else:
+                branch_var_dict[params[0]] = params[1]
+                branch_params.append(params[0])
         else:
-            branch_var_dict[params[0]] = params[1]
-            branch_params.append(params[0])
-
-    return branch_params, branch_var_dict
+            if len(params) == 1:
+                raise Exception("Unknown auxiliary parameter given in input.")
+            else:
+                var_str, init_val = word.split("=")
+                aux_params[var_str] = init_val
+    return branch_params, branch_var_dict, aux_params
 
 
 class Node:
@@ -165,10 +170,12 @@ class Branch:
     branch_type:
         is the type of this Branch, example "C","JJ" or "L"
     parameters:
-        dictionary of parameters for the branch, namely for
+        list of parameters for the branch, namely for
         capacitance: {"EC":  <value>};
         for inductance: {"EL": <value>};
         for Josephson Junction: {"EJ": <value>, "ECJ": <value>}
+    aux_params:
+        Dictionary of auxiliary parameters which map a symbol from the input file a numeric parameter.
 
     Examples
     --------
@@ -183,6 +190,7 @@ class Branch:
         branch_type: str,
         parameters: Optional[List[Union[float, Symbol, int]]] = None,
         id_str: str = None,
+        aux_params: Dict[Symbol, float] = {},
     ):
         self.nodes = (n_i, n_f)
         self.type = branch_type
@@ -192,10 +200,10 @@ class Branch:
         # setting the parameters if it is provided
         if parameters is not None:
             self.set_parameters(parameters)
-
+        self.aux_params = aux_params
         self.nodes[0].branches.append(self)
         self.nodes[1].branches.append(self)
-
+            
     def __str__(self) -> str:
         return (
             "Branch "
@@ -612,26 +620,9 @@ class SymbolicCircuit(serializers.Serializable):
             branch_type = branch_list_input[0]
             node_id1, node_id2 = branch_list_input[1], branch_list_input[2]
 
-            if "JJ" in branch_type:
-                num_junc_params = _junction_order(branch_type) + 4
-
-            if ("JJ" in branch_type) and len(branch_list_input) != num_junc_params:
-                raise Exception(
-                    "Incorrect number of parameters: specification of JJ input in "
-                    f"line: {branch_list_input}"
-                )
-            elif (branch_type == "L" or branch_type == "C") and len(
-                branch_list_input
-            ) != 4:
-                raise Exception(
-                    "Incorrect number of parameters: specification of C or L "
-                    f"in line: {branch_list_input}"
-                )
-
-            branch_params, var_dict = parse_branch_parameters(
+            branch_params, var_dict, aux_params = parse_branch_parameters(
                 branch_list_input[3:], branch_type
             )
-
             for var in var_dict:
                 if var in branch_var_dict:
                     raise Exception(str(var) + " has already been initialized.")
@@ -652,6 +643,7 @@ class SymbolicCircuit(serializers.Serializable):
                         branch_type,
                         parameters,
                         id_str=str(len(branches)),
+                        aux_params=aux_params
                     )
                 )
             elif node_id2 == 0:
@@ -662,6 +654,7 @@ class SymbolicCircuit(serializers.Serializable):
                         branch_type,
                         parameters,
                         id_str=str(len(branches)),
+                        aux_params=aux_params
                     )
                 )
             else:
@@ -672,6 +665,7 @@ class SymbolicCircuit(serializers.Serializable):
                         branch_type,
                         parameters,
                         id_str=str(len(branches)),
+                        aux_params=aux_params
                     )
                 )
         return branches, branch_var_dict
