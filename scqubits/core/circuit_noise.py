@@ -57,7 +57,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
     @staticmethod
     def Q_from_branch(branch):
-        if all(["Q_" in key for key in branch.aux_params]):
+        if sum(["Q_" in key for key in branch.aux_params]):
             key = "Q_" + ("ind" if branch.type == "L" else "cap")
             Q_str = branch.aux_params[key]
             if not is_string_float(Q_str):
@@ -93,7 +93,7 @@ class NoisyCircuit(NoisySystem, ABC):
                         )
 
             return Q_func
-        raise Exception("Quality factor not defined for this branch.")
+        return None
 
     def generate_methods_d_hamiltonian_d(self):
         """
