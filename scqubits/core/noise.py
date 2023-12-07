@@ -1142,6 +1142,7 @@ class NoisySystem(ABC):
         j: int,
         noise_op: Union[ndarray, csc_matrix],
         spectral_density: Callable,
+        T: float = NOISE_PARAMS["T"],
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
@@ -1170,8 +1171,10 @@ class NoisySystem(ABC):
             state index that along with i defines a transition (i->j)
         noise_op:
             noise operator
+        T:
+            Temperature defined in Kelvin
         spectral_density:
-            defines a spectral density, must take one argument: `omega`
+            defines a spectral density, must take two arguments: `omega` and `T`
             (assumed to be in units of `2 \pi * <system units>`)
         total:
             if False return a time/rate associated with a transition from state i to state j.
@@ -1219,9 +1222,9 @@ class NoisySystem(ABC):
         omega = 2 * np.pi * (evals[i] - evals[j])
 
         s = (
-            spectral_density(omega) + spectral_density(-omega)
+            spectral_density(omega, T) + spectral_density(-omega, T)
             if total
-            else spectral_density(omega)
+            else spectral_density(omega, T)
         )
 
         if isinstance(
@@ -1287,7 +1290,7 @@ class NoisySystem(ABC):
 
         if Q_cap is None:
             # See Smith et al (2020)
-            def q_cap_fun(omega):
+            def q_cap_fun(omega, T):
                 return (
                     1e6
                     * (2 * np.pi * 6e9 / np.abs(units.to_standard_units(omega))) ** 0.7
@@ -1297,16 +1300,16 @@ class NoisySystem(ABC):
             q_cap_fun = Q_cap
         else:  # Q_cap is given as a number
 
-            def q_cap_fun(omega):
+            def q_cap_fun(omega, T):
                 return Q_cap
 
-        def spectral_density(omega):
+        def spectral_density(omega, T):
             therm_ratio = calc_therm_ratio(omega, T)
             s = (
                 2
                 * 8
                 * (branch_params if branch_params else self.EC)
-                / q_cap_fun(omega)
+                / q_cap_fun(omega, T)
                 * (1 / np.tanh(0.5 * np.abs(therm_ratio)))
                 / (1 + np.exp(-therm_ratio))
             )
@@ -1327,6 +1330,7 @@ class NoisySystem(ABC):
             i=i,
             j=j,
             noise_op=noise_op,
+            T=T,
             spectral_density=spectral_density,
             total=total,
             esys=esys,
@@ -1378,7 +1382,7 @@ class NoisySystem(ABC):
 
         Z_fun = Z if callable(Z) else lambda omega: Z
 
-        def spectral_density(omega):
+        def spectral_density(omega, T):
             # Note, our definition of Q_c is different from Zhang et al (2020) by a
             # factor of 2
             Q_c = NOISE_PARAMS["R_k"] / (8 * np.pi * complex(Z_fun(omega)).real)
@@ -1404,6 +1408,7 @@ class NoisySystem(ABC):
             i=i,
             j=j,
             noise_op=noise_op,
+            T=T,
             spectral_density=spectral_density,
             total=total,
             esys=esys,
@@ -1460,7 +1465,7 @@ class NoisySystem(ABC):
 
         Z_fun = Z if callable(Z) else lambda omega: Z
 
-        def spectral_density(omega, Z=Z):
+        def spectral_density(omega, T, Z=Z):
             """
             Our definitions assume that the noise_op is dH/dflux.
             """
@@ -1488,6 +1493,7 @@ class NoisySystem(ABC):
             i=i,
             j=j,
             noise_op=noise_op,
+            T=T,
             spectral_density=spectral_density,
             total=total,
             esys=esys,
@@ -1544,7 +1550,7 @@ class NoisySystem(ABC):
 
         if Q_ind is None:
             # See Smith et al (2020)
-            def q_ind_fun(omega):
+            def q_ind_fun(omega, T):
                 therm_ratio = abs(calc_therm_ratio(omega, T))
                 therm_ratio_500MHz = calc_therm_ratio(
                     2 * np.pi * 500e6, T, omega_in_standard_units=True
@@ -1566,15 +1572,15 @@ class NoisySystem(ABC):
 
         else:  # Q_ind is given as a number
 
-            def q_ind_fun(omega):
+            def q_ind_fun(omega, T):
                 return Q_ind
 
-        def spectral_density(omega):
+        def spectral_density(omega, T):
             therm_ratio = calc_therm_ratio(omega, T)
             s = (
                 2
                 * (branch_params if branch_params else self.EL)
-                / q_ind_fun(omega)
+                / q_ind_fun(omega, T)
                 * (1 / np.tanh(0.5 * np.abs(therm_ratio)))
                 / (1 + np.exp(-therm_ratio))
             )
@@ -1595,6 +1601,7 @@ class NoisySystem(ABC):
             i=i,
             j=j,
             noise_op=noise_op,
+            T=T,
             spectral_density=spectral_density,
             total=total,
             esys=esys,
@@ -1654,7 +1661,7 @@ class NoisySystem(ABC):
 
         if Y_qp is None:
 
-            def y_qp_fun(omega):
+            def y_qp_fun(omega, T):
                 """
                 Based on Eq. S23 in the appendix of Smith et al (2020).
                 """
@@ -1690,17 +1697,17 @@ class NoisySystem(ABC):
 
         else:  # Y_qp is given as a number
 
-            def y_qp_fun(omega):
+            def y_qp_fun(omega, T):
                 return Y_qp
 
-        def spectral_density(omega):
+        def spectral_density(omega, T):
             """Based on Eq. 19 in Smith et al (2020)."""
             therm_ratio = calc_therm_ratio(omega, T)
 
             return (
                 2
                 * omega
-                * complex(y_qp_fun(omega)).real
+                * complex(y_qp_fun(omega, T)).real
                 * (1 / np.tanh(0.5 * therm_ratio))
                 / (1 + np.exp(-therm_ratio))
             )
@@ -1722,6 +1729,7 @@ class NoisySystem(ABC):
             i=i,
             j=j,
             noise_op=noise_op,
+            T=T,
             spectral_density=spectral_density,
             total=total,
             esys=esys,
