@@ -16,10 +16,13 @@ import functools
 from numpy import ndarray
 import numpy as np
 import qutip as qt
+import scipy as sp
 import copy
 
-from scqubits.core.noise import NOISE_PARAMS, NoisySystem
+from scqubits.core.noise import NOISE_PARAMS, NoisySystem, calc_therm_ratio
 from scqubits.core.circuit_utils import get_trailing_number, keep_terms_for_subsystem
+from scqubits.utils.misc import is_string_float
+import scqubits.core.units as units
 
 from types import MethodType
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -51,6 +54,38 @@ class NoisyCircuit(NoisySystem, ABC):
                     * functools.reduce(builtin_op.mul, product_matrix_list)
                 )
         return sum(eval_matrix_list)
+    
+    @staticmethod
+    def Q_from_branch(branch):
+        if all(["Q_" in key for key in branch.aux_params]):
+            key = "Q_" + ("ind" if branch.type == "L" else "cap")
+            Q_str = branch.aux_params[key]
+            if not is_string_float(Q_str):
+                def Q_func(omega, T):
+                    return eval(Q_str)
+            else:
+                if branch.type != "L":
+                    def Q_func(omega, T):
+                        return eval(f"({float(Q_str)} * (2 * np.pi * 6e9 / np.abs(units.to_standard_units(omega))) ** 0.7)")
+                else:
+                    def Q_func(omega, T):
+                        therm_ratio = abs(calc_therm_ratio(omega, T))
+                        therm_ratio_500MHz = calc_therm_ratio(
+                            2 * np.pi * float(Q_str), T, omega_in_standard_units=True
+                        )
+                        return (
+                            float(Q_str)
+                            * (
+                                sp.special.kv(0, 1 / 2 * therm_ratio_500MHz)
+                                * np.sinh(1 / 2 * therm_ratio_500MHz)
+                            )
+                            / (
+                                sp.special.kv(0, 1 / 2 * therm_ratio)
+                                * np.sinh(1 / 2 * therm_ratio)
+                            )
+                        )
+            return Q_func
+        raise Exception("Quality factor not defined for this branch.")
 
     def generate_methods_d_hamiltonian_d(self):
         """
@@ -522,7 +557,7 @@ class NoisyCircuit(NoisySystem, ABC):
                     self=self,
                     i=i,
                     j=j,
-                    Q_cap=Q_cap,
+                    Q_cap=self.Q_from_branch(branch),
                     T=T,
                     total=total,
                     esys=esys,
@@ -558,7 +593,7 @@ class NoisyCircuit(NoisySystem, ABC):
                     self=self,
                     i=i,
                     j=j,
-                    Q_ind=Q_ind,
+                    Q_ind=self.Q_from_branch(branch),
                     T=T,
                     total=total,
                     esys=esys,
@@ -628,7 +663,7 @@ class NoisyCircuit(NoisySystem, ABC):
                     getattr(parent_circuit, f"t1_inductive{branch.id_str}")(
                         i=i,
                         j=j,
-                        Q_ind=Q_ind,
+                        Q_ind=self.Q_from_branch(branch),
                         T=T,
                         total=total,
                         esys=esys,
@@ -659,7 +694,7 @@ class NoisyCircuit(NoisySystem, ABC):
                     getattr(parent_circuit, f"t1_capacitive{branch.id_str}")(
                         i=i,
                         j=j,
-                        Q_cap=Q_cap,
+                        Q_cap=self.Q_from_branch(branch),
                         T=T,
                         total=total,
                         esys=esys,
