@@ -52,7 +52,7 @@ EXTRA_KWARGS = {}
 
 # version information about scqubits goes here
 MAJOR = 3
-MINOR = 2
+MINOR = 3
 MICRO = 0
 ISRELEASED = True
 
@@ -67,7 +67,7 @@ EXTRAS_REQUIRE = {
     "graphics": ["matplotlib-label-lines (>=0.3.6)"],
     "explorer": ["ipywidgets (>=7.5)"],
     "h5-support": ["h5py (>=2.10)"],
-    "pathos": ["pathos", "dill"]
+    "pathos": ["pathos", "dill"],
 }
 
 TESTS_REQUIRE = ["h5py (>=2.7.1)", "pathos", "dill", "ipywidgets", "pytest"]

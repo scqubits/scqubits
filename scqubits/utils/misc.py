@@ -234,7 +234,7 @@ def remove_nones(dict_data: Dict[str, Any]) -> Dict[str, Any]:
 def qt_ket_to_ndarray(qobj_ket: qt.Qobj) -> np.ndarray:
     # Qutip's `.eigenstates()` returns an object-valued ndarray, each idx_entry of which
     # is a Qobj ket.
-    return np.asarray(qobj_ket.data.todense())
+    return qobj_ket.to("dense").data.as_ndarray() if qt.__version__ >= '5.0.0' else np.asarray(qobj_ket.data.todense())
 
 
 def get_shape(lst, shape=()):
@@ -479,6 +479,35 @@ def inspect_public_API(
             or inspect.isfunction(obj) 
             or inspect.ismodule(obj)
         ):
+            public_names.append(name)
+        elif not callable(obj) and name.isupper():  # constants
+            public_names.append(name)
+
+    return public_names
+
+
+def inspect_public_API(
+    module: Any,
+    public_names: List[str] = [],
+    private_names: List[str] = [],
+) -> List[str]:
+    """
+    Find all public names in a module.
+
+    Parameters
+    ----------
+    module:
+        Module to be inspected
+    public_names:
+        Names that have already been found / manually be set to public
+    private_names:
+        Names that should be excluded from the public API
+    """
+    for name, obj in inspect.getmembers(module):
+        if name.startswith("_") or name in public_names or name in private_names:
+            continue
+
+        if inspect.isclass(obj) or inspect.isfunction(obj) or inspect.ismodule(obj):
             public_names.append(name)
         elif not callable(obj) and name.isupper():  # constants
             public_names.append(name)
