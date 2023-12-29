@@ -158,7 +158,7 @@ class NoisyCircuit(NoisySystem, ABC):
     ):
         transformation_mat = self.transformation_matrix
         expr_node_vars = expr_node_vars.expand()
-        num_vars = len(self.symbolic_circuit._node_list_without_ground)
+        num_vars = len(self.symbolic_circuit.nodes) - (1 if self.is_grounded else 0)
         new_vars = [sm.symbols(f"θ{index}") for index in range(1, 1 + num_vars)]
         old_vars = [sm.symbols(f"φ{index}") for index in range(1, 1 + num_vars)]
         transformed_expr = transformation_mat.dot(new_vars)

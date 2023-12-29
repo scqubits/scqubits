@@ -1021,13 +1021,13 @@ class Circuit(
         theta_vars = [
             sm.symbols(f"θ{index}")
             for index in range(
-                1, len(self.symbolic_circuit._node_list_without_ground) + 1
+                1, len(self.symbolic_circuit.nodes) - self.is_grounded + 1
             )
         ]
         node_vars = [
             sm.symbols(f"φ{index}")
             for index in range(
-                1, len(self.symbolic_circuit._node_list_without_ground) + 1
+                1, len(self.symbolic_circuit.nodes) - self.is_grounded + 1
             )
         ]
         var_eqns = []
@@ -1068,7 +1068,7 @@ class Circuit(
             lagrangian = self.lagrangian_node_vars
             # replace v\theta with \theta_dot
             for var_index in range(
-                1, 1 + len(self.symbolic_circuit._node_list_without_ground)
+                1, 1 + len(self.symbolic_circuit.nodes) - self.is_grounded
             ):
                 lagrangian = lagrangian.replace(
                     sm.symbols(f"vφ{var_index}"),
@@ -1141,7 +1141,7 @@ class Circuit(
         node_offset_charge_vars = [
             sm.symbols(f"q_g{index}")
             for index in range(
-                1, len(self.symbolic_circuit._node_list_without_ground) + 1
+                1, len(self.symbolic_circuit.nodes) - self.is_grounded + 1
             )
         ]
         periodic_offset_charge_vars = [
