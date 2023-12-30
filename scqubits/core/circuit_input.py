@@ -13,7 +13,7 @@ import sympy as sm
 # *****************************************************************
 #
 # Pattern for branch definitions in yaml file:
-#      - [ <branch_type>, <node1>, <node2>, <param> ]       or
+#      - [ <branch_type>, <node1>, <node2>, <param>, <aux params> ]       or
 #      - [ <branch_type>, <node1>, <node2>, <param1>, <param2> ]
 #
 # where <param>:   <symbol> = <number>
@@ -185,9 +185,8 @@ def strip_empty_lines(code: str) -> str:
 
 pp.autoname_elements()
 
+
 # - Parsing and processing ParsedResults data ------------------------------
-
-
 def parse_code_line(code_line: str, _branch_count):
     """
 
@@ -212,6 +211,20 @@ def parse_code_line(code_line: str, _branch_count):
 
 
 def convert_value_to_GHz(val, units):
+    """
+    Converts a given value and units to energy in GHz. The units are given in a string in the format "pU"
+    where p is an optional multiplier prefix and U is units. For example: "pH", "nA", "fF", "eV"
+
+    Args:
+        val (float): value in given units
+        units (str): units described in a string with an optional multiplier prefix
+
+    Raises:
+        ValueError: If the unit is unknown.
+
+    Returns:
+        float: Energy in GHz
+    """
     # all the possible units
     # capacitance F, inductance H, current A, energy J, frequency Hz, eV
     # returns value in GHz
@@ -228,15 +241,15 @@ def convert_value_to_GHz(val, units):
     if unit_str == "Hz":
         return val * 1e-9
     elif unit_str == "J":
-        return val / h
+        return val / h * 1e-9
     elif unit_str == "eV":
-        return val * 1.602176634e-19 / h
+        return val * 1.602176634e-19 / h * 1e-9
     elif unit_str == "F":
         return e**2 / (2 * val * h) * 1e-9
     elif unit_str == "H":
         return Φ0**2 / (val * h * (2 * np.pi) ** 2) * 1e-9
     elif unit_str == "A":
-        return e / (2 * val * h) * 1e-9
+        return val * Φ0 / (2 * np.pi * h) * 1e-9
     else:
         raise ValueError(f"Unknown unit {unit_str}")
 

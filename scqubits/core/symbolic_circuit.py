@@ -42,68 +42,6 @@ from scqubits.core.circuit_input import (
 )
 
 
-def process_word(word: str) -> Union[float, symbols]:
-    if is_string_float(word):
-        return float(word)
-    return symbols(word)
-
-
-def parse_branch_parameters(
-    words: List[str], branch_type: str
-) -> Tuple[List[float], Dict[Symbol, float]]:
-    """
-    Parses the branch parameters depending on the branch type.
-
-    Parameters
-    ----------
-    words:
-        list of strings from which parameters need to be parsed
-    branch_type:
-        str denoting the type of the branch
-
-    Returns
-    -------
-    branch_params
-        List of parameters which will be used to initiate a Branch object
-    branch_var_dict
-        A dictionary of variables defined for this current branch.
-
-    Raises
-    ------
-    Exception
-        An exception is raised if the proper syntax is not followed when using variables
-        in the input file.
-    """
-    branch_var_dict: Dict[Symbol, float] = {}
-    branch_params: List[float] = []
-    aux_params: Dict[Symbol, float] = {}
-    num_params = _junction_order(branch_type) + 1 if "JJ" in branch_type else 1
-    for idx, word in enumerate(words):
-        if not is_string_float(word):
-            if len(word.split("=")) > 2:
-                raise Exception("Syntax error in branch specification.")
-            if len(word.split("=")) == 2:
-                var_str, init_val = word.split("=")
-                params = [process_word(var_str), process_word(init_val)]
-            elif len(word.split("=")) == 1:
-                params = [process_word(word)]
-        else:
-            params = [float(word)]
-        if idx < num_params:
-            if len(params) == 1:
-                branch_params.append(params[0])
-            else:
-                branch_var_dict[params[0]] = params[1]
-                branch_params.append(params[0])
-        else:
-            if len(params) == 1:
-                raise Exception("Unknown auxiliary parameter given in input.")
-            else:
-                var_str, init_val = word.split("=")
-                aux_params[var_str] = init_val
-    return branch_params, branch_var_dict, aux_params
-
-
 class Node:
     """
     Class representing a circuit node, and handled by `Circuit`. The attribute
@@ -657,43 +595,6 @@ class SymbolicCircuit(serializers.Serializable):
         node_index_list.sort()
         return [Node(idx, 0) for idx in node_index_list]
 
-    @staticmethod
-    def _parse_branches(
-        branches_list, nodes: List[Node], is_grounded: bool
-    ) -> Tuple[List[Branch], Dict[Union[Any, Symbol], Union[Any, float]]]:
-        branches = []
-        branch_var_dict = {}  # dict stores init values of all vars from input string
-
-        for branch_list_input in branches_list:
-            branch_type = branch_list_input[0]
-            node_id1, node_id2 = branch_list_input[1], branch_list_input[2]
-
-            branch_params, var_dict, aux_params = parse_branch_parameters(
-                branch_list_input[3:], branch_type
-            )
-            for var in var_dict:
-                if var in branch_var_dict:
-                    raise Exception(str(var) + " has already been initialized.")
-                branch_var_dict[var] = var_dict[var]
-            for param in [
-                param for param in branch_params if not isinstance(param, float)
-            ]:
-                if param not in branch_var_dict.keys():
-                    raise Exception(str(param) + " has not been initialized.")
-
-            parameters = branch_params
-            branches.append(
-                Branch(
-                    nodes[node_id1 - 1 + is_grounded],
-                    nodes[node_id2 - 1 + is_grounded],
-                    branch_type,
-                    parameters,
-                    id_str=str(len(branches)),
-                    aux_params=aux_params,
-                )
-            )
-        return branches, branch_var_dict
-
     @classmethod
     def from_yaml(
         cls,
@@ -774,7 +675,8 @@ class SymbolicCircuit(serializers.Serializable):
                     raise Exception(
                         f"Symbol {sym_param} has already been assigned a value."
                     )
-                branch_var_dict[sym_param] = sym_params[sym_param]
+                if sym_params[sym_param] is not None:
+                    branch_var_dict[sym_param] = sym_params[sym_param]
             branches_list.append(branch)
 
         circuit = cls(
