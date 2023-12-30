@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 import numpy as np
 import scipy as sp
 import sympy
-import yaml
+import sympy as sm
 import random
 
 from numpy import ndarray
@@ -33,6 +33,13 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 
 from scqubits.utils.misc import flatten_list, is_string_float, unique_elements_in_list
+from scqubits.core.circuit_input import (
+    remove_comments,
+    remove_branchline,
+    strip_empty_lines,
+    parse_code_line,
+    process_param,
+)
 
 
 def process_word(word: str) -> Union[float, symbols]:
@@ -158,6 +165,56 @@ class Node:
         for k, v in self.__dict__.items():
             setattr(result, k, copy.deepcopy(v, memo))
         return result
+
+
+def make_branch(
+    nodes_list: List[Node],
+    branch_type: str,
+    node_idx1: int,
+    node_idx2: int,
+    params,
+    aux_params,
+    _branch_count: int,
+):
+    params_dict = {}
+    params = [process_param(param) for param in params]
+
+    if "JJ" in branch_type:
+        for idx, param in enumerate(params[:-1]):
+            params_dict[sm.symbols(f"EJ{idx + 1}" if idx > 0 else "EJ")] = (
+                param[0] if param[0] is not None else param[1]
+            )
+
+        params_dict[sm.symbols("EC")] = (
+            params[-1][0] if params[-1][0] is not None else params[-1][1]
+        )
+    if branch_type == "C":
+        params_dict[sm.symbols("EC")] = (
+            params[-1][0] if params[-1][0] is not None else params[-1][1]
+        )
+    elif branch_type == "L":
+        params_dict[sm.symbols("EL")] = (
+            params[-1][0] if params[-1][0] is not None else params[-1][1]
+        )
+
+    # return node_idx1, node_idx2, branch_type, list(params_dict.keys()), str(_branch_count), process_param(aux_params)
+    is_grounded = True if any([node.is_ground() for node in nodes_list]) else False
+    node_1 = nodes_list[node_idx1 if is_grounded else node_idx1 - 1]
+    node_2 = nodes_list[node_idx2 if is_grounded else node_idx2 - 1]
+    sym_params_dict = {
+        param[0]: param[1] for param in params if param[0] is not None
+    }  # dictionary of symbolic params and the default values
+    return (
+        Branch(
+            node_1,
+            node_2,
+            branch_type,
+            list(params_dict.values()),
+            str(_branch_count),
+            process_param(aux_params),
+        ),
+        sym_params_dict,
+    )
 
 
 class Branch:
@@ -696,26 +753,39 @@ class SymbolicCircuit(serializers.Serializable):
         else:
             circuit_desc = input_string
 
-        input_dictionary = yaml.load(circuit_desc, Loader=yaml.FullLoader)
+        input_str = remove_comments(circuit_desc)
+        input_str = remove_branchline(input_str)
+        input_str = strip_empty_lines(input_str)
 
-        nodes = cls._parse_nodes(input_dictionary["branches"])
-        
-        is_grounded = True if nodes[0].is_ground() else False
+        parsed_branches = [
+            parse_code_line(code_line, branch_count)
+            for branch_count, code_line in enumerate(input_str.split("\n"))
+        ]
 
-        branches, branch_var_dict = cls._parse_branches(
-            input_dictionary["branches"], nodes, is_grounded
-        )
+        # find and create the nodes
+        nodes_list = cls._parse_nodes(parsed_branches)
+        # parse branches
+        branches_list = []
+        branch_var_dict = {}
+        for parsed_branch in parsed_branches:
+            branch, sym_params = make_branch(nodes_list, *parsed_branch)
+            for sym_param in sym_params:
+                if sym_param in branch_var_dict and sym_params[sym_param] is not None:
+                    raise Exception(
+                        f"Symbol {sym_param} has already been assigned a value."
+                    )
+                branch_var_dict[sym_param] = sym_params[sym_param]
+            branches_list.append(branch)
 
         circuit = cls(
-            nodes,
-            branches,
+            nodes_list,
+            branches_list,
             is_flux_dynamic=is_flux_dynamic,
             branch_var_dict=branch_var_dict,
             basis_completion=basis_completion,
             initiate_sym_calc=initiate_sym_calc,
             input_string=circuit_desc,
         )
-
         return circuit
 
     def _independent_modes(
@@ -736,14 +806,14 @@ class SymbolicCircuit(serializers.Serializable):
         if basisvec_entries is None:
             basisvec_entries = [1, 0]
 
-        nodes_copy = (
-            copy.copy(self.nodes)
-        )  # copying self.nodes as it is being modified
-        
+        nodes_copy = copy.copy(self.nodes)  # copying self.nodes as it is being modified
+
         # making sure that the ground node is placed at the end of the list
         if self.is_grounded:
             nodes_copy.pop(0)  # removing the ground node
-            nodes_copy = nodes_copy + [copy.copy(self.ground_node)]  # reversing the order of the nodes
+            nodes_copy = nodes_copy + [
+                copy.copy(self.ground_node)
+            ]  # reversing the order of the nodes
 
         for node in nodes_copy:  # reset the node markers
             node.marker = 0
@@ -1534,7 +1604,7 @@ class SymbolicCircuit(serializers.Serializable):
         # Make a copy of self; do not need symbolic expressions etc., so do a minimal
         # initialization only
         circ_copy = copy.deepcopy(self)
-        
+
         # adding an attribute for node list without ground
         circ_copy._node_list_without_ground = circ_copy.nodes
         if circ_copy.is_grounded:
