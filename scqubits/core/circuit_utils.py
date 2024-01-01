@@ -19,7 +19,6 @@ import sympy as sm
 from numpy import ndarray
 from scipy import sparse
 from scipy.sparse import csc_matrix
-import yaml
 
 from scqubits.core import discretization as discretization
 from scqubits.utils.misc import flatten_list_recursive, is_string_float
