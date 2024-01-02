@@ -521,6 +521,8 @@ def round_symbolic_expr(expr: sm.Expr, number_of_digits: int) -> sm.Expr:
 
 
 def yaml_like_out_with_pp(circuit_yaml):
+    import pyparsing as pp
+
     code = circuit_input.remove_comments(circuit_yaml)
     code = circuit_input.remove_branchline(code)
     code = circuit_input.strip_empty_lines(code)
