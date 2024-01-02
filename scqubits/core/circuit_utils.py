@@ -22,6 +22,7 @@ from scipy.sparse import csc_matrix
 
 from scqubits.core import discretization as discretization
 from scqubits.utils.misc import flatten_list_recursive, is_string_float
+from scqubits.core import circuit_input
 
 if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem
@@ -519,6 +520,36 @@ def round_symbolic_expr(expr: sm.Expr, number_of_digits: int) -> sm.Expr:
     return rounded_expr
 
 
+def yaml_like_out_with_pp(circuit_yaml):
+    code = circuit_input.remove_comments(circuit_yaml)
+    code = circuit_input.remove_branchline(code)
+    code = circuit_input.strip_empty_lines(code)
+
+    bp = [
+        circuit_input.BRANCHES.parse_string(branch)
+        for branch in [branch for branch in code.splitlines()]
+    ]
+
+    yaml_like_out = []
+    for branch in bp:
+        yaml_branch = []
+        for idx, param in enumerate(branch):
+            if isinstance(param, pp.ParseResults):
+                parse_type = param.getName()
+                if parse_type == "ASSIGN" or parse_type == "AUX_PARAM":
+                    yaml_branch.append(
+                        param[0] + "=" + "".join([str(x) for x in param[1:] if x])
+                    )
+                elif parse_type == "SYMBOL":
+                    yaml_branch.append(str(param[0]))
+                else:
+                    yaml_branch.append("".join([str(x) for x in param if x]))
+            else:
+                yaml_branch.append(param)
+        yaml_like_out.append(yaml_branch)
+    return yaml_like_out
+
+
 def assemble_circuit(
     circuit_list: List[str],
     couplers: str,
@@ -546,7 +577,7 @@ def assemble_circuit(
     '''
     circuit_list = [circuit_1, circuit_2]
     couplers = '''
-    couplers:
+    branches:
     - [C, 1: 1, 2: 1, E_coup = 1]
     '''
 
@@ -608,9 +639,7 @@ def assemble_circuit(
     subcircuit_node_index_dict_list = []
     for circuit_yaml in circuit_list:
         # load subcircuit yaml strings
-        subcircuit_branches = yaml.load(circuit_yaml, Loader=yaml.FullLoader)[
-            "branches"
-        ]
+        subcircuit_branches = yaml_like_out_with_pp(circuit_yaml)
         # append the dictionary for each subcircuit
         subcircuit_branches_list.append(subcircuit_branches)
         # for each subcircuit, extract their node indices
@@ -716,7 +745,7 @@ def assemble_circuit(
             composite_circuit_yaml += "]\n"
     # add coupling branches to the composite circuit yaml string
     # load coupler yaml strings
-    coupler_branches = yaml.load(couplers, Loader=yaml.FullLoader)["couplers"]
+    coupler_branches = yaml_like_out_with_pp(couplers)
     for coupler_branch in coupler_branches:
         composite_circuit_yaml += " - ["
         branch_type = coupler_branch[0]

@@ -3,8 +3,8 @@ import os
 
 from typing import List, Tuple
 
-from pyparsing import ParseResults, Group, Opt, Or, Literal, Suppress
-
+from pyparsing import Group, Opt, Or, Literal, Suppress
+import numpy as np
 import scipy as sp
 import sympy as sm
 
@@ -104,9 +104,6 @@ PARAMS = {
 }  # can specify in three ways
 
 # # - Branch specifications ------------------------------------------------------
-from scqubits.core.circuit_utils import _junction_order
-import numpy as np
-
 AUX_PARAM = Group(pp.ZeroOrMore(CM + SYMBOL + Suppress(Literal("=")) + NUM))(
     "AUX_PARAM"
 )
@@ -115,6 +112,8 @@ order_count = pp.Empty()
 
 
 def find_jj_order(str_result: str, location: int, tokens: pp.ParseResults):
+    from scqubits.core.circuit_utils import _junction_order
+
     JJ_TYPE = BEG + BRANCH_TYPES["JJ"]
     JJ_TYPE.add_parse_action(lambda tokens: _junction_order(tokens[0]))
     return JJ_TYPE.parse_string(str_result)
