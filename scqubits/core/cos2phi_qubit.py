@@ -141,7 +141,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             def q_ind_fun(omega):
                 return Q_ind
 
-        def spectral_density1(omega):
+        def spectral_density1(omega, T):
             therm_ratio = calc_therm_ratio(omega, T)
             s = (
                 2
@@ -158,7 +158,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
 
         noise_op1 = self.phi_1_operator()
 
-        def spectral_density2(omega):
+        def spectral_density2(omega, T):
             therm_ratio = calc_therm_ratio(omega, T)
             s = (
                 2
@@ -260,7 +260,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             def q_cap_fun(omega):
                 return Q_cap
 
-        def spectral_density1(omega):
+        def spectral_density1(omega, T):
             therm_ratio = calc_therm_ratio(omega, T)
             s1 = (
                 2
@@ -276,7 +276,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             )  # We assume that system energies are given in units of frequency
             return s1
 
-        def spectral_density2(omega):
+        def spectral_density2(omega, T):
             therm_ratio = calc_therm_ratio(omega, T)
             s2 = (
                 2
@@ -378,7 +378,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             def q_cap_fun(omega):
                 return Q_cap
 
-        def spectral_density(omega):
+        def spectral_density(omega, T):
             therm_ratio = calc_therm_ratio(omega, T)
             s = (
                 2
