@@ -104,7 +104,9 @@ PARAMS = {
 }  # can specify in three ways
 
 # # - Branch specifications ------------------------------------------------------
-aux_val = pp.Word(pp.printables.replace("]", "").replace("[", "") + " ") # allowing for numerical expressions in auxiliary params
+aux_val = pp.Word(
+    pp.printables.replace("]", "").replace("[", "") + " "
+)  # allowing for numerical expressions in auxiliary params
 AUX_PARAM = Group(pp.ZeroOrMore(CM + SYMBOL + Suppress(Literal("=")) + aux_val))(
     "AUX_PARAM"
 )
@@ -276,5 +278,9 @@ def process_param(pattern):
         num_of_aux_params = int(len(pattern) / 2)
         aux_params = {}
         for idx in range(num_of_aux_params):
-            aux_params[pattern[2 * idx]] = float(pattern[2*idx + 1]) if is_string_float(pattern[2*idx + 1]) else pattern[2*idx + 1]
+            aux_params[pattern[2 * idx]] = (
+                float(pattern[2 * idx + 1])
+                if is_string_float(pattern[2 * idx + 1])
+                else pattern[2 * idx + 1]
+            )
         return aux_params
