@@ -1,10 +1,6 @@
 import numpy as np
 import scqubits as scq
 
-# from scqubits.benchmarks.asvconftest import StandardTests
-# import scqubits.benchmarks.asvconftest as asvtest
-
-
 class TestQubit:
     def time_transmon_get_spectrum_vs_paramvals(self):
         init_params = scq.Transmon.default_params()

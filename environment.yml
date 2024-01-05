@@ -1,0 +1,22 @@
+name: newAsvEnv
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - pip:
+    - cycler
+    - cython
+    - matplotlib
+    - numpy
+    - pyyaml
+    - qutip
+    - scipy
+    - sympy
+    - tqdm
+    - typing_extensions
+    - h5py
+    - pytest
+    - pathos
+    - dill
+    - traitlets
+    - asv
