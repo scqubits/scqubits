@@ -54,7 +54,7 @@ JJ_ORDER = pp.Word(pp.nums).add_condition(
     lambda tokens: int(tokens[0]) > 0, message="Junction order must be greater than 0."
 )
 BRANCH_TYPES["JJ"] = (
-    QM + pp.Combine(pp.Word("JJ") + Opt(JJ_ORDER)) + QM
+    QM + pp.Combine(pp.Word("JJ") + Opt(JJ_ORDER) + Opt(pp.Word("s"))) + QM
 )  # defining grammar to find "JJi" where i is an optional natural number
 
 
