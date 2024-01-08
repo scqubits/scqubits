@@ -2299,16 +2299,10 @@ class CircuitRoutines(ABC):
             sym_hamiltonian = sym_hamiltonian.subs(
                 free_var, free_var + getattr(self, free_var.name)
             ).expand()
-            sym_hamiltonian = sm.series(
-                sym_hamiltonian,
-                x=free_var,
-                x0=0,
-                n=free_var_func_dict[free_var.name][1] + 1,
-            ).removeO()
 
         expr_dict = sym_hamiltonian.expand().as_coefficients_dict()
         terms = list(expr_dict.keys())
-        time_dep_terms = []
+        time_dep_terms = {}
 
         for term in terms:
             if len(list_intersection(list(term.free_symbols), free_var_symbols)) == 0:
@@ -2322,7 +2316,7 @@ class CircuitRoutines(ABC):
                     for free_sym in free_var_symbols
                 ]
             )
-            term_expanded = term.expand(trig=should_trig_expand)
+            term_expanded = term.expand(trig=True)
 
             term_expr_dict = term_expanded.as_coefficients_dict()
             terms_in_term = list(term_expr_dict.keys())
@@ -2330,44 +2324,51 @@ class CircuitRoutines(ABC):
                 operator_expr, parameter_expr = inner_term.as_independent(
                     *free_var_symbols, as_Mul=True
                 )
-                time_dep_terms.append(
-                    expr_dict[term] * parameter_expr * operator_expr
-                )  # updating the symbolic exprs
 
-                # separating the time independent constants
-                for sym in parameter_expr.free_symbols:
-                    if sym not in free_var_symbols:
-                        parameter_expr = parameter_expr.subs(
-                            sym, getattr(self, sym.name)
-                        )
-
-                lambdify_func = sm.lambdify(
-                    list(parameter_expr.free_symbols), parameter_expr, "numpy"
-                )
-
-                def parameter_func(
-                    t,
-                    args,
-                    parameter_expr=parameter_expr,
-                    self=self,
-                    free_var_func_dict=free_var_func_dict,
-                    lambdify_func=lambdify_func,
-                ):
-                    return lambdify_func(
-                        *[
-                            free_var_func_dict[sym.name][0](t, None)
-                            for sym in parameter_expr.free_symbols
-                        ]
+                if parameter_expr in time_dep_terms:
+                    time_dep_terms[parameter_expr] = (
+                        operator_expr * expr_dict[term] * term_expr_dict[inner_term]
+                        + time_dep_terms[parameter_expr]
+                    )
+                else:
+                    time_dep_terms[parameter_expr] = (
+                        operator_expr * expr_dict[term] * term_expr_dict[inner_term]
                     )
 
-                operator_matrix = (
-                    self._evaluate_symbolic_expr(operator_expr)
-                    * expr_dict[term]
-                    * prefactor
-                )  # also multiplying the constant to the operator
-                if operator_matrix == 0:
-                    continue
-                time_varying_hamiltonian.append([operator_matrix, parameter_func])
+        for parameter_expr in time_dep_terms:
+            # separating the time independent constants
+            for sym in parameter_expr.free_symbols:
+                if sym not in free_var_symbols:
+                    parameter_expr = parameter_expr.subs(sym, getattr(self, sym.name))
+
+            lambdify_func = sm.lambdify(
+                list(parameter_expr.free_symbols), parameter_expr, "numpy"
+            )
+
+            def parameter_func(
+                t,
+                args,
+                parameter_expr=parameter_expr,
+                self=self,
+                free_var_func_dict=free_var_func_dict,
+                lambdify_func=lambdify_func,
+            ):
+                return lambdify_func(
+                    *[
+                        free_var_func_dict[sym.name](t, None)
+                        for sym in parameter_expr.free_symbols
+                    ]
+                )
+
+            operator_matrix = (
+                self._evaluate_symbolic_expr(time_dep_terms[parameter_expr])
+                * expr_dict[term]
+                * prefactor
+            )  # also multiplying the constant to the operator
+            if operator_matrix == 0:
+                continue
+            time_varying_hamiltonian.append([operator_matrix, parameter_func])
+
         fixed_hamiltonian = fixed_hamiltonian.subs("I", 1)
         return (
             [self._evaluate_symbolic_expr(fixed_hamiltonian)]
