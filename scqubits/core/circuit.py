@@ -802,6 +802,10 @@ class Circuit(
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
+
+        self._set_vars()  # setting the attribute vars to store operator symbols
+        self.operators_by_name = self.set_operators()
+        self._set_harmonic_basis_osc_params()
         # clear unnecessary attribs
         self._clear_unnecessary_attribs()
         self._frozen = True
