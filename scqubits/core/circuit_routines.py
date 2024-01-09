@@ -1045,6 +1045,10 @@ class CircuitRoutines(ABC):
                 continue
 
             interaction = interaction.subs("I", 1)
+            # adding a factor of 2pi for external flux
+            for sym_param in interaction.free_symbols:
+                if sym_param in self.external_fluxes:
+                    interaction = interaction.subs(sym_param, 2 * np.pi * sym_param)
 
             expr_dict = interaction.as_coefficients_dict()
             interaction_terms = list(expr_dict.keys())
@@ -1060,6 +1064,7 @@ class CircuitRoutines(ABC):
                 operator_expr, param_expr = term.as_independent(
                     *branch_sym_params, as_Mul=True
                 )
+                print(operator_expr, param_expr)
 
                 param_expr_str = str(coefficient_sympy * param_expr)
                 for param in list(self.symbolic_params.keys()):
