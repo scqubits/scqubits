@@ -1920,7 +1920,7 @@ class SymbolicCircuit(serializers.Serializable):
             )
 
         node_id1, node_id2 = [node.index for node in branch.nodes]
-        expr_node_vars = symbols(f"φ{node_id1}") - symbols(f"φ{node_id2}")
+        expr_node_vars = symbols(f"φ{node_id2}") - symbols(f"φ{node_id1}")
         expr_node_vars = expr_node_vars.subs(
             "φ0", 0
         )  # substituting node flux of ground to zero
@@ -1928,9 +1928,18 @@ class SymbolicCircuit(serializers.Serializable):
         new_vars = [symbols(f"θ{index}") for index in range(1, 1 + num_vars)]
         old_vars = [symbols(f"φ{index}") for index in range(1, 1 + num_vars)]
         transformed_expr = transformation_matrix.dot(new_vars)
+        # add external flux
+        phi_ext = 0
+        if branch in self.closure_branches:
+            if not self.is_flux_dynamic:
+                index = self.closure_branches.index(branch)
+                phi_ext += self.external_fluxes[index]
+        if self.is_flux_dynamic:
+            flux_branch_assignment = self._time_dependent_flux_distribution()
+            phi_ext += flux_branch_assignment[int(branch.id_str)]
         for idx, var in enumerate(old_vars):
             expr_node_vars = expr_node_vars.subs(var, transformed_expr[idx])
-        return expr_node_vars
+        return expr_node_vars + phi_ext
 
     def generate_symbolic_lagrangian(
         self, substitute_params: bool = False
