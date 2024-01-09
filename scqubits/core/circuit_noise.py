@@ -33,28 +33,6 @@ from scqubits.core.symbolic_circuit import Branch
 
 
 class NoisyCircuit(NoisySystem, ABC):
-    def _evaluate_symbolic_expr(self, sym_expr):
-        expr_dict = sym_expr.as_coefficients_dict()
-        terms = list(expr_dict.keys())
-
-        eval_matrix_list = []
-
-        for idx, term in enumerate(terms):
-            coefficient_sympy = expr_dict[term]
-            if any([arg.has(sm.cos) or arg.has(sm.sin) for arg in (1.0 * term).args]):
-                eval_matrix_list.append(
-                    float(coefficient_sympy) * self._evaluate_matrix_cosine_terms(term)
-                )
-            else:
-                product_matrix_list = []
-                for free_sym in term.free_symbols:
-                    product_matrix_list.append(self.get_operator_by_name(free_sym.name))
-                eval_matrix_list.append(
-                    float(coefficient_sympy)
-                    * functools.reduce(builtin_op.mul, product_matrix_list)
-                )
-        return sum(eval_matrix_list)
-
     @staticmethod
     def Q_from_branch(branch):
         if sum(["Q_" in key for key in branch.aux_params]):
