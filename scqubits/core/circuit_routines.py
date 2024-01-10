@@ -2376,7 +2376,7 @@ class CircuitRoutines(ABC):
 
         fixed_hamiltonian = fixed_hamiltonian.subs("I", 1)
         return (
-            [self._evaluate_symbolic_expr(fixed_hamiltonian)]
+            [self._evaluate_symbolic_expr(fixed_hamiltonian) * prefactor]
             + time_varying_hamiltonian,
             fixed_hamiltonian,
             time_dep_terms,
