@@ -29,8 +29,6 @@ jobs:
     - name: create environment.yml
       run: |
         conda install asv
-        conda install --yes --file requirements.txt
-        conda env export > environment.yml --no-builds
     - name: Setup with asv
       run: |
         pip install -e .
