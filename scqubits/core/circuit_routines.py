@@ -1105,41 +1105,78 @@ class CircuitRoutines(ABC):
         terms = list(expr_dict.keys())
 
         eval_matrix_list = []
-
         for idx, term in enumerate(terms):
-            coefficient_sympy = expr_dict[term]
+            coefficient_sympy = float(expr_dict[term])
             if term == 1:
-                eval_matrix_list.append(
-                    self._identity_qobj() * float(coefficient_sympy)
-                )
+                eval_matrix_list.append(self._identity_qobj() * (coefficient_sympy))
                 continue
-            if any([arg.has(sm.cos) or arg.has(sm.sin) for arg in (1.0 * term).args]):
-                eval_matrix_list.append(
-                    float(coefficient_sympy)
-                    * self._evaluate_matrix_cosine_terms(term, bare_esys=bare_esys)
-                )
-            elif any(
-                [arg.has(sm.Function("saw", real=True)) for arg in (1.0 * term).args]
-            ):
-                eval_matrix_list.append(
-                    float(coefficient_sympy)
-                    * self._evaluate_matrix_sawtooth_terms(term, bare_esys=bare_esys)
-                )
-            else:
-                product_matrix_list = []
-                power_dict = dict(term.as_powers_dict())
-                for free_sym in term.free_symbols:
-                    product_matrix_list.append(
-                        self.get_operator_by_name(
-                            free_sym.name,
-                            bare_esys=bare_esys,
-                            power=power_dict[free_sym],
+
+            factors = term.as_ordered_factors()
+            factor_op_list = []
+
+            for factor in factors:
+                if any(
+                    [arg.has(sm.cos) or arg.has(sm.sin) for arg in (1.0 * factor).args]
+                ):
+                    factor_op_list.append(
+                        self._evaluate_matrix_cosine_terms(factor, bare_esys=bare_esys)
+                    )
+                elif any(
+                    [
+                        arg.has(sm.Function("saw", real=True))
+                        for arg in (1.0 * factor).args
+                    ]
+                ):
+                    factor_op_list.append(
+                        self._evaluate_matrix_sawtooth_terms(
+                            factor, bare_esys=bare_esys
                         )
                     )
-                eval_matrix_list.append(
-                    float(coefficient_sympy)
-                    * functools.reduce(builtin_op.mul, product_matrix_list)
+
+                else:
+                    power_dict = dict(factor.as_powers_dict())
+                    free_sym = list(factor.free_symbols)[0]
+                    if not self.hierarchical_diagonalization:
+                        factor_op_list.append(
+                            self.get_operator_by_name(
+                                free_sym.name,
+                                bare_esys=bare_esys,
+                                power=power_dict[free_sym],
+                            )
+                        )
+                    else:
+                        subsys = self.return_root_child(
+                            get_trailing_number(free_sym.name)
+                        )
+                        operator = subsys.get_operator_by_name(
+                            free_sym.name,
+                            bare_esys=None,
+                            power=power_dict[free_sym],
+                        )
+                        factor_op_list.append((subsys, operator))
+            operators_per_subsys = {}
+            operator_list = []
+            for factor_op in factor_op_list:
+                if not isinstance(factor_op, tuple):
+                    operator_list.append(factor_op)
+                    continue
+                subsys, operator = factor_op
+                if subsys not in operators_per_subsys:
+                    operators_per_subsys[subsys] = [operator]
+                else:
+                    operators_per_subsys[subsys].append(operator)
+
+            operator_list += [
+                self.identity_wrap_for_hd(
+                    functools.reduce(builtin_op.mul, operators_per_subsys[subsys]),
+                    subsys,
                 )
+                for subsys in operators_per_subsys
+            ]
+
+            eval_matrix_list.append(
+                functools.reduce(builtin_op.mul, operator_list) * coefficient_sympy
+            )
         return sum(eval_matrix_list)
 
     def _operator_from_sym_expr_wrapper(self, sym_expr):
@@ -2194,57 +2231,6 @@ class CircuitRoutines(ABC):
         return energies, excitation_indices
 
     @check_sync_status_circuit
-    def _eigensys_for_purely_harmonic(self, evals_count: int):
-        eigenvals, excitation_numbers = self._eigenvals_for_purely_harmonic(
-            evals_count=evals_count
-        )
-        eigen_vectors = []
-        for eig_idx, energy in enumerate(eigenvals):
-            eigen_vector = []
-            for osc_idx, var_index in enumerate(self.var_categories["extended"]):
-                evec = np.zeros(self.cutoffs_dict()[var_index])
-                evec[excitation_numbers[eig_idx][osc_idx]] = 1
-                eigen_vector.append(evec)
-            eigen_vectors.append(functools.reduce(np.kron, eigen_vector))
-        # translate the eigenvectors if necessary
-        hamiltonian = self._hamiltonian_sym_for_numerics
-        # substitute parameters
-        for sym_param in (
-            self.offset_charges
-            + self.external_fluxes
-            + list(self.symbolic_params.keys())
-        ):
-            hamiltonian = hamiltonian.subs(sym_param, getattr(self, sym_param.name))
-        hamiltonian = hamiltonian.subs("I", 1)
-        # collecting the linear coefficients
-        linear_coeffs_theta = []
-        linear_coeffs_q = []
-        quad_coeffs_theta = []
-        quad_coeffs_q = []
-        for var_index in self.var_categories_list:
-            linear_coeffs_theta.append(float(hamiltonian.coeff(f"θ{var_index}")))
-            linear_coeffs_q.append(float(hamiltonian.coeff(f"Q{var_index}")))
-            quad_coeffs_theta.append(float(hamiltonian.coeff(f"θ{var_index}**2")))
-            quad_coeffs_q.append(float(hamiltonian.coeff(f"Q{var_index}**2")))
-        shift_operator = self._identity()
-        for idx, var_index in enumerate(self.var_categories_list):
-            shift_operator = shift_operator @ self._kron_operator(
-                self.exp_i_operator(
-                    sm.sympify(f"θ{var_index}"),
-                    -linear_coeffs_q[idx] / (2 * quad_coeffs_q[idx]),
-                ),
-                var_index,
-            )
-            shift_operator = shift_operator @ self._kron_operator(
-                self.exp_i_operator(
-                    sm.sympify(f"Q{var_index}"),
-                    -linear_coeffs_theta[idx] / (2 * quad_coeffs_theta[idx]),
-                ),
-                var_index,
-            )
-        return np.array(eigenvals), shift_operator @ np.array(eigen_vectors).T
-
-    @check_sync_status_circuit
     def hamiltonian(self) -> Union[csc_matrix, ndarray]:
         """
         Returns the Hamiltonian of the Circuit.
@@ -2323,7 +2309,7 @@ class CircuitRoutines(ABC):
                     for free_sym in free_var_symbols
                 ]
             )
-            term_expanded = term.expand(trig=True)
+            term_expanded = term.expand(trig=should_trig_expand)
 
             term_expr_dict = term_expanded.as_coefficients_dict()
             terms_in_term = list(term_expr_dict.keys())
@@ -2368,9 +2354,7 @@ class CircuitRoutines(ABC):
                 )
 
             operator_matrix = (
-                self._evaluate_symbolic_expr(time_dep_terms[parameter_expr])
-                * expr_dict[term]
-                * prefactor
+                self._evaluate_symbolic_expr(time_dep_terms[parameter_expr]) * prefactor
             )  # also multiplying the constant to the operator
             if operator_matrix == 0:
                 continue
@@ -2406,9 +2390,6 @@ class CircuitRoutines(ABC):
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
-        if self.is_purely_harmonic and not self.hierarchical_diagonalization:
-            return self._eigensys_for_purely_harmonic(evals_count=evals_count)
-
         # dimension of the hamiltonian
         hilbertdim = self.hilbertdim()
 
