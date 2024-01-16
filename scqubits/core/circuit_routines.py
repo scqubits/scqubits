@@ -939,7 +939,10 @@ class CircuitRoutines(ABC):
                     H_int += term
 
             # adding constants
-            systems_sym.append(H_sys + self._constants_in_subsys(H_sys, constants))
+            subsys_const = self._constants_in_subsys(H_sys, constants)
+            if subsys_const in constants:
+                constants.remove(subsys_const)
+            systems_sym.append(H_sys + subsys_const)
             interaction_sym.append(H_int)
             hamiltonian -= H_sys + H_int  # removing the terms added to a subsystem
 
@@ -2228,14 +2231,14 @@ class CircuitRoutines(ABC):
             shift_operator = shift_operator @ self._kron_operator(
                 self.exp_i_operator(
                     sm.sympify(f"θ{var_index}"),
-                    linear_coeffs_q[idx] / (2 * quad_coeffs_q[idx]),
+                    -linear_coeffs_q[idx] / (2 * quad_coeffs_q[idx]),
                 ),
                 var_index,
             )
             shift_operator = shift_operator @ self._kron_operator(
                 self.exp_i_operator(
                     sm.sympify(f"Q{var_index}"),
-                    linear_coeffs_theta[idx] / (2 * quad_coeffs_theta[idx]),
+                    -linear_coeffs_theta[idx] / (2 * quad_coeffs_theta[idx]),
                 ),
                 var_index,
             )
