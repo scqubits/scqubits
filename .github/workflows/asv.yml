@@ -26,16 +26,17 @@ jobs:
     - name: Add conda to system path
       run: |
         echo $CONDA/bin >> $GITHUB_PATH
+    - name: setup git
+      run: | 
+        git checkout main
+        git checkout - 
     - name: create environment.yml
       run: |
+        conda install wheel
         conda install asv
     - name: Setup with asv
       run: |
         asv machine --machine github-actions --yes
-    - name: Temporary Step--Become asvDevBranch
-      run: |
-        git fetch
-        git checkout asvDevBranch
     - name: test with asv
       run: |
         asv run -j 8 --interleave-rounds --skip-existing main..asvDevBranch
@@ -45,7 +46,7 @@ jobs:
         git config --global user.name "$GIT_AUTHOR_NAME"
         git checkout gh-pages
         git pull
-        git checkout main
+        git checkout asvDevBranch
         asv gh-pages --no-push
         git push origin gh-pages:gh-pages
       env:
