@@ -35,7 +35,7 @@ jobs:
         asv machine --machine github-actions --yes
     - name: test with asv
       run: |
-        asv run -j 8 --interleave-rounds --skip-existing HEAD
+        asv run -j 8 --interleave-rounds --skip-existing main..asvDevBranch
     - name: Upload results to git
       run: |
         git config --global user.email "$GIT_AUTHOR_EMAIL"
