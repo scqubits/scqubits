@@ -609,20 +609,46 @@ class HilbertSpace(
     def generate_lookup(
         self, 
         update_subsystem_indices: List[int] = None,
-        dressed_esys: Optional[Tuple[ndarray, ndarray]] = None,
+        dressed_esys: Optional[Tuple[ndarray, List[qt.Qobj]]] = None,
+        evals_count: Optional[int] = None,
     ) -> None:
+        """
+        update_subsystem_indices:
+            list of subsystem indices that need to be updated. None means
+            all subsystems need to be updated
+        dressed_esys:
+            optionally, the dressed eigensystems can be provided to speed up
+            computation; these are provided in tuple form via (evals, evecs).
+            evecs should be a list of qutip.Qobj objects
+        evals_count:
+            number of desired eigenvalues/eigenstates given/to-be-calculated.
+        """
         self._lookup_exists = True
         dummy_params = self._parameters.paramvals_by_name
 
-        if dressed_esys is None:
+        previous_evals_count = self._evals_count
+        if dressed_esys is not None:
+            evals, evecs = dressed_esys
+
+            if evals_count is None:
+                self._evals_count = len(evals)
+            else:
+                if len(dressed_esys[0]) != evals_count:
+                    raise ValueError(
+                        "Number of eigenvalues in dressed_esys does not match "
+                        "evals_count."
+                    )
+        else:
+            if evals_count is not None:
+                self._evals_count = evals_count
+
             bare_esys_dict = self.generate_bare_esys(
                 update_subsystem_indices=update_subsystem_indices
             )
             evals, evecs = self.eigensys(
-                evals_count=self.dimension, bare_esys=bare_esys_dict
+                evals_count=self._evals_count, bare_esys=bare_esys_dict
             )
-        else:
-            evals, evecs = dressed_esys
+
         # The following workaround ensures that eigenvectors maintain QutipEigenstates
         # view when getting placed inside an outer array
         evecs_wrapped = np.empty(shape=1, dtype=object)
@@ -633,6 +659,9 @@ class HilbertSpace(
         self._data["dressed_indices"] = spec_lookup.SpectrumLookupMixin.generate_lookup(
             self
         )
+
+        # revert evals_count to previous value
+        self._evals_count = previous_evals_count
 
     def lookup_exists(self) -> bool:
         return self._lookup_exists
