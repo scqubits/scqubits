@@ -680,7 +680,7 @@ class Circuit(
             elif re.match(r"^Q\d+$", var_sym.name):
                 var_index = get_trailing_number(var_sym.name)
                 var_categories["extended"].append(var_index)
-        var_categories = {category: sorted(var_categories[category]) for category in var_categories}
+            category: sorted(var_categories[category]) for category in var_categories
         return external_fluxes, offset_charges, var_categories
 
     def _configure_sym_hamiltonian(
@@ -807,7 +807,6 @@ class Circuit(
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
             self.update_interactions()
 
-        
         self._set_harmonic_basis_osc_params()
         # clear unnecessary attribs
         self._clear_unnecessary_attribs()
