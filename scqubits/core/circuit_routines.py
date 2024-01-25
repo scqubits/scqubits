@@ -1759,7 +1759,7 @@ class CircuitRoutines(ABC):
                         op_name
                     ] = hierarchical_diagonalization_func_factory(sym_variable.name)
 
-        if self.ext_basis == "discretized":
+        elif self.ext_basis == "discretized":
             nonwrapped_ops = {
                 "position": _phi_operator,
                 "cos": _cos_phi,
@@ -2348,7 +2348,7 @@ class CircuitRoutines(ABC):
             ):
                 return lambdify_func(
                     *[
-                        free_var_func_dict[sym.name](t, None)
+                        free_var_func_dict[sym.name](t, args)
                         for sym in parameter_expr.free_symbols
                     ]
                 )
