@@ -1068,11 +1068,12 @@ class CircuitRoutines(ABC):
                     *branch_sym_params, as_Mul=True
                 )
 
-                param_expr_str = str(coefficient_sympy * param_expr)
+                param_expr = (coefficient_sympy * param_expr)
                 for param in list(self.symbolic_params.keys()):
-                    param_expr_str = param_expr_str.replace(
-                        param.name, "self." + param.name
+                    param_expr = param_expr.subs(
+                        param, sm.symbols("self." + param.name)
                     )
+                param_expr_str = str(param_expr)
                 self.hilbert_space.add_interaction(
                     expr=param_expr_str + "*operator_expr",
                     const={"self": self},
