@@ -369,6 +369,8 @@ class Circuit(
 
         self.symbolic_params = {}
         for param_str in symbolic_param_dict:
+            if "ng" in param_str or "Φ" in param_str:
+                continue
             self.symbolic_params[sm.symbols(param_str)] = symbolic_param_dict[param_str]
 
         sm.init_printing(pretty_print=False, order="none")
@@ -670,14 +672,15 @@ class Circuit(
         for var_sym in free_symbols:
             if re.match(r"^ng\d+$", var_sym.name):
                 offset_charges.append(var_sym)
-            if re.match(r"^Φ\d+$", var_sym.name):
+            elif re.match(r"^Φ\d+$", var_sym.name):
                 external_fluxes.append(var_sym)
-            if re.match(r"^n\d+$", var_sym.name):
+            elif re.match(r"^n\d+$", var_sym.name):
                 var_index = get_trailing_number(var_sym.name)
                 var_categories["periodic"].append(var_index)
-            if re.match(r"^Q\d+$", var_sym.name):
+            elif re.match(r"^Q\d+$", var_sym.name):
                 var_index = get_trailing_number(var_sym.name)
                 var_categories["extended"].append(var_index)
+        var_categories = {category: sorted(var_categories[category]) for category in var_categories}
         return external_fluxes, offset_charges, var_categories
 
     def _configure_sym_hamiltonian(
@@ -775,8 +778,6 @@ class Circuit(
         if len(flatten_list(self.var_categories.values())) == 1:
             self.type_of_matrices = "dense"
 
-        self._set_vars()  # setting the attribute vars to store operator symbols
-
         if system_hierarchy is not None:
             self.hierarchical_diagonalization = (
                 system_hierarchy != [] and number_of_lists_in_list(system_hierarchy) > 0
@@ -784,6 +785,7 @@ class Circuit(
 
         if not self.hierarchical_diagonalization:
             self.generate_hamiltonian_sym_for_numerics()
+            self._set_vars()  # setting the attribute vars to store operator symbols
             self.operators_by_name = self.set_operators()
         else:
             # list for updating necessary subsystems when calling build hilbertspace
@@ -799,12 +801,13 @@ class Circuit(
             self.subsystem_trunc_dims = subsystem_trunc_dims
             self.generate_hamiltonian_sym_for_numerics()
             self.generate_subsystems()
+            self._set_vars()  # setting the attribute vars to store operator symbols
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
+            self.update_interactions()
 
-        self._set_vars()  # setting the attribute vars to store operator symbols
-        self.operators_by_name = self.set_operators()
+        
         self._set_harmonic_basis_osc_params()
         # clear unnecessary attribs
         self._clear_unnecessary_attribs()
@@ -942,10 +945,10 @@ class Circuit(
 
         self.hamiltonian_symbolic = self.symbolic_circuit.hamiltonian_symbolic
         # if the flux is static, remove the linear terms from the potential
-        if not self.symbolic_circuit.is_flux_dynamic:
+        # if not self.symbolic_circuit.is_flux_dynamic:
             self.hamiltonian_symbolic = self._shift_harmonic_oscillator_potential(
-                self.hamiltonian_symbolic
-            )
+        #         self.hamiltonian_symbolic
+        #     )
 
         if system_hierarchy is not None:
             self.hierarchical_diagonalization = (
