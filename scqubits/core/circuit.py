@@ -680,7 +680,9 @@ class Circuit(
             elif re.match(r"^Q\d+$", var_sym.name):
                 var_index = get_trailing_number(var_sym.name)
                 var_categories["extended"].append(var_index)
+        var_categories = {
             category: sorted(var_categories[category]) for category in var_categories
+        }
         return external_fluxes, offset_charges, var_categories
 
     def _configure_sym_hamiltonian(
@@ -944,10 +946,10 @@ class Circuit(
 
         self.hamiltonian_symbolic = self.symbolic_circuit.hamiltonian_symbolic
         # if the flux is static, remove the linear terms from the potential
-        # if not self.symbolic_circuit.is_flux_dynamic:
+        if not self.symbolic_circuit.is_flux_dynamic:
             self.hamiltonian_symbolic = self._shift_harmonic_oscillator_potential(
-        #         self.hamiltonian_symbolic
-        #     )
+                self.hamiltonian_symbolic
+            )
 
         if system_hierarchy is not None:
             self.hierarchical_diagonalization = (
