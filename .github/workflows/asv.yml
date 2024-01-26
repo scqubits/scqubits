@@ -31,4 +31,4 @@ jobs:
         git fetch origin $GITHUB_BASE_REF:base $GITHUB_REF:pr
         asv machine --machine github-actions --yes
     - name: asv continuous check
-      run: asv continuous -j 8 --only-changed -f 1.25 base pr
+      run: asv continuous --only-changed -f 1.25 -v base pr
