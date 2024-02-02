@@ -14,17 +14,15 @@
 
     
     "matrix": {
-        "req": {
-            "cycler": [""],
-            "cython": [""],
-            "matplotlib": [""],
-            "numpy": [""],
-            "pyyaml": [""],
-            "qutip": [""],
-            "scipy": [""],
-            "sympy": [""],
-            "tqdm": [""]
-        }
+        "cycler": [""],
+        "cython": [""],
+        "matplotlib": [""],
+        "numpy": [""],
+        "pyyaml": [""],
+        "qutip": [""],
+        "pip+scipy": [""],
+        "sympy": [""],
+        "tqdm": [""]
     },
     
     "benchmark_dir": "scqubits/benchmarks/asvbenchmarks",
