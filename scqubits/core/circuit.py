@@ -131,21 +131,7 @@ class Subsystem(
         )
 
         self._make_property("ext_basis", ext_basis, "update_ext_basis")
-        self.external_fluxes = [
-            var
-            for var in self.parent.external_fluxes
-            if var in self.hamiltonian_symbolic.free_symbols
-        ]
-        self.offset_charges = [
-            var
-            for var in self.parent.offset_charges
-            if var in self.hamiltonian_symbolic.free_symbols
-        ]
-        self.symbolic_params = {
-            var: self.parent.symbolic_params[var]
-            for var in self.parent.symbolic_params
-            if var in self.hamiltonian_symbolic.free_symbols
-        }
+        self._find_and_set_sym_attrs()
 
         self.var_categories_list: List[int] = []
         cutoffs: List[int] = []
@@ -201,6 +187,28 @@ class Subsystem(
 
         self._configure()
         self._frozen = True
+
+    def _find_and_set_sym_attrs(self):
+        """
+        Finds the symbolic and other circuit params from the symbolic Hamiltonian, and sets the attribs
+        external_fluxes, offset_charges and symbolic_params. Only works when _frozen is set to False, or
+        the above attribs are already set.
+        """
+        self.external_fluxes = [
+            var
+            for var in self.parent.external_fluxes
+            if var in self.hamiltonian_symbolic.free_symbols
+        ]
+        self.offset_charges = [
+            var
+            for var in self.parent.offset_charges
+            if var in self.hamiltonian_symbolic.free_symbols
+        ]
+        self.symbolic_params = {
+            var: self.parent.symbolic_params[var]
+            for var in self.parent.symbolic_params
+            if var in self.hamiltonian_symbolic.free_symbols
+        }
 
     def _configure(self) -> None:
         """

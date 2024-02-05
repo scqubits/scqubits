@@ -952,6 +952,8 @@ class CircuitRoutines(ABC):
         if only_update_subsystems:
             for subsys_index, subsys in enumerate(self.subsystems):
                 subsys.hamiltonian_symbolic = systems_sym[subsys_index]
+                subsys._frozen = False
+                subsys._find_and_set_sym_attrs()
                 subsys._configure()
                 self.subsystem_interactions[subsys_index] = interaction_sym[
                     subsys_index
@@ -1068,7 +1070,7 @@ class CircuitRoutines(ABC):
                     *branch_sym_params, as_Mul=True
                 )
 
-                param_expr = (coefficient_sympy * param_expr)
+                param_expr = coefficient_sympy * param_expr
                 for param in list(self.symbolic_params.keys()):
                     param_expr = param_expr.subs(
                         param, sm.symbols("self." + param.name)
