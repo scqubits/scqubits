@@ -1343,7 +1343,7 @@ class CircuitRoutines(ABC):
         )  # removing the shift vars from the Hamiltonian
         # remove constants from Hamiltonian
         hamiltonian -= hamiltonian.as_coefficients_dict()[1]
-        return round_symbolic_expr(hamiltonian.expand(), 15)
+        return round_symbolic_expr(hamiltonian.expand(), 12)
         # * ##########################################################################
 
     def generate_sym_potential(self):
