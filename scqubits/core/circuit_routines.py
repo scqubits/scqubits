@@ -1306,13 +1306,12 @@ class CircuitRoutines(ABC):
         # shifting the harmonic oscillator potential to the point of external fluxes
         flux_shift_vars = {}
         for var_index in self.var_categories["extended"]:
-            if hamiltonian.coeff(f"θ{var_index}") != 0:
-                flux_shift_vars[var_index] = sm.symbols("Δθ" + str(var_index))
-                hamiltonian = hamiltonian.replace(
-                    sm.symbols(f"θ{var_index}"),
-                    sm.symbols(f"θ{var_index}") + flux_shift_vars[var_index],
-                )  # substituting the flux offset variable offsets to collect the
-                # coefficients later
+            flux_shift_vars[var_index] = sm.symbols("Δθ" + str(var_index))
+            hamiltonian = hamiltonian.replace(
+                sm.symbols(f"θ{var_index}"),
+                sm.symbols(f"θ{var_index}") + flux_shift_vars[var_index],
+            )  # substituting the flux offset variable offsets to collect the
+            # coefficients later
         hamiltonian = hamiltonian.expand()
 
         flux_shift_equations = [
@@ -1322,8 +1321,11 @@ class CircuitRoutines(ABC):
             for var_index in flux_shift_vars.keys()
         ]  # finding the coefficients of the linear terms
 
-        flux_shifts = sm.linsolve(
+        A, b = sm.linear_eq_to_matrix(
             flux_shift_equations, tuple(flux_shift_vars.values())
+        )
+        flux_shifts = sm.linsolve(
+            (A, b), tuple(flux_shift_vars.values())
         )  # solving for the flux offsets
 
         if len(flux_shifts) != 0:
@@ -1331,28 +1333,17 @@ class CircuitRoutines(ABC):
         else:
             flux_shifts = []
 
-        flux_shifts_dict = dict(zip(list(flux_shift_vars.keys()), list(flux_shifts)))
+        flux_shifts_dict = dict(zip(list(flux_shift_vars.values()), list(flux_shifts)))
 
         hamiltonian = hamiltonian.subs(
-            [
-                (sm.symbols("Δθ" + str(var_index)), flux_shifts_dict[var_index])
-                for var_index in flux_shifts_dict.keys()
-            ]
+            list(flux_shifts_dict.items())
         )  # substituting the flux offsets to remove the linear terms
         hamiltonian = hamiltonian.subs(
             [(var, 0) for var in flux_shift_vars.values()]
-        )  # removing the constants from the Hamiltonian
-
-        flux_shifts_dict.update(
-            {
-                var_index: 0
-                for var_index in self.var_categories["extended"]
-                if var_index not in flux_shifts_dict
-            }
-        )
+        )  # removing the shift vars from the Hamiltonian
         # remove constants from Hamiltonian
         hamiltonian -= hamiltonian.as_coefficients_dict()[1]
-        return round_symbolic_expr(hamiltonian.expand(), 20)
+        return round_symbolic_expr(hamiltonian.expand(), 15)
         # * ##########################################################################
 
     def generate_sym_potential(self):

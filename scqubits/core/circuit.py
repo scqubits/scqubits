@@ -958,6 +958,9 @@ class Circuit(
             self.hamiltonian_symbolic = self._shift_harmonic_oscillator_potential(
                 self.hamiltonian_symbolic
             )
+            self.potential_symbolic = self._shift_harmonic_oscillator_potential(
+                self.potential_symbolic.expand()
+            )
 
         if system_hierarchy is not None:
             self.hierarchical_diagonalization = (
