@@ -715,6 +715,12 @@ class CircuitRoutines(ABC):
             if fetch_hamiltonian:
                 self.hamiltonian_symbolic = self.fetch_symbolic_hamiltonian()
             self.potential_symbolic = self.generate_sym_potential()
+
+            if self.is_child:
+                self._frozen = False
+                self._find_and_set_sym_attrs()
+                self._configure()
+
             self.generate_hamiltonian_sym_for_numerics()
             # copy the transformation matrix and normal_mode_freqs if self is a Circuit instance.
             if self.is_purely_harmonic:
@@ -1343,7 +1349,7 @@ class CircuitRoutines(ABC):
         )  # removing the shift vars from the Hamiltonian
         # remove constants from Hamiltonian
         hamiltonian -= hamiltonian.as_coefficients_dict()[1]
-        return round_symbolic_expr(hamiltonian.expand(), 12)
+        return round_symbolic_expr(hamiltonian.expand(), 16)
         # * ##########################################################################
 
     def generate_sym_potential(self):
