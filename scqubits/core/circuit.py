@@ -130,7 +130,7 @@ class Subsystem(
             use_central_dispatch=False,
         )
 
-        self._make_property("ext_basis", ext_basis, "update_ext_basis")
+        self.ext_basis = ext_basis
         self._find_and_set_sym_attrs()
 
         self.var_categories_list: List[int] = []
@@ -263,7 +263,7 @@ class Subsystem(
             self.affected_subsystem_indices = []
             self._hamiltonian_sym_for_numerics = self.hamiltonian_symbolic.copy()
             self.generate_subsystems()
-            self._ext_basis = self.get_ext_basis()
+            self.ext_basis = self.get_ext_basis()
             self.update_interactions()
             self._check_truncation_indices()
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
@@ -384,7 +384,7 @@ class Circuit(
         sm.init_printing(pretty_print=False, order="none")
         self.is_child = False
 
-        self._make_property("ext_basis", ext_basis, "update_ext_basis")
+        self.ext_basis = ext_basis
         self.truncated_dim: int = truncated_dim
         self.system_hierarchy: list = None
         self.subsystem_trunc_dims: list = None
@@ -488,7 +488,7 @@ class Circuit(
         self.is_child = False
         self.symbolic_circuit: SymbolicCircuit = symbolic_circuit
 
-        self._make_property("ext_basis", ext_basis, "update_ext_basis")
+        self.ext_basis = ext_basis
         self.hierarchical_diagonalization: bool = False
         self.truncated_dim: int = truncated_dim
         self.system_hierarchy: list = None
@@ -591,10 +591,11 @@ class Circuit(
 
     def configure(
         self,
-        transformation_matrix: ndarray = None,
-        system_hierarchy: list = None,
-        subsystem_trunc_dims: list = None,
-        closure_branches: List[Branch] = None,
+        transformation_matrix: Optional[ndarray] = None,
+        system_hierarchy: Optional[list] = None,
+        subsystem_trunc_dims: Optional[list] = None,
+        closure_branches: Optional[List[Branch]] = None,
+        ext_basis: Optional[str] = None,
     ):
         """
         Method which re-initializes a circuit instance to update, hierarchical
@@ -616,6 +617,10 @@ class Circuit(
             List of branches where external flux variables will be specified, by default
             `None` which then chooses closure branches by an internally generated
             spanning tree. For this option, Circuit should be initialized with `is_flux_dynamic` set to False.
+        ext_basis:
+            can be "discretized" or "harmonic" which chooses whether to use discretized
+            phi or harmonic oscillator basis for extended variables,
+            by default `None`
 
         Raises
         ------
@@ -628,6 +633,7 @@ class Circuit(
 
         old_system_hierarchy = self.system_hierarchy
         old_subsystem_trunc_dims = self.subsystem_trunc_dims
+        old_ext_basis = self.ext_basis
         if hasattr(self, "symbolic_circuit"):
             old_transformation_matrix = self.transformation_matrix
             old_closure_branches = (
@@ -642,11 +648,13 @@ class Circuit(
                     system_hierarchy=system_hierarchy,
                     subsystem_trunc_dims=subsystem_trunc_dims,
                     closure_branches=closure_branches,
+                    ext_basis=ext_basis,
                 )
             else:
                 self._configure_sym_hamiltonian(
                     system_hierarchy=system_hierarchy,
                     subsystem_trunc_dims=subsystem_trunc_dims,
+                    ext_basis=ext_basis,
                 )
         except:
             # resetting the necessary attributes
@@ -662,11 +670,13 @@ class Circuit(
                     system_hierarchy=old_system_hierarchy,
                     subsystem_trunc_dims=old_subsystem_trunc_dims,
                     closure_branches=old_closure_branches,
+                    ext_basis=old_ext_basis,
                 )
             else:
                 self._configure_sym_hamiltonian(
                     system_hierarchy=old_system_hierarchy,
                     subsystem_trunc_dims=old_subsystem_trunc_dims,
+                    ext_basis=old_ext_basis,
                 )
             raise Exception("Configure failed due to incorrect parameters.")
 
@@ -694,7 +704,10 @@ class Circuit(
         return external_fluxes, offset_charges, var_categories
 
     def _configure_sym_hamiltonian(
-        self, system_hierarchy: list = None, subsystem_trunc_dims: list = None
+        self,
+        system_hierarchy: list = Optional[None],
+        subsystem_trunc_dims: list = Optional[None],
+        ext_basis: Optional[str] = None,
     ):
         """
         Method which re-initializes a circuit instance to update, hierarchical
@@ -709,6 +722,10 @@ class Circuit(
         subsystem_trunc_dims:
             dict object which can be generated for a specific system_hierarchy using the
             method `truncation_template`, by default `None`
+        ext_basis:
+            can be "discretized" or "harmonic" which chooses whether to use discretized
+            phi or harmonic oscillator basis for extended variables,
+            by default `None`
 
         Raises
         ------
@@ -732,14 +749,6 @@ class Circuit(
             self.offset_charges,
             self.var_categories,
         ) = self._read_symbolic_hamiltonian(self.hamiltonian_symbolic)
-
-        if self.is_purely_harmonic:
-            self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
-            if self.ext_basis != "harmonic":
-                warnings.warn(
-                    "Purely harmonic circuits need ext_basis to be set to 'harmonic'"
-                )
-                self.ext_basis = "harmonic"
 
         # initiating the class properties
         self.cutoff_names = []
@@ -794,6 +803,15 @@ class Circuit(
             )
 
         if not self.hierarchical_diagonalization:
+            if self.is_purely_harmonic and not ext_basis:
+                self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
+                if self.ext_basis != "harmonic":
+                    warnings.warn(
+                        "Purely harmonic circuits need ext_basis to be set to 'harmonic'"
+                    )
+                    self.ext_basis = "harmonic"
+            if ext_basis:
+                self.ext_basis = ext_basis
             self.generate_hamiltonian_sym_for_numerics()
             self._set_vars()  # setting the attribute vars to store operator symbols
             self.operators_by_name = self.set_operators()
@@ -811,6 +829,7 @@ class Circuit(
             self.subsystem_trunc_dims = subsystem_trunc_dims
             self.generate_hamiltonian_sym_for_numerics()
             self.generate_subsystems()
+            self.ext_basis = ext_basis or self.get_ext_basis()
             self._set_vars()  # setting the attribute vars to store operator symbols
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
@@ -825,10 +844,11 @@ class Circuit(
 
     def _configure(
         self,
-        transformation_matrix: ndarray = None,
-        system_hierarchy: list = None,
-        subsystem_trunc_dims: list = None,
-        closure_branches: List[Branch] = None,
+        transformation_matrix: Optional[ndarray] = None,
+        system_hierarchy: Optional[list] = None,
+        subsystem_trunc_dims: Optional[list] = None,
+        closure_branches: Optional[List[Branch]] = None,
+        ext_basis: Optional[str] = None,
     ):
         """
         Method which re-initializes a circuit instance to update, hierarchical
@@ -967,15 +987,15 @@ class Circuit(
                 system_hierarchy != [] and number_of_lists_in_list(system_hierarchy) > 0
             )
 
-        if self.is_purely_harmonic:
-            self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
-            if self.ext_basis != "harmonic":
-                warnings.warn(
-                    "Purely harmonic circuits need ext_basis to be set to 'harmonic'"
-                )
-                self.ext_basis = "harmonic"
-
         if not self.hierarchical_diagonalization:
+            if self.is_purely_harmonic and not ext_basis:
+                self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
+                if self.ext_basis != "harmonic":
+                    warnings.warn(
+                        "Purely harmonic circuits need ext_basis to be set to 'harmonic'"
+                    )
+                    self.ext_basis = "harmonic"
+            self.ext_basis = ext_basis or self.ext_basis
             self.generate_hamiltonian_sym_for_numerics()
         else:
             # list for updating necessary subsystems when calling build hilbertspace
@@ -991,7 +1011,7 @@ class Circuit(
             self.subsystem_trunc_dims = subsystem_trunc_dims
             self.generate_hamiltonian_sym_for_numerics()
             self.generate_subsystems()
-            self._ext_basis = self.get_ext_basis()
+            self.ext_basis = ext_basis or self.get_ext_basis()
             self.update_interactions()
             self._check_truncation_indices()
             self.affected_subsystem_indices = list(range(len(self.subsystems)))

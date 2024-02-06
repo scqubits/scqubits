@@ -436,13 +436,6 @@ class CircuitRoutines(ABC):
             for subsys in self.subsystems:
                 setattr(subsys, param_name, value)
 
-    def _set_property_and_update_ext_basis(self, param_name: str, value: str) -> None:
-        """
-        Setter method for changing the attribute ext_basis.
-        """
-        setattr(self, f"_{param_name}", value)
-        self._configure()
-
     def _make_property(
         self,
         attrib_name: str,
@@ -496,16 +489,6 @@ class CircuitRoutines(ABC):
                 if old_dispatch_status:
                     settings.DISPATCH_ENABLED = False
                 obj._set_property_and_update_cutoffs(name, value)
-                if old_dispatch_status:
-                    settings.DISPATCH_ENABLED = True
-
-        elif property_update_type == "update_ext_basis":
-
-            def setter(obj, value, name=attrib_name):
-                old_dispatch_status = settings.DISPATCH_ENABLED
-                if old_dispatch_status:
-                    settings.DISPATCH_ENABLED = False
-                obj._set_property_and_update_ext_basis(name, value)
                 if old_dispatch_status:
                     settings.DISPATCH_ENABLED = True
 
