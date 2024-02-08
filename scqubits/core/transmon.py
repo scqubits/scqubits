@@ -66,6 +66,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         optional string by which this instance can be referred to in `HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
+
     EJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     EC = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ng = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
@@ -623,6 +624,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         optional string by which this instance can be referred to in `HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
+
     EJmax = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     d = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     flux = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
@@ -665,8 +667,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         """This is the effective, flux dependent Josephson energy, playing the role
         of EJ in the parent class `Transmon`"""
         return self.EJmax * np.sqrt(
-            np.cos(np.pi * self.flux) ** 2
-            + self.d**2 * np.sin(np.pi * self.flux) ** 2
+            np.cos(np.pi * self.flux) ** 2 + self.d**2 * np.sin(np.pi * self.flux) ** 2
         )
 
     @staticmethod

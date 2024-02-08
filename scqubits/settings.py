@@ -13,6 +13,7 @@ superconducting qubits and harmonic modes. Internally, numerics within scqubits 
 carried out with the help of Numpy and Scipy; plotting capabilities rely on
 Matplotlib.
 """
+
 # settings.py
 #
 # This file is part of scqubits: a Python package for superconducting qubits,

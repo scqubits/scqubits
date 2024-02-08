@@ -85,9 +85,7 @@ def sawtooth_potential(phi_pts):
     N = 1000
     V = np.zeros_like(phi_pts)
     for idx in range(1, N + 1):
-        V += (
-            (skewness + 1) * (-skewness) ** (idx - 1) * np.cos(idx * phi_pts) / idx**2
-        )
+        V += (skewness + 1) * (-skewness) ** (idx - 1) * np.cos(idx * phi_pts) / idx**2
     return -V
 
 

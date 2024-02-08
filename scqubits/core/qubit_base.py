@@ -316,8 +316,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         evals_count: int = 6,
         filename: Optional[str] = None,
         return_spectrumdata: "Literal[False]" = False,
-    ) -> ndarray:
-        ...
+    ) -> ndarray: ...
 
     @overload
     def eigenvals(
@@ -325,8 +324,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         evals_count: int,
         filename: str,
         return_spectrumdata: "Literal[True]",
-    ) -> SpectrumData:
-        ...
+    ) -> SpectrumData: ...
 
     def eigenvals(
         self,
@@ -379,8 +377,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         evals_count: int = 6,
         filename: Optional[str] = None,
         return_spectrumdata: "Literal[False]" = False,
-    ) -> Tuple[ndarray, ndarray]:
-        ...
+    ) -> Tuple[ndarray, ndarray]: ...
 
     @overload
     def eigensys(
@@ -388,8 +385,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         evals_count: int,
         filename: Optional[str],
         return_spectrumdata: "Literal[True]",
-    ) -> SpectrumData:
-        ...
+    ) -> SpectrumData: ...
 
     def eigensys(
         self,
@@ -521,8 +517,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         evals_count: int = 6,
         filename: str = None,
         return_datastore: "Literal[False]" = False,
-    ) -> ndarray:
-        ...
+    ) -> ndarray: ...
 
     @overload
     def matrixelement_table(
@@ -532,8 +527,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         evals_count: int,
         filename: Optional[str],
         return_datastore: "Literal[True]",
-    ) -> DataStore:
-        ...
+    ) -> DataStore: ...
 
     def matrixelement_table(
         self,

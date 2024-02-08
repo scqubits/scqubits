@@ -264,13 +264,13 @@ class NoisyCircuit(NoisySystem, ABC):
                     f"tphi_1_over_f_flux{trailing_number}"
                 ] = tphi_1_over_f_func
             elif param_sym in self.offset_charges:
-                methods_noise_rates_from_ng[
-                    f"tphi_1_over_f_ng{trailing_number}"
-                ] = tphi_1_over_f_func
+                methods_noise_rates_from_ng[f"tphi_1_over_f_ng{trailing_number}"] = (
+                    tphi_1_over_f_func
+                )
             elif param_sym in junction_branches:
-                methods_noise_rates_from_cc[
-                    f"tphi_1_over_f_cc{trailing_number}"
-                ] = tphi_1_over_f_func
+                methods_noise_rates_from_cc[f"tphi_1_over_f_cc{trailing_number}"] = (
+                    tphi_1_over_f_func
+                )
 
         noise_methods = {
             **methods_noise_rates_from_flux,
@@ -396,9 +396,9 @@ class NoisyCircuit(NoisySystem, ABC):
                     noise_op_method=noise_op_method,
                 )
 
-            flux_bias_line_methods[
-                f"t1_flux_bias_line{trailing_number}"
-            ] = flux_bias_noise
+            flux_bias_line_methods[f"t1_flux_bias_line{trailing_number}"] = (
+                flux_bias_noise
+            )
 
         for method_name in flux_bias_line_methods:
             setattr(
@@ -413,16 +413,16 @@ class NoisyCircuit(NoisySystem, ABC):
 
         for branch in self.branches:
             if branch.type == "L":
-                t1_inductive_methods[
-                    f"t1_inductive{branch.id_str}"
-                ] = self.wrapper_t1_inductive_capacitive(branch)
+                t1_inductive_methods[f"t1_inductive{branch.id_str}"] = (
+                    self.wrapper_t1_inductive_capacitive(branch)
+                )
             else:
-                t1_capacitive_methods[
-                    f"t1_capacitive{branch.id_str}"
-                ] = self.wrapper_t1_inductive_capacitive(branch)
-                t1_charge_impedance_methods[
-                    f"t1_charge_impedance{branch.id_str}"
-                ] = self.wrapper_t1_charge_impedance(branch)
+                t1_capacitive_methods[f"t1_capacitive{branch.id_str}"] = (
+                    self.wrapper_t1_inductive_capacitive(branch)
+                )
+                t1_charge_impedance_methods[f"t1_charge_impedance{branch.id_str}"] = (
+                    self.wrapper_t1_charge_impedance(branch)
+                )
             # # quasiparticle noise
             # if "JJ" in branch.type:
             #     t1_quasiparticle_tunneling_methods[

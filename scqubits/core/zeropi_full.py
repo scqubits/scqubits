@@ -101,6 +101,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         optional string by which this instance can be referred to in `HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
+
     EJ = descriptors.WatchedProperty(
         float, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )

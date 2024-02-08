@@ -1128,9 +1128,11 @@ class SymbolicCircuit(serializers.Serializable):
             "frozen": [
                 i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_frozen
             ],
-            "sigma": [i + 1 for i in range(len(pos_list)) if pos_list[i] == pos_Σ[0]]
-            if not self.is_grounded
-            else [],
+            "sigma": (
+                [i + 1 for i in range(len(pos_list)) if pos_list[i] == pos_Σ[0]]
+                if not self.is_grounded
+                else []
+            ),
         }
 
         return np.array(new_basis), var_categories

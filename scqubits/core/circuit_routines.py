@@ -338,9 +338,11 @@ class CircuitRoutines(ABC):
                 if (branch.type == "C" or "JJ" in branch.type)
             ]
             capacitance_params = [
-                branch.parameters["EC"]
-                if branch.type == "C"
-                else branch.parameters["ECJ"]
+                (
+                    branch.parameters["EC"]
+                    if branch.type == "C"
+                    else branch.parameters["ECJ"]
+                )
                 for branch in capacitance_branches
             ]
             capacitance_sym_params = [
@@ -957,19 +959,25 @@ class CircuitRoutines(ABC):
                     self,
                     systems_sym[index],
                     system_hierarchy=self.system_hierarchy[index],
-                    truncated_dim=self.subsystem_trunc_dims[index][0]
-                    if type(self.subsystem_trunc_dims[index]) == list
-                    else self.subsystem_trunc_dims[index],
+                    truncated_dim=(
+                        self.subsystem_trunc_dims[index][0]
+                        if type(self.subsystem_trunc_dims[index]) == list
+                        else self.subsystem_trunc_dims[index]
+                    ),
                     ext_basis=(
-                        "harmonic"
-                        if self._is_expression_purely_harmonic(systems_sym[index])
-                        else self.ext_basis
-                    )
-                    if not isinstance(self.ext_basis, list)
-                    else self.ext_basis[index],
-                    subsystem_trunc_dims=self.subsystem_trunc_dims[index][1]
-                    if type(self.subsystem_trunc_dims[index]) == list
-                    else None,
+                        (
+                            "harmonic"
+                            if self._is_expression_purely_harmonic(systems_sym[index])
+                            else self.ext_basis
+                        )
+                        if not isinstance(self.ext_basis, list)
+                        else self.ext_basis[index]
+                    ),
+                    subsystem_trunc_dims=(
+                        self.subsystem_trunc_dims[index][1]
+                        if type(self.subsystem_trunc_dims[index]) == list
+                        else None
+                    ),
                     evals_method=self.evals_method,
                     evals_method_options=self.evals_method_options,
                     esys_method=self.esys_method,
@@ -1723,9 +1731,9 @@ class CircuitRoutines(ABC):
             for var_type in extended_vars:
                 for sym_variable in extended_vars[var_type]:
                     op_name = sym_variable.name + "_operator"
-                    extended_operators[
-                        op_name
-                    ] = hierarchical_diagonalization_func_factory(sym_variable.name)
+                    extended_operators[op_name] = (
+                        hierarchical_diagonalization_func_factory(sym_variable.name)
+                    )
 
         elif self.ext_basis == "discretized":
             nonwrapped_ops = {
@@ -1782,9 +1790,9 @@ class CircuitRoutines(ABC):
                 var_index = get_operator_number(sym_variable.name)
                 op_name = sym_variable.name + "_operator"
                 if self.hierarchical_diagonalization:
-                    periodic_operators[
-                        op_name
-                    ] = hierarchical_diagonalization_func_factory(sym_variable.name)
+                    periodic_operators[op_name] = (
+                        hierarchical_diagonalization_func_factory(sym_variable.name)
+                    )
                 else:
                     periodic_operators[op_name] = operator_func_factory(
                         op_func, var_index
@@ -1886,17 +1894,21 @@ class CircuitRoutines(ABC):
             operator,
             subsystem,
             op_in_eigenbasis=False,
-            evecs=bare_esys[subsystem_index][1]
-            if bare_esys
-            else subsystem.get_eigenstates(),
+            evecs=(
+                bare_esys[subsystem_index][1]
+                if bare_esys
+                else subsystem.get_eigenstates()
+            ),
         )
         return identity_wrap(
             operator,
             subsystem,
             self.subsystems,
-            evecs=bare_esys[subsystem_index][1]
-            if bare_esys
-            else subsystem.get_eigenstates(),
+            evecs=(
+                bare_esys[subsystem_index][1]
+                if bare_esys
+                else subsystem.get_eigenstates()
+            ),
         )
 
     @check_sync_status_circuit
@@ -1957,17 +1969,21 @@ class CircuitRoutines(ABC):
             operator,
             subsystem,
             op_in_eigenbasis=False,
-            evecs=bare_esys[subsystem_index][1]
-            if bare_esys
-            else subsystem.get_eigenstates(),
+            evecs=(
+                bare_esys[subsystem_index][1]
+                if bare_esys
+                else subsystem.get_eigenstates()
+            ),
         )
         return identity_wrap(
             operator,
             subsystem,
             self.subsystems,
-            evecs=bare_esys[subsystem_index][1]
-            if bare_esys
-            else subsystem.get_eigenstates(),
+            evecs=(
+                bare_esys[subsystem_index][1]
+                if bare_esys
+                else subsystem.get_eigenstates()
+            ),
         )
 
     # #################################################################
@@ -2046,9 +2062,11 @@ class CircuitRoutines(ABC):
         # replace all other operators with methods
         operator_symbols_list = flatten_list_recursive(
             [
-                list(short_op_dict.values())
-                if isinstance(short_op_dict, dict)
-                else short_op_dict
+                (
+                    list(short_op_dict.values())
+                    if isinstance(short_op_dict, dict)
+                    else short_op_dict
+                )
                 for short_op_dict in list(self.vars.values())
             ]
         )
@@ -3005,9 +3023,11 @@ class CircuitRoutines(ABC):
             if len(set(relevant_indices) & set(subsystem.dynamic_var_indices)) > 0:
                 wf_shape = list(wf_new_basis.shape)
                 wf_shape[wf_dim] = [
-                    getattr(subsystem, cutoff_attrib)
-                    if "ext" in cutoff_attrib
-                    else (2 * getattr(subsystem, cutoff_attrib) + 1)
+                    (
+                        getattr(subsystem, cutoff_attrib)
+                        if "ext" in cutoff_attrib
+                        else (2 * getattr(subsystem, cutoff_attrib) + 1)
+                    )
                     for cutoff_attrib in subsystem.cutoff_names
                 ]
                 wf_new_basis = wf_new_basis.reshape(flatten_list_recursive(wf_shape))
@@ -3131,9 +3151,11 @@ class CircuitRoutines(ABC):
         else:
             wf_original_basis = wf.reshape(
                 *[
-                    getattr(self, cutoff_attrib)
-                    if "ext" in cutoff_attrib
-                    else (2 * getattr(self, cutoff_attrib) + 1)
+                    (
+                        getattr(self, cutoff_attrib)
+                        if "ext" in cutoff_attrib
+                        else (2 * getattr(self, cutoff_attrib) + 1)
+                    )
                     for cutoff_attrib in self.cutoff_names
                 ]
             )

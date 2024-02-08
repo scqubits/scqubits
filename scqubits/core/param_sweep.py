@@ -491,8 +491,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         photon_number: int = 1,
         make_positive: bool = False,
         param_indices: Optional[NpIndices] = None,
-    ) -> SpectrumData:
-        ...
+    ) -> SpectrumData: ...
 
     @overload
     def transitions(
@@ -505,8 +504,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         photon_number: int = 1,
         make_positive: bool = False,
         param_indices: Optional[NpIndices] = None,
-    ) -> Tuple[List[Tuple[StateLabel, StateLabel]], List[NamedSlotsNdarray]]:
-        ...
+    ) -> Tuple[List[Tuple[StateLabel, StateLabel]], List[NamedSlotsNdarray]]: ...
 
     def transitions(
         self,

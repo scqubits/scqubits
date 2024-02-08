@@ -134,7 +134,6 @@ class Subsystem(
                 self.dynamic_var_indices.append(var_index)
                 cutoffs += [self.parent.cutoffs_dict()[var_index]]
 
-
         self.var_categories: Dict[str, List[int]] = {}
         for var_type in self.parent.var_categories:
             self.var_categories[var_type] = [
@@ -752,7 +751,9 @@ class Circuit(
                         )
                     self.cutoff_names.append(f"cutoff_ext_{var_index}")
 
-        self.dynamic_var_indices = self.var_categories["periodic"] + self.var_categories["extended"]
+        self.dynamic_var_indices = (
+            self.var_categories["periodic"] + self.var_categories["extended"]
+        )
 
         # default values for the parameters
         for idx, param in enumerate(self.symbolic_params):
@@ -924,7 +925,9 @@ class Circuit(
                         )
                     self.cutoff_names.append(f"cutoff_ext_{var_index}")
 
-        self.dynamic_var_indices = self.var_categories["periodic"] + self.var_categories["extended"]
+        self.dynamic_var_indices = (
+            self.var_categories["periodic"] + self.var_categories["extended"]
+        )
 
         # default values for the parameters
         for idx, param in enumerate(self.symbolic_params):
