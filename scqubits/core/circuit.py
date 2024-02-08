@@ -104,13 +104,6 @@ class Subsystem(
             esys_method_options=esys_method_options,
         )
 
-        # This class does not yet support custom diagonalization options, but these
-        # still have to be defined
-        self.evals_method = None
-        self.evals_method_options = None
-        self.esys_method = None
-        self.esys_method_options = None
-
         self.system_hierarchy = system_hierarchy
         self.truncated_dim = truncated_dim
         self.subsystem_trunc_dims = subsystem_trunc_dims
@@ -476,14 +469,6 @@ class Circuit(
             initiate_sym_calc=True,
             is_flux_dynamic=is_flux_dynamic,
         )
-
-        # This class does not yet support custom diagonalization options, but these
-        # still have to be defined
-        self.evals_method = None
-        self.evals_method_options = None
-        self.esys_method = None
-        self.esys_method_options = None
-
         sm.init_printing(pretty_print=False, order="none")
         self.is_child = False
         self.symbolic_circuit: SymbolicCircuit = symbolic_circuit
