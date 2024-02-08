@@ -855,7 +855,9 @@ class CircuitRoutines(ABC):
                 for var_sym in term.free_symbols
                 if var_sym not in non_operator_symbols
             ]
-            term_operator_indices_unique = list(set(term_operator_indices))
+            term_operator_indices_unique = unique_elements_in_list(
+                term_operator_indices
+            )
 
             if len(set(term_operator_indices_unique) - set(subsys_index_list)) == 0:
                 H_sys += term
@@ -904,7 +906,9 @@ class CircuitRoutines(ABC):
                     for var_sym in term.free_symbols
                     if var_sym not in non_operator_symbols
                 ]
-                term_operator_indices_unique = list(set(term_operator_indices))
+                term_operator_indices_unique = unique_elements_in_list(
+                    term_operator_indices
+                )
 
                 if len(set(term_operator_indices_unique) - set(subsys_index_list)) == 0:
                     H_sys += term
@@ -954,37 +958,48 @@ class CircuitRoutines(ABC):
                     ],
                 )
             )
-            self.subsystems: List["circuit.Subsystem"] = [
-                circuit.Subsystem(
-                    self,
-                    systems_sym[index],
-                    system_hierarchy=self.system_hierarchy[index],
-                    truncated_dim=(
-                        self.subsystem_trunc_dims[index][0]
-                        if type(self.subsystem_trunc_dims[index]) == list
-                        else self.subsystem_trunc_dims[index]
-                    ),
-                    ext_basis=(
-                        (
-                            "harmonic"
-                            if self._is_expression_purely_harmonic(systems_sym[index])
-                            else self.ext_basis
-                        )
-                        if not isinstance(self.ext_basis, list)
-                        else self.ext_basis[index]
-                    ),
-                    subsystem_trunc_dims=(
-                        self.subsystem_trunc_dims[index][1]
-                        if type(self.subsystem_trunc_dims[index]) == list
-                        else None
-                    ),
-                    evals_method=self.evals_method,
-                    evals_method_options=self.evals_method_options,
-                    esys_method=self.esys_method,
-                    esys_method_options=self.esys_method_options,
+            self.subsystems: List["circuit.Subsystem"] = []
+            for index in range(len(self.system_hierarchy)):
+                is_purely_harmonic = self._is_expression_purely_harmonic(
+                    systems_sym[index]
                 )
-                for index in range(len(self.system_hierarchy))
-            ]
+                ext_basis = (
+                    ("harmonic" if is_purely_harmonic else self.ext_basis)
+                    if not isinstance(self.ext_basis, list)
+                    else self.ext_basis[index]
+                )
+                self.subsystems.append(
+                    circuit.Subsystem(
+                        self,
+                        systems_sym[index],
+                        system_hierarchy=self.system_hierarchy[index],
+                        truncated_dim=(
+                            self.subsystem_trunc_dims[index][0]
+                            if type(self.subsystem_trunc_dims[index]) == list
+                            else self.subsystem_trunc_dims[index]
+                        ),
+                        ext_basis=ext_basis,
+                        subsystem_trunc_dims=(
+                            self.subsystem_trunc_dims[index][1]
+                            if type(self.subsystem_trunc_dims[index]) == list
+                            else None
+                        ),
+                        evals_method=(
+                            self.evals_method if not is_purely_harmonic else None
+                        ),
+                        evals_method_options=(
+                            self.evals_method_options
+                            if not is_purely_harmonic
+                            else None
+                        ),
+                        esys_method=(
+                            self.esys_method if not is_purely_harmonic else None
+                        ),
+                        esys_method_options=(
+                            self.esys_method_options if not is_purely_harmonic else None
+                        ),
+                    )
+                )
 
             self.hilbert_space = HilbertSpace(self.subsystems)
 
@@ -1456,7 +1471,12 @@ class CircuitRoutines(ABC):
         var_index_list = self.dynamic_var_indices.copy()
         var_index_pos = var_index_list.index(var_index)
 
-        cutoff_names = np.fromiter(self._collect_cutoff_values(), dtype=int)  # [
+        cutoffs_dict = self.cutoffs_dict()
+        for var_idx in cutoffs_dict:
+            if var_idx in self.var_categories["periodic"]:
+                cutoffs_dict[var_idx] = 2 * cutoffs_dict[var_idx] + 1
+
+        var_dim_list = [cutoffs_dict[var_idx] for var_idx in var_index_list]
 
         if self.type_of_matrices == "dense":
             matrix_format = "array"
@@ -1466,12 +1486,12 @@ class CircuitRoutines(ABC):
         if len(var_index_list) > 1:
             if var_index_pos > 0:
                 identity_left = sparse.identity(
-                    np.prod(cutoff_names[: var_index_list.index(var_index)]),
+                    np.prod(var_dim_list[:var_index_pos]),
                     format=matrix_format,
                 )
             if var_index_pos < len(var_index_list) - 1:
                 identity_right = sparse.identity(
-                    np.prod(cutoff_names[var_index_list.index(var_index) + 1 :]),
+                    np.prod(var_dim_list[var_index_pos + 1 :]),
                     format=matrix_format,
                 )
 
@@ -1680,7 +1700,6 @@ class CircuitRoutines(ABC):
                         bare_esys=bare_esys,
                     )
                 )
-
             cos_term_operator = coefficient * functools.reduce(
                 builtin_op.mul,
                 operator_list,
@@ -3125,8 +3144,8 @@ class CircuitRoutines(ABC):
         Then reshapes the wavefunction to represent each of the variable indices as a separate dimension.
         """
         if self.hierarchical_diagonalization:
-            system_hierarchy_for_vars_chosen = list(
-                set([self.get_subsystem_index(index) for index in var_indices])
+            system_hierarchy_for_vars_chosen = unique_elements_in_list(
+                [self.get_subsystem_index(index) for index in var_indices]
             )  # getting the subsystem index for each of the variable indices
 
             subsys_trunc_dims = [sys.truncated_dim for sys in self.subsystems]

@@ -795,8 +795,11 @@ class Circuit(
                         "Purely harmonic circuits need ext_basis to be set to 'harmonic'"
                     )
                     self.ext_basis = "harmonic"
-            if ext_basis:
-                self.ext_basis = ext_basis
+            self.ext_basis = ext_basis or self.ext_basis
+            if self.is_purely_harmonic and self.ext_basis == "harmonic":
+                # using the default methods
+                self.evals_method = None
+                self.evals_method_options = None
             self.generate_hamiltonian_sym_for_numerics()
             self._set_vars()  # setting the attribute vars to store operator symbols
             self.operators_by_name = self.set_operators()
@@ -983,6 +986,10 @@ class Circuit(
                     )
                     self.ext_basis = "harmonic"
             self.ext_basis = ext_basis or self.ext_basis
+            if self.is_purely_harmonic and self.ext_basis == "harmonic":
+                # using the default methods
+                self.evals_method = None
+                self.evals_method_options = None
             self.generate_hamiltonian_sym_for_numerics()
         else:
             # list for updating necessary subsystems when calling build hilbertspace

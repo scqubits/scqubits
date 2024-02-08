@@ -36,12 +36,7 @@ class TestCircuit:
         - ["C", 1, 3, 0.02]
         - ["C", 2, 4, 0.02]
         """
-        REFERENCE = (
-            "<bound method Printable.__str__ of "
-            "EJ*cos(θ1 - 1.0*θ3) + EJ*cos(-(2πΦ_{1}) + θ1 + θ3) + "
-            "6.25625*\\dot{θ_1}**2 + 25.0*\\dot{θ_2}**2 + 0.00625*\\dot{θ_3}**2 - "
-            "0.036*θ2**2 - 0.004*θ2*θ3 - 0.009*θ3**2>"
-        )
+        REFERENCE = "<bound method Printable.__str__ of EJ*cos(θ1 + θ3) + EJ*cos((2πΦ_{1}) + θ1 - 1.0*θ3) + 6.25625*\\dot{θ_1}**2 + 25.0*\\dot{θ_2}**2 + 0.00625*\\dot{θ_3}**2 - 0.036*θ2**2 - 0.004*θ2*θ3 - 0.009*θ3**2>"
 
         zero_pi = scq.Circuit(zp_yaml, from_file=False, ext_basis="discretized")
         expression_str = str(

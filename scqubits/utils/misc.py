@@ -394,7 +394,7 @@ def is_string_int(the_string: str) -> bool:
 
 
 def list_intersection(list1: list, list2: list) -> list:
-    return list(set(list1) & set(list2))
+    return [item for item in list1 if item in list2]
 
 
 def flatten_list(nested_list):
@@ -446,9 +446,11 @@ def unique_elements_in_list(list_object: list) -> list:
         A list of any objects
     """
     unique_list = []
-    for element in list_object:
-        if element not in unique_list:
-            unique_list.append(element)
+    [
+        unique_list.append(element)
+        for element in list_object
+        if element not in unique_list
+    ]
     return unique_list
 
 

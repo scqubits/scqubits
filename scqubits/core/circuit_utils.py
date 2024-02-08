@@ -21,7 +21,11 @@ from scipy import sparse
 from scipy.sparse import csc_matrix
 
 from scqubits.core import discretization as discretization
-from scqubits.utils.misc import flatten_list_recursive, is_string_float
+from scqubits.utils.misc import (
+    flatten_list_recursive,
+    is_string_float,
+    unique_elements_in_list,
+)
 from scqubits.core import circuit_input
 
 if TYPE_CHECKING:
@@ -647,7 +651,9 @@ def assemble_circuit(
             [subcircuit_branch[1], subcircuit_branch[2]]
             for subcircuit_branch in subcircuit_branches
         ]
-        subcircuit_nodes = [*set(flatten_list_recursive(subcircuit_nodes))]
+        subcircuit_nodes = [
+            *unique_elements_in_list(flatten_list_recursive(subcircuit_nodes))
+        ]
         # add node indices of each subcircuit to a single list
         subcircuit_nodes_list.append(subcircuit_nodes)
         # add total node number of each subcircuit to a single list

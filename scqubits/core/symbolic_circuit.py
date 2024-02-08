@@ -745,7 +745,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         # finding the nodes in each of the maximum connected subgraph
         nodes_in_max_connected_branchsets = [
-            list(set(sum([branch.nodes for branch in branch_set], ())))
+            unique_elements_in_list(sum([branch.nodes for branch in branch_set], ()))
             for branch_set in max_connected_subgraphs
         ]
 
@@ -775,7 +775,7 @@ class SymbolicCircuit(serializers.Serializable):
         # represented by branch_set_index
         basis = []
 
-        unique_branch_set_markers = list(set(node_branch_set_indices))
+        unique_branch_set_markers = unique_elements_in_list(node_branch_set_indices)
         # removing the marker -1 as it is grounded.
         branch_set_markers_ungrounded = [
             marker for marker in unique_branch_set_markers if marker != -1
@@ -1589,7 +1589,7 @@ class SymbolicCircuit(serializers.Serializable):
 
             node_set = [
                 x
-                for x in list(set(node_set))
+                for x in unique_elements_in_list(node_set)
                 if x not in flatten_list(node_sets[: node_set_index + 1])
             ]
             if node_set:
@@ -1763,7 +1763,9 @@ class SymbolicCircuit(serializers.Serializable):
             # finding the parent of the current_node, and the branch that links the
             # parent and current_node
             for branch in tree:
-                common_node_list = list(set(branch.nodes) - set([current_node]))
+                common_node_list = [
+                    node for node in branch.nodes if node not in [current_node]
+                ]
                 if (
                     len(common_node_list) == 1
                     and common_node_list[0] not in ancestor_nodes_list
