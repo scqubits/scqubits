@@ -516,8 +516,7 @@ class CircuitRoutines(ABC):
         self, var_indices: Tuple[int], phi_range: Tuple[float]
     ) -> None:
         """
-        Sets the flux range for discretized phi basis when ext_basis is set to
-        'discretized'.
+        Sets the flux range for discretized phi basis or for plotting
 
         Parameters
         ----------
@@ -528,23 +527,11 @@ class CircuitRoutines(ABC):
         """
         if self.hierarchical_diagonalization:
             for var_index in var_indices:
-                if self._basis_for_var_index(var_index) != "discretized":
-                    raise Exception(
-                        "The variable with var index: ",
-                        var_index,
-                        " is not set to discretized phi basis.",
-                    )
                 subsys_index = self.get_subsystem_index(var_index)
                 self.subsystems[subsys_index].set_discretized_phi_range(
                     (var_index,), phi_range
                 )
                 self._store_updated_subsystem_index(subsys_index)
-        elif self.ext_basis != "discretized":
-            raise Exception(
-                "The basis for variable indices: ",
-                var_indices,
-                " is not set to discretized phi basis.",
-            )
 
         for var_index in var_indices:
             if var_index not in self.var_categories["extended"]:
@@ -3325,17 +3312,11 @@ class CircuitRoutines(ABC):
                 )
             else:
                 var_index_dims_dict[var_index] = getattr(self, cutoff_attrib)
-                if ext_basis == "harmonic":
-                    grid = (
-                        grids_per_varindex_dict[var_index]
-                        if var_index in grids_per_varindex_dict
-                        else self._default_grid_phi
-                    )
-                elif ext_basis == "discretized":
+                if ext_basis == "harmonic" or "discretized":
                     grid = discretization.Grid1d(
                         self.discretized_phi_range[var_index][0],
                         self.discretized_phi_range[var_index][1],
-                        cutoffs_dict[var_index],
+                        cutoffs_dict[var_index] if ext_basis == "discretized" else 200,
                     )
                 grids_per_varindex_dict[var_index] = grid
 
