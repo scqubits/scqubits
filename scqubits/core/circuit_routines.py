@@ -2180,7 +2180,7 @@ class CircuitRoutines(ABC):
             return eval(H_LC_str, replacement_dict) + junction_potential_matrix
         else:
             return junction_potential_matrix
-
+            
     def _evaluate_hamiltonian(self) -> csc_matrix:  # TODO: needs a better name
         hamiltonian = self._hamiltonian_sym_for_numerics
         hamiltonian = hamiltonian.subs(
@@ -2198,6 +2198,23 @@ class CircuitRoutines(ABC):
         )
 
     @check_sync_status_circuit
+    def _hamiltonian_for_purely_harmonic(self) -> csc_matrix:
+        """Hamiltonian for purely harmonic systems when ext_basis is set to harmonic
+
+        Returns:
+            csc_matrix: 
+        """
+        if self.ext_basis != "harmonic":
+            raise Exception("The ext basis for this circuit is not set to harmonic.")
+        operator_for_var_index = []
+        for idx, var_index in enumerate(self.var_categories["extended"]):
+            cutoff = getattr(self, f"cutoff_ext_{var_index}")
+            evals = (0.5 + np.arange(0, cutoff)) * self.normal_mode_freqs[idx]
+            H_osc = sp.sparse.dia_matrix((evals, [0]), shape=(cutoff, cutoff), dtype=np.float_)
+            operator_for_var_index.append(self._kron_operator(H_osc, var_index))
+        H = sum(operator_for_var_index)
+        return sp.sparse.dia_matrix((np.sort(H.diagonal()), [0]), shape=(cutoff, cutoff), dtype=np.float_)
+    
     def _eigenvals_for_purely_harmonic(self, evals_count: int):
         """
         Returns Hamiltonian for purely harmonic circuits. Hierarchical diagonalization
@@ -2208,32 +2225,9 @@ class CircuitRoutines(ABC):
         evals_count:
             Number of eigenenergies
         """
-        normal_mode_freqs = self.normal_mode_freqs
-        excitations = [np.arange(evals_count) for i in self.var_categories["extended"]]
-        energy_array = sum(
-            [
-                (grid + 0.5) * normal_mode_freqs[idx]
-                for idx, grid in enumerate(np.meshgrid(*excitations, indexing="ij"))
-            ]
-        )
-        excitation_indices = []
-        energies = []
-        num_oscs = len(self.var_categories["extended"])
-        for energy in np.unique(energy_array.flatten()):
-            if energy not in energies:
-                indices = np.where(energy_array == energy)
-                for idx in range(len(indices[0])):
-                    configuration = [
-                        indices[osc_index][idx] for osc_index in range(num_oscs)
-                    ]
-                    excitation_indices.append(configuration)
-                    energies.append(energy)
-                    if len(excitation_indices) == evals_count:
-                        break
-            if len(excitation_indices) >= evals_count:
-                break
-
-        return energies, excitation_indices
+        H = self._hamiltonian_for_purely_harmonic()
+        eigs = H.diagonal()
+        return eigs[:evals_count]
 
     @check_sync_status_circuit
     def hamiltonian(self) -> Union[csc_matrix, ndarray]:
@@ -2241,8 +2235,8 @@ class CircuitRoutines(ABC):
         Returns the Hamiltonian of the Circuit.
         """
         if not self.hierarchical_diagonalization:
-            if self.is_purely_harmonic:
-                return self._hamiltonian_for_harmonic_extended_vars()
+            if self.is_purely_harmonic and self.ext_basis == "harmonic":
+                return self._hamiltonian_for_purely_harmonic()
             else:
                 return self._evaluate_hamiltonian()
 
@@ -2378,7 +2372,7 @@ class CircuitRoutines(ABC):
         hilbertdim = self.hilbertdim()
 
         if self.is_purely_harmonic and not self.hierarchical_diagonalization:
-            return self._eigenvals_for_purely_harmonic(evals_count=evals_count)[0]
+            return self._eigenvals_for_purely_harmonic(evals_count=evals_count)
 
         hamiltonian_mat = self.hamiltonian()
         if self.type_of_matrices == "sparse":
@@ -2397,6 +2391,9 @@ class CircuitRoutines(ABC):
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         # dimension of the hamiltonian
         hilbertdim = self.hilbertdim()
+        
+        if self.is_purely_harmonic and (not self.hierarchical_diagonalization) and self.ext_basis == "harmonic":
+            return (self._eigenvals_for_purely_harmonic(evals_count=evals_count), np.identity(hilbertdim)[:, :evals_count])
 
         hamiltonian_mat = self.hamiltonian()
         if self.type_of_matrices == "sparse":
