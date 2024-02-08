@@ -126,22 +126,21 @@ class Subsystem(
         self.ext_basis = ext_basis
         self._find_and_set_sym_attrs()
 
-        self.var_categories_list: List[int] = []
+        self.dynamic_var_indices: List[int] = []
         cutoffs: List[int] = []
         for var_name in self.operator_names_in_hamiltonian_symbolic():
             var_index = get_trailing_number(var_name)
-            if var_index not in self.var_categories_list and var_index is not None:
-                self.var_categories_list.append(var_index)
+            if var_index not in self.dynamic_var_indices and var_index is not None:
+                self.dynamic_var_indices.append(var_index)
                 cutoffs += [self.parent.cutoffs_dict()[var_index]]
 
-        self.var_categories_list.sort()
 
         self.var_categories: Dict[str, List[int]] = {}
         for var_type in self.parent.var_categories:
             self.var_categories[var_type] = [
                 var_index
                 for var_index in self.parent.var_categories[var_type]
-                if var_index in self.var_categories_list
+                if var_index in self.dynamic_var_indices
             ]
 
         self.cutoff_names: List[str] = []
@@ -156,7 +155,7 @@ class Subsystem(
         self.discretized_phi_range: Dict[int, Tuple[float]] = {
             idx: self.parent.discretized_phi_range[idx]
             for idx in self.parent.discretized_phi_range
-            if idx in self.var_categories_list
+            if idx in self.dynamic_var_indices
         }
 
         # storing the potential terms separately
@@ -167,7 +166,7 @@ class Subsystem(
             system_hierarchy != [] and number_of_lists_in_list(system_hierarchy) > 0
         )
 
-        if len(self.var_categories_list) == 1:
+        if len(self.dynamic_var_indices) == 1:
             self.type_of_matrices = "dense"
         else:
             self.type_of_matrices = "sparse"
@@ -753,7 +752,7 @@ class Circuit(
                         )
                     self.cutoff_names.append(f"cutoff_ext_{var_index}")
 
-        self.var_categories_list = flatten_list(list(self.var_categories.values()))
+        self.dynamic_var_indices = self.var_categories["periodic"] + self.var_categories["extended"]
 
         # default values for the parameters
         for idx, param in enumerate(self.symbolic_params):
@@ -925,7 +924,7 @@ class Circuit(
                         )
                     self.cutoff_names.append(f"cutoff_ext_{var_index}")
 
-        self.var_categories_list = flatten_list(list(self.var_categories.values()))
+        self.dynamic_var_indices = self.var_categories["periodic"] + self.var_categories["extended"]
 
         # default values for the parameters
         for idx, param in enumerate(self.symbolic_params):
@@ -1120,7 +1119,7 @@ class Circuit(
         elif vars_type == "new":
             lagrangian = self.lagrangian_symbolic
             # replace v\theta with \theta_dot
-            for var_index in self.var_categories_list:
+            for var_index in self.dynamic_var_indices:
                 lagrangian = lagrangian.replace(
                     sm.symbols(f"vθ{var_index}"),
                     sm.symbols("\\dot{θ_" + str(var_index) + "}"),

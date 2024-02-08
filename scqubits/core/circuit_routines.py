@@ -127,11 +127,11 @@ class CircuitRoutines(ABC):
     def return_root_child(self, var_index: int):
         if (
             not self.hierarchical_diagonalization
-            and var_index in self.var_categories_list
+            and var_index in self.dynamic_var_indices
         ):
             return self
         for subsys in self.subsystems:
-            if var_index in subsys.var_categories_list:
+            if var_index in subsys.dynamic_var_indices:
                 return subsys.return_root_child(var_index)
 
     def return_parent_circuit(self):
@@ -294,7 +294,7 @@ class CircuitRoutines(ABC):
         """
         cutoffs_dict = {}
 
-        for var_index in self.var_categories_list:
+        for var_index in self.dynamic_var_indices:
             for cutoff_name in self.cutoff_names:
                 if str(var_index) in cutoff_name:
                     cutoffs_dict[var_index] = getattr(self, cutoff_name)
@@ -664,7 +664,7 @@ class CircuitRoutines(ABC):
             full_hamiltonian = self.parent.fetch_symbolic_hamiltonian()
             hamiltonian, _ = self._sym_hamiltonian_for_var_indices(
                 full_hamiltonian,
-                self.var_categories["periodic"] + self.var_categories["extended"],
+                self.dynamic_var_indices,
             )
             return hamiltonian
 
@@ -801,7 +801,7 @@ class CircuitRoutines(ABC):
                 while parent.is_child:
                     grandparent = parent.parent
                     # find the subsystem position of the parent system
-                    subsystem_position += f"of subsystem {grandparent.get_subsystem_index(parent.var_categories_list[0])} "
+                    subsystem_position += f"of subsystem {grandparent.get_subsystem_index(parent.dynamic_var_indices[0])} "
                     parent = grandparent
                 raise Exception(
                     f"The truncation index for {subsystem_position} exceeds the maximum"
@@ -1328,7 +1328,7 @@ class CircuitRoutines(ABC):
         for term in self.hamiltonian_symbolic.as_ordered_terms():
             if is_potential_term(term):
                 potential_symbolic += term
-        for i in self.var_categories_list:
+        for i in self.dynamic_var_indices:
             potential_symbolic = (
                 potential_symbolic.replace(
                     sm.symbols(f"cosθ{i}"), sm.cos(1.0 * sm.symbols(f"θ{i}"))
@@ -1445,9 +1445,7 @@ class CircuitRoutines(ABC):
         -------
             Returns the operator which is identity wrapped for the current subsystem.
         """
-        var_index_list = (
-            self.var_categories["periodic"] + self.var_categories["extended"]
-        )
+        var_index_list = self.dynamic_var_indices.copy()
         var_index_pos = var_index_list.index(var_index)
 
         cutoff_names = np.fromiter(self._collect_cutoff_values(), dtype=int)  # [
@@ -1844,7 +1842,7 @@ class CircuitRoutines(ABC):
         """
         Returns true if the instance is a subsystem of self (regardless of the hierarchy)
         """
-        if len(set(self.var_categories_list) & set(instance.var_categories_list)) > 0:
+        if len(set(self.dynamic_var_indices) & set(instance.dynamic_var_indices)) > 0:
             return True
         return False
 
@@ -2535,7 +2533,7 @@ class CircuitRoutines(ABC):
             if isinstance(term, sm.Float):
                 expr_modified = expr_modified.subs(term, round(term, float_round))
 
-        for var_index in self.var_categories_list:
+        for var_index in self.dynamic_var_indices:
             # replace sinθ with sin(..) and similarly with cos
             expr_modified = (
                 expr_modified.replace(
@@ -2996,7 +2994,7 @@ class CircuitRoutines(ABC):
             ]
             wf_new_basis = wf_new_basis.reshape(flatten_list_recursive(wf_shape))
             for sub_subsys_index, sub_subsys in enumerate(subsystem.subsystems):
-                if len(set(relevant_indices) & set(sub_subsys.var_categories_list)) > 0:
+                if len(set(relevant_indices) & set(sub_subsys.dynamic_var_indices)) > 0:
                     wf_new_basis = self._recursive_basis_change(
                         wf_new_basis,
                         wf_dim + sub_subsys_index,
@@ -3004,7 +3002,7 @@ class CircuitRoutines(ABC):
                         relevant_indices=relevant_indices,
                     )
         else:
-            if len(set(relevant_indices) & set(subsystem.var_categories_list)) > 0:
+            if len(set(relevant_indices) & set(subsystem.dynamic_var_indices)) > 0:
                 wf_shape = list(wf_new_basis.shape)
                 wf_shape[wf_dim] = [
                     getattr(subsystem, cutoff_attrib)
@@ -3067,30 +3065,30 @@ class CircuitRoutines(ABC):
     def _get_var_dim_for_reshaped_wf(self, wf_var_indices, var_index):
         wf_dim = 0
         if not self.hierarchical_diagonalization:
-            return self.var_categories_list.index(var_index)
+            return self.dynamic_var_indices.index(var_index)
         for subsys in self.subsystems:
-            intersection = list_intersection(subsys.var_categories_list, wf_var_indices)
+            intersection = list_intersection(subsys.dynamic_var_indices, wf_var_indices)
             if len(intersection) > 0 and var_index not in intersection:
                 if subsys.hierarchical_diagonalization:
                     wf_dim += subsys._get_var_dim_for_reshaped_wf(
                         wf_var_indices, var_index
                     )
                 else:
-                    wf_dim += len(subsys.var_categories_list)
+                    wf_dim += len(subsys.dynamic_var_indices)
             elif len(intersection) > 0 and var_index in intersection:
                 if subsys.hierarchical_diagonalization:
                     wf_dim += subsys._get_var_dim_for_reshaped_wf(
                         wf_var_indices, var_index
                     )
                 else:
-                    wf_dim += subsys.var_categories_list.index(var_index)
+                    wf_dim += subsys.dynamic_var_indices.index(var_index)
                 break
             else:
                 wf_dim += 1
         return wf_dim
 
     def _dims_to_be_summed(self, var_indices: Tuple[int], num_wf_dims) -> List[int]:
-        all_var_indices = self.var_categories_list
+        all_var_indices = self.dynamic_var_indices
         non_summed_dims = []
         for var_index in all_var_indices:
             if var_index in var_indices:
@@ -3121,7 +3119,7 @@ class CircuitRoutines(ABC):
                 wf_dim = 0
                 for sys_index in range(subsys_index):
                     if sys_index in system_hierarchy_for_vars_chosen:
-                        wf_dim += len(self.subsystems[sys_index].var_categories_list)
+                        wf_dim += len(self.subsystems[sys_index].dynamic_var_indices)
                     else:
                         wf_dim += 1
                 wf_original_basis = self._recursive_basis_change(
@@ -3169,7 +3167,7 @@ class CircuitRoutines(ABC):
         for var_index in var_indices:
             # finding the dimension corresponding to the var_index
             if not self.hierarchical_diagonalization:
-                wf_dim = self.var_categories_list.index(var_index)
+                wf_dim = self.dynamic_var_indices.index(var_index)
             else:
                 wf_dim = self._get_var_dim_for_reshaped_wf(var_indices, var_index)
 

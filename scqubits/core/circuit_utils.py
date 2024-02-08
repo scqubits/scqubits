@@ -443,7 +443,7 @@ def keep_terms_for_subsystem(sym_expr, subsys, substitute_zero=False):
         var_indices = [
             get_trailing_number(sym_var.name) for sym_var in list(term.free_symbols)
         ]
-        if len(set(var_indices) & set(subsys.var_categories_list)) == 0:
+        if len(set(var_indices) & set(subsys.dynamic_var_indices)) == 0:
             sym_expr = sym_expr - term
     return sym_expr
 
