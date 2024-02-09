@@ -2180,7 +2180,7 @@ class CircuitRoutines(ABC):
             return eval(H_LC_str, replacement_dict) + junction_potential_matrix
         else:
             return junction_potential_matrix
-            
+
     def _evaluate_hamiltonian(self) -> csc_matrix:  # TODO: needs a better name
         hamiltonian = self._hamiltonian_sym_for_numerics
         hamiltonian = hamiltonian.subs(
@@ -2202,7 +2202,7 @@ class CircuitRoutines(ABC):
         """Hamiltonian for purely harmonic systems when ext_basis is set to harmonic
 
         Returns:
-            csc_matrix: 
+            csc_matrix:
         """
         if self.ext_basis != "harmonic":
             raise Exception("The ext basis for this circuit is not set to harmonic.")
@@ -2210,11 +2210,15 @@ class CircuitRoutines(ABC):
         for idx, var_index in enumerate(self.var_categories["extended"]):
             cutoff = getattr(self, f"cutoff_ext_{var_index}")
             evals = (0.5 + np.arange(0, cutoff)) * self.normal_mode_freqs[idx]
-            H_osc = sp.sparse.dia_matrix((evals, [0]), shape=(cutoff, cutoff), dtype=np.float_)
+            H_osc = sp.sparse.dia_matrix(
+                (evals, [0]), shape=(cutoff, cutoff), dtype=np.float_
+            )
             operator_for_var_index.append(self._kron_operator(H_osc, var_index))
         H = sum(operator_for_var_index)
-        return sp.sparse.dia_matrix((np.sort(H.diagonal()), [0]), shape=(cutoff, cutoff), dtype=np.float_)
-    
+        return sp.sparse.dia_matrix(
+            (np.sort(H.diagonal()), [0]), shape=(cutoff, cutoff), dtype=np.float_
+        )
+
     def _eigenvals_for_purely_harmonic(self, evals_count: int):
         """
         Returns Hamiltonian for purely harmonic circuits. Hierarchical diagonalization
@@ -2391,9 +2395,16 @@ class CircuitRoutines(ABC):
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         # dimension of the hamiltonian
         hilbertdim = self.hilbertdim()
-        
-        if self.is_purely_harmonic and (not self.hierarchical_diagonalization) and self.ext_basis == "harmonic":
-            return (self._eigenvals_for_purely_harmonic(evals_count=evals_count), np.identity(hilbertdim)[:, :evals_count])
+
+        if (
+            self.is_purely_harmonic
+            and (not self.hierarchical_diagonalization)
+            and self.ext_basis == "harmonic"
+        ):
+            return (
+                self._eigenvals_for_purely_harmonic(evals_count=evals_count),
+                np.identity(hilbertdim)[:, :evals_count],
+            )
 
         hamiltonian_mat = self.hamiltonian()
         if self.type_of_matrices == "sparse":
