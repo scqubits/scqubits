@@ -279,7 +279,6 @@ paramvals_from_papers = {
         "Gyenis et al., PRX Quantum 2, 010339 (2021)": {
             "params": {
                 "EJ": 6.0,
-                "EJ": 6.0,
                 "ECJ": 2.28,
                 "EC": 0.184,
                 "EL": 0.38,
