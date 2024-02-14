@@ -2065,22 +2065,24 @@ class SymbolicCircuit(serializers.Serializable):
             C_mat_θ = np.delete(C_mat_θ, frozen_indices, 1)
             C_mat_θ = np.linalg.inv(C_mat_θ)
 
-        p_θ_vars = [
+        p_φ_vars = [
             symbols(f"Q{i}")
-            for i in self.var_categories["periodic"] + self.var_categories["extended"]
+            if i not in self.var_categories["free"]
+            else 0
+            for i in np.sort(self.var_categories["periodic"] + self.var_categories["extended"] + self.var_categories["free"])
             # replacing the free charge with 0, as it would not affect the circuit
             # Lagrangian.
-        ] + [
-            0 for i in self.var_categories["free"]
-        ]  # defining the momentum variables
-
+        ]
+        ### NOTE: sorting the variable indices in the above step is important as the transformation
+        ### matrix already takes care of defining the appropriate momenta in the new variables. So, the above variables should be
+        ### in the node variable order.
         # generating the kinetic energy terms for the Hamiltonian
         if not self.is_any_branch_parameter_symbolic():
             C_terms_new = (
-                C_mat_θ.dot(p_θ_vars).dot(p_θ_vars) * 0.5
+                C_mat_θ.dot(p_φ_vars).dot(p_φ_vars) * 0.5
             )  # in terms of new variables
         else:
-            C_terms_new = (sympy.Matrix(p_θ_vars).T * C_mat_θ * sympy.Matrix(p_θ_vars))[
+            C_terms_new = (sympy.Matrix(p_φ_vars).T * C_mat_θ * sympy.Matrix(p_φ_vars))[
                 0
             ] * 0.5  # in terms of new variables
 
