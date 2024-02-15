@@ -1044,27 +1044,26 @@ class SymbolicCircuit(serializers.Serializable):
         # step 4: construct the new set of basis vectors
 
         # constructing a standard basis
-        node_count = len(self.nodes) - self.is_grounded
-        standard_basis = [np.ones(node_count)]
+        if self.basis_completion == "heuristic":
+            node_count = len(self.nodes) - self.is_grounded
+            standard_basis = [np.ones(node_count)]
 
-        vector_ref = np.zeros(node_count)
-        if node_count > 2:
-            vector_ref[: node_count - 2] = 1
-        else:
-            vector_ref[: node_count - 1] = 1
+            vector_ref = np.zeros(node_count)
+            if node_count > 2:
+                vector_ref[: node_count - 2] = 1
+            else:
+                vector_ref[: node_count - 1] = 1
 
-        vector_set = list((itertools.permutations(vector_ref, node_count)))
-        item = 0
-        while np.linalg.matrix_rank(np.array(standard_basis)) < node_count:
-            a = vector_set[item]
-            item += 1
-            mat = np.array(standard_basis + [a])
-            if np.linalg.matrix_rank(mat) == len(mat):
-                standard_basis = standard_basis + [list(a)]
+            vector_set = (permutation for permutation in itertools.permutations(vector_ref, node_count)) # making a generator
+            while np.linalg.matrix_rank(np.array(standard_basis)) < node_count:
+                a = next(vector_set)
+                mat = np.array(standard_basis + [a])
+                if np.linalg.matrix_rank(mat) == len(mat):
+                    standard_basis = standard_basis + [list(a)]
 
-        standard_basis = np.array(standard_basis)
+            standard_basis = np.array(standard_basis)
 
-        if self.basis_completion == "canonical":
+        elif self.basis_completion == "canonical":
             standard_basis = np.identity(len(self.nodes) - self.is_grounded)
 
         new_basis = modes.copy()
