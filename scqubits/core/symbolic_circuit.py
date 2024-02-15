@@ -32,7 +32,11 @@ from scqubits.core.circuit_utils import (
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 
-from scqubits.utils.misc import flatten_list_recursive, is_string_float, unique_elements_in_list
+from scqubits.utils.misc import (
+    flatten_list_recursive,
+    is_string_float,
+    unique_elements_in_list,
+)
 from scqubits.core.circuit_input import (
     remove_comments,
     remove_branchline,
@@ -1054,7 +1058,10 @@ class SymbolicCircuit(serializers.Serializable):
             else:
                 vector_ref[: node_count - 1] = 1
 
-            vector_set = (permutation for permutation in itertools.permutations(vector_ref, node_count)) # making a generator
+            vector_set = (
+                permutation
+                for permutation in itertools.permutations(vector_ref, node_count)
+            )  # making a generator
             while np.linalg.matrix_rank(np.array(standard_basis)) < node_count:
                 a = next(vector_set)
                 mat = np.array(standard_basis + [a])
@@ -1553,11 +1560,16 @@ class SymbolicCircuit(serializers.Serializable):
                             circ_copy._node_list_without_ground.remove(node)
 
         if circ_copy._node_list_without_ground == []:
-            return {"list_of_trees": [], "loop_branches_for_trees": [], "node_sets_for_trees": [], "closure_branches_for_trees": []}
+            return {
+                "list_of_trees": [],
+                "loop_branches_for_trees": [],
+                "node_sets_for_trees": [],
+                "closure_branches_for_trees": [],
+            }
         # *****************************************************************************
 
         # **************** Constructing the node_sets ***************
-        node_sets_for_trees = [] # seperate node sets for separate trees
+        node_sets_for_trees = []  # seperate node sets for separate trees
         if circ_copy.is_grounded:
             node_sets = [[circ_copy.ground_node]]
         else:
@@ -1586,16 +1598,21 @@ class SymbolicCircuit(serializers.Serializable):
             node_set = [
                 x
                 for x in unique_elements_in_list(node_set)
-                if x not in flatten_list_recursive(node_sets_for_trees[tree_index][: node_set_index + 1])
+                if x
+                not in flatten_list_recursive(
+                    node_sets_for_trees[tree_index][: node_set_index + 1]
+                )
             ]
             if node_set:
                 node_set.sort(key=lambda node: node.index)
-            
+
             # code to handle two different capacitive islands in the circuit.
             if node_set == []:
                 node_sets_for_trees.append([])
                 for node in circ_copy._node_list_without_ground:
-                    if node not in flatten_list_recursive(node_sets_for_trees[tree_index]):
+                    if node not in flatten_list_recursive(
+                        node_sets_for_trees[tree_index]
+                    ):
                         tree_index += 1
                         node_sets_for_trees[tree_index].append([node])
                         node_set_index = 0
@@ -1609,12 +1626,15 @@ class SymbolicCircuit(serializers.Serializable):
         # **************** constructing the spanning tree ##########
         def connecting_branches(n1: Node, n2: Node):
             return [branch for branch in n1.branches if branch in n2.branches]
+
         def is_same_branch(branch_1: Branch, branch_2: Branch):
             return branch_1.id_str == branch_2.id_str
+
         def fetch_same_branch_from_circ(branch: Branch, circ: SymbolicCircuit):
             for b in circ.branches:
                 if is_same_branch(b, branch):
                     return b
+
         def fetch_same_node_from_circ(node: Node, circ: SymbolicCircuit):
             for n in circ.nodes:
                 if n.index == node.index:
@@ -1643,35 +1663,67 @@ class SymbolicCircuit(serializers.Serializable):
         for tree_idx, tree in enumerate(list_of_trees):
             loop_branches = tree.copy()
             nodes_in_tree = flatten_list_recursive(node_sets_for_trees[tree_idx])
-            for branch in [branch for branch in circ_copy.branches if branch not in tree]:
+            for branch in [
+                branch for branch in circ_copy.branches if branch not in tree
+            ]:
                 if len([node for node in branch.nodes if node in nodes_in_tree]) == 2:
                     loop_branches.append(branch)
                     closure_branches_for_trees[tree_idx].append(branch)
             loop_branches_for_trees.append(loop_branches)
-            
+
         # get branches from the original circuit
         for tree_idx, tree in enumerate(list_of_trees):
-            list_of_trees[tree_idx] = [fetch_same_branch_from_circ(branch, self) for branch in tree]
-            loop_branches_for_trees[tree_idx] = [fetch_same_branch_from_circ(branch, self) for branch in loop_branches_for_trees[tree_idx]]
-            closure_branches_for_trees[tree_idx] = [fetch_same_branch_from_circ(branch, self) for branch in closure_branches_for_trees[tree_idx]]
-            node_sets_for_trees[tree_idx] = [[fetch_same_node_from_circ(node, self) for node in node_set] for node_set in node_sets_for_trees[tree_idx]]
+            list_of_trees[tree_idx] = [
+                fetch_same_branch_from_circ(branch, self) for branch in tree
+            ]
+            loop_branches_for_trees[tree_idx] = [
+                fetch_same_branch_from_circ(branch, self)
+                for branch in loop_branches_for_trees[tree_idx]
+            ]
+            closure_branches_for_trees[tree_idx] = [
+                fetch_same_branch_from_circ(branch, self)
+                for branch in closure_branches_for_trees[tree_idx]
+            ]
+            node_sets_for_trees[tree_idx] = [
+                [fetch_same_node_from_circ(node, self) for node in node_set]
+                for node_set in node_sets_for_trees[tree_idx]
+            ]
 
         # if the closure branches are manually set, then the spanning tree would be all
         # the superconducting loop branches except the closure branches
         if self.closure_branches != []:
-            closure_branches_for_trees = [[] for loop_branches in loop_branches_for_trees]
+            closure_branches_for_trees = [
+                [] for loop_branches in loop_branches_for_trees
+            ]
             list_of_trees = []
             for tree_idx, loop_branches in enumerate(loop_branches_for_trees):
-                list_of_trees.append([branch for branch in loop_branches if branch not in self.closure_branches])
-                closure_branches_for_trees[tree_idx] = [branch for branch in loop_branches if branch in self.closure_branches]
+                list_of_trees.append(
+                    [
+                        branch
+                        for branch in loop_branches
+                        if branch not in self.closure_branches
+                    ]
+                )
+                closure_branches_for_trees[tree_idx] = [
+                    branch
+                    for branch in loop_branches
+                    if branch in self.closure_branches
+                ]
 
-        return {"list_of_trees": list_of_trees, "loop_branches_for_trees": loop_branches_for_trees, "node_sets_for_trees": node_sets_for_trees, "closure_branches_for_trees": closure_branches_for_trees}
+        return {
+            "list_of_trees": list_of_trees,
+            "loop_branches_for_trees": loop_branches_for_trees,
+            "node_sets_for_trees": node_sets_for_trees,
+            "closure_branches_for_trees": closure_branches_for_trees,
+        }
 
     def _closure_branches(self, spanning_tree_dict=None):
         r"""
         Returns and stores the closure branches in the circuit.
         """
-        return flatten_list_recursive((spanning_tree_dict or self._spanning_tree())["closure_branches_for_trees"])
+        return flatten_list_recursive(
+            (spanning_tree_dict or self._spanning_tree())["closure_branches_for_trees"]
+        )
 
     def _time_dependent_flux_distribution(self):
         # constructing the constraint matrix
@@ -1733,9 +1785,8 @@ class SymbolicCircuit(serializers.Serializable):
         B = (np.linalg.pinv(M)) @ I
         return B.round(10) @ self.external_fluxes
 
-    
     def _find_path_to_root(
-        self, node: Node, spanning_tree_dict = None
+        self, node: Node, spanning_tree_dict=None
     ) -> Tuple[int, List["Node"], List["Branch"]]:
         r"""
         Returns all the nodes and branches in the spanning tree path between the
@@ -1775,7 +1826,7 @@ class SymbolicCircuit(serializers.Serializable):
             root_node = node_sets[0][0]
             if root_node == node:
                 return (0, [], [], tree_idx)
-                
+
             tree_perm_gen = (perm for perm in itertools.permutations(tree))
             while root_node not in ancestor_nodes_list:
                 ancestor_nodes_list = []
@@ -1808,7 +1859,9 @@ class SymbolicCircuit(serializers.Serializable):
         branch_path_to_root.reverse()
         return generation, ancestor_nodes_list, branch_path_to_root, tree_idx
 
-    def _find_loop(self, closure_branch: Branch, spanning_tree_dict=None) -> List["Branch"]:
+    def _find_loop(
+        self, closure_branch: Branch, spanning_tree_dict=None
+    ) -> List["Branch"]:
         r"""
         Find out the loop that is closed by the closure branch
 
@@ -1824,8 +1877,12 @@ class SymbolicCircuit(serializers.Serializable):
         # find out ancestor nodes, path to root and generation number for each node in the
         # closure branch
         tree_info_dict = spanning_tree_dict or self._spanning_tree()
-        _, _, path_1, tree_idx_0 = self._find_path_to_root(closure_branch.nodes[0], tree_info_dict)
-        _, _, path_2, tree_idx_1 = self._find_path_to_root(closure_branch.nodes[1], tree_info_dict)
+        _, _, path_1, tree_idx_0 = self._find_path_to_root(
+            closure_branch.nodes[0], tree_info_dict
+        )
+        _, _, path_2, tree_idx_1 = self._find_path_to_root(
+            closure_branch.nodes[1], tree_info_dict
+        )
         # find branches that are not common in the paths, and then add the closure
         # branch to form the loop
         path_1 = unique_elements_in_list(path_1)
@@ -2094,10 +2151,12 @@ class SymbolicCircuit(serializers.Serializable):
             C_mat_θ = np.linalg.inv(C_mat_θ)
 
         p_φ_vars = [
-            symbols(f"Q{i}")
-            if i not in self.var_categories["free"]
-            else 0
-            for i in np.sort(self.var_categories["periodic"] + self.var_categories["extended"] + self.var_categories["free"])
+            symbols(f"Q{i}") if i not in self.var_categories["free"] else 0
+            for i in np.sort(
+                self.var_categories["periodic"]
+                + self.var_categories["extended"]
+                + self.var_categories["free"]
+            )
             # replacing the free charge with 0, as it would not affect the circuit
             # Lagrangian.
         ]
