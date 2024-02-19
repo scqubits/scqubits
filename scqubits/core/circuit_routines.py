@@ -15,7 +15,7 @@ import itertools
 import operator as builtin_op
 import re
 from types import MethodType
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Literal
 
 import numpy as np
 import qutip as qt
@@ -3050,15 +3050,17 @@ class CircuitRoutines(ABC):
             if len(set(relevant_indices) & set(subsystem.var_index_list)) > 0:
                 wf_shape = list(wf_new_basis.shape)
                 wf_shape[wf_dim] = [
-                    getattr(subsystem, cutoff_attrib)
-                    if "ext" in cutoff_attrib
-                    else (2 * getattr(subsystem, cutoff_attrib) + 1)
+                    (
+                        getattr(subsystem, cutoff_attrib)
+                        if "ext" in cutoff_attrib
+                        else (2 * getattr(subsystem, cutoff_attrib) + 1)
+                    )
                     for cutoff_attrib in subsystem.cutoff_names
                 ]
                 wf_new_basis = wf_new_basis.reshape(flatten_list_recursive(wf_shape))
         return wf_new_basis
 
-    #TODO: incomplete implementation of basis change
+    # TODO: incomplete implementation of basis change
     def _basis_change_harm_osc_to_n(
         self, wf_original_basis, wf_dim, var_index, grid_n: discretization.Grid1d
     ):
@@ -3137,7 +3139,7 @@ class CircuitRoutines(ABC):
     def _get_var_dim_for_reshaped_wf(self, wf_var_indices, var_index):
         wf_dim = 0
         if not self.hierarchical_diagonalization:
-            return self.var_index_list.index(var_index)
+            return self.dynamic_var_indices.index(var_index)
         for subsys in self.subsystems:
             intersection = list_intersection(subsys.var_index_list, wf_var_indices)
             if len(intersection) > 0 and var_index not in intersection:
@@ -3160,7 +3162,7 @@ class CircuitRoutines(ABC):
         return wf_dim
 
     def _dims_to_be_summed(self, var_indices: Tuple[int], num_wf_dims) -> List[int]:
-        all_var_indices = self.var_index_list
+        all_var_indices = self.dynamic_var_indices
         non_summed_dims = []
         for var_index in all_var_indices:
             if var_index in var_indices:
@@ -3203,9 +3205,11 @@ class CircuitRoutines(ABC):
         else:
             wf_original_basis = wf.reshape(
                 *[
-                    getattr(self, cutoff_attrib)
-                    if "ext" in cutoff_attrib
-                    else (2 * getattr(self, cutoff_attrib) + 1)
+                    (
+                        getattr(self, cutoff_attrib)
+                        if "ext" in cutoff_attrib
+                        else (2 * getattr(self, cutoff_attrib) + 1)
+                    )
                     for cutoff_attrib in self.cutoff_names
                 ]
             )
@@ -3239,7 +3243,7 @@ class CircuitRoutines(ABC):
         for var_index in var_indices:
             # finding the dimension corresponding to the var_index
             if not self.hierarchical_diagonalization:
-                wf_dim = self.var_index_list.index(var_index)
+                wf_dim = self.dynamic_var_indices.index(var_index)
             else:
                 wf_dim = self._get_var_dim_for_reshaped_wf(var_indices, var_index)
 
@@ -3256,9 +3260,10 @@ class CircuitRoutines(ABC):
         return wf_ext_basis
 
     # TODO:
-    def generate_probability_density_data(
+    def generate_plot_data(
         self,
         which: int = 0,
+        mode: Literal["abs", "re", "im"] = "abs",
         var_indices: Tuple[int] = (1,),
         eigensys: ndarray = None,
         change_discrete_charge_to_phi: bool = True,
@@ -3314,15 +3319,31 @@ class CircuitRoutines(ABC):
             var_indices, len(wf_ext_basis.shape)
         )
         # summing over the dimensions
-        wf_plot = np.sum(
-            np.abs(wf_ext_basis) ** 2,
-            axis=tuple(dims_to_be_summed),
-        )
-        return wf_plot
+        if mode == "abs":
+            wf_plot = np.sum(
+                np.abs(wf_ext_basis) ** 2,
+                axis=tuple(dims_to_be_summed),
+            )
+            return wf_plot
+        elif mode == "re":
+            if len(dims_to_be_summed) == 0:
+                return np.real(wf_ext_basis)
+            else:
+                raise AttributeError(
+                    "Cannot plot the real part of the wave function in more than 2 dimensions."
+                )
+        elif mode == "im":
+            if len(dims_to_be_summed) == 0:
+                return np.imag(wf_ext_basis)
+            else:
+                raise AttributeError(
+                    "Cannot plot the imaginary part of the wave function in more than 2 dimensions."
+                )
 
     def plot_probability_density(
         self,
         which=0,
+        mode: Literal["abs", "re", "im"] = "abs",
         var_indices: Tuple[int] = (1,),
         esys: Tuple[ndarray, ndarray] = None,
         change_discrete_charge_to_phi: bool = True,
@@ -3425,8 +3446,9 @@ class CircuitRoutines(ABC):
                 )
 
         # generate probability density data
-        probability_density_plot = self.generate_probability_density_data(
+        probability_density_plot = self.generate_plot_data(
             which=which,
+            mode=mode,
             var_indices=var_indices,
             eigensys=esys,
             change_discrete_charge_to_phi=change_discrete_charge_to_phi,
