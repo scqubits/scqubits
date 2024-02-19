@@ -3365,6 +3365,9 @@ class CircuitRoutines(ABC):
         ----------
         which:
             integer to choose which wave function to plot
+        mode:
+            "abs", "re", "im" - decides which part of the wave function is plotted,
+            by default "abs"
         var_indices:
             A tuple containing the indices of the variables chosen to plot the
             wave function in. It should not have more than 2 entries.
@@ -3473,6 +3476,7 @@ class CircuitRoutines(ABC):
         if len(var_indices) == 1:
             return self._plot_wf_pdf_1D(
                 plot_data,
+                mode,
                 var_indices,
                 grids_per_varindex_dict,
                 change_discrete_charge_to_phi,
@@ -3563,6 +3567,7 @@ class CircuitRoutines(ABC):
     def _plot_wf_pdf_1D(
         self,
         wf_plot: ndarray,
+        mode: Literal["abs", "re", "im"],
         var_indices,
         grids_per_varindex_dict,
         change_discrete_charge_to_phi: bool,
@@ -3599,11 +3604,21 @@ class CircuitRoutines(ABC):
                 basis_labels=grids_per_varindex_dict[var_indices[0]].make_linspace(),
                 amplitudes=wf_plot,
             )
+            if mode == "abs":
+                ylabel = r"$|\psi(\theta_{{{}}})|^2$".format(str(var_indices[0]))
+            elif mode == "re":
+                ylabel = r"$\mathrm{Re}(\psi(\theta_{{{}}}))$".format(
+                    str(var_indices[0])
+                )
+            elif mode == "im":
+                ylabel = r"$\mathrm{Im}(\psi(\theta_{{{}}}))$".format(
+                    str(var_indices[0])
+                )
             fig, axes = plot.wavefunction1d_nopotential(
                 wavefunc,
                 0,
                 xlabel=r"$\theta_{{{}}}$".format(str(var_indices[0])),
-                ylabel=r"$|\psi(\theta_{{{}}})|^2$".format(str(var_indices[0])),
+                ylabel=ylabel,
                 **kwargs,
             )
         return fig, axes
