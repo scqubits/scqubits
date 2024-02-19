@@ -1468,36 +1468,36 @@ class CircuitRoutines(ABC):
         -------
             Returns the operator which is identity wrapped for the current subsystem.
         """
-        var_index_list = self.dynamic_var_indices.copy()
-        var_index_pos = var_index_list.index(var_index)
+        dynamic_var_indices = self.dynamic_var_indices.copy()
+        var_index_pos = dynamic_var_indices.index(var_index)
 
         cutoffs_dict = self.cutoffs_dict()
         for var_idx in cutoffs_dict:
             if var_idx in self.var_categories["periodic"]:
                 cutoffs_dict[var_idx] = 2 * cutoffs_dict[var_idx] + 1
 
-        var_dim_list = [cutoffs_dict[var_idx] for var_idx in var_index_list]
+        var_dim_list = [cutoffs_dict[var_idx] for var_idx in dynamic_var_indices]
 
         if self.type_of_matrices == "dense":
             matrix_format = "array"
         elif self.type_of_matrices == "sparse":
             matrix_format = "csc"
 
-        if len(var_index_list) > 1:
+        if len(dynamic_var_indices) > 1:
             if var_index_pos > 0:
                 identity_left = sparse.identity(
                     np.prod(var_dim_list[:var_index_pos]),
                     format=matrix_format,
                 )
-            if var_index_pos < len(var_index_list) - 1:
+            if var_index_pos < len(dynamic_var_indices) - 1:
                 identity_right = sparse.identity(
                     np.prod(var_dim_list[var_index_pos + 1 :]),
                     format=matrix_format,
                 )
 
-            if var_index == var_index_list[0]:
+            if var_index == dynamic_var_indices[0]:
                 return sparse.kron(operator, identity_right, format=matrix_format)
-            elif var_index == var_index_list[-1]:
+            elif var_index == dynamic_var_indices[-1]:
                 return sparse.kron(identity_left, operator, format=matrix_format)
             else:
                 return sparse.kron(
@@ -3039,7 +3039,7 @@ class CircuitRoutines(ABC):
             ]
             wf_new_basis = wf_new_basis.reshape(flatten_list_recursive(wf_shape))
             for sub_subsys_index, sub_subsys in enumerate(subsystem.subsystems):
-                if len(set(relevant_indices) & set(sub_subsys.var_index_list)) > 0:
+                if len(set(relevant_indices) & set(sub_subsys.dynamic_var_indices)) > 0:
                     wf_new_basis = self._recursive_basis_change(
                         wf_new_basis,
                         wf_dim + sub_subsys_index,
@@ -3047,7 +3047,7 @@ class CircuitRoutines(ABC):
                         relevant_indices=relevant_indices,
                     )
         else:
-            if len(set(relevant_indices) & set(subsystem.var_index_list)) > 0:
+            if len(set(relevant_indices) & set(subsystem.dynamic_var_indices)) > 0:
                 wf_shape = list(wf_new_basis.shape)
                 wf_shape[wf_dim] = [
                     (
@@ -3141,21 +3141,21 @@ class CircuitRoutines(ABC):
         if not self.hierarchical_diagonalization:
             return self.dynamic_var_indices.index(var_index)
         for subsys in self.subsystems:
-            intersection = list_intersection(subsys.var_index_list, wf_var_indices)
+            intersection = list_intersection(subsys.dynamic_var_indices, wf_var_indices)
             if len(intersection) > 0 and var_index not in intersection:
                 if subsys.hierarchical_diagonalization:
                     wf_dim += subsys._get_var_dim_for_reshaped_wf(
                         wf_var_indices, var_index
                     )
                 else:
-                    wf_dim += len(subsys.var_index_list)
+                    wf_dim += len(subsys.dynamic_var_indices)
             elif len(intersection) > 0 and var_index in intersection:
                 if subsys.hierarchical_diagonalization:
                     wf_dim += subsys._get_var_dim_for_reshaped_wf(
                         wf_var_indices, var_index
                     )
                 else:
-                    wf_dim += subsys.var_index_list.index(var_index)
+                    wf_dim += subsys.dynamic_var_indices.index(var_index)
                 break
             else:
                 wf_dim += 1
@@ -3193,7 +3193,7 @@ class CircuitRoutines(ABC):
                 wf_dim = 0
                 for sys_index in range(subsys_index):
                     if sys_index in system_hierarchy_for_vars_chosen:
-                        wf_dim += len(self.subsystems[sys_index].var_index_list)
+                        wf_dim += len(self.subsystems[sys_index].dynamic_var_indices)
                     else:
                         wf_dim += 1
                 wf_original_basis = self._recursive_basis_change(
@@ -3340,7 +3340,7 @@ class CircuitRoutines(ABC):
                     "Cannot plot the imaginary part of the wave function in more than 2 dimensions."
                 )
 
-    def plot_probability_density(
+    def plot_wavefunction(
         self,
         which=0,
         mode: Literal["abs", "re", "im"] = "abs",
@@ -3430,7 +3430,11 @@ class CircuitRoutines(ABC):
         for var_index in list(set(var_indices) & set(self.var_categories["extended"])):
             # if the basis is harmonic, the grid is specified based on the user-specified
             # grid or the default grid
-            if self.ext_basis == "harmonic":
+            if self.hierarchical_diagonalization:
+                basis = self.ext_basis[self.get_subsystem_index(var_index)]
+            else:
+                basis = self.ext_basis
+            if basis == "harmonic":
                 grids_per_varindex_dict[var_index] = (
                     grids_dict[var_index]
                     if var_index in grids_dict
@@ -3438,7 +3442,7 @@ class CircuitRoutines(ABC):
                 )
             # if the basis is discretized, the grid is specified based on the grid used
             # in diagonalization
-            elif self.ext_basis == "discretized":
+            elif basis == "discretized":
                 grids_per_varindex_dict[var_index] = discretization.Grid1d(
                     self.discretized_phi_range[var_index][0],
                     self.discretized_phi_range[var_index][1],
@@ -3446,7 +3450,7 @@ class CircuitRoutines(ABC):
                 )
 
         # generate probability density data
-        probability_density_plot = self.generate_plot_data(
+        plot_data = self.generate_plot_data(
             which=which,
             mode=mode,
             var_indices=var_indices,
@@ -3468,7 +3472,7 @@ class CircuitRoutines(ABC):
 
         if len(var_indices) == 1:
             return self._plot_wf_pdf_1D(
-                probability_density_plot,
+                plot_data,
                 var_indices,
                 grids_per_varindex_dict,
                 change_discrete_charge_to_phi,
@@ -3477,7 +3481,7 @@ class CircuitRoutines(ABC):
 
         elif len(var_indices) == 2:
             return self._plot_wf_pdf_2D(
-                probability_density_plot,
+                plot_data,
                 var_indices,
                 grids_per_varindex_dict,
                 change_discrete_charge_to_phi,
