@@ -405,7 +405,9 @@ class SymbolicCircuit(serializers.Serializable):
             trans_mat.T @ self._capacitance_matrix(substitute_params=True) @ trans_mat
         )
         l_inv_mat = (
-            trans_mat.T @ self._inductance_inverse_matrix(substitute_params=True) @ trans_mat
+            trans_mat.T
+            @ self._inductance_inverse_matrix(substitute_params=True)
+            @ trans_mat
         )
         if not self.is_grounded:
             c_mat = c_mat[:-1, :-1]
@@ -1248,7 +1250,6 @@ class SymbolicCircuit(serializers.Serializable):
                     )
                 )
         return terms
-
 
     def _inductance_inverse_matrix(self, substitute_params: bool = False):
         """

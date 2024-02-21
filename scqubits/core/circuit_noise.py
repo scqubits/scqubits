@@ -42,6 +42,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
                 def Q_func(omega, T):
                     return eval(Q_str)
+
                 return Q_func
             else:
                 return float(Q_str)
