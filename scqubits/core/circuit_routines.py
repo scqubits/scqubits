@@ -181,7 +181,7 @@ class CircuitRoutines(ABC):
             return False
         return True
 
-    def _diagonalize_purely_harmonic_hamiltonian(self):
+    def _diagonalize_purely_harmonic_hamiltonian(self, return_osc_dict: bool = False):
         """
         Method used to decouple harmonic oscillators in purely harmonic Hamiltonians.
         """
@@ -189,8 +189,8 @@ class CircuitRoutines(ABC):
             raise Exception("The Subsystem Hamiltonian is not purely harmonic.")
         num_oscs = len(self.var_categories["extended"])
         # Construct capacitance and inductance matrices from the symbolic hamiltonian
-        C = np.zeros([num_oscs, num_oscs])
-        L = np.zeros([num_oscs, num_oscs])
+        EC = np.zeros([num_oscs, num_oscs])
+        EL = np.zeros([num_oscs, num_oscs])
         # substitute all external fluxes in the symbolic Hamiltonian
         hamiltonian = self.hamiltonian_symbolic
         for param in (
@@ -204,26 +204,31 @@ class CircuitRoutines(ABC):
         for i in range(num_oscs):
             for j in range(num_oscs):
                 if i == j:
-                    C[i, j] = hamiltonian.coeff(f"Q{ext_var_indices[i]}**2") * 4
-                    L[i, j] = hamiltonian.coeff(f"θ{ext_var_indices[i]}**2")
+                    EC[i, j] = hamiltonian.coeff(f"Q{ext_var_indices[i]}**2") / 4
+                    EL[i, j] = hamiltonian.coeff(f"θ{ext_var_indices[i]}**2") * 2
                 else:
-                    C[i, j] = (
+                    EC[i, j] = (
                         hamiltonian.coeff(
                             f"Q{ext_var_indices[i]}*Q{ext_var_indices[j]}"
-                        )
-                        * 4
+                        ) / 8
                     )
-                    L[i, j] = hamiltonian.coeff(
+                    EL[i, j] = hamiltonian.coeff(
                         f"θ{ext_var_indices[i]}*θ{ext_var_indices[j]}"
                     )
         # diagonalizing the matrices
-        normal_mode_freqs_sq, eig_vecs = np.linalg.eig((C) @ L)
-
+        normal_mode_freqs_sq, eig_vecs = np.linalg.eig(8 * EC @ EL)
+        
         self.normal_mode_freqs = normal_mode_freqs_sq**0.5
 
-        self._hamiltonian_sym_for_numerics = (
-            self._transform_hamiltonian_purely_harmonic(hamiltonian, eig_vecs).expand()
+        self._hamiltonian_sym_for_numerics = round_symbolic_expr(
+            self._transform_hamiltonian_purely_harmonic(self.hamiltonian_symbolic, eig_vecs).expand(), 10
         )
+        # storing the annihilation operators in the eigenbasis
+        osc_lengths = np.diagonal(8*np.linalg.inv(eig_vecs.T @ np.linalg.inv(EC) @ eig_vecs) @ np.linalg.inv(eig_vecs.T @ EL @ eig_vecs))**0.25
+        
+        if return_osc_dict:
+            osc_dict = {"normal_mode_freqs": normal_mode_freqs_sq**0.5, "eig_vecs": eig_vecs, "osc_lengths": osc_lengths}
+            return osc_dict
 
     def _transform_hamiltonian_purely_harmonic(
         self, hamiltonian: sm.Expr, transformation_matrix: ndarray
@@ -233,16 +238,67 @@ class CircuitRoutines(ABC):
         """
         ext_var_indices = self.var_categories["extended"]
         num_vars = len(ext_var_indices)
-        Q_vars = [sm.symbols(f"Q{ext_var_indices[idx]}") for idx in range(num_vars)]
-        θ_vars = [sm.symbols(f"θ{ext_var_indices[idx]}") for idx in range(num_vars)]
-        Q_exprs = transformation_matrix.dot(Q_vars)
-        θ_exprs = transformation_matrix.dot(θ_vars)
+        Q_vars = [sm.symbols(f"Q{var_idx}") for var_idx in ext_var_indices]
+        θ_vars = [sm.symbols(f"θ{var_idx}") for var_idx in ext_var_indices]
+
+        Qn_vars = [sm.symbols(f"Qn{var_idx}") for var_idx in ext_var_indices]
+        θn_vars = [sm.symbols(f"θn{var_idx}") for var_idx in ext_var_indices]
+
+        Q_exprs = np.linalg.inv(transformation_matrix.T).dot(Qn_vars)
+        θ_exprs = transformation_matrix.dot(θn_vars)
         for idx in range(num_vars):
             hamiltonian = hamiltonian.subs(Q_vars[idx], Q_exprs[idx]).subs(
                 θ_vars[idx], θ_exprs[idx]
             )
+        for idx in range(num_vars):
+            hamiltonian = hamiltonian.subs(Qn_vars[idx], Q_vars[idx]).subs(
+                θn_vars[idx], θ_vars[idx]
+            )
 
         return hamiltonian
+    
+    def _generate_annihilation_operators_in_eigenbasis(self):
+        """
+        For purely harmonic systems, when ext_basis is set to harmonic, we diagonalize the Hamiltonian to a new basis. The 
+        annihilation operators in the old basis are generated in this method.  
+        """
+        old_osc_lengths, old_osc_freqs = self._set_harmonic_basis_osc_params(hamiltonian=self.hamiltonian_symbolic)        
+        osc_dict = self._diagonalize_purely_harmonic_hamiltonian(return_osc_dict=True)
+        self.osc_lengths = {self.var_categories["extended"][idx]: osc_length for idx, osc_length in enumerate(osc_dict["osc_lengths"])}
+        self.osc_freqs = {self.var_categories["extended"][idx]: freq for idx, freq in enumerate(osc_dict["normal_mode_freqs"])}
+        self.osc_eigvecs = osc_dict["eig_vecs"]
+        self.old_osc_dict = {"osc_freqs": old_osc_freqs, "osc_lengths": old_osc_lengths}
+        
+        new_annihilation_operator_dict = {}        
+        for idx, var_index in enumerate(self.var_categories["extended"]):
+            def operator_func(self=self, var_index=var_index):
+                old_osc_operators = {}
+                osc_lengths = self.osc_lengths
+                T = np.linalg.inv(self.osc_eigvecs)
+                T_inv = np.linalg.inv(T)
+                for idx_n, var_index_n in enumerate(self.var_categories["extended"]):
+                    operator_names = [f"a{var_index_n}", f"Q{var_index_n}", f"θ{var_index_n}"]
+                    for operator_name in operator_names:
+                        a = self._kron_operator(op.annihilation_sparse(getattr(self, f"cutoff_ext_{var_index_n}")), var_index_n)
+                        if re.fullmatch(r"a\d+", operator_name):
+                            operator = a
+                        if re.fullmatch(r"Q\d+", operator_name):
+                            operator = (a.conj().T  - a) / self.old_osc_dict["osc_lengths"][var_index_n] / 2**0.5 * 1j
+                        if re.fullmatch(r"θ\d+", operator_name):
+                            operator = (a.conj().T  + a) * self.old_osc_dict["osc_lengths"][var_index_n] / 2**0.5
+                        old_osc_operators[operator_name] = operator
+                idx = self.var_categories["extended"].index(var_index)
+                b = 0.5**0.5 * sum([ 
+                            1/(osc_lengths[var_index]) * T[idx, old_idx] * old_osc_operators[f"θ{old_var_idx}"] + 
+                            1j * osc_lengths[var_index] * T_inv[old_idx, idx] * old_osc_operators[f"Q{old_var_idx}"]
+                                for old_idx, old_var_idx in enumerate(self.var_categories["extended"])
+                                ])
+                return b
+            new_annihilation_operator_dict[var_index] = operator_func
+            
+        self._annihilation_operator_in_eigenbasis = new_annihilation_operator_dict
+        
+        
 
     def __setattr__(self, name, value):
         """
@@ -700,7 +756,7 @@ class CircuitRoutines(ABC):
                     self.transformation_matrix = (
                         self.symbolic_circuit.transformation_matrix
                     )
-                self._diagonalize_purely_harmonic_hamiltonian()
+                self._generate_annihilation_operators_in_eigenbasis()
             else:
                 self._set_harmonic_basis_osc_params()
 
@@ -1580,10 +1636,6 @@ class CircuitRoutines(ABC):
             exp_i_theta = _exp_i_theta_operator(
                 self.cutoffs_dict()[var_index], prefactor
             )
-            # else:
-            #     exp_i_theta = _exp_i_theta_operator_conjugate(
-            #         self.cutoffs_dict()[var_index]
-            #     )
         elif var_basis == "discretized":
             phi_grid = discretization.Grid1d(
                 self.discretized_phi_range[var_index][0],
@@ -1714,12 +1766,12 @@ class CircuitRoutines(ABC):
                 )
         return junction_potential_matrix
 
-    def _set_harmonic_basis_osc_params(self):
+    def _set_harmonic_basis_osc_params(self, hamiltonian: Optional[sm.Expr] = None):
         osc_lengths = {}
         osc_freqs = {}
-        hamiltonian = self._hamiltonian_sym_for_numerics
+        hamiltonian_sym = hamiltonian or self._hamiltonian_sym_for_numerics
         # substitute all the parameter values
-        hamiltonian = hamiltonian.subs(
+        hamiltonian_sym = hamiltonian_sym.subs(
             [
                 (param, getattr(self, str(param)))
                 for param in list(self.symbolic_params.keys())
@@ -1728,12 +1780,28 @@ class CircuitRoutines(ABC):
             ]
         )
         for list_idx, var_index in enumerate(self.var_categories["extended"]):
-            ECi = float(hamiltonian.coeff(f"Q{var_index}**2").cancel()) / 4
-            ELi = float(hamiltonian.coeff(f"θ{var_index}**2").cancel()) * 2
+            ECi = float(hamiltonian_sym.coeff(f"Q{var_index}**2").cancel()) / 4
+            ELi = float(hamiltonian_sym.coeff(f"θ{var_index}**2").cancel()) * 2
             osc_freqs[var_index] = (8 * ELi * ECi) ** 0.5
             osc_lengths[var_index] = (8.0 * ECi / ELi) ** 0.25
+        if hamiltonian is not None:
+            return osc_lengths, osc_freqs
         self.osc_lengths = osc_lengths
         self.osc_freqs = osc_freqs
+        
+    def _wrapper_operator_for_purely_harmonic_system(self, operator_name: str):
+        def purely_harmonic_operator_func(self=self, operator_name=operator_name):
+            var_index = get_trailing_number(operator_name)
+            annihilation_operator = qt.Qobj(self._annihilation_operator_in_eigenbasis[var_index]()) # annihilation operator in the diagonalized basis
+            if re.fullmatch(r"Q\d+", operator_name):
+                operator = (annihilation_operator.dag() - annihilation_operator) / self.osc_lengths[var_index] / 2**0.5 * 1j
+            elif re.fullmatch(r"θ\d+", operator_name):
+                operator = (annihilation_operator.dag() + annihilation_operator) * self.osc_lengths[var_index] / 2**0.5
+            elif re.fullmatch(r"a\d+", operator_name):
+                operator = annihilation_operator
+            return self._sparsity_adaptive(operator.data)
+        return purely_harmonic_operator_func
+        
 
     def _generate_operator_methods(self) -> Dict[str, Callable]:
         """
@@ -1782,20 +1850,28 @@ class CircuitRoutines(ABC):
                 "momentum": None,
             }
 
-            self._set_harmonic_basis_osc_params()
             for list_idx, var_index in enumerate(self.var_categories["extended"]):
-                nonwrapped_ops["position"] = op.a_plus_adag_sparse
-                nonwrapped_ops["sin"] = op.sin_theta_harmonic
-                nonwrapped_ops["cos"] = op.cos_theta_harmonic
-                nonwrapped_ops["momentum"] = op.iadag_minus_ia_sparse
+                
+                if self.is_purely_harmonic and self.ext_basis == "harmonic":
+                    for short_op_name in nonwrapped_ops.keys():
+                        sym_variable = extended_vars[short_op_name][list_idx]
+                        op_func = self._wrapper_operator_for_purely_harmonic_system(sym_variable.name)
+                        op_name = sym_variable.name + "_operator"
+                        extended_operators[op_name] = op_func
+                    
+                else:
+                    nonwrapped_ops["position"] = op.a_plus_adag_sparse
+                    nonwrapped_ops["sin"] = op.sin_theta_harmonic
+                    nonwrapped_ops["cos"] = op.cos_theta_harmonic
+                    nonwrapped_ops["momentum"] = op.iadag_minus_ia_sparse
 
-                for short_op_name in nonwrapped_ops.keys():
-                    op_func = nonwrapped_ops[short_op_name]
-                    sym_variable = extended_vars[short_op_name][list_idx]
-                    op_name = sym_variable.name + "_operator"
-                    extended_operators[op_name] = operator_func_factory(
-                        op_func, var_index, op_type=short_op_name
-                    )
+                    for short_op_name in nonwrapped_ops.keys():
+                        op_func = nonwrapped_ops[short_op_name]
+                        sym_variable = extended_vars[short_op_name][list_idx]
+                        op_name = sym_variable.name + "_operator"
+                        extended_operators[op_name] = operator_func_factory(
+                            op_func, var_index, op_type=short_op_name
+                        )
 
         # constructing the operators for periodic variables
         periodic_operators = {}
@@ -1957,7 +2033,7 @@ class CircuitRoutines(ABC):
             # constructed using ladder operators
             if re.fullmatch(r"Qs\d+", operator_name) and self.is_purely_harmonic:
                 var_index = get_trailing_number(operator_name)
-                return qt.Qobj(getattr(self, f"Q{var_index}" + "_operator")()) ** 2
+                return self.get_operator_by_name(f"Q{var_index}") ** 2
 
             return qt.Qobj(getattr(self, operator_name + "_operator")()) ** (
                 power if power else 1
@@ -2198,14 +2274,12 @@ class CircuitRoutines(ABC):
         )
 
     @check_sync_status_circuit
-    def _hamiltonian_for_purely_harmonic(self) -> csc_matrix:
+    def _hamiltonian_for_purely_harmonic(self, return_unsorted: bool=False) -> csc_matrix:
         """Hamiltonian for purely harmonic systems when ext_basis is set to harmonic
 
         Returns:
             csc_matrix:
         """
-        if self.ext_basis != "harmonic":
-            raise Exception("The ext basis for this circuit is not set to harmonic.")
         operator_for_var_index = []
         for idx, var_index in enumerate(self.var_categories["extended"]):
             cutoff = getattr(self, f"cutoff_ext_{var_index}")
@@ -2215,6 +2289,8 @@ class CircuitRoutines(ABC):
             )
             operator_for_var_index.append(self._kron_operator(H_osc, var_index))
         H = sum(operator_for_var_index)
+        if return_unsorted:
+            return H
         return sp.sparse.dia_matrix(
             (np.sort(H.diagonal()), [0]), shape=(cutoff, cutoff), dtype=np.float_
         )
@@ -2232,6 +2308,68 @@ class CircuitRoutines(ABC):
         H = self._hamiltonian_for_purely_harmonic()
         eigs = H.diagonal()
         return eigs[:evals_count]
+    
+    def _eigensys_for_purely_harmonic(self, evals_count: int):
+        H = self._hamiltonian_for_purely_harmonic(return_unsorted=True)
+        unsorted_eigs = H.diagonal()
+        dressed_indices = np.argsort(unsorted_eigs)[:evals_count]
+        eigenvals = unsorted_eigs[dressed_indices]
+        # finding the excitation numbers corresponding to the eigenvalues
+        excitation_numbers = []
+        for dressed_index in dressed_indices:
+            bare_index = []
+            coeff, remainder = divmod(dressed_index, getattr(self, f"cutoff_ext_{self.var_categories['extended'][0]}"))
+            bare_index.append(remainder)
+            for i in range(1, len(self.var_categories["extended"])):
+                coeff, remainder = divmod(coeff, getattr(self, f"cutoff_ext_{self.var_categories['extended'][i]}"))
+                bare_index.append(remainder)
+            excitation_numbers.append(bare_index)
+        # finding the eigenvectors
+        eigen_vectors = []
+        for eig_idx, energy in enumerate(eigenvals):
+            eigen_vector = []
+            for osc_idx, var_index in enumerate(self.var_categories["extended"]):
+                evec = np.zeros(self.cutoffs_dict()[var_index])
+                evec[excitation_numbers[eig_idx][osc_idx]] = 1
+                eigen_vector.append(evec)
+            eigen_vectors.append(functools.reduce(np.kron, eigen_vector))
+        # translate the eigenvectors if necessary
+        hamiltonian = self._hamiltonian_sym_for_numerics
+        # substitute parameters
+        for sym_param in (
+            self.offset_charges
+            + self.external_fluxes
+            + list(self.symbolic_params.keys())
+        ):
+            hamiltonian = hamiltonian.subs(sym_param, getattr(self, sym_param.name))
+        hamiltonian = hamiltonian.subs("I", 1)
+        # collecting the linear coefficients
+        linear_coeffs_theta = []
+        linear_coeffs_q = []
+        quad_coeffs_theta = []
+        quad_coeffs_q = []
+        for var_index in self.dynamic_var_indices:
+            linear_coeffs_theta.append(float(hamiltonian.coeff(f"θ{var_index}")))
+            linear_coeffs_q.append(float(hamiltonian.coeff(f"Q{var_index}")))
+            quad_coeffs_theta.append(float(hamiltonian.coeff(f"θ{var_index}**2")))
+            quad_coeffs_q.append(float(hamiltonian.coeff(f"Q{var_index}**2")))
+        shift_operator = self._identity()
+        for idx, var_index in enumerate(self.dynamic_var_indices):
+            shift_operator = shift_operator @ self._kron_operator(
+                self.exp_i_operator(
+                    sm.sympify(f"θ{var_index}"),
+                    -linear_coeffs_q[idx] / (2 * quad_coeffs_q[idx]),
+                ),
+                var_index,
+            )
+            shift_operator = shift_operator @ self._kron_operator(
+                self.exp_i_operator(
+                    sm.sympify(f"Q{var_index}"),
+                    -linear_coeffs_theta[idx] / (2 * quad_coeffs_theta[idx]),
+                ),
+                var_index,
+            )
+        return np.array(eigenvals), shift_operator @ np.array(eigen_vectors).T
 
     @check_sync_status_circuit
     def hamiltonian(self) -> Union[csc_matrix, ndarray]:
@@ -2401,10 +2539,7 @@ class CircuitRoutines(ABC):
             and (not self.hierarchical_diagonalization)
             and self.ext_basis == "harmonic"
         ):
-            return (
-                self._eigenvals_for_purely_harmonic(evals_count=evals_count),
-                np.identity(hilbertdim)[:, :evals_count],
-            )
+            return self._eigensys_for_purely_harmonic(evals_count=evals_count)
 
         hamiltonian_mat = self.hamiltonian()
         if self.type_of_matrices == "sparse":

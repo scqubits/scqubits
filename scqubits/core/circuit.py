@@ -235,7 +235,7 @@ class Subsystem(
             and self.ext_basis == "harmonic"
         ):
             self.is_purely_harmonic = True
-            self._diagonalize_purely_harmonic_hamiltonian()
+            self._annihilation_operator_in_eigenbasis = None
         else:
             self.is_purely_harmonic = False
 
@@ -260,6 +260,8 @@ class Subsystem(
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
         else:
             self.generate_hamiltonian_sym_for_numerics()
+            if self.is_purely_harmonic and self.ext_basis == "harmonic":
+                self._generate_annihilation_operators_in_eigenbasis()
 
         self._set_vars()
         self._set_harmonic_basis_osc_params()
@@ -985,12 +987,14 @@ class Circuit(
                         "Purely harmonic circuits need ext_basis to be set to 'harmonic'"
                     )
                     self.ext_basis = "harmonic"
+            self.generate_hamiltonian_sym_for_numerics()
             self.ext_basis = ext_basis or self.ext_basis
             if self.is_purely_harmonic and self.ext_basis == "harmonic":
                 # using the default methods
                 self.evals_method = None
                 self.evals_method_options = None
-            self.generate_hamiltonian_sym_for_numerics()
+                self._annihilation_operator_in_eigenbasis = None
+                self._generate_annihilation_operators_in_eigenbasis()
         else:
             # list for updating necessary subsystems when calling build hilbertspace
             self.affected_subsystem_indices = []
@@ -1004,8 +1008,9 @@ class Circuit(
 
             self.subsystem_trunc_dims = subsystem_trunc_dims
             self.generate_hamiltonian_sym_for_numerics()
+            self.ext_basis = ext_basis or self.ext_basis
             self.generate_subsystems()
-            self.ext_basis = ext_basis or self.get_ext_basis()
+            self.ext_basis = self.get_ext_basis()
             self.update_interactions()
             self._check_truncation_indices()
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
