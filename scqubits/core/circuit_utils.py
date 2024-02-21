@@ -422,7 +422,7 @@ def example_circuit(qubit: str) -> str:
 def grid_operator_func_factory(inner_op: Callable, index: int) -> Callable:
     def operator_func(self: "Subsystem"):
         return self._kron_operator(
-            inner_op(self.grids_dict_for_discretized_extended_vars()[index]), index
+            inner_op(self.discretized_grids_dict_for_vars()[index]), index
         )
 
     return operator_func
