@@ -3359,9 +3359,10 @@ class CircuitRoutines(ABC):
         Then reshapes the wavefunction to represent each of the variable indices as a separate dimension.
         """
         if self.hierarchical_diagonalization:
-            system_hierarchy_for_vars_chosen = unique_elements_in_list(
+            subsys_index_for_var_index = unique_elements_in_list(
                 [self.get_subsystem_index(index) for index in var_indices]
             )  # getting the subsystem index for each of the variable indices
+            subsys_index_for_var_index.sort()
 
             subsys_trunc_dims = [sys.truncated_dim for sys in self.subsystems]
             # reshaping the wave functions to truncated dims of subsystems
@@ -3369,10 +3370,10 @@ class CircuitRoutines(ABC):
 
             # **** Converting to the basis in which the variables are defined *****
             wf_original_basis = wf_hd_reshaped
-            for subsys_index in system_hierarchy_for_vars_chosen:
+            for subsys_index in subsys_index_for_var_index:
                 wf_dim = 0
                 for sys_index in range(subsys_index):
-                    if sys_index in system_hierarchy_for_vars_chosen:
+                    if sys_index in subsys_index_for_var_index:
                         wf_dim += len(self.subsystems[sys_index].dynamic_var_indices)
                     else:
                         wf_dim += 1

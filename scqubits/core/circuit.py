@@ -42,6 +42,7 @@ from scqubits.core.circuit_utils import (
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
 from scqubits.utils.misc import (
     flatten_list,
+    flatten_list_recursive,
     number_of_lists_in_list,
 )
 
@@ -126,13 +127,9 @@ class Subsystem(
         self.ext_basis = ext_basis
         self._find_and_set_sym_attrs()
 
-        self.dynamic_var_indices: List[int] = []
-        cutoffs: List[int] = []
-        for var_name in self.operator_names_in_hamiltonian_symbolic():
-            var_index = get_trailing_number(var_name)
-            if var_index not in self.dynamic_var_indices and var_index is not None:
-                self.dynamic_var_indices.append(var_index)
-                cutoffs += [self.parent.cutoffs_dict()[var_index]]
+        self.dynamic_var_indices: List[int] = flatten_list_recursive([self.system_hierarchy])
+        parent_cutoffs_dict = self.parent.cutoffs_dict()
+        cutoffs: List[int] = [parent_cutoffs_dict[var_index] for var_index in self.dynamic_var_indices]
 
         self.var_categories: Dict[str, List[int]] = {}
         for var_type in self.parent.var_categories:
