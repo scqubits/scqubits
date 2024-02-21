@@ -35,42 +35,16 @@ from scqubits.core.symbolic_circuit import Branch
 class NoisyCircuit(NoisySystem, ABC):
     @staticmethod
     def Q_from_branch(branch):
-        if sum(["Q_" in key for key in branch.aux_params]):
-            key = "Q_" + ("ind" if branch.type == "L" else "cap")
+        key = "Q_" + ("ind" if branch.type == "L" else "cap")
+        if key in branch.aux_params.keys():
             Q_str = branch.aux_params[key]
             if not is_string_float(Q_str):
 
                 def Q_func(omega, T):
                     return eval(Q_str)
-
+                return Q_func
             else:
-                if branch.type != "L":
-
-                    def Q_func(omega, T):
-                        return eval(
-                            f"({float(Q_str)} * (2 * np.pi * 6e9 / np.abs(units.to_standard_units(omega))) ** 0.7)"
-                        )
-
-                else:
-
-                    def Q_func(omega, T):
-                        therm_ratio = abs(calc_therm_ratio(omega, T))
-                        therm_ratio_500MHz = calc_therm_ratio(
-                            2 * np.pi * float(Q_str), T, omega_in_standard_units=True
-                        )
-                        return (
-                            float(Q_str)
-                            * (
-                                sp.special.kv(0, 1 / 2 * therm_ratio_500MHz)
-                                * np.sinh(1 / 2 * therm_ratio_500MHz)
-                            )
-                            / (
-                                sp.special.kv(0, 1 / 2 * therm_ratio)
-                                * np.sinh(1 / 2 * therm_ratio)
-                            )
-                        )
-
-            return Q_func
+                return float(Q_str)
         return None
 
     def generate_methods_d_hamiltonian_d(self):
