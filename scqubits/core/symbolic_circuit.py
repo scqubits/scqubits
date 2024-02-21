@@ -404,13 +404,13 @@ class SymbolicCircuit(serializers.Serializable):
         c_mat = (
             trans_mat.T @ self._capacitance_matrix(substitute_params=True) @ trans_mat
         )
-        l_mat = (
-            trans_mat.T @ self._inductance_matrix(substitute_params=True) @ trans_mat
+        l_inv_mat = (
+            trans_mat.T @ self._inductance_inverse_matrix(substitute_params=True) @ trans_mat
         )
         if not self.is_grounded:
             c_mat = c_mat[:-1, :-1]
-            l_mat = l_mat[:-1, :-1]
-        normal_mode_freqs, normal_mode_vecs = sp.linalg.eig(l_mat, c_mat)
+            l_inv_mat = l_inv_mat[:-1, :-1]
+        normal_mode_freqs, normal_mode_vecs = sp.linalg.eig(l_inv_mat, c_mat)
         normal_mode_freqs = normal_mode_freqs.round(10)
         # rounding to the tenth digit to remove numerical errors in eig calculation
         # rearranging the vectors
@@ -1249,41 +1249,8 @@ class SymbolicCircuit(serializers.Serializable):
                 )
         return terms
 
-    # def _JJ2_terms(self):
-    #     terms = 0
-    #     # looping over all the JJ2 branches
-    #     for jj2_branch in [t for t in self.branches if t.type == "JJ2"]:
-    #         # adding external flux
-    #         phi_ext = 0
-    #         if jj2_branch in self.closure_branches:
-    #             if not self.is_flux_dynamic:
-    #                 index = self.closure_branches.index(jj2_branch)
-    #                 phi_ext += self.external_fluxes[index]
-    #         if self.is_flux_dynamic:
-    #             flux_branch_assignment = self._time_dependent_flux_distribution()
-    #             phi_ext += flux_branch_assignment[int(jj2_branch.id_str)]
 
-    #         # if loop to check for the presence of ground node
-    #         if jj2_branch.nodes[1].index == 0:
-    #             terms += -jj2_branch.parameters["EJ"] * sympy.cos(
-    #                 2 * (-symbols(f"φ" + str(jj2_branch.nodes[0].index)) + phi_ext)
-    #             )
-    #         elif jj2_branch.nodes[0].index == 0:
-    #             terms += -jj2_branch.parameters["EJ"] * sympy.cos(
-    #                 2 * (symbols(f"φ{jj2_branch.nodes[1].index}") + phi_ext)
-    #             )
-    #         else:
-    #             terms += -jj2_branch.parameters["EJ"] * sympy.cos(
-    #                 2
-    #                 * (
-    #                     symbols(f"φ{jj2_branch.nodes[1].index}")
-    #                     - symbols(f"φ{jj2_branch.nodes[0].index}")
-    #                     + phi_ext
-    #                 )
-    #             )
-    #     return terms
-
-    def _inductance_matrix(self, substitute_params: bool = False):
+    def _inductance_inverse_matrix(self, substitute_params: bool = False):
         """
         Generate a inductance matrix for the circuit
 
