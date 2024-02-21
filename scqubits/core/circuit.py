@@ -720,6 +720,7 @@ class Circuit(
         self._frozen = False
         system_hierarchy = system_hierarchy or self.system_hierarchy
         subsystem_trunc_dims = subsystem_trunc_dims or self.subsystem_trunc_dims
+        self.ext_basis = ext_basis or self.ext_basis
 
         self.hierarchical_diagonalization = (
             True if system_hierarchy is not None else False
@@ -780,6 +781,8 @@ class Circuit(
                     offset_charge.name, 0.0, "update_external_flux_or_charge"
                 )
 
+        self.potential_symbolic = self.generate_sym_potential()
+
         # changing the matrix type if necessary
         if len(flatten_list(self.var_categories.values())) == 1:
             self.type_of_matrices = "dense"
@@ -817,9 +820,13 @@ class Circuit(
                 )
 
             self.subsystem_trunc_dims = subsystem_trunc_dims
+            if ext_basis:
+                self.ext_basis = ext_basis
             self.generate_hamiltonian_sym_for_numerics()
             self.generate_subsystems()
-            self.ext_basis = ext_basis or self.get_ext_basis()
+            self.ext_basis = (
+                self.get_ext_basis()
+            )  # update the ext_basis after generating subsystems
             self._set_vars()  # setting the attribute vars to store operator symbols
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
