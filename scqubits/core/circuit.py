@@ -127,9 +127,13 @@ class Subsystem(
         self.ext_basis = ext_basis
         self._find_and_set_sym_attrs()
 
-        self.dynamic_var_indices: List[int] = flatten_list_recursive([self.system_hierarchy])
+        self.dynamic_var_indices: List[int] = flatten_list_recursive(
+            [self.system_hierarchy]
+        )
         parent_cutoffs_dict = self.parent.cutoffs_dict()
-        cutoffs: List[int] = [parent_cutoffs_dict[var_index] for var_index in self.dynamic_var_indices]
+        cutoffs: List[int] = [
+            parent_cutoffs_dict[var_index] for var_index in self.dynamic_var_indices
+        ]
 
         self.var_categories: Dict[str, List[int]] = {}
         for var_type in self.parent.var_categories:
