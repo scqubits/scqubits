@@ -110,3 +110,15 @@ except ImportError:
         "scqubits: missing version information - did scqubits install correctly?",
         ImportWarning,
     )
+
+# build a public API list by finding all names not starting with underscore
+import scqubits as _scq
+from scqubits.utils.misc import inspect_public_API as _inspect_public_API
+
+__all__ = _inspect_public_API(
+    _scq,
+    public_names=[
+        "__version__",
+    ],
+    private_names=["utils", "ui", "warnings", "io_utils", "version"],
+)

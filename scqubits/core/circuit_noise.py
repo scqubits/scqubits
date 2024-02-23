@@ -21,7 +21,7 @@ import copy
 
 from scqubits.core.noise import NOISE_PARAMS, NoisySystem, calc_therm_ratio
 from scqubits.core.circuit_utils import get_trailing_number, keep_terms_for_subsystem
-from scqubits.utils.misc import is_string_float
+from scqubits.utils.misc import is_string_float, Qobj_to_scipy_csc_matrix
 import scqubits.core.units as units
 
 from types import MethodType
@@ -222,7 +222,7 @@ class NoisyCircuit(NoisySystem, ABC):
                 """
                 noise_op = noise_op_func()
                 if isinstance(noise_op, qt.Qobj):
-                    noise_op = noise_op.data.tocsc()
+                    noise_op = Qobj_to_scipy_csc_matrix(noise_op)
 
                 return self.tphi_1_over_f(
                     A_noise=A_noise,

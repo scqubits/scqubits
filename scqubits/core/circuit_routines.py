@@ -84,6 +84,7 @@ from scqubits.utils.misc import (
     list_intersection,
     check_sync_status_circuit,
     unique_elements_in_list,
+    Qobj_to_scipy_csc_matrix
 )
 from scqubits.utils.plot_utils import _process_options
 from scqubits.utils.spectrum_utils import (
@@ -2108,7 +2109,7 @@ class CircuitRoutines(ABC):
         )
 
         if isinstance(operator, qt.Qobj):
-            operator = operator.data.tocsc()
+            operator = Qobj_to_scipy_csc_matrix(operator)
 
         operator = convert_matrix_to_qobj(
             operator,
@@ -2300,7 +2301,8 @@ class CircuitRoutines(ABC):
 
         junction_potential_matrix = self._evaluate_matrix_cosine_terms(
             junction_potential
-        ).data.tocsc()
+        )
+        junction_potential_matrix = Qobj_to_scipy_csc_matrix(junction_potential_matrix)
 
         if H_LC_str:
             return eval(H_LC_str, replacement_dict) + junction_potential_matrix
@@ -2320,7 +2322,7 @@ class CircuitRoutines(ABC):
         hamiltonian = hamiltonian.subs("I", 1)
 
         return self._sparsity_adaptive(
-            self._evaluate_symbolic_expr(hamiltonian).data.tocsc()
+            Qobj_to_scipy_csc_matrix(self._evaluate_symbolic_expr(hamiltonian))
         )
 
     @check_sync_status_circuit
@@ -2358,7 +2360,7 @@ class CircuitRoutines(ABC):
             Q_operator = self._kron_operator(Q_operator, var_index)
             operator_dict[f"Q{var_index}"] = qt.Qobj(Q_operator)
             operator_dict[f"θ{var_index}"] = qt.Qobj(theta_operator)
-        return self._sparsity_adaptive(eval(str(hamiltonian), operator_dict))
+        return self._sparsity_adaptive(Qobj_to_scipy_csc_matrix(eval(str(hamiltonian), operator_dict)))
 
     def _eigenvals_for_purely_harmonic(self, evals_count: int):
         """
@@ -2406,7 +2408,7 @@ class CircuitRoutines(ABC):
             if self.type_of_matrices == "dense":
                 return hamiltonian.full()
             if self.type_of_matrices == "sparse":
-                return hamiltonian.data.tocsc()
+                return Qobj_to_scipy_csc_matrix(hamiltonian)
 
     @check_sync_status_circuit
     def hamiltonian_for_mesolve(

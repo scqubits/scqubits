@@ -32,6 +32,7 @@ from sympy import csc
 import scqubits.core.units as units
 import scqubits.settings as settings
 import scqubits.utils.plotting as plotting
+from scqubits.utils.misc import Qobj_to_scipy_csc_matrix
 
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import matplotlib_settings
@@ -1256,7 +1257,7 @@ class NoisySystem(ABC):
         :math:`T_1` due to dielectric dissipation in the Josephson junction
         capacitances.
 
-        References:  Nguyen et al (2019), Smith et al (2020)
+        References: Smith et al (2020), see also Nguyen et al (2019).
 
         Parameters
         ----------
@@ -1324,7 +1325,7 @@ class NoisySystem(ABC):
                 "The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj."
             )
         if isinstance(noise_op, (qt.Qobj)):
-            noise_op = noise_op.data.tocsc()
+            noise_op = Qobj_to_scipy_csc_matrix(noise_op)
 
         return self.t1(
             i=i,
@@ -1402,7 +1403,7 @@ class NoisySystem(ABC):
                 "The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj."
             )
         if isinstance(noise_op, (qt.Qobj)):
-            noise_op = noise_op.data.tocsc()
+            noise_op = Qobj_to_scipy_csc_matrix(noise_op)
 
         return self.t1(
             i=i,
@@ -1488,7 +1489,7 @@ class NoisySystem(ABC):
 
         noise_op = (noise_op_method or self.d_hamiltonian_d_flux)()  # type: ignore
         if isinstance(noise_op, qt.Qobj):
-            noise_op = noise_op.data.tocsc()
+            noise_op = Qobj_to_scipy_csc_matrix(noise_op)
         return self.t1(
             i=i,
             j=j,
@@ -1515,7 +1516,7 @@ class NoisySystem(ABC):
         r"""
         :math:`T_1` due to inductive dissipation in a superinductor.
 
-        References: Nguyen et al (2019), Smith et al (2020)
+        References: Smith et al (2020), see also Nguyen et al (2019).
 
         Parameters
         ----------
@@ -1595,7 +1596,7 @@ class NoisySystem(ABC):
                 "The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj."
             )
         if isinstance(noise_op, (qt.Qobj)):
-            noise_op = noise_op.data.tocsc()
+            noise_op = Qobj_to_scipy_csc_matrix(noise_op)
 
         return self.t1(
             i=i,
@@ -1723,7 +1724,7 @@ class NoisySystem(ABC):
                 "The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj."
             )
         if isinstance(noise_op, (qt.Qobj)):
-            noise_op = noise_op.data.tocsc()
+            noise_op = Qobj_to_scipy_csc_matrix(noise_op)
 
         return self.t1(
             i=i,
