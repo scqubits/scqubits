@@ -83,39 +83,26 @@ class TestCircuit:
         assert np.allclose(eigs, eigs_ref)
 
     @staticmethod
-    def test_zero_pi_harmonic():
+    def test_circuit_with_symbolic_hamiltonian():
         """
-        Test for symmetric zero-pi in harmonic oscillator basis.
+        Test for initiating Circuit module with symbolic Hamiltonian.
         """
-        zp_yaml = """# zero-pi circuit
-        branches:
-        - ["JJ", 1, 2, 10, 20]
-        - ["JJ", 3, 4, 10, 20]
-        - ["L", 2, 3, 0.008]
-        - ["L", 4, 1, 0.008]
-        - ["C", 1, 3, 0.02]
-        - ["C", 2, 4, 0.02]
-        """
-        circ = scq.Circuit(zp_yaml, from_file=False, ext_basis="harmonic")
-        circ.cutoff_n_1 = 30
-        circ.cutoff_ext_2 = 30
-        circ.cutoff_ext_3 = 80
-        circ.configure(system_hierarchy=[[1, 3], [2]], subsystem_trunc_dims=[30, 20])
-        circ.cutoff_ext_3 = 200
-        sym_zp = circ.subsystems[0]
-        eigensys = sym_zp.eigensys()
-        eigs = eigensys[0]
-        eig_ref = np.array(
-            [
-                -3.69858244,
-                -3.69261899,
-                -2.90463196,
-                -2.89989473,
-                -2.81204032,
-                -2.81003324,
-            ]
-        )
-        assert np.allclose(eigs, eig_ref)
+        import sympy as sm
+        sym_hamiltonian = sm.parse_expr("0.25*θ3**2 + 2.0*Q3**2 + 0.790697674419*Q2**2 + 0.45*θ2**2 + 7.674418604651*n1**2 + 7.674418604651*ng1**2 - 1.0*cos(θ1) + 0.5*θ2*θ3 + 1.395348837209*Q2*n1 + 1.395348837209*Q2*ng1 + 15.348837209302*n1*ng1")
+        circ = scq.Circuit(input_string=None, symbolic_hamiltonian=sym_hamiltonian, symbolic_param_dict={"ng1":0}, ext_basis="harmonic")
+        circ.configure(transformation_matrix=np.array([[1, 0, 0],
+                                                    [0, 1, 0],
+                                                    [0, 1, 1]]))
+        circ.cutoff_n_1 = 20
+        circ.cutoff_ext_2 = 20
+        circ.cutoff_ext_3 = 20
+        circ.configure(system_hierarchy=[[1], [[2], [3]]], subsystem_trunc_dims=[20, [50, [10, 10]]])
+        # new_circ.configure(system_hierarchy=[[1], [2, 3]], subsystem_trunc_dims=[20, 30])
+        circ.ng1 = 0.5
+        eigs = circ.eigenvals()
+        eigs_ref = np.array([2.51547879, 3.00329327, 3.5556228 , 3.57568727, 4.13233136,
+                4.29671029])
+        assert np.allclose(eigs, eigs_ref)
 
     @staticmethod
     def test_eigenvals_harmonic():
