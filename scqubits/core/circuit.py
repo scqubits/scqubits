@@ -262,10 +262,9 @@ class Subsystem(
         else:
             self.generate_hamiltonian_sym_for_numerics()
             if self.is_purely_harmonic and self.ext_basis == "harmonic":
-                self._generate_annihilation_operators_in_eigenbasis()
+                self._diagonalize_purely_harmonic_hamiltonian()
 
         self._set_vars()
-        self._set_harmonic_basis_osc_params()
         self.operators_by_name = self.set_operators()
 
         if self.hierarchical_diagonalization:
@@ -795,18 +794,19 @@ class Circuit(
 
         if not self.hierarchical_diagonalization:
             if self.is_purely_harmonic and not ext_basis:
-                self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
                 if self.ext_basis != "harmonic":
                     warnings.warn(
                         "Purely harmonic circuits need ext_basis to be set to 'harmonic'"
                     )
                     self.ext_basis = "harmonic"
             self.ext_basis = ext_basis or self.ext_basis
+            self.generate_hamiltonian_sym_for_numerics()
             if self.is_purely_harmonic and self.ext_basis == "harmonic":
                 # using the default methods
                 self.evals_method = None
                 self.evals_method_options = None
-            self.generate_hamiltonian_sym_for_numerics()
+                self._annihilation_operator_in_eigenbasis = None
+                self._diagonalize_purely_harmonic_hamiltonian()
             self._set_vars()  # setting the attribute vars to store operator symbols
             self.operators_by_name = self.set_operators()
         else:
@@ -834,7 +834,6 @@ class Circuit(
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
             self.update_interactions()
 
-        self._set_harmonic_basis_osc_params()
         # clear unnecessary attribs
         self._clear_unnecessary_attribs()
         self._frozen = True
@@ -1002,7 +1001,7 @@ class Circuit(
                 self.evals_method = None
                 self.evals_method_options = None
                 self._annihilation_operator_in_eigenbasis = None
-                self._generate_annihilation_operators_in_eigenbasis()
+                self._diagonalize_purely_harmonic_hamiltonian()
         else:
             # list for updating necessary subsystems when calling build hilbertspace
             self.affected_subsystem_indices = []
@@ -1025,7 +1024,6 @@ class Circuit(
 
         self._set_vars()  # setting the attribute vars to store operator symbols
         self.operators_by_name = self.set_operators()
-        self._set_harmonic_basis_osc_params()
         # clear unnecessary attribs
         self._clear_unnecessary_attribs()
         self._frozen = True
