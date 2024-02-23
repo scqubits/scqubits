@@ -1787,7 +1787,7 @@ class CircuitRoutines(ABC):
     def _wrapper_operator_for_purely_harmonic_system(self, operator_name: str):
         def purely_harmonic_operator_func(
             self=self, operator_name=operator_name
-        ) -> csc_matrix | ndarray[Any, Any]:
+        ):
             var_index = get_trailing_number(operator_name)
             Q_new, θ_new = self._transform_hamiltonian_purely_harmonic(
                 hamiltonian=self.hamiltonian_symbolic,
