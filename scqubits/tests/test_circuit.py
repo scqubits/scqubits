@@ -122,35 +122,29 @@ class TestCircuit:
         ref_eigs = np.array(
             [0.0, 0.03559404, 0.05819727, 0.09378676, 4.39927874, 4.43488613]
         )
-        DFC = scq.Circuit(
-            DATADIR + "circuit_DFC.yaml",
-            ext_basis="harmonic",
-            initiate_sym_calc=False,
-            basis_completion="canonical",
-        )
-
-        closure_branches = [DFC.branches[0], DFC.branches[4], DFC.branches[-1]]
-        system_hierarchy = [[[1], [3]], [2], [4]]
-        subsystem_trunc_dims = [[34, [6, 6]], 6, 6]
-
-        DFC.configure(
-            closure_branches=closure_branches,
-            system_hierarchy=system_hierarchy,
-            subsystem_trunc_dims=subsystem_trunc_dims,
-        )
-
-        DFC.Φ1 = 0.5 + 0.01768
-        DFC.Φ2 = -0.2662
-        DFC.Φ3 = -0.5 + 0.01768
-
-        DFC.cutoff_ext_1 = 110
-        DFC.cutoff_ext_2 = 110
-        DFC.cutoff_ext_3 = 110
-        DFC.cutoff_ext_4 = 110
-        DFC.update()
-
-        eigs = DFC.eigenvals()
+        inp_yaml = """
+        branches:
+        - [JJ, 0, 1, 1, 15]
+        - [C, 1, 2, 2]
+        - [L, 2, 0, 0.4]
+        - [C, 2, 0, 0.2]
+        - [C, 2, 3, 0.5]
+        - [L, 3, 0, 0.5]
+        # - [JJ, 3, 0, EJ=0, 1e5]
+        """
+        circ = scq.Circuit(inp_yaml, from_file=False, ext_basis="discretized")
+        circ.configure(transformation_matrix=np.array([[1, 0, 0],
+                                                        [0, 1, 0],
+                                                        [0, 1, 1]]))
+        circ.cutoff_n_1 = 20
+        circ.cutoff_ext_2 = 10
+        circ.cutoff_ext_3 = 10
+        circ.configure(system_hierarchy=[[1], [2, 3]], subsystem_trunc_dims=[20, 30])
+        circ.ng1 = 0.5
+        eigs = circ.eigenvals()
         generated_eigs = eigs - eigs[0]
+        ref_eigs = np.array([0.        , 0.48790869, 1.04058606, 1.06037218, 1.61763356,
+                    1.78158506])
         assert np.allclose(generated_eigs, ref_eigs)
 
     @staticmethod
