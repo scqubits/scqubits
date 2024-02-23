@@ -88,20 +88,32 @@ class TestCircuit:
         Test for initiating Circuit module with symbolic Hamiltonian.
         """
         import sympy as sm
-        sym_hamiltonian = sm.parse_expr("0.25*θ3**2 + 2.0*Q3**2 + 0.790697674419*Q2**2 + 0.45*θ2**2 + 7.674418604651*n1**2 + 7.674418604651*ng1**2 - 1.0*cos(θ1) + 0.5*θ2*θ3 + 1.395348837209*Q2*n1 + 1.395348837209*Q2*ng1 + 15.348837209302*n1*ng1")
-        circ = scq.Circuit(input_string=None, symbolic_hamiltonian=sym_hamiltonian, symbolic_param_dict={"ng1":0}, ext_basis="harmonic")
-        circ.configure(transformation_matrix=np.array([[1, 0, 0],
-                                                    [0, 1, 0],
-                                                    [0, 1, 1]]))
+
+        sym_hamiltonian = sm.parse_expr(
+            "0.25*θ3**2 + 2.0*Q3**2 + 0.790697674419*Q2**2 + 0.45*θ2**2 + 7.674418604651*n1**2 + 7.674418604651*ng1**2 - 1.0*cos(θ1) + 0.5*θ2*θ3 + 1.395348837209*Q2*n1 + 1.395348837209*Q2*ng1 + 15.348837209302*n1*ng1"
+        )
+        circ = scq.Circuit(
+            input_string=None,
+            symbolic_hamiltonian=sym_hamiltonian,
+            symbolic_param_dict={"ng1": 0},
+            ext_basis="harmonic",
+        )
+        circ.configure(
+            transformation_matrix=np.array([[1, 0, 0], [0, 1, 0], [0, 1, 1]])
+        )
         circ.cutoff_n_1 = 20
         circ.cutoff_ext_2 = 20
         circ.cutoff_ext_3 = 20
-        circ.configure(system_hierarchy=[[1], [[2], [3]]], subsystem_trunc_dims=[20, [50, [10, 10]]])
+        circ.configure(
+            system_hierarchy=[[1], [[2], [3]]],
+            subsystem_trunc_dims=[20, [50, [10, 10]]],
+        )
         # new_circ.configure(system_hierarchy=[[1], [2, 3]], subsystem_trunc_dims=[20, 30])
         circ.ng1 = 0.5
         eigs = circ.eigenvals()
-        eigs_ref = np.array([2.51547879, 3.00329327, 3.5556228 , 3.57568727, 4.13233136,
-                4.29671029])
+        eigs_ref = np.array(
+            [2.51547879, 3.00329327, 3.5556228, 3.57568727, 4.13233136, 4.29671029]
+        )
         assert np.allclose(eigs, eigs_ref)
 
     @staticmethod
@@ -120,9 +132,9 @@ class TestCircuit:
         # - [JJ, 3, 0, EJ=0, 1e5]
         """
         circ = scq.Circuit(inp_yaml, from_file=False, ext_basis="discretized")
-        circ.configure(transformation_matrix=np.array([[1, 0, 0],
-                                                        [0, 1, 0],
-                                                        [0, 1, 1]]))
+        circ.configure(
+            transformation_matrix=np.array([[1, 0, 0], [0, 1, 0], [0, 1, 1]])
+        )
         circ.cutoff_n_1 = 20
         circ.cutoff_ext_2 = 10
         circ.cutoff_ext_3 = 10
@@ -130,8 +142,9 @@ class TestCircuit:
         circ.ng1 = 0.5
         eigs = circ.eigenvals()
         generated_eigs = eigs - eigs[0]
-        ref_eigs = np.array([0.        , 0.48790869, 1.04058606, 1.06037218, 1.61763356,
-                    1.78158506])
+        ref_eigs = np.array(
+            [0.0, 0.48790869, 1.04058606, 1.06037218, 1.61763356, 1.78158506]
+        )
         assert np.allclose(generated_eigs, ref_eigs)
 
     @staticmethod
