@@ -26,7 +26,7 @@ from scqubits.utils.misc import (
     flatten_list_recursive,
     is_string_float,
     unique_elements_in_list,
-    Qobj_to_scipy_csc_matrix
+    Qobj_to_scipy_csc_matrix,
 )
 from scqubits.core import circuit_input
 
@@ -91,7 +91,9 @@ def sawtooth_potential(phi_pts):
     N = 1000
     V = np.zeros_like(phi_pts)
     for idx in range(1, N + 1):
-        V += (skewness + 1) * (-skewness) ** (idx - 1) * np.cos(idx * phi_pts) / idx**2
+        V += (
+            (skewness + 1) * (-skewness) ** (idx - 1) * np.cos(idx * phi_pts) / idx**2
+        )
     return -V
 
 
@@ -433,6 +435,7 @@ def grid_operator_func_factory(inner_op: Callable, index: int) -> Callable:
 def hierarchical_diagonalization_func_factory(symbol_name: str) -> Callable:
     def operator_func(self: "Subsystem"):
         return Qobj_to_scipy_csc_matrix(self.get_operator_by_name(symbol_name))
+
     return operator_func
 
 

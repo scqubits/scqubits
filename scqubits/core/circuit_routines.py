@@ -84,7 +84,7 @@ from scqubits.utils.misc import (
     list_intersection,
     check_sync_status_circuit,
     unique_elements_in_list,
-    Qobj_to_scipy_csc_matrix
+    Qobj_to_scipy_csc_matrix,
 )
 from scqubits.utils.plot_utils import _process_options
 from scqubits.utils.spectrum_utils import (
@@ -1786,9 +1786,7 @@ class CircuitRoutines(ABC):
         self.osc_freqs = osc_freqs
 
     def _wrapper_operator_for_purely_harmonic_system(self, operator_name: str):
-        def purely_harmonic_operator_func(
-            self=self, operator_name=operator_name
-        ):
+        def purely_harmonic_operator_func(self=self, operator_name=operator_name):
             var_index = get_trailing_number(operator_name)
             Q_new, θ_new = self._transform_hamiltonian_purely_harmonic(
                 hamiltonian=self.hamiltonian_symbolic,
@@ -1860,9 +1858,9 @@ class CircuitRoutines(ABC):
             for var_type in extended_vars:
                 for sym_variable in extended_vars[var_type]:
                     op_name = sym_variable.name + "_operator"
-                    extended_operators[op_name] = (
-                        hierarchical_diagonalization_func_factory(sym_variable.name)
-                    )
+                    extended_operators[
+                        op_name
+                    ] = hierarchical_diagonalization_func_factory(sym_variable.name)
 
         elif self.ext_basis == "discretized":
             nonwrapped_ops = {
@@ -1894,7 +1892,6 @@ class CircuitRoutines(ABC):
             }
 
             for list_idx, var_index in enumerate(self.var_categories["extended"]):
-
                 if self.is_purely_harmonic and self.ext_basis == "harmonic":
                     for short_op_name in [
                         "position",
@@ -1936,9 +1933,9 @@ class CircuitRoutines(ABC):
                 var_index = get_operator_number(sym_variable.name)
                 op_name = sym_variable.name + "_operator"
                 if self.hierarchical_diagonalization:
-                    periodic_operators[op_name] = (
-                        hierarchical_diagonalization_func_factory(sym_variable.name)
-                    )
+                    periodic_operators[
+                        op_name
+                    ] = hierarchical_diagonalization_func_factory(sym_variable.name)
                 else:
                     periodic_operators[op_name] = operator_func_factory(
                         op_func, var_index
@@ -2360,7 +2357,9 @@ class CircuitRoutines(ABC):
             Q_operator = self._kron_operator(Q_operator, var_index)
             operator_dict[f"Q{var_index}"] = qt.Qobj(Q_operator)
             operator_dict[f"θ{var_index}"] = qt.Qobj(theta_operator)
-        return self._sparsity_adaptive(Qobj_to_scipy_csc_matrix(eval(str(hamiltonian), operator_dict)))
+        return self._sparsity_adaptive(
+            Qobj_to_scipy_csc_matrix(eval(str(hamiltonian), operator_dict))
+        )
 
     def _eigenvals_for_purely_harmonic(self, evals_count: int):
         """

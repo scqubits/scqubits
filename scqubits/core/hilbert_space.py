@@ -450,12 +450,14 @@ class HilbertSpace(
         dispatch.CENTRAL_DISPATCH.register("INTERACTIONLIST_UPDATE", self)
 
     @overload
-    def __getitem__(self, key: int) -> QuantumSys: ...
+    def __getitem__(self, key: int) -> QuantumSys:
+        ...
 
     @overload
     def __getitem__(
         self, key: str
-    ) -> Union[QuantumSys, InteractionTerm, InteractionTermStr]: ...
+    ) -> Union[QuantumSys, InteractionTerm, InteractionTermStr]:
+        ...
 
     def __getitem__(
         self, key: Union[int, str]
@@ -814,7 +816,9 @@ class HilbertSpace(
         hamiltonian += self.interaction_hamiltonian(bare_esys=bare_esys)
         return hamiltonian
 
-    def bare_hamiltonian(self, bare_esys: Optional[Dict[int, ndarray]] = None) -> qt.Qobj:
+    def bare_hamiltonian(
+        self, bare_esys: Optional[Dict[int, ndarray]] = None
+    ) -> qt.Qobj:
         """
         Parameters
         ----------
@@ -827,7 +831,11 @@ class HilbertSpace(
             composite Hamiltonian composed of bare Hamiltonians of subsystems
             independent of the external parameter
         """
-        bare_hamiltonian = qt.Qobj(0, dims=[self.subsystem_dims]*2) if qt.__version__ >= '5.0.0' else qt.Qobj(0)
+        bare_hamiltonian = (
+            qt.Qobj(0, dims=[self.subsystem_dims] * 2)
+            if qt.__version__ >= "5.0.0"
+            else qt.Qobj(0)
+        )
         for subsys_index, subsys in enumerate(self):
             if bare_esys is not None and subsys_index in bare_esys:
                 evals = bare_esys[subsys_index][0]
@@ -854,7 +862,11 @@ class HilbertSpace(
             interaction Hamiltonian
         """
         if not self.interaction_list:
-            return qt.Qobj(0, dims=[self.subsystem_dims]*2) if qt.__version__ >= '5.0.0' else qt.Qobj(0)
+            return (
+                qt.Qobj(0, dims=[self.subsystem_dims] * 2)
+                if qt.__version__ >= "5.0.0"
+                else qt.Qobj(0)
+            )
 
         operator_list = []
         for term in self.interaction_list:
@@ -1098,7 +1110,9 @@ class HilbertSpace(
             evecs=bare_evecs,
         )
         dressed_evecs = self._data["evecs"][0]
-        dressed_op_data = utils.Qobj_to_scipy_csc_matrix(id_wrapped_op.transform(dressed_evecs))
+        dressed_op_data = utils.Qobj_to_scipy_csc_matrix(
+            id_wrapped_op.transform(dressed_evecs)
+        )
         dressed_op_truncated = qt.Qobj(
             dressed_op_data[0:truncated_dim, 0:truncated_dim],
             dims=[[truncated_dim], [truncated_dim]],
@@ -1163,9 +1177,9 @@ class HilbertSpace(
             and `ParameterSweep`. If not provided, an id is auto-generated.
         """
         if "expr" in kwargs:
-            interaction: Union[InteractionTerm, InteractionTermStr] = (
-                self._parse_interactiontermstr(**kwargs)
-            )
+            interaction: Union[
+                InteractionTerm, InteractionTermStr
+            ] = self._parse_interactiontermstr(**kwargs)
         elif "qobj" in kwargs:
             interaction = self._parse_qobj(**kwargs)
         elif "op1" in kwargs:

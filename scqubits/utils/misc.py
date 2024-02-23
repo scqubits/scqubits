@@ -248,10 +248,20 @@ def remove_nones(dict_data: Dict[str, Any]) -> Dict[str, Any]:
 def qt_ket_to_ndarray(qobj_ket: qt.Qobj) -> np.ndarray:
     # Qutip's `.eigenstates()` returns an object-valued ndarray, each idx_entry of which
     # is a Qobj ket.
-    return qobj_ket.data.as_ndarray() if qt.__version__ >= '5.0.0' else qobj_ket.data.toarray()
+    return (
+        qobj_ket.data.as_ndarray()
+        if qt.__version__ >= "5.0.0"
+        else qobj_ket.data.toarray()
+    )
+
 
 def Qobj_to_scipy_csc_matrix(qobj_array: qt.Qobj) -> sp.sparse.csc_matrix:
-    return qobj_array.to("csr").data.as_scipy().tocsc() if qt.__version__ >= '5.0.0' else qobj_array.data.tocsc()
+    return (
+        qobj_array.to("csr").data.as_scipy().tocsc()
+        if qt.__version__ >= "5.0.0"
+        else qobj_array.data.tocsc()
+    )
+
 
 def get_shape(lst, shape=()):
     """
