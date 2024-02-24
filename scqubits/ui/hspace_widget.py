@@ -299,15 +299,15 @@ class HilbertSpaceUi:
 
         def on_op_subsys1_selected(*args):
             value = self.op1subsys_widget[self.current_interaction_idx].v_model
-            self.op1_ddown_widget[
-                self.current_interaction_idx
-            ].items = self.possible_operators(value)
+            self.op1_ddown_widget[self.current_interaction_idx].items = (
+                self.possible_operators(value)
+            )
 
         def on_op_subsys2_selected(*args):
             value = self.op2subsys_widget[self.current_interaction_idx].v_model
-            self.op2_ddown_widget[
-                self.current_interaction_idx
-            ].items = self.possible_operators(value)
+            self.op2_ddown_widget[self.current_interaction_idx].items = (
+                self.possible_operators(value)
+            )
 
         self.op1subsys_widget[-1].observe(on_op_subsys1_selected, names="v_model")
         self.op2subsys_widget[-1].observe(on_op_subsys2_selected, names="v_model")
