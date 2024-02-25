@@ -27,6 +27,7 @@ from scqubits.core.circuit_utils import (
     round_symbolic_expr,
     _capactiance_variable_for_branch,
     _junction_order,
+    get_trailing_number
 )
 
 import scqubits.io_utils.fileio_serializers as serializers
@@ -512,6 +513,7 @@ class SymbolicCircuit(serializers.Serializable):
             # than 3. Else, the calculation will be skipped to the end when numerical
             # Hamiltonian of the circuit is requested.
             substitute_params = True
+            self.frozen_var_exprs = {}
 
         # Calculate the Lagrangian
         (
@@ -1893,14 +1895,6 @@ class SymbolicCircuit(serializers.Serializable):
                 symbols("Φ" + str(i + 1)) for i in range(len(closure_branches))
             ]
 
-    def _set_offset_charges(self):
-        """
-        Create the offset charge variables and store in class attribute offset_charges
-        """
-        self.offset_charges = []
-        for p in self.var_categories["periodic"]:
-            self.offset_charges = self.offset_charges + [symbols(f"ng{p}")]
-
     def _branch_sym_expr(
         self,
         branch: Branch,
@@ -1931,7 +1925,7 @@ class SymbolicCircuit(serializers.Serializable):
                     i for i in range(C_mat_θ.shape[0]) if i not in frozen_indices
                 ]
                 C_mat_θ = C_mat_θ[relevant_indices, relevant_indices]
-                C_mat_θ = C_mat_θ.inv()
+                EC_mat_θ = C_mat_θ.inv()
             else:
                 C_mat_θ = (
                     transformation_matrix.T
@@ -1940,26 +1934,33 @@ class SymbolicCircuit(serializers.Serializable):
                 )
                 C_mat_θ = np.delete(C_mat_θ, frozen_indices, 0)
                 C_mat_θ = np.delete(C_mat_θ, frozen_indices, 1)
-                C_mat_θ = np.linalg.inv(C_mat_θ)
+                EC_mat_θ = np.linalg.inv(C_mat_θ)
             p_θ_vars = [
-                symbols(f"Q{i}")
-                for i in self.var_categories["periodic"]
+                symbols(f"Q{i}") if i not in self.var_categories["free"] else symbols(f"Qf{i}")
+                for i in np.sort(self.var_categories["periodic"]
                 + self.var_categories["extended"]
-                + self.var_categories["free"]
+                + self.var_categories["free"])
                 # replacing the free charge with 0, as it would not affect the circuit
                 # Lagrangian.
             ]
             node_id1, node_id2 = [
                 node.index - (1 if not self.is_grounded else 0) for node in branch.nodes
             ]
-            voltages = C_mat_θ * sympy.Matrix(p_θ_vars)
-
-            if not self.is_grounded:
-                voltages = list(voltages) + [0]
+            voltages = list(EC_mat_θ * sympy.Matrix(p_θ_vars))
+            
+            # insert the voltages for frozen modes
+            for index in self.var_categories["sigma"]:
+                voltages.insert(index, 0)
+            # substitute expressions for frozen variables
+            for index in self.var_categories["frozen"]:
+                frozen_var_expr = self.frozen_var_exprs[index]
+                frozen_var_expr = frozen_var_expr.subs([(var_sym, f"Q{get_trailing_number(var_sym.name)}") for var_sym in frozen_var_expr.free_symbols])
+                voltages.insert(index, round_symbolic_expr(frozen_var_expr, 10))
 
             node_voltages = list(
-                np.linalg.inv(self.transformation_matrix) * sympy.Matrix(voltages)
+                transformation_matrix * sympy.Matrix(voltages)
             )
+            
             if self.is_grounded:
                 node_voltages = [0] + node_voltages
 
@@ -1982,7 +1983,7 @@ class SymbolicCircuit(serializers.Serializable):
             "φ0", 0
         )  # substituting node flux of ground to zero
         num_vars = len(self.nodes) - self.is_grounded
-        new_vars = [symbols(f"θ{index}") for index in range(1, 1 + num_vars)]
+        new_vars = [symbols(f"θ{index}") if index not in self.var_categories["frozen"] else self.frozen_var_exprs[index] for index in range(1, 1 + num_vars)]
         old_vars = [symbols(f"φ{index}") for index in range(1, 1 + num_vars)]
         transformed_expr = transformation_matrix.dot(new_vars)
         # add external flux
@@ -2061,11 +2062,12 @@ class SymbolicCircuit(serializers.Serializable):
 
         # eliminating the frozen variables
         for frozen_var_index in self.var_categories["frozen"]:
-            sub = sympy.solve(
+            frozen_expr = sympy.solve(
                 potential_θ.diff(symbols(f"θ{frozen_var_index}")),
                 symbols(f"θ{frozen_var_index}"),
-            )
-            potential_θ = potential_θ.replace(symbols(f"θ{frozen_var_index}"), sub[0])
+            )[0]
+            self.frozen_var_exprs[frozen_var_index] = frozen_expr
+            potential_θ = potential_θ.replace(symbols(f"θ{frozen_var_index}"), frozen_expr)
 
         lagrangian_θ = C_terms_θ - potential_θ
 
