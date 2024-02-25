@@ -4,6 +4,7 @@ matplotlib>=3.5
 numpy>=1.14.2
 qutip>=4.3.1
 scipy>=1.5
+dill
 sympy
 tqdm
 typing_extensions
