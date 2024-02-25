@@ -501,7 +501,8 @@ class SymbolicCircuit(serializers.Serializable):
         self.closure_branches = closure_branches or self._closure_branches()
         # setting external flux and offset charge variables
         self._set_external_fluxes(closure_branches=closure_branches)
-        self._set_offset_charges()
+        self.offset_charges = [symbols(f"ng{index}") for index in self.var_categories["periodic"]]
+        self.free_charges = [symbols(f"Qf{index}") for index in self.var_categories["free"]]
         # setting the branch parameter variables
 
         # calculating the Hamiltonian directly when the number of nodes is less than 3
@@ -1984,6 +1985,7 @@ class SymbolicCircuit(serializers.Serializable):
         )  # substituting node flux of ground to zero
         num_vars = len(self.nodes) - self.is_grounded
         new_vars = [symbols(f"θ{index}") if index not in self.var_categories["frozen"] else self.frozen_var_exprs[index] for index in range(1, 1 + num_vars)]
+        # free variables do not show up in the branch flux expression for inductors, assuming capacitances do not depend on the flux, but charge expression
         old_vars = [symbols(f"φ{index}") for index in range(1, 1 + num_vars)]
         transformed_expr = transformation_matrix.dot(new_vars)
         # add external flux
@@ -1997,7 +1999,7 @@ class SymbolicCircuit(serializers.Serializable):
             phi_ext += flux_branch_assignment[int(branch.id_str)]
         for idx, var in enumerate(old_vars):
             expr_node_vars = expr_node_vars.subs(var, transformed_expr[idx])
-        return expr_node_vars + phi_ext
+        return round_symbolic_expr(expr_node_vars + phi_ext, 12)
 
     def generate_symbolic_lagrangian(
         self, substitute_params: bool = False
@@ -2121,7 +2123,7 @@ class SymbolicCircuit(serializers.Serializable):
             C_mat_θ = np.linalg.inv(C_mat_θ)
 
         p_φ_vars = [
-            symbols(f"Q{i}") if i not in self.var_categories["free"] else 0
+            symbols(f"Q{i}") if i not in self.var_categories["free"] else symbols(f"Qf{i}")
             for i in np.sort(
                 self.var_categories["periodic"]
                 + self.var_categories["extended"]

@@ -198,6 +198,7 @@ class CircuitRoutines(ABC):
             self.external_fluxes
             + list(self.symbolic_params.keys())
             + self.offset_charges
+            + self.free_charges
         ):
             hamiltonian = hamiltonian.subs(param, getattr(self, param.name))
         ext_var_indices = self.var_categories["extended"]
@@ -642,6 +643,7 @@ class CircuitRoutines(ABC):
         for param_var in (
             self.external_fluxes
             + self.offset_charges
+            + self.free_charges
             + list(self.symbolic_params.keys())
         ):
             setattr(self, param_var.name, getattr(self.parent, param_var.name))
@@ -830,6 +832,7 @@ class CircuitRoutines(ABC):
                 set(
                     self.external_fluxes
                     + self.offset_charges
+                    + self.free_charges
                     + list(self.symbolic_params.keys())
                     + [sm.symbols("I")]
                 )
@@ -890,6 +893,7 @@ class CircuitRoutines(ABC):
 
         non_operator_symbols = (
             self.offset_charges
+            + self.free_charges
             + self.external_fluxes
             + list(self.symbolic_params.keys())
             + [sm.symbols("I")]
@@ -940,6 +944,7 @@ class CircuitRoutines(ABC):
 
         non_operator_symbols = (
             self.offset_charges
+            + self.free_charges
             + self.external_fluxes
             + list(self.symbolic_params.keys())
             + [sm.symbols("I")]
@@ -1147,6 +1152,7 @@ class CircuitRoutines(ABC):
         param_symbols = (
             self.external_fluxes
             + self.offset_charges
+            + self.free_charges
             + list(self.symbolic_params.keys())
         )
         for param in param_symbols:
@@ -1442,10 +1448,10 @@ class CircuitRoutines(ABC):
                 ext_flux, ext_flux * sm.symbols("I") * 2 * np.pi
             )
 
-        # associate an identity matrix with offset charge vars
-        for offset_charge in self.offset_charges:
+        # associate an identity matrix with offset and free charge vars
+        for charge_var in self.offset_charges + self.free_charges:
             hamiltonian = hamiltonian.subs(
-                offset_charge, offset_charge * sm.symbols("I")
+                charge_var, charge_var * sm.symbols("I")
             )
 
         # finding the cosine terms
@@ -1773,6 +1779,7 @@ class CircuitRoutines(ABC):
                 for param in list(self.symbolic_params.keys())
                 + self.external_fluxes
                 + self.offset_charges
+                + self.free_charges
             ]
         )
         for list_idx, var_index in enumerate(self.var_categories["extended"]):
@@ -1965,13 +1972,13 @@ class CircuitRoutines(ABC):
         """
         return [getattr(self, flux.name) for flux in self.external_fluxes]
 
-    def offset_charge_values(self) -> List[float]:
+    def offset_free_charge_values(self) -> List[float]:
         """
         Returns all the offset charges set using the circuit attributes for each of the
         periodic degree of freedom.
         """
         return [
-            getattr(self, offset_charge.name) for offset_charge in self.offset_charges
+            getattr(self, charge_var.name) for charge_var in self.offset_charges + self.free_charges
         ]
 
     def set_operators(self) -> Dict[str, Callable]:
@@ -2228,6 +2235,7 @@ class CircuitRoutines(ABC):
             list(self.symbolic_params.keys())
             + self.external_fluxes
             + self.offset_charges
+            + self.free_charges
         )
         hamiltonian = hamiltonian.subs(
             [
@@ -2268,10 +2276,10 @@ class CircuitRoutines(ABC):
 
         H_LC_str = self._get_eval_hamiltonian_string(hamiltonian_LC)
 
-        offset_charge_names = [
-            offset_charge.name for offset_charge in self.offset_charges
+        offset_free_charge_names = [
+            charge_var.name for charge_var in self.offset_charges + self.free_charges
         ]
-        offset_charge_dict = dict(zip(offset_charge_names, self.offset_charge_values()))
+        offset_free_var_dict = dict(zip(offset_free_charge_names, self.offset_free_charge_values()))
         external_flux_names = [
             external_flux.name for external_flux in self.external_fluxes
         ]
@@ -2279,7 +2287,7 @@ class CircuitRoutines(ABC):
 
         replacement_dict: Dict[str, Any] = {
             **self.operators_by_name,
-            **offset_charge_dict,
+            **offset_free_var_dict,
             **external_flux_dict,
         }
 
@@ -2314,6 +2322,7 @@ class CircuitRoutines(ABC):
                 for param in list(self.symbolic_params.keys())
                 + self.external_fluxes
                 + self.offset_charges
+                + self.free_charges
             ]
         )
         hamiltonian = hamiltonian.subs("I", 1)
@@ -2335,6 +2344,7 @@ class CircuitRoutines(ABC):
         # substitute parameters
         for sym_param in (
             self.offset_charges
+            + self.free_charges
             + self.external_fluxes
             + list(self.symbolic_params.keys())
         ):
@@ -2684,8 +2694,13 @@ class CircuitRoutines(ABC):
                 sym_params_str += f"$({sym.name}, {getattr(self, sym.name)})$, "
             display(Latex(sym_params_str))
         if len(self.offset_charges) > 0:
-            sym_params_str = "Symbolic parameters (symbol, default value):  "
+            sym_params_str = "Offset charges (symbol, default value):  "
             for sym in self.offset_charges:
+                sym_params_str += f"$({sym.name}, {getattr(self, sym.name)})$, "
+            display(Latex(sym_params_str))
+        if len(self.free_charges) > 0:
+            sym_params_str = "Free charges (symbol, default value):  "
+            for sym in self.free_charges:
                 sym_params_str += f"$({sym.name}, {getattr(self, sym.name)})$, "
             display(Latex(sym_params_str))
         if self.hierarchical_diagonalization:
@@ -2941,6 +2956,7 @@ class CircuitRoutines(ABC):
                         (symbol, 1)
                         for symbol in self.external_fluxes
                         + self.offset_charges
+                        + self.free_charges
                         + list(self.symbolic_params.keys())
                         + [sm.symbols("I")]
                     ]

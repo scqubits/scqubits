@@ -196,6 +196,11 @@ class Subsystem(
             for var in self.parent.offset_charges
             if var in self.hamiltonian_symbolic.free_symbols
         ]
+        self.free_charges = [
+            var
+            for var in self.parent.free_charges
+            if var in self.hamiltonian_symbolic.free_symbols
+        ]
         self.symbolic_params = {
             var: self.parent.symbolic_params[var]
             for var in self.parent.symbolic_params
@@ -219,10 +224,10 @@ class Subsystem(
                 getattr(self.parent, flux.name),
                 "update_external_flux_or_charge",
             )
-        for offset_charge in self.offset_charges:
+        for charge_var in self.offset_charges + self.free_charges:
             self._make_property(
-                offset_charge.name,
-                getattr(self.parent, offset_charge.name),
+                charge_var.name,
+                getattr(self.parent, charge_var.name),
                 "update_external_flux_or_charge",
             )
 
@@ -504,6 +509,7 @@ class Circuit(
             "lagrangian_symbolic",
             "nodes",
             "offset_charges",
+            "free_charges",
             "potential_symbolic",
             "potential_node_vars",
             "symbolic_params",
@@ -558,8 +564,8 @@ class Circuit(
             self.cutoff_names
             + [flux_symbol.name for flux_symbol in self.external_fluxes]
             + [
-                offset_charge_symbol.name
-                for offset_charge_symbol in self.offset_charges
+                charge_symbol.name
+                for charge_symbol in self.offset_charges + self.free_charges
             ]
             + ["cutoff_names"]
         )
@@ -671,10 +677,13 @@ class Circuit(
         free_symbols = symbolic_hamiltonian.free_symbols
         external_fluxes = []
         offset_charges = []
+        free_charges = []
         var_categories = {"periodic": [], "extended": [], "free": [], "frozen": []}
         for var_sym in free_symbols:
             if re.match(r"^ng\d+$", var_sym.name):
                 offset_charges.append(var_sym)
+            elif re.match(r"^Qf\d+$", var_sym.name):
+                free_charges.append(var_sym)
             elif re.match(r"^Φ\d+$", var_sym.name):
                 external_fluxes.append(var_sym)
             elif re.match(r"^n\d+$", var_sym.name):
@@ -686,7 +695,7 @@ class Circuit(
         var_categories = {
             category: sorted(var_categories[category]) for category in var_categories
         }
-        return external_fluxes, offset_charges, var_categories
+        return external_fluxes, offset_charges, free_charges, var_categories
 
     def _configure_sym_hamiltonian(
         self,
@@ -733,6 +742,7 @@ class Circuit(
         (
             self.external_fluxes,
             self.offset_charges,
+            self.free_charges,
             self.var_categories,
         ) = self._read_symbolic_hamiltonian(self.hamiltonian_symbolic)
 
@@ -774,11 +784,11 @@ class Circuit(
             if not hasattr(self, flux.name):
                 self._make_property(flux.name, 0.0, "update_external_flux_or_charge")
         # offset charges
-        for offset_charge in self.offset_charges:
+        for charge_var in self.offset_charges + self.free_charges:
             # default to zero offset charge
-            if not hasattr(self, offset_charge.name):
+            if not hasattr(self, charge_var.name):
                 self._make_property(
-                    offset_charge.name, 0.0, "update_external_flux_or_charge"
+                    charge_var.name, 0.0, "update_external_flux_or_charge"
                 )
 
         self.potential_symbolic = self.generate_sym_potential()
@@ -909,6 +919,7 @@ class Circuit(
             "lagrangian_symbolic",
             "nodes",
             "offset_charges",
+            "free_charges",
             "potential_symbolic",
             "potential_node_vars",
             "symbolic_params",
@@ -956,12 +967,12 @@ class Circuit(
             # setting the default to zero external flux
             if not hasattr(self, flux.name):
                 self._make_property(flux.name, 0.0, "update_external_flux_or_charge")
-        # offset charges
-        for offset_charge in self.offset_charges:
+        # offset and free charges
+        for charge_var in self.offset_charges + self.free_charges:
             # default to zero offset charge
-            if not hasattr(self, offset_charge.name):
+            if not hasattr(self, charge_var.name):
                 self._make_property(
-                    offset_charge.name, 0.0, "update_external_flux_or_charge"
+                    charge_var.name, 0.0, "update_external_flux_or_charge"
                 )
 
         # changing the matrix type if necessary
@@ -1035,7 +1046,7 @@ class Circuit(
         noise_channels = ["t1_capacitive", "t1_charge_impedance"]
         if len([branch for branch in self.branches if branch.type == "L"]):
             noise_channels.append("t1_inductive")
-        if len(self.offset_charges) > 0:
+        if len(self.offset_charges + self.free_charges) > 0:
             noise_channels.append("tphi_1_over_f_ng")
         if len(self.external_fluxes) > 0:
             if not self.symbolic_circuit.is_flux_dynamic:
