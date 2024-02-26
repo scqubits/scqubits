@@ -409,8 +409,9 @@ class CircuitRoutines(ABC):
             self.hamiltonian_symbolic = self.parent.subsystem_hamiltonians[subsys_index]
             self._configure()
 
+        if self.ext_basis == "harmonic":
         # set the oscillator parameters, for the extended variables (taking the coefficient of Q^2 and theta^2)
-        self._set_harmonic_basis_osc_params()
+            self._set_harmonic_basis_osc_params()
 
         # update all subsystem instances
         if self.hierarchical_diagonalization:
