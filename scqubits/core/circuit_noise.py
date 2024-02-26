@@ -17,6 +17,7 @@ from numpy import ndarray
 import numpy as np
 import qutip as qt
 import scipy as sp
+import re
 import copy
 
 from scqubits.core.noise import NOISE_PARAMS, NoisySystem, calc_therm_ratio
@@ -256,6 +257,8 @@ class NoisyCircuit(NoisySystem, ABC):
             setattr(self, method_name, MethodType(noise_methods[method_name], self))
 
     def generate_overall_tphi_cc(self):
+        if not any([re.match(r"tphi_1_over_f_cc\d+$", method) for method in dir(self)]):
+            return None
         def tphi_1_over_f_cc(
             self=self,
             A_noise: float = NOISE_PARAMS["A_cc"],
@@ -280,6 +283,8 @@ class NoisyCircuit(NoisySystem, ABC):
         setattr(self, "tphi_1_over_f_cc", MethodType(tphi_1_over_f_cc, self))
 
     def generate_overall_tphi_flux(self):
+        if not any([re.match(r"tphi_1_over_f_flux\d+$", method) for method in dir(self)]):
+            return None
         def tphi_1_over_f_flux(
             self=self,
             A_noise: float = NOISE_PARAMS["A_flux"],
@@ -309,6 +314,8 @@ class NoisyCircuit(NoisySystem, ABC):
         setattr(self, "tphi_1_over_f_flux", MethodType(tphi_1_over_f_flux, self))
 
     def generate_overall_tphi_ng(self):
+        if not any([re.match(r"tphi_1_over_f_ng\d+$", method) for method in dir(self)]):
+            return None
         def tphi_1_over_f_ng(
             self=self,
             A_noise: float = NOISE_PARAMS["A_ng"],
@@ -394,9 +401,6 @@ class NoisyCircuit(NoisySystem, ABC):
             else:
                 t1_capacitive_methods[f"t1_capacitive{branch.id_str}"] = (
                     self.wrapper_t1_inductive_capacitive(branch)
-                )
-                t1_charge_impedance_methods[f"t1_charge_impedance{branch.id_str}"] = (
-                    self.wrapper_t1_charge_impedance(branch)
                 )
             # # quasiparticle noise
             # if "JJ" in branch.type:
@@ -566,6 +570,8 @@ class NoisyCircuit(NoisySystem, ABC):
         return t1_method
 
     def generate_overall_t1_quasiparticle_tunneling(self):
+        if not any([re.match(r"t1_quasiparticle_tunneling\d+$", method) for method in dir(self)]):
+            return None
         if self.is_purely_harmonic:
             return None
 
@@ -607,6 +613,8 @@ class NoisyCircuit(NoisySystem, ABC):
         )
 
     def generate_overall_t1_inductive(self):
+        if not any([re.match(r"t1_inductive\d+$", method) for method in dir(self)]):
+            return None
         def t1_method(
             self,
             i: int = 1,
@@ -638,6 +646,8 @@ class NoisyCircuit(NoisySystem, ABC):
         setattr(self, "t1_inductive", MethodType(t1_method, self))
 
     def generate_overall_t1_capacitive(self):
+        if not any([re.match(r"t1_capacitive\d+$", method) for method in dir(self)]):
+            return None
         def t1_method(
             self,
             i: int = 1,
@@ -669,6 +679,8 @@ class NoisyCircuit(NoisySystem, ABC):
         setattr(self, "t1_capacitive", MethodType(t1_method, self))
 
     def generate_overall_t1_charge_impedance(self):
+        if not any([re.match(r"t1_charge_impedance\d+$", method) for method in dir(self)]):
+            return None
         def t1_method(
             self=self,
             i: int = 1,
@@ -700,6 +712,8 @@ class NoisyCircuit(NoisySystem, ABC):
         setattr(self, "t1_charge_impedance", MethodType(t1_method, self))
 
     def generate_overall_t1_flux_bias_line(self):
+        if not any([re.match(r"t1_flux_bias_line\d+$", method) for method in dir(self)]):
+            return None
         def t1_flux_bias_line(
             self=self,
             i: int = 1,
@@ -749,5 +763,6 @@ class NoisyCircuit(NoisySystem, ABC):
         self.generate_overall_t1_inductive()
         self.generate_overall_t1_flux_bias_line()
         self.generate_overall_t1_quasiparticle_tunneling()
+        self._noise_methods_generated = True
         print("Supported noise channels:", self.supported_noise_channels())
         self._frozen = True

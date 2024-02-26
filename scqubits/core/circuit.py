@@ -43,6 +43,7 @@ from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
 from scqubits.utils.misc import (
     flatten_list,
     flatten_list_recursive,
+    is_string_float,
     number_of_lists_in_list,
 )
 
@@ -1042,29 +1043,14 @@ class Circuit(
 
     def supported_noise_channels(self) -> List[str]:
         """Return a list of supported noise channels"""
-        # return ['tphi_1_over_f_flux',]
-        noise_channels = ["t1_capacitive", "t1_charge_impedance"]
-        if len([branch for branch in self.branches if branch.type == "L"]):
-            noise_channels.append("t1_inductive")
-        if len(self.offset_charges + self.free_charges) > 0:
-            noise_channels.append("tphi_1_over_f_ng")
-        if len(self.external_fluxes) > 0:
-            if not self.symbolic_circuit.is_flux_dynamic:
-                warnings.warn(
-                    "The flag 'is_flux_dynamic' is set to False, so the coherence time estimation due to flux noise might be incorrect. Please set it to True to get the correct results."
-                )
-            noise_channels.append("tphi_1_over_f_flux")
-            noise_channels.append("t1_flux_bias_line")
-        if not self.is_purely_harmonic:
-            noise_channels.append("tphi_1_over_f_cc")
-            # noise_channels.append("t1_quasiparticle_tunneling")
-        return noise_channels
+        if not hasattr(self, "_noise_methods_generated"):
+            raise Exception("Noise methods are not generated, please use the method generate_all_noise_methods() to generate them.")
+        return [method_name for method_name in self.__dict__ if "tphi_1_over_f" in method_name or "t1_" in method_name]
 
     def effective_noise_channels(self):
-        supported_channels = self.supported_noise_channels()
-        if "t1_charge_impedance" in supported_channels:
-            supported_channels.remove("t1_charge_impedance")
-        return supported_channels
+        if not hasattr(self, "_noise_methods_generated"):
+            raise Exception("Noise methods are not generated, please use the method generate_all_noise_methods() to generate them.")
+        return [method_name for method_name in self.supported_noise_channels() if not is_string_float(method_name[-1])]
 
     def variable_transformation(self, new_vars_to_node_vars=True) -> None:
         """
