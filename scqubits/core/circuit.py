@@ -1173,37 +1173,6 @@ class Circuit(
         else:
             print(lagrangian)
 
-    def offset_charge_transformation(self) -> None:
-        """
-        Prints the variable transformation between offset charges of periodic variables
-        and the offset node charges
-        """
-        trans_mat = self.transformation_matrix
-        node_offset_charge_vars = [
-            sm.symbols(f"q_g{index}")
-            for index in range(
-                1, len(self.symbolic_circuit.nodes) - self.is_grounded + 1
-            )
-        ]
-        periodic_offset_charge_vars = [
-            sm.symbols(f"ng{index}")
-            for index in self.symbolic_circuit.var_categories["periodic"]
-        ]
-        periodic_offset_charge_eqns = []
-        for idx, node_var in enumerate(periodic_offset_charge_vars):
-            periodic_offset_charge_eqns.append(
-                self._make_expr_human_readable(
-                    sm.Eq(
-                        periodic_offset_charge_vars[idx],
-                        np.sum(trans_mat[idx, :] * node_offset_charge_vars),
-                    )
-                )
-            )
-        if _HAS_IPYTHON:
-            self.print_expr_in_latex(periodic_offset_charge_eqns)
-        else:
-            print(periodic_offset_charge_eqns)
-
     def sym_external_fluxes(self) -> Dict[sm.Expr, Tuple["Branch", List["Branch"]]]:
         """
         Method returns a dictionary of Human readable external fluxes with associated
