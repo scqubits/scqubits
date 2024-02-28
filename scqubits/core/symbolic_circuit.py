@@ -27,7 +27,7 @@ from scqubits.core.circuit_utils import (
     round_symbolic_expr,
     _capactiance_variable_for_branch,
     _junction_order,
-    get_trailing_number
+    get_trailing_number,
 )
 
 import scqubits.io_utils.fileio_serializers as serializers
@@ -501,8 +501,12 @@ class SymbolicCircuit(serializers.Serializable):
         self.closure_branches = closure_branches or self._closure_branches()
         # setting external flux and offset charge variables
         self._set_external_fluxes(closure_branches=closure_branches)
-        self.offset_charges = [symbols(f"ng{index}") for index in self.var_categories["periodic"]]
-        self.free_charges = [symbols(f"Qf{index}") for index in self.var_categories["free"]]
+        self.offset_charges = [
+            symbols(f"ng{index}") for index in self.var_categories["periodic"]
+        ]
+        self.free_charges = [
+            symbols(f"Qf{index}") for index in self.var_categories["free"]
+        ]
         # setting the branch parameter variables
 
         # calculating the Hamiltonian directly when the number of nodes is less than 3
@@ -1937,10 +1941,16 @@ class SymbolicCircuit(serializers.Serializable):
                 C_mat_θ = np.delete(C_mat_θ, frozen_indices, 1)
                 EC_mat_θ = np.linalg.inv(C_mat_θ)
             p_θ_vars = [
-                symbols(f"Q{i}") if i not in self.var_categories["free"] else symbols(f"Qf{i}")
-                for i in np.sort(self.var_categories["periodic"]
-                + self.var_categories["extended"]
-                + self.var_categories["free"])
+                (
+                    symbols(f"Q{i}")
+                    if i not in self.var_categories["free"]
+                    else symbols(f"Qf{i}")
+                )
+                for i in np.sort(
+                    self.var_categories["periodic"]
+                    + self.var_categories["extended"]
+                    + self.var_categories["free"]
+                )
                 # replacing the free charge with 0, as it would not affect the circuit
                 # Lagrangian.
             ]
@@ -1948,20 +1958,23 @@ class SymbolicCircuit(serializers.Serializable):
                 node.index - (1 if not self.is_grounded else 0) for node in branch.nodes
             ]
             voltages = list(EC_mat_θ * sympy.Matrix(p_θ_vars))
-            
+
             # insert the voltages for frozen modes
             for index in self.var_categories["sigma"]:
                 voltages.insert(index, 0)
             # substitute expressions for frozen variables
             for index in self.var_categories["frozen"]:
                 frozen_var_expr = self.frozen_var_exprs[index]
-                frozen_var_expr = frozen_var_expr.subs([(var_sym, f"Q{get_trailing_number(var_sym.name)}") for var_sym in frozen_var_expr.free_symbols])
+                frozen_var_expr = frozen_var_expr.subs(
+                    [
+                        (var_sym, f"Q{get_trailing_number(var_sym.name)}")
+                        for var_sym in frozen_var_expr.free_symbols
+                    ]
+                )
                 voltages.insert(index, round_symbolic_expr(frozen_var_expr, 10))
 
-            node_voltages = list(
-                transformation_matrix * sympy.Matrix(voltages)
-            )
-            
+            node_voltages = list(transformation_matrix * sympy.Matrix(voltages))
+
             if self.is_grounded:
                 node_voltages = [0] + node_voltages
 
@@ -1984,7 +1997,14 @@ class SymbolicCircuit(serializers.Serializable):
             "φ0", 0
         )  # substituting node flux of ground to zero
         num_vars = len(self.nodes) - self.is_grounded
-        new_vars = [symbols(f"θ{index}") if index not in self.var_categories["frozen"] else self.frozen_var_exprs[index] for index in range(1, 1 + num_vars)]
+        new_vars = [
+            (
+                symbols(f"θ{index}")
+                if index not in self.var_categories["frozen"]
+                else self.frozen_var_exprs[index]
+            )
+            for index in range(1, 1 + num_vars)
+        ]
         # free variables do not show up in the branch flux expression for inductors, assuming capacitances do not depend on the flux, but charge expression
         old_vars = [symbols(f"φ{index}") for index in range(1, 1 + num_vars)]
         transformed_expr = transformation_matrix.dot(new_vars)
@@ -2069,7 +2089,9 @@ class SymbolicCircuit(serializers.Serializable):
                 symbols(f"θ{frozen_var_index}"),
             )[0]
             self.frozen_var_exprs[frozen_var_index] = frozen_expr
-            potential_θ = potential_θ.replace(symbols(f"θ{frozen_var_index}"), frozen_expr)
+            potential_θ = potential_θ.replace(
+                symbols(f"θ{frozen_var_index}"), frozen_expr
+            )
 
         lagrangian_θ = C_terms_θ - potential_θ
 
@@ -2123,7 +2145,11 @@ class SymbolicCircuit(serializers.Serializable):
             C_mat_θ = np.linalg.inv(C_mat_θ)
 
         p_φ_vars = [
-            symbols(f"Q{i}") if i not in self.var_categories["free"] else symbols(f"Qf{i}")
+            (
+                symbols(f"Q{i}")
+                if i not in self.var_categories["free"]
+                else symbols(f"Qf{i}")
+            )
             for i in np.sort(
                 self.var_categories["periodic"]
                 + self.var_categories["extended"]

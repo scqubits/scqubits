@@ -293,13 +293,15 @@ class CircuitRoutines(ABC):
             )
 
         return hamiltonian
-    
+
     def offset_charge_transformation(self) -> None:
         """
         Prints the variable transformation between offset charges of transformed variables and the node charges.
         """
         if not hasattr(self, "symbolic_circuit"):
-            raise Exception(f"{self._id_str} instance is not generated from a SymbolicCircuit instance, and hence does not have any associated branches.")
+            raise Exception(
+                f"{self._id_str} instance is not generated from a SymbolicCircuit instance, and hence does not have any associated branches."
+            )
         trans_mat = np.linalg.inv(self.transformation_matrix.T)
         node_offset_charge_vars = [
             sm.symbols(f"q_n{index}")
@@ -442,7 +444,7 @@ class CircuitRoutines(ABC):
             self._configure()
 
         if self.ext_basis == "harmonic":
-        # set the oscillator parameters, for the extended variables (taking the coefficient of Q^2 and theta^2)
+            # set the oscillator parameters, for the extended variables (taking the coefficient of Q^2 and theta^2)
             self._set_harmonic_basis_osc_params()
 
         # update all subsystem instances
@@ -1483,9 +1485,7 @@ class CircuitRoutines(ABC):
 
         # associate an identity matrix with offset and free charge vars
         for charge_var in self.offset_charges + self.free_charges:
-            hamiltonian = hamiltonian.subs(
-                charge_var, charge_var * sm.symbols("I")
-            )
+            hamiltonian = hamiltonian.subs(charge_var, charge_var * sm.symbols("I"))
 
         # finding the cosine terms
         cos_terms = sum(
@@ -2011,7 +2011,8 @@ class CircuitRoutines(ABC):
         periodic degree of freedom.
         """
         return [
-            getattr(self, charge_var.name) for charge_var in self.offset_charges + self.free_charges
+            getattr(self, charge_var.name)
+            for charge_var in self.offset_charges + self.free_charges
         ]
 
     def set_operators(self) -> Dict[str, Callable]:
@@ -2312,7 +2313,9 @@ class CircuitRoutines(ABC):
         offset_free_charge_names = [
             charge_var.name for charge_var in self.offset_charges + self.free_charges
         ]
-        offset_free_var_dict = dict(zip(offset_free_charge_names, self.offset_free_charge_values()))
+        offset_free_var_dict = dict(
+            zip(offset_free_charge_names, self.offset_free_charge_values())
+        )
         external_flux_names = [
             external_flux.name for external_flux in self.external_fluxes
         ]

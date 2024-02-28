@@ -1044,13 +1044,25 @@ class Circuit(
     def supported_noise_channels(self) -> List[str]:
         """Return a list of supported noise channels"""
         if not hasattr(self, "_noise_methods_generated"):
-            raise Exception("Noise methods are not generated, please use the method generate_all_noise_methods() to generate them.")
-        return [method_name for method_name in self.__dict__ if "tphi_1_over_f" in method_name or "t1_" in method_name]
+            raise Exception(
+                "Noise methods are not generated, please use the method generate_all_noise_methods() to generate them."
+            )
+        return [
+            method_name
+            for method_name in self.__dict__
+            if "tphi_1_over_f" in method_name or "t1_" in method_name
+        ]
 
     def effective_noise_channels(self):
         if not hasattr(self, "_noise_methods_generated"):
-            raise Exception("Noise methods are not generated, please use the method generate_all_noise_methods() to generate them.")
-        return [method_name for method_name in self.supported_noise_channels() if not is_string_float(method_name[-1])]
+            raise Exception(
+                "Noise methods are not generated, please use the method generate_all_noise_methods() to generate them."
+            )
+        return [
+            method_name
+            for method_name in self.supported_noise_channels()
+            if not is_string_float(method_name[-1])
+        ]
 
     def variable_transformation(self, new_vars_to_node_vars=True) -> None:
         """
