@@ -2701,7 +2701,10 @@ class CircuitRoutines(ABC):
         # string to describe the Circuit
         return self._id_str
 
-    def _repr_latex_(self) -> str:
+    def info(self):
+        """
+        Describes the Circuit instance, its parameters, and the symbolic Hamiltonian.
+        """
         # string to describe the Circuit
         if not _HAS_IPYTHON:
             return self._id_str
@@ -2768,8 +2771,6 @@ class CircuitRoutines(ABC):
         if self.hierarchical_diagonalization:
             display(Latex(f"System hierarchy: {self.system_hierarchy}"))
             display(Latex(f"Truncated Dimensions: {self.subsystem_trunc_dims}"))
-
-        # return "Instance ID: " + self._id_str
 
     def _make_expr_human_readable(self, expr: sm.Expr, float_round: int = 6) -> sm.Expr:
         """
