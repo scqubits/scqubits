@@ -929,14 +929,6 @@ class Circuit(
                 use_dynamic_flux_grouping=use_dynamic_flux_grouping,
             )
 
-        if (
-            generate_noise_methods
-            and not self.symbolic_circuit.use_dynamic_flux_grouping
-        ) and len(self.external_fluxes) > 0:
-            raise Exception(
-                "Noise methods can only be generated with use_dynamic_flux_grouping=True, when one or more superconducting loops are present in the circuit."
-            )
-
         system_hierarchy = system_hierarchy or self.system_hierarchy
         subsystem_trunc_dims = subsystem_trunc_dims or self.subsystem_trunc_dims
         closure_branches = closure_branches or self.closure_branches
