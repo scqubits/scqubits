@@ -2310,7 +2310,12 @@ class CircuitRoutines(ABC):
         external_flux_names = [
             external_flux.name for external_flux in self.external_fluxes
         ]
-        external_flux_dict = dict(zip(external_flux_names, [getattr(self, flux) for flux in external_flux_names]))
+        external_flux_dict = dict(
+            zip(
+                external_flux_names,
+                [getattr(self, flux) for flux in external_flux_names],
+            )
+        )
 
         replacement_dict: Dict[str, Any] = {
             **self.operators_by_name,

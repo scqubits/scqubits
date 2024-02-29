@@ -359,13 +359,13 @@ class Circuit(
 
         else:
             if (
-                    closure_branches is not None
-                    or use_dynamic_flux_grouping
-                    or generate_noise_methods
-                ):
-                    raise Exception(
-                        "Circuit instance initialized using symbolic Hamiltonian cannot be configured with closure_branches, use_dynamic_flux_grouping, transformation_matrix or generate_noise_methods."
-                    )
+                closure_branches is not None
+                or use_dynamic_flux_grouping
+                or generate_noise_methods
+            ):
+                raise Exception(
+                    "Circuit instance initialized using symbolic Hamiltonian cannot be configured with closure_branches, use_dynamic_flux_grouping, transformation_matrix or generate_noise_methods."
+                )
             self.from_symbolic_hamiltonian(
                 symbolic_hamiltonian=symbolic_hamiltonian,
                 symbolic_param_dict=symbolic_param_dict,
