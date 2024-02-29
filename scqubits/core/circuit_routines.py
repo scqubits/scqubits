@@ -3491,20 +3491,23 @@ class CircuitRoutines(ABC):
     def generate_plot_data(
         self,
         which: int = 0,
-        mode: Literal["abs", "re", "im"] = "abs",
+        mode: Literal["abs", "real", "imag", "abs-sqr"] = "real",
         var_indices: Tuple[int] = (1,),
         eigensys: ndarray = None,
         change_discrete_charge_to_phi: bool = True,
         grids_dict: Dict[int, discretization.Grid1d] = None,
     ):
         """
-        Returns (marginal) probability densitys of a wave function of the
-        current Circuit instance for the specified variables.
+        Returns treated wave function of the current Circuit instance for the
+        specified variables.
 
         Parameters
         ----------
         which:
             integer to choose which wave function to plot
+        mode:
+            "abs", "real", "imag", "abs-sqr" - decides which part of the wave
+            function is plotted.
         var_indices:
             A tuple containing the indices of the variables chosen to plot the
             wave function in. Should not have more than 2 entries.
@@ -3587,8 +3590,8 @@ class CircuitRoutines(ABC):
         **kwargs,
     ) -> Tuple[Figure, Axes]:
         """
-        Returns the plot of the probability density function of the wave
-        function in the requested variables. At most 2 numbers of variables for
+        Returns the plot of the wavefunction in the requested variables.
+        At most 2 numbers of variables for
         wavefunction can be specified as plotting axis. If the number of
         plotting variables for wave function is smaller than the number of
         variables in the circuit, the marginal probability distribution of the
