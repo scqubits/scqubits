@@ -357,7 +357,9 @@ class Circuit(
 
         else:
             if use_dynamic_flux_grouping:
-                raise Exception("The argument use_dynamic_flux_grouping can only be used when initializing the circuit from a yaml input.")
+                raise Exception(
+                    "The argument use_dynamic_flux_grouping can only be used when initializing the circuit from a yaml input."
+                )
             self.from_symbolic_hamiltonian(
                 symbolic_hamiltonian=symbolic_hamiltonian,
                 symbolic_param_dict=symbolic_param_dict,
@@ -635,11 +637,11 @@ class Circuit(
         old_ext_basis = self.ext_basis
         if hasattr(self, "symbolic_circuit"):
             old_transformation_matrix = self.transformation_matrix
-            old_use_dynamic_flux_grouping = self.symbolic_circuit.use_dynamic_flux_grouping
+            old_use_dynamic_flux_grouping = (
+                self.symbolic_circuit.use_dynamic_flux_grouping
+            )
             old_closure_branches = (
-                self.closure_branches
-                if not old_use_dynamic_flux_grouping
-                else None
+                self.closure_branches if not old_use_dynamic_flux_grouping else None
             )
             old_generate_noise_methods = hasattr(self, "_noise_methods_generated")
         try:
@@ -654,7 +656,11 @@ class Circuit(
                     generate_noise_methods=generate_noise_methods,
                 )
             else:
-                if closure_branches is not None or use_dynamic_flux_grouping or generate_noise_methods:
+                if (
+                    closure_branches is not None
+                    or use_dynamic_flux_grouping
+                    or generate_noise_methods
+                ):
                     raise Exception(
                         "Circuit instance initialized using symbolic Hamiltonian cannot be configured with closure_branches, use_dynamic_flux_grouping, transformation_matrix or generate_noise_methods."
                     )
@@ -903,7 +909,7 @@ class Circuit(
             set to False by default. Indicates if the flux allocation is done by assuming that flux is time dependent. When set to True, it disables the option to change the closure branches.
         generate_noise_methods:
             set to False by default. Indicates if the noise methods should be generated for the circuit instance.
-        
+
         Raises
         ------
         Exception
@@ -912,14 +918,21 @@ class Circuit(
         self._frozen = False
 
         # reinitiate the symbolic circuit when the transformation matrix and closure branches are provided
-        if transformation_matrix is not None or closure_branches is not None or use_dynamic_flux_grouping is not None:
+        if (
+            transformation_matrix is not None
+            or closure_branches is not None
+            or use_dynamic_flux_grouping is not None
+        ):
             self.symbolic_circuit.configure(
                 transformation_matrix=transformation_matrix,
                 closure_branches=closure_branches,
                 use_dynamic_flux_grouping=use_dynamic_flux_grouping,
             )
-            
-        if (generate_noise_methods and not self.symbolic_circuit.use_dynamic_flux_grouping) and len(self.external_fluxes) > 0:
+
+        if (
+            generate_noise_methods
+            and not self.symbolic_circuit.use_dynamic_flux_grouping
+        ) and len(self.external_fluxes) > 0:
             raise Exception(
                 "Noise methods can only be generated with use_dynamic_flux_grouping=True, when one or more superconducting loops are present in the circuit."
             )
