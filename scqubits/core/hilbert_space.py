@@ -450,12 +450,14 @@ class HilbertSpace(
         dispatch.CENTRAL_DISPATCH.register("INTERACTIONLIST_UPDATE", self)
 
     @overload
-    def __getitem__(self, key: int) -> QuantumSys: ...
+    def __getitem__(self, key: int) -> QuantumSys:
+        ...
 
     @overload
     def __getitem__(
         self, key: str
-    ) -> Union[QuantumSys, InteractionTerm, InteractionTermStr]: ...
+    ) -> Union[QuantumSys, InteractionTerm, InteractionTermStr]:
+        ...
 
     def __getitem__(
         self, key: Union[int, str]
@@ -1175,9 +1177,9 @@ class HilbertSpace(
             and `ParameterSweep`. If not provided, an id is auto-generated.
         """
         if "expr" in kwargs:
-            interaction: Union[InteractionTerm, InteractionTermStr] = (
-                self._parse_interactiontermstr(**kwargs)
-            )
+            interaction: Union[
+                InteractionTerm, InteractionTermStr
+            ] = self._parse_interactiontermstr(**kwargs)
         elif "qobj" in kwargs:
             interaction = self._parse_qobj(**kwargs)
         elif "op1" in kwargs:

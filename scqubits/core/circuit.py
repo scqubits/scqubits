@@ -361,10 +361,7 @@ class Circuit(
             )
 
         else:
-            if (
-                use_dynamic_flux_grouping
-                or generate_noise_methods
-            ):
+            if use_dynamic_flux_grouping or generate_noise_methods:
                 raise Exception(
                     "Circuit instance initialized using symbolic Hamiltonian cannot be configured with closure_branches, use_dynamic_flux_grouping, transformation_matrix or generate_noise_methods."
                 )

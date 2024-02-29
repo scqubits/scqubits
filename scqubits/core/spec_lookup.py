@@ -47,10 +47,12 @@ class MixinCompatible(Protocol):
     _out_of_sync: bool
     hilbertspace: "HilbertSpace"
 
-    def __getitem__(self, key: Any) -> Any: ...
+    def __getitem__(self, key: Any) -> Any:
+        ...
 
     @property
-    def hilbertspace(self) -> "HilbertSpace": ...
+    def hilbertspace(self) -> "HilbertSpace":
+        ...
 
 
 class SpectrumLookupMixin(MixinCompatible):

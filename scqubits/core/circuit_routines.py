@@ -1896,9 +1896,9 @@ class CircuitRoutines(ABC):
             for var_type in extended_vars:
                 for sym_variable in extended_vars[var_type]:
                     op_name = sym_variable.name + "_operator"
-                    extended_operators[op_name] = (
-                        hierarchical_diagonalization_func_factory(sym_variable.name)
-                    )
+                    extended_operators[
+                        op_name
+                    ] = hierarchical_diagonalization_func_factory(sym_variable.name)
 
         elif self.ext_basis == "discretized":
             nonwrapped_ops = {
@@ -1971,9 +1971,9 @@ class CircuitRoutines(ABC):
                 var_index = get_operator_number(sym_variable.name)
                 op_name = sym_variable.name + "_operator"
                 if self.hierarchical_diagonalization:
-                    periodic_operators[op_name] = (
-                        hierarchical_diagonalization_func_factory(sym_variable.name)
-                    )
+                    periodic_operators[
+                        op_name
+                    ] = hierarchical_diagonalization_func_factory(sym_variable.name)
                 else:
                     periodic_operators[op_name] = operator_func_factory(
                         op_func, var_index
@@ -2346,7 +2346,7 @@ class CircuitRoutines(ABC):
         else:
             return junction_potential_matrix
 
-    def _evaluate_hamiltonian(self) -> csc_matrix:  # TODO: needs a better name
+    def _evaluate_hamiltonian(self) -> csc_matrix:
         hamiltonian = self._hamiltonian_sym_for_numerics
         hamiltonian = hamiltonian.subs(
             [
@@ -3288,7 +3288,6 @@ class CircuitRoutines(ABC):
                 wf_new_basis = wf_new_basis.reshape(flatten_list_recursive(wf_shape))
         return wf_new_basis
 
-    # TODO: incomplete implementation of basis change
     def _basis_change_harm_osc_to_n(
         self, wf_original_basis, wf_dim, var_index, grid_n: discretization.Grid1d
     ):
@@ -3297,7 +3296,6 @@ class CircuitRoutines(ABC):
         """
         U_ho_n = np.array(
             [
-                # TODO replace here by a function that returns the wavefunction in n basis
                 osc.harm_osc_wavefunction(
                     n,
                     grid_n.make_linspace(),
