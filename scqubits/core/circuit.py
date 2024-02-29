@@ -319,7 +319,7 @@ class Circuit(
 
     def __init__(
         self,
-        input_string: str,
+        input_string: Optional[str] = None,
         from_file: bool = True,
         basis_completion="heuristic",
         ext_basis: str = "discretized",
@@ -344,8 +344,11 @@ class Circuit(
             esys_method=esys_method,
             esys_method_options=esys_method_options,
         )
-
-        if not symbolic_hamiltonian:
+        if symbolic_hamiltonian and input_string:
+            raise Exception(
+                "Circuit instance cannot be initialized with both input_string and symbolic_hamiltonian."
+            )
+        if input_string:
             self.from_yaml(
                 input_string=input_string,
                 from_file=from_file,
@@ -359,8 +362,7 @@ class Circuit(
 
         else:
             if (
-                closure_branches is not None
-                or use_dynamic_flux_grouping
+                use_dynamic_flux_grouping
                 or generate_noise_methods
             ):
                 raise Exception(
