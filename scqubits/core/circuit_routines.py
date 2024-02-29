@@ -3488,7 +3488,6 @@ class CircuitRoutines(ABC):
                 )
         return wf_ext_basis
 
-    # TODO:
     def generate_plot_data(
         self,
         which: int = 0,
@@ -3548,20 +3547,27 @@ class CircuitRoutines(ABC):
             var_indices, len(wf_ext_basis.shape)
         )
         # summing over the dimensions
-        if mode == "abs":
+        if mode == "abs-sqr":
             wf_plot = np.sum(
                 np.abs(wf_ext_basis) ** 2,
                 axis=tuple(dims_to_be_summed),
             )
             return wf_plot
-        elif mode == "re":
+        if mode == "abs":
+            if len(dims_to_be_summed) == 0:
+                return np.abs(wf_ext_basis)
+            else:
+                raise AttributeError(
+                    "Cannot plot the absolute value of the wave function in more than 2 dimensions."
+                )
+        elif mode == "real":
             if len(dims_to_be_summed) == 0:
                 return np.real(wf_ext_basis)
             else:
                 raise AttributeError(
                     "Cannot plot the real part of the wave function in more than 2 dimensions."
                 )
-        elif mode == "im":
+        elif mode == "imag":
             if len(dims_to_be_summed) == 0:
                 return np.imag(wf_ext_basis)
             else:
@@ -3572,7 +3578,7 @@ class CircuitRoutines(ABC):
     def plot_wavefunction(
         self,
         which=0,
-        mode: Literal["abs", "re", "im"] = "abs",
+        mode: Literal["abs", "real", "imag", "abs-sqr"] = "real",
         var_indices: Tuple[int] = (1,),
         esys: Tuple[ndarray, ndarray] = None,
         change_discrete_charge_to_phi: bool = True,
@@ -3595,8 +3601,8 @@ class CircuitRoutines(ABC):
         which:
             integer to choose which wave function to plot
         mode:
-            "abs", "re", "im" - decides which part of the wave function is plotted,
-            by default "abs"
+            "abs", "real", "imag", "abs-sqr" - decides which part of the wave function is plotted,
+            by default "real"
         var_indices:
             A tuple containing the indices of the variables chosen to plot the
             wave function in. It should not have more than 2 entries.
@@ -3796,7 +3802,7 @@ class CircuitRoutines(ABC):
     def _plot_wf_pdf_1D(
         self,
         wf_plot: ndarray,
-        mode: Literal["abs", "re", "im"],
+        mode: Literal["abs", "real", "imag", "abs-sqr"],
         var_indices,
         grids_per_varindex_dict,
         change_discrete_charge_to_phi: bool,
@@ -3834,13 +3840,15 @@ class CircuitRoutines(ABC):
                 amplitudes=wf_plot,
             )
             if mode == "abs":
+                ylabel = r"$|\psi(\theta_{{{}}})|$".format(str(var_indices[0]))
+            elif mode == "abs-sqr":
                 ylabel = r"$|\psi(\theta_{{{}}})|^2$".format(str(var_indices[0]))
-            elif mode == "re":
-                ylabel = r"$\mathrm{Re}(\psi(\theta_{{{}}}))$".format(
+            elif mode == "real":
+                ylabel = r"$\mathrm{{Re}}(\psi(\theta_{{{}}}))$".format(
                     str(var_indices[0])
                 )
-            elif mode == "im":
-                ylabel = r"$\mathrm{Im}(\psi(\theta_{{{}}}))$".format(
+            elif mode == "imag":
+                ylabel = r"$\mathrm{{Im}}(\psi(\theta_{{{}}}))$".format(
                     str(var_indices[0])
                 )
             fig, axes = plot.wavefunction1d_nopotential(
