@@ -22,11 +22,12 @@ import sympy as sm
 import random
 
 from numpy import ndarray
-from sympy import symbols
+from sympy import symbols, use
 from scqubits.core.circuit_utils import (
     round_symbolic_expr,
     _capactiance_variable_for_branch,
     _junction_order,
+    get_trailing_number,
 )
 
 import scqubits.io_utils.fileio_serializers as serializers
@@ -283,7 +284,7 @@ class SymbolicCircuit(serializers.Serializable):
     basis_completion: str
         choices are: "heuristic" (default) or "canonical"; selects type of basis for
         completing the transformation matrix.
-    is_flux_dynamic: bool
+    use_dynamic_flux_grouping: bool
         set to False by default. Indicates if the flux allocation is done by assuming
         that flux is time dependent. When set to True, it disables the option to change
         the closure branches.
@@ -298,7 +299,7 @@ class SymbolicCircuit(serializers.Serializable):
         branches_list: List[Branch],
         branch_var_dict: Dict[Union[Any, Symbol], Union[Any, float]],
         basis_completion: str = "heuristic",
-        is_flux_dynamic: bool = True,
+        use_dynamic_flux_grouping: bool = False,
         initiate_sym_calc: bool = True,
         input_string: str = "",
     ):
@@ -336,7 +337,7 @@ class SymbolicCircuit(serializers.Serializable):
                 self.is_grounded = True
 
         # switch to control the dynamic flux allocation in the loops
-        self.is_flux_dynamic = is_flux_dynamic
+        self.use_dynamic_flux_grouping = use_dynamic_flux_grouping
 
         # parameter for choosing matrix used for basis completion in the variable
         # transformation matrix
@@ -404,13 +405,15 @@ class SymbolicCircuit(serializers.Serializable):
         c_mat = (
             trans_mat.T @ self._capacitance_matrix(substitute_params=True) @ trans_mat
         )
-        l_mat = (
-            trans_mat.T @ self._inductance_matrix(substitute_params=True) @ trans_mat
+        l_inv_mat = (
+            trans_mat.T
+            @ self._inductance_inverse_matrix(substitute_params=True)
+            @ trans_mat
         )
         if not self.is_grounded:
             c_mat = c_mat[:-1, :-1]
-            l_mat = l_mat[:-1, :-1]
-        normal_mode_freqs, normal_mode_vecs = sp.linalg.eig(l_mat, c_mat)
+            l_inv_mat = l_inv_mat[:-1, :-1]
+        normal_mode_freqs, normal_mode_vecs = sp.linalg.eig(l_inv_mat, c_mat)
         normal_mode_freqs = normal_mode_freqs.round(10)
         # rounding to the tenth digit to remove numerical errors in eig calculation
         # rearranging the vectors
@@ -455,6 +458,7 @@ class SymbolicCircuit(serializers.Serializable):
         self,
         transformation_matrix: ndarray = None,
         closure_branches: List[Branch] = None,
+        use_dynamic_flux_grouping: Optional[bool] = None,
     ):
         """
         Method to initialize the CustomQCircuit instance and initialize all the
@@ -471,6 +475,8 @@ class SymbolicCircuit(serializers.Serializable):
         # if the circuit is purely harmonic, then store the eigenfrequencies
         branch_type_list = [branch.type for branch in self.branches]
         self.is_purely_harmonic = "JJ" not in "".join(branch_type_list)
+        if use_dynamic_flux_grouping is not None:
+            self.use_dynamic_flux_grouping = use_dynamic_flux_grouping
 
         if self.is_purely_harmonic:
             (
@@ -498,7 +504,12 @@ class SymbolicCircuit(serializers.Serializable):
         self.closure_branches = closure_branches or self._closure_branches()
         # setting external flux and offset charge variables
         self._set_external_fluxes(closure_branches=closure_branches)
-        self._set_offset_charges()
+        self.offset_charges = [
+            symbols(f"ng{index}") for index in self.var_categories["periodic"]
+        ]
+        self.free_charges = [
+            symbols(f"Qf{index}") for index in self.var_categories["free"]
+        ]
         # setting the branch parameter variables
 
         # calculating the Hamiltonian directly when the number of nodes is less than 3
@@ -510,6 +521,7 @@ class SymbolicCircuit(serializers.Serializable):
             # than 3. Else, the calculation will be skipped to the end when numerical
             # Hamiltonian of the circuit is requested.
             substitute_params = True
+            self.frozen_var_exprs = {}
 
         # Calculate the Lagrangian
         (
@@ -605,7 +617,7 @@ class SymbolicCircuit(serializers.Serializable):
         input_string: str,
         from_file: bool = True,
         basis_completion: str = "heuristic",
-        is_flux_dynamic: bool = False,
+        use_dynamic_flux_grouping: Optional[bool] = None,
         initiate_sym_calc: bool = True,
     ):
         """
@@ -638,7 +650,7 @@ class SymbolicCircuit(serializers.Serializable):
         basis_completion:
             choices: "heuristic" or "canonical"; used to choose a type of basis
             for completing the transformation matrix. Set to "heuristic" by default.
-        is_flux_dynamic: bool
+        use_dynamic_flux_grouping: bool
             set to False by default. Indicates if the flux allocation is done by
             assuming that flux is time dependent. When set to True, it disables the
             option to change the closure branches.
@@ -669,6 +681,10 @@ class SymbolicCircuit(serializers.Serializable):
 
         # find and create the nodes
         nodes_list = cls._parse_nodes(parsed_branches)
+        # if the node indices do not start from 0, raise an error
+        node_ids = [node.index for node in nodes_list]
+        if min(node_ids) not in [0, 1]:
+            raise ValueError("The node indices should start from 0 or 1.")
         # parse branches
         branches_list = []
         branch_var_dict = {}
@@ -686,7 +702,7 @@ class SymbolicCircuit(serializers.Serializable):
         circuit = cls(
             nodes_list,
             branches_list,
-            is_flux_dynamic=is_flux_dynamic,
+            use_dynamic_flux_grouping=use_dynamic_flux_grouping,
             branch_var_dict=branch_var_dict,
             basis_completion=basis_completion,
             initiate_sym_calc=initiate_sym_calc,
@@ -1174,10 +1190,10 @@ class SymbolicCircuit(serializers.Serializable):
             # adding external flux
             phi_ext = 0
             if jj_branch in self.closure_branches:
-                if not self.is_flux_dynamic:
+                if not self.use_dynamic_flux_grouping:
                     index = self.closure_branches.index(jj_branch)
                     phi_ext += self.external_fluxes[index]
-            if self.is_flux_dynamic:
+            if self.use_dynamic_flux_grouping:
                 flux_branch_assignment = self._time_dependent_flux_distribution()
                 phi_ext += flux_branch_assignment[int(jj_branch.id_str)]
 
@@ -1220,10 +1236,10 @@ class SymbolicCircuit(serializers.Serializable):
             # adding external flux
             phi_ext = 0
             if jj_branch in self.closure_branches:
-                if not self.is_flux_dynamic:
+                if not self.use_dynamic_flux_grouping:
                     index = self.closure_branches.index(jj_branch)
                     phi_ext += self.external_fluxes[index]
-            if self.is_flux_dynamic:
+            if self.use_dynamic_flux_grouping:
                 flux_branch_assignment = self._time_dependent_flux_distribution()
                 phi_ext += flux_branch_assignment[int(jj_branch.id_str)]
 
@@ -1249,41 +1265,7 @@ class SymbolicCircuit(serializers.Serializable):
                 )
         return terms
 
-    # def _JJ2_terms(self):
-    #     terms = 0
-    #     # looping over all the JJ2 branches
-    #     for jj2_branch in [t for t in self.branches if t.type == "JJ2"]:
-    #         # adding external flux
-    #         phi_ext = 0
-    #         if jj2_branch in self.closure_branches:
-    #             if not self.is_flux_dynamic:
-    #                 index = self.closure_branches.index(jj2_branch)
-    #                 phi_ext += self.external_fluxes[index]
-    #         if self.is_flux_dynamic:
-    #             flux_branch_assignment = self._time_dependent_flux_distribution()
-    #             phi_ext += flux_branch_assignment[int(jj2_branch.id_str)]
-
-    #         # if loop to check for the presence of ground node
-    #         if jj2_branch.nodes[1].index == 0:
-    #             terms += -jj2_branch.parameters["EJ"] * sympy.cos(
-    #                 2 * (-symbols(f"φ" + str(jj2_branch.nodes[0].index)) + phi_ext)
-    #             )
-    #         elif jj2_branch.nodes[0].index == 0:
-    #             terms += -jj2_branch.parameters["EJ"] * sympy.cos(
-    #                 2 * (symbols(f"φ{jj2_branch.nodes[1].index}") + phi_ext)
-    #             )
-    #         else:
-    #             terms += -jj2_branch.parameters["EJ"] * sympy.cos(
-    #                 2
-    #                 * (
-    #                     symbols(f"φ{jj2_branch.nodes[1].index}")
-    #                     - symbols(f"φ{jj2_branch.nodes[0].index}")
-    #                     + phi_ext
-    #                 )
-    #             )
-    #     return terms
-
-    def _inductance_matrix(self, substitute_params: bool = False):
+    def _inductance_inverse_matrix(self, substitute_params: bool = False):
         """
         Generate a inductance matrix for the circuit
 
@@ -1452,10 +1434,10 @@ class SymbolicCircuit(serializers.Serializable):
             # adding external flux
             phi_ext = 0
             if l_branch in self.closure_branches:
-                if not self.is_flux_dynamic:
+                if not self.use_dynamic_flux_grouping:
                     index = self.closure_branches.index(l_branch)
                     phi_ext += self.external_fluxes[index]
-            if self.is_flux_dynamic:
+            if self.use_dynamic_flux_grouping:
                 flux_branch_assignment = self._time_dependent_flux_distribution()
                 phi_ext += flux_branch_assignment[int(l_branch.id_str)]
 
@@ -1925,14 +1907,6 @@ class SymbolicCircuit(serializers.Serializable):
                 symbols("Φ" + str(i + 1)) for i in range(len(closure_branches))
             ]
 
-    def _set_offset_charges(self):
-        """
-        Create the offset charge variables and store in class attribute offset_charges
-        """
-        self.offset_charges = []
-        for p in self.var_categories["periodic"]:
-            self.offset_charges = self.offset_charges + [symbols(f"ng{p}")]
-
     def _branch_sym_expr(
         self,
         branch: Branch,
@@ -1963,7 +1937,7 @@ class SymbolicCircuit(serializers.Serializable):
                     i for i in range(C_mat_θ.shape[0]) if i not in frozen_indices
                 ]
                 C_mat_θ = C_mat_θ[relevant_indices, relevant_indices]
-                C_mat_θ = C_mat_θ.inv()
+                EC_mat_θ = C_mat_θ.inv()
             else:
                 C_mat_θ = (
                     transformation_matrix.T
@@ -1972,26 +1946,42 @@ class SymbolicCircuit(serializers.Serializable):
                 )
                 C_mat_θ = np.delete(C_mat_θ, frozen_indices, 0)
                 C_mat_θ = np.delete(C_mat_θ, frozen_indices, 1)
-                C_mat_θ = np.linalg.inv(C_mat_θ)
+                EC_mat_θ = np.linalg.inv(C_mat_θ)
             p_θ_vars = [
-                symbols(f"Q{i}")
-                for i in self.var_categories["periodic"]
-                + self.var_categories["extended"]
-                + self.var_categories["free"]
+                (
+                    symbols(f"Q{i}")
+                    if i not in self.var_categories["free"]
+                    else symbols(f"Qf{i}")
+                )
+                for i in np.sort(
+                    self.var_categories["periodic"]
+                    + self.var_categories["extended"]
+                    + self.var_categories["free"]
+                )
                 # replacing the free charge with 0, as it would not affect the circuit
                 # Lagrangian.
             ]
             node_id1, node_id2 = [
                 node.index - (1 if not self.is_grounded else 0) for node in branch.nodes
             ]
-            voltages = C_mat_θ * sympy.Matrix(p_θ_vars)
+            voltages = list(EC_mat_θ * sympy.Matrix(p_θ_vars))
 
-            if not self.is_grounded:
-                voltages = list(voltages) + [0]
+            # insert the voltages for frozen modes
+            for index in self.var_categories["sigma"]:
+                voltages.insert(index, 0)
+            # substitute expressions for frozen variables
+            for index in self.var_categories["frozen"]:
+                frozen_var_expr = self.frozen_var_exprs[index]
+                frozen_var_expr = frozen_var_expr.subs(
+                    [
+                        (var_sym, f"Q{get_trailing_number(var_sym.name)}")
+                        for var_sym in frozen_var_expr.free_symbols
+                    ]
+                )
+                voltages.insert(index, round_symbolic_expr(frozen_var_expr, 10))
 
-            node_voltages = list(
-                np.linalg.inv(self.transformation_matrix) * sympy.Matrix(voltages)
-            )
+            node_voltages = list(transformation_matrix * sympy.Matrix(voltages))
+
             if self.is_grounded:
                 node_voltages = [0] + node_voltages
 
@@ -2014,21 +2004,29 @@ class SymbolicCircuit(serializers.Serializable):
             "φ0", 0
         )  # substituting node flux of ground to zero
         num_vars = len(self.nodes) - self.is_grounded
-        new_vars = [symbols(f"θ{index}") for index in range(1, 1 + num_vars)]
+        new_vars = [
+            (
+                symbols(f"θ{index}")
+                if index not in self.var_categories["frozen"]
+                else self.frozen_var_exprs[index]
+            )
+            for index in range(1, 1 + num_vars)
+        ]
+        # free variables do not show up in the branch flux expression for inductors, assuming capacitances do not depend on the flux, but charge expression
         old_vars = [symbols(f"φ{index}") for index in range(1, 1 + num_vars)]
         transformed_expr = transformation_matrix.dot(new_vars)
         # add external flux
         phi_ext = 0
         if branch in self.closure_branches:
-            if not self.is_flux_dynamic:
+            if not self.use_dynamic_flux_grouping:
                 index = self.closure_branches.index(branch)
                 phi_ext += self.external_fluxes[index]
-        if self.is_flux_dynamic:
+        if self.use_dynamic_flux_grouping:
             flux_branch_assignment = self._time_dependent_flux_distribution()
             phi_ext += flux_branch_assignment[int(branch.id_str)]
         for idx, var in enumerate(old_vars):
             expr_node_vars = expr_node_vars.subs(var, transformed_expr[idx])
-        return expr_node_vars + phi_ext
+        return round_symbolic_expr(expr_node_vars + phi_ext, 12)
 
     def generate_symbolic_lagrangian(
         self, substitute_params: bool = False
@@ -2093,11 +2091,14 @@ class SymbolicCircuit(serializers.Serializable):
 
         # eliminating the frozen variables
         for frozen_var_index in self.var_categories["frozen"]:
-            sub = sympy.solve(
+            frozen_expr = sympy.solve(
                 potential_θ.diff(symbols(f"θ{frozen_var_index}")),
                 symbols(f"θ{frozen_var_index}"),
+            )[0]
+            self.frozen_var_exprs[frozen_var_index] = frozen_expr
+            potential_θ = potential_θ.replace(
+                symbols(f"θ{frozen_var_index}"), frozen_expr
             )
-            potential_θ = potential_θ.replace(symbols(f"θ{frozen_var_index}"), sub[0])
 
         lagrangian_θ = C_terms_θ - potential_θ
 
@@ -2151,7 +2152,11 @@ class SymbolicCircuit(serializers.Serializable):
             C_mat_θ = np.linalg.inv(C_mat_θ)
 
         p_φ_vars = [
-            symbols(f"Q{i}") if i not in self.var_categories["free"] else 0
+            (
+                symbols(f"Q{i}")
+                if i not in self.var_categories["free"]
+                else symbols(f"Qf{i}")
+            )
             for i in np.sort(
                 self.var_categories["periodic"]
                 + self.var_categories["extended"]

@@ -42,6 +42,8 @@ from scqubits.core.circuit_utils import (
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
 from scqubits.utils.misc import (
     flatten_list,
+    flatten_list_recursive,
+    is_string_float,
     number_of_lists_in_list,
 )
 
@@ -126,13 +128,13 @@ class Subsystem(
         self.ext_basis = ext_basis
         self._find_and_set_sym_attrs()
 
-        self.dynamic_var_indices: List[int] = []
-        cutoffs: List[int] = []
-        for var_name in self.operator_names_in_hamiltonian_symbolic():
-            var_index = get_trailing_number(var_name)
-            if var_index not in self.dynamic_var_indices and var_index is not None:
-                self.dynamic_var_indices.append(var_index)
-                cutoffs += [self.parent.cutoffs_dict()[var_index]]
+        self.dynamic_var_indices: List[int] = flatten_list_recursive(
+            [self.system_hierarchy]
+        )
+        parent_cutoffs_dict = self.parent.cutoffs_dict()
+        cutoffs: List[int] = [
+            parent_cutoffs_dict[var_index] for var_index in self.dynamic_var_indices
+        ]
 
         self.var_categories: Dict[str, List[int]] = {}
         for var_type in self.parent.var_categories:
@@ -195,6 +197,11 @@ class Subsystem(
             for var in self.parent.offset_charges
             if var in self.hamiltonian_symbolic.free_symbols
         ]
+        self.free_charges = [
+            var
+            for var in self.parent.free_charges
+            if var in self.hamiltonian_symbolic.free_symbols
+        ]
         self.symbolic_params = {
             var: self.parent.symbolic_params[var]
             for var in self.parent.symbolic_params
@@ -218,10 +225,10 @@ class Subsystem(
                 getattr(self.parent, flux.name),
                 "update_external_flux_or_charge",
             )
-        for offset_charge in self.offset_charges:
+        for charge_var in self.offset_charges + self.free_charges:
             self._make_property(
-                offset_charge.name,
-                getattr(self.parent, offset_charge.name),
+                charge_var.name,
+                getattr(self.parent, charge_var.name),
                 "update_external_flux_or_charge",
             )
 
@@ -235,7 +242,7 @@ class Subsystem(
             and self.ext_basis == "harmonic"
         ):
             self.is_purely_harmonic = True
-            self._diagonalize_purely_harmonic_hamiltonian()
+            self._annihilation_operator_in_eigenbasis = None
         else:
             self.is_purely_harmonic = False
 
@@ -260,9 +267,10 @@ class Subsystem(
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
         else:
             self.generate_hamiltonian_sym_for_numerics()
+            if self.is_purely_harmonic and self.ext_basis == "harmonic":
+                self._diagonalize_purely_harmonic_hamiltonian()
 
         self._set_vars()
-        self._set_harmonic_basis_osc_params()
         self.operators_by_name = self.set_operators()
 
         if self.hierarchical_diagonalization:
@@ -298,7 +306,7 @@ class Circuit(
         can be "discretized" or "harmonic" which chooses whether to use discretized
         phi or harmonic oscillator basis for extended variables,
         by default "discretized"
-    is_flux_dynamic: bool
+    use_dynamic_flux_grouping: bool
         set to False by default. Indicates if the flux allocation is done by assuming
         that flux is time dependent. When set to True, it disables the option to change
         the closure branches.
@@ -315,7 +323,8 @@ class Circuit(
         from_file: bool = True,
         basis_completion="heuristic",
         ext_basis: str = "discretized",
-        is_flux_dynamic: bool = False,
+        use_dynamic_flux_grouping: bool = False,
+        generate_noise_methods: bool = False,
         initiate_sym_calc: bool = True,
         truncated_dim: int = 10,
         symbolic_param_dict: Dict[str, float] = None,
@@ -342,12 +351,21 @@ class Circuit(
                 from_file=from_file,
                 basis_completion=basis_completion,
                 ext_basis=ext_basis,
-                is_flux_dynamic=is_flux_dynamic,
+                use_dynamic_flux_grouping=use_dynamic_flux_grouping,
+                generate_noise_methods=generate_noise_methods,
                 initiate_sym_calc=initiate_sym_calc,
                 truncated_dim=truncated_dim,
             )
 
         else:
+            if (
+                closure_branches is not None
+                or use_dynamic_flux_grouping
+                or generate_noise_methods
+            ):
+                raise Exception(
+                    "Circuit instance initialized using symbolic Hamiltonian cannot be configured with closure_branches, use_dynamic_flux_grouping, transformation_matrix or generate_noise_methods."
+                )
             self.from_symbolic_hamiltonian(
                 symbolic_hamiltonian=symbolic_hamiltonian,
                 symbolic_param_dict=symbolic_param_dict,
@@ -414,7 +432,8 @@ class Circuit(
         from_file: bool = True,
         basis_completion="heuristic",
         ext_basis: str = "discretized",
-        is_flux_dynamic: bool = False,
+        use_dynamic_flux_grouping: bool = False,
+        generate_noise_methods: bool = False,
         initiate_sym_calc: bool = True,
         truncated_dim: int = None,
     ):
@@ -445,15 +464,10 @@ class Circuit(
         truncated_dim:
             truncated dimension if the user wants to use this circuit instance in
             HilbertSpace, by default `None`
-        is_flux_dynamic: bool
+        use_dynamic_flux_grouping: bool
             set to False by default. Indicates if the flux allocation is done by assuming that flux is time dependent. When set to True, it disables the
             option to change the closure branches.
         """
-        # warnings.warn(
-        #     "Initializing Circuit instances with `from_yaml` will not be "
-        #     "supported in the future. Use `Circuit` to initialize a Circuit instance.",
-        #     np.VisibleDeprecationWarning,
-        # )
         if basis_completion not in ["heuristic", "canonical"]:
             raise Exception(
                 "Invalid choice for basis_completion: must be 'heuristic' or "
@@ -465,7 +479,7 @@ class Circuit(
             from_file=from_file,
             basis_completion=basis_completion,
             initiate_sym_calc=True,
-            is_flux_dynamic=is_flux_dynamic,
+            use_dynamic_flux_grouping=use_dynamic_flux_grouping,
         )
         sm.init_printing(pretty_print=False, order="none")
         self.is_child = False
@@ -502,6 +516,7 @@ class Circuit(
             "lagrangian_symbolic",
             "nodes",
             "offset_charges",
+            "free_charges",
             "potential_symbolic",
             "potential_node_vars",
             "symbolic_params",
@@ -523,6 +538,8 @@ class Circuit(
 
         if initiate_sym_calc:
             self.configure()
+        if generate_noise_methods:
+            self.generate_noise_methods()
         self._frozen = True
         dispatch.CENTRAL_DISPATCH.register("CIRCUIT_UPDATE", self)
 
@@ -556,8 +573,8 @@ class Circuit(
             self.cutoff_names
             + [flux_symbol.name for flux_symbol in self.external_fluxes]
             + [
-                offset_charge_symbol.name
-                for offset_charge_symbol in self.offset_charges
+                charge_symbol.name
+                for charge_symbol in self.offset_charges + self.free_charges
             ]
             + ["cutoff_names"]
         )
@@ -579,6 +596,8 @@ class Circuit(
         subsystem_trunc_dims: Optional[list] = None,
         closure_branches: Optional[List[Branch]] = None,
         ext_basis: Optional[str] = None,
+        use_dynamic_flux_grouping: Optional[bool] = None,
+        generate_noise_methods: bool = False,
     ):
         """
         Method which re-initializes a circuit instance to update, hierarchical
@@ -599,19 +618,22 @@ class Circuit(
         closure_branches:
             List of branches where external flux variables will be specified, by default
             `None` which then chooses closure branches by an internally generated
-            spanning tree. For this option, Circuit should be initialized with `is_flux_dynamic` set to False.
+            spanning tree. For this option, Circuit should be initialized with `use_dynamic_flux_grouping` set to False.
         ext_basis:
             can be "discretized" or "harmonic" which chooses whether to use discretized
             phi or harmonic oscillator basis for extended variables,
             by default `None`
-
+        use_dynamic_flux_grouping:
+            set to False by default. Indicates if the flux allocation is done by assuming that flux is time dependent. When set to True, it disables the option to change the closure branches.
+        generate_noise_methods:
+            set to False by default. Indicates if the noise methods should be generated for the circuit instance.
         Raises
         ------
         Exception
             When system_hierarchy is set and subsystem_trunc_dims is not set.
         Exception
             When closure_branches is set and the Circuit instance is initialized with the setting
-            `is_flux_dynamic=True`.
+            `use_dynamic_flux_grouping=True`.
         """
 
         old_system_hierarchy = self.system_hierarchy
@@ -619,11 +641,13 @@ class Circuit(
         old_ext_basis = self.ext_basis
         if hasattr(self, "symbolic_circuit"):
             old_transformation_matrix = self.transformation_matrix
-            old_closure_branches = (
-                self.closure_branches
-                if not self.symbolic_circuit.is_flux_dynamic
-                else None
+            old_use_dynamic_flux_grouping = (
+                self.symbolic_circuit.use_dynamic_flux_grouping
             )
+            old_closure_branches = (
+                self.closure_branches if not old_use_dynamic_flux_grouping else None
+            )
+            old_generate_noise_methods = hasattr(self, "_noise_methods_generated")
         try:
             if hasattr(self, "symbolic_circuit"):
                 self._configure(
@@ -632,8 +656,18 @@ class Circuit(
                     subsystem_trunc_dims=subsystem_trunc_dims,
                     closure_branches=closure_branches,
                     ext_basis=ext_basis,
+                    use_dynamic_flux_grouping=use_dynamic_flux_grouping,
+                    generate_noise_methods=generate_noise_methods,
                 )
             else:
+                if (
+                    closure_branches is not None
+                    or use_dynamic_flux_grouping
+                    or generate_noise_methods
+                ):
+                    raise Exception(
+                        "Circuit instance initialized using symbolic Hamiltonian cannot be configured with closure_branches, use_dynamic_flux_grouping, transformation_matrix or generate_noise_methods."
+                    )
                 self._configure_sym_hamiltonian(
                     system_hierarchy=system_hierarchy,
                     subsystem_trunc_dims=subsystem_trunc_dims,
@@ -654,6 +688,8 @@ class Circuit(
                     subsystem_trunc_dims=old_subsystem_trunc_dims,
                     closure_branches=old_closure_branches,
                     ext_basis=old_ext_basis,
+                    use_dynamic_flux_grouping=old_use_dynamic_flux_grouping,
+                    generate_noise_methods=old_generate_noise_methods,
                 )
             else:
                 self._configure_sym_hamiltonian(
@@ -669,10 +705,13 @@ class Circuit(
         free_symbols = symbolic_hamiltonian.free_symbols
         external_fluxes = []
         offset_charges = []
+        free_charges = []
         var_categories = {"periodic": [], "extended": [], "free": [], "frozen": []}
         for var_sym in free_symbols:
             if re.match(r"^ng\d+$", var_sym.name):
                 offset_charges.append(var_sym)
+            elif re.match(r"^Qf\d+$", var_sym.name):
+                free_charges.append(var_sym)
             elif re.match(r"^Φ\d+$", var_sym.name):
                 external_fluxes.append(var_sym)
             elif re.match(r"^n\d+$", var_sym.name):
@@ -684,12 +723,12 @@ class Circuit(
         var_categories = {
             category: sorted(var_categories[category]) for category in var_categories
         }
-        return external_fluxes, offset_charges, var_categories
+        return external_fluxes, offset_charges, free_charges, var_categories
 
     def _configure_sym_hamiltonian(
         self,
-        system_hierarchy: list = Optional[None],
-        subsystem_trunc_dims: list = Optional[None],
+        system_hierarchy: Optional[list] = None,
+        subsystem_trunc_dims: Optional[list] = None,
         ext_basis: Optional[str] = None,
     ):
         """
@@ -718,6 +757,7 @@ class Circuit(
         self._frozen = False
         system_hierarchy = system_hierarchy or self.system_hierarchy
         subsystem_trunc_dims = subsystem_trunc_dims or self.subsystem_trunc_dims
+        self.ext_basis = ext_basis or self.ext_basis
 
         self.hierarchical_diagonalization = (
             True if system_hierarchy is not None else False
@@ -730,6 +770,7 @@ class Circuit(
         (
             self.external_fluxes,
             self.offset_charges,
+            self.free_charges,
             self.var_categories,
         ) = self._read_symbolic_hamiltonian(self.hamiltonian_symbolic)
 
@@ -771,12 +812,14 @@ class Circuit(
             if not hasattr(self, flux.name):
                 self._make_property(flux.name, 0.0, "update_external_flux_or_charge")
         # offset charges
-        for offset_charge in self.offset_charges:
+        for charge_var in self.offset_charges + self.free_charges:
             # default to zero offset charge
-            if not hasattr(self, offset_charge.name):
+            if not hasattr(self, charge_var.name):
                 self._make_property(
-                    offset_charge.name, 0.0, "update_external_flux_or_charge"
+                    charge_var.name, 0.0, "update_external_flux_or_charge"
                 )
+
+        self.potential_symbolic = self.generate_sym_potential()
 
         # changing the matrix type if necessary
         if len(flatten_list(self.var_categories.values())) == 1:
@@ -789,18 +832,19 @@ class Circuit(
 
         if not self.hierarchical_diagonalization:
             if self.is_purely_harmonic and not ext_basis:
-                self.normal_mode_freqs = self.symbolic_circuit.normal_mode_freqs
                 if self.ext_basis != "harmonic":
                     warnings.warn(
                         "Purely harmonic circuits need ext_basis to be set to 'harmonic'"
                     )
                     self.ext_basis = "harmonic"
             self.ext_basis = ext_basis or self.ext_basis
+            self.generate_hamiltonian_sym_for_numerics()
             if self.is_purely_harmonic and self.ext_basis == "harmonic":
                 # using the default methods
                 self.evals_method = None
                 self.evals_method_options = None
-            self.generate_hamiltonian_sym_for_numerics()
+                self._annihilation_operator_in_eigenbasis = None
+                self._diagonalize_purely_harmonic_hamiltonian()
             self._set_vars()  # setting the attribute vars to store operator symbols
             self.operators_by_name = self.set_operators()
         else:
@@ -815,16 +859,19 @@ class Circuit(
                 )
 
             self.subsystem_trunc_dims = subsystem_trunc_dims
+            if ext_basis:
+                self.ext_basis = ext_basis
             self.generate_hamiltonian_sym_for_numerics()
             self.generate_subsystems()
-            self.ext_basis = ext_basis or self.get_ext_basis()
+            self.ext_basis = (
+                self.get_ext_basis()
+            )  # update the ext_basis after generating subsystems
             self._set_vars()  # setting the attribute vars to store operator symbols
             self._check_truncation_indices()
             self.operators_by_name = self.set_operators()
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
             self.update_interactions()
 
-        self._set_harmonic_basis_osc_params()
         # clear unnecessary attribs
         self._clear_unnecessary_attribs()
         self._frozen = True
@@ -837,6 +884,8 @@ class Circuit(
         subsystem_trunc_dims: Optional[list] = None,
         closure_branches: Optional[List[Branch]] = None,
         ext_basis: Optional[str] = None,
+        use_dynamic_flux_grouping: Optional[bool] = None,
+        generate_noise_methods: bool = False,
     ):
         """
         Method which re-initializes a circuit instance to update, hierarchical
@@ -858,6 +907,12 @@ class Circuit(
             List of branches where external flux variables will be specified, by default
             `None` which then chooses closure branches by an internally generated
             spanning tree.
+        ext_basis:
+            can be "discretized" or "harmonic" which chooses whether to use discretized, or can be a list of lists of lists, when hierarchical diagonalization is used.
+        use_dynamic_flux_grouping:
+            set to False by default. Indicates if the flux allocation is done by assuming that flux is time dependent. When set to True, it disables the option to change the closure branches.
+        generate_noise_methods:
+            set to False by default. Indicates if the noise methods should be generated for the circuit instance.
 
         Raises
         ------
@@ -867,10 +922,15 @@ class Circuit(
         self._frozen = False
 
         # reinitiate the symbolic circuit when the transformation matrix and closure branches are provided
-        if transformation_matrix is not None or closure_branches is not None:
+        if (
+            transformation_matrix is not None
+            or closure_branches is not None
+            or use_dynamic_flux_grouping is not None
+        ):
             self.symbolic_circuit.configure(
                 transformation_matrix=transformation_matrix,
                 closure_branches=closure_branches,
+                use_dynamic_flux_grouping=use_dynamic_flux_grouping,
             )
 
         system_hierarchy = system_hierarchy or self.system_hierarchy
@@ -900,6 +960,7 @@ class Circuit(
             "lagrangian_symbolic",
             "nodes",
             "offset_charges",
+            "free_charges",
             "potential_symbolic",
             "potential_node_vars",
             "symbolic_params",
@@ -947,12 +1008,12 @@ class Circuit(
             # setting the default to zero external flux
             if not hasattr(self, flux.name):
                 self._make_property(flux.name, 0.0, "update_external_flux_or_charge")
-        # offset charges
-        for offset_charge in self.offset_charges:
+        # offset and free charges
+        for charge_var in self.offset_charges + self.free_charges:
             # default to zero offset charge
-            if not hasattr(self, offset_charge.name):
+            if not hasattr(self, charge_var.name):
                 self._make_property(
-                    offset_charge.name, 0.0, "update_external_flux_or_charge"
+                    charge_var.name, 0.0, "update_external_flux_or_charge"
                 )
 
         # changing the matrix type if necessary
@@ -964,7 +1025,7 @@ class Circuit(
 
         self.hamiltonian_symbolic = self.symbolic_circuit.hamiltonian_symbolic
         # if the flux is static, remove the linear terms from the potential
-        if not self.symbolic_circuit.is_flux_dynamic:
+        if not self.symbolic_circuit.use_dynamic_flux_grouping:
             self.hamiltonian_symbolic = self._shift_harmonic_oscillator_potential(
                 self.hamiltonian_symbolic
             )
@@ -985,12 +1046,14 @@ class Circuit(
                         "Purely harmonic circuits need ext_basis to be set to 'harmonic'"
                     )
                     self.ext_basis = "harmonic"
+            self.generate_hamiltonian_sym_for_numerics()
             self.ext_basis = ext_basis or self.ext_basis
             if self.is_purely_harmonic and self.ext_basis == "harmonic":
                 # using the default methods
                 self.evals_method = None
                 self.evals_method_options = None
-            self.generate_hamiltonian_sym_for_numerics()
+                self._annihilation_operator_in_eigenbasis = None
+                self._diagonalize_purely_harmonic_hamiltonian()
         else:
             # list for updating necessary subsystems when calling build hilbertspace
             self.affected_subsystem_indices = []
@@ -1004,45 +1067,44 @@ class Circuit(
 
             self.subsystem_trunc_dims = subsystem_trunc_dims
             self.generate_hamiltonian_sym_for_numerics()
+            self.ext_basis = ext_basis or self.ext_basis
             self.generate_subsystems()
-            self.ext_basis = ext_basis or self.get_ext_basis()
+            self.ext_basis = self.get_ext_basis()
             self.update_interactions()
             self._check_truncation_indices()
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
 
         self._set_vars()  # setting the attribute vars to store operator symbols
         self.operators_by_name = self.set_operators()
-        self._set_harmonic_basis_osc_params()
         # clear unnecessary attribs
         self._clear_unnecessary_attribs()
+        if generate_noise_methods:
+            self.generate_noise_methods()
         self._frozen = True
         self.update()
 
     def supported_noise_channels(self) -> List[str]:
         """Return a list of supported noise channels"""
-        # return ['tphi_1_over_f_flux',]
-        noise_channels = ["t1_capacitive", "t1_charge_impedance"]
-        if len([branch for branch in self.branches if branch.type == "L"]):
-            noise_channels.append("t1_inductive")
-        if len(self.offset_charges) > 0:
-            noise_channels.append("tphi_1_over_f_ng")
-        if len(self.external_fluxes) > 0:
-            if not self.symbolic_circuit.is_flux_dynamic:
-                warnings.warn(
-                    "The flag 'is_flux_dynamic' is set to False, so the coherence time estimation due to flux noise might be incorrect. Please set it to True to get the correct results."
-                )
-            noise_channels.append("tphi_1_over_f_flux")
-            noise_channels.append("t1_flux_bias_line")
-        if not self.is_purely_harmonic:
-            noise_channels.append("tphi_1_over_f_cc")
-            # noise_channels.append("t1_quasiparticle_tunneling")
-        return noise_channels
+        if not hasattr(self, "_noise_methods_generated"):
+            raise Exception(
+                "Noise methods are not generated, please use configure() with generate_noise_methods=True to generate them."
+            )
+        return [
+            method_name
+            for method_name in self.__dict__
+            if "tphi_1_over_f" in method_name or "t1_" in method_name
+        ]
 
     def effective_noise_channels(self):
-        supported_channels = self.supported_noise_channels()
-        if "t1_charge_impedance" in supported_channels:
-            supported_channels.remove("t1_charge_impedance")
-        return supported_channels
+        if not hasattr(self, "_noise_methods_generated"):
+            raise Exception(
+                "Noise methods are not generated, please use configure() with generate_noise_methods=True to generate them."
+            )
+        return [
+            method_name
+            for method_name in self.supported_noise_channels()
+            if not is_string_float(method_name[-1])
+        ]
 
     def variable_transformation(self, new_vars_to_node_vars=True) -> None:
         """
@@ -1164,37 +1226,6 @@ class Circuit(
             self.print_expr_in_latex(lagrangian)
         else:
             print(lagrangian)
-
-    def offset_charge_transformation(self) -> None:
-        """
-        Prints the variable transformation between offset charges of periodic variables
-        and the offset node charges
-        """
-        trans_mat = self.transformation_matrix
-        node_offset_charge_vars = [
-            sm.symbols(f"q_g{index}")
-            for index in range(
-                1, len(self.symbolic_circuit.nodes) - self.is_grounded + 1
-            )
-        ]
-        periodic_offset_charge_vars = [
-            sm.symbols(f"ng{index}")
-            for index in self.symbolic_circuit.var_categories["periodic"]
-        ]
-        periodic_offset_charge_eqns = []
-        for idx, node_var in enumerate(periodic_offset_charge_vars):
-            periodic_offset_charge_eqns.append(
-                self._make_expr_human_readable(
-                    sm.Eq(
-                        periodic_offset_charge_vars[idx],
-                        np.sum(trans_mat[idx, :] * node_offset_charge_vars),
-                    )
-                )
-            )
-        if _HAS_IPYTHON:
-            self.print_expr_in_latex(periodic_offset_charge_eqns)
-        else:
-            print(periodic_offset_charge_eqns)
 
     def sym_external_fluxes(self) -> Dict[sm.Expr, Tuple["Branch", List["Branch"]]]:
         """

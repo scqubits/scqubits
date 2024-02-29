@@ -425,23 +425,25 @@ class TestHilbertSpace:
             analytic_op.transform(ordered_basis_states)[0:10, 0:10]
         )
         op1 = qt.Qobj(
-            hilbert_space.op_in_dressed_eigenbasis(op=osc_a.annihilation_operator)[
-                0:10, 0:10
-            ]
+            hilbert_space.op_in_dressed_eigenbasis(
+                op_callable_or_tuple=osc_a.annihilation_operator
+            )[0:10, 0:10]
         )
         op2 = qt.Qobj(
             hilbert_space.op_in_dressed_eigenbasis(
-                op=(osc_a.annihilation_operator(), osc_a)
+                op_callable_or_tuple=(osc_a.annihilation_operator(), osc_a)
             )[0:10, 0:10]
         )
         op3 = qt.Qobj(
             hilbert_space.op_in_dressed_eigenbasis(
-                op=(osc_a.annihilation_operator(), osc_a), op_in_bare_eigenbasis=True
+                op_callable_or_tuple=(osc_a.annihilation_operator(), osc_a),
+                op_in_bare_eigenbasis=True,
             )[0:10, 0:10]
         )
         op4 = qt.Qobj(
             hilbert_space.op_in_dressed_eigenbasis(
-                op=(osc_a.annihilation_operator(), osc_a), op_in_bare_eigenbasis=False
+                op_callable_or_tuple=(osc_a.annihilation_operator(), osc_a),
+                op_in_bare_eigenbasis=False,
             )[0:10, 0:10]
         )
         assert analytic_op_ordered == op1
@@ -465,9 +467,12 @@ class TestHilbertSpace:
             add_hc=True,
         )
         hilbert_space.generate_lookup()
-        op1 = hilbert_space.op_in_dressed_eigenbasis(op=tmon.n_operator)
+        op1 = hilbert_space.op_in_dressed_eigenbasis(
+            op_callable_or_tuple=tmon.n_operator
+        )
         n_op_bare_eigenbasis_v2 = tmon.n_operator(energy_esys=True)
         op2 = hilbert_space.op_in_dressed_eigenbasis(
-            op=(n_op_bare_eigenbasis_v2, tmon), op_in_bare_eigenbasis=True
+            op_callable_or_tuple=(n_op_bare_eigenbasis_v2, tmon),
+            op_in_bare_eigenbasis=True,
         )
         assert op1 == op2

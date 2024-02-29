@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, Callable, List, Union, Optional, Tuple, D
 import numpy as np
 import scipy as sp
 import sympy as sm
+import qutip as qt
 from numpy import ndarray
 from scipy import sparse
 from scipy.sparse import csc_matrix
@@ -25,6 +26,7 @@ from scqubits.utils.misc import (
     flatten_list_recursive,
     is_string_float,
     unique_elements_in_list,
+    Qobj_to_scipy_csc_matrix,
 )
 from scqubits.core import circuit_input
 
@@ -422,7 +424,7 @@ def example_circuit(qubit: str) -> str:
 def grid_operator_func_factory(inner_op: Callable, index: int) -> Callable:
     def operator_func(self: "Subsystem"):
         return self._kron_operator(
-            inner_op(self.grids_dict_for_discretized_extended_vars()[index]), index
+            inner_op(self.discretized_grids_dict_for_vars()[index]), index
         )
 
     return operator_func
@@ -430,7 +432,7 @@ def grid_operator_func_factory(inner_op: Callable, index: int) -> Callable:
 
 def hierarchical_diagonalization_func_factory(symbol_name: str) -> Callable:
     def operator_func(self: "Subsystem"):
-        return self.get_operator_by_name(symbol_name).data.tocsc()
+        return Qobj_to_scipy_csc_matrix(self.get_operator_by_name(symbol_name))
 
     return operator_func
 

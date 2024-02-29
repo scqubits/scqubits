@@ -84,6 +84,7 @@ from scqubits.utils.misc import (
     list_intersection,
     check_sync_status_circuit,
     unique_elements_in_list,
+    Qobj_to_scipy_csc_matrix,
 )
 from scqubits.utils.plot_utils import _process_options
 from scqubits.utils.spectrum_utils import (
@@ -106,7 +107,7 @@ class CircuitRoutines(ABC):
         "cutoff_names",
         "closure_branches",
         "external_fluxes",
-        "is_flux_dynamic",
+        "use_dynamic_flux_grouping",
     ]
 
     # methods for serialization
@@ -181,7 +182,7 @@ class CircuitRoutines(ABC):
             return False
         return True
 
-    def _diagonalize_purely_harmonic_hamiltonian(self):
+    def _diagonalize_purely_harmonic_hamiltonian(self, return_osc_dict: bool = False):
         """
         Method used to decouple harmonic oscillators in purely harmonic Hamiltonians.
         """
@@ -189,14 +190,15 @@ class CircuitRoutines(ABC):
             raise Exception("The Subsystem Hamiltonian is not purely harmonic.")
         num_oscs = len(self.var_categories["extended"])
         # Construct capacitance and inductance matrices from the symbolic hamiltonian
-        C = np.zeros([num_oscs, num_oscs])
-        L = np.zeros([num_oscs, num_oscs])
+        EC = np.zeros([num_oscs, num_oscs])
+        EL = np.zeros([num_oscs, num_oscs])
         # substitute all external fluxes in the symbolic Hamiltonian
         hamiltonian = self.hamiltonian_symbolic
         for param in (
             self.external_fluxes
             + list(self.symbolic_params.keys())
             + self.offset_charges
+            + self.free_charges
         ):
             hamiltonian = hamiltonian.subs(param, getattr(self, param.name))
         ext_var_indices = self.var_categories["extended"]
@@ -204,45 +206,125 @@ class CircuitRoutines(ABC):
         for i in range(num_oscs):
             for j in range(num_oscs):
                 if i == j:
-                    C[i, j] = hamiltonian.coeff(f"Q{ext_var_indices[i]}**2") * 4
-                    L[i, j] = hamiltonian.coeff(f"θ{ext_var_indices[i]}**2")
+                    EC[i, j] = hamiltonian.coeff(f"Q{ext_var_indices[i]}**2") / 4
+                    EL[i, j] = hamiltonian.coeff(f"θ{ext_var_indices[i]}**2") * 2
                 else:
-                    C[i, j] = (
+                    EC[i, j] = (
                         hamiltonian.coeff(
                             f"Q{ext_var_indices[i]}*Q{ext_var_indices[j]}"
                         )
-                        * 4
+                        / 8
                     )
-                    L[i, j] = hamiltonian.coeff(
+                    EL[i, j] = hamiltonian.coeff(
                         f"θ{ext_var_indices[i]}*θ{ext_var_indices[j]}"
                     )
         # diagonalizing the matrices
-        normal_mode_freqs_sq, eig_vecs = np.linalg.eig((C) @ L)
+        normal_mode_freqs_sq, eig_vecs = np.linalg.eig(8 * EC @ EL)
 
         self.normal_mode_freqs = normal_mode_freqs_sq**0.5
 
-        self._hamiltonian_sym_for_numerics = (
-            self._transform_hamiltonian_purely_harmonic(hamiltonian, eig_vecs).expand()
+        self._hamiltonian_sym_for_numerics = round_symbolic_expr(
+            self._transform_hamiltonian(self.hamiltonian_symbolic, eig_vecs).expand(),
+            12,
         )
+        # storing the annihilation operators in the eigenbasis
+        osc_lengths = (
+            np.diagonal(
+                8
+                * np.linalg.inv(eig_vecs.T @ np.linalg.inv(EC) @ eig_vecs)
+                @ np.linalg.inv(eig_vecs.T @ EL @ eig_vecs)
+            )
+            ** 0.25
+        )
+        old_osc_lengths, old_osc_freqs = self._set_harmonic_basis_osc_params(
+            hamiltonian=self.hamiltonian_symbolic
+        )
+        self.osc_lengths = dict(zip(self.var_categories["extended"], osc_lengths))
+        self.osc_freqs = dict(
+            zip(self.var_categories["extended"], normal_mode_freqs_sq**0.5)
+        )
+        self.osc_eigvecs = eig_vecs
+        self.undiagonalized_osc_params = {
+            "osc_freqs": old_osc_freqs,
+            "osc_lengths": old_osc_lengths,
+        }
 
-    def _transform_hamiltonian_purely_harmonic(
-        self, hamiltonian: sm.Expr, transformation_matrix: ndarray
+        if return_osc_dict:
+            osc_dict = {
+                "normal_mode_freqs": normal_mode_freqs_sq**0.5,
+                "eig_vecs": eig_vecs,
+                "osc_lengths": osc_lengths,
+            }
+            return osc_dict
+
+    def _transform_hamiltonian(
+        self,
+        hamiltonian: sm.Expr,
+        transformation_matrix: ndarray,
+        return_transformed_exprs: bool = False,
     ):
         """
         Transforms the hamiltonian to a set of new variables using the transformation matrix.
         """
         ext_var_indices = self.var_categories["extended"]
         num_vars = len(ext_var_indices)
-        Q_vars = [sm.symbols(f"Q{ext_var_indices[idx]}") for idx in range(num_vars)]
-        θ_vars = [sm.symbols(f"θ{ext_var_indices[idx]}") for idx in range(num_vars)]
-        Q_exprs = transformation_matrix.dot(Q_vars)
-        θ_exprs = transformation_matrix.dot(θ_vars)
+        Q_vars = [sm.symbols(f"Q{var_idx}") for var_idx in ext_var_indices]
+        θ_vars = [sm.symbols(f"θ{var_idx}") for var_idx in ext_var_indices]
+
+        Qn_vars = [sm.symbols(f"Qn{var_idx}") for var_idx in ext_var_indices]
+        θn_vars = [sm.symbols(f"θn{var_idx}") for var_idx in ext_var_indices]
+
+        Q_exprs = np.linalg.inv(transformation_matrix.T).dot(Qn_vars)
+        θ_exprs = transformation_matrix.dot(θn_vars)
+        if return_transformed_exprs:
+            return np.linalg.inv(transformation_matrix.T).dot(
+                Q_vars
+            ), transformation_matrix.dot(θ_vars)
+
         for idx in range(num_vars):
             hamiltonian = hamiltonian.subs(Q_vars[idx], Q_exprs[idx]).subs(
                 θ_vars[idx], θ_exprs[idx]
             )
+        for idx in range(num_vars):
+            hamiltonian = hamiltonian.subs(Qn_vars[idx], Q_vars[idx]).subs(
+                θn_vars[idx], θ_vars[idx]
+            )
 
         return hamiltonian
+
+    def offset_charge_transformation(self) -> None:
+        """
+        Prints the variable transformation between offset charges of transformed variables and the node charges.
+        """
+        if not hasattr(self, "symbolic_circuit"):
+            raise Exception(
+                f"{self._id_str} instance is not generated from a SymbolicCircuit instance, and hence does not have any associated branches."
+            )
+        trans_mat = np.linalg.inv(self.transformation_matrix.T)
+        node_offset_charge_vars = [
+            sm.symbols(f"q_n{index}")
+            for index in range(
+                1, len(self.symbolic_circuit.nodes) - self.is_grounded + 1
+            )
+        ]
+        periodic_offset_charge_vars = [
+            sm.symbols(f"ng{index}")
+            for index in self.symbolic_circuit.var_categories["periodic"]
+        ]
+        periodic_offset_charge_eqns = []
+        for idx, node_var in enumerate(periodic_offset_charge_vars):
+            periodic_offset_charge_eqns.append(
+                self._make_expr_human_readable(
+                    sm.Eq(
+                        periodic_offset_charge_vars[idx],
+                        np.sum(trans_mat[idx, :] * node_offset_charge_vars),
+                    )
+                )
+            )
+        if _HAS_IPYTHON:
+            self.print_expr_in_latex(periodic_offset_charge_eqns)
+        else:
+            print(periodic_offset_charge_eqns)
 
     def __setattr__(self, name, value):
         """
@@ -359,8 +441,9 @@ class CircuitRoutines(ABC):
             self.hamiltonian_symbolic = self.parent.subsystem_hamiltonians[subsys_index]
             self._configure()
 
-        # set the oscillator parameters, for the extended variables (taking the coefficient of Q^2 and theta^2)
-        self._set_harmonic_basis_osc_params()
+        if self.ext_basis == "harmonic":
+            # set the oscillator parameters, for the extended variables (taking the coefficient of Q^2 and theta^2)
+            self._set_harmonic_basis_osc_params()
 
         # update all subsystem instances
         if self.hierarchical_diagonalization:
@@ -394,6 +477,9 @@ class CircuitRoutines(ABC):
 
         # update the attribute for the current instance
         setattr(self, f"_{param_name}", value)
+
+        if self.is_purely_harmonic and self.ext_basis == "harmonic":
+            self.set_operators()
 
         # update all subsystem instances
         if self.hierarchical_diagonalization:
@@ -590,6 +676,7 @@ class CircuitRoutines(ABC):
         for param_var in (
             self.external_fluxes
             + self.offset_charges
+            + self.free_charges
             + list(self.symbolic_params.keys())
         ):
             setattr(self, param_var.name, getattr(self.parent, param_var.name))
@@ -656,7 +743,7 @@ class CircuitRoutines(ABC):
                 hamiltonian_symbolic = self.symbolic_circuit.hamiltonian_symbolic
 
             # if the flux is static, remove the linear terms from the potential
-            if not self.symbolic_circuit.is_flux_dynamic:
+            if not self.symbolic_circuit.use_dynamic_flux_grouping:
                 hamiltonian_symbolic = self._shift_harmonic_oscillator_potential(
                     hamiltonian_symbolic
                 )
@@ -701,15 +788,11 @@ class CircuitRoutines(ABC):
                         self.symbolic_circuit.transformation_matrix
                     )
                 self._diagonalize_purely_harmonic_hamiltonian()
-            else:
-                self._set_harmonic_basis_osc_params()
 
+            self.operators_by_name = self.set_operators()
             if self.hierarchical_diagonalization:
                 self.generate_subsystems(only_update_subsystems=True)
                 self.update_interactions()
-                # self._hamiltonian_sym_for_numerics = self.hamiltonian_symbolic.copy()
-
-            self.operators_by_name = self.set_operators()
 
         if self.hierarchical_diagonalization:
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
@@ -736,7 +819,7 @@ class CircuitRoutines(ABC):
     # *****************************************************************
     # **** Functions to construct the operators for the Hamiltonian ****
     # *****************************************************************
-    def grids_dict_for_discretized_extended_vars(self):
+    def discretized_grids_dict_for_vars(self):
         cutoffs_dict = self.cutoffs_dict()
         grids = {}
         for i in self.var_categories["extended"]:
@@ -744,6 +827,10 @@ class CircuitRoutines(ABC):
                 self.discretized_phi_range[i][0],
                 self.discretized_phi_range[i][1],
                 cutoffs_dict[i],
+            )
+        for i in self.var_categories["periodic"]:
+            grids[i] = discretization.Grid1d(
+                -np.pi, np.pi, self._default_grid_phi.pt_count
             )
         return grids
 
@@ -778,6 +865,7 @@ class CircuitRoutines(ABC):
                 set(
                     self.external_fluxes
                     + self.offset_charges
+                    + self.free_charges
                     + list(self.symbolic_params.keys())
                     + [sm.symbols("I")]
                 )
@@ -838,6 +926,7 @@ class CircuitRoutines(ABC):
 
         non_operator_symbols = (
             self.offset_charges
+            + self.free_charges
             + self.external_fluxes
             + list(self.symbolic_params.keys())
             + [sm.symbols("I")]
@@ -888,6 +977,7 @@ class CircuitRoutines(ABC):
 
         non_operator_symbols = (
             self.offset_charges
+            + self.free_charges
             + self.external_fluxes
             + list(self.symbolic_params.keys())
             + [sm.symbols("I")]
@@ -1095,6 +1185,7 @@ class CircuitRoutines(ABC):
         param_symbols = (
             self.external_fluxes
             + self.offset_charges
+            + self.free_charges
             + list(self.symbolic_params.keys())
         )
         for param in param_symbols:
@@ -1390,11 +1481,9 @@ class CircuitRoutines(ABC):
                 ext_flux, ext_flux * sm.symbols("I") * 2 * np.pi
             )
 
-        # associate an identity matrix with offset charge vars
-        for offset_charge in self.offset_charges:
-            hamiltonian = hamiltonian.subs(
-                offset_charge, offset_charge * sm.symbols("I")
-            )
+        # associate an identity matrix with offset and free charge vars
+        for charge_var in self.offset_charges + self.free_charges:
+            hamiltonian = hamiltonian.subs(charge_var, charge_var * sm.symbols("I"))
 
         # finding the cosine terms
         cos_terms = sum(
@@ -1580,10 +1669,6 @@ class CircuitRoutines(ABC):
             exp_i_theta = _exp_i_theta_operator(
                 self.cutoffs_dict()[var_index], prefactor
             )
-            # else:
-            #     exp_i_theta = _exp_i_theta_operator_conjugate(
-            #         self.cutoffs_dict()[var_index]
-            #     )
         elif var_basis == "discretized":
             phi_grid = discretization.Grid1d(
                 self.discretized_phi_range[var_index][0],
@@ -1714,26 +1799,87 @@ class CircuitRoutines(ABC):
                 )
         return junction_potential_matrix
 
-    def _set_harmonic_basis_osc_params(self):
+    def _set_harmonic_basis_osc_params(self, hamiltonian: Optional[sm.Expr] = None):
         osc_lengths = {}
         osc_freqs = {}
-        hamiltonian = self._hamiltonian_sym_for_numerics
+        hamiltonian_sym = hamiltonian or self._hamiltonian_sym_for_numerics
         # substitute all the parameter values
-        hamiltonian = hamiltonian.subs(
+        hamiltonian_sym = hamiltonian_sym.subs(
             [
                 (param, getattr(self, str(param)))
                 for param in list(self.symbolic_params.keys())
                 + self.external_fluxes
                 + self.offset_charges
+                + self.free_charges
             ]
         )
         for list_idx, var_index in enumerate(self.var_categories["extended"]):
-            ECi = float(hamiltonian.coeff(f"Q{var_index}**2").cancel()) / 4
-            ELi = float(hamiltonian.coeff(f"θ{var_index}**2").cancel()) * 2
+            ECi = float(hamiltonian_sym.coeff(f"Q{var_index}**2").cancel()) / 4
+            ELi = float(hamiltonian_sym.coeff(f"θ{var_index}**2").cancel()) * 2
             osc_freqs[var_index] = (8 * ELi * ECi) ** 0.5
             osc_lengths[var_index] = (8.0 * ECi / ELi) ** 0.25
+        if hamiltonian is not None:
+            return osc_lengths, osc_freqs
         self.osc_lengths = osc_lengths
         self.osc_freqs = osc_freqs
+
+    def _wrapper_operator_for_purely_harmonic_system(self, operator_name: str):
+        def purely_harmonic_operator_func(self=self, operator_name=operator_name):
+            var_index = get_trailing_number(operator_name)
+            Q_new, θ_new = self._transform_hamiltonian(
+                hamiltonian=self.hamiltonian_symbolic,
+                transformation_matrix=self.osc_eigvecs,
+                return_transformed_exprs=True,
+            )
+            main_op_type = [
+                optypename
+                for optypename in ["Q", "θ", "ad", "a", "Nh"]
+                if optypename in operator_name
+            ][0]
+            op_exprs = dict(
+                zip(
+                    ["Q", "θ"],
+                    [
+                        Q_new[self.var_categories["extended"].index(var_index)],
+                        θ_new[self.var_categories["extended"].index(var_index)],
+                    ],
+                )
+            )
+            ops = dict.fromkeys(["Q", "θ"])
+            for optype in ops:
+                terms = op_exprs[optype].as_ordered_terms()
+                operator = 0
+                for term in terms:
+                    sym_var_index = get_trailing_number(term.free_symbols.pop().name)
+                    if optype == "Q":
+                        term_op = op.iadag_minus_ia_sparse(
+                            getattr(self, f"cutoff_ext_{sym_var_index}"),
+                            prefactor=1 / (self.osc_lengths[sym_var_index] * 2**0.5),
+                        ) * float(term.as_coeff_Mul()[0])
+                    if optype == "θ":
+                        term_op = op.a_plus_adag(
+                            getattr(self, f"cutoff_ext_{sym_var_index}"),
+                            prefactor=self.osc_lengths[sym_var_index] / 2**0.5,
+                        ) * float(term.as_coeff_Mul()[0])
+                    operator += self._kron_operator(term_op, sym_var_index)
+                if optype == main_op_type:
+                    return operator
+                ops[optype] = operator
+            old_osc_length = self.undiagonalized_osc_params["osc_lengths"][var_index]
+            annihilation_operator = (
+                1
+                / 2**0.5
+                * (ops["θ"] / old_osc_length + 1j * ops["Q"] * old_osc_length)
+            )
+            if main_op_type == "a":
+                operator = annihilation_operator
+            elif main_op_type == "ad":
+                operator = annihilation_operator.T
+            elif main_op_type == "Nh":
+                operator = annihilation_operator.T * annihilation_operator
+            return operator
+
+        return purely_harmonic_operator_func
 
     def _generate_operator_methods(self) -> Dict[str, Callable]:
         """
@@ -1772,6 +1918,7 @@ class CircuitRoutines(ABC):
                     )
 
         elif self.ext_basis == "harmonic":
+            self._set_harmonic_basis_osc_params()
             nonwrapped_ops = {
                 "creation": op.creation_sparse,
                 "annihilation": op.annihilation_sparse,
@@ -1782,20 +1929,35 @@ class CircuitRoutines(ABC):
                 "momentum": None,
             }
 
-            self._set_harmonic_basis_osc_params()
             for list_idx, var_index in enumerate(self.var_categories["extended"]):
-                nonwrapped_ops["position"] = op.a_plus_adag_sparse
-                nonwrapped_ops["sin"] = op.sin_theta_harmonic
-                nonwrapped_ops["cos"] = op.cos_theta_harmonic
-                nonwrapped_ops["momentum"] = op.iadag_minus_ia_sparse
+                if self.is_purely_harmonic and self.ext_basis == "harmonic":
+                    for short_op_name in [
+                        "position",
+                        "momentum",
+                        "number",
+                        "annihilation",
+                        "creation",
+                    ]:
+                        sym_variable = extended_vars[short_op_name][list_idx]
+                        op_func = self._wrapper_operator_for_purely_harmonic_system(
+                            sym_variable.name
+                        )
+                        op_name = sym_variable.name + "_operator"
+                        extended_operators[op_name] = op_func
 
-                for short_op_name in nonwrapped_ops.keys():
-                    op_func = nonwrapped_ops[short_op_name]
-                    sym_variable = extended_vars[short_op_name][list_idx]
-                    op_name = sym_variable.name + "_operator"
-                    extended_operators[op_name] = operator_func_factory(
-                        op_func, var_index, op_type=short_op_name
-                    )
+                else:
+                    nonwrapped_ops["position"] = op.a_plus_adag_sparse
+                    nonwrapped_ops["sin"] = op.sin_theta_harmonic
+                    nonwrapped_ops["cos"] = op.cos_theta_harmonic
+                    nonwrapped_ops["momentum"] = op.iadag_minus_ia_sparse
+
+                    for short_op_name in nonwrapped_ops.keys():
+                        op_func = nonwrapped_ops[short_op_name]
+                        sym_variable = extended_vars[short_op_name][list_idx]
+                        op_name = sym_variable.name + "_operator"
+                        extended_operators[op_name] = operator_func_factory(
+                            op_func, var_index, op_type=short_op_name
+                        )
 
         # constructing the operators for periodic variables
         periodic_operators = {}
@@ -1834,20 +1996,14 @@ class CircuitRoutines(ABC):
             params.append(getattr(self, param.name))
         return params
 
-    def external_flux_values(self) -> List[float]:
-        """
-        Returns all the time independent external flux set using the circuit attributes
-        for each of the closure branches.
-        """
-        return [getattr(self, flux.name) for flux in self.external_fluxes]
-
-    def offset_charge_values(self) -> List[float]:
+    def offset_free_charge_values(self) -> List[float]:
         """
         Returns all the offset charges set using the circuit attributes for each of the
         periodic degree of freedom.
         """
         return [
-            getattr(self, offset_charge.name) for offset_charge in self.offset_charges
+            getattr(self, charge_var.name)
+            for charge_var in self.offset_charges + self.free_charges
         ]
 
     def set_operators(self) -> Dict[str, Callable]:
@@ -1957,7 +2113,7 @@ class CircuitRoutines(ABC):
             # constructed using ladder operators
             if re.fullmatch(r"Qs\d+", operator_name) and self.is_purely_harmonic:
                 var_index = get_trailing_number(operator_name)
-                return qt.Qobj(getattr(self, f"Q{var_index}" + "_operator")()) ** 2
+                return self.get_operator_by_name(f"Q{var_index}") ** 2
 
             return qt.Qobj(getattr(self, operator_name + "_operator")()) ** (
                 power if power else 1
@@ -1982,7 +2138,7 @@ class CircuitRoutines(ABC):
         )
 
         if isinstance(operator, qt.Qobj):
-            operator = operator.data.tocsc()
+            operator = Qobj_to_scipy_csc_matrix(operator)
 
         operator = convert_matrix_to_qobj(
             operator,
@@ -2104,6 +2260,7 @@ class CircuitRoutines(ABC):
             list(self.symbolic_params.keys())
             + self.external_fluxes
             + self.offset_charges
+            + self.free_charges
         )
         hamiltonian = hamiltonian.subs(
             [
@@ -2144,18 +2301,25 @@ class CircuitRoutines(ABC):
 
         H_LC_str = self._get_eval_hamiltonian_string(hamiltonian_LC)
 
-        offset_charge_names = [
-            offset_charge.name for offset_charge in self.offset_charges
+        offset_free_charge_names = [
+            charge_var.name for charge_var in self.offset_charges + self.free_charges
         ]
-        offset_charge_dict = dict(zip(offset_charge_names, self.offset_charge_values()))
+        offset_free_var_dict = dict(
+            zip(offset_free_charge_names, self.offset_free_charge_values())
+        )
         external_flux_names = [
             external_flux.name for external_flux in self.external_fluxes
         ]
-        external_flux_dict = dict(zip(external_flux_names, self.external_flux_values()))
+        external_flux_dict = dict(
+            zip(
+                external_flux_names,
+                [getattr(self, flux) for flux in external_flux_names],
+            )
+        )
 
         replacement_dict: Dict[str, Any] = {
             **self.operators_by_name,
-            **offset_charge_dict,
+            **offset_free_var_dict,
             **external_flux_dict,
         }
 
@@ -2174,7 +2338,8 @@ class CircuitRoutines(ABC):
 
         junction_potential_matrix = self._evaluate_matrix_cosine_terms(
             junction_potential
-        ).data.tocsc()
+        )
+        junction_potential_matrix = Qobj_to_scipy_csc_matrix(junction_potential_matrix)
 
         if H_LC_str:
             return eval(H_LC_str, replacement_dict) + junction_potential_matrix
@@ -2189,34 +2354,53 @@ class CircuitRoutines(ABC):
                 for param in list(self.symbolic_params.keys())
                 + self.external_fluxes
                 + self.offset_charges
+                + self.free_charges
             ]
         )
         hamiltonian = hamiltonian.subs("I", 1)
 
         return self._sparsity_adaptive(
-            self._evaluate_symbolic_expr(hamiltonian).data.tocsc()
+            Qobj_to_scipy_csc_matrix(self._evaluate_symbolic_expr(hamiltonian))
         )
 
     @check_sync_status_circuit
-    def _hamiltonian_for_purely_harmonic(self) -> csc_matrix:
+    def _hamiltonian_for_purely_harmonic(
+        self, return_unsorted: bool = False
+    ) -> csc_matrix:
         """Hamiltonian for purely harmonic systems when ext_basis is set to harmonic
 
         Returns:
             csc_matrix:
         """
-        if self.ext_basis != "harmonic":
-            raise Exception("The ext basis for this circuit is not set to harmonic.")
-        operator_for_var_index = []
-        for idx, var_index in enumerate(self.var_categories["extended"]):
+        hamiltonian = self._hamiltonian_sym_for_numerics
+        # substitute parameters
+        for sym_param in (
+            self.offset_charges
+            + self.free_charges
+            + self.external_fluxes
+            + list(self.symbolic_params.keys())
+        ):
+            hamiltonian = hamiltonian.subs(sym_param, getattr(self, sym_param.name))
+        hamiltonian = hamiltonian.subs("I", 1)
+        H_diag_basis = self._identity() * 0
+        identity = self._identity()
+        operator_dict = {}
+        for var_index in self.dynamic_var_indices:
             cutoff = getattr(self, f"cutoff_ext_{var_index}")
-            evals = (0.5 + np.arange(0, cutoff)) * self.normal_mode_freqs[idx]
-            H_osc = sp.sparse.dia_matrix(
-                (evals, [0]), shape=(cutoff, cutoff), dtype=np.float_
+            theta_operator = op.a_plus_adag_sparse(
+                cutoff,
+                prefactor=(self.osc_lengths[var_index] / 2**0.5),
             )
-            operator_for_var_index.append(self._kron_operator(H_osc, var_index))
-        H = sum(operator_for_var_index)
-        return sp.sparse.dia_matrix(
-            (np.sort(H.diagonal()), [0]), shape=(cutoff, cutoff), dtype=np.float_
+            theta_operator = self._kron_operator(theta_operator, var_index)
+            Q_operator = op.iadag_minus_ia_sparse(
+                cutoff,
+                prefactor=1 / (self.osc_lengths[var_index] * 2**0.5),
+            )
+            Q_operator = self._kron_operator(Q_operator, var_index)
+            operator_dict[f"Q{var_index}"] = qt.Qobj(Q_operator)
+            operator_dict[f"θ{var_index}"] = qt.Qobj(theta_operator)
+        return self._sparsity_adaptive(
+            Qobj_to_scipy_csc_matrix(eval(str(hamiltonian), operator_dict))
         )
 
     def _eigenvals_for_purely_harmonic(self, evals_count: int):
@@ -2229,9 +2413,18 @@ class CircuitRoutines(ABC):
         evals_count:
             Number of eigenenergies
         """
-        H = self._hamiltonian_for_purely_harmonic()
-        eigs = H.diagonal()
-        return eigs[:evals_count]
+        operator_for_var_index = []
+        for idx, var_index in enumerate(self.var_categories["extended"]):
+            cutoff = getattr(self, f"cutoff_ext_{var_index}")
+            evals = (0.5 + np.arange(0, cutoff)) * self.normal_mode_freqs[idx]
+            H_osc = sp.sparse.dia_matrix(
+                (evals, [0]), shape=(cutoff, cutoff), dtype=np.float_
+            )
+            operator_for_var_index.append(self._kron_operator(H_osc, var_index))
+        H = sum(operator_for_var_index)
+        unsorted_eigs = H.diagonal()
+        dressed_indices = np.argsort(unsorted_eigs)[:evals_count]
+        return unsorted_eigs[dressed_indices]
 
     @check_sync_status_circuit
     def hamiltonian(self) -> Union[csc_matrix, ndarray]:
@@ -2256,11 +2449,14 @@ class CircuitRoutines(ABC):
             if self.type_of_matrices == "dense":
                 return hamiltonian.full()
             if self.type_of_matrices == "sparse":
-                return hamiltonian.data.tocsc()
+                return Qobj_to_scipy_csc_matrix(hamiltonian)
 
     @check_sync_status_circuit
-    def hamiltonian_for_mesolve(
-        self, free_var_func_dict: Dict[str, Callable], prefactor: float = 1.0
+    def hamiltonian_for_qutip_dynamics(
+        self,
+        free_var_func_dict: Dict[str, Callable],
+        prefactor: float = 1.0,
+        extra_terms: Optional[str] = None,
     ) -> Tuple[List[Union[qt.Qobj, Tuple[qt.Qobj, Callable]]], sm.Expr, List[sm.Expr]]:
         """
         Returns the Hamiltonian in a format amenable to be forwarded to mesolve in
@@ -2279,8 +2475,16 @@ class CircuitRoutines(ABC):
             return (1-np.exp(-t/1))*0.2
         free_var_func_dict = {"Φ1": (flux_t, 2), "EJ":(EJ_t, 1)}
 
-        mesolve_input_H = self.hamiltonian_for_mesolve(free_var_func_dict)
+        mesolve_input_H = self.hamiltonian_for_qutip_dynamics(free_var_func_dict)
         ```
+        Parameters
+        ----------
+        free_var_func_dict:
+            Dict, as defined in the description above
+        prefactor:
+            float, value with which the Hamiltonian and corresponding operators are multiplied with
+        extra_terms:
+            str, a string which will be converted into sympy expression, containing terms which are not present in the Circuit Hamiltonian. Is useful to define custom drive operators.
         """
         free_var_names = list(free_var_func_dict.keys())
         free_var_symbols = [sm.symbols(sym_name) for sym_name in free_var_names]
@@ -2288,13 +2492,32 @@ class CircuitRoutines(ABC):
         fixed_hamiltonian = 0 * sm.symbols("x")
         time_varying_hamiltonian = []
 
-        sym_hamiltonian = self._hamiltonian_sym_for_numerics
+        all_circuit_params = (
+            list(self.symbolic_params.keys())
+            + self.offset_charges
+            + self.external_fluxes
+            + self.free_charges
+        )
+        # adding extra terms to the Hamiltonian
+        if extra_terms:
+            extra_terms = sm.parse_expr(extra_terms)
+            for extra_sym in extra_terms.free_symbols:
+                if (
+                    extra_sym not in self._hamiltonian_sym_for_numerics.free_symbols
+                    and extra_sym not in free_var_symbols
+                ):
+                    raise Exception(f"{extra_sym.name} is unknown.")
+        else:
+            extra_terms = 0
+
+        sym_hamiltonian = self._hamiltonian_sym_for_numerics + extra_terms
         sym_hamiltonian = sym_hamiltonian.subs("I", 1)
         # series expand Hamiltonian around the bias
         for free_var in free_var_symbols:
-            sym_hamiltonian = sym_hamiltonian.subs(
-                free_var, free_var + getattr(self, free_var.name)
-            ).expand()
+            if free_var in all_circuit_params:
+                sym_hamiltonian = sym_hamiltonian.subs(
+                    free_var, free_var + getattr(self, free_var.name)
+                ).expand()
 
         expr_dict = sym_hamiltonian.expand().as_coefficients_dict()
         terms = list(expr_dict.keys())
@@ -2368,7 +2591,7 @@ class CircuitRoutines(ABC):
             [self._evaluate_symbolic_expr(fixed_hamiltonian) * prefactor]
             + time_varying_hamiltonian,
             fixed_hamiltonian,
-            time_dep_terms,
+            dict((val, key) for key, val in time_dep_terms.items()),
         )
 
     def _evals_calc(self, evals_count: int) -> ndarray:
@@ -2394,17 +2617,6 @@ class CircuitRoutines(ABC):
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         # dimension of the hamiltonian
-        hilbertdim = self.hilbertdim()
-
-        if (
-            self.is_purely_harmonic
-            and (not self.hierarchical_diagonalization)
-            and self.ext_basis == "harmonic"
-        ):
-            return (
-                self._eigenvals_for_purely_harmonic(evals_count=evals_count),
-                np.identity(hilbertdim)[:, :evals_count],
-            )
 
         hamiltonian_mat = self.hamiltonian()
         if self.type_of_matrices == "sparse":
@@ -2544,8 +2756,13 @@ class CircuitRoutines(ABC):
                 sym_params_str += f"$({sym.name}, {getattr(self, sym.name)})$, "
             display(Latex(sym_params_str))
         if len(self.offset_charges) > 0:
-            sym_params_str = "Symbolic parameters (symbol, default value):  "
+            sym_params_str = "Offset charges (symbol, default value):  "
             for sym in self.offset_charges:
+                sym_params_str += f"$({sym.name}, {getattr(self, sym.name)})$, "
+            display(Latex(sym_params_str))
+        if len(self.free_charges) > 0:
+            sym_params_str = "Free charges (symbol, default value):  "
+            for sym in self.free_charges:
                 sym_params_str += f"$({sym.name}, {getattr(self, sym.name)})$, "
             display(Latex(sym_params_str))
         if self.hierarchical_diagonalization:
@@ -2714,6 +2931,11 @@ class CircuitRoutines(ABC):
                     ),
                     float_round=float_round,
                 )
+            # substitute free charges
+            for free_charge in self.free_charges:
+                sym_hamiltonian_PE = sym_hamiltonian_PE.subs(
+                    free_charge, getattr(self, free_charge.name)
+                )
             # obtain system symbolic hamiltonian by glueing KE and PE
             sym_hamiltonian = sm.Add(
                 sym_hamiltonian_KE, sym_hamiltonian_PE, evaluate=False
@@ -2724,6 +2946,11 @@ class CircuitRoutines(ABC):
                 self.hamiltonian_symbolic.expand(),
                 float_round=float_round,
             )
+            # substitute free charges
+            for free_charge in self.free_charges:
+                sym_hamiltonian = sym_hamiltonian.subs(
+                    free_charge, getattr(self, free_charge.name)
+                )
             pot_symbols = (
                 self.external_fluxes
                 + [
@@ -2801,6 +3028,7 @@ class CircuitRoutines(ABC):
                         (symbol, 1)
                         for symbol in self.external_fluxes
                         + self.offset_charges
+                        + self.free_charges
                         + list(self.symbolic_params.keys())
                         + [sm.symbols("I")]
                     ]
@@ -3179,9 +3407,10 @@ class CircuitRoutines(ABC):
         Then reshapes the wavefunction to represent each of the variable indices as a separate dimension.
         """
         if self.hierarchical_diagonalization:
-            system_hierarchy_for_vars_chosen = list(
-                set([self.get_subsystem_index(index) for index in var_indices])
+            subsys_index_for_var_index = unique_elements_in_list(
+                [self.get_subsystem_index(index) for index in var_indices]
             )  # getting the subsystem index for each of the variable indices
+            subsys_index_for_var_index.sort()
 
             subsys_trunc_dims = [sys.truncated_dim for sys in self.subsystems]
             # reshaping the wave functions to truncated dims of subsystems
@@ -3189,10 +3418,10 @@ class CircuitRoutines(ABC):
 
             # **** Converting to the basis in which the variables are defined *****
             wf_original_basis = wf_hd_reshaped
-            for subsys_index in system_hierarchy_for_vars_chosen:
+            for subsys_index in subsys_index_for_var_index:
                 wf_dim = 0
                 for sys_index in range(subsys_index):
-                    if sys_index in system_hierarchy_for_vars_chosen:
+                    if sys_index in subsys_index_for_var_index:
                         wf_dim += len(self.subsystems[sys_index].dynamic_var_indices)
                     else:
                         wf_dim += 1

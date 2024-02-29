@@ -83,74 +83,68 @@ class TestCircuit:
         assert np.allclose(eigs, eigs_ref)
 
     @staticmethod
-    def test_zero_pi_harmonic():
+    def test_circuit_with_symbolic_hamiltonian():
         """
-        Test for symmetric zero-pi in harmonic oscillator basis.
+        Test for initiating Circuit module with symbolic Hamiltonian.
         """
-        zp_yaml = """# zero-pi circuit
-        branches:
-        - ["JJ", 1, 2, 10, 20]
-        - ["JJ", 3, 4, 10, 20]
-        - ["L", 2, 3, 0.008]
-        - ["L", 4, 1, 0.008]
-        - ["C", 1, 3, 0.02]
-        - ["C", 2, 4, 0.02]
-        """
-        circ = scq.Circuit(zp_yaml, from_file=False, ext_basis="harmonic")
-        circ.cutoff_n_1 = 30
-        circ.cutoff_ext_2 = 30
-        circ.cutoff_ext_3 = 80
-        circ.configure(system_hierarchy=[[1, 3], [2]], subsystem_trunc_dims=[30, 20])
-        circ.cutoff_ext_3 = 200
-        sym_zp = circ.subsystems[0]
-        eigensys = sym_zp.eigensys()
-        eigs = eigensys[0]
-        eig_ref = np.array(
-            [
-                -3.69858244,
-                -3.69261899,
-                -2.90463196,
-                -2.89989473,
-                -2.81204032,
-                -2.81003324,
-            ]
+        import sympy as sm
+
+        sym_hamiltonian = sm.parse_expr(
+            "0.25*θ3**2 + 2.0*Q3**2 + 0.790697674419*Q2**2 + 0.45*θ2**2 + 7.674418604651*n1**2 + 7.674418604651*ng1**2 - 1.0*cos(θ1) + 0.5*θ2*θ3 + 1.395348837209*Q2*n1 + 1.395348837209*Q2*ng1 + 15.348837209302*n1*ng1"
         )
-        assert np.allclose(eigs, eig_ref)
+        circ = scq.Circuit(
+            input_string=None,
+            symbolic_hamiltonian=sym_hamiltonian,
+            symbolic_param_dict={"ng1": 0},
+            ext_basis="harmonic",
+        )
+        circ.configure(
+            transformation_matrix=np.array([[1, 0, 0], [0, 1, 0], [0, 1, 1]])
+        )
+        circ.cutoff_n_1 = 20
+        circ.cutoff_ext_2 = 20
+        circ.cutoff_ext_3 = 20
+        circ.configure(
+            system_hierarchy=[[1], [[2], [3]]],
+            subsystem_trunc_dims=[20, [50, [10, 10]]],
+        )
+        # new_circ.configure(system_hierarchy=[[1], [2, 3]], subsystem_trunc_dims=[20, 30])
+        circ.ng1 = 0.5
+        eigs = circ.eigenvals()
+        eigs_ref = np.array(
+            [2.51547879, 3.00329327, 3.5556228, 3.57568727, 4.13233136, 4.29671029]
+        )
+        assert np.allclose(eigs, eigs_ref)
 
     @staticmethod
     def test_eigenvals_harmonic():
         ref_eigs = np.array(
             [0.0, 0.03559404, 0.05819727, 0.09378676, 4.39927874, 4.43488613]
         )
-        DFC = scq.Circuit(
-            DATADIR + "circuit_DFC.yaml",
-            ext_basis="harmonic",
-            initiate_sym_calc=False,
-            basis_completion="canonical",
+        inp_yaml = """
+        branches:
+        - [JJ, 0, 1, 1, 15]
+        - [C, 1, 2, 2]
+        - [L, 2, 0, 0.4]
+        - [C, 2, 0, 0.2]
+        - [C, 2, 3, 0.5]
+        - [L, 3, 0, 0.5]
+        # - [JJ, 3, 0, EJ=0, 1e5]
+        """
+        circ = scq.Circuit(inp_yaml, from_file=False, ext_basis="discretized")
+        circ.configure(
+            transformation_matrix=np.array([[1, 0, 0], [0, 1, 0], [0, 1, 1]])
         )
-
-        closure_branches = [DFC.branches[0], DFC.branches[4], DFC.branches[-1]]
-        system_hierarchy = [[[1], [3]], [2], [4]]
-        subsystem_trunc_dims = [[34, [6, 6]], 6, 6]
-
-        DFC.configure(
-            closure_branches=closure_branches,
-            system_hierarchy=system_hierarchy,
-            subsystem_trunc_dims=subsystem_trunc_dims,
-        )
-
-        DFC.Φ1 = 0.5 + 0.01768
-        DFC.Φ2 = -0.2662
-        DFC.Φ3 = -0.5 + 0.01768
-
-        DFC.cutoff_ext_1 = 110
-        DFC.cutoff_ext_2 = 110
-        DFC.cutoff_ext_3 = 110
-        DFC.cutoff_ext_4 = 110
-        DFC.update()
-
-        eigs = DFC.eigenvals()
+        circ.cutoff_n_1 = 20
+        circ.cutoff_ext_2 = 10
+        circ.cutoff_ext_3 = 10
+        circ.configure(system_hierarchy=[[1], [2, 3]], subsystem_trunc_dims=[20, 30])
+        circ.ng1 = 0.5
+        eigs = circ.eigenvals()
         generated_eigs = eigs - eigs[0]
+        ref_eigs = np.array(
+            [0.0, 0.48790869, 1.04058606, 1.06037218, 1.61763356, 1.78158506]
+        )
         assert np.allclose(generated_eigs, ref_eigs)
 
     @staticmethod
@@ -218,6 +212,25 @@ class TestCircuit:
         )
         eigs_test = circ.eigenvals()
         assert np.allclose(eigs_test, eigs_ref)
+
+    @staticmethod
+    def test_noisy_circuit(num_cpus):
+        yaml_inp = f"""branches:
+        - [JJ, 1, 2, EJ=6.8, 1]
+        - [L, 1, 2, 0.2]
+        """
+        circ = scq.Circuit(
+            yaml_inp,
+            from_file=False,
+            ext_basis="harmonic",
+            use_dynamic_flux_grouping=True,
+        )
+        circ.cutoff_ext_1 = 300
+        circ.Φ1 = 0.5
+        circ.configure(generate_noise_methods=True)
+        coherence_times = np.array([circ.t1_effective(), circ.t2_effective()])
+        ref = np.array([3319890.8160632304, 5385675.324726781])
+        assert np.allclose(coherence_times, ref)
 
     @staticmethod
     def test_get_spectrum_vs_paramvals(num_cpus):
