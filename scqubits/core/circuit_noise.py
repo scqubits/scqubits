@@ -766,7 +766,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
         setattr(self, "t1_flux_bias_line", MethodType(t1_flux_bias_line, self))
 
-    def generate_all_noise_methods(self):
+    def generate_noise_methods(self):
         self._frozen = False
         self.generate_methods_d_hamiltonian_d()
         self.generate_tphi_1_over_f_methods()

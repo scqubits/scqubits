@@ -107,7 +107,7 @@ class CircuitRoutines(ABC):
         "cutoff_names",
         "closure_branches",
         "external_fluxes",
-        "is_flux_dynamic",
+        "use_dynamic_flux_grouping",
     ]
 
     # methods for serialization
@@ -745,7 +745,7 @@ class CircuitRoutines(ABC):
                 hamiltonian_symbolic = self.symbolic_circuit.hamiltonian_symbolic
 
             # if the flux is static, remove the linear terms from the potential
-            if not self.symbolic_circuit.is_flux_dynamic:
+            if not self.symbolic_circuit.use_dynamic_flux_grouping:
                 hamiltonian_symbolic = self._shift_harmonic_oscillator_potential(
                     hamiltonian_symbolic
                 )

@@ -22,7 +22,7 @@ import sympy as sm
 import random
 
 from numpy import ndarray
-from sympy import symbols
+from sympy import symbols, use
 from scqubits.core.circuit_utils import (
     round_symbolic_expr,
     _capactiance_variable_for_branch,
@@ -284,7 +284,7 @@ class SymbolicCircuit(serializers.Serializable):
     basis_completion: str
         choices are: "heuristic" (default) or "canonical"; selects type of basis for
         completing the transformation matrix.
-    is_flux_dynamic: bool
+    use_dynamic_flux_grouping: bool
         set to False by default. Indicates if the flux allocation is done by assuming
         that flux is time dependent. When set to True, it disables the option to change
         the closure branches.
@@ -299,7 +299,7 @@ class SymbolicCircuit(serializers.Serializable):
         branches_list: List[Branch],
         branch_var_dict: Dict[Union[Any, Symbol], Union[Any, float]],
         basis_completion: str = "heuristic",
-        is_flux_dynamic: bool = True,
+        use_dynamic_flux_grouping: bool = False,
         initiate_sym_calc: bool = True,
         input_string: str = "",
     ):
@@ -337,7 +337,7 @@ class SymbolicCircuit(serializers.Serializable):
                 self.is_grounded = True
 
         # switch to control the dynamic flux allocation in the loops
-        self.is_flux_dynamic = is_flux_dynamic
+        self.use_dynamic_flux_grouping = use_dynamic_flux_grouping
 
         # parameter for choosing matrix used for basis completion in the variable
         # transformation matrix
@@ -458,6 +458,7 @@ class SymbolicCircuit(serializers.Serializable):
         self,
         transformation_matrix: ndarray = None,
         closure_branches: List[Branch] = None,
+        use_dynamic_flux_grouping: Optional[bool] = None,
     ):
         """
         Method to initialize the CustomQCircuit instance and initialize all the
@@ -474,6 +475,8 @@ class SymbolicCircuit(serializers.Serializable):
         # if the circuit is purely harmonic, then store the eigenfrequencies
         branch_type_list = [branch.type for branch in self.branches]
         self.is_purely_harmonic = "JJ" not in "".join(branch_type_list)
+        if use_dynamic_flux_grouping is not None:
+            self.use_dynamic_flux_grouping = use_dynamic_flux_grouping
 
         if self.is_purely_harmonic:
             (
@@ -614,7 +617,7 @@ class SymbolicCircuit(serializers.Serializable):
         input_string: str,
         from_file: bool = True,
         basis_completion: str = "heuristic",
-        is_flux_dynamic: bool = False,
+        use_dynamic_flux_grouping: Optional[bool] = None,
         initiate_sym_calc: bool = True,
     ):
         """
@@ -647,7 +650,7 @@ class SymbolicCircuit(serializers.Serializable):
         basis_completion:
             choices: "heuristic" or "canonical"; used to choose a type of basis
             for completing the transformation matrix. Set to "heuristic" by default.
-        is_flux_dynamic: bool
+        use_dynamic_flux_grouping: bool
             set to False by default. Indicates if the flux allocation is done by
             assuming that flux is time dependent. When set to True, it disables the
             option to change the closure branches.
@@ -695,7 +698,7 @@ class SymbolicCircuit(serializers.Serializable):
         circuit = cls(
             nodes_list,
             branches_list,
-            is_flux_dynamic=is_flux_dynamic,
+            use_dynamic_flux_grouping=use_dynamic_flux_grouping,
             branch_var_dict=branch_var_dict,
             basis_completion=basis_completion,
             initiate_sym_calc=initiate_sym_calc,
@@ -1183,10 +1186,10 @@ class SymbolicCircuit(serializers.Serializable):
             # adding external flux
             phi_ext = 0
             if jj_branch in self.closure_branches:
-                if not self.is_flux_dynamic:
+                if not self.use_dynamic_flux_grouping:
                     index = self.closure_branches.index(jj_branch)
                     phi_ext += self.external_fluxes[index]
-            if self.is_flux_dynamic:
+            if self.use_dynamic_flux_grouping:
                 flux_branch_assignment = self._time_dependent_flux_distribution()
                 phi_ext += flux_branch_assignment[int(jj_branch.id_str)]
 
@@ -1229,10 +1232,10 @@ class SymbolicCircuit(serializers.Serializable):
             # adding external flux
             phi_ext = 0
             if jj_branch in self.closure_branches:
-                if not self.is_flux_dynamic:
+                if not self.use_dynamic_flux_grouping:
                     index = self.closure_branches.index(jj_branch)
                     phi_ext += self.external_fluxes[index]
-            if self.is_flux_dynamic:
+            if self.use_dynamic_flux_grouping:
                 flux_branch_assignment = self._time_dependent_flux_distribution()
                 phi_ext += flux_branch_assignment[int(jj_branch.id_str)]
 
@@ -1427,10 +1430,10 @@ class SymbolicCircuit(serializers.Serializable):
             # adding external flux
             phi_ext = 0
             if l_branch in self.closure_branches:
-                if not self.is_flux_dynamic:
+                if not self.use_dynamic_flux_grouping:
                     index = self.closure_branches.index(l_branch)
                     phi_ext += self.external_fluxes[index]
-            if self.is_flux_dynamic:
+            if self.use_dynamic_flux_grouping:
                 flux_branch_assignment = self._time_dependent_flux_distribution()
                 phi_ext += flux_branch_assignment[int(l_branch.id_str)]
 
@@ -2011,10 +2014,10 @@ class SymbolicCircuit(serializers.Serializable):
         # add external flux
         phi_ext = 0
         if branch in self.closure_branches:
-            if not self.is_flux_dynamic:
+            if not self.use_dynamic_flux_grouping:
                 index = self.closure_branches.index(branch)
                 phi_ext += self.external_fluxes[index]
-        if self.is_flux_dynamic:
+        if self.use_dynamic_flux_grouping:
             flux_branch_assignment = self._time_dependent_flux_distribution()
             phi_ext += flux_branch_assignment[int(branch.id_str)]
         for idx, var in enumerate(old_vars):

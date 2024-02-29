@@ -306,7 +306,7 @@ class Circuit(
         can be "discretized" or "harmonic" which chooses whether to use discretized
         phi or harmonic oscillator basis for extended variables,
         by default "discretized"
-    is_flux_dynamic: bool
+    use_dynamic_flux_grouping: bool
         set to False by default. Indicates if the flux allocation is done by assuming
         that flux is time dependent. When set to True, it disables the option to change
         the closure branches.
@@ -323,7 +323,7 @@ class Circuit(
         from_file: bool = True,
         basis_completion="heuristic",
         ext_basis: str = "discretized",
-        is_flux_dynamic: bool = False,
+        use_dynamic_flux_grouping: bool = False,
         initiate_sym_calc: bool = True,
         truncated_dim: int = 10,
         symbolic_param_dict: Dict[str, float] = None,
@@ -350,12 +350,14 @@ class Circuit(
                 from_file=from_file,
                 basis_completion=basis_completion,
                 ext_basis=ext_basis,
-                is_flux_dynamic=is_flux_dynamic,
+                use_dynamic_flux_grouping=use_dynamic_flux_grouping,
                 initiate_sym_calc=initiate_sym_calc,
                 truncated_dim=truncated_dim,
             )
 
         else:
+            if use_dynamic_flux_grouping:
+                raise Exception("The argument use_dynamic_flux_grouping can only be used when initializing the circuit from a yaml input.")
             self.from_symbolic_hamiltonian(
                 symbolic_hamiltonian=symbolic_hamiltonian,
                 symbolic_param_dict=symbolic_param_dict,
@@ -422,7 +424,7 @@ class Circuit(
         from_file: bool = True,
         basis_completion="heuristic",
         ext_basis: str = "discretized",
-        is_flux_dynamic: bool = False,
+        use_dynamic_flux_grouping: bool = False,
         initiate_sym_calc: bool = True,
         truncated_dim: int = None,
     ):
@@ -453,7 +455,7 @@ class Circuit(
         truncated_dim:
             truncated dimension if the user wants to use this circuit instance in
             HilbertSpace, by default `None`
-        is_flux_dynamic: bool
+        use_dynamic_flux_grouping: bool
             set to False by default. Indicates if the flux allocation is done by assuming that flux is time dependent. When set to True, it disables the
             option to change the closure branches.
         """
@@ -473,7 +475,7 @@ class Circuit(
             from_file=from_file,
             basis_completion=basis_completion,
             initiate_sym_calc=True,
-            is_flux_dynamic=is_flux_dynamic,
+            use_dynamic_flux_grouping=use_dynamic_flux_grouping,
         )
         sm.init_printing(pretty_print=False, order="none")
         self.is_child = False
@@ -588,6 +590,8 @@ class Circuit(
         subsystem_trunc_dims: Optional[list] = None,
         closure_branches: Optional[List[Branch]] = None,
         ext_basis: Optional[str] = None,
+        use_dynamic_flux_grouping: Optional[bool] = None,
+        generate_noise_methods: bool = False,
     ):
         """
         Method which re-initializes a circuit instance to update, hierarchical
@@ -608,19 +612,22 @@ class Circuit(
         closure_branches:
             List of branches where external flux variables will be specified, by default
             `None` which then chooses closure branches by an internally generated
-            spanning tree. For this option, Circuit should be initialized with `is_flux_dynamic` set to False.
+            spanning tree. For this option, Circuit should be initialized with `use_dynamic_flux_grouping` set to False.
         ext_basis:
             can be "discretized" or "harmonic" which chooses whether to use discretized
             phi or harmonic oscillator basis for extended variables,
             by default `None`
-
+        use_dynamic_flux_grouping:
+            set to False by default. Indicates if the flux allocation is done by assuming that flux is time dependent. When set to True, it disables the option to change the closure branches.
+        generate_noise_methods:
+            set to False by default. Indicates if the noise methods should be generated for the circuit instance.
         Raises
         ------
         Exception
             When system_hierarchy is set and subsystem_trunc_dims is not set.
         Exception
             When closure_branches is set and the Circuit instance is initialized with the setting
-            `is_flux_dynamic=True`.
+            `use_dynamic_flux_grouping=True`.
         """
 
         old_system_hierarchy = self.system_hierarchy
@@ -628,11 +635,13 @@ class Circuit(
         old_ext_basis = self.ext_basis
         if hasattr(self, "symbolic_circuit"):
             old_transformation_matrix = self.transformation_matrix
+            old_use_dynamic_flux_grouping = self.symbolic_circuit.use_dynamic_flux_grouping
             old_closure_branches = (
                 self.closure_branches
-                if not self.symbolic_circuit.is_flux_dynamic
+                if not old_use_dynamic_flux_grouping
                 else None
             )
+            old_generate_noise_methods = hasattr(self, "_noise_methods_generated")
         try:
             if hasattr(self, "symbolic_circuit"):
                 self._configure(
@@ -641,8 +650,14 @@ class Circuit(
                     subsystem_trunc_dims=subsystem_trunc_dims,
                     closure_branches=closure_branches,
                     ext_basis=ext_basis,
+                    use_dynamic_flux_grouping=use_dynamic_flux_grouping,
+                    generate_noise_methods=generate_noise_methods,
                 )
             else:
+                if closure_branches is not None or use_dynamic_flux_grouping or generate_noise_methods:
+                    raise Exception(
+                        "Circuit instance initialized using symbolic Hamiltonian cannot be configured with closure_branches, use_dynamic_flux_grouping, transformation_matrix or generate_noise_methods."
+                    )
                 self._configure_sym_hamiltonian(
                     system_hierarchy=system_hierarchy,
                     subsystem_trunc_dims=subsystem_trunc_dims,
@@ -663,6 +678,8 @@ class Circuit(
                     subsystem_trunc_dims=old_subsystem_trunc_dims,
                     closure_branches=old_closure_branches,
                     ext_basis=old_ext_basis,
+                    use_dynamic_flux_grouping=old_use_dynamic_flux_grouping,
+                    generate_noise_methods=old_generate_noise_methods,
                 )
             else:
                 self._configure_sym_hamiltonian(
@@ -700,8 +717,8 @@ class Circuit(
 
     def _configure_sym_hamiltonian(
         self,
-        system_hierarchy: list = Optional[None],
-        subsystem_trunc_dims: list = Optional[None],
+        system_hierarchy: Optional[list] = None,
+        subsystem_trunc_dims: Optional[list] = None,
         ext_basis: Optional[str] = None,
     ):
         """
@@ -857,6 +874,8 @@ class Circuit(
         subsystem_trunc_dims: Optional[list] = None,
         closure_branches: Optional[List[Branch]] = None,
         ext_basis: Optional[str] = None,
+        use_dynamic_flux_grouping: Optional[bool] = None,
+        generate_noise_methods: bool = False,
     ):
         """
         Method which re-initializes a circuit instance to update, hierarchical
@@ -878,7 +897,13 @@ class Circuit(
             List of branches where external flux variables will be specified, by default
             `None` which then chooses closure branches by an internally generated
             spanning tree.
-
+        ext_basis:
+            can be "discretized" or "harmonic" which chooses whether to use discretized, or can be a list of lists of lists, when hierarchical diagonalization is used.
+        use_dynamic_flux_grouping:
+            set to False by default. Indicates if the flux allocation is done by assuming that flux is time dependent. When set to True, it disables the option to change the closure branches.
+        generate_noise_methods:
+            set to False by default. Indicates if the noise methods should be generated for the circuit instance.
+        
         Raises
         ------
         Exception
@@ -887,10 +912,16 @@ class Circuit(
         self._frozen = False
 
         # reinitiate the symbolic circuit when the transformation matrix and closure branches are provided
-        if transformation_matrix is not None or closure_branches is not None:
+        if transformation_matrix is not None or closure_branches is not None or use_dynamic_flux_grouping is not None:
             self.symbolic_circuit.configure(
                 transformation_matrix=transformation_matrix,
                 closure_branches=closure_branches,
+                use_dynamic_flux_grouping=use_dynamic_flux_grouping,
+            )
+            
+        if (generate_noise_methods and not self.symbolic_circuit.use_dynamic_flux_grouping) and len(self.external_fluxes) > 0:
+            raise Exception(
+                "Noise methods can only be generated with use_dynamic_flux_grouping=True, when one or more superconducting loops are present in the circuit."
             )
 
         system_hierarchy = system_hierarchy or self.system_hierarchy
@@ -985,7 +1016,7 @@ class Circuit(
 
         self.hamiltonian_symbolic = self.symbolic_circuit.hamiltonian_symbolic
         # if the flux is static, remove the linear terms from the potential
-        if not self.symbolic_circuit.is_flux_dynamic:
+        if not self.symbolic_circuit.use_dynamic_flux_grouping:
             self.hamiltonian_symbolic = self._shift_harmonic_oscillator_potential(
                 self.hamiltonian_symbolic
             )
@@ -1038,6 +1069,8 @@ class Circuit(
         self.operators_by_name = self.set_operators()
         # clear unnecessary attribs
         self._clear_unnecessary_attribs()
+        if generate_noise_methods:
+            self.generate_noise_methods()
         self._frozen = True
         self.update()
 
@@ -1045,7 +1078,7 @@ class Circuit(
         """Return a list of supported noise channels"""
         if not hasattr(self, "_noise_methods_generated"):
             raise Exception(
-                "Noise methods are not generated, please use the method generate_all_noise_methods() to generate them."
+                "Noise methods are not generated, please use configure() with generate_noise_methods=True to generate them."
             )
         return [
             method_name
@@ -1056,7 +1089,7 @@ class Circuit(
     def effective_noise_channels(self):
         if not hasattr(self, "_noise_methods_generated"):
             raise Exception(
-                "Noise methods are not generated, please use the method generate_all_noise_methods() to generate them."
+                "Noise methods are not generated, please use configure() with generate_noise_methods=True to generate them."
             )
         return [
             method_name
