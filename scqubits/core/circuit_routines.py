@@ -15,7 +15,7 @@ import itertools
 import operator as builtin_op
 import re
 from types import MethodType
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Literal
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import qutip as qt
@@ -3488,11 +3488,10 @@ class CircuitRoutines(ABC):
                 )
         return wf_ext_basis
 
-    # TODO:
-    def generate_plot_data(
+    def generate_wf_plot_data(
         self,
         which: int = 0,
-        mode: Literal["abs", "re", "im"] = "abs",
+        mode: str = "abs",
         var_indices: Tuple[int] = (1,),
         eigensys: ndarray = None,
         change_discrete_charge_to_phi: bool = True,
@@ -3572,7 +3571,7 @@ class CircuitRoutines(ABC):
     def plot_wavefunction(
         self,
         which=0,
-        mode: Literal["abs", "re", "im"] = "abs",
+        mode: str = "abs",
         var_indices: Tuple[int] = (1,),
         esys: Tuple[ndarray, ndarray] = None,
         change_discrete_charge_to_phi: bool = True,
@@ -3754,7 +3753,7 @@ class CircuitRoutines(ABC):
     def _plot_wf_pdf_1D(
         self,
         wf_plot: ndarray,
-        mode: Literal["abs", "re", "im"],
+        mode: str,
         var_indices,
         grids_per_varindex_dict,
         change_discrete_charge_to_phi: bool,
