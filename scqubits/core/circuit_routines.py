@@ -2933,6 +2933,11 @@ class CircuitRoutines(ABC):
                     ),
                     float_round=float_round,
                 )
+            # substitute free charges
+            for free_charge in self.free_charges:
+                sym_hamiltonian_PE = sym_hamiltonian_PE.subs(
+                    free_charge, getattr(self, free_charge.name)
+                )
             # obtain system symbolic hamiltonian by glueing KE and PE
             sym_hamiltonian = sm.Add(
                 sym_hamiltonian_KE, sym_hamiltonian_PE, evaluate=False
@@ -2943,6 +2948,11 @@ class CircuitRoutines(ABC):
                 self.hamiltonian_symbolic.expand(),
                 float_round=float_round,
             )
+            # substitute free charges
+            for free_charge in self.free_charges:
+                sym_hamiltonian = sym_hamiltonian.subs(
+                    free_charge, getattr(self, free_charge.name)
+                )
             pot_symbols = (
                 self.external_fluxes
                 + [
