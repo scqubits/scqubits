@@ -368,12 +368,12 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             self.ncols = ncols
             self.plot_choice_dialog = plot_choice_dialog
             self.plot_settings_dialog = plot_settings_dialog
-            self.panel_by_btn: OrderedDict[
-                v.Btn, ClosablePlotPanel
-            ] = collections.OrderedDict()
-            self.panel_by_id: OrderedDict[
-                str, ClosablePlotPanel
-            ] = collections.OrderedDict()
+            self.panel_by_btn: OrderedDict[v.Btn, ClosablePlotPanel] = (
+                collections.OrderedDict()
+            )
+            self.panel_by_id: OrderedDict[str, ClosablePlotPanel] = (
+                collections.OrderedDict()
+            )
             self.toggle_switches_by_plot_id = toggle_switches_by_plot_id
 
             self.container = v.Container(

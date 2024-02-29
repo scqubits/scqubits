@@ -491,8 +491,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         photon_number: int = 1,
         make_positive: bool = False,
         param_indices: Optional[NpIndices] = None,
-    ) -> SpectrumData:
-        ...
+    ) -> SpectrumData: ...
 
     @overload
     def transitions(
@@ -505,8 +504,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         photon_number: int = 1,
         make_positive: bool = False,
         param_indices: Optional[NpIndices] = None,
-    ) -> Tuple[List[Tuple[StateLabel, StateLabel]], List[NamedSlotsNdarray]]:
-        ...
+    ) -> Tuple[List[Tuple[StateLabel, StateLabel]], List[NamedSlotsNdarray]]: ...
 
     def transitions(
         self,
@@ -1095,9 +1093,9 @@ class ParameterSweep(  # type:ignore
                 np.asarray(evecs.tolist()),
                 self._parameters.paramvals_by_name,
             )
-            circuit_esys[
-                subsys_index
-            ] = bare_esys  # when param =(p0, p1, p2, ...), subsys i esys is circuit_esys[i][p0, p1, p3, ...]
+            circuit_esys[subsys_index] = (
+                bare_esys  # when param =(p0, p1, p2, ...), subsys i esys is circuit_esys[i][p0, p1, p3, ...]
+            )
 
         return (
             NamedSlotsNdarray(bare_evals, {"subsys": np.arange(self.subsystem_count)}),

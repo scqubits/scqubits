@@ -1896,9 +1896,9 @@ class CircuitRoutines(ABC):
             for var_type in extended_vars:
                 for sym_variable in extended_vars[var_type]:
                     op_name = sym_variable.name + "_operator"
-                    extended_operators[
-                        op_name
-                    ] = hierarchical_diagonalization_func_factory(sym_variable.name)
+                    extended_operators[op_name] = (
+                        hierarchical_diagonalization_func_factory(sym_variable.name)
+                    )
 
         elif self.ext_basis == "discretized":
             nonwrapped_ops = {
@@ -1971,9 +1971,9 @@ class CircuitRoutines(ABC):
                 var_index = get_operator_number(sym_variable.name)
                 op_name = sym_variable.name + "_operator"
                 if self.hierarchical_diagonalization:
-                    periodic_operators[
-                        op_name
-                    ] = hierarchical_diagonalization_func_factory(sym_variable.name)
+                    periodic_operators[op_name] = (
+                        hierarchical_diagonalization_func_factory(sym_variable.name)
+                    )
                 else:
                     periodic_operators[op_name] = operator_func_factory(
                         op_func, var_index
@@ -3489,20 +3489,23 @@ class CircuitRoutines(ABC):
     def generate_wf_plot_data(
         self,
         which: int = 0,
-        mode: str = "abs",
+        mode: str = "abs-sqr",
         var_indices: Tuple[int] = (1,),
         eigensys: ndarray = None,
         change_discrete_charge_to_phi: bool = True,
         grids_dict: Dict[int, discretization.Grid1d] = None,
     ):
         """
-        Returns (marginal) probability densitys of a wave function of the
-        current Circuit instance for the specified variables.
+        Returns treated wave function of the current Circuit instance for the
+        specified variables.
 
         Parameters
         ----------
         which:
             integer to choose which wave function to plot
+        mode:
+            "abs", "real", "imag", "abs-sqr" - decides which part of the wave
+            function is plotted.
         var_indices:
             A tuple containing the indices of the variables chosen to plot the
             wave function in. Should not have more than 2 entries.
@@ -3545,20 +3548,28 @@ class CircuitRoutines(ABC):
             var_indices, len(wf_ext_basis.shape)
         )
         # summing over the dimensions
-        if mode == "abs":
+        # summing over the dimensions
+        if mode == "abs-sqr":
             wf_plot = np.sum(
                 np.abs(wf_ext_basis) ** 2,
                 axis=tuple(dims_to_be_summed),
             )
             return wf_plot
-        elif mode == "re":
+        if mode == "abs":
+            if len(dims_to_be_summed) == 0:
+                return np.abs(wf_ext_basis)
+            else:
+                raise AttributeError(
+                    "Cannot plot the absolute value of the wave function in more than 2 dimensions."
+                )
+        elif mode == "real":
             if len(dims_to_be_summed) == 0:
                 return np.real(wf_ext_basis)
             else:
                 raise AttributeError(
                     "Cannot plot the real part of the wave function in more than 2 dimensions."
                 )
-        elif mode == "im":
+        elif mode == "imag":
             if len(dims_to_be_summed) == 0:
                 return np.imag(wf_ext_basis)
             else:
@@ -3569,7 +3580,7 @@ class CircuitRoutines(ABC):
     def plot_wavefunction(
         self,
         which=0,
-        mode: str = "abs",
+        mode: str = "abs-sqr",
         var_indices: Tuple[int] = (1,),
         esys: Tuple[ndarray, ndarray] = None,
         change_discrete_charge_to_phi: bool = True,
@@ -3578,8 +3589,8 @@ class CircuitRoutines(ABC):
         **kwargs,
     ) -> Tuple[Figure, Axes]:
         """
-        Returns the plot of the probability density function of the wave
-        function in the requested variables. At most 2 numbers of variables for
+        Returns the plot of the wavefunction in the requested variables.
+        At most 2 numbers of variables for
         wavefunction can be specified as plotting axis. If the number of
         plotting variables for wave function is smaller than the number of
         variables in the circuit, the marginal probability distribution of the
@@ -3592,8 +3603,8 @@ class CircuitRoutines(ABC):
         which:
             integer to choose which wave function to plot
         mode:
-            "abs", "re", "im" - decides which part of the wave function is plotted,
-            by default "abs"
+            "abs", "real", "imag", "abs-sqr" - decides which part of the wave function is plotted,
+            by default "abs-sqr"
         var_indices:
             A tuple containing the indices of the variables chosen to plot the
             wave function in. It should not have more than 2 entries.
@@ -3789,13 +3800,15 @@ class CircuitRoutines(ABC):
                 amplitudes=wf_plot,
             )
             if mode == "abs":
+                ylabel = r"$|\psi(\theta_{{{}}})|$".format(str(var_indices[0]))
+            elif mode == "abs-sqr":
                 ylabel = r"$|\psi(\theta_{{{}}})|^2$".format(str(var_indices[0]))
-            elif mode == "re":
-                ylabel = r"$\mathrm{Re}(\psi(\theta_{{{}}}))$".format(
+            elif mode == "real":
+                ylabel = r"$\mathrm{{Re}}(\psi(\theta_{{{}}}))$".format(
                     str(var_indices[0])
                 )
-            elif mode == "im":
-                ylabel = r"$\mathrm{Im}(\psi(\theta_{{{}}}))$".format(
+            elif mode == "imag":
+                ylabel = r"$\mathrm{{Im}}(\psi(\theta_{{{}}}))$".format(
                     str(var_indices[0])
                 )
             fig, axes = plot.wavefunction1d_nopotential(

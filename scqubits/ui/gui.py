@@ -77,9 +77,9 @@ QUBITS_WITH_2D_WAVEFUNCTION_PLOT = (
 class GUI:
     """Generates the GUI for scqubits, handling single-qubit properties"""
 
-    fig_ax: Optional[
-        Tuple[Figure, Axes]
-    ] = None  # Handle to the most recently generated Figure, Axes tuple
+    fig_ax: Optional[Tuple[Figure, Axes]] = (
+        None  # Handle to the most recently generated Figure, Axes tuple
+    )
 
     no_plot_refresh_widgets = [
         "info_panel",
@@ -693,9 +693,9 @@ class GUI:
                 current_qubit
             ][current_dropdown_value]["params"].items():
                 if self.dict_v_qubit_params[param_name].num_value != param_val:
-                    self.dict_v_plot_options[
-                        "literature_params"
-                    ].v_model = "User specified"
+                    self.dict_v_plot_options["literature_params"].v_model = (
+                        "User specified"
+                    )
                     return
 
     def set_literature_params_and_refresh_plot(self, change) -> None:
@@ -1092,9 +1092,9 @@ class GUI:
 
     def change_plot_options(self):
         current_plot_option = self.navbar_elements["CHOOSE_PLOT"].v_model
-        self.v_main_tab_container.children[0].children[
-            0
-        ].children = self.plot_options_dict[current_plot_option]
+        self.v_main_tab_container.children[0].children[0].children = (
+            self.plot_options_dict[current_plot_option]
+        )
 
         self.dict_v_plot_options["amplitude_mode"].v_model = (
             "Re(·)" if current_plot_option < 2 else "|·|"
