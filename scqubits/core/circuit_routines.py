@@ -224,7 +224,7 @@ class CircuitRoutines(ABC):
         self.normal_mode_freqs = normal_mode_freqs_sq**0.5
 
         self._hamiltonian_sym_for_numerics = round_symbolic_expr(
-            self._transform_hamiltonian_purely_harmonic(
+            self._transform_hamiltonian(
                 self.hamiltonian_symbolic, eig_vecs
             ).expand(),
             12,
@@ -259,7 +259,7 @@ class CircuitRoutines(ABC):
             }
             return osc_dict
 
-    def _transform_hamiltonian_purely_harmonic(
+    def _transform_hamiltonian(
         self,
         hamiltonian: sm.Expr,
         transformation_matrix: ndarray,
@@ -1828,7 +1828,7 @@ class CircuitRoutines(ABC):
     def _wrapper_operator_for_purely_harmonic_system(self, operator_name: str):
         def purely_harmonic_operator_func(self=self, operator_name=operator_name):
             var_index = get_trailing_number(operator_name)
-            Q_new, θ_new = self._transform_hamiltonian_purely_harmonic(
+            Q_new, θ_new = self._transform_hamiltonian(
                 hamiltonian=self.hamiltonian_symbolic,
                 transformation_matrix=self.osc_eigvecs,
                 return_transformed_exprs=True,
