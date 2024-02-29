@@ -1996,13 +1996,6 @@ class CircuitRoutines(ABC):
             params.append(getattr(self, param.name))
         return params
 
-    def external_flux_values(self) -> List[float]:
-        """
-        Returns all the time independent external flux set using the circuit attributes
-        for each of the closure branches.
-        """
-        return [getattr(self, flux.name) for flux in self.external_fluxes]
-
     def offset_free_charge_values(self) -> List[float]:
         """
         Returns all the offset charges set using the circuit attributes for each of the
@@ -2317,7 +2310,7 @@ class CircuitRoutines(ABC):
         external_flux_names = [
             external_flux.name for external_flux in self.external_fluxes
         ]
-        external_flux_dict = dict(zip(external_flux_names, self.external_flux_values()))
+        external_flux_dict = dict(zip(external_flux_names, [getattr(self, flux) for flux in external_flux_names]))
 
         replacement_dict: Dict[str, Any] = {
             **self.operators_by_name,

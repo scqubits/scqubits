@@ -324,6 +324,7 @@ class Circuit(
         basis_completion="heuristic",
         ext_basis: str = "discretized",
         use_dynamic_flux_grouping: bool = False,
+        generate_noise_methods: bool = False,
         initiate_sym_calc: bool = True,
         truncated_dim: int = 10,
         symbolic_param_dict: Dict[str, float] = None,
@@ -351,15 +352,20 @@ class Circuit(
                 basis_completion=basis_completion,
                 ext_basis=ext_basis,
                 use_dynamic_flux_grouping=use_dynamic_flux_grouping,
+                generate_noise_methods=generate_noise_methods,
                 initiate_sym_calc=initiate_sym_calc,
                 truncated_dim=truncated_dim,
             )
 
         else:
-            if use_dynamic_flux_grouping:
-                raise Exception(
-                    "The argument use_dynamic_flux_grouping can only be used when initializing the circuit from a yaml input."
-                )
+            if (
+                    closure_branches is not None
+                    or use_dynamic_flux_grouping
+                    or generate_noise_methods
+                ):
+                    raise Exception(
+                        "Circuit instance initialized using symbolic Hamiltonian cannot be configured with closure_branches, use_dynamic_flux_grouping, transformation_matrix or generate_noise_methods."
+                    )
             self.from_symbolic_hamiltonian(
                 symbolic_hamiltonian=symbolic_hamiltonian,
                 symbolic_param_dict=symbolic_param_dict,
@@ -427,6 +433,7 @@ class Circuit(
         basis_completion="heuristic",
         ext_basis: str = "discretized",
         use_dynamic_flux_grouping: bool = False,
+        generate_noise_methods: bool = False,
         initiate_sym_calc: bool = True,
         truncated_dim: int = None,
     ):
@@ -461,11 +468,6 @@ class Circuit(
             set to False by default. Indicates if the flux allocation is done by assuming that flux is time dependent. When set to True, it disables the
             option to change the closure branches.
         """
-        # warnings.warn(
-        #     "Initializing Circuit instances with `from_yaml` will not be "
-        #     "supported in the future. Use `Circuit` to initialize a Circuit instance.",
-        #     np.VisibleDeprecationWarning,
-        # )
         if basis_completion not in ["heuristic", "canonical"]:
             raise Exception(
                 "Invalid choice for basis_completion: must be 'heuristic' or "
@@ -536,6 +538,8 @@ class Circuit(
 
         if initiate_sym_calc:
             self.configure()
+        if generate_noise_methods:
+            self.generate_noise_methods()
         self._frozen = True
         dispatch.CENTRAL_DISPATCH.register("CIRCUIT_UPDATE", self)
 
