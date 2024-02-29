@@ -214,6 +214,25 @@ class TestCircuit:
         assert np.allclose(eigs_test, eigs_ref)
 
     @staticmethod
+    def test_noisy_circuit(num_cpus):
+        yaml_inp = f"""branches:
+        - [JJ, 1, 2, EJ=6.8, 1]
+        - [L, 1, 2, 0.2]
+        """
+        circ = scq.Circuit(
+            yaml_inp,
+            from_file=False,
+            ext_basis="harmonic",
+            use_dynamic_flux_grouping=True,
+        )
+        circ.cutoff_ext_1 = 300
+        circ.Φ1 = 0.5
+        circ.configure(generate_noise_methods=True)
+        coherence_times = np.array([circ.t1_effective(), circ.t2_effective()])
+        ref = np.array([3319890.8160632304, 5385675.324726781])
+        assert np.allclose(coherence_times, ref)
+
+    @staticmethod
     def test_get_spectrum_vs_paramvals(num_cpus):
         DFC = scq.Circuit(
             DATADIR + "circuit_DFC.yaml",
