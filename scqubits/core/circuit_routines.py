@@ -2457,7 +2457,7 @@ class CircuitRoutines(ABC):
 
     @check_sync_status_circuit
     def hamiltonian_for_mesolve(
-        self, free_var_func_dict: Dict[str, Callable], prefactor: float = 1.0
+        self, free_var_func_dict: Dict[str, Callable], prefactor: float = 1.0, extra_terms: Optional[str] = None
     ) -> Tuple[List[Union[qt.Qobj, Tuple[qt.Qobj, Callable]]], sm.Expr, List[sm.Expr]]:
         """
         Returns the Hamiltonian in a format amenable to be forwarded to mesolve in
@@ -2485,13 +2485,24 @@ class CircuitRoutines(ABC):
         fixed_hamiltonian = 0 * sm.symbols("x")
         time_varying_hamiltonian = []
 
-        sym_hamiltonian = self._hamiltonian_sym_for_numerics
+        all_circuit_params = list(self.symbolic_params.keys()) + self.offset_charges + self.external_fluxes + self.free_charges
+        # adding extra terms to the Hamiltonian
+        if extra_terms:
+            extra_terms = sm.parse_expr(extra_terms)
+            for extra_sym in extra_terms.free_symbols:
+                if extra_sym not in self._hamiltonian_sym_for_numerics.free_symbols and extra_sym not in free_var_symbols:
+                    raise Exception(f"{extra_sym.name} is unknown.")
+        else:
+            extra_terms = 0
+        
+        sym_hamiltonian = self._hamiltonian_sym_for_numerics + extra_terms
         sym_hamiltonian = sym_hamiltonian.subs("I", 1)
         # series expand Hamiltonian around the bias
         for free_var in free_var_symbols:
-            sym_hamiltonian = sym_hamiltonian.subs(
-                free_var, free_var + getattr(self, free_var.name)
-            ).expand()
+            if free_var in all_circuit_params:
+                sym_hamiltonian = sym_hamiltonian.subs(
+                    free_var, free_var + getattr(self, free_var.name)
+                ).expand()
 
         expr_dict = sym_hamiltonian.expand().as_coefficients_dict()
         terms = list(expr_dict.keys())
@@ -2565,7 +2576,7 @@ class CircuitRoutines(ABC):
             [self._evaluate_symbolic_expr(fixed_hamiltonian) * prefactor]
             + time_varying_hamiltonian,
             fixed_hamiltonian,
-            time_dep_terms,
+            dict((val, key) for key, val in time_dep_terms.items()),
         )
 
     def _evals_calc(self, evals_count: int) -> ndarray:
