@@ -29,7 +29,7 @@ circ.update()
 class TestCircuitPlot:
     @staticmethod
     def test_plot_wf():
-        circ.plot_wavefunction(which=0, var_indices=(2, 3))
+        circ.plot_wavefunction(which=0, var_indices=(2, 3), mode="abs-sqr")
 
     @staticmethod
     def test_plot_potential():
