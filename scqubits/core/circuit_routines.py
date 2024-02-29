@@ -2456,7 +2456,7 @@ class CircuitRoutines(ABC):
                 return Qobj_to_scipy_csc_matrix(hamiltonian)
 
     @check_sync_status_circuit
-    def hamiltonian_for_mesolve(
+    def hamiltonian_for_qutip_dynamics(
         self, free_var_func_dict: Dict[str, Callable], prefactor: float = 1.0, extra_terms: Optional[str] = None
     ) -> Tuple[List[Union[qt.Qobj, Tuple[qt.Qobj, Callable]]], sm.Expr, List[sm.Expr]]:
         """
@@ -2476,8 +2476,16 @@ class CircuitRoutines(ABC):
             return (1-np.exp(-t/1))*0.2
         free_var_func_dict = {"Φ1": (flux_t, 2), "EJ":(EJ_t, 1)}
 
-        mesolve_input_H = self.hamiltonian_for_mesolve(free_var_func_dict)
+        mesolve_input_H = self.hamiltonian_for_qutip_dynamics(free_var_func_dict)
         ```
+        Parameters
+        ----------
+        free_var_func_dict:
+            Dict, as defined in the description above
+        prefactor:
+            float, value with which the Hamiltonian and corresponding operators are multiplied with
+        extra_terms:
+            str, a string which will be converted into sympy expression, containing terms which are not present in the Circuit Hamiltonian. Is useful to define custom drive operators.
         """
         free_var_names = list(free_var_func_dict.keys())
         free_var_symbols = [sm.symbols(sym_name) for sym_name in free_var_names]
