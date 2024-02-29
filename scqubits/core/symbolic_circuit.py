@@ -681,6 +681,10 @@ class SymbolicCircuit(serializers.Serializable):
 
         # find and create the nodes
         nodes_list = cls._parse_nodes(parsed_branches)
+        # if the node indices do not start from 0, raise an error
+        node_ids = [node.index for node in nodes_list]
+        if min(node_ids) not in [0, 1]:
+            raise ValueError("The node indices should start from 0 or 1.")
         # parse branches
         branches_list = []
         branch_var_dict = {}
