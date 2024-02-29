@@ -190,7 +190,7 @@ class Branch:
         n_f: Node,
         branch_type: str,
         parameters: Optional[List[Union[float, Symbol, int]]] = None,
-        id_str: str = None,
+        id_str: Optional[str] = None,
         aux_params: Dict[Symbol, float] = {},
     ):
         self.nodes = (n_i, n_f)
@@ -456,8 +456,8 @@ class SymbolicCircuit(serializers.Serializable):
 
     def configure(
         self,
-        transformation_matrix: ndarray = None,
-        closure_branches: List[Branch] = None,
+        transformation_matrix: Optional[ndarray] = None,
+        closure_branches: Optional[List[Branch]] = None,
         use_dynamic_flux_grouping: Optional[bool] = None,
     ):
         """
@@ -862,7 +862,7 @@ class SymbolicCircuit(serializers.Serializable):
 
     def check_transformation_matrix(
         self, transformation_matrix: ndarray, enable_warnings: bool = True
-    ):
+    ) -> Dict[str, list]:
         """
         Method to identify the different modes in the transformation matrix provided by
         the user.

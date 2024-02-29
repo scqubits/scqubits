@@ -700,7 +700,7 @@ class Circuit(
 
     def _read_symbolic_hamiltonian(
         self, symbolic_hamiltonian: sm.Expr
-    ) -> Tuple[List[sm.Expr], List[sm.Expr], Dict[str, List[int]]]:
+    ) -> Tuple[List[sm.Expr], List[sm.Expr], List[sm.Expr], Dict[str, List[int]]]:
         free_symbols = symbolic_hamiltonian.free_symbols
         external_fluxes = []
         offset_charges = []

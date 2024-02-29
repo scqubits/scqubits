@@ -782,5 +782,4 @@ class NoisyCircuit(NoisySystem, ABC):
         self.generate_overall_t1_flux_bias_line()
         self.generate_overall_t1_quasiparticle_tunneling()
         self._noise_methods_generated = True
-        print("Supported noise channels:", self.supported_noise_channels())
         self._frozen = True
