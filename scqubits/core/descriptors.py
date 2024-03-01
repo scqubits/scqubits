@@ -64,10 +64,14 @@ class WatchedProperty(Generic[TargetType]):
         event: str,
         inner_object_name: Optional[str] = None,
         attr_name: Optional[str] = None,
+        fget=None,
+        fset=None,
     ) -> None:
         self.event = event
         self.inner = inner_object_name
         self.attr_name = attr_name
+        self.setter = fset
+        self.getter = fget
 
     def __set_name__(self, owner, name: str) -> None:
         self.name = name
@@ -81,7 +85,12 @@ class WatchedProperty(Generic[TargetType]):
         if self.inner:
             inner_instance = instance.__dict__[self.inner]
             return getattr(inner_instance, self.attr_name)
-        return instance.__dict__[self.attr_name]
+        if self.getter is None:
+            return instance.__dict__[
+                self.attr_name
+            ]  # cannot use getattr, otherwise recursion
+        else:
+            return self.getter(instance)
 
     def __set__(self, instance: DispatchClient, value: TargetType) -> None:
         if self.inner and self.attr_name:
@@ -90,9 +99,18 @@ class WatchedProperty(Generic[TargetType]):
             # Rely on inner_instance.attr_name to do the broadcasting.
         else:
             assert self.attr_name
-            if self.attr_name not in instance.__dict__:
-                instance.__dict__[self.attr_name] = value
+            if (
+                self.attr_name not in instance.__dict__
+                and f"_{self.attr_name}" not in instance.__dict__
+            ):
+                if self.setter is None:
+                    instance.__dict__[self.attr_name] = value
+                else:
+                    self.setter(instance, value, name=self.attr_name)
                 # Rely on inner_instance.attr_name to do the broadcasting.
             else:
-                instance.__dict__[self.attr_name] = value
+                if self.setter is None:
+                    instance.__dict__[self.attr_name] = value
+                else:
+                    self.setter(instance, value, name=self.attr_name)
                 instance.broadcast(self.event)

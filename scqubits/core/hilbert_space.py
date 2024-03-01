@@ -64,6 +64,7 @@ if TYPE_CHECKING:
     from scqubits.io_utils.fileio import IOData
 
 from scqubits.utils.typedefs import OscillatorList, QuantumSys, QubitList
+from scqubits.core.qubit_base import QubitBaseClass
 
 
 def has_duplicate_id_str(subsystem_list: List[QuantumSys]):
@@ -251,7 +252,8 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         self,
         expr: str,
         operator_list: List[Tuple[int, str, Union[ndarray, csc_matrix, dia_matrix]]],
-        const: Optional[Dict[str, Union[float, complex]]] = None,
+        id_wrapped_operator_list: Optional[List[Tuple[str, callable]]] = None,
+        const: Optional[Dict[str, Union[float, complex, QubitBaseClass]]] = None,
         add_hc: bool = False,
     ) -> None:
         self.qutip_dict = {
@@ -266,6 +268,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         }
         self.expr = expr
         self.operator_list = operator_list
+        self.id_wrapped_operator_list = id_wrapped_operator_list or []
         self.const = const or {}
         self.add_hc = add_hc
 
@@ -342,6 +345,12 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         idwrapped_ops_by_name = self.id_wrap_all_ops(
             subsystem_list, bare_esys=bare_esys
         )
+        idwrapped_ops_by_name.update(
+            {
+                item[0]: item[1](bare_esys=bare_esys)
+                for item in self.id_wrapped_operator_list
+            }
+        )
         hamiltonian = self.run_string_code(self.expr, idwrapped_ops_by_name)
         if not self.add_hc:
             return hamiltonian
@@ -413,10 +422,13 @@ class HilbertSpace(
         }
 
         self._osc_subsys_list = [
-            subsys for subsys in self if isinstance(subsys, osc.Oscillator)
+            subsys
+            for subsys in self
+            if isinstance(subsys, osc.Oscillator)
+            or (hasattr(subsys, "is_purely_harmonic") and subsys.is_purely_harmonic)
         ]
         self._qbt_subsys_list = [
-            subsys for subsys in self if not isinstance(subsys, osc.Oscillator)
+            subsys for subsys in self if subsys not in self._osc_subsys_list
         ]
 
         self.evals_method = evals_method
@@ -438,14 +450,12 @@ class HilbertSpace(
         dispatch.CENTRAL_DISPATCH.register("INTERACTIONLIST_UPDATE", self)
 
     @overload
-    def __getitem__(self, key: int) -> QuantumSys:
-        ...
+    def __getitem__(self, key: int) -> QuantumSys: ...
 
     @overload
     def __getitem__(
         self, key: str
-    ) -> Union[QuantumSys, InteractionTerm, InteractionTermStr]:
-        ...
+    ) -> Union[QuantumSys, InteractionTerm, InteractionTermStr]: ...
 
     def __getitem__(
         self, key: Union[int, str]
@@ -531,7 +541,7 @@ class HilbertSpace(
         """
         Convert the content of the current class instance into IOData format.
         """
-        init_parameters = self._init_params
+        init_parameters = self._init_params.copy()
         init_parameters.remove("ignore_low_overlap")
         init_parameters.append("_ignore_low_overlap")
         initdata = {name: getattr(self, name) for name in init_parameters}
@@ -640,6 +650,14 @@ class HilbertSpace(
         bare_esys_dict = {}
 
         for subsys_index, subsys in enumerate(self):
+            # generate bare_esys for the subsystem as well if necessary
+            if (
+                hasattr(subsys, "hierarchical_diagonalization")
+                and subsys.hierarchical_diagonalization
+            ):
+                subsys.hilbert_space.generate_bare_esys(
+                    update_subsystem_indices=subsys.affected_subsystem_indices
+                )
             # diagonalizing only those subsystems present in update_subsystem_indices
             if subsys_index in update_subsystem_indices:
                 bare_esys = subsys.eigensys(evals_count=subsys.truncated_dim)
@@ -663,7 +681,6 @@ class HilbertSpace(
         self._data["bare_evecs"] = NamedSlotsNdarray(
             bare_evecs, {"subsys": np.arange(self.subsystem_count)}
         )
-
         return bare_esys_dict
 
     ###################################################################################
@@ -797,7 +814,9 @@ class HilbertSpace(
         hamiltonian += self.interaction_hamiltonian(bare_esys=bare_esys)
         return hamiltonian
 
-    def bare_hamiltonian(self, bare_esys: Optional[Dict[int, ndarray]] = None) -> qt.Qobj:
+    def bare_hamiltonian(
+        self, bare_esys: Optional[Dict[int, ndarray]] = None
+    ) -> qt.Qobj:
         """
         Parameters
         ----------
@@ -810,7 +829,11 @@ class HilbertSpace(
             composite Hamiltonian composed of bare Hamiltonians of subsystems
             independent of the external parameter
         """
-        bare_hamiltonian = qt.Qobj(0, dims=[self.subsystem_dims]*2) if qt.__version__ >= '5.0.0' else qt.Qobj(0)
+        bare_hamiltonian = (
+            qt.Qobj(0, dims=[self.subsystem_dims] * 2)
+            if qt.__version__ >= "5.0.0"
+            else qt.Qobj(0)
+        )
         for subsys_index, subsys in enumerate(self):
             if bare_esys is not None and subsys_index in bare_esys:
                 evals = bare_esys[subsys_index][0]
@@ -837,7 +860,11 @@ class HilbertSpace(
             interaction Hamiltonian
         """
         if not self.interaction_list:
-            return qt.Qobj(0, dims=[self.subsystem_dims]*2) if qt.__version__ >= '5.0.0' else qt.Qobj(0)
+            return (
+                qt.Qobj(0, dims=[self.subsystem_dims] * 2)
+                if qt.__version__ >= "5.0.0"
+                else qt.Qobj(0)
+            )
 
         operator_list = []
         for term in self.interaction_list:
@@ -1023,7 +1050,7 @@ class HilbertSpace(
         Standardize the phases of the (dressed) eigenvectors.
         """
         for idx, evec in enumerate(self._data["evecs"][0]):
-            array = evec.data.to_array() if qt.__version__ >= '5.0.0' else evec.data.toarray()
+            array = utils.Qobj_to_scipy_csc_matrix(evec)
             phase = spec_utils.extract_phase(array)
             self._data["evecs"][0][idx] = evec * np.exp(-1j * phase)
 
@@ -1081,7 +1108,9 @@ class HilbertSpace(
             evecs=bare_evecs,
         )
         dressed_evecs = self._data["evecs"][0]
-        dressed_op_data = id_wrapped_op.transform(dressed_evecs).data.to_array() if qt.__version__ >= '5.0.0' else id_wrapped_op.transform(dressed_evecs).data.toarray()
+        dressed_op_data = utils.Qobj_to_scipy_csc_matrix(
+            id_wrapped_op.transform(dressed_evecs)
+        )
         dressed_op_truncated = qt.Qobj(
             dressed_op_data[0:truncated_dim, 0:truncated_dim],
             dims=[[truncated_dim], [truncated_dim]],
@@ -1146,9 +1175,9 @@ class HilbertSpace(
             and `ParameterSweep`. If not provided, an id is auto-generated.
         """
         if "expr" in kwargs:
-            interaction: Union[
-                InteractionTerm, InteractionTermStr
-            ] = self._parse_interactiontermstr(**kwargs)
+            interaction: Union[InteractionTerm, InteractionTermStr] = (
+                self._parse_interactiontermstr(**kwargs)
+            )
         elif "qobj" in kwargs:
             interaction = self._parse_qobj(**kwargs)
         elif "op1" in kwargs:
@@ -1180,12 +1209,24 @@ class HilbertSpace(
         const = kwargs.pop("const", None)
 
         operator_list = []
+        id_wrapped_operator_list = []
         for key in kwargs.keys():
+            if callable(kwargs[key][1]) and not hasattr(kwargs[key][1], "__self__"):
+                id_wrapped_operator_list.append(kwargs[key])
+                continue
             if re.match(r"op\d+$", key) is None:
                 raise TypeError("Unexpected keyword argument {}.".format(key))
             operator_list.append(self._parse_str_based_op(kwargs[key]))
+        if id_wrapped_operator_list == []:
+            id_wrapped_operator_list = None
 
-        return InteractionTermStr(expr, operator_list, const=const, add_hc=add_hc)
+        return InteractionTermStr(
+            expr,
+            operator_list,
+            id_wrapped_operator_list=id_wrapped_operator_list,
+            const=const,
+            add_hc=add_hc,
+        )
 
     def _parse_interactionterm(self, **kwargs) -> InteractionTerm:
         g = kwargs.pop("g", None)

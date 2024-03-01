@@ -152,7 +152,7 @@ zeropi_defaults = {
     "operator": "n_theta_operator",
     "ncut": ncut_range,
     "EL": EL_range,
-    "ECJ": EC_range,
+    "ECJ": {"v_min": STEP, "v_max": 25.0},
     "dEJ": {"v_min": 0.0, "v_max": 1.0},
     "dCJ": {"v_min": 0.0, "v_max": 1.0},
     "scale": None,

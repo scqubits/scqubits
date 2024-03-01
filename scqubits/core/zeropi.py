@@ -107,6 +107,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     evals_method_options: 
         dictionary with evals diagonalization options 
    """
+
     EJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     EL = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ECJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")

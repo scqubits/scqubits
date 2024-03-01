@@ -20,16 +20,19 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
+import qutip as qt
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.offsetbox import AnchoredText
 from numpy import ndarray
 from scipy.sparse import csc_matrix
+from sympy import csc
 
 import scqubits.core.units as units
 import scqubits.settings as settings
 import scqubits.utils.plotting as plotting
+from scqubits.utils.misc import Qobj_to_scipy_csc_matrix
 
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import matplotlib_settings
@@ -1140,6 +1143,7 @@ class NoisySystem(ABC):
         j: int,
         noise_op: Union[ndarray, csc_matrix],
         spectral_density: Callable,
+        T: float = NOISE_PARAMS["T"],
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
@@ -1168,8 +1172,10 @@ class NoisySystem(ABC):
             state index that along with i defines a transition (i->j)
         noise_op:
             noise operator
+        T:
+            Temperature defined in Kelvin
         spectral_density:
-            defines a spectral density, must take one argument: `omega`
+            defines a spectral density, must take two arguments: `omega` and `T`
             (assumed to be in units of `2 \pi * <system units>`)
         total:
             if False return a time/rate associated with a transition from state i to state j.
@@ -1217,9 +1223,9 @@ class NoisySystem(ABC):
         omega = 2 * np.pi * (evals[i] - evals[j])
 
         s = (
-            spectral_density(omega) + spectral_density(-omega)
+            spectral_density(omega, T) + spectral_density(-omega, T)
             if total
-            else spectral_density(omega)
+            else spectral_density(omega, T)
         )
 
         if isinstance(
@@ -1244,6 +1250,8 @@ class NoisySystem(ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
+        noise_op: Optional[Union[ndarray, csc_matrix, qt.Qobj]] = None,
+        branch_params: Optional[dict] = None,
     ) -> float:
         r"""
         :math:`T_1` due to dielectric dissipation in the Josephson junction
@@ -1283,7 +1291,7 @@ class NoisySystem(ABC):
 
         if Q_cap is None:
             # See Smith et al (2020)
-            def q_cap_fun(omega):
+            def q_cap_fun(omega, T):
                 return (
                     1e6
                     * (2 * np.pi * 6e9 / np.abs(units.to_standard_units(omega))) ** 0.7
@@ -1293,16 +1301,16 @@ class NoisySystem(ABC):
             q_cap_fun = Q_cap
         else:  # Q_cap is given as a number
 
-            def q_cap_fun(omega):
+            def q_cap_fun(omega, T):
                 return Q_cap
 
-        def spectral_density(omega):
+        def spectral_density(omega, T):
             therm_ratio = calc_therm_ratio(omega, T)
             s = (
                 2
                 * 8
-                * self.EC
-                / q_cap_fun(omega)
+                * (branch_params if branch_params else self.EC)
+                / q_cap_fun(omega, T)
                 * (1 / np.tanh(0.5 * np.abs(therm_ratio)))
                 / (1 + np.exp(-therm_ratio))
             )
@@ -1311,12 +1319,19 @@ class NoisySystem(ABC):
             )  # We assume that system energies are given in units of frequency
             return s
 
-        noise_op = self.n_operator()  # type: ignore
+        noise_op = noise_op or self.n_operator()  # type: ignore
+        if not isinstance(noise_op, (ndarray, csc_matrix, qt.Qobj)):
+            raise AttributeError(
+                "The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj."
+            )
+        if isinstance(noise_op, (qt.Qobj)):
+            noise_op = Qobj_to_scipy_csc_matrix(noise_op)
 
         return self.t1(
             i=i,
             j=j,
             noise_op=noise_op,
+            T=T,
             spectral_density=spectral_density,
             total=total,
             esys=esys,
@@ -1332,6 +1347,7 @@ class NoisySystem(ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
+        noise_op: Optional[Union[ndarray, csc_matrix, qt.Qobj]] = None,
     ) -> float:
         r"""Noise due to charge coupling to an impedance (such as a transmission line).
 
@@ -1367,7 +1383,7 @@ class NoisySystem(ABC):
 
         Z_fun = Z if callable(Z) else lambda omega: Z
 
-        def spectral_density(omega):
+        def spectral_density(omega, T):
             # Note, our definition of Q_c is different from Zhang et al (2020) by a
             # factor of 2
             Q_c = NOISE_PARAMS["R_k"] / (8 * np.pi * complex(Z_fun(omega)).real)
@@ -1381,12 +1397,19 @@ class NoisySystem(ABC):
             )
             return s
 
-        noise_op = self.n_operator()  # type: ignore
+        noise_op = noise_op or self.n_operator()  # type: ignore
+        if not isinstance(noise_op, (ndarray, csc_matrix, qt.Qobj)):
+            raise AttributeError(
+                "The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj."
+            )
+        if isinstance(noise_op, (qt.Qobj)):
+            noise_op = Qobj_to_scipy_csc_matrix(noise_op)
 
         return self.t1(
             i=i,
             j=j,
             noise_op=noise_op,
+            T=T,
             spectral_density=spectral_density,
             total=total,
             esys=esys,
@@ -1403,6 +1426,7 @@ class NoisySystem(ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
+        noise_op_method: Optional[Callable] = None,
     ) -> float:
         r"""Noise due to a bias flux line.
 
@@ -1442,7 +1466,7 @@ class NoisySystem(ABC):
 
         Z_fun = Z if callable(Z) else lambda omega: Z
 
-        def spectral_density(omega, Z=Z):
+        def spectral_density(omega, T, Z=Z):
             """
             Our definitions assume that the noise_op is dH/dflux.
             """
@@ -1463,12 +1487,14 @@ class NoisySystem(ABC):
             s *= (units.to_standard_units(1)) ** 2.0
             return s
 
-        noise_op = self.d_hamiltonian_d_flux()  # type: ignore
-
+        noise_op = (noise_op_method or self.d_hamiltonian_d_flux)()  # type: ignore
+        if isinstance(noise_op, qt.Qobj):
+            noise_op = Qobj_to_scipy_csc_matrix(noise_op)
         return self.t1(
             i=i,
             j=j,
             noise_op=noise_op,
+            T=T,
             spectral_density=spectral_density,
             total=total,
             esys=esys,
@@ -1484,6 +1510,8 @@ class NoisySystem(ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
+        noise_op: Optional[Union[ndarray, csc_matrix, qt.Qobj]] = None,
+        branch_params: Optional[dict] = None,
     ) -> float:
         r"""
         :math:`T_1` due to inductive dissipation in a superinductor.
@@ -1523,7 +1551,7 @@ class NoisySystem(ABC):
 
         if Q_ind is None:
             # See Smith et al (2020)
-            def q_ind_fun(omega):
+            def q_ind_fun(omega, T):
                 therm_ratio = abs(calc_therm_ratio(omega, T))
                 therm_ratio_500MHz = calc_therm_ratio(
                     2 * np.pi * 500e6, T, omega_in_standard_units=True
@@ -1545,15 +1573,15 @@ class NoisySystem(ABC):
 
         else:  # Q_ind is given as a number
 
-            def q_ind_fun(omega):
+            def q_ind_fun(omega, T):
                 return Q_ind
 
-        def spectral_density(omega):
+        def spectral_density(omega, T):
             therm_ratio = calc_therm_ratio(omega, T)
             s = (
                 2
-                * self.EL
-                / q_ind_fun(omega)
+                * (branch_params if branch_params else self.EL)
+                / q_ind_fun(omega, T)
                 * (1 / np.tanh(0.5 * np.abs(therm_ratio)))
                 / (1 + np.exp(-therm_ratio))
             )
@@ -1562,12 +1590,19 @@ class NoisySystem(ABC):
             )  # We assume that system energies are given in units of frequency
             return s
 
-        noise_op = self.phi_operator()  # type: ignore
+        noise_op = noise_op or self.phi_operator()  # type: ignore
+        if not isinstance(noise_op, (ndarray, csc_matrix, qt.Qobj)):
+            raise AttributeError(
+                "The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj."
+            )
+        if isinstance(noise_op, (qt.Qobj)):
+            noise_op = Qobj_to_scipy_csc_matrix(noise_op)
 
         return self.t1(
             i=i,
             j=j,
             noise_op=noise_op,
+            T=T,
             spectral_density=spectral_density,
             total=total,
             esys=esys,
@@ -1585,6 +1620,7 @@ class NoisySystem(ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
+        noise_op: Optional[Union[ndarray, csc_matrix, qt.Qobj]] = None,
     ) -> float:
         r"""Noise due to quasiparticle tunneling across a Josephson junction.
 
@@ -1626,7 +1662,7 @@ class NoisySystem(ABC):
 
         if Y_qp is None:
 
-            def y_qp_fun(omega):
+            def y_qp_fun(omega, T):
                 """
                 Based on Eq. S23 in the appendix of Smith et al (2020).
                 """
@@ -1662,17 +1698,17 @@ class NoisySystem(ABC):
 
         else:  # Y_qp is given as a number
 
-            def y_qp_fun(omega):
+            def y_qp_fun(omega, T):
                 return Y_qp
 
-        def spectral_density(omega):
+        def spectral_density(omega, T):
             """Based on Eq. 19 in Smith et al (2020)."""
             therm_ratio = calc_therm_ratio(omega, T)
 
             return (
                 2
                 * omega
-                * complex(y_qp_fun(omega)).real
+                * complex(y_qp_fun(omega, T)).real
                 * (1 / np.tanh(0.5 * therm_ratio))
                 / (1 + np.exp(-therm_ratio))
             )
@@ -1681,12 +1717,20 @@ class NoisySystem(ABC):
         # that the flux is grouped with the inductive term in the Hamiltonian.
         # Here we assume a grouping with the cosine term, which requires us to
         # transform the operator using phi -> phi + 2*pi*flux
-        noise_op = self.sin_phi_operator(alpha=0.5, beta=0.5 * (2 * np.pi * self.flux))  # type: ignore
+        noise_op = noise_op or self.sin_phi_operator(alpha=0.5, beta=0.5 * (2 * np.pi * self.flux))  # type: ignore
+
+        if not isinstance(noise_op, (ndarray, csc_matrix, qt.Qobj)):
+            raise AttributeError(
+                "The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj."
+            )
+        if isinstance(noise_op, (qt.Qobj)):
+            noise_op = Qobj_to_scipy_csc_matrix(noise_op)
 
         return self.t1(
             i=i,
             j=j,
             noise_op=noise_op,
+            T=T,
             spectral_density=spectral_density,
             total=total,
             esys=esys,

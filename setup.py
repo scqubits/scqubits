@@ -17,6 +17,7 @@ appropriately acknowledged by citing:
 Peter Groszkowski and Jens Koch, 'scqubits:  a Python package for superconducting qubits',
 Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 """
+
 #
 # This file is part of scqubits.
 #

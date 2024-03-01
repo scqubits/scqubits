@@ -184,6 +184,20 @@ def check_sync_status(func: Callable) -> Callable:
     return wrapper
 
 
+def check_sync_status_circuit(func: Callable) -> Callable:
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        # update the circuit if necessary
+        if (self._user_changed_parameter) or (
+            self.hierarchical_diagonalization
+            and (self._out_of_sync or len(self.affected_subsystem_indices) > 0)
+        ):
+            self.update()
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
+
 def check_lookup_exists(func: Callable) -> Callable:
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
@@ -234,7 +248,19 @@ def remove_nones(dict_data: Dict[str, Any]) -> Dict[str, Any]:
 def qt_ket_to_ndarray(qobj_ket: qt.Qobj) -> np.ndarray:
     # Qutip's `.eigenstates()` returns an object-valued ndarray, each idx_entry of which
     # is a Qobj ket.
-    return qobj_ket.to("dense").data.as_ndarray() if qt.__version__ >= '5.0.0' else np.asarray(qobj_ket.data.todense())
+    return (
+        qobj_ket.data.as_ndarray()
+        if qt.__version__ >= "5.0.0"
+        else qobj_ket.data.toarray()
+    )
+
+
+def Qobj_to_scipy_csc_matrix(qobj_array: qt.Qobj) -> sp.sparse.csc_matrix:
+    return (
+        qobj_array.to("csr").data.as_scipy().tocsc()
+        if qt.__version__ >= "5.0.0"
+        else qobj_array.data.tocsc()
+    )
 
 
 def get_shape(lst, shape=()):
@@ -381,7 +407,7 @@ def is_string_int(the_string: str) -> bool:
 
 
 def list_intersection(list1: list, list2: list) -> list:
-    return list(set(list1) & set(list2))
+    return [item for item in list1 if item in list2]
 
 
 def flatten_list(nested_list):
@@ -421,6 +447,24 @@ def flatten_list_recursive(some_list: list) -> list:
             some_list[1:]
         )
     return some_list[:1] + flatten_list_recursive(some_list[1:])
+
+
+def unique_elements_in_list(list_object: list) -> list:
+    """
+    Returns a list of all the unique elements in the list
+
+    Parameters
+    ----------
+    list_object :
+        A list of any objects
+    """
+    unique_list = []
+    [
+        unique_list.append(element)
+        for element in list_object
+        if element not in unique_list
+    ]
+    return unique_list
 
 
 def number_of_lists_in_list(list_object: list) -> int:
