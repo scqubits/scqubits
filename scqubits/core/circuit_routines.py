@@ -2713,14 +2713,17 @@ class CircuitRoutines(ABC):
             "$H=" + sm.printing.latex(self.sym_hamiltonian(return_expr=True)) + "$"
         )
         # describe the variables
-        var_str = "Operators (flux, charge) - cutoff: "
-        var_str += "\\\n Discrete Charge Basis:  "
         cutoffs_dict = self.cutoffs_dict()
-        for var_index in self.var_categories["periodic"]:
-            var_str += f"$(θ{var_index}, n{var_index}) - {cutoffs_dict[var_index]}$, "
+        var_str = "Operators (flux, charge) - cutoff: "
+        if len(self.var_categories["periodic"]) > 0:
+            var_str += "  \n Discrete Charge Basis:  "
+            for var_index in self.var_categories["periodic"]:
+                var_str += (
+                    f"$(θ{var_index}, n{var_index}) - {cutoffs_dict[var_index]}$, "
+                )
 
-        var_str_discretized = "\\\nDiscretized Phi basis:  "
-        var_str_harmonic = "\\\nHarmonic oscillator basis:  "
+        var_str_discretized = "  \nDiscretized Phi basis:  "
+        var_str_harmonic = "  \nHarmonic oscillator basis:  "
 
         for var_index in self.var_categories["extended"]:
             var_index_basis = self._basis_for_var_index(var_index)
@@ -2733,9 +2736,9 @@ class CircuitRoutines(ABC):
                     f"$(θ{var_index}, Q{var_index}) - {cutoffs_dict[var_index]}$, "
                 )
 
-        if var_str_discretized == "\\\nDiscretized Phi basis:  ":
+        if var_str_discretized == "  \nDiscretized Phi basis:  ":
             var_str_discretized = ""
-        if var_str_harmonic == "\\\nHarmonic oscillator basis:  ":
+        if var_str_harmonic == "  \nHarmonic oscillator basis:  ":
             var_str_harmonic = ""
 
         display(Latex(H_latex_str))
@@ -2743,7 +2746,7 @@ class CircuitRoutines(ABC):
             Latex(
                 var_str
                 + var_str_discretized
-                + ("\n" if var_str_discretized else "")
+                + ("  \n" if var_str_discretized else "")
                 + var_str_harmonic
             )
         )
