@@ -52,7 +52,7 @@ class WatchedProperty(Generic[TargetType]):
     event:
         name of event to be triggered when property is changed
     inner_object_name:
-        Used, e.g., in FulLZeroPi where an inner-object property is to be set.
+        Used, e.g., in FullZeroPi where an inner-object property is to be set.
     attr_name:
         custom attribute name to be used (default: name from defining property in
         instance class, obtained in __set_name__

@@ -316,7 +316,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
     @esys_method_options.setter
     def esys_method_options(self, value: Union[dict, None] = None) -> None:
-        self._zeropi.esys_merthod_options = value
+        self._zeropi.esys_method_options = value
 
     @property
     def evals_method(self) -> Union[Callable, str, None]:
@@ -332,7 +332,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
     @evals_method_options.setter
     def evals_method_options(self, value: Union[dict, None] = None) -> None:
-        self._zeropi.evals_merthod_options = value
+        self._zeropi.evals_method_options = value
 
     def hamiltonian(
         self,
