@@ -987,6 +987,8 @@ class ParameterSweep(  # type:ignore
     def faulty_interactionterm_suspected(self) -> bool:
         """Check if any interaction terms are specified as fixed matrices"""
         for interactionterm in self._hilbertspace.interaction_list:
+            if isinstance(interactionterm, (ndarray, Qobj, csc_matrix)):
+                return True
             for idx_operator in interactionterm.operator_list:
                 if isinstance(idx_operator[1], (ndarray, Qobj, csc_matrix)):
                     return True
