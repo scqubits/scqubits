@@ -52,8 +52,8 @@ Operating System :: Microsoft :: Windows
 EXTRA_KWARGS = {}
 
 # version information about scqubits goes here
-MAJOR = 3
-MINOR = 3
+MAJOR = 4
+MINOR = 0
 MICRO = 0
 ISRELEASED = True
 
