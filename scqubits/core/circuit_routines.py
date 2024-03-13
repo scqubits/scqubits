@@ -1685,7 +1685,7 @@ class CircuitRoutines(ABC):
                     _i_d_dphi_operator(phi_grid).toarray() * prefactor * 1j
                 )
         elif var_basis == "harmonic":
-            osc_length = self.osc_lengths[var_index]
+            osc_length = self.get_osc_param(var_index, which_param="length")
             if "θ" in var_sym.name:
                 exp_argument_op = op.a_plus_adag_sparse(
                     self.cutoffs_dict()[var_index],
