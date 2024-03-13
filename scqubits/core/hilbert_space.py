@@ -1099,6 +1099,8 @@ class HilbertSpace(
             op = op_callable_or_tuple
             op_in_bare_eigenbasis = False
             subsys_index = self.get_subsys_index(op.__self__)
+        if self._data.get("bare_evecs") is None:
+            self.generate_bare_esys()
         bare_evecs = self._data["bare_evecs"][subsys_index][0]
         id_wrapped_op = spec_utils.identity_wrap(
             op,
@@ -1107,6 +1109,8 @@ class HilbertSpace(
             op_in_eigenbasis=op_in_bare_eigenbasis,
             evecs=bare_evecs,
         )
+        if self._data.get("evecs") is None:
+            self.generate_lookup()
         dressed_evecs = self._data["evecs"][0]
         dressed_op_data = utils.Qobj_to_scipy_csc_matrix(
             id_wrapped_op.transform(dressed_evecs)
