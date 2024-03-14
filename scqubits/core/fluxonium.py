@@ -69,6 +69,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     evals_method_options:
         dictionary with evals diagonalization options
     """
+
     EJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     EC = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     EL = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")

@@ -74,6 +74,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     evals_method_options:
         dictionary with evals diagonalization options
     """
+
     EJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     EC = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ng = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
@@ -639,6 +640,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
     evals_method_options:
         dictionary with evals diagonalization options
     """
+
     EJmax = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     d = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     flux = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
@@ -681,8 +683,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         """This is the effective, flux dependent Josephson energy, playing the role
         of EJ in the parent class `Transmon`"""
         return self.EJmax * np.sqrt(
-            np.cos(np.pi * self.flux) ** 2
-            + self.d**2 * np.sin(np.pi * self.flux) ** 2
+            np.cos(np.pi * self.flux) ** 2 + self.d**2 * np.sin(np.pi * self.flux) ** 2
         )
 
     @staticmethod

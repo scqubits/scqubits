@@ -152,7 +152,7 @@ zeropi_defaults = {
     "operator": "n_theta_operator",
     "ncut": ncut_range,
     "EL": EL_range,
-    "ECJ": EC_range,
+    "ECJ": {"v_min": STEP, "v_max": 25.0},
     "dEJ": {"v_min": 0.0, "v_max": 1.0},
     "dCJ": {"v_min": 0.0, "v_max": 1.0},
     "scale": None,
@@ -278,7 +278,6 @@ paramvals_from_papers = {
     "ZeroPi": {
         "Gyenis et al., PRX Quantum 2, 010339 (2021)": {
             "params": {
-                "EJ": 6.0,
                 "EJ": 6.0,
                 "ECJ": 2.28,
                 "EC": 0.184,

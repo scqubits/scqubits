@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
 from scqubits.utils.typedefs import QuantumSys
+from scqubits.utils.misc import Qobj_to_scipy_csc_matrix
 
 
 def eigsh_safe(*args, **kwargs):
@@ -93,7 +94,7 @@ def extract_phase(
         position where the phase is extracted (default value = None)
     """
     if position is None:
-        halfway_position = len(complex_array) // 2
+        halfway_position = (complex_array.shape[0]) // 2
         flattened_position = np.argmax(
             np.abs(complex_array[:halfway_position])
         )  # extract phase from element with largest amplitude modulus
@@ -157,12 +158,12 @@ def matrix_element(
         op_matrix = operator
 
     if isinstance(state1, qt.Qobj):
-        vec1 = state1.data.to_array()
+        vec1 = Qobj_to_scipy_csc_matrix(state1)
     else:
         vec1 = state1
 
     if isinstance(state2, qt.Qobj):
-        vec2 = state2.data.to_array()
+        vec2 = Qobj_to_scipy_csc_matrix(state2)
     else:
         vec2 = state2
 

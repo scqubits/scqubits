@@ -356,7 +356,12 @@ def tuple_deserialize(iodata: "IOData") -> Tuple:
 
 # this is invoked for ndarrays with dtype=object
 def ndarray_deserialize(iodata: "IOData") -> ndarray:
-    return np.asarray(list_deserialize(iodata), dtype=object)
+    # changing instead of np.asarray(, dtype=object), try a = [np.zeros(13), np.zeros((13, 13))]; np.asarray(a, dtype=object)
+    data_list = list_deserialize(iodata)
+    data_array = np.empty(len(data_list), dtype=object)
+    for idx, arr in enumerate(data_list):
+        data_array[idx] = arr
+    return data_array
 
 
 def range_deserialize(iodata: "IOData") -> range:

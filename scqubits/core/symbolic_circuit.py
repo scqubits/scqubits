@@ -18,71 +18,33 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 import numpy as np
 import scipy as sp
 import sympy
-import yaml
+import sympy as sm
+import random
 
 from numpy import ndarray
-from sympy import symbols
+from sympy import symbols, use
+from scqubits.core.circuit_utils import (
+    round_symbolic_expr,
+    _capactiance_variable_for_branch,
+    _junction_order,
+    get_trailing_number,
+)
 
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 
-from scqubits.utils.misc import flatten_list, is_string_float
-
-
-def process_word(word: str) -> Union[float, symbols]:
-    if is_string_float(word):
-        return float(word)
-    return symbols(word)
-
-
-def parse_branch_parameters(
-    words: List[str], branch_type: str
-) -> Tuple[List[float], Dict[Symbol, float]]:
-    """
-    Parses the branch parameters depending on the branch type.
-
-    Parameters
-    ----------
-    words:
-        list of strings from which parameters need to be parsed
-    branch_type:
-        str denoting the type of the branch
-
-    Returns
-    -------
-    branch_params
-        List of parameters which will be used to initiate a Branch object
-    branch_var_dict
-        A dictionary of variables defined for this current branch.
-
-    Raises
-    ------
-    Exception
-        An exception is raised if the proper syntax is not followed when using variables
-        in the input file.
-    """
-    branch_var_dict: Dict[Symbol, float] = {}
-    branch_params: List[float] = []
-    num_params = 2 if branch_type in ["JJ", "JJ2"] else 1
-    for word in words[0:num_params]:
-        if not is_string_float(word):
-            if len(word.split("=")) > 2:
-                raise Exception("Syntax error in branch specification.")
-            if len(word.split("=")) == 2:
-                var_str, init_val = word.split("=")
-                params = [process_word(var_str), process_word(init_val)]
-            elif len(word.split("=")) == 1:
-                params = [process_word(word)]
-        else:
-            params = [float(word)]
-
-        if len(params) == 1:
-            branch_params.append(params[0])
-        else:
-            branch_var_dict[params[0]] = params[1]
-            branch_params.append(params[0])
-
-    return branch_params, branch_var_dict
+from scqubits.utils.misc import (
+    flatten_list_recursive,
+    is_string_float,
+    unique_elements_in_list,
+)
+from scqubits.core.circuit_input import (
+    remove_comments,
+    remove_branchline,
+    strip_empty_lines,
+    parse_code_line,
+    process_param,
+)
 
 
 class Node:
@@ -148,6 +110,56 @@ class Node:
         return result
 
 
+def make_branch(
+    nodes_list: List[Node],
+    branch_type: str,
+    node_idx1: int,
+    node_idx2: int,
+    params,
+    aux_params,
+    _branch_count: int,
+):
+    params_dict = {}
+    params = [process_param(param) for param in params]
+
+    if "JJ" in branch_type:
+        for idx, param in enumerate(params[:-1]):
+            params_dict[sm.symbols(f"EJ{idx + 1}" if idx > 0 else "EJ")] = (
+                param[0] if param[0] is not None else param[1]
+            )
+
+        params_dict[sm.symbols("EC")] = (
+            params[-1][0] if params[-1][0] is not None else params[-1][1]
+        )
+    if branch_type == "C":
+        params_dict[sm.symbols("EC")] = (
+            params[-1][0] if params[-1][0] is not None else params[-1][1]
+        )
+    elif branch_type == "L":
+        params_dict[sm.symbols("EL")] = (
+            params[-1][0] if params[-1][0] is not None else params[-1][1]
+        )
+
+    # return node_idx1, node_idx2, branch_type, list(params_dict.keys()), str(_branch_count), process_param(aux_params)
+    is_grounded = True if any([node.is_ground() for node in nodes_list]) else False
+    node_1 = nodes_list[node_idx1 if is_grounded else node_idx1 - 1]
+    node_2 = nodes_list[node_idx2 if is_grounded else node_idx2 - 1]
+    sym_params_dict = {
+        param[0]: param[1] for param in params if param[0] is not None
+    }  # dictionary of symbolic params and the default values
+    return (
+        Branch(
+            node_1,
+            node_2,
+            branch_type,
+            list(params_dict.values()),
+            str(_branch_count),
+            process_param(aux_params),
+        ),
+        sym_params_dict,
+    )
+
+
 class Branch:
     """
     Class describing a circuit branch, used in the Circuit class.
@@ -159,10 +171,12 @@ class Branch:
     branch_type:
         is the type of this Branch, example "C","JJ" or "L"
     parameters:
-        dictionary of parameters for the branch, namely for
+        list of parameters for the branch, namely for
         capacitance: {"EC":  <value>};
         for inductance: {"EL": <value>};
         for Josephson Junction: {"EJ": <value>, "ECJ": <value>}
+    aux_params:
+        Dictionary of auxiliary parameters which map a symbol from the input file a numeric parameter.
 
     Examples
     --------
@@ -176,7 +190,8 @@ class Branch:
         n_f: Node,
         branch_type: str,
         parameters: Optional[List[Union[float, Symbol, int]]] = None,
-        id_str: str = None,
+        id_str: Optional[str] = None,
+        aux_params: Dict[Symbol, float] = {},
     ):
         self.nodes = (n_i, n_f)
         self.type = branch_type
@@ -186,7 +201,7 @@ class Branch:
         # setting the parameters if it is provided
         if parameters is not None:
             self.set_parameters(parameters)
-
+        self.aux_params = aux_params
         self.nodes[0].branches.append(self)
         self.nodes[1].branches.append(self)
 
@@ -208,8 +223,15 @@ class Branch:
     def set_parameters(self, parameters) -> None:
         if self.type in ["C", "L"]:
             self.parameters = {f"E{self.type}": parameters[0]}
-        elif self.type in ["JJ", "JJ2"]:
-            self.parameters = {"EJ": parameters[0], "ECJ": parameters[1]}
+        elif "JJ" in self.type:
+            number_of_junc_params = _junction_order(self.type)
+            self.parameters = {}
+            for junc_order in range(1, number_of_junc_params + 1):
+                if junc_order == 1:
+                    self.parameters["EJ"] = parameters[0]
+                else:
+                    self.parameters[f"EJ{junc_order}"] = parameters[junc_order]
+            self.parameters["ECJ"] = parameters[number_of_junc_params]
 
     def node_ids(self) -> Tuple[int, int]:
         return self.nodes[0].index, self.nodes[1].index
@@ -262,9 +284,10 @@ class SymbolicCircuit(serializers.Serializable):
     basis_completion: str
         choices are: "heuristic" (default) or "canonical"; selects type of basis for
         completing the transformation matrix.
-    ground_node:
-        If the circuit is grounded, the ground node is treated separately and should be
-        provided to this parameter.
+    use_dynamic_flux_grouping: bool
+        set to False by default. Indicates if the flux allocation is done by assuming
+        that flux is time dependent. When set to True, it disables the option to change
+        the closure branches.
     initiate_sym_calc: bool
         set to True by default. Initiates the object attributes by calling the
         function initiate_symboliccircuit method when set to True.
@@ -272,17 +295,16 @@ class SymbolicCircuit(serializers.Serializable):
 
     def __init__(
         self,
-        nodes_list_without_ground: List[Node],
+        nodes_list: List[Node],
         branches_list: List[Branch],
         branch_var_dict: Dict[Union[Any, Symbol], Union[Any, float]],
         basis_completion: str = "heuristic",
-        ground_node: Optional[Node] = None,
+        use_dynamic_flux_grouping: bool = False,
         initiate_sym_calc: bool = True,
         input_string: str = "",
     ):
         self.branches = branches_list
-        self._node_list_without_ground = nodes_list_without_ground
-        self.nodes = nodes_list_without_ground
+        self.nodes = nodes_list
         self.input_string = input_string
 
         self._sys_type = type(self).__name__  # for object description
@@ -294,9 +316,7 @@ class SymbolicCircuit(serializers.Serializable):
         self.external_fluxes: List[Symbol] = []
         self.closure_branches: List[Branch] = []
 
-        self.symbolic_params: Dict[Symbol, float] = dict(
-            zip(list(branch_var_dict.keys()), list(branch_var_dict.values()))
-        )
+        self.symbolic_params: Dict[Symbol, float] = branch_var_dict
 
         self.hamiltonian_symbolic: Optional[sympy.Expr] = None
         # to store the internally used lagrangian
@@ -309,11 +329,15 @@ class SymbolicCircuit(serializers.Serializable):
         self.potential_node_vars: Optional[sympy.Expr] = None
 
         # parameters for grounding the circuit
-        self.ground_node = ground_node
-        self.is_grounded = bool(self.ground_node)
+        self.is_grounded = False
+        self.ground_node = None
+        for node in self.nodes:
+            if node.is_ground():
+                self.ground_node = node
+                self.is_grounded = True
 
-        if self.is_grounded:
-            self.nodes = [self.ground_node] + self.nodes
+        # switch to control the dynamic flux allocation in the loops
+        self.use_dynamic_flux_grouping = use_dynamic_flux_grouping
 
         # parameter for choosing matrix used for basis completion in the variable
         # transformation matrix
@@ -381,13 +405,15 @@ class SymbolicCircuit(serializers.Serializable):
         c_mat = (
             trans_mat.T @ self._capacitance_matrix(substitute_params=True) @ trans_mat
         )
-        l_mat = (
-            trans_mat.T @ self._inductance_matrix(substitute_params=True) @ trans_mat
+        l_inv_mat = (
+            trans_mat.T
+            @ self._inductance_inverse_matrix(substitute_params=True)
+            @ trans_mat
         )
         if not self.is_grounded:
             c_mat = c_mat[:-1, :-1]
-            l_mat = l_mat[:-1, :-1]
-        normal_mode_freqs, normal_mode_vecs = sp.linalg.eig(l_mat, c_mat)
+            l_inv_mat = l_inv_mat[:-1, :-1]
+        normal_mode_freqs, normal_mode_vecs = sp.linalg.eig(l_inv_mat, c_mat)
         normal_mode_freqs = normal_mode_freqs.round(10)
         # rounding to the tenth digit to remove numerical errors in eig calculation
         # rearranging the vectors
@@ -430,8 +456,9 @@ class SymbolicCircuit(serializers.Serializable):
 
     def configure(
         self,
-        transformation_matrix: ndarray = None,
-        closure_branches: List[Branch] = None,
+        transformation_matrix: Optional[ndarray] = None,
+        closure_branches: Optional[List[Branch]] = None,
+        use_dynamic_flux_grouping: Optional[bool] = None,
     ):
         """
         Method to initialize the CustomQCircuit instance and initialize all the
@@ -447,9 +474,9 @@ class SymbolicCircuit(serializers.Serializable):
         """
         # if the circuit is purely harmonic, then store the eigenfrequencies
         branch_type_list = [branch.type for branch in self.branches]
-        self.is_purely_harmonic = (
-            "JJ" not in branch_type_list and "JJ2" not in branch_type_list
-        )
+        self.is_purely_harmonic = "JJ" not in "".join(branch_type_list)
+        if use_dynamic_flux_grouping is not None:
+            self.use_dynamic_flux_grouping = use_dynamic_flux_grouping
 
         if self.is_purely_harmonic:
             (
@@ -477,15 +504,32 @@ class SymbolicCircuit(serializers.Serializable):
         self.closure_branches = closure_branches or self._closure_branches()
         # setting external flux and offset charge variables
         self._set_external_fluxes(closure_branches=closure_branches)
-        self._set_offset_charges()
+        self.offset_charges = [
+            symbols(f"ng{index}") for index in self.var_categories["periodic"]
+        ]
+        self.free_charges = [
+            symbols(f"Qf{index}") for index in self.var_categories["free"]
+        ]
         # setting the branch parameter variables
+
+        # calculating the Hamiltonian directly when the number of nodes is less than 3
+        substitute_params = False
+        if (
+            len(self.nodes) >= settings.SYM_INVERSION_MAX_NODES
+            or len(self.var_categories["frozen"]) > 0
+        ):  # only calculate the symbolic hamiltonian when the number of nodes is less
+            # than 3. Else, the calculation will be skipped to the end when numerical
+            # Hamiltonian of the circuit is requested.
+            substitute_params = True
+            self.frozen_var_exprs = {}
+
         # Calculate the Lagrangian
         (
             self._lagrangian_symbolic,
             self.potential_symbolic,
             self.lagrangian_node_vars,
             self.potential_node_vars,
-        ) = self.generate_symbolic_lagrangian()
+        ) = self.generate_symbolic_lagrangian(substitute_params=substitute_params)
 
         # replacing energies with capacitances in the kinetic energy of the Lagrangian
         (
@@ -493,13 +537,9 @@ class SymbolicCircuit(serializers.Serializable):
             self.lagrangian_node_vars,
         ) = self._replace_energies_with_capacitances_L()
 
-        # calculating the Hamiltonian directly when the number of nodes is less than 3
-        if (
-            len(self.nodes) <= settings.SYM_INVERSION_MAX_NODES
-        ):  # only calculate the symbolic hamiltonian when the number of nodes is less
-            # than 3. Else, the calculation will be skipped to the end when numerical
-            # Hamiltonian of the circuit is requested.
-            self.hamiltonian_symbolic = self.generate_symbolic_hamiltonian()
+        self.hamiltonian_symbolic = self.generate_symbolic_hamiltonian(
+            substitute_params=substitute_params
+        )
 
     def _replace_energies_with_capacitances_L(self):
         """
@@ -513,17 +553,17 @@ class SymbolicCircuit(serializers.Serializable):
         if self.is_any_branch_parameter_symbolic():
             # finding the unique capacitances
             uniq_capacitances = []
-            element_param = {"C": "EC", "JJ": "ECJ", "JJ2": "ECJ"}
             for c, b in enumerate(
-                [
-                    t
-                    for t in self.branches
-                    if t.type == "C" or t.type == "JJ" or t.type == "JJ2"
-                ]
+                [t for t in self.branches if t.type == "C" or "JJ" in t.type]
             ):
                 if len(set(b.nodes)) > 1:  # check to see if branch is shorted
-                    if b.parameters[element_param[b.type]] not in uniq_capacitances:
-                        uniq_capacitances.append(b.parameters[element_param[b.type]])
+                    if (
+                        b.parameters[_capactiance_variable_for_branch(b.type)]
+                        not in uniq_capacitances
+                    ):
+                        uniq_capacitances.append(
+                            b.parameters[_capactiance_variable_for_branch(b.type)]
+                        )
 
             for index, var in enumerate(uniq_capacitances):
                 L = L.subs(var, 1 / (8 * symbols(f"C{index + 1}")))
@@ -569,85 +609,7 @@ class SymbolicCircuit(serializers.Serializable):
                 if node_idx not in node_index_list:
                     node_index_list.append(node_idx)
         node_index_list.sort()
-        ground_node = None
-        if 0 in node_index_list:
-            ground_node = Node(0, 0)
-            node_index_list.remove(0)
-        return ground_node, [Node(idx, 0) for idx in node_index_list]
-
-    @staticmethod
-    def _parse_branches(
-        branches_list, nodes: List[Node], ground_node: Optional[Node]
-    ) -> Tuple[List[Branch], Dict[Union[Any, Symbol], Union[Any, float]]]:
-        branches = []
-        branch_var_dict = {}  # dict stores init values of all vars from input string
-
-        for branch_list_input in branches_list:
-            branch_type = branch_list_input[0]
-            node_id1, node_id2 = branch_list_input[1], branch_list_input[2]
-
-            if (branch_type == "JJ" or branch_type == "JJ2") and len(
-                branch_list_input
-            ) != 5:
-                raise Exception(
-                    "Incorrect number of parameters: specification of JJ input in "
-                    f"line: {branch_list_input}"
-                )
-            elif (branch_type == "L" or branch_type == "C") and len(
-                branch_list_input
-            ) != 4:
-                raise Exception(
-                    "Incorrect number of parameters: specification of C or L "
-                    f"in line: {branch_list_input}"
-                )
-
-            branch_params, var_dict = parse_branch_parameters(
-                branch_list_input[3:], branch_type
-            )
-
-            for var in var_dict:
-                if var in branch_var_dict:
-                    raise Exception(str(var) + " has already been initialized.")
-                branch_var_dict[var] = var_dict[var]
-            for param in [
-                param for param in branch_params if not isinstance(param, float)
-            ]:
-                if param not in branch_var_dict.keys():
-                    raise Exception(str(param) + " has not been initialized.")
-
-            parameters = branch_params
-
-            if node_id1 == 0:
-                branches.append(
-                    Branch(
-                        ground_node,
-                        nodes[node_id2 - 1],
-                        branch_type,
-                        parameters,
-                        id_str=str(len(branches)),
-                    )
-                )
-            elif node_id2 == 0:
-                branches.append(
-                    Branch(
-                        nodes[node_id1 - 1],
-                        ground_node,
-                        branch_type,
-                        parameters,
-                        id_str=str(len(branches)),
-                    )
-                )
-            else:
-                branches.append(
-                    Branch(
-                        nodes[node_id1 - 1],
-                        nodes[node_id2 - 1],
-                        branch_type,
-                        parameters,
-                        id_str=str(len(branches)),
-                    )
-                )
-        return branches, branch_var_dict
+        return [Node(idx, 0) for idx in node_index_list]
 
     @classmethod
     def from_yaml(
@@ -655,6 +617,7 @@ class SymbolicCircuit(serializers.Serializable):
         input_string: str,
         from_file: bool = True,
         basis_completion: str = "heuristic",
+        use_dynamic_flux_grouping: Optional[bool] = None,
         initiate_sym_calc: bool = True,
     ):
         """
@@ -687,6 +650,10 @@ class SymbolicCircuit(serializers.Serializable):
         basis_completion:
             choices: "heuristic" or "canonical"; used to choose a type of basis
             for completing the transformation matrix. Set to "heuristic" by default.
+        use_dynamic_flux_grouping: bool
+            set to False by default. Indicates if the flux allocation is done by
+            assuming that flux is time dependent. When set to True, it disables the
+            option to change the closure branches.
         initiate_sym_calc:
             set to True by default. Initiates the object attributes by calling
             the function `initiate_symboliccircuit` method when set to True.
@@ -703,24 +670,44 @@ class SymbolicCircuit(serializers.Serializable):
         else:
             circuit_desc = input_string
 
-        input_dictionary = yaml.load(circuit_desc, Loader=yaml.FullLoader)
+        input_str = remove_comments(circuit_desc)
+        input_str = remove_branchline(input_str)
+        input_str = strip_empty_lines(input_str)
 
-        ground_node, nodes = cls._parse_nodes(input_dictionary["branches"])
+        parsed_branches = [
+            parse_code_line(code_line, branch_count)
+            for branch_count, code_line in enumerate(input_str.split("\n"))
+        ]
 
-        branches, branch_var_dict = cls._parse_branches(
-            input_dictionary["branches"], nodes, ground_node
-        )
+        # find and create the nodes
+        nodes_list = cls._parse_nodes(parsed_branches)
+        # if the node indices do not start from 0, raise an error
+        node_ids = [node.index for node in nodes_list]
+        if min(node_ids) not in [0, 1]:
+            raise ValueError("The node indices should start from 0 or 1.")
+        # parse branches
+        branches_list = []
+        branch_var_dict = {}
+        for parsed_branch in parsed_branches:
+            branch, sym_params = make_branch(nodes_list, *parsed_branch)
+            for sym_param in sym_params:
+                if sym_param in branch_var_dict and sym_params[sym_param] is not None:
+                    raise Exception(
+                        f"Symbol {sym_param} has already been assigned a value."
+                    )
+                if sym_params[sym_param] is not None:
+                    branch_var_dict[sym_param] = sym_params[sym_param]
+            branches_list.append(branch)
 
         circuit = cls(
-            nodes,
-            branches,
-            ground_node=ground_node,
+            nodes_list,
+            branches_list,
+            use_dynamic_flux_grouping=use_dynamic_flux_grouping,
             branch_var_dict=branch_var_dict,
             basis_completion=basis_completion,
             initiate_sym_calc=initiate_sym_calc,
             input_string=circuit_desc,
         )
-
         return circuit
 
     def _independent_modes(
@@ -741,12 +728,14 @@ class SymbolicCircuit(serializers.Serializable):
         if basisvec_entries is None:
             basisvec_entries = [1, 0]
 
-        nodes_copy = (
-            self._node_list_without_ground.copy()
-        )  # copying self.nodes as it is being modified
+        nodes_copy = copy.copy(self.nodes)  # copying self.nodes as it is being modified
 
-        if self.is_grounded:  # needed as ground node is not included in self.nodes
-            nodes_copy.append(self.ground_node)
+        # making sure that the ground node is placed at the end of the list
+        if self.is_grounded:
+            nodes_copy.pop(0)  # removing the ground node
+            nodes_copy = nodes_copy + [
+                copy.copy(self.ground_node)
+            ]  # reversing the order of the nodes
 
         for node in nodes_copy:  # reset the node markers
             node.marker = 0
@@ -776,7 +765,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         # finding the nodes in each of the maximum connected subgraph
         nodes_in_max_connected_branchsets = [
-            list(set(sum([branch.nodes for branch in branch_set], ())))
+            unique_elements_in_list(sum([branch.nodes for branch in branch_set], ()))
             for branch_set in max_connected_subgraphs
         ]
 
@@ -806,7 +795,7 @@ class SymbolicCircuit(serializers.Serializable):
         # represented by branch_set_index
         basis = []
 
-        unique_branch_set_markers = list(set(node_branch_set_indices))
+        unique_branch_set_markers = unique_elements_in_list(node_branch_set_indices)
         # removing the marker -1 as it is grounded.
         branch_set_markers_ungrounded = [
             marker for marker in unique_branch_set_markers if marker != -1
@@ -873,7 +862,7 @@ class SymbolicCircuit(serializers.Serializable):
 
     def check_transformation_matrix(
         self, transformation_matrix: ndarray, enable_warnings: bool = True
-    ):
+    ) -> Dict[str, list]:
         """
         Method to identify the different modes in the transformation matrix provided by
         the user.
@@ -911,11 +900,11 @@ class SymbolicCircuit(serializers.Serializable):
         free_modes = self._independent_modes(selected_branches)
 
         # ***************************# Finding the LC Modes ****************
-        selected_branches = [branch for branch in self.branches if branch.type == "JJ"]
+        selected_branches = [branch for branch in self.branches if "JJ" in branch.type]
         LC_modes = self._independent_modes(selected_branches, single_nodes=False)
 
         # ******************* including the Σ mode ****************
-        Σ = [1] * len(self._node_list_without_ground)
+        Σ = [1] * (len(self.nodes) - self.is_grounded)
         if not self.is_grounded:  # only append if the circuit is not grounded
             mat = np.array(frozen_modes + [Σ])
             # check to see if the vectors are still independent
@@ -973,11 +962,14 @@ class SymbolicCircuit(serializers.Serializable):
             "extended": [],
             "free": [],
             "frozen": [],
+            "sigma": [],
         }
-
+        sigma_mode_found = False
         for x, mode in enumerate(user_given_modes):
             # calculate the number of periodic modes
             if self._mode_in_subspace(Σ, [mode]) and not self.is_grounded:
+                sigma_mode_found = True
+                var_categories_user["sigma"].append(x + 1)
                 continue
 
             if self._mode_in_subspace(mode, frozen_modes):
@@ -1011,6 +1003,10 @@ class SymbolicCircuit(serializers.Serializable):
                     + str(num_extra_modes)
                     + "\n"
                 )
+        if not self.is_grounded and not sigma_mode_found:
+            raise Exception(
+                "This circuit is not grounded, and so has a sigma mode. This transformation does not have a sigma mode."
+            )
 
         return var_categories_user
 
@@ -1039,7 +1035,7 @@ class SymbolicCircuit(serializers.Serializable):
         free_modes = self._independent_modes(selected_branches)
 
         # ****************  including the Σ mode ****************
-        Σ = [1] * len(self._node_list_without_ground)
+        Σ = [1] * (len(self.nodes) - self.is_grounded)
         if not self.is_grounded:  # only append if the circuit is not grounded
             mat = np.array(frozen_modes + [Σ])
             # check to see if the vectors are still independent
@@ -1049,7 +1045,7 @@ class SymbolicCircuit(serializers.Serializable):
                 frozen_modes.append(Σ)
 
         # **************** Finding the LC Modes ****************
-        selected_branches = [branch for branch in self.branches if branch.type == "JJ"]
+        selected_branches = [branch for branch in self.branches if "JJ" in branch.type]
         LC_modes = self._independent_modes(
             selected_branches, single_nodes=False, basisvec_entries=[-1, 1]
         )
@@ -1068,28 +1064,30 @@ class SymbolicCircuit(serializers.Serializable):
         # step 4: construct the new set of basis vectors
 
         # constructing a standard basis
-        node_count = len(self._node_list_without_ground)
-        standard_basis = [np.ones(node_count)]
+        if self.basis_completion == "heuristic":
+            node_count = len(self.nodes) - self.is_grounded
+            standard_basis = [np.ones(node_count)]
 
-        vector_ref = np.zeros(node_count)
-        if node_count > 2:
-            vector_ref[: node_count - 2] = 1
-        else:
-            vector_ref[: node_count - 1] = 1
+            vector_ref = np.zeros(node_count)
+            if node_count > 2:
+                vector_ref[: node_count - 2] = 1
+            else:
+                vector_ref[: node_count - 1] = 1
 
-        vector_set = list((itertools.permutations(vector_ref, node_count)))
-        item = 0
-        while np.linalg.matrix_rank(np.array(standard_basis)) < node_count:
-            a = vector_set[item]
-            item += 1
-            mat = np.array(standard_basis + [a])
-            if np.linalg.matrix_rank(mat) == len(mat):
-                standard_basis = standard_basis + [list(a)]
+            vector_set = (
+                permutation
+                for permutation in itertools.permutations(vector_ref, node_count)
+            )  # making a generator
+            while np.linalg.matrix_rank(np.array(standard_basis)) < node_count:
+                a = next(vector_set)
+                mat = np.array(standard_basis + [a])
+                if np.linalg.matrix_rank(mat) == len(mat):
+                    standard_basis = standard_basis + [list(a)]
 
-        standard_basis = np.array(standard_basis)
+            standard_basis = np.array(standard_basis)
 
-        if self.basis_completion == "canonical":
-            standard_basis = np.identity(len(self._node_list_without_ground))
+        elif self.basis_completion == "canonical":
+            standard_basis = np.identity(len(self.nodes) - self.is_grounded)
 
         new_basis = modes.copy()
 
@@ -1152,6 +1150,11 @@ class SymbolicCircuit(serializers.Serializable):
             "frozen": [
                 i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_frozen
             ],
+            "sigma": (
+                [i + 1 for i in range(len(pos_list)) if pos_list[i] == pos_Σ[0]]
+                if not self.is_grounded
+                else []
+            ),
         }
 
         return np.array(new_basis), var_categories
@@ -1174,62 +1177,95 @@ class SymbolicCircuit(serializers.Serializable):
     def _junction_terms(self):
         terms = 0
         # looping over all the junction terms
-        junction_branches = [branch for branch in self.branches if branch.type == "JJ"]
-        for jj_branch in junction_branches:
+        junction_branches = [
+            branch
+            for branch in self.branches
+            if "JJ" in branch.type and "JJs" not in branch.type
+        ]
+        junction_branch_order = [
+            _junction_order(branch.type) for branch in junction_branches
+        ]
+
+        for branch_idx, jj_branch in enumerate(junction_branches):
             # adding external flux
             phi_ext = 0
             if jj_branch in self.closure_branches:
-                index = self.closure_branches.index(jj_branch)
-                phi_ext += self.external_fluxes[index]
+                if not self.use_dynamic_flux_grouping:
+                    index = self.closure_branches.index(jj_branch)
+                    phi_ext += self.external_fluxes[index]
+            if self.use_dynamic_flux_grouping:
+                flux_branch_assignment = self._time_dependent_flux_distribution()
+                phi_ext += flux_branch_assignment[int(jj_branch.id_str)]
 
             # if loop to check for the presence of ground node
-            if jj_branch.nodes[1].index == 0:
-                terms += -jj_branch.parameters["EJ"] * sympy.cos(
-                    -symbols(f"φ{jj_branch.nodes[0].index}") + phi_ext
-                )
-            elif jj_branch.nodes[0].index == 0:
-                terms += -jj_branch.parameters["EJ"] * sympy.cos(
-                    symbols(f"φ{jj_branch.nodes[1].index}") + phi_ext
-                )
-            else:
-                terms += -jj_branch.parameters["EJ"] * sympy.cos(
-                    symbols(f"φ{jj_branch.nodes[1].index}")
-                    - symbols(f"φ{jj_branch.nodes[0].index}")
-                    + phi_ext
-                )
+            for order in range(1, junction_branch_order[branch_idx] + 1):
+                junction_param = "EJ" if order == 1 else f"EJ{order}"
+                if jj_branch.nodes[1].index == 0:
+                    terms += -jj_branch.parameters[junction_param] * sympy.cos(
+                        (order)
+                        * (-sympy.symbols(f"φ{jj_branch.nodes[0].index}") + phi_ext)
+                    )
+                elif jj_branch.nodes[0].index == 0:
+                    terms += -jj_branch.parameters[junction_param] * sympy.cos(
+                        (order)
+                        * (sympy.symbols(f"φ{jj_branch.nodes[1].index}") + phi_ext)
+                    )
+                else:
+                    terms += -jj_branch.parameters[junction_param] * sympy.cos(
+                        (order)
+                        * (
+                            (
+                                sympy.symbols(f"φ{jj_branch.nodes[1].index}")
+                                - sympy.symbols(f"φ{jj_branch.nodes[0].index}")
+                            )
+                            + phi_ext
+                        )
+                    )
         return terms
 
-    def _JJ2_terms(self):
+    def _JJs_terms(self):
+        """To add terms for the sawtooth josephson junction"""
         terms = 0
-        # looping over all the JJ2 branches
-        for jj2_branch in [t for t in self.branches if t.type == "JJ2"]:
+        # looping over all the junction terms
+        junction_branches = [branch for branch in self.branches if "JJs" in branch.type]
+
+        # defining a function for sawtooth
+        saw = sympy.Function("saw", real=True)
+
+        for branch_idx, jj_branch in enumerate(junction_branches):
             # adding external flux
             phi_ext = 0
-            if jj2_branch in self.closure_branches:
-                index = self.closure_branches.index(jj2_branch)
-                phi_ext += self.external_fluxes[index]
+            if jj_branch in self.closure_branches:
+                if not self.use_dynamic_flux_grouping:
+                    index = self.closure_branches.index(jj_branch)
+                    phi_ext += self.external_fluxes[index]
+            if self.use_dynamic_flux_grouping:
+                flux_branch_assignment = self._time_dependent_flux_distribution()
+                phi_ext += flux_branch_assignment[int(jj_branch.id_str)]
 
             # if loop to check for the presence of ground node
-            if jj2_branch.nodes[1].index == 0:
-                terms += -jj2_branch.parameters["EJ"] * sympy.cos(
-                    2 * (-symbols(f"φ" + str(jj2_branch.nodes[0].index)) + phi_ext)
+            junction_param = "EJ"
+            if jj_branch.nodes[1].index == 0:
+                terms += jj_branch.parameters[junction_param] * saw(
+                    (-sympy.symbols(f"φ{jj_branch.nodes[0].index}") + phi_ext)
                 )
-            elif jj2_branch.nodes[0].index == 0:
-                terms += -jj2_branch.parameters["EJ"] * sympy.cos(
-                    2 * (symbols(f"φ{jj2_branch.nodes[1].index}") + phi_ext)
+            elif jj_branch.nodes[0].index == 0:
+                terms += jj_branch.parameters[junction_param] * saw(
+                    (sympy.symbols(f"φ{jj_branch.nodes[1].index}") + phi_ext)
                 )
             else:
-                terms += -jj2_branch.parameters["EJ"] * sympy.cos(
-                    2
-                    * (
-                        symbols(f"φ{jj2_branch.nodes[1].index}")
-                        - symbols(f"φ{jj2_branch.nodes[0].index}")
+                terms += jj_branch.parameters[junction_param] * saw(
+                    (
+                        (
+                            sympy.symbols(f"φ{jj_branch.nodes[1].index}")
+                            - sympy.symbols(f"φ{jj_branch.nodes[0].index}")
+                        )
                         + phi_ext
                     )
                 )
         return terms
 
-    def _inductance_matrix(self, substitute_params: bool = False):
+    def _inductance_inverse_matrix(self, substitute_params: bool = False):
         """
         Generate a inductance matrix for the circuit
 
@@ -1252,9 +1288,9 @@ class SymbolicCircuit(serializers.Serializable):
 
         # filling the non-diagonal entries
         if not self.is_grounded:
-            num_nodes = len(self._node_list_without_ground)
+            num_nodes = len(self.nodes) - self.is_grounded
         else:
-            num_nodes = len(self._node_list_without_ground) + 1
+            num_nodes = len(self.nodes) - self.is_grounded + 1
         if not self.is_any_branch_parameter_symbolic() or substitute_params:
             L_mat = np.zeros([num_nodes, num_nodes])
         else:
@@ -1300,21 +1336,18 @@ class SymbolicCircuit(serializers.Serializable):
             _description_
         """
         branches_with_capacitance = [
-            branch for branch in self.branches if branch.type in ["C", "JJ", "JJ2"]
+            branch
+            for branch in self.branches
+            if ("C" == branch.type or "JJ" in branch.type)
         ]
-        capacitance_param_for_branch_type = {
-            "C": "EC",
-            "JJ": "ECJ",
-            "JJ2": "ECJ",
-        }
 
         param_init_vals_dict = self.symbolic_params
 
         # filling the non-diagonal entries
         if not self.is_grounded:
-            num_nodes = len(self._node_list_without_ground)
+            num_nodes = len(self.nodes) - self.is_grounded
         else:
-            num_nodes = len(self._node_list_without_ground) + 1
+            num_nodes = len(self.nodes) - self.is_grounded + 1
         if not self.is_any_branch_parameter_symbolic() or substitute_params:
             C_mat = np.zeros([num_nodes, num_nodes])
         else:
@@ -1323,7 +1356,7 @@ class SymbolicCircuit(serializers.Serializable):
         for branch in branches_with_capacitance:
             if len(set(branch.nodes)) > 1:  # branch if shorted is not considered
                 capacitance = branch.parameters[
-                    capacitance_param_for_branch_type[branch.type]
+                    _capactiance_variable_for_branch(branch.type)
                 ]
                 if type(capacitance) != float and substitute_params:
                     capacitance = param_init_vals_dict[capacitance]
@@ -1353,27 +1386,40 @@ class SymbolicCircuit(serializers.Serializable):
         branches_with_capacitance = [
             branch
             for branch in self.branches
-            if branch.type == "C" or branch.type == "JJ" or branch.type == "JJ2"
+            if branch.type == "C" or "JJ" in branch.type
         ]
         for c_branch in branches_with_capacitance:
-            element_param = {"C": "EC", "JJ": "ECJ", "JJ2": "ECJ"}
-
             if c_branch.nodes[1].index == 0:
                 terms += (
                     1
-                    / (16 * c_branch.parameters[element_param[c_branch.type]])
+                    / (
+                        16
+                        * c_branch.parameters[
+                            _capactiance_variable_for_branch(c_branch.type)
+                        ]
+                    )
                     * (symbols(f"vφ{c_branch.nodes[0].index}")) ** 2
                 )
             elif c_branch.nodes[0].index == 0:
                 terms += (
                     1
-                    / (16 * c_branch.parameters[element_param[c_branch.type]])
+                    / (
+                        16
+                        * c_branch.parameters[
+                            _capactiance_variable_for_branch(c_branch.type)
+                        ]
+                    )
                     * (-symbols(f"vφ{c_branch.nodes[1].index}")) ** 2
                 )
             else:
                 terms += (
                     1
-                    / (16 * c_branch.parameters[element_param[c_branch.type]])
+                    / (
+                        16
+                        * c_branch.parameters[
+                            _capactiance_variable_for_branch(c_branch.type)
+                        ]
+                    )
                     * (
                         symbols(f"vφ{c_branch.nodes[1].index}")
                         - symbols(f"vφ{c_branch.nodes[0].index}")
@@ -1382,14 +1428,18 @@ class SymbolicCircuit(serializers.Serializable):
                 )
         return terms
 
-    def _inductor_terms(self):
+    def _inductor_terms(self, substitute_params: bool = False):
         terms = 0
         for l_branch in [branch for branch in self.branches if branch.type == "L"]:
             # adding external flux
             phi_ext = 0
             if l_branch in self.closure_branches:
-                index = self.closure_branches.index(l_branch)
-                phi_ext += self.external_fluxes[index]
+                if not self.use_dynamic_flux_grouping:
+                    index = self.closure_branches.index(l_branch)
+                    phi_ext += self.external_fluxes[index]
+            if self.use_dynamic_flux_grouping:
+                flux_branch_assignment = self._time_dependent_flux_distribution()
+                phi_ext += flux_branch_assignment[int(l_branch.id_str)]
 
             if l_branch.nodes[0].index == 0:
                 terms += (
@@ -1414,6 +1464,10 @@ class SymbolicCircuit(serializers.Serializable):
                     )
                     ** 2
                 )
+        # substitute params if necessary
+        if substitute_params and terms != 0:
+            for symbol in self.symbolic_params:
+                terms = terms.subs(symbol.name, self.symbolic_params[symbol])
         return terms
 
     def _spanning_tree(self):
@@ -1434,16 +1488,20 @@ class SymbolicCircuit(serializers.Serializable):
 
         Returns
         -------
-            A spanning tree as a list of branches, which does not include capacitor branches,
-            a list of branches that forms superconducting loops, and a list of lists of nodes
-            (node_sets), which keeps the generation info for nodes of branches on the path.
+            A list of spanning trees in the circuit, which does not include capacitor branches,
+            a list of branches that forms superconducting loops for each tree, and a list of lists of nodes
+            (node_sets) for each tree (which keeps the generation info for nodes of branches on the path)
+            and list of closure branches for each tree.
         """
 
         # Make a copy of self; do not need symbolic expressions etc., so do a minimal
         # initialization only
-        circ_copy = SymbolicCircuit.from_yaml(
-            self.input_string, from_file=False, initiate_sym_calc=False
-        )
+        circ_copy = copy.deepcopy(self)
+
+        # adding an attribute for node list without ground
+        circ_copy._node_list_without_ground = circ_copy.nodes
+        if circ_copy.is_grounded:
+            circ_copy._node_list_without_ground.remove(circ_copy.ground_node)
 
         # **************** removing all the capacitive branches and updating the nodes *
         # identifying capacitive branches
@@ -1484,16 +1542,23 @@ class SymbolicCircuit(serializers.Serializable):
                             circ_copy._node_list_without_ground.remove(node)
 
         if circ_copy._node_list_without_ground == []:
-            return [], [], []
+            return {
+                "list_of_trees": [],
+                "loop_branches_for_trees": [],
+                "node_sets_for_trees": [],
+                "closure_branches_for_trees": [],
+            }
         # *****************************************************************************
 
         # **************** Constructing the node_sets ***************
+        node_sets_for_trees = []  # seperate node sets for separate trees
         if circ_copy.is_grounded:
             node_sets = [[circ_copy.ground_node]]
         else:
             node_sets = [
                 [circ_copy._node_list_without_ground[0]]
             ]  # starting with the first set that has the first node as the only element
+        node_sets_for_trees.append(node_sets)
 
         num_nodes = len(circ_copy._node_list_without_ground)
         # this needs to be done as the ground node is not included in self.nodes
@@ -1502,86 +1567,208 @@ class SymbolicCircuit(serializers.Serializable):
 
         # finding all the sets of nodes and filling node_sets
         node_set_index = 0
+        tree_index = 0
         while (
-            len(sum(node_sets, []))
+            len(flatten_list_recursive(node_sets_for_trees))
             < num_nodes  # checking to see if all the nodes are present in node_sets
         ):
             node_set = []
 
-            # code to handle two different capacitive islands in the circuit.
-            if node_sets[node_set_index] == []:
-                for node in circ_copy._node_list_without_ground:
-                    if node not in flatten_list(node_sets):
-                        node_sets[node_set_index].append(node)
-                        break
-
-            for node in node_sets[node_set_index]:
+            for node in node_sets_for_trees[tree_index][node_set_index]:
                 node_set += node.connected_nodes("all")
 
             node_set = [
                 x
-                for x in list(set(node_set))
-                if x not in flatten_list(node_sets[: node_set_index + 1])
+                for x in unique_elements_in_list(node_set)
+                if x
+                not in flatten_list_recursive(
+                    node_sets_for_trees[tree_index][: node_set_index + 1]
+                )
             ]
             if node_set:
                 node_set.sort(key=lambda node: node.index)
 
-            node_sets.append(node_set)
+            # code to handle two different capacitive islands in the circuit.
+            if node_set == []:
+                node_sets_for_trees.append([])
+                for node in circ_copy._node_list_without_ground:
+                    if node not in flatten_list_recursive(
+                        node_sets_for_trees[tree_index]
+                    ):
+                        tree_index += 1
+                        node_sets_for_trees[tree_index].append([node])
+                        node_set_index = 0
+                        break
+                continue
+
+            node_sets_for_trees[tree_index].append(node_set)
             node_set_index += 1
         # ***************************
 
         # **************** constructing the spanning tree ##########
-        tree_copy = []  # tree having branches of the instance that is copied
-
         def connecting_branches(n1: Node, n2: Node):
             return [branch for branch in n1.branches if branch in n2.branches]
 
-        # find the branch connecting this node to another node in a previous node set.
-        for index, node_set in enumerate(node_sets):
-            if index == 0:
-                continue
-            for node in node_set:
-                for prev_node in node_sets[index - 1]:
-                    if len(connecting_branches(node, prev_node)) != 0:
-                        tree_copy.append(connecting_branches(node, prev_node)[0])
-                        break
-
-        # ************* selecting the appropriate branches from circ as from circ_copy #
         def is_same_branch(branch_1: Branch, branch_2: Branch):
             return branch_1.id_str == branch_2.id_str
 
-        tree = []  # tree having branches of the current instance
-        for c_branch in tree_copy:
-            tree += [b for b in self.branches if is_same_branch(b, c_branch)]
+        def fetch_same_branch_from_circ(branch: Branch, circ: SymbolicCircuit):
+            for b in circ.branches:
+                if is_same_branch(b, branch):
+                    return b
+
+        def fetch_same_node_from_circ(node: Node, circ: SymbolicCircuit):
+            for n in circ.nodes:
+                if n.index == node.index:
+                    return n
+
+        list_of_trees = []
+        for node_sets in node_sets_for_trees:
+            tree = []  # tree having branches of the instance that is copied
+
+            # find the branch connecting this node to another node in a previous node set.
+            for index, node_set in enumerate(node_sets):
+                if index == 0:
+                    continue
+                for node in node_set:
+                    for prev_node in node_sets[index - 1]:
+                        if len(connecting_branches(node, prev_node)) != 0:
+                            tree.append(connecting_branches(node, prev_node)[0])
+                            break
+            list_of_trees.append(tree)
 
         # as the capacitors are removed to form the spanning tree, and as a result
         # floating branches as well, the set of all branches which form the
         # superconducting loops would be in circ_copy.
-        superconducting_loop_branches = []
-        for branch_copy in circ_copy.branches:
-            superconducting_loop_branches += [
-                branch
-                for branch in self.branches
-                if is_same_branch(branch, branch_copy)
+        closure_branches_for_trees = [[] for tree in list_of_trees]
+        loop_branches_for_trees = []
+        for tree_idx, tree in enumerate(list_of_trees):
+            loop_branches = tree.copy()
+            nodes_in_tree = flatten_list_recursive(node_sets_for_trees[tree_idx])
+            for branch in [
+                branch for branch in circ_copy.branches if branch not in tree
+            ]:
+                if len([node for node in branch.nodes if node in nodes_in_tree]) == 2:
+                    loop_branches.append(branch)
+                    closure_branches_for_trees[tree_idx].append(branch)
+            loop_branches_for_trees.append(loop_branches)
+
+        # get branches from the original circuit
+        for tree_idx, tree in enumerate(list_of_trees):
+            list_of_trees[tree_idx] = [
+                fetch_same_branch_from_circ(branch, self) for branch in tree
+            ]
+            loop_branches_for_trees[tree_idx] = [
+                fetch_same_branch_from_circ(branch, self)
+                for branch in loop_branches_for_trees[tree_idx]
+            ]
+            closure_branches_for_trees[tree_idx] = [
+                fetch_same_branch_from_circ(branch, self)
+                for branch in closure_branches_for_trees[tree_idx]
+            ]
+            node_sets_for_trees[tree_idx] = [
+                [fetch_same_node_from_circ(node, self) for node in node_set]
+                for node_set in node_sets_for_trees[tree_idx]
             ]
 
-        return tree, superconducting_loop_branches, node_sets
+        # if the closure branches are manually set, then the spanning tree would be all
+        # the superconducting loop branches except the closure branches
+        if self.closure_branches != []:
+            closure_branches_for_trees = [
+                [] for loop_branches in loop_branches_for_trees
+            ]
+            list_of_trees = []
+            for tree_idx, loop_branches in enumerate(loop_branches_for_trees):
+                list_of_trees.append(
+                    [
+                        branch
+                        for branch in loop_branches
+                        if branch not in self.closure_branches
+                    ]
+                )
+                closure_branches_for_trees[tree_idx] = [
+                    branch
+                    for branch in loop_branches
+                    if branch in self.closure_branches
+                ]
 
-    def _closure_branches(self):
+        return {
+            "list_of_trees": list_of_trees,
+            "loop_branches_for_trees": loop_branches_for_trees,
+            "node_sets_for_trees": node_sets_for_trees,
+            "closure_branches_for_trees": closure_branches_for_trees,
+        }
+
+    def _closure_branches(self, spanning_tree_dict=None):
         r"""
         Returns and stores the closure branches in the circuit.
         """
-        tree, superconducting_loop_branches, node_sets = self._spanning_tree()
-        if tree == []:
-            closure_branches = []
-        else:
-            closure_branches = [
-                branch for branch in superconducting_loop_branches if branch not in tree
+        return flatten_list_recursive(
+            (spanning_tree_dict or self._spanning_tree())["closure_branches_for_trees"]
+        )
+
+    def _time_dependent_flux_distribution(self):
+        # constructing the constraint matrix
+        R = np.zeros([len(self.branches), len(self.closure_branches)])
+        # constructing branch capacitance matrix
+        C_diag = np.identity(len(self.branches)) * 0
+        # constructing the matrix which transforms node to branch variables
+        W = np.zeros([len(self.branches), len(self.nodes) - self.is_grounded])
+
+        for closure_brnch_idx, closure_branch in enumerate(self.closure_branches):
+            loop_branches = self._find_loop(closure_branch)
+            # setting the loop direction from the direction of the closure branch
+            R_prev_brnch = 1
+            for b_idx, branch in enumerate(loop_branches):
+                R_elem = 1
+                if b_idx == 0:
+                    start_node = list(branch.common_node(loop_branches[1]))[0]
+                    start_node_idx = branch.nodes.index(start_node)
+                    if start_node_idx == 0:
+                        R_elem *= -1
+                if b_idx > 0:
+                    start_node_idx = 1 if R_prev_brnch > 0 else 0
+                    start_node = loop_branches[b_idx - 1].nodes[start_node_idx]
+                    R_elem = R_prev_brnch
+                    if branch.node_ids()[start_node_idx] == start_node.index:
+                        R_elem *= -1
+                R_prev_brnch = R_elem
+                R[self.branches.index(branch), closure_brnch_idx] = R_elem
+            if R[self.branches.index(closure_branch), closure_brnch_idx] < 0:
+                R[:, closure_brnch_idx] = R[:, closure_brnch_idx] * -1
+
+        for idx, branch in enumerate(self.branches):
+            if branch.type == "C" or "JJ" in branch.type:
+                EC = (
+                    branch.parameters["EC"]
+                    if branch.type == "C"
+                    else branch.parameters["ECJ"]
+                )
+                if isinstance(EC, sympy.Expr):
+                    EC = self.symbolic_params[EC]
+                C_diag[idx, idx] = 1 / (EC * 8)
+            for node_idx, node in enumerate(branch.nodes):
+                if node.is_ground():
+                    continue
+                n_id = self.nodes.index(node) - self.is_grounded
+                W[idx, n_id] = (-1) ** node_idx
+
+        M = np.vstack([(W.T @ C_diag), R.T])
+
+        I = np.vstack(
+            [
+                np.zeros(
+                    [len(self.nodes) - self.is_grounded, len(self.closure_branches)]
+                ),
+                np.identity(len(self.closure_branches)),
             ]
-        return closure_branches
+        )
+
+        B = (np.linalg.pinv(M)) @ I
+        return B.round(10) @ self.external_fluxes
 
     def _find_path_to_root(
-        self, node: Node
+        self, node: Node, spanning_tree_dict=None
     ) -> Tuple[int, List["Node"], List["Branch"]]:
         r"""
         Returns all the nodes and branches in the spanning tree path between the
@@ -1602,44 +1789,61 @@ class SymbolicCircuit(serializers.Serializable):
             An integer for the generation number, a list of ancestor nodes, and a list
             of branches on the path
         """
-        # extract spanning tree node_sets (to determine the generation of the node)
-        tree, superconducting_loop_branches, node_sets = self._spanning_tree()
+        # extract spanning trees node_sets (to determine the generation of the node)
+        tree_info_dict = spanning_tree_dict or self._spanning_tree()
         # find out the generation number of the node in the spanning tree
-        # generation number begins from 0
-        for igen, nodes in enumerate(node_sets):
-            nodes_id = [node.index for node in nodes]
-            if node.index in nodes_id:
-                generation = igen
+        for tree_idx, tree in enumerate(tree_info_dict["list_of_trees"]):
+            node_sets = tree_info_dict["node_sets_for_trees"][tree_idx]
+            tree = tree_info_dict["list_of_trees"][tree_idx]
+            # generation number begins from 0
+            for igen, nodes in enumerate(node_sets):
+                nodes_id = [node.index for node in nodes]
+                if node.index in nodes_id:
+                    generation = igen
+                    break
+            # find out the path from the node to the root
+            current_node = node
+            ancestor_nodes_list = []
+            branch_path_to_root = []
+            root_node = node_sets[0][0]
+            if root_node == node:
+                return (0, [], [], tree_idx)
+
+            tree_perm_gen = (perm for perm in itertools.permutations(tree))
+            while root_node not in ancestor_nodes_list:
+                ancestor_nodes_list = []
+                branch_path_to_root = []
+                current_node = node
+                try:
+                    tree_perm = next(tree_perm_gen)
+                except StopIteration:
+                    break
+                # finding the parent of the current_node, and the branch that links the
+                # parent and current_node
+                for branch in tree_perm:
+                    common_node_list = [
+                        n for n in branch.nodes if n not in [current_node]
+                    ]
+                    if (
+                        len(common_node_list) == 1
+                        and common_node_list[0] not in ancestor_nodes_list
+                    ):
+                        second_node = common_node_list[0]
+                        ancestor_nodes_list.append(second_node)
+                        branch_path_to_root.append(branch)
+                        current_node = second_node
+                        if current_node.index == root_node.index:
+                            break
+            if root_node in ancestor_nodes_list:
                 break
-        # find out the path from the node to the root
-        current_node = node
-        ancestor_nodes_list = []
-        branch_path_to_root = []
-        # looping over the parent generations
-        for istep in range(generation - 1, -1, -1):
-            # finding the parent of the current_node, and the branch that links the
-            # parent and current_node
-            for branch in tree:
-                nodes_id = [node.index for node in node_sets[istep]]
-                if (branch.nodes[1].index == current_node.index) and (
-                    branch.nodes[0].index in nodes_id
-                ):
-                    ancestor_nodes_list.append(branch.nodes[0])
-                    branch_path_to_root.append(branch)
-                    current_node = branch.nodes[0]
-                    break
-                elif (branch.nodes[0].index == current_node.index) and (
-                    branch.nodes[1].index in nodes_id
-                ):
-                    ancestor_nodes_list.append(branch.nodes[1])
-                    branch_path_to_root.append(branch)
-                    current_node = branch.nodes[1]
-                    break
+
         ancestor_nodes_list.reverse()
         branch_path_to_root.reverse()
-        return generation, ancestor_nodes_list, branch_path_to_root
+        return generation, ancestor_nodes_list, branch_path_to_root, tree_idx
 
-    def _find_loop(self, closure_branch: Branch) -> List["Branch"]:
+    def _find_loop(
+        self, closure_branch: Branch, spanning_tree_dict=None
+    ) -> List["Branch"]:
         r"""
         Find out the loop that is closed by the closure branch
 
@@ -1654,15 +1858,37 @@ class SymbolicCircuit(serializers.Serializable):
         """
         # find out ancestor nodes, path to root and generation number for each node in the
         # closure branch
-        gen_1, ancestors_1, path_1 = self._find_path_to_root(closure_branch.nodes[0])
-        gen_2, ancestors_2, path_2 = self._find_path_to_root(closure_branch.nodes[1])
-        # find branches that are not common in the paths, and then add the closure branch to form the loop
+        tree_info_dict = spanning_tree_dict or self._spanning_tree()
+        _, _, path_1, tree_idx_0 = self._find_path_to_root(
+            closure_branch.nodes[0], tree_info_dict
+        )
+        _, _, path_2, tree_idx_1 = self._find_path_to_root(
+            closure_branch.nodes[1], tree_info_dict
+        )
+        # find branches that are not common in the paths, and then add the closure
+        # branch to form the loop
+        path_1 = unique_elements_in_list(path_1)
+        path_2 = unique_elements_in_list(path_2)
         loop = (
-            list(set(path_1) - set(path_2))
-            + list(set(path_2) - set(path_1))
+            [branch for branch in path_1 if branch not in path_2]
+            + [branch for branch in path_2 if branch not in path_1]
             + [closure_branch]
         )
-        return loop
+        return self._order_branches_in_loop(loop)
+
+    def _order_branches_in_loop(self, loop_branches):
+        branches_in_order = [loop_branches[0]]
+        branch_node_ids = [branch.node_ids() for branch in loop_branches]
+        prev_node_id = branch_node_ids[0][0]
+        while len(branches_in_order) < len(loop_branches):
+            for branch in [
+                brnch for brnch in loop_branches if brnch not in branches_in_order
+            ]:
+                if prev_node_id in branch.node_ids():
+                    branches_in_order.append(branch)
+                    break
+            prev_node_id = [idx for idx in branch.node_ids() if idx != prev_node_id][0]
+        return branches_in_order
 
     def _set_external_fluxes(self, closure_branches: List[Branch] = None):
         # setting the class properties
@@ -1681,24 +1907,129 @@ class SymbolicCircuit(serializers.Serializable):
                 symbols("Φ" + str(i + 1)) for i in range(len(closure_branches))
             ]
 
-    def _set_offset_charges(self):
+    def _branch_sym_expr(
+        self,
+        branch: Branch,
+        return_charge: bool = False,
+        substitute_params: bool = True,
+    ):
         """
-        Create the offset charge variables and store in class attribute offset_charges
-        """
-        self.offset_charges = []
-        for p in self.var_categories["periodic"]:
-            self.offset_charges = self.offset_charges + [symbols(f"ng{p}")]
+        Returns the voltage across the branch in terms of the charge operators
 
-    @staticmethod
-    def round_symbolic_expr(expr: sympy.Expr, number_of_digits: int) -> sympy.Expr:
-        rounded_expr = expr.expand()
-        for term in sympy.preorder_traversal(expr.expand()):
-            if isinstance(term, sympy.Float):
-                rounded_expr = rounded_expr.subs(term, round(term, number_of_digits))
-        return rounded_expr
+        Args:
+            branch (Branch): A branch of the instance
+        """
+        transformation_matrix = self.transformation_matrix
+
+        if return_charge:
+            frozen_indices = [
+                i - 1
+                for i in self.var_categories["frozen"] + self.var_categories["sigma"]
+            ]
+            # generating the C_mat_θ by inverting the capacitance matrix
+            if self.is_any_branch_parameter_symbolic() and not substitute_params:
+                C_mat_θ = (
+                    transformation_matrix.T
+                    * self._capacitance_matrix()
+                    * transformation_matrix
+                )
+                relevant_indices = [
+                    i for i in range(C_mat_θ.shape[0]) if i not in frozen_indices
+                ]
+                C_mat_θ = C_mat_θ[relevant_indices, relevant_indices]
+                EC_mat_θ = C_mat_θ.inv()
+            else:
+                C_mat_θ = (
+                    transformation_matrix.T
+                    @ self._capacitance_matrix(substitute_params=substitute_params)
+                    @ transformation_matrix
+                )
+                C_mat_θ = np.delete(C_mat_θ, frozen_indices, 0)
+                C_mat_θ = np.delete(C_mat_θ, frozen_indices, 1)
+                EC_mat_θ = np.linalg.inv(C_mat_θ)
+            p_θ_vars = [
+                (
+                    symbols(f"Q{i}")
+                    if i not in self.var_categories["free"]
+                    else symbols(f"Qf{i}")
+                )
+                for i in np.sort(
+                    self.var_categories["periodic"]
+                    + self.var_categories["extended"]
+                    + self.var_categories["free"]
+                )
+                # replacing the free charge with 0, as it would not affect the circuit
+                # Lagrangian.
+            ]
+            node_id1, node_id2 = [
+                node.index - (1 if not self.is_grounded else 0) for node in branch.nodes
+            ]
+            voltages = list(EC_mat_θ * sympy.Matrix(p_θ_vars))
+
+            # insert the voltages for frozen modes
+            for index in self.var_categories["sigma"]:
+                voltages.insert(index, 0)
+            # substitute expressions for frozen variables
+            for index in self.var_categories["frozen"]:
+                frozen_var_expr = self.frozen_var_exprs[index]
+                frozen_var_expr = frozen_var_expr.subs(
+                    [
+                        (var_sym, f"Q{get_trailing_number(var_sym.name)}")
+                        for var_sym in frozen_var_expr.free_symbols
+                    ]
+                )
+                voltages.insert(index, round_symbolic_expr(frozen_var_expr, 10))
+
+            node_voltages = list(transformation_matrix * sympy.Matrix(voltages))
+
+            if self.is_grounded:
+                node_voltages = [0] + node_voltages
+
+            branch_voltage_expr = node_voltages[node_id1] - node_voltages[node_id2]
+            # adding the offset charge variables
+            for var_index in self.var_categories["periodic"]:
+                branch_voltage_expr = branch_voltage_expr.subs(
+                    symbols(f"Q{var_index}"),
+                    symbols(f"n{var_index}") + symbols(f"ng{var_index}"),
+                )
+            return branch_voltage_expr * (
+                1 / (8 * branch.parameters["EC"])
+                if branch.type == "C"
+                else 1 / (8 * branch.parameters["ECJ"])
+            )
+
+        node_id1, node_id2 = [node.index for node in branch.nodes]
+        expr_node_vars = symbols(f"φ{node_id2}") - symbols(f"φ{node_id1}")
+        expr_node_vars = expr_node_vars.subs(
+            "φ0", 0
+        )  # substituting node flux of ground to zero
+        num_vars = len(self.nodes) - self.is_grounded
+        new_vars = [
+            (
+                symbols(f"θ{index}")
+                if index not in self.var_categories["frozen"]
+                else self.frozen_var_exprs[index]
+            )
+            for index in range(1, 1 + num_vars)
+        ]
+        # free variables do not show up in the branch flux expression for inductors, assuming capacitances do not depend on the flux, but charge expression
+        old_vars = [symbols(f"φ{index}") for index in range(1, 1 + num_vars)]
+        transformed_expr = transformation_matrix.dot(new_vars)
+        # add external flux
+        phi_ext = 0
+        if branch in self.closure_branches:
+            if not self.use_dynamic_flux_grouping:
+                index = self.closure_branches.index(branch)
+                phi_ext += self.external_fluxes[index]
+        if self.use_dynamic_flux_grouping:
+            flux_branch_assignment = self._time_dependent_flux_distribution()
+            phi_ext += flux_branch_assignment[int(branch.id_str)]
+        for idx, var in enumerate(old_vars):
+            expr_node_vars = expr_node_vars.subs(var, transformed_expr[idx])
+        return round_symbolic_expr(expr_node_vars + phi_ext, 12)
 
     def generate_symbolic_lagrangian(
-        self,
+        self, substitute_params: bool = False
     ) -> Tuple[sympy.Expr, sympy.Expr, sympy.Expr, sympy.Expr]:
         r"""
         Returns four symbolic expressions: lagrangian_θ, potential_θ, lagrangian_φ,
@@ -1709,16 +2040,16 @@ class SymbolicCircuit(serializers.Serializable):
 
         # defining the φ variables
         φ_dot_vars = [
-            symbols(f"vφ{i}") for i in range(1, len(self._node_list_without_ground) + 1)
+            symbols(f"vφ{i}") for i in range(1, len(self.nodes) - self.is_grounded + 1)
         ]
 
         # defining the θ variables
         θ_vars = [
-            symbols(f"θ{i}") for i in range(1, len(self._node_list_without_ground) + 1)
+            symbols(f"θ{i}") for i in range(1, len(self.nodes) - self.is_grounded + 1)
         ]
         # defining the θ dot variables
         θ_dot_vars = [
-            symbols(f"vθ{i}") for i in range(1, len(self._node_list_without_ground) + 1)
+            symbols(f"vθ{i}") for i in range(1, len(self.nodes) - self.is_grounded + 1)
         ]
         # writing φ in terms of θ variables
         φ_vars_θ = transformation_matrix.dot(θ_vars)
@@ -1742,36 +2073,40 @@ class SymbolicCircuit(serializers.Serializable):
                 0
             ] * 0.5  # in terms of new variables
 
-        inductor_terms_φ = self._inductor_terms()
+        inductor_terms_φ = self._inductor_terms(substitute_params=substitute_params)
 
-        JJ_terms_φ = self._junction_terms() + self._JJ2_terms()
+        JJ_terms_φ = self._junction_terms() + self._JJs_terms()
 
         lagrangian_φ = C_terms_φ - inductor_terms_φ - JJ_terms_φ
 
         potential_φ = inductor_terms_φ + JJ_terms_φ
         potential_θ = (
-            potential_φ.copy()
+            potential_φ.copy() if potential_φ != 0 else symbols("x") * 0
         )  # copying the potential in terms of the old variables to make substitutions
 
         for index in range(
-            len(self._node_list_without_ground)
+            len(self.nodes) - self.is_grounded
         ):  # converting potential to new variables
             potential_θ = potential_θ.subs(symbols(f"φ{index + 1}"), φ_vars_θ[index])
 
         # eliminating the frozen variables
         for frozen_var_index in self.var_categories["frozen"]:
-            sub = sympy.solve(
+            frozen_expr = sympy.solve(
                 potential_θ.diff(symbols(f"θ{frozen_var_index}")),
                 symbols(f"θ{frozen_var_index}"),
+            )[0]
+            self.frozen_var_exprs[frozen_var_index] = frozen_expr
+            potential_θ = potential_θ.replace(
+                symbols(f"θ{frozen_var_index}"), frozen_expr
             )
-            potential_θ = potential_θ.replace(symbols(f"θ{frozen_var_index}"), sub[0])
 
-        potential_θ = self.round_symbolic_expr(potential_θ, 10)
         lagrangian_θ = C_terms_θ - potential_θ
 
         return lagrangian_θ, potential_θ, lagrangian_φ, potential_φ
 
-    def generate_symbolic_hamiltonian(self, substitute_params=False) -> sympy.Expr:
+    def generate_symbolic_hamiltonian(
+        self, substitute_params=False, reevaluate_lagrangian: bool = False
+    ) -> sympy.Expr:
         r"""
         Returns the Hamiltonian of the circuit in terms of the new variables
         :math:`\theta_i`.
@@ -1782,60 +2117,68 @@ class SymbolicCircuit(serializers.Serializable):
             When set to True, the symbols defined for branch parameters will be
             substituted with the numerical values in the respective Circuit attributes.
         """
+        if reevaluate_lagrangian:
+            _, potential_symbolic, _, _ = self.generate_symbolic_lagrangian(
+                substitute_params=substitute_params
+            )
+        else:
+            potential_symbolic = self.potential_symbolic
 
         transformation_matrix = self.transformation_matrix
 
-        # Excluding the frozen modes based on how they are organized in the method
-        # variable_transformation_matrix
-        if self.is_grounded:
-            num_frozen_modes = len(self.var_categories["frozen"])
-        else:
-            num_frozen_modes = len(self.var_categories["frozen"]) + 1
-        num_nodes = len(self._node_list_without_ground)
-
+        frozen_indices = [
+            i - 1 for i in self.var_categories["frozen"] + self.var_categories["sigma"]
+        ]
         # generating the C_mat_θ by inverting the capacitance matrix
         if self.is_any_branch_parameter_symbolic() and not substitute_params:
             C_mat_θ = (
                 transformation_matrix.T
                 * self._capacitance_matrix()
                 * transformation_matrix
-            )[
-                0 : num_nodes - num_frozen_modes,
-                0 : num_nodes - num_frozen_modes,
-            ].inv()  # excluding the frozen modes
+            )
+            relevant_indices = [
+                i for i in range(C_mat_θ.shape[0]) if i not in frozen_indices
+            ]
+            C_mat_θ = C_mat_θ[relevant_indices, relevant_indices]
+            C_mat_θ = C_mat_θ.inv()
         else:
-            C_mat_θ = np.linalg.inv(
-                (
-                    transformation_matrix.T
-                    @ self._capacitance_matrix(substitute_params=substitute_params)
-                    @ transformation_matrix
-                )[
-                    0 : num_nodes - num_frozen_modes,
-                    0 : num_nodes - num_frozen_modes,
-                ]
-            )  # excluding the frozen modes
+            C_mat_θ = (
+                transformation_matrix.T
+                @ self._capacitance_matrix(substitute_params=substitute_params)
+                @ transformation_matrix
+            )
+            C_mat_θ = np.delete(C_mat_θ, frozen_indices, 0)
+            C_mat_θ = np.delete(C_mat_θ, frozen_indices, 1)
+            C_mat_θ = np.linalg.inv(C_mat_θ)
 
-        p_θ_vars = [
-            symbols(f"Q{i}") if i not in self.var_categories["free"]
+        p_φ_vars = [
+            (
+                symbols(f"Q{i}")
+                if i not in self.var_categories["free"]
+                else symbols(f"Qf{i}")
+            )
+            for i in np.sort(
+                self.var_categories["periodic"]
+                + self.var_categories["extended"]
+                + self.var_categories["free"]
+            )
             # replacing the free charge with 0, as it would not affect the circuit
             # Lagrangian.
-            else 0
-            for i in range(
-                1, len(self._node_list_without_ground) + 1 - num_frozen_modes
-            )
-        ]  # defining the momentum variables
-
+        ]
+        ### NOTE: sorting the variable indices in the above step is important as the transformation
+        ### matrix already takes care of defining the appropriate momenta in the new variables. So, the above variables should be
+        ### in the node variable order.
         # generating the kinetic energy terms for the Hamiltonian
         if not self.is_any_branch_parameter_symbolic():
             C_terms_new = (
-                C_mat_θ.dot(p_θ_vars).dot(p_θ_vars) * 0.5
+                C_mat_θ.dot(p_φ_vars).dot(p_φ_vars) * 0.5
             )  # in terms of new variables
         else:
-            C_terms_new = (sympy.Matrix(p_θ_vars).T * C_mat_θ * sympy.Matrix(p_θ_vars))[
+            C_terms_new = (sympy.Matrix(p_φ_vars).T * C_mat_θ * sympy.Matrix(p_φ_vars))[
                 0
             ] * 0.5  # in terms of new variables
 
-        hamiltonian_symbolic = C_terms_new + self.potential_symbolic
+        hamiltonian_symbolic = C_terms_new + potential_symbolic
 
         # adding the offset charge variables
         for var_index in self.var_categories["periodic"]:
@@ -1843,6 +2186,5 @@ class SymbolicCircuit(serializers.Serializable):
                 symbols(f"Q{var_index}"),
                 symbols(f"n{var_index}") + symbols(f"ng{var_index}"),
             )
-        # rounding the decimals
-        hamiltonian_rounded = self.round_symbolic_expr(hamiltonian_symbolic, 10)
-        return hamiltonian_rounded
+
+        return round_symbolic_expr(hamiltonian_symbolic.expand(), 12)
