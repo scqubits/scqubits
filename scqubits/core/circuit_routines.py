@@ -227,6 +227,10 @@ class CircuitRoutines(ABC):
             self._transform_hamiltonian(self.hamiltonian_symbolic, eig_vecs).expand(),
             12,
         )
+        for flux in self.external_fluxes:
+            self._hamiltonian_sym_for_numerics = self._hamiltonian_sym_for_numerics.subs(
+                flux, flux*np.pi*2
+            )
         # storing the annihilation operators in the eigenbasis
         osc_lengths = (
             np.diagonal(
