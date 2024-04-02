@@ -1647,7 +1647,7 @@ class CircuitRoutines(ABC):
             hasattr(self, "hierarchical_diagonalization")
             and self.hierarchical_diagonalization
         ):
-            return None
+            return self._identity_qobj()
         dim = self.hilbertdim()
         if self.type_of_matrices == "sparse":
             op = sparse.identity(dim, format="csc")
@@ -2554,9 +2554,9 @@ class CircuitRoutines(ABC):
                         + time_dep_terms[parameter_expr]
                     )
                 else:
-                    time_dep_terms[parameter_expr] = (
+                    time_dep_terms[parameter_expr] = round_symbolic_expr(
                         operator_expr * expr_dict[term] * term_expr_dict[inner_term]
-                    )
+                    , 13)
 
         for parameter_expr in time_dep_terms:
             # separating the time independent constants
@@ -2705,7 +2705,7 @@ class CircuitRoutines(ABC):
         # string to describe the Circuit
         return self._id_str
 
-    def info(self):
+    def _repr_latex_(self):
         """
         Describes the Circuit instance, its parameters, and the symbolic Hamiltonian.
         """
