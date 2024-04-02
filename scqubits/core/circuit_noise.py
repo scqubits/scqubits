@@ -137,9 +137,9 @@ class NoisyCircuit(NoisySystem, ABC):
 
         for param_sym in self.external_fluxes + self.offset_charges:
 
-            def param_derivative(self, param_sym=param_sym):
+            def param_derivative(self, second_order=False, param_sym=param_sym):
                 parent_instance = self.return_parent_circuit()
-                hamiltonian = parent_instance.fetch_symbolic_hamiltonian()
+                # hamiltonian = parent_instance.fetch_symbolic_hamiltonian()
                 hamiltonian = parent_instance._hamiltonian_sym_for_numerics
                 hamiltonian = hamiltonian.subs("I", 1)
                 all_sym_parameters = (
@@ -148,12 +148,22 @@ class NoisyCircuit(NoisySystem, ABC):
                     + parent_instance.offset_charges
                 )
                 diff_sym_expr = hamiltonian.diff(param_sym)
+                diff_sym_expr = diff_sym_expr.expand()
+                if second_order:
+                    diff_sym_expr2 = diff_sym_expr.diff(param_sym)
+                
                 # substitute all symbolic params
                 for param in all_sym_parameters:
                     diff_sym_expr = diff_sym_expr.subs(
                         param, getattr(parent_instance, param.name)
                     )
+                    if second_order:
+                        diff_sym_expr2 = diff_sym_expr2.subs(
+                            param, getattr(parent_instance, param.name)
+                        )
                 # evaluate the expression
+                if second_order:
+                    return [parent_instance._evaluate_symbolic_expr(diff_sym_expr), parent_instance._evaluate_symbolic_expr(diff_sym_expr2)]
                 return parent_instance._evaluate_symbolic_expr(diff_sym_expr)
 
             if param_sym in self.external_fluxes:
@@ -376,7 +386,9 @@ class NoisyCircuit(NoisySystem, ABC):
                 j: int = 1,
                 esys: Tuple[ndarray, ndarray] = None,
                 get_rate: bool = False,
+                second_order: bool = False,
                 noise_op_func=noise_op_func,
+                noise_type=noise_type,
                 **kwargs,
             ) -> float:
                 r"""
@@ -406,9 +418,22 @@ class NoisyCircuit(NoisySystem, ABC):
                 -------
                 float: The calculated 1/f dephasing time (or rate). This is a numerical value that represents the time it takes for the qubit to lose phase coherence due to the noise, or the rate at which the qubit loses phase coherence due to the noise.
                 """
-                noise_op = noise_op_func()
+                if noise_type != "cc":
+                    noise_op = noise_op_func(second_order=second_order)
+                else:
+                    if second_order:
+                        raise ValueError("Second order noise not supported for CC noise")
+                    noise_op = noise_op_func()
                 if isinstance(noise_op, qt.Qobj):
                     noise_op = Qobj_to_scipy_csc_matrix(noise_op)
+                    
+                if isinstance(noise_op, list):
+                    noise_op_new = []
+                    for op in noise_op:
+                        if isinstance(op, qt.Qobj):
+                            op = Qobj_to_scipy_csc_matrix(op)
+                        noise_op_new.append(op)
+                    noise_op = noise_op_new
 
                 return self.tphi_1_over_f(
                     A_noise=A_noise,
@@ -417,6 +442,7 @@ class NoisyCircuit(NoisySystem, ABC):
                     noise_op=noise_op,
                     esys=esys,
                     get_rate=get_rate,
+                    second_order=second_order,
                     **kwargs,
                 )
 
@@ -487,13 +513,14 @@ class NoisyCircuit(NoisySystem, ABC):
             j: int = 1,
             esys: Tuple[ndarray, ndarray] = None,
             get_rate: bool = False,
+            second_order: bool = False,
             **kwargs,
         ) -> float:
             tphi_times = []
             for branch in [brnch for brnch in self.branches if "JJ" in brnch.type]:
                 tphi_times.append(
                     getattr(self, f"tphi_1_over_f_cc{branch.id_str}")(
-                        A_noise=A_noise, i=i, j=j, esys=esys, **kwargs
+                        A_noise=A_noise, i=i, j=j, esys=esys, second_order=second_order, **kwargs
                     )
                 )
             total_rate = sum([1 / tphi for tphi in tphi_times])
@@ -551,6 +578,7 @@ class NoisyCircuit(NoisySystem, ABC):
             j: int = 1,
             esys: Tuple[ndarray, ndarray] = None,
             get_rate: bool = False,
+            second_order: bool = False,
             **kwargs,
         ) -> float:
             tphi_times = []
@@ -563,6 +591,7 @@ class NoisyCircuit(NoisySystem, ABC):
                         i=i,
                         j=j,
                         esys=esys,
+                        second_order=second_order,
                     )
                 )
             total_rate = sum([1 / tphi for tphi in tphi_times])
@@ -618,6 +647,7 @@ class NoisyCircuit(NoisySystem, ABC):
             j: int = 1,
             esys: Tuple[ndarray, ndarray] = None,
             get_rate: bool = False,
+            second_order: bool = False,
             **kwargs,
         ) -> float:
             tphi_times = []
@@ -630,6 +660,7 @@ class NoisyCircuit(NoisySystem, ABC):
                         i=i,
                         j=j,
                         esys=esys,
+                        second_order=second_order,
                     )
                 )
             total_rate = sum([1 / tphi for tphi in tphi_times])
