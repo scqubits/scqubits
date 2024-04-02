@@ -27,7 +27,7 @@ from matplotlib.figure import Figure
 from matplotlib.offsetbox import AnchoredText
 from numpy import ndarray
 from scipy.sparse import csc_matrix
-from sympy import csc
+from sympy import csc, sec
 
 import scqubits.core.units as units
 import scqubits.settings as settings
@@ -918,6 +918,42 @@ class NoisySystem(ABC):
             return rate
         else:
             return 1 / rate if rate != 0 else np.inf
+        
+    def transition_energy_derivative(self, ni, nf, esys, hamiltonian_derivative, second_order=False):
+        """
+        Returns the first order and second order derivative of the nth eigenenergy
+        """
+        eigs, evecs = esys
+        hamiltonian_derivative = [hamiltonian_derivative] if not isinstance(hamiltonian_derivative, list) else hamiltonian_derivative
+        deriv_lambda_1 = {}
+        deriv_lambda_2 = {}
+        for n in [ni, nf]:
+            deriv_lambda_1[n] = evecs[:, n].conj().T @ hamiltonian_derivative[0] @ evecs[:, n]
+
+        if not second_order:
+            return np.array([deriv_lambda_1[ni] - deriv_lambda_1[nf]])
+        H = self.hamiltonian()#.toarray()
+
+        for n in [ni, nf]:
+            dEndlambda = deriv_lambda_1[n]
+            if sp.sparse.issparse(H):
+                I = self.I_operator()
+                B = (-qt.Qobj(hamiltonian_derivative[0], dims=I.dims) + I*dEndlambda).data.tocsc() @ evecs[:, n]
+                A = H - eigs[n]*I.full()
+            else:
+                I = np.eye(H.shape[0])
+                B = ((-hamiltonian_derivative[0].toarray() + I*dEndlambda) @ evecs[:, n])
+                A = H - eigs[n]*I
+
+            if sp.sparse.issparse(H):
+                dpsidlambda, *_ = sp.sparse.linalg.lsqr(A, B, atol=1e-9)
+            else:
+                dpsidlambda, *_ = np.linalg.lstsq(A, B, rcond=None)
+            
+            a = dpsidlambda.conj().T @ hamiltonian_derivative[0] @ evecs[:, n]
+            deriv_lambda_2[n] = evecs[:, n].conj().T @ hamiltonian_derivative[1] @ evecs[:, n] + a + np.conj(a)
+        
+        return np.array([deriv_lambda_1[ni] - deriv_lambda_1[nf], deriv_lambda_2[ni] - deriv_lambda_2[nf]])
 
     def tphi_1_over_f(
         self,
@@ -927,6 +963,7 @@ class NoisySystem(ABC):
         noise_op: Union[ndarray, csc_matrix],
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
+        second_order: bool = False,
         **kwargs
     ) -> float:
         r"""
@@ -949,6 +986,8 @@ class NoisySystem(ABC):
             evals, evecs tuple
         get_rate:
             get rate or time
+        second_order:
+            whether to calculate second order contribution
 
         Returns
         -------
@@ -965,8 +1004,22 @@ class NoisySystem(ABC):
         p = {key: NOISE_PARAMS[key] for key in ["omega_low", "omega_high", "t_exp"]}
         p.update(kwargs)
 
-        evals, evecs = self.eigensys(evals_count=max(j, i) + 1) if esys is None else esys  # type: ignore
-
+        esys = self.eigensys(evals_count=max(j, i) + 1) if esys is None else esys  # type: ignore
+        
+        if hasattr(self, "is_child"): # find if self is a Circuit object
+            energy_variations = self.transition_energy_derivative(i, j, esys, noise_op, second_order)
+            rate_squared = (2* np.abs(np.log(p["omega_low"] * p["t_exp"]))) * (A_noise * np.abs(energy_variations[0]))**2
+            if second_order:
+                rate_squared += 2 * A_noise**4 * np.abs(energy_variations[1])**2 * (
+                    2*np.log(p["omega_low"] * p["t_exp"])**2 + np.log(p["omega_high"]/p["omega_low"])**2
+                           )
+            rate = np.sqrt(rate_squared) * 2 * np.pi
+            if get_rate:
+                return rate
+            else:
+                return 1 / rate if rate != 0 else np.inf
+            
+        eigs, evecs = esys
         if isinstance(
             noise_op, np.ndarray
         ):  # Check if the operator is given in dense form
