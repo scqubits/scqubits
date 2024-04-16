@@ -862,7 +862,8 @@ class HilbertSpace(
         """
         if not self.interaction_list:
             return (
-                qt.Qobj(0, dims=[self.subsystem_dims] * 2)
+                qt.Qobj(np.zeros((int(np.prod(self.subsystem_dims)), int(np.prod(self.subsystem_dims)))),
+                        dims=[self.subsystem_dims] * 2)
                 if qt.__version__ >= "5.0.0"
                 else qt.Qobj(0)
             )
