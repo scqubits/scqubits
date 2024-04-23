@@ -866,9 +866,9 @@ class HilbertSpace(
             independent of the external parameter
         """
         bare_hamiltonian = (
-            qt.Qobj(0, dims=[self.subsystem_dims] * 2)
-            if qt.__version__ >= "5.0.0"
-            else qt.Qobj(0)
+            qt.Qobj(np.zeros((self.dimension,) * 2), dims=[self.subsystem_dims] * 2)
+            # if qt.__version__ >= "5.0.0"
+            # else qt.Qobj(0)
         )
         for subsys_index, subsys in enumerate(self):
             if bare_esys is not None and subsys_index in bare_esys:
