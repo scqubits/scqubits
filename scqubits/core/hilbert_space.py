@@ -829,12 +829,8 @@ class HilbertSpace(
             composite Hamiltonian composed of bare Hamiltonians of subsystems
             independent of the external parameter
         """
-        bare_hamiltonian = (
-            qt.Qobj(np.zeros((int(np.prod(self.subsystem_dims)), int(np.prod(self.subsystem_dims)))),
-                    dims=[self.subsystem_dims] * 2)
-            if qt.__version__ >= "5.0.0"
-            else qt.Qobj(0)
-        )
+        bare_hamiltonian = qt.qzero(self.subsystem_dims)
+
         for subsys_index, subsys in enumerate(self):
             if bare_esys is not None and subsys_index in bare_esys:
                 evals = bare_esys[subsys_index][0]
@@ -861,11 +857,7 @@ class HilbertSpace(
             interaction Hamiltonian
         """
         if not self.interaction_list:
-            return (
-                qt.Qobj(0, dims=[self.subsystem_dims] * 2)
-                if qt.__version__ >= "5.0.0"
-                else qt.Qobj(0)
-            )
+            return qt.qzero(self.subsystem_dims)
 
         operator_list = []
         for term in self.interaction_list:

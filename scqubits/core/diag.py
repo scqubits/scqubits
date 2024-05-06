@@ -74,6 +74,11 @@ def _cast_matrix(
     dense matrices. The parameter `force_cast` determines if the
     casing should be always done, or only where it is necessary.
 
+    NOTE: we currently use csc format for sparse matrices. 
+    Internally Qobj uses the csr format instead. It could be
+    worthwhile be do some checks here and avoid unnecessary
+    conversions.
+
     Parameters
     ----------
     matrix: Qobj, ndarray or csc_matrx
@@ -133,7 +138,7 @@ def _convert_evecs_to_qobjs(evecs: ndarray, matrix_qobj, wrap: bool = False) -> 
     evecs_qobj = np.empty((evecs_count,), dtype=object)
 
     for i in range(evecs_count):
-        v = Qobj(evecs[:, i], dims=evec_dims, type="ket")
+        v = Qobj(evecs[:, i], dims=evec_dims)
         evecs_qobj[i] = v / v.norm()
 
     # Optionally, we wrap the resulting array in QutipEigenstates as is done in HilbertSpace.
