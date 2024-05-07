@@ -11,6 +11,7 @@ trigger:
       - jk-devel
       - Danny_vchos
       - devel_peterg
+      - peterg_qutip5
 
 jobs:
 - job: Linux
