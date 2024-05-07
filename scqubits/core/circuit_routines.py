@@ -1896,9 +1896,9 @@ class CircuitRoutines(ABC):
             for var_type in extended_vars:
                 for sym_variable in extended_vars[var_type]:
                     op_name = sym_variable.name + "_operator"
-                    extended_operators[op_name] = (
-                        hierarchical_diagonalization_func_factory(sym_variable.name)
-                    )
+                    extended_operators[
+                        op_name
+                    ] = hierarchical_diagonalization_func_factory(sym_variable.name)
 
         elif self.ext_basis == "discretized":
             nonwrapped_ops = {
@@ -1971,9 +1971,9 @@ class CircuitRoutines(ABC):
                 var_index = get_operator_number(sym_variable.name)
                 op_name = sym_variable.name + "_operator"
                 if self.hierarchical_diagonalization:
-                    periodic_operators[op_name] = (
-                        hierarchical_diagonalization_func_factory(sym_variable.name)
-                    )
+                    periodic_operators[
+                        op_name
+                    ] = hierarchical_diagonalization_func_factory(sym_variable.name)
                 else:
                     periodic_operators[op_name] = operator_func_factory(
                         op_func, var_index

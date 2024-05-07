@@ -249,5 +249,7 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         evals_count:
             number of desired eigenvalues (default value = 6)
         """
-        evals = [(self.E_osc + self.K) * n - self.K * n**2 for n in range(evals_count)]
+        evals = [
+            (self.E_osc + self.K) * n - self.K * n**2 for n in range(evals_count)
+        ]
         return np.asarray(evals)

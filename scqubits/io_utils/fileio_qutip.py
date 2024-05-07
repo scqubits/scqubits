@@ -29,14 +29,12 @@ class QutipEigenstates(np.ndarray, Serializable):
         with the data stored in io_data.
         """
         # Qobj in Qutip>=5 wants this to be a nested list
-        qobj_dims = io_data.ndarrays["qobj_dims"].tolist() 
+        qobj_dims = io_data.ndarrays["qobj_dims"].tolist()
         qobj_shape = io_data.ndarrays["qobj_shape"]
         evec_array = io_data.ndarrays["evecs"]
 
         qt_eigenstates = np.asarray(
-            [
-                qt.Qobj(evec, dims=qobj_dims) for evec in evec_array
-            ],
+            [qt.Qobj(evec, dims=qobj_dims) for evec in evec_array],
             dtype=np.dtype("O"),
         )
         return qt_eigenstates
