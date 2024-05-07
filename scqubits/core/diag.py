@@ -19,6 +19,7 @@ from scqubits.utils.spectrum_utils import order_eigensystem, has_degeneracy
 
 import copy
 import numpy as np
+import qutip as q
 import scipy as sp
 import scqubits.settings as settings
 import warnings
@@ -67,47 +68,64 @@ def _cast_matrix(
     matrix: Union[ndarray, csc_matrix, Qobj], cast_to: str, force_cast: bool = True
 ) -> Union[ndarray, csc_matrix, Qobj]:
     """
-    Casts a given matrix into a required form ('sparse' or 'dense')
-    as defined by `cast_to` parameter.
-    Note that in some cases casting may not be explicitly needed,
-    for example: the sparse matrix routines can can often accept
-    dense matrices. The parameter `force_cast` determines if the
-    casing should be always done, or only where it is necessary.
+    Casts a given operator (possibly given as a `Qobj`) into a
+    required form ('sparse' or 'dense' numpy array or scipy martrix) as
+    defined by `cast_to` parameter.
 
-    NOTE: we currently use csc format for sparse matrices. 
-    Internally Qobj uses the csr format instead. It could be
-    worthwhile be do some checks here and avoid unnecessary
-    conversions.
+    Operators of the type `Qobj` are first converted to a `ndarray` or a
+    scipy sparse matrix form (depending on the given object's underlying
+    `dtype`).
+
+    Later those are converted (or not) to a dense or spare forms depending
+    on whether `force_cast` is set.
+
+    NOTE: Currently we only ever cast to the csc format for sparse
+    matrices. Internally `Qobj` uses the csr or dia formats instead, however.
+    It could be worthwhile to also use those representations directly
+    whenever it makes sense, and avoid unnecessary conversions.
 
     Parameters
     ----------
-    matrix: Qobj, ndarray or csc_matrx
+    matrix: `Qobj`, `ndarray` or scipy's sparse matrix format
         matrix given as an ndarray, Qobj, or scipy's sparse matrix format
     cast_to: str
         string representing the format that matrix should be cast into: 'sparse' or 'dense'
     force_cast: bool
-        determines of casting should be always performed or only where necessary
+        determines if explicit casting to dense or sparse format should be always
+        performed
 
     Returns
     ----------
-        matrix in the right sparse or dense form
+        matrix in the sparse or dense form
 
     """
+    if cast_to not in ["sparse", "dense"]:
+        raise ValueError("Can only cast matrix to 'sparse' or 'dense' forms.")
+
     m = matrix
 
-    if cast_to == "sparse":
-        if isinstance(matrix, Qobj):
-            m = csc_matrix(matrix.data)
-        elif force_cast and isinstance(matrix, ndarray):
-            m = csc_matrix(matrix)
+    # First, if we are dealing with a Qobj, we convert it to either
+    # an ndarray or a scipy sparse matrix.
+    if isinstance(matrix, Qobj):
+        if q.__version__ >= "5.0.0":
+            if matrix.dtype == q.core.data.dense.Dense:
+                m = matrix.full()
+            else:
+                # This could be costly if the data is in a "Dia"
+                # form. In the future we may want to support other
+                # formats as well.
+                m = matrix.to("CSR").as_data()
+        else:
+            # In previous versions of qutip data was always in the csr form
+            m = matrix.data
 
-    elif cast_to == "dense":
-        if isinstance(matrix, Qobj):
-            m = matrix.full()
-        elif force_cast and sp.sparse.issparse(matrix):
-            m = matrix.toarray()
-    else:
-        raise ValueError("Can only matrix to 'sparse' or 'dense' forms.")
+    # Next, we do casting dense or sparse (CSC) representation
+    # if force_cast is True
+    if force_cast:
+        if cast_to == "dense" and not isinstance(m, ndarray):
+            m = m.toarray()
+        if cast_to == "sparse":
+            m = csc_matrix(m)
 
     return m
 
