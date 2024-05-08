@@ -228,8 +228,8 @@ class CircuitRoutines(ABC):
             12,
         )
         for flux in self.external_fluxes:
-            self._hamiltonian_sym_for_numerics = self._hamiltonian_sym_for_numerics.subs(
-                flux, flux*np.pi*2
+            self._hamiltonian_sym_for_numerics = (
+                self._hamiltonian_sym_for_numerics.subs(flux, flux * np.pi * 2)
             )
         # storing the annihilation operators in the eigenbasis
         osc_lengths = (
@@ -2555,8 +2555,8 @@ class CircuitRoutines(ABC):
                     )
                 else:
                     time_dep_terms[parameter_expr] = round_symbolic_expr(
-                        operator_expr * expr_dict[term] * term_expr_dict[inner_term]
-                    , 13)
+                        operator_expr * expr_dict[term] * term_expr_dict[inner_term], 13
+                    )
 
         for parameter_expr in time_dep_terms:
             # separating the time independent constants
