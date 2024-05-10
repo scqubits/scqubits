@@ -133,7 +133,27 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
     def _hamiltonian_diagonal(self) -> ndarray:
         dimension = self.hilbertdim()
-        return 4.0 * self.EC * (np.arange(dimension) - self.ncut - self.ng) ** 2
+
+        # Check to see if range of ncut exceeds one period of ng.
+        E_new = np.array([])
+
+        if 2 * self.ncut > 1:
+            E_tup = 4.0 * self.EC * (np.arange(dimension) - self.ncut - 1) ** 2
+            """" Include as many charging related energy eigenvalues as size: dimension
+            but include repeated values to fill the resut of the tuple """
+            E_new = E_tup
+            Nper = int( round( dimension * 0.5 / self.ncut ) )
+            for i in range( dimension - Nper ):
+                k = i - Nper * int( i / Nper )
+                E_new = np.append( E_new, E_tup[k] )
+
+        else:
+            # If the above condition is false, do what came before. 
+            E_new =  4.0 * self.EC * (np.arange(dimension) - self.ncut - self.ng) ** 2
+        
+        return E_new
+
+
 
     def _hamiltonian_offdiagonal(self) -> ndarray:
         dimension = self.hilbertdim()
