@@ -82,9 +82,7 @@ jobs:
         run: python -c 'import scqubits'
       - name: Run all pytests (serial)
         run: |
-          pytest -v --pyargs scqubits -k "test_circuit_with_symbolic_hamiltoni
-          an"
+          pytest -v --pyargs scqubits -k 'test_circuit_with_symbolic_hamiltonian'
       - name: Run all pytests (multiprocessing)
         run: |
-          pytest -v --pyargs scqubits --num_cpus=4 -k "test_circuit_with_symbolic_hamiltoni
-          an"
+          pytest -v --pyargs scqubits --num_cpus=4 -k 'test_circuit_with_symbolic_hamiltonian'
