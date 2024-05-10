@@ -29,7 +29,7 @@ jobs:
             architecture: x64
             channels: conda-forge
 
-      - name: Python setup 
+      - name: Python setup for the rest of the jobs
         if: ${{!(matrix.python-version == '3.7' && matrix.os == 'macos-latest')}}
         uses: conda-incubator/setup-miniconda@v3
         with:
@@ -85,8 +85,9 @@ jobs:
 
       - name: Run all pytests (serial)
         run: |
-          pytest -v --pyargs scqubits -k 'test_circuit_with_symbolic_hamiltonian'
+          pytest -v --pyargs scqubits 
+          # use the flag -k 'test_circuit_with_symbolic_hamiltonian' to run only a specific test
 
       - name: Run all pytests (multiprocessing)
         run: |
-          pytest -v --pyargs scqubits --num_cpus=4 -k 'test_circuit_with_symbolic_hamiltonian'
+          pytest -v --pyargs scqubits --num_cpus=4
