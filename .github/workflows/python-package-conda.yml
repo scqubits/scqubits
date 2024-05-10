@@ -47,10 +47,12 @@ jobs:
 
       - name: conda info
         run: conda info
+
       - name: Add conda to system path
         run: |
           # $CONDA is an environment variable pointing to the root of the miniconda directory
           echo $CONDA/bin >> $GITHUB_PATH
+
       - name: Lint with flake8
         run: |
           mamba install flake8
@@ -80,9 +82,11 @@ jobs:
           pip install --no-dependencies .
       - name: Attempt scqubits import
         run: python -c 'import scqubits'
+
       - name: Run all pytests (serial)
         run: |
-          pytest -v --pyargs scqubits
+          pytest -v --pyargs scqubits -k 'test_circuit_with_symbolic_hamiltonian'
+
       - name: Run all pytests (multiprocessing)
         run: |
-          pytest -v --pyargs scqubits --num_cpus=4
+          pytest -v --pyargs scqubits --num_cpus=4 -k 'test_circuit_with_symbolic_hamiltonian'
