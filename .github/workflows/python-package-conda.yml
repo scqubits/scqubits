@@ -37,14 +37,26 @@ jobs:
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-      - name: Install all dependencies
+      - name: Install all dependencies (py37 or py38)
         run: |
-          mamba install --file ./requirements.txt -c conda-forge
+          mamba install --file ./requirements-conda-py37_py38.txt -c conda-forge
+      - name: Install all dependencies 
+        if: ${{ matrix.python-version >= 3.9 }}
+        run: |
+          mamba install --file ./requirements-conda.txt -c conda-forge
+        if: ${{ matrix.python-version < 3.9 }}
+        run: |
+          mamba install --file ./requirements-conda-37_38.txt -c conda-forge
+
+      - name: Install optional dependencies 
+        run: |
           mamba install --file ./optional-requirements.txt -c conda-forge
           # The following is a temporary workaround for h5py hdf5 incompatibilities under conda install
           # conda remove h5py
           # pip install h5py
-          pip install -e .
+      - name: Install scqubits
+        run: |
+          pip install --no-dependencies  -e .
       - name: Attempt scqubits import
         run: python -c 'import scqubits'
       - name: Run all pytests (serial)

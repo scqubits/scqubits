@@ -2,7 +2,8 @@ cycler
 cython>=0.29.20,<3.0.0
 matplotlib>=3.5
 numpy>=1.14.2
-qutip>=4.3.1
+qutip>=4.3.1; python_version >= "3.9"
+qutip<=5.0; python_version < "3.9"
 scipy>=1.5
 dill
 sympy
