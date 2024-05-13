@@ -86,8 +86,8 @@ jobs:
 
       - name: Run all pytests (serial)
         run: |
-          # pytest -v --pyargs scqubits 
-          use the flag -k 'test_circuit_with_symbolic_hamiltonian' to run only a specific test
+          pytest -v --pyargs scqubits -k 'test_circuit_with_symbolic_hamiltonian' 
+          # use the flag -k 'test_circuit_with_symbolic_hamiltonian' to run only a specific test
 
       - name: Run all pytests (multiprocessing)
         run: |
