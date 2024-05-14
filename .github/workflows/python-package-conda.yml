@@ -18,7 +18,19 @@ jobs:
       - uses: actions/checkout@v4
         name: Checkout repository
 
+      - name: Python setup for macos-latest with python 3.7
+        if: ${{matrix.python-version == '3.7' && matrix.os == 'macos-latest'}}
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+            miniforge-variant: Mambaforge
+            use-mamba: true
+            auto-update-conda: true
+            python-version: ${{ matrix.python-version }}
+            architecture: x64
+            channels: conda-forge
+
       - name: Python setup 
+        if: ${{!(matrix.python-version == '3.7' && matrix.os == 'macos-latest')}}
         uses: conda-incubator/setup-miniconda@v3
         with:
             miniforge-variant: Mambaforge
