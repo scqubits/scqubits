@@ -39,6 +39,12 @@ jobs:
             python-version: ${{ matrix.python-version }}
             channels: conda-forge
 
+      - name: Check Python version
+        id: check_version
+        run: |
+          is_less_than_3_9=$(python -c 'import sys; print(sys.version_info < (3, 9))')
+          echo "is_less_than_3_9=$is_less_than_3_9" >> $GITHUB_ENV
+
       - name: conda info
         run: conda info
       - name: Add conda to system path
@@ -54,12 +60,12 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
       - name: Install all dependencies (py<3.9) 
-        if: ${{ matrix.python-version < '3.9' }}
+        if: env.is_less_than_3_9 == 'True'
         run: |
           mamba install --file ./requirements-conda-py37_py38.txt -c conda-forge
 
       - name: Install all dependencies (py>=3.9) 
-        if: ${{ matrix.python-version >= '3.9' }}
+        if: env.is_less_than_3_9 == 'False'
         run: |
           mamba install --file ./requirements-conda.txt -c conda-forge
 
