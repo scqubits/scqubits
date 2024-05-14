@@ -54,12 +54,12 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
       - name: Install all dependencies (py<3.9) 
-        if: ${{ matrix.python-version < 3.9 }}
+        if: ${{ matrix.python-version < '3.9' }}
         run: |
           mamba install --file ./requirements-conda-py37_py38.txt -c conda-forge
 
       - name: Install all dependencies (py>=3.9) 
-        if: ${{ matrix.python-version >= 3.9 }}
+        if: ${{ matrix.python-version >= '3.9' }}
         run: |
           mamba install --file ./requirements-conda.txt -c conda-forge
 
