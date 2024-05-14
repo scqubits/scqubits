@@ -27,6 +27,10 @@ jobs:
         python.version: '3.9'
       Python310:
         python.version: '3.10'
+      Python311:
+        python.version: '3.11'
+      Python312:
+        python.version: '3.12'
   steps:
   - task: UsePythonVersion@0
     inputs:
@@ -76,6 +80,10 @@ jobs:
         python.version: '3.9'
       Python310:
         python.version: '3.10'
+      Python311:
+        python.version: '3.11'
+      Python312:
+        python.version: '3.12'
   steps:
   - task: UsePythonVersion@0
     inputs:
@@ -123,7 +131,10 @@ jobs:
         python.version: '3.9'
       Python310:
         python.version: '3.10'
-
+      Python311:
+        python.version: '3.11'
+      Python312:
+        python.version: '3.12'
   steps:
   - task: UsePythonVersion@0
     inputs:
