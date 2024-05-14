@@ -51,11 +51,13 @@ requirements:
     - ipyvuetify
 
 test:
-  imports:
-    - scqubits
   requires:
     - pytest
     - pathos
+  source_files:
+    - scqubits/
+  imports:
+    - scqubits
   commands:
     - pytest -v --pyargs scqubits
     - pytest -v --pyargs scqubits --num_cpus=4
