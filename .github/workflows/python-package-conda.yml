@@ -19,7 +19,7 @@ jobs:
         name: Checkout repository
 
       - name: Python setup 
-      - uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@v3
         with:
             miniforge-variant: Mambaforge
             use-mamba: true
