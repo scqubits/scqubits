@@ -18,25 +18,15 @@ jobs:
       - uses: actions/checkout@v4
         name: Checkout repository
 
-      - name: Python setup for macos-latest with python 3.7
-        if: ${{matrix.python-version == '3.7' && matrix.os == 'macos-latest'}}
-        uses: conda-incubator/setup-miniconda@v3
+      - name: Python setup 
+      - uses: conda-incubator/setup-miniconda@v3
         with:
             miniforge-variant: Mambaforge
             use-mamba: true
             auto-update-conda: true
             python-version: ${{ matrix.python-version }}
-            architecture: x64
             channels: conda-forge
 
-      - name: Python setup 
-      - uses: conda-incubator/setup-miniconda@v2
-        with:
-            miniforge-variant: Mambaforge
-            use-mamba: true
-            auto-update-conda: true
-            python-version: ${{ matrix.python-version }}
-            channels: conda-forge
       - name: conda info
         run: conda info
       - name: Add conda to system path
@@ -69,7 +59,7 @@ jobs:
           # pip install h5py
       - name: Install scqubits
         run: |
-          pip install --no-dependencies  -e .
+          pip install --no-dependencies .
       - name: Attempt scqubits import
         run: python -c 'import scqubits'
       - name: Run all pytests (serial)

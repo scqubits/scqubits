@@ -48,7 +48,7 @@ jobs:
   - script: |
       pip install pytest pytest-azurepipelines
       pip install pathos
-      pip install .
+      pip install --no-dependencies  .
     displayName: 'Install scqubits'
   - script: |
       pytest -v --pyargs scqubits
@@ -95,7 +95,7 @@ jobs:
       pip install -r optional-requirements.txt
     displayName: 'Install dependencies'
   - script: |
-      pip install .
+      pip install --no-dependencies  .
     displayName: 'Install scqubits'
   - script: |
       pytest -v --pyargs scqubits
@@ -146,7 +146,7 @@ jobs:
       pip install pytest pytest-azurepipelines
       pip install pytest-xdist
       pip install pathos
-      pip install .
+      pip install --no-dependencies  .
     displayName: 'Install scqubits'
   - script: |
       export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
