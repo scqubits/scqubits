@@ -17,7 +17,7 @@ import warnings
 
 import inspect
 from collections.abc import Sequence
-from distutils.version import StrictVersion
+# from distutils.version import StrictVersion
 from io import StringIO
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
@@ -484,14 +484,14 @@ def number_of_lists_in_list(list_object: list) -> int:
     return sum([1 for element in list_object if type(element) == list])
 
 
-def check_matplotlib_compatibility():
-    if _HAS_WIDGET_BACKEND and StrictVersion(matplotlib.__version__) < StrictVersion(
-        "3.5.1"
-    ):
-        warnings.warn(
-            "The widget backend requires Matplotlib >=3.5.1 for proper functioning",
-            UserWarning,
-        )
+# def check_matplotlib_compatibility():
+    # if _HAS_WIDGET_BACKEND and StrictVersion(matplotlib.__version__) < StrictVersion(
+        # "3.5.1"
+    # ):
+        # warnings.warn(
+            # "The widget backend requires Matplotlib >=3.5.1 for proper functioning",
+            # UserWarning,
+        # )
 
 
 def inspect_public_API(
