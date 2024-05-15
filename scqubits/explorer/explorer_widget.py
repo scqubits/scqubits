@@ -137,8 +137,6 @@ class Explorer:
         self.subsystems: List[QuantumSystem] = self.sweep.hilbertspace.subsystem_list
         self.subsys_names: List[str] = [subsys.id_str for subsys in self.subsystems]
 
-        # utils.check_matplotlib_compatibility()
-
         # == GUI elements =========================================================
         self.ui: Dict[str, Any] = {}
         self.build_panel_switches()
