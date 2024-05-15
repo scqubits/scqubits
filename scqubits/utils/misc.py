@@ -482,6 +482,7 @@ def number_of_lists_in_list(list_object: list) -> int:
     """
     return sum([1 for element in list_object if type(element) == list])
 
+
 def inspect_public_API(
     module: Any,
     public_names: List[str] = [],
