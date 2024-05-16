@@ -1,5 +1,5 @@
 {% set name = "scqubits" %}
-{% set version = "4.1.0" %}
+{% set version = "4.0.0" %}
 
 package:
   name: {{ name|lower }}
@@ -22,22 +22,22 @@ requirements:
   host:
     - python
     - pip
-    - cython >=0.29.20,<3.0.0                # [build_platform != target_platform]
+    - cython >=0.29.20                # [build_platform != target_platform]
     - numpy >=1.14.2
   build:
     - python                                 # [build_platform != target_platform]
     # - cross-python_{{ target_platform }}     # [build_platform != target_platform]
-    - cython >=0.29.20,<3.0.0                # [build_platform != target_platform]
+    - cython >=0.29.20                       # [build_platform != target_platform]
     - numpy >=1.14.2
     - scipy                                  # [build_platform != target_platform]
     - {{ compiler('cxx') }}
   run:
     - python
     - cycler
-    - matplotlib >=3.5
+    - matplotlib >=3.5.1
     - numpy>=1.14.2
-    - qutip [py>=39]
-    - qutip <=4.7.0 [py<39]
+    - qutip >= 4.3.1[py>=39]
+    - qutip < 5.0 [py<39]
     - scipy >=1.5
     - dill
     - sympy
