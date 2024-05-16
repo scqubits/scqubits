@@ -1,0 +1,87 @@
+{% set name = "scqubits" %}
+{% set version = "4.0.0" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  # url: https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/{{ name }}-{{ version }}.tar.gz
+  # sha256: b721600b0d782c9ffea03ff7cd69f7b01ed7f72f3022ff37e943881d7b17af41
+  path: .
+
+build:
+  number: 0
+  skip: true  # [py<35]
+  script: "{{ PYTHON }} -m pip install . -vv"
+
+channels:
+  - conda-forge
+
+requirements:
+  host:
+    - python
+    - pip
+    - cython >=0.29.20                # [build_platform != target_platform]
+    - numpy >=1.14.2
+  build:
+    - python                                 # [build_platform != target_platform]
+    # - cross-python_{{ target_platform }}     # [build_platform != target_platform]
+    - cython >=0.29.20                       # [build_platform != target_platform]
+    - numpy >=1.14.2
+    - scipy                                  # [build_platform != target_platform]
+    - {{ compiler('cxx') }}
+  run:
+    - python
+    - cycler
+    - matplotlib >=3.5.1
+    - numpy >=1.14.2
+    - qutip >=4.3.1[py>=39]
+    - qutip <5.0 [py<39]
+    - scipy >=1.5
+    - dill
+    - sympy
+    - tqdm
+    - typing_extensions
+    - h5py >=2.10
+    - pathos >=0.3.0
+    - traitlets
+    # Optional dependencies
+    - ipywidgets
+    - ipyvuetify
+
+test:
+  requires:
+    - pytest
+    - pathos
+  source_files:
+    - scqubits/
+  imports:
+    - scqubits
+  commands:
+    - pytest -v --pyargs scqubits
+    - pytest -v --pyargs scqubits --num_cpus=4
+    # -k 'test_circuit_with_symbolic_hamiltonian' #if selecting a single test
+
+about:
+  home: https://github.com/scqubits/scqubits
+  license: BSD-3-Clause
+  license_family: BSD
+  license_file: LICENSE
+  summary: Superconducting qubits in Python
+
+
+  description: |
+    scqubits is an open-source Python library for simulating superconducting qubits. It is meant to give the user a
+    convenient way to obtain energy spectra of common superconducting qubits, plot energy levels as a function of
+    external parameters, calculate matrix elements etc. The library further provides an interface to QuTiP, making it
+    easy to work with composite Hilbert spaces consisting of coupled superconducting qubits and harmonic modes.
+    Internally, numerics within scqubits is carried out with the help of Numpy and Scipy; plotting capabilities rely
+    on Matplotlib.
+  doc_url: https://scqubits.readthedocs.io/
+  dev_url: https://github.com/scqubits/scqubits
+
+extra:
+  recipe-maintainers:
+    - jkochNU
+    - petergthatsme

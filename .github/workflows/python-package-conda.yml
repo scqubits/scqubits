@@ -17,7 +17,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         name: Checkout repository
-
       - name: Python setup for macos-latest with python 3.7
         if: ${{matrix.python-version == '3.7' && matrix.os == 'macos-latest'}}
         uses: conda-incubator/setup-miniconda@v3
@@ -29,7 +28,7 @@ jobs:
             architecture: x64
             channels: conda-forge
 
-      - name: Python setup 
+      - name: Python setup for the rest of the jobs
         if: ${{!(matrix.python-version == '3.7' && matrix.os == 'macos-latest')}}
         uses: conda-incubator/setup-miniconda@v3
         with:
@@ -39,18 +38,14 @@ jobs:
             python-version: ${{ matrix.python-version }}
             channels: conda-forge
 
-      - name: Check Python version
-        id: check_version
-        run: |
-          is_less_than_3_9=$(python -c 'import sys; print(sys.version_info < (3, 9))')
-          echo "is_less_than_3_9=$is_less_than_3_9" >> $GITHUB_ENV
-
       - name: conda info
         run: conda info
+
       - name: Add conda to system path
         run: |
           # $CONDA is an environment variable pointing to the root of the miniconda directory
           echo $CONDA/bin >> $GITHUB_PATH
+
       - name: Lint with flake8
         run: |
           mamba install flake8
@@ -59,30 +54,7 @@ jobs:
           # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-      - name: Install all dependencies (py<3.9) 
-        if: env.is_less_than_3_9 == 'True'
+      - name: Build with conda and run tests
         run: |
-          mamba install --file ./requirements-conda-py37_py38.txt -c conda-forge
-
-      - name: Install all dependencies (py>=3.9) 
-        if: env.is_less_than_3_9 == 'False'
-        run: |
-          mamba install --file ./requirements-conda.txt -c conda-forge
-
-      - name: Install optional dependencies 
-        run: |
-          mamba install --file ./optional-requirements.txt -c conda-forge
-          # The following is a temporary workaround for h5py hdf5 incompatibilities under conda install
-          # conda remove h5py
-          # pip install h5py
-      - name: Install scqubits
-        run: |
-          pip install --no-dependencies .
-      - name: Attempt scqubits import
-        run: python -c 'import scqubits'
-      - name: Run all pytests (serial)
-        run: |
-          pytest -v --pyargs scqubits
-      - name: Run all pytests (multiprocessing)
-        run: |
-          pytest -v --pyargs scqubits --num_cpus=4
+          mamba install boa
+          conda mambabuild .
