@@ -1,5 +1,5 @@
 {% set name = "scqubits" %}
-{% set version = "4.0.0" %}
+{% set version = "4.1.0" %}
 
 package:
   name: {{ name|lower }}
@@ -36,7 +36,7 @@ requirements:
     - cycler
     - matplotlib >=3.5.1
     - numpy >=1.14.2
-    - qutip >=4.3.1[py>=39]
+    - qutip >=4.3.1 [py>=39]
     - qutip <5.0 [py<39]
     - scipy >=1.5
     - dill
