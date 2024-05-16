@@ -830,7 +830,7 @@ class HilbertSpace(
             composite Hamiltonian composed of bare Hamiltonians of subsystems
             independent of the external parameter
         """
-        # We create a dimension dimension [1] system if no subsystems have been given
+        # We create a dimension [1] system if no subsystems have been given
         bare_hamiltonian = qt.qzero([1] if len(self.subsystem_dims)==0 else self.subsystem_dims)
 
         for subsys_index, subsys in enumerate(self):
@@ -859,7 +859,7 @@ class HilbertSpace(
             interaction Hamiltonian
         """
         if not self.interaction_list:
-            # We return a dimension dimension [1] system if no subsystems have been given
+            # We return a dimension [1] system if no subsystems have been given
             return qt.qzero([1] if len(self.subsystem_dims)==0 else self.subsystem_dims)
 
         operator_list = []
