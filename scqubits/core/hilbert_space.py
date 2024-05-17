@@ -831,7 +831,9 @@ class HilbertSpace(
             independent of the external parameter
         """
         # We create a dimension [1] system if no subsystems have been given
-        bare_hamiltonian = qt.qzero([1] if len(self.subsystem_dims)==0 else self.subsystem_dims)
+        bare_hamiltonian = qt.qzero(
+            [1] if len(self.subsystem_dims) == 0 else self.subsystem_dims
+        )
 
         for subsys_index, subsys in enumerate(self):
             if bare_esys is not None and subsys_index in bare_esys:
@@ -860,7 +862,9 @@ class HilbertSpace(
         """
         if not self.interaction_list:
             # We return a dimension [1] system if no subsystems have been given
-            return qt.qzero([1] if len(self.subsystem_dims)==0 else self.subsystem_dims)
+            return qt.qzero(
+                [1] if len(self.subsystem_dims) == 0 else self.subsystem_dims
+            )
 
         operator_list = []
         for term in self.interaction_list:
