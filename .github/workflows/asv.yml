@@ -19,7 +19,7 @@ jobs:
       with:
         conda-build-version: 24.1.2
         activate-environment: cloud_env
-        python-version: 3.9
+        python-version: 3.11
     - name: Add conda to system path
       run: echo $CONDA/bin >> $GITHUB_PATH
     - name: Set up asv
