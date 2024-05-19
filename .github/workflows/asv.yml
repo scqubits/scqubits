@@ -22,8 +22,9 @@ jobs:
       run: echo $CONDA/bin >> $GITHUB_PATH
     - name: Set up asv
       run: |
+        conda install conda=4.12.0
         conda install asv
-        conda list
+        conda env list
         git fetch origin $GITHUB_BASE_REF:base $GITHUB_REF:incoming
         asv machine --machine github-cloud-machine --yes
     - name: asv continuous check
