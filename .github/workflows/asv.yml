@@ -17,12 +17,14 @@ jobs:
         fetch-depth: 0
     - uses: conda-incubator/setup-miniconda@v3
       with:
+        conda-build-version: 4.12.0
         activate-environment: cloud_env
+        python-version: 3.9
     - name: Add conda to system path
       run: echo $CONDA/bin >> $GITHUB_PATH
     - name: Set up asv
       run: |
-        conda install conda=4.12.0
+        conda install python=3.9
         conda install asv
         conda env list
         git fetch origin $GITHUB_BASE_REF:base $GITHUB_REF:incoming
