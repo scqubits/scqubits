@@ -8,7 +8,6 @@ on:
 
 jobs:
   asvContinuous:
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 8
@@ -21,14 +20,11 @@ jobs:
       with:
         python-version: '3.9'
     - name: Add conda to system path
-      run: |
-        echo $CONDA/bin >> $GITHUB_PATH
-    - name: create environment.yml
+      run: echo $CONDA/bin >> $GITHUB_PATH
+    - name: Set up Asv
       run: |
         conda install asv
-    - name: Setup with asv
-      run: |
-        git fetch origin $GITHUB_BASE_REF:base $GITHUB_REF:pr
-        asv machine --machine github-actions --yes
+        git fetch origin $GITHUB_BASE_REF:base $GITHUB_REF:incoming
+        asv machine --machine github-cloud-machine --yes
     - name: asv continuous check
-      run: asv continuous --only-changed -f 1.25 -v base pr
+      run: asv continuous --only-changed -f 1.25 -v base incoming
