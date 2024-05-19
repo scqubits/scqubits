@@ -9,26 +9,21 @@ on:
 jobs:
   asvContinuous:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash -l {0}
     strategy:
       max-parallel: 8
     steps:
     - uses: actions/checkout@v3
       with:
         fetch-depth: 0
+    - uses: conda-incubator/setup-miniconda@v3
+      with:
+        activate-environment: cloud_env
     - name: Add conda to system path
       run: echo $CONDA/bin >> $GITHUB_PATH
-    - name: Conda with Python Setup
+    - name: Set up asv
       run: |
-        conda init
-        conda create -n "cloud_asv" python=3.9
-        conda activate cloud_asv
         conda install asv
         conda list
-    - name: Set up Asv
-      run: |
         git fetch origin $GITHUB_BASE_REF:base $GITHUB_REF:incoming
         asv machine --machine github-cloud-machine --yes
     - name: asv continuous check
