@@ -17,7 +17,7 @@ jobs:
         fetch-depth: 0
     - uses: conda-incubator/setup-miniconda@v3
       with:
-        conda-build-version: 4.12.0
+        conda-build-version: 23.*
         activate-environment: cloud_env
         python-version: 3.9
     - name: Add conda to system path
