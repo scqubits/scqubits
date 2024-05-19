@@ -24,6 +24,8 @@ jobs:
     - name: Set up Asv
       run: |
         conda install asv
+        conda install wheel
+        conda list
         git fetch origin $GITHUB_BASE_REF:base $GITHUB_REF:incoming
         asv machine --machine github-cloud-machine --yes
     - name: asv continuous check
