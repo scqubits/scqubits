@@ -9,6 +9,9 @@ on:
 jobs:
   asvContinuous:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
     strategy:
       max-parallel: 8
     steps:
