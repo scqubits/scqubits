@@ -449,3 +449,69 @@ class SpectrumLookupMixin(MixinCompatible):
         if isinstance(param_indices, slice):
             param_indices = (param_indices,)
         return len(self._parameters) == len(param_indices)
+
+    @utils.check_lookup_exists
+    @utils.check_sync_status
+    def dressed_state_component(
+        self, 
+        state_label: Tuple[int, ...] | List[int] | int,
+        truncate: Union[int, None] = None,
+        param_npindices: Optional[NpIndices] = None,
+    ) -> Tuple[List[int], List[float]]:
+        """
+        A dressed state is a superposition of bare states. This function returns 
+        a dressed state's bare conponents and the 
+        corresponding occupation probability. 
+        They are sorted by probability in descending order.
+
+        Parameters
+        ----------
+        state_label:
+            The bare label of the dressed state of interest. Could be 
+                - a tuple/list of bare labels (int)
+                - a single dressed label (int)
+        truncate:
+            The number of components to be returned. If None, all components 
+            will be returned.
+        
+        Returns
+        -------
+        A tuple of two lists: 
+            - the first list contains the bare labels of the components
+            - the second list contains the occupation probabilities of the components
+        """
+        param_npindices = self.set_npindextuple(param_npindices)
+
+        if not self.all_params_fixed(param_npindices):
+            raise ValueError(
+                "All parameters must be fixed to concrete values for "
+                "the use of `.dressed_state_component`."
+            )
+        
+        evecs = self["evecs"][param_npindices]
+            
+        # find the desired state vector
+        if isinstance(state_label, tuple | list): 
+            drs_idx = self.dressed_index(tuple(state_label))
+            if drs_idx is None:
+                raise IndexError(f"no dressed state found for bare label {state_label}")
+        elif isinstance(state_label, int):
+            drs_idx = state_label
+        evec_1 = evecs[drs_idx]
+
+        ordered_label = np.argsort(np.abs(evec_1.full()[:, 0]))[::-1]
+        bare_label_list = []
+        prob_list = []
+        for idx in range(evec_1.shape[0]):
+            raveled_label = int(ordered_label[idx])
+            bare_label = np.unravel_index(raveled_label, self.hilbertspace.subsystem_dims)
+            prob = (np.abs(evec_1.full()[:, 0])**2)[raveled_label]
+
+            bare_label_list.append(bare_label)
+            prob_list.append(prob)
+
+        if truncate is not None:
+            bare_label_list = bare_label_list[:truncate]
+            prob_list = prob_list[:truncate]
+
+        return bare_label_list, prob_list
