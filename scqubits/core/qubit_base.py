@@ -633,6 +633,25 @@ class QubitBaseClass(QuantumSystem, ABC):
         tqdm_disable = num_cpus > 1 or settings.PROGRESSBAR_DISABLED
 
         target_map = get_map_method(num_cpus)
+
+        # Exploitation of periodicity in ng values 
+        from transmon import Transmon
+        # Check class is transmon and the parameter is ng
+        if isinstance(self, Transmon) and param_name == 'ng':
+            # Define reduced ng array and store data from previous array
+            red_ng = np.array([])
+            ng_original = np.array([])
+            # Storing given ng list as ng_original 
+            for j in range(len(param_vals)):
+                ng_original = np.append(ng_original, param_vals[j])
+            
+            # Reduce ng list if possible, assuming all are non-negative 
+            for i in range(len(param_vals)):
+                red_ng = np.append(red_ng, param_vals[i] - int(param_vals[i]))
+            # To minimize chnages to the below code, and assure smooth calculation 
+            # use ndarray 'param_vals' by reassigning it to the reduced array 
+            param_vals = red_ng
+
         if not get_eigenstates:
             func_evals = functools.partial(
                 self._evals_for_paramval, param_name=param_name, evals_count=evals_count
@@ -644,12 +663,12 @@ class QubitBaseClass(QuantumSystem, ABC):
                 eigenvalue_table = np.asarray(
                     list(
                         target_map(
-                            func_evals,
-                            tqdm(
-                                param_vals,
-                                desc="Spectral data",
-                                leave=False,
-                                disable=tqdm_disable,
+                                func_evals,
+                                tqdm(
+                                    param_vals,
+                                    desc="Spectral data",
+                                    leave=False,
+                                    disable=tqdm_disable,
                             ),
                         )
                     )
@@ -680,6 +699,29 @@ class QubitBaseClass(QuantumSystem, ABC):
             eigenvalue_table, eigenstate_table = recast_esys_mapdata(
                 eigensystem_mapdata
             )
+
+        # Complete evals and estates with plot against true ng array 
+        if isinstance(self, Transmon) and param_name == 'ng':
+            param_vals = ng_original
+            energy_set = np.array([])
+            # Complete energy set using eigenvalue_table, 
+            # then assign the latter to the former 
+            for i in range(len(param_vals)):
+                # mimic cyclical behavior using below formula with integers 
+                k = i - len(eigenvalue_table) * int(i/len(eigenvalue_table))
+                energy_set = np.append(energy_set, eigenvalue_table[k])
+            
+            eigenvalue_table = energy_set
+            # Only if it is needed, do the same for the estates 
+            if get_eigenstates:
+                state_set = np.array([])
+                for i in range(len(param_vals)):
+                    k = i - len(eigenstate_table) * int(i / len(eigenstate_table))
+                    state_set = np.append(state_set, eigenstate_table[k])
+                
+                eigenstate_table = state_set
+                # This ends the modifications made to optimize calculation speed
+                # by utilizing periodicity in the transmon off set charge. 
 
         if subtract_ground:
             for param_index, _ in enumerate(param_vals):
