@@ -1,3 +1,4 @@
+from sre_constants import BRANCH
 import pyparsing as pp
 import os
 
@@ -42,11 +43,9 @@ NUM = pp.common.fnumber  # float
 
 
 # - Branch types ***************************************************
-branch_type_names = ["C", "L"]
-
 # build up dictionary of branch types
-# allow, for example, both "JJ" as well as just JJ
-BRANCH_TYPES = {name: QM + name + QM for name in branch_type_names}
+# allow, for example, both "JJ" as well as just JJ using QM
+BRANCH_TYPES = {name: QM + name + QM for name in ["C", "L"]}
 for BTYPE in BRANCH_TYPES.values():
     BTYPE.set_results_name("branch_type")
 
@@ -57,6 +56,8 @@ BRANCH_TYPES["JJ"] = (
     QM + pp.Combine(pp.Word("JJ") + Opt(JJ_ORDER) + Opt(pp.Word("s"))) + QM
 )  # defining grammar to find "JJi" where i is an optional natural number
 
+# - Mutual inductance ************
+BRANCH_TYPES["ML"] = QM + "ML" + QM
 
 # - Units: prefixes etc. **************************************************
 prefix_dict = {
@@ -72,7 +73,7 @@ prefix_dict = {
 }
 PREFIX = pp.Char(list(prefix_dict.keys()))
 
-energy_names = ["EJ", "EC", "EL"]
+energy_names = ["EJ", "EC", "EL", "EML"]
 
 
 UNITS_FREQ_ENERGY = Literal("Hz") ^ Literal("J") ^ Literal("eV")
@@ -81,6 +82,7 @@ UNITS = {name: Opt(PREFIX, None) for name in energy_names}
 UNITS["EJ"] += UNITS_FREQ_ENERGY ^ Literal("A") ^ Literal("H")  # Ampere, Henry
 UNITS["EC"] += UNITS_FREQ_ENERGY ^ Literal("F")  # Farad
 UNITS["EL"] += UNITS_FREQ_ENERGY ^ Literal("H")  # Henry
+UNITS["EML"] += UNITS_FREQ_ENERGY ^ Literal("H")  # Henry
 for name, unit in UNITS.items():
     unit.leave_whitespace()  # allow only "kHz", not "k Hz"
     unit.set_name(f"{name}_UNITS")
@@ -164,7 +166,20 @@ BRANCH_L = (
     + END
 )
 
-BRANCHES = Or([BRANCH_JJ, BRANCH_C, BRANCH_L])
+BRANCH_EM = (
+    BEG
+    + BRANCH_TYPES["ML"]("BRANCH_TYPE")
+    + CM
+    + INT("branch1")
+    + CM
+    + INT("branch2")
+    + CM
+    + PARAMS["EML"]("EML")
+    + AUX_PARAM
+    + END
+)
+
+BRANCHES = Or([BRANCH_JJ, BRANCH_C, BRANCH_L, BRANCH_EM])
 
 # uncomment to create a html describing the grammar of this language
 # BRANCHES.create_diagram("branches.html")
