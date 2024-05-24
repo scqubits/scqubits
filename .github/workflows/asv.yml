@@ -12,7 +12,7 @@ jobs:
     strategy:
       max-parallel: 8
     steps:
-      uses: actions/setup-python@v5
+    - uses: actions/setup-python@v5
       with:
         python-version: '3.9'
     - uses: actions/checkout@v3
