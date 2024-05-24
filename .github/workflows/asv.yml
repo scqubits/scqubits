@@ -14,13 +14,14 @@ jobs:
     steps:
     - uses: actions/checkout@v3
       with:
-        fetch-depth: 0
+        fetch-depth: 0  # get all commits
     - uses: conda-incubator/setup-miniconda@v3
       with:
-        conda-version: '24.1.2'
+        conda-version: 24.1.2
         activate-environment: cloud_env
-        python-version: '3.9'
-        channels: 'defaults', 'conda-forge'
+        python-version: 3.9
+        channels: defaults,conda-forge
+        show-channel-urls: true
     - name: Set up asv
       run: |
         conda install asv
