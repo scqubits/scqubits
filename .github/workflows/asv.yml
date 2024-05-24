@@ -24,7 +24,9 @@ jobs:
         show-channel-urls: true
     - name: Set up asv
       run: |
-        conda activate cloud_env
+        conda info
+        conda list
+        conda env list
         conda install asv
         git fetch origin $GITHUB_BASE_REF:base $GITHUB_REF:incoming
         asv machine --machine github-cloud-machine --yes
