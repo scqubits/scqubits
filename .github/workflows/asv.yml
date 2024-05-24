@@ -20,7 +20,7 @@ jobs:
         conda-version: '24.1.2'
         activate-environment: cloud_env
         python-version: '3.9'
-        channels: ['default', 'conda-forge']
+        channels: 'defaults', 'conda-forge'
     - name: Set up asv
       run: |
         conda install asv
