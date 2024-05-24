@@ -11,17 +11,18 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 8
+    steps:
     - uses: actions/checkout@v3
       with:
         fetch-depth: 0
     - uses: conda-incubator/setup-miniconda@v3
       with:
-        conda-version: 24.1.2
+        conda-version: '24.1.2'
         activate-environment: cloud_env
-        python-version: 3.9
+        python-version: '3.9'
+        channels: 'default', 'conda-forge'
     - name: Set up asv
       run: |
-        conda activate cloud_env
         conda install asv
         git fetch origin $GITHUB_BASE_REF:base $GITHUB_REF:incoming
         asv machine --machine github-cloud-machine --yes
