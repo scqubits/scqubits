@@ -18,13 +18,16 @@ jobs:
     - uses: conda-incubator/setup-miniconda@v3
       with:
         conda-version: 24.1.2
-        activate-environment: ""
+        activate-environment: "cloud_env"
         python-version: 3.9
         channels: defaults,conda-forge
-        auto-activate-base: true
         show-channel-urls: true
+    - name: Add conda to system path
+      run: |
+        echo $CONDA/bin >> $GITHUB_PATH
     - name: Set up asv
       run: |
+        conda activate cloud_env
         conda env list
         conda install asv
         git fetch origin $GITHUB_BASE_REF:base $GITHUB_REF:incoming
