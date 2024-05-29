@@ -487,8 +487,8 @@ class SpectrumLookupMixin(MixinCompatible):
                 "All parameters must be fixed to concrete values for "
                 "the use of `.dressed_state_component`."
             )
-        
-        evecs = self["evecs"][param_npindices]
+
+        evecs = self["evecs"][param_npindices][0]
             
         # find the desired state vector
         if isinstance(state_label, tuple | list): 
