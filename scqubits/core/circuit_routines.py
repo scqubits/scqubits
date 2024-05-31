@@ -413,7 +413,7 @@ class CircuitRoutines(ABC):
 
         if (hasattr(self, "symbolic_circuit")) and (
             (
-                (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES
+                (len(self.symbolic_circuit.nodes)) >= settings.SYM_INVERSION_MAX_NODES
                 or len(self.var_categories["frozen"]) > 0
             )
             or self.is_purely_harmonic
