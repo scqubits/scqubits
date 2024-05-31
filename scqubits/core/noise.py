@@ -938,7 +938,7 @@ class NoisySystem(ABC):
             dEndlambda = deriv_lambda_1[n]
             if sp.sparse.issparse(H):
                 I = self.I_operator()
-                B = (-qt.Qobj(hamiltonian_derivative[0], dims=I.dims) + I*dEndlambda).data.tocsc() @ evecs[:, n]
+                B = Qobj_to_scipy_csc_matrix(-qt.Qobj(hamiltonian_derivative[0], dims=I.dims) + I*dEndlambda) @ evecs[:, n]
                 A = H - eigs[n]*I.full()
             else:
                 I = np.eye(H.shape[0])
