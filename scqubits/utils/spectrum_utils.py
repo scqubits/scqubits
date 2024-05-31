@@ -189,11 +189,8 @@ def get_matrixelement_table(
         table of matrix elements
     """
     if isinstance(operator, qt.Qobj):
-        states_in_columns = state_table.T
-    else:
-        states_in_columns = state_table
-
-    mtable = states_in_columns.conj().T @ operator @ states_in_columns
+        operator = Qobj_to_scipy_csc_matrix(operator)
+    mtable = state_table.conj().T @ operator @ state_table
     return mtable
 
 
