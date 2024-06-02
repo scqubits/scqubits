@@ -22,6 +22,34 @@ for library in optional_libraries:
         have_libraries.append(False)
 
 
+def test_custom_diagonalization_raises_error_if_esys_method_passed_to_evals_method():
+    esys_method = 'esys_scipy_dense'
+
+    fluxonium = Fluxonium(
+        EJ=8.9, EC=2.5, EL=0.5, flux = 0.5, cutoff = 120,
+        evals_method=esys_method
+    )
+
+    with pytest.raises(ValueError) as exc_info:
+        fluxonium.eigenvals()
+
+    assert "Invalid `evals_method`: expect one of `evals` methods, got one of `esys` methods." in exc_info.exconly()
+
+
+def test_custom_diagonalization_raises_error_if_evals_method_passed_to_esys_method():
+    evals_method = 'evals_scipy_dense'
+
+    fluxonium = Fluxonium(
+        EJ=8.9, EC=2.5, EL=0.5, flux = 0.5, cutoff = 120,
+        esys_method=evals_method
+    )
+
+    with pytest.raises(ValueError) as exc_info:
+        fluxonium.eigensys()
+
+    assert "Invalid `esys_method`: expect one of `esys` methods, got one of `evals` methods." in exc_info.exconly()
+
+
 def test_custom_diagonalization_raises_error_if_nonexistent_method_provided():
     evals_method = 'non_existent_method'
     library = evals_method.split('_')[1]
@@ -36,9 +64,6 @@ def test_custom_diagonalization_raises_error_if_nonexistent_method_provided():
         evals_method=evals_method, 
         evals_method_options=dict(tol=1e-4) # custom tolerance
     )
-
-    with pytest.raises(KeyError):
-        fluxonium.eigenvals()
 
 
 @pytest.mark.skipif(
