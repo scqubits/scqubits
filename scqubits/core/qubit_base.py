@@ -369,10 +369,14 @@ class QubitBaseClass(QuantumSystem, ABC):
             evals = self._evals_calc(evals_count)
         else:
             diagonalizer = (
-                diag.DIAG_METHODS[self.evals_method]
+                diag.DIAG_METHODS.get(self.evals_method)
                 if isinstance(self.evals_method, str)
                 else self.evals_method
             )
+            if diagonalizer is None:
+                raise ValueError(
+                    f"Invalid {self.evals_method} `evals_method`, does not exist in available custom diagonalization methods."
+                )
             options = (
                 {} if self.esys_method_options is None else self.esys_method_options
             )
@@ -430,10 +434,14 @@ class QubitBaseClass(QuantumSystem, ABC):
             evals, evecs = self._esys_calc(evals_count)
         else:
             diagonalizer = (
-                diag.DIAG_METHODS[self.esys_method]
+                diag.DIAG_METHODS.get(self.esys_method)
                 if isinstance(self.esys_method, str)
                 else self.esys_method
             )
+            if diagonalizer is None:
+                raise ValueError(
+                    f"Invalid {self.esys_method} `esys_method`, does not exist in available custom diagonalization methods."
+                )
             options = (
                 {} if self.esys_method_options is None else self.esys_method_options
             )
