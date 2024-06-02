@@ -285,6 +285,16 @@ class QubitBaseClass(QuantumSystem, ABC):
         esys_method_options: Union[Dict, None] = None,
     ):
         super().__init__(id_str=id_str)
+        if isinstance(evals_method, str):
+            if evals_method.split('_')[0] == 'esys':
+                raise ValueError(
+                    "Invalid `evals_method`: expect one of `evals` methods, got one of `esys` methods."
+                )
+        if isinstance(esys_method, str):
+            if esys_method.split('_')[0] == 'evals':
+                raise ValueError(
+                    "Invalid `esys_method`: expect one of `esys` methods, got one of `evals` methods."
+                )
         self.evals_method = evals_method
         self.evals_method_options = evals_method_options
         self.esys_method = esys_method
