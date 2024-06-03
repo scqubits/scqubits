@@ -3584,16 +3584,86 @@ class CircuitRoutines(ABC):
                 raise AttributeError(
                     "Cannot plot the imaginary part of the wave function in more than 2 dimensions."
                 )
+    
+    def generate_section_plot_data(
+        self,
+        which: int,
+        mode: str,
+        var_indices: Tuple[int],
+        eigensys: Tuple[np.ndarray, np.ndarray],
+        change_discrete_charge_to_phi: bool,
+        grids_dict: Dict[int, discretization.Grid1d],
+        section_indices: Tuple[int, ...] = None,
+    ) -> NamedSlotsNdarray:
+        """
+        Generates the wavefunction plot data for a specified section.
+
+        Parameters
+        which:
+            integer to choose which wave function to plot
+        mode:
+            "abs", "real", "imag", "abs-sqr" - decides which part of the wave
+            function is plotted.
+        var_indices:
+            A tuple containing the indices of the variables chosen to plot the
+            wave function in. Should not have more than 2 entries.
+        eigensys:
+            eigenvalues and eigenstates of the Circuit instance; if not provided,
+            calling this method will perform a diagonalization to obtain these.
+        extended_variable_basis: str
+            The basis in which the extended variables are plotted. Can be either
+            "phi" or "charge".
+        periodic_variable_basis: str
+            The basis in which the periodic variables are plotted. Can be either
+            "phi" or "charge".
+        grids_dict:
+            A dictionary which pairs var indices with the requested grids used to create
+            the plot.
+        section_indices:
+            A tuple specifying the fixed indices or values for the section to plot.
+            Use None for dimensions that should be fully plotted.
+        """
+        plot_data = self.generate_wf_plot_data(
+                which=which,
+                mode=mode,
+                var_indices=var_indices,
+                eigensys=eigensys,
+                change_discrete_charge_to_phi=change_discrete_charge_to_phi,
+                grids_dict=grids_dict,
+            )
+
+        if section_indices is not None:
+            assert len(section_indices) == len(var_indices), (
+                "Length of section_indices must match length of var_indices"
+            )
+            # Convert flux values (str) to grid indices
+            section_indices = [
+                self._get_grid_index(var_idx, val) if isinstance(val, str) else val
+                for var_idx, val in zip(var_indices, section_indices)
+            ]
+            # Create a list of slice objects for indexing using fuzzy matching
+            index_slices = [slice(None)] * plot_data.ndim
+            for i, (var_idx, index) in enumerate(zip(var_indices, section_indices)):
+                if index is not None and isinstance(index, str):
+                    grid = grids_dict[var_idx]
+                    grid_values = grid.data
+                    closest_idx = np.argmin(np.abs(grid_values - float(index)))
+                    index_slices[i] = slice(closest_idx, closest_idx + 1)  # Select single point
+            plot_data = plot_data[tuple(index_slices)]
+
+        return plot_data
+
 
     def plot_wavefunction(
         self,
         which=0,
         mode: str = "abs-sqr",
         var_indices: Tuple[int] = (1,),
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: Tuple[np.ndarray, np.ndarray] = None,
         change_discrete_charge_to_phi: bool = True,
         zero_calibrate: bool = True,
         grids_dict: Dict[int, discretization.Grid1d] = {},
+        section_indices: Tuple[int, ...] = None,
         **kwargs,
     ) -> Tuple[Figure, Axes]:
         """
@@ -3640,6 +3710,9 @@ class CircuitRoutines(ABC):
             4. If the grid is not specified for a variable that requires a grid for plotting (i.e.
             extended variable with harmonic oscillator basis, or periodic variable with
             `change_discrete_charge_to_phi` set to True), the default grid is used.
+        section_indices:
+            A tuple specifying the fixed indices or values for the section to plot.
+            Use None for dimensions that should be fully plotted.
 
         **kwargs:
             plotting parameters
@@ -3655,15 +3728,25 @@ class CircuitRoutines(ABC):
             )
         var_indices = np.sort(var_indices)
         grids_per_varindex_dict = grids_dict or self.discretized_grids_dict_for_vars()
-
-        plot_data = self.generate_wf_plot_data(
-            which=which,
-            mode=mode,
-            var_indices=var_indices,
-            eigensys=esys,
-            change_discrete_charge_to_phi=change_discrete_charge_to_phi,
-            grids_dict=grids_per_varindex_dict,
-        )
+        if section_indices == None:
+            plot_data = self.generate_wf_plot_data(
+                which=which,
+                mode=mode,
+                var_indices=var_indices,
+                eigensys=esys,
+                change_discrete_charge_to_phi=change_discrete_charge_to_phi,
+                grids_dict=grids_per_varindex_dict,
+            )
+        else:
+            plot_data = self.generate_section_plot_data(
+                which=which,
+                mode=mode,
+                var_indices=var_indices,
+                eigensys=esys,
+                change_discrete_charge_to_phi=change_discrete_charge_to_phi,
+                grids_dict=grids_per_varindex_dict,
+                section_indices=section_indices,
+            )
 
         var_types = []
 
