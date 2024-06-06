@@ -488,11 +488,12 @@ class SpectrumLookupMixin(MixinCompatible):
                 "the use of `.dressed_state_component`."
             )
 
-        evecs = self["evecs"][param_npindices][0]
+        zero_idx = (0,) * len(self._parameters)
+        evecs = self["evecs"][zero_idx]
             
         # find the desired state vector
         if isinstance(state_label, tuple | list): 
-            drs_idx = self.dressed_index(tuple(state_label))
+            drs_idx = self.dressed_index(tuple(state_label))[zero_idx]
             if drs_idx is None:
                 raise IndexError(f"no dressed state found for bare label {state_label}")
         elif isinstance(state_label, int):
