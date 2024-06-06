@@ -7,12 +7,24 @@ import scipy as sp
 from scqubits import Fluxonium, Transmon, HilbertSpace
 
 diag_methods = scq.DIAG_METHODS.keys()
+
 def _library_installed(library):
     try:
         importlib.import_module(library)
         return True
     except ImportError:  # `ModuleNotFoundError` is a subclass of `ImportError`. Here, the general class of errors are checked.
         return False
+
+def _get_library_methods(library, evals=True):
+    library_diag_methods = [
+        method for method in diag_methods
+        if method.split('_')[1] == library
+        and method.split('_')[0] == ('evals' if evals else 'esys')
+        and '_shift-inverse' not in method
+        and '_SM' not in method  # TODO: this is temporary until we find a fix for adding EJ to the Hamiltonian.
+    ]
+    return library_diag_methods
+
 
 optional_libraries = (
     'cupy',
@@ -91,12 +103,7 @@ def test_custom_diagonalization_evals_method_matches_default(library):
         warnings.warn(f'Package {library} not installed; skipping test', ImportWarning)
         return
 
-    library_diag_methods = [
-        method for method in diag_methods if method.split('_')[1] == library
-        and method.split('_')[0] == 'evals'
-        and '_shift-inverse' not in method
-        and '_SM' not in method  # TODO: this is temporary until we find a fix for adding EJ to the Hamiltonian.
-    ]
+    library_diag_methods = _get_library_methods(library, evals=True)
     for method in library_diag_methods:
         fluxonium = Fluxonium(
             EJ=8.9, EC=2.5, EL=0.5, flux = 0.5, cutoff = 120,
@@ -129,12 +136,7 @@ def test_custom_diagonalization_matches_default_with_composite_systems(library):
         warnings.warn(f'Package {library} not installed; skipping test', ImportWarning)
         return
 
-    library_diag_methods = [
-        method for method in diag_methods if method.split('_')[1] == library
-        and method.split('_')[0] == 'evals'
-        and '_shift-inverse' not in method
-        and '_SM' not in method  # TODO: this is temporary until we find a fix for adding EJ to the Hamiltonian.
-    ]
+    library_diag_methods = _get_library_methods(library, evals=True)
     for method in library_diag_methods:
         tmon = Transmon(EJ=30.02, EC=1.2, ng=0.0, ncut=101)
         fluxonium= Fluxonium(
@@ -180,7 +182,7 @@ def test_custom_diagonalization_matches_default_using_custom_procedure():
     tmon = Transmon(
         EJ=30.02, EC=1.2, ng=0.0, ncut=501,
         esys_method=custom_esys,
-        esys_method_options=dict(driver='evr') # here we set a custom driver
+        esys_method_options=dict(driver='evr')  # set a custom driver
     )
 
     evals, evecs = tmon.eigensys()
@@ -204,7 +206,7 @@ def test_custom_diagonalization_matches_default_using_custom_procedure():
         pytest.param(library, marks=pytest.mark.skipif(not _library_installed(library), reason=f'Package {library} not installed; skipping test')) for library in optional_libraries
     ]
 )
-def test_custom_diagonalization_evals_are_same_using_eigenvals_or_eigensys(library):
+def test_custom_diagonalization_evals_are_same_using_eigenvals_and_eigensys_default(library):
     if library == 'jax':
         # To evade np.allclose errors when not using 64-bit calculations.
         from jax.config import config
@@ -216,12 +218,7 @@ def test_custom_diagonalization_evals_are_same_using_eigenvals_or_eigensys(libra
         warnings.warn(f'Package {library} not installed; skipping test', ImportWarning)
         return
 
-    library_diag_methods = [
-        method for method in diag_methods if method.split('_')[1] == library
-        and method.split('_')[0] == 'evals'
-        and '_shift-inverse' not in method
-        and '_SM' not in method  # TODO: this is temporary until we find a fix for adding EJ to the Hamiltonian.
-    ]
+    library_diag_methods = _get_library_methods(library, evals=True)
     for method in library_diag_methods:
         fluxonium = Fluxonium(
             EJ=8.9, EC=2.5, EL=0.5, flux = 0.5, cutoff = 120,
@@ -240,15 +237,11 @@ def test_custom_diagonalization_evals_are_same_using_eigenvals_or_eigensys(libra
     [
         pytest.param(library, marks=[
             pytest.mark.skipif(not _library_installed(library), reason=f'Package {library} not installed; skipping test'),
-            pytest.mark.xfail(reason='eigenvector does not agree with default esys when using `esys_jax_dense`') if library == 'jax' else pytest.mark.Mark(),
-            pytest.mark.xfail(reason='eigenvector does not agree with default esys when using `esys_primme_sparse`') if library == 'primme' else pytest.mark.Mark()  # todo: not complete.
         ]
         ) for library in optional_libraries
     ]
 )
-
-
-def test_custom_diagonalization_esys_method_matches_default(library):  # TODO: This is incomplete...
+def test_custom_diagonalization_esys_method_matches_default(library):
     if library == 'jax':
         # To evade np.allclose errors when not using 64-bit calculations.
         from jax.config import config
@@ -260,13 +253,7 @@ def test_custom_diagonalization_esys_method_matches_default(library):  # TODO: T
         warnings.warn(f'Package {library} not installed; skipping test', ImportWarning)
         return
 
-    library_diag_methods = [
-        method for method in diag_methods if method.split('_')[1] == library
-        and method.split('_')[0] == 'esys'
-        and '_shift-inverse' not in method
-        and '_SM' not in method  # TODO: this is temporary until we find a fix for adding EJ to the Hamiltonian.
-    ]
-
+    library_diag_methods = _get_library_methods(library, evals=False)
     for method in library_diag_methods:
         tmon = Transmon(
             EJ=30.02, EC=1.2, ng=0.0, ncut=501, 
@@ -277,16 +264,18 @@ def test_custom_diagonalization_esys_method_matches_default(library):  # TODO: T
         tmon.esys_method = None
         evals_default, evecs_default = tmon.eigensys()
 
-        if not np.all(
-            [
-                np.allclose(evecs[:, i], evecs_default[:, i], atol=1e-7) for i, _ in enumerate(evals)
-            ]
-        ):
-            print(method)
-
-        # assert np.all(
-        #     [
-        #         np.allclose(evecs[:, i], evecs_default[:, i], atol=1e-7) for i, _ in enumerate(evals)
-        #     ]
-        # )
-        # assert np.allclose(evals, evals_default)
+        if method == 'esys_primme_sparse' or method == 'esys_jax_dense':
+            # NOTE: These two cases are temporary failing.
+            with pytest.raises(AssertionError):
+                assert np.all(
+                    [
+                        np.allclose(evecs[:, i], evecs_default[:, i], atol=1e-7) for i, _ in enumerate(evals)
+                    ]
+                )
+        else:
+            assert np.all(
+                [
+                    np.allclose(evecs[:, i], evecs_default[:, i], atol=1e-7) for i, _ in enumerate(evals)
+                ]
+            )
+        assert np.allclose(evals, evals_default)
