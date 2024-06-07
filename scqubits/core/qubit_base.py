@@ -639,18 +639,26 @@ class QubitBaseClass(QuantumSystem, ABC):
         # Check class is transmon and the parameter is ng
         if isinstance(self, Transmon) and param_name == 'ng':
             # Define reduced ng array and store data from previous array
-            red_ng = np.array([])
-            ng_original = np.array([])
-            # Storing given ng list as ng_original 
-            for j in range(len(param_vals)):
-                ng_original = np.append(ng_original, param_vals[j])
+            # Info about shift in ng will be accessible in order to shift 
+            # back the state components in charge basis, make "empty like"
+            ng_len = int(len(param_vals))
+            # store original array as ng_original
+            ng_mod_shift = np.empty((len(param_vals), 2), dtype=float)
+            ng_original = np.copy(param_vals)
+            # store the mod of ng = red and int div of ng = shift 
+            ng_mod_shift[:, 0] = ng_original%1
+            ng_mod_shift[:, 1] = ng_original//1
+
+            # Reduction in number of elements 
+            param_vals = np.empty((ng_len, 1), dtype=float)
+
+            for idx in range(ng_len):
+                if not(ng_mod_shift[idx, 0] in param_vals):
+                    param_vals[idx] = ng_mod_shift[idx, 0]
             
-            # Reduce ng list if possible, assuming all are non-negative 
-            for i in range(len(param_vals)):
-                red_ng = np.append(red_ng, param_vals[i] - int(param_vals[i]))
-            # To minimize chnages to the below code, and assure smooth calculation 
-            # use ndarray 'param_vals' by reassigning it to the reduced array 
-            param_vals = red_ng
+            # Concludes ng reduction 
+
+
 
         if not get_eigenstates:
             func_evals = functools.partial(
@@ -702,26 +710,42 @@ class QubitBaseClass(QuantumSystem, ABC):
 
         # Complete evals and estates with plot against true ng array 
         if isinstance(self, Transmon) and param_name == 'ng':
-            param_vals = ng_original
-            energy_set = np.array([])
+            # The eigenvalue_table only has the evals corresponding to the reduced ng 
+            energy_set = np.empty((ng_len, 1), dtype=float)
+
             # Complete energy set using eigenvalue_table, 
             # then assign the latter to the former 
-            for i in range(len(param_vals)):
-                # mimic cyclical behavior using below formula with integers 
-                k = i - len(eigenvalue_table) * int(i/len(eigenvalue_table))
-                energy_set = np.append(energy_set, eigenvalue_table[k])
-            
+            for idx_1, com in enumerate(ng_mod_shift[:, 0]):
+                for idx_2, red in enumerate(param_vals):
+                    if com == red:
+                        energy_set[idx_1] = eigenvalue_table[idx_2]
+
             eigenvalue_table = energy_set
-            # Only if it is needed, do the same for the estates 
+            
+            # Only if it is needed, do the same for the estates but shift them 
+            # according to the number of periods they were given 
             if get_eigenstates:
-                state_set = np.array([])
-                for i in range(len(param_vals)):
-                    k = i - len(eigenstate_table) * int(i / len(eigenstate_table))
-                    state_set = np.append(state_set, eigenstate_table[k])
+                # define a temporary set for the set of estates  
+                state_set = np.empty((ng_len, 1), dtype=float)
+
+                # complete the eigenstates 
+                for idx_1, stv in enumerate(state_set):
+                    for idx_2, red in enumerate(param_vals):
+                        if ng_mod_shift[idx_2, 0] == red:
+                            stv = eigenstate_table[idx_1]
+
+                # Shift charge states 
+                for idx_1, mod, shf in enumerate(ng_mod_shift):
+                    for idx_2, sng, nvl, val in enumerate(state_set):
+                        nvl += shf
                 
+                # assign eigenstate_table corect values of n and evaluation at ng 
                 eigenstate_table = state_set
-                # This ends the modifications made to optimize calculation speed
-                # by utilizing periodicity in the transmon off set charge. 
+            
+            # reassign the parameters values baack to the original ndarray 
+            param_vals = ng_original 
+            # This ends the modifications made to minimize calculation time 
+            # by utilizing periodicity in the transmon offset charge. 
 
         if subtract_ground:
             for param_index, _ in enumerate(param_vals):
