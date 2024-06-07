@@ -9,6 +9,7 @@ from scqubits import Fluxonium, Transmon, HilbertSpace
 diag_methods = scq.DIAG_METHODS.keys()
 
 def _library_installed(library):
+    """Check whether the given `library` is installed or not."""
     try:
         importlib.import_module(library)
         return True
@@ -16,12 +17,15 @@ def _library_installed(library):
         return False
 
 def _get_library_methods(library, evals=True):
+    """Get all diagonalization methods for a given `library`."""
     library_diag_methods = [
         method for method in diag_methods
         if method.split('_')[1] == library
         and method.split('_')[0] == ('evals' if evals else 'esys')
+        # NOTE: shift-inverse currently does not match with the default, so are omitted. Needs investigation.
         and '_shift-inverse' not in method
-        and '_SM' not in method  # TODO: this is temporary until we find a fix for adding EJ to the Hamiltonian.
+        # This is a temporary omission until this bug is fixed. Possible solution: add a constant (EJ) to the Hamiltonian.
+        and '_SM' not in method
     ]
     return library_diag_methods
 
@@ -34,6 +38,8 @@ optional_libraries = (
 
 
 def test_custom_diagonalization_raises_error_if_esys_method_passed_to_evals_method():
+    """Test if an error is raised if an esys method is passed to `evals_method`."""
+
     esys_method = 'esys_scipy_dense'
 
     with pytest.raises(ValueError) as exc_info:
@@ -46,6 +52,8 @@ def test_custom_diagonalization_raises_error_if_esys_method_passed_to_evals_meth
 
 
 def test_custom_diagonalization_raises_error_if_evals_method_passed_to_esys_method():
+    """Test if an error is raised if an evals method is passed to `esys_method`."""
+
     evals_method = 'evals_scipy_dense'
 
     with pytest.raises(ValueError) as exc_info:
@@ -58,6 +66,8 @@ def test_custom_diagonalization_raises_error_if_evals_method_passed_to_esys_meth
 
 
 def test_custom_diagonalization_raises_error_if_nonexistent_method_provided_evals():
+    """Test if an error is raised if a non-existent evals method is used."""
+
     evals_method = 'non_existent_method'
 
     fluxonium = Fluxonium(
@@ -72,6 +82,8 @@ def test_custom_diagonalization_raises_error_if_nonexistent_method_provided_eval
 
 
 def test_custom_diagonalization_raises_error_if_nonexistent_method_provided_esys():
+    """Test if an error is raised if a non-existent esys method is used."""
+
     esys_method = 'non_existent_method'
 
     fluxonium = Fluxonium(
@@ -92,6 +104,8 @@ def test_custom_diagonalization_raises_error_if_nonexistent_method_provided_esys
     ]
 )
 def test_custom_diagonalization_evals_method_matches_default(library):
+    """Test custom diagonalization gives the same eigenvalues as using the default method."""
+
     if library == 'jax':
         # To evade np.allclose errors when not using 64-bit calculations.
         from jax.config import config
@@ -125,6 +139,8 @@ def test_custom_diagonalization_evals_method_matches_default(library):
     ]
 )
 def test_custom_diagonalization_matches_default_with_composite_systems(library):
+    """Test custom diagonalization gives same eigenvalues as using the default method for composite systems."""
+
     if library == 'jax':
         # To evade np.allclose errors when not using 64-bit calculations.
         from jax.config import config
@@ -161,8 +177,8 @@ def test_custom_diagonalization_matches_default_with_composite_systems(library):
         evals_fluxonium = fluxonium.eigenvals(evals_count=10)
 
         # Get the eigenvalues using the default method.
-        fluxonium.evals_method=None
-        hs.evals_method=None
+        fluxonium.evals_method = None
+        hs.evals_method = None
         evals_default_hs = hs.eigenvals(evals_count=10)
         evals_default_fluxonium = fluxonium.eigenvals(evals_count=10)
 
@@ -171,6 +187,8 @@ def test_custom_diagonalization_matches_default_with_composite_systems(library):
 
 
 def test_custom_diagonalization_matches_default_using_custom_procedure():
+    """Test custom diagonalization gives same result as using the default method when using a custom procedure."""
+
     def custom_esys(matrix, evals_count, **kwargs):  
         evals, evecs = sp.linalg.eigh(
             matrix, subset_by_index=(0, evals_count - 1), 
@@ -207,6 +225,8 @@ def test_custom_diagonalization_matches_default_using_custom_procedure():
     ]
 )
 def test_custom_diagonalization_evals_are_same_using_eigenvals_and_eigensys_default(library):
+    """Test eigenvalues are the same when using either `eigenvals` or `eigensys`."""
+
     if library == 'jax':
         # To evade np.allclose errors when not using 64-bit calculations.
         from jax.config import config
@@ -242,6 +262,8 @@ def test_custom_diagonalization_evals_are_same_using_eigenvals_and_eigensys_defa
     ]
 )
 def test_custom_diagonalization_esys_method_matches_default(library):
+    """Test custom diagonalization gives same result as using the default method."""
+
     if library == 'jax':
         # To evade np.allclose errors when not using 64-bit calculations.
         from jax.config import config
