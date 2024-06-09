@@ -746,12 +746,10 @@ class QubitBaseClass(QuantumSystem, ABC):
                             eff = shf + (1 + 2 * n_cut)
                         else:
                             eff = shf
-
+                        # This for-loop effectively reassigns eigenstate_table 
+                        # to correct values
                         for nst in range(1 + 2 * n_cut):
                             eigenstate_table[idx_1, nst, :] = state_set[idx_1, nst + eff, :]
-                
-                # assign eigenstate_table corect values of n and evaluation at ng 
-                eigenstate_table = state_set
             
             # reassign the parameters values baack to the original ndarray 
             param_vals = ng_original 
