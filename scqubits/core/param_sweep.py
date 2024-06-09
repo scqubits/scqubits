@@ -386,31 +386,38 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
 
     def _process_initial_option(
         self,
-        initial: Union[None, StateLabel],
+        initial: Optional[Union[StateLabel, List[Tuple[int]]]],
         subsys_list: List[QuantumSystem],
     ) -> Tuple[bool, Callable, StateLabel]:
+        print(initial, subsys_list)
+        print(type(initial))
         if isinstance(initial, DressedLabel):
+            print("trigger1")
             initial_dressed = True
             return initial_dressed, self.energy_by_dressed_index, initial
 
         if initial is None:
+            print("trigger2")
             initial_dressed = False
             initial = (0,) * len(self.hilbertspace)
             return initial_dressed, self.energy_by_bare_index, initial
 
         initial_dressed = False
         if len(initial) not in [len(self.hilbertspace), len(subsys_list)]:
+            print("trigger3")
             raise ValueError(
                 "State information provided is not compatible "
                 "with the set of subsystems(s)."
             )
         if len(initial) < len(self.hilbertspace):
+            print("trigger4")
             initial = tuple(self._complete_state(initial, subsys_list))
+        print( self.energy_by_bare_index)
         return initial_dressed, self.energy_by_bare_index, initial
 
     def _process_final_option(
         self,
-        final: Union[None, StateLabel],
+        final: Optional[Union[StateLabel, List[Tuple[int]]]],
         initial: StateLabel,
         subsys_list: List[QuantumSystem],
         sidebands: bool,
@@ -498,8 +505,8 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         self,
         as_specdata: Literal[False],
         subsystems: Optional[Union[QuantumSystem, List[QuantumSystem]]] = None,
-        initial: Optional[StateLabel] = None,
-        final: Optional[StateLabel] = None,
+        initial: Optional[Union[StateLabel, List[Tuple[int]]]] = None,
+        final: Optional[Union[StateLabel, List[Tuple[int]]]] = None,
         sidebands: bool = False,
         photon_number: int = 1,
         make_positive: bool = False,
@@ -510,8 +517,8 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         self,
         as_specdata: bool = False,
         subsystems: Optional[Union[QuantumSystem, List[QuantumSystem]]] = None,
-        initial: Optional[StateLabel] = None,
-        final: Optional[StateLabel] = None,
+        initial: Optional[Union[StateLabel, List[Tuple[int]]]] = None,
+        final: Optional[Union[StateLabel, List[Tuple[int]]]] = None,
         sidebands: bool = False,
         photon_number: int = 1,
         make_positive: bool = False,
@@ -576,38 +583,39 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
             saving transition label info in an attribute named `labels`.
         """
         subsys_list = self._process_subsystems_option(subsystems)
+        print(initial)
+        initial_states = initial if isinstance(initial, list) else [initial]
 
-        (
-            initial_dressed,
-            initial_energy_lookup_func,
-            initial_state,
-        ) = self._process_initial_option(initial, subsys_list)
-        (
-            final_dressed,
-            final_energy_lookup_func,
-            final_states_list,
-        ) = self._process_final_option(final, initial_state, subsys_list, sidebands)
+        final_states = final if isinstance(final, list) else [final]
 
         transitions: List[Tuple[StateLabel, StateLabel]] = []
         transition_energies: List[NamedSlotsNdarray] = []
+        print(initial_states, final_states)
+        for initial in initial_states:
+            print(initial, subsys_list)
+            initial_dressed, initial_energy_lookup_func, initial_state = self._process_initial_option(initial, subsys_list)
+            for final in final_states:
+                final_dressed, final_energy_lookup_func, final_states_list = self._process_final_option(final, initial_state, subsys_list, sidebands)
 
-        param_indices = param_indices or self._current_param_indices
-        _ = self[param_indices]  # trigger pre-slicing
+                param_indices = param_indices or self._current_param_indices
+                _ = self[param_indices]  # trigger pre-slicing
 
-        initial_energies = initial_energy_lookup_func(initial_state)
-        if not initial_dressed:
-            self._validate_bare_initial(initial_state, initial_energies, param_indices)
+                initial_energies = initial_energy_lookup_func(initial_state)
+                print(initial_energy_lookup_func(initial_state))
+                print(initial_energies)
+                if not initial_dressed:
+                    self._validate_bare_initial(initial_state, initial_energies, param_indices)
 
-        for final_state in final_states_list:
-            final_energies = final_energy_lookup_func(final_state)
-            diff_energies = (final_energies - initial_energies).astype(float)
-            diff_energies /= photon_number
-            if make_positive:
-                diff_energies = np.abs(diff_energies)
-            if not np.isnan(diff_energies).all():  # omit transitions with all nans
-                transitions.append((initial_state, final_state))
-                transition_energies.append(diff_energies)
-
+                for final_state in final_states_list:
+                    final_energies = final_energy_lookup_func(final_state)
+                    diff_energies = (final_energies - initial_energies).astype(float)
+                    diff_energies /= photon_number
+                    if make_positive:
+                        diff_energies = np.abs(diff_energies)
+                    if not np.isnan(diff_energies).all():  # omit transitions with all nans
+                        transitions.append((initial_state, final_state))
+                        transition_energies.append(diff_energies)
+        
         self.reset_preslicing()
 
         if not as_specdata:
@@ -637,12 +645,41 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
             system_params=self.system_params,
             labels=label_list,
         )
+    # def _filter_transitions_by_states(self, initial, final, subsystems, sidebands):
+    #     # Retrieve all transitions without filtering by specific initial or final states
+    #     all_transitions, all_energies = self.transitions(
+    #         as_specdata=False,
+    #         subsystems=subsystems,
+    #         initial=None,  # We retrieve all and filter manually
+    #         final=None,
+    #         sidebands=sidebands,
+    #         photon_number=1,  # Assume single photon transitions for simplicity
+    #         make_positive=False  # We handle making energies positive later in plotting
+    #     )
+
+    #     filtered_transitions = []
+    #     filtered_energies = []
+
+    #     # Convert single state to list for uniform processing
+    #     if not isinstance(initial, list):
+    #         initial = [initial] if initial is not None else None
+    #     if not isinstance(final, list):
+    #         final = [final] if final is not None else None
+
+    #     # Filter transitions based on specified initial and final states
+    #     for (start, end), energy in zip(all_transitions, all_energies):
+    #         if (initial is None or start in initial) and (final is None or end in final):
+    #             filtered_transitions.append((start, end))
+    #             filtered_energies.append(energy)
+
+    #     return filtered_transitions, filtered_energies
+
 
     def plot_transitions(
         self,
         subsystems: Optional[Union[QuantumSystem, List[QuantumSystem]]] = None,
-        initial: Optional[StateLabel] = None,
-        final: Optional[StateLabel] = None,
+        initial: Optional[Union[StateLabel, List[Tuple[int, ...]]]] = None,
+        final: Optional[Union[StateLabel, List[Tuple[int, ...]]]] = None,
         sidebands: bool = False,
         photon_number: int = 1,
         make_positive: bool = True,
@@ -714,17 +751,17 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
                 "sweep by pre-slicing, e.g.,  <ParameterSweep>[0, :, "
                 "0].plot_transitions(...)"
             )
-
         specdata_for_highlighting = self.transitions(
-            subsystems=subsystems,
-            initial=initial,
-            final=final,
-            sidebands=sidebands,
-            photon_number=photon_number,
-            make_positive=make_positive,
-            as_specdata=True,
-            param_indices=param_indices,
-        )
+                subsystems=subsystems,
+                initial=initial,
+                final=final,
+                sidebands=sidebands,
+                photon_number=photon_number,
+                make_positive=make_positive,
+                as_specdata=True,
+                param_indices=param_indices,
+            )
+
 
         specdata_all = copy.deepcopy(self[param_indices].dressed_specdata)
         specdata_all.energy_table -= specdata_for_highlighting.subtract  # type:ignore
