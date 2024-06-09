@@ -747,7 +747,8 @@ class QubitBaseClass(QuantumSystem, ABC):
                         else:
                             eff = shf
 
-                        eigenstate_table[:, idx_2, :] = state_set[:, eff, :]
+                        for nst in range(1 + 2 * n_cut):
+                            eigenstate_table[idx_1, nst, :] = state_set[idx_1, nst + eff, :]
                 
                 # assign eigenstate_table corect values of n and evaluation at ng 
                 eigenstate_table = state_set
