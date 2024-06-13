@@ -304,10 +304,6 @@ class SpectrumLookupMixin(MixinCompatible):
         -------
             dressed energies, if lookup successful, otherwise nan;
         """
-        print(
-            f'energy_by_bare_index: bare_tuple={bare_tuple}, subtract_ground={subtract_ground}, param_npindices={param_npindices}'
-
-        )
         param_npindices = self.set_npindextuple(param_npindices)
         dressed_index = self.dressed_index(bare_tuple, param_npindices)
 

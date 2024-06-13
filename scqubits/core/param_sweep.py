@@ -389,30 +389,23 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         initial: Optional[Union[StateLabel, List[Tuple[int]]]],
         subsys_list: List[QuantumSystem],
     ) -> Tuple[bool, Callable, StateLabel]:
-        print(initial, subsys_list)
-        print(type(initial))
         if isinstance(initial, DressedLabel):
-            print("trigger1")
             initial_dressed = True
             return initial_dressed, self.energy_by_dressed_index, initial
 
         if initial is None:
-            print("trigger2")
             initial_dressed = False
             initial = (0,) * len(self.hilbertspace)
             return initial_dressed, self.energy_by_bare_index, initial
 
         initial_dressed = False
         if len(initial) not in [len(self.hilbertspace), len(subsys_list)]:
-            print("trigger3")
             raise ValueError(
                 "State information provided is not compatible "
                 "with the set of subsystems(s)."
             )
         if len(initial) < len(self.hilbertspace):
-            print("trigger4")
             initial = tuple(self._complete_state(initial, subsys_list))
-        print( self.energy_by_bare_index)
         return initial_dressed, self.energy_by_bare_index, initial
 
     def _process_final_option(
@@ -583,16 +576,13 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
             saving transition label info in an attribute named `labels`.
         """
         subsys_list = self._process_subsystems_option(subsystems)
-        print(initial)
         initial_states = initial if isinstance(initial, list) else [initial]
 
         final_states = final if isinstance(final, list) else [final]
 
         transitions: List[Tuple[StateLabel, StateLabel]] = []
         transition_energies: List[NamedSlotsNdarray] = []
-        print(initial_states, final_states)
         for initial in initial_states:
-            print(initial, subsys_list)
             initial_dressed, initial_energy_lookup_func, initial_state = self._process_initial_option(initial, subsys_list)
             for final in final_states:
                 final_dressed, final_energy_lookup_func, final_states_list = self._process_final_option(final, initial_state, subsys_list, sidebands)
@@ -601,8 +591,6 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
                 _ = self[param_indices]  # trigger pre-slicing
 
                 initial_energies = initial_energy_lookup_func(initial_state)
-                print(initial_energy_lookup_func(initial_state))
-                print(initial_energies)
                 if not initial_dressed:
                     self._validate_bare_initial(initial_state, initial_energies, param_indices)
 
@@ -660,7 +648,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     #     filtered_transitions = []
     #     filtered_energies = []
 
-    #     # Convert single state to list for uniform processing
+     #     # Convert single state to list for uniform processing
     #     if not isinstance(initial, list):
     #         initial = [initial] if initial is not None else None
     #     if not isinstance(final, list):
@@ -743,6 +731,28 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         -------
             Plot Figure and Axes objects
         """
+
+        # check if initial and final tuples are valid for the subsystems
+        initial = initial if isinstance(initial, list) else [initial]
+        final = final if isinstance(final, list) else [final]
+        for initial_tuple, final_tuple in itertools.product(initial, final):
+            if len(initial_tuple) != len(self.hilbertspace.subsystem_dims):
+                raise ValueError(
+                    "Initial state tuple does not match the number of subsystems."
+                )
+            if max(initial_tuple) >= max(self.hilbertspace.subsystem_dims):
+                raise ValueError("Initial state tuple exceeds subsystem dimensions.")
+            
+            if len(final_tuple) != len(self.hilbertspace.subsystem_dims):
+                raise ValueError(
+                    "Final state tuple does not match the number of subsystems."
+                )
+            if max(final_tuple) >= max(self.hilbertspace.subsystem_dims):
+                raise ValueError("Final state tuple exceeds subsystem dimensions.")
+            
+            if initial > final:
+                raise ValueError("Initial state must be lower than final state.")
+
         param_indices = param_indices or self._current_param_indices
         if not self._slice_is_1d_sweep(param_indices):
             raise ValueError(
