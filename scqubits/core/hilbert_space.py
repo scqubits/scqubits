@@ -443,6 +443,7 @@ class HilbertSpace(
         self._current_param_indices = 0
         self._evals_count = self.dimension
         self._out_of_sync = False
+        self._out_of_sync_warning_issued = False
         # end attributes for compatibility with SpectrumLookupMixin
 
         dispatch.CENTRAL_DISPATCH.register("QUANTUMSYSTEM_UPDATE", self)
@@ -865,11 +866,11 @@ class HilbertSpace(
             composite Hamiltonian composed of bare Hamiltonians of subsystems
             independent of the external parameter
         """
-        bare_hamiltonian = (
-            qt.Qobj(np.zeros((self.dimension,) * 2), dims=[self.subsystem_dims] * 2)
-            # if qt.__version__ >= "5.0.0"
-            # else qt.Qobj(0)
+        # We create a dimension [1] system if no subsystems have been given
+        bare_hamiltonian = qt.qzero(
+            [1] if len(self.subsystem_dims) == 0 else self.subsystem_dims
         )
+
         for subsys_index, subsys in enumerate(self):
             if bare_esys is not None and subsys_index in bare_esys:
                 evals = bare_esys[subsys_index][0]
@@ -896,10 +897,9 @@ class HilbertSpace(
             interaction Hamiltonian
         """
         if not self.interaction_list:
-            return (
-                qt.Qobj(0, dims=[self.subsystem_dims] * 2)
-                if qt.__version__ >= "5.0.0"
-                else qt.Qobj(0)
+            # We return a dimension [1] system if no subsystems have been given
+            return qt.qzero(
+                [1] if len(self.subsystem_dims) == 0 else self.subsystem_dims
             )
 
         operator_list = []
