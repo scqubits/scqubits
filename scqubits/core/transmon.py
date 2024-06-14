@@ -833,3 +833,68 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
                 )
             dispersion_list.append(list_ij)
         return specdata_flux_0.energy_table, np.asarray(dispersion_list)  # type:ignore
+
+
+class TransmonHigherHarmonics(Transmon, serializers.Serializable,):
+    EJs_higher = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+
+    def __init__(
+        self,
+        EJ: float,
+        EC: float,
+        EJs_higher: ndarray,
+        ng: float,
+        ncut: int,
+        truncated_dim: int = 6,
+        id_str: Optional[str] = None,
+        evals_method: Union[Callable, str, None] = None,
+        evals_method_options: Union[dict, None] = None,
+        esys_method: Union[Callable, str, None] = None,
+        esys_method_options: Union[dict, None] = None,
+    ) -> None:
+        base.QubitBaseClass.__init__(
+            self,
+            id_str=id_str,
+            evals_method=evals_method,
+            evals_method_options=evals_method_options,
+            esys_method=esys_method,
+            esys_method_options=esys_method_options,
+        )
+        self.EJ = EJ
+        self.EC = EC
+        self.EJs_higher = EJs_higher
+        self.ng = ng
+        self.ncut = ncut
+        self.truncated_dim = truncated_dim
+        self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
+        self._default_n_range = (-5, 6)
+
+    def hamiltonian(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
+        """
+        Returns Hamiltonian in the charge or eigenenergy basis.
+
+        Parameters
+        ----------
+        energy_esys:
+            If `False` (default), returns Hamiltonian in the charge basis.
+            If `True`, the energy eigenspectrum is computed; returns Hamiltonian in the energy eigenbasis.
+            If `energy_esys = esys`, where `esys` is a tuple containing two ndarrays (eigenvalues and energy
+            eigenvectors); then return the Hamiltonian in the energy eigenbasis, do not recalculate eigenspectrum.
+
+        Returns
+        -------
+            Hamiltonian in chosen basis as ndarray. For `energy_esys=False`, the Hamiltonian has dimensions of
+            `truncated_dim` x `truncated_dim`. For `energy_sys=esys`, the Hamiltonian has dimensions of m x m,
+            for m given eigenvectors.
+        """
+        dimension = self.hilbertdim()
+        hamiltonian_mat = super().hamiltonian(energy_esys=False)
+        for ind_idx, EJ_higher in enumerate(self.EJs_higher):
+            ind = np.arange(dimension - 1 - (ind_idx + 1))
+            hamiltonian_mat[ind, ind + 1] = - self.EJs_higher[ind_idx] / 2.0
+            hamiltonian_mat[ind + 1, ind] = - self.EJs_higher[ind_idx] / 2.0
+        return self.process_hamiltonian(
+            native_hamiltonian=hamiltonian_mat, energy_esys=energy_esys
+        )
