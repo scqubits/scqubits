@@ -893,8 +893,8 @@ class TransmonHigherHarmonics(Transmon, serializers.Serializable,):
         hamiltonian_mat = super().hamiltonian(energy_esys=False)
         for ind_idx, EJ_higher in enumerate(self.EJs_higher):
             ind = np.arange(dimension - 1 - (ind_idx + 1))
-            hamiltonian_mat[ind, ind + 1] = - self.EJs_higher[ind_idx] / 2.0
-            hamiltonian_mat[ind + 1, ind] = - self.EJs_higher[ind_idx] / 2.0
+            hamiltonian_mat[ind, ind + ind_idx + 1] = - self.EJs_higher[ind_idx] / 2.0
+            hamiltonian_mat[ind + ind_idx + 1, ind] = - self.EJs_higher[ind_idx] / 2.0
         return self.process_hamiltonian(
             native_hamiltonian=hamiltonian_mat, energy_esys=energy_esys
         )
