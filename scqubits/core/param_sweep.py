@@ -640,6 +640,32 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         final: Optional[Union[StateLabel, List[Tuple[int, ...]]]] = None,
     ) -> None:
         """
+        Validates the conformity of initial and final state tuples with the dimensions and limits of
+        the subsystems defined in the hilbertspace. This method ensures that each state tuple, either
+        initial or final, is correctly structured and within the valid range for the quantum system's
+        dimensions. If the state tuples are not lists, they are converted into lists for validation.
+        Raises errors for any mismatch or exceeding values.
+
+        Parameters
+        ----------
+        initial : Optional[Union[StateLabel, List[Tuple[int, ...]]]]
+            The initial state(s) to be validated. It can be a single state or a list of states. Each state
+            is either a `StateLabel` or a tuple representing the quantum state in terms of subsystem
+            excitation numbers.
+        final : Optional[Union[StateLabel, List[Tuple[int, ...]]]]
+            The final state(s) to be validated, structured similarly to the `initial` parameter.
+
+        Raises
+        ------
+        ValueError
+            If any tuple length does not match the number of subsystems or if any tuple value exceeds
+            the maximum allowed dimension of the corresponding subsystem. Also raises an error if the
+            initial state values are greater than the final state values, which is not allowed in certain
+            quantum systems.
+
+        Returns
+        -------
+        None
         """
         initial = initial if isinstance(initial, list) else [initial]
         final = final if isinstance(final, list) else [final]
