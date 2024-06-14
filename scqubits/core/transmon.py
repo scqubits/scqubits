@@ -835,7 +835,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         return specdata_flux_0.energy_table, np.asarray(dispersion_list)  # type:ignore
 
 
-class TransmonHigherHarmonics(Transmon, serializers.Serializable,):
+class TransmonHigherHarmonics(Transmon, serializers.Serializable, NoisySystem):
     EJs_higher = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
@@ -868,6 +868,17 @@ class TransmonHigherHarmonics(Transmon, serializers.Serializable,):
         self.truncated_dim = truncated_dim
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
+
+    @staticmethod
+    def default_params() -> Dict[str, Any]:
+        return {
+            "EJ": 15.0,
+            "EC": 0.3,
+            "ng": 0.0,
+            "EJs_higher": np.array([0.0, ]),
+            "ncut": 30,
+            "truncated_dim": 10
+        }
 
     def hamiltonian(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
