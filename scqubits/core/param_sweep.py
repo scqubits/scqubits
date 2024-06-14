@@ -633,34 +633,6 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
             system_params=self.system_params,
             labels=label_list,
         )
-    # def _filter_transitions_by_states(self, initial, final, subsystems, sidebands):
-    #     # Retrieve all transitions without filtering by specific initial or final states
-    #     all_transitions, all_energies = self.transitions(
-    #         as_specdata=False,
-    #         subsystems=subsystems,
-    #         initial=None,  # We retrieve all and filter manually
-    #         final=None,
-    #         sidebands=sidebands,
-    #         photon_number=1,  # Assume single photon transitions for simplicity
-    #         make_positive=False  # We handle making energies positive later in plotting
-    #     )
-
-    #     filtered_transitions = []
-    #     filtered_energies = []
-
-     #     # Convert single state to list for uniform processing
-    #     if not isinstance(initial, list):
-    #         initial = [initial] if initial is not None else None
-    #     if not isinstance(final, list):
-    #         final = [final] if final is not None else None
-
-    #     # Filter transitions based on specified initial and final states
-    #     for (start, end), energy in zip(all_transitions, all_energies):
-    #         if (initial is None or start in initial) and (final is None or end in final):
-    #             filtered_transitions.append((start, end))
-    #             filtered_energies.append(energy)
-
-    #     return filtered_transitions, filtered_energies
 
 
     def plot_transitions(
@@ -736,22 +708,24 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         initial = initial if isinstance(initial, list) else [initial]
         final = final if isinstance(final, list) else [final]
         for initial_tuple, final_tuple in itertools.product(initial, final):
-            if len(initial_tuple) != len(self.hilbertspace.subsystem_dims):
-                raise ValueError(
-                    "Initial state tuple does not match the number of subsystems."
-                )
-            if max(initial_tuple) >= max(self.hilbertspace.subsystem_dims):
-                raise ValueError("Initial state tuple exceeds subsystem dimensions.")
-            
-            if len(final_tuple) != len(self.hilbertspace.subsystem_dims):
-                raise ValueError(
-                    "Final state tuple does not match the number of subsystems."
-                )
-            if max(final_tuple) >= max(self.hilbertspace.subsystem_dims):
-                raise ValueError("Final state tuple exceeds subsystem dimensions.")
-            
-            if initial > final:
-                raise ValueError("Initial state must be lower than final state.")
+            if initial_tuple is not None:
+                if len(initial_tuple) != len(self.hilbertspace.subsystem_dims):
+                    raise ValueError(
+                        "Initial state tuple does not match the number of subsystems."
+                    )
+                if max(initial_tuple) >= max(self.hilbertspace.subsystem_dims):
+                    raise ValueError("Initial state tuple exceeds subsystem dimensions.")
+            if final_tuple is not None:
+                if len(final_tuple) != len(self.hilbertspace.subsystem_dims):
+                    raise ValueError(
+                        "Final state tuple does not match the number of subsystems."
+                    )
+                if max(final_tuple) >= max(self.hilbertspace.subsystem_dims):
+                    raise ValueError("Final state tuple exceeds subsystem dimensions.")
+                
+
+                if initial_tuple is not None and  initial_tuple > final_tuple:
+                    raise ValueError("Initial state must be lower than final state.")
 
         param_indices = param_indices or self._current_param_indices
         if not self._slice_is_1d_sweep(param_indices):
