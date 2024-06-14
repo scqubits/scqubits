@@ -634,6 +634,34 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
             labels=label_list,
         )
 
+    def _validate_states(
+        self,
+        initial: Optional[Union[StateLabel, List[Tuple[int, ...]]]] = None,
+        final: Optional[Union[StateLabel, List[Tuple[int, ...]]]] = None,
+    ) -> None:
+        """
+        """
+        initial = initial if isinstance(initial, list) else [initial]
+        final = final if isinstance(final, list) else [final]
+        for initial_tuple, final_tuple in itertools.product(initial, final):
+            if initial_tuple is not None:
+                if len(initial_tuple) != len(self.hilbertspace.subsystem_dims):
+                    raise ValueError(
+                        "Initial state tuple does not match the number of subsystems."
+                    )
+                if max(initial_tuple) >= max(self.hilbertspace.subsystem_dims):
+                    raise ValueError("Initial state tuple exceeds subsystem dimensions.")
+            if final_tuple is not None:
+                if len(final_tuple) != len(self.hilbertspace.subsystem_dims):
+                    raise ValueError(
+                        "Final state tuple does not match the number of subsystems."
+                    )
+                if max(final_tuple) >= max(self.hilbertspace.subsystem_dims):
+                    raise ValueError("Final state tuple exceeds subsystem dimensions.")
+
+                if initial_tuple is not None and  initial_tuple > final_tuple:
+                    raise ValueError("Initial state must be lower than final state.")
+
     def plot_transitions(
         self,
         subsystems: Optional[Union[QuantumSystem, List[QuantumSystem]]] = None,
@@ -702,26 +730,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         -------
             Plot Figure and Axes objects
         """
-
-        # check if initial and final tuples are valid for the subsystems
-        # Ensure inputs are lists
-        initial = [initial] if not isinstance(initial, list) else initial
-        final = [final] if not isinstance(final, list) else final
-
-        # Validate and compare state tuples
-        for initial_tuple, final_tuple in itertools.product(initial, final):
-            for state_tuple, state_name in [(initial_tuple, "Initial"), (final_tuple, "Final")]:
-                if state_tuple is not None:
-                    # Check the length of the tuple matches the number of subsystems
-                    if len(state_tuple) != len(self.hilbertspace.subsystem_dims):
-                        raise ValueError(f"{state_name} state tuple does not match the number of subsystems.")
-                    # Check if the maximum value in the tuple exceeds the maximum subsystem dimension
-                    if max(state_tuple) >= max(self.hilbertspace.subsystem_dims):
-                        raise ValueError(f"{state_name} state tuple exceeds subsystem dimensions.")
-
-            # Ensure initial state is not greater than final state
-            if initial_tuple is not None and initial_tuple > final_tuple:
-                raise ValueError("Initial state must be lower than final state.")
+        self._validate_states(initial, final)
 
         param_indices = param_indices or self._current_param_indices
         if not self._slice_is_1d_sweep(param_indices):
