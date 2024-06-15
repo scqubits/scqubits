@@ -643,7 +643,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             # back the state components in charge basis, make "empty like"
             ng_len = int(len(param_vals))
             # store original array as ng_original
-            ng_mod_shift = np.empty((len(param_vals), 2), dtype=float)
+            ng_mod_shift = np.empty((ng_len, 2), dtype=float)
             ng_original = np.copy(param_vals)
             # store the mod of ng = red and int div of ng = shift 
             ng_mod_shift[:, 0] = ng_original%1
@@ -736,7 +736,7 @@ class QubitBaseClass(QuantumSystem, ABC):
                             stv = eigenstate_table[idx_1]
 
                 # Shift charge states 
-                eigenstate_table = np.copy(eigenstate_table)
+                eigenstate_table = np.copy(state_set)
                 for idx_1, mod, shf in enumerate(ng_mod_shift):
                     for idx_2, sng, nvl, val in enumerate(state_set):
                         # Effective shift respects limits of +/- ncut 
