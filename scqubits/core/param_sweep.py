@@ -685,8 +685,6 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
                 if max(final_tuple) >= max(self.hilbertspace.subsystem_dims):
                     raise ValueError("Final state tuple exceeds subsystem dimensions.")
 
-                if initial_tuple is not None and  initial_tuple > final_tuple:
-                    raise ValueError("Initial state must be lower than final state.")
 
     def plot_transitions(
         self,
