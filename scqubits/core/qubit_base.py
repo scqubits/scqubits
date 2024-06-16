@@ -745,7 +745,7 @@ class QubitBaseClass(QuantumSystem, ABC):
                         
                         eff = idx_2 + shf - siz * int((idx_2 + shf) / siz)
                         
-                        eigenstate_table[idx_1, idx_2, :] = state_set[idx_1, eff, :]
+                        sng, nvl, val = state_set[idx_1, eff, :]
                         
             
             # reassign the parameters values baack to the original ndarray 
