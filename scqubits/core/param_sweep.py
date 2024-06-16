@@ -386,7 +386,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
 
     def _process_initial_option(
         self,
-        initial: Union[None, StateLabel],
+        initial: Optional[Union[StateLabel, List[Tuple[int]]]],
         subsys_list: List[QuantumSystem],
     ) -> Tuple[bool, Callable, StateLabel]:
         if isinstance(initial, DressedLabel):
@@ -410,7 +410,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
 
     def _process_final_option(
         self,
-        final: Union[None, StateLabel],
+        final: Optional[Union[StateLabel, List[Tuple[int]]]],
         initial: StateLabel,
         subsys_list: List[QuantumSystem],
         sidebands: bool,
@@ -498,8 +498,8 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         self,
         as_specdata: Literal[False],
         subsystems: Optional[Union[QuantumSystem, List[QuantumSystem]]] = None,
-        initial: Optional[StateLabel] = None,
-        final: Optional[StateLabel] = None,
+        initial: Optional[Union[StateLabel, List[Tuple[int]]]] = None,
+        final: Optional[Union[StateLabel, List[Tuple[int]]]] = None,
         sidebands: bool = False,
         photon_number: int = 1,
         make_positive: bool = False,
@@ -510,8 +510,8 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         self,
         as_specdata: bool = False,
         subsystems: Optional[Union[QuantumSystem, List[QuantumSystem]]] = None,
-        initial: Optional[StateLabel] = None,
-        final: Optional[StateLabel] = None,
+        initial: Optional[Union[StateLabel, List[Tuple[int]]]] = None,
+        final: Optional[Union[StateLabel, List[Tuple[int]]]] = None,
         sidebands: bool = False,
         photon_number: int = 1,
         make_positive: bool = False,
@@ -576,38 +576,34 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
             saving transition label info in an attribute named `labels`.
         """
         subsys_list = self._process_subsystems_option(subsystems)
+        initial_states = initial if isinstance(initial, list) else [initial]
 
-        (
-            initial_dressed,
-            initial_energy_lookup_func,
-            initial_state,
-        ) = self._process_initial_option(initial, subsys_list)
-        (
-            final_dressed,
-            final_energy_lookup_func,
-            final_states_list,
-        ) = self._process_final_option(final, initial_state, subsys_list, sidebands)
+        final_states = final if isinstance(final, list) else [final]
 
         transitions: List[Tuple[StateLabel, StateLabel]] = []
         transition_energies: List[NamedSlotsNdarray] = []
+        for initial in initial_states:
+            initial_dressed, initial_energy_lookup_func, initial_state = self._process_initial_option(initial, subsys_list)
+            for final in final_states:
+                final_dressed, final_energy_lookup_func, final_states_list = self._process_final_option(final, initial_state, subsys_list, sidebands)
 
-        param_indices = param_indices or self._current_param_indices
-        _ = self[param_indices]  # trigger pre-slicing
+                param_indices = param_indices or self._current_param_indices
+                _ = self[param_indices]  # trigger pre-slicing
 
-        initial_energies = initial_energy_lookup_func(initial_state)
-        if not initial_dressed:
-            self._validate_bare_initial(initial_state, initial_energies, param_indices)
+                initial_energies = initial_energy_lookup_func(initial_state)
+                if not initial_dressed:
+                    self._validate_bare_initial(initial_state, initial_energies, param_indices)
 
-        for final_state in final_states_list:
-            final_energies = final_energy_lookup_func(final_state)
-            diff_energies = (final_energies - initial_energies).astype(float)
-            diff_energies /= photon_number
-            if make_positive:
-                diff_energies = np.abs(diff_energies)
-            if not np.isnan(diff_energies).all():  # omit transitions with all nans
-                transitions.append((initial_state, final_state))
-                transition_energies.append(diff_energies)
-
+                for final_state in final_states_list:
+                    final_energies = final_energy_lookup_func(final_state)
+                    diff_energies = (final_energies - initial_energies).astype(float)
+                    diff_energies /= photon_number
+                    if make_positive:
+                        diff_energies = np.abs(diff_energies)
+                    if not np.isnan(diff_energies).all():  # omit transitions with all nans
+                        transitions.append((initial_state, final_state))
+                        transition_energies.append(diff_energies)
+        
         self.reset_preslicing()
 
         if not as_specdata:
@@ -638,11 +634,63 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
             labels=label_list,
         )
 
+    def _validate_states(
+        self,
+        initial: Optional[Union[StateLabel, List[Tuple[int, ...]]]] = None,
+        final: Optional[Union[StateLabel, List[Tuple[int, ...]]]] = None,
+    ) -> None:
+        """
+        Validates the conformity of initial and final state tuples with the dimensions and limits of
+        the subsystems defined in the hilbertspace. This method ensures that each state tuple, either
+        initial or final, is correctly structured and within the valid range for the quantum system's
+        dimensions. If the state tuples are not lists, they are converted into lists for validation.
+        Raises errors for any mismatch or exceeding values.
+
+        Parameters
+        ----------
+        initial : Optional[Union[StateLabel, List[Tuple[int, ...]]]]
+            The initial state(s) to be validated. It can be a single state or a list of states. Each state
+            is either a `StateLabel` or a tuple representing the quantum state in terms of subsystem
+            excitation numbers.
+        final : Optional[Union[StateLabel, List[Tuple[int, ...]]]]
+            The final state(s) to be validated, structured similarly to the `initial` parameter.
+
+        Raises
+        ------
+        ValueError
+            If any tuple length does not match the number of subsystems or if any tuple value exceeds
+            the maximum allowed dimension of the corresponding subsystem. Also raises an error if the
+            initial state values are greater than the final state values, which is not allowed in certain
+            quantum systems.
+
+        Returns
+        -------
+        None
+        """
+        initial = initial if isinstance(initial, list) else [initial]
+        final = final if isinstance(final, list) else [final]
+        for initial_tuple, final_tuple in itertools.product(initial, final):
+            if initial_tuple is not None:
+                if len(initial_tuple) != len(self.hilbertspace.subsystem_dims):
+                    raise ValueError(
+                        "Initial state tuple does not match the number of subsystems."
+                    )
+                if max(initial_tuple) >= max(self.hilbertspace.subsystem_dims):
+                    raise ValueError("Initial state tuple exceeds subsystem dimensions.")
+            if final_tuple is not None:
+                if len(final_tuple) != len(self.hilbertspace.subsystem_dims):
+                    raise ValueError(
+                        "Final state tuple does not match the number of subsystems."
+                    )
+                if max(final_tuple) >= max(self.hilbertspace.subsystem_dims):
+                    raise ValueError("Final state tuple exceeds subsystem dimensions.")
+
+
     def plot_transitions(
         self,
         subsystems: Optional[Union[QuantumSystem, List[QuantumSystem]]] = None,
-        initial: Optional[StateLabel] = None,
-        final: Optional[StateLabel] = None,
+        initial: Optional[Union[StateLabel, List[Tuple[int, ...]]]] = None,
+        final: Optional[Union[StateLabel, List[Tuple[int, ...]]]] = None,
         sidebands: bool = False,
         photon_number: int = 1,
         make_positive: bool = True,
@@ -706,6 +754,8 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         -------
             Plot Figure and Axes objects
         """
+        self._validate_states(initial, final)
+
         param_indices = param_indices or self._current_param_indices
         if not self._slice_is_1d_sweep(param_indices):
             raise ValueError(
@@ -714,17 +764,17 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
                 "sweep by pre-slicing, e.g.,  <ParameterSweep>[0, :, "
                 "0].plot_transitions(...)"
             )
-
         specdata_for_highlighting = self.transitions(
-            subsystems=subsystems,
-            initial=initial,
-            final=final,
-            sidebands=sidebands,
-            photon_number=photon_number,
-            make_positive=make_positive,
-            as_specdata=True,
-            param_indices=param_indices,
-        )
+                subsystems=subsystems,
+                initial=initial,
+                final=final,
+                sidebands=sidebands,
+                photon_number=photon_number,
+                make_positive=make_positive,
+                as_specdata=True,
+                param_indices=param_indices,
+            )
+
 
         specdata_all = copy.deepcopy(self[param_indices].dressed_specdata)
         specdata_all.energy_table -= specdata_for_highlighting.subtract  # type:ignore
