@@ -124,7 +124,7 @@ def test_custom_diagonalization_evals_method_matches_default(library):
 
     if library == "jax":
         # To evade np.allclose errors when not using 64-bit calculations.
-        from jax.config import config
+        from jax import config
 
         config.update("jax_enable_x64", True)
 
@@ -166,7 +166,7 @@ def test_custom_diagonalization_matches_default_with_composite_systems(library):
 
     if library == "jax":
         # To evade np.allclose errors when not using 64-bit calculations.
-        from jax.config import config
+        from jax import config
 
         config.update("jax_enable_x64", True)
 
@@ -254,7 +254,7 @@ def test_custom_diagonalization_evals_are_same_using_eigenvals_and_eigensys_defa
 
     if library == "jax":
         # To evade np.allclose errors when not using 64-bit calculations.
-        from jax.config import config
+        from jax import config
 
         config.update("jax_enable_x64", True)
 
@@ -302,7 +302,7 @@ def test_custom_diagonalization_esys_method_matches_default(library):
 
     if library == "jax":
         # To evade np.allclose errors when not using 64-bit calculations.
-        from jax.config import config
+        from jax import config
 
         config.update("jax_enable_x64", True)
 
