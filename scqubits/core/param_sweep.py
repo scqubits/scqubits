@@ -583,16 +583,24 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         transitions: List[Tuple[StateLabel, StateLabel]] = []
         transition_energies: List[NamedSlotsNdarray] = []
         for initial in initial_states:
-            initial_dressed, initial_energy_lookup_func, initial_state = self._process_initial_option(initial, subsys_list)
+            initial_dressed, initial_energy_lookup_func, initial_state = (
+                self._process_initial_option(initial, subsys_list)
+            )
             for final in final_states:
-                final_dressed, final_energy_lookup_func, final_states_list = self._process_final_option(final, initial_state, subsys_list, sidebands)
+                final_dressed, final_energy_lookup_func, final_states_list = (
+                    self._process_final_option(
+                        final, initial_state, subsys_list, sidebands
+                    )
+                )
 
                 param_indices = param_indices or self._current_param_indices
                 _ = self[param_indices]  # trigger pre-slicing
 
                 initial_energies = initial_energy_lookup_func(initial_state)
                 if not initial_dressed:
-                    self._validate_bare_initial(initial_state, initial_energies, param_indices)
+                    self._validate_bare_initial(
+                        initial_state, initial_energies, param_indices
+                    )
 
                 for final_state in final_states_list:
                     final_energies = final_energy_lookup_func(final_state)
@@ -600,10 +608,12 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
                     diff_energies /= photon_number
                     if make_positive:
                         diff_energies = np.abs(diff_energies)
-                    if not np.isnan(diff_energies).all():  # omit transitions with all nans
+                    if not np.isnan(
+                        diff_energies
+                    ).all():  # omit transitions with all nans
                         transitions.append((initial_state, final_state))
                         transition_energies.append(diff_energies)
-        
+
         self.reset_preslicing()
 
         if not as_specdata:
@@ -676,7 +686,9 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
                         "Initial state tuple does not match the number of subsystems."
                     )
                 if max(initial_tuple) >= max(self.hilbertspace.subsystem_dims):
-                    raise ValueError("Initial state tuple exceeds subsystem dimensions.")
+                    raise ValueError(
+                        "Initial state tuple exceeds subsystem dimensions."
+                    )
             if final_tuple is not None:
                 if len(final_tuple) != len(self.hilbertspace.subsystem_dims):
                     raise ValueError(
@@ -684,7 +696,6 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
                     )
                 if max(final_tuple) >= max(self.hilbertspace.subsystem_dims):
                     raise ValueError("Final state tuple exceeds subsystem dimensions.")
-
 
     def plot_transitions(
         self,
@@ -765,16 +776,15 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
                 "0].plot_transitions(...)"
             )
         specdata_for_highlighting = self.transitions(
-                subsystems=subsystems,
-                initial=initial,
-                final=final,
-                sidebands=sidebands,
-                photon_number=photon_number,
-                make_positive=make_positive,
-                as_specdata=True,
-                param_indices=param_indices,
-            )
-
+            subsystems=subsystems,
+            initial=initial,
+            final=final,
+            sidebands=sidebands,
+            photon_number=photon_number,
+            make_positive=make_positive,
+            as_specdata=True,
+            param_indices=param_indices,
+        )
 
         specdata_all = copy.deepcopy(self[param_indices].dressed_specdata)
         specdata_all.energy_table -= specdata_for_highlighting.subtract  # type:ignore
