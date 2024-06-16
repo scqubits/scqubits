@@ -738,6 +738,7 @@ class QubitBaseClass(QuantumSystem, ABC):
                 # Shift charge states 
                 eigenstate_table = np.copy(state_set)
                 for idx_1, mod, shf in enumerate(ng_mod_shift):
+                    val_n = 0
                     for idx_2, sng, nvl, val in enumerate(eigenstate_table):
                         # Effective shift respects limits of +/- ncut 
                         if shf < 0:
@@ -745,7 +746,7 @@ class QubitBaseClass(QuantumSystem, ABC):
                         
                         eff = idx_2 + shf - siz * int((idx_2 + shf) / siz)
                         
-                        sng, nvl, val = state_set[idx_1, eff, :]
+                        sng, nvl, val_n = state_set[idx_1, eff, :]
                         
             
             # reassign the parameters values baack to the original ndarray 
