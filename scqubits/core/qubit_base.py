@@ -725,7 +725,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             # Only if it is needed, do the same for the estates but shift them 
             # according to the number of periods they were given 
             if get_eigenstates:
-                n_cut = Transmon.ncut
+                siz = 1 + 2 * Transmon.ncut
                 # define a temporary set for the set of estates  
                 state_set = np.empty((ng_len, 1), dtype=float)
 
@@ -738,18 +738,15 @@ class QubitBaseClass(QuantumSystem, ABC):
                 # Shift charge states 
                 eigenstate_table = np.copy(state_set)
                 for idx_1, mod, shf in enumerate(ng_mod_shift):
-                    for idx_2, sng, nvl, val in enumerate(state_set):
+                    for idx_2, sng, nvl, val in enumerate(eigenstate_table):
                         # Effective shift respects limits of +/- ncut 
-                        if nvl + shf > n_cut:
-                            eff = shf - (1 + 2 * n_cut)
-                        elif nvl + shf < -n_cut:
-                            eff = shf + (1 + 2 * n_cut)
-                        else:
-                            eff = shf
-                        # This for-loop effectively reassigns eigenstate_table 
-                        # to correct values
-                        for nst in range(1 + 2 * n_cut):
-                            eigenstate_table[idx_1, nst, :] = state_set[idx_1, nst + eff, :]
+                        if shf < 0:
+                            shf += siz
+                        
+                        eff = idx_2 + shf - siz * int((idx_2 + shf) / siz)
+                        
+                        eigenstate_table[idx_1, idx_2, :] = state_set[idx_1, eff, :]
+                        
             
             # reassign the parameters values baack to the original ndarray 
             param_vals = ng_original 
