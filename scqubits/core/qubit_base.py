@@ -730,10 +730,10 @@ class QubitBaseClass(QuantumSystem, ABC):
                 state_set = np.empty((ng_len, 1), dtype=float)
 
                 # complete the eigenstates 
-                for idx_1, stv in enumerate(state_set):
+                for idx_1, com in enumerate(ng_mod_shift[:, 0]):
                     for idx_2, red in enumerate(param_vals):
-                        if ng_mod_shift[idx_2, 0] == red:
-                            stv = eigenstate_table[idx_1]
+                        if com == red:
+                            state_set[idx_1] = eigenstate_table[idx_2]
 
                 # Shift charge states 
                 eigenstate_table = np.copy(state_set)
