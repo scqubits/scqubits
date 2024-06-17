@@ -2192,7 +2192,8 @@ class SymbolicCircuit(serializers.Serializable):
     def trans_cap_matrix(
         self, 
         substitute_params: bool = False,
-    ) -> sympy.Expr:
+        exclude_frozen: bool = True,
+    ) -> Union[sympy.Expr, np.ndarray]:
         """
         Calculate the transformed capacitance matrix C_mat_theta.
 
@@ -2221,7 +2222,8 @@ class SymbolicCircuit(serializers.Serializable):
             relevant_indices = [
                 i for i in range(C_mat_theta.shape[0]) if i not in frozen_indices
             ]
-            C_mat_theta = C_mat_theta[relevant_indices, relevant_indices]
+            if exclude_frozen:
+                C_mat_theta = C_mat_theta[relevant_indices, relevant_indices]
             
         else:
             C_mat_theta = (
@@ -2229,35 +2231,49 @@ class SymbolicCircuit(serializers.Serializable):
                 @ self._capacitance_matrix(substitute_params=substitute_params)
                 @ self.transformation_matrix
             )
-            C_mat_theta = np.delete(C_mat_theta, frozen_indices, 0)
-            C_mat_theta = np.delete(C_mat_theta, frozen_indices, 1)
+            if exclude_frozen:
+                C_mat_theta = np.delete(C_mat_theta, frozen_indices, 0)
+                C_mat_theta = np.delete(C_mat_theta, frozen_indices, 1)
             
         return C_mat_theta
     
     def inv_trans_cap_matrix(
         self,
         substitute_params: bool = False,
-    ) -> sympy.Expr:
+    ) -> Union[sympy.Expr, np.ndarray]:
         """
         Calculate the inverse of the transformed capacitance matrix C_mat_theta.
         """        
+        C_mat_full = self._capacitance_matrix()
+        total_params = C_mat_full.shape[0]
+        
+        # truncated capacitance matrix with no frozen indices
         C_mat_theta = self.trans_cap_matrix(substitute_params=substitute_params)
         
-        # remove free indices
-        free_indices = [
+        # Initially calculate free indices based on the original matrix
+        original_free_indices = [
             i - 1 for i in self.var_categories["free"]
         ]
+
+        # Adjust free indices after removing frozen indices
+        frozen_indices = [
+            i - 1 for i in self.var_categories["frozen"] + self.var_categories["sigma"]
+        ]
+        remaining_indices = [idx for idx in range(total_params) if idx not in frozen_indices]
+        # Recalculate the positions of the free indices in the truncated matrix
+        adjusted_free_indices = [remaining_indices.index(idx) for idx in original_free_indices]
+
         if self.is_any_branch_parameter_symbolic() and not substitute_params:
             inv_C_mat_theta = C_mat_theta.inv()
             
             relevant_indices = [
-                i for i in range(C_mat_theta.shape[0]) if i not in free_indices
+                i for i in range(C_mat_theta.shape[0]) if i not in adjusted_free_indices
             ]
             inv_C_mat_theta = inv_C_mat_theta[relevant_indices, relevant_indices]
         
         else:
             inv_C_mat_theta = np.linalg.inv(C_mat_theta)
-            inv_C_mat_theta = np.delete(inv_C_mat_theta, free_indices, 0)
-            inv_C_mat_theta = np.delete(inv_C_mat_theta, free_indices, 1)
+            inv_C_mat_theta = np.delete(inv_C_mat_theta, adjusted_free_indices, 0)
+            inv_C_mat_theta = np.delete(inv_C_mat_theta, adjusted_free_indices, 1)
             
         return inv_C_mat_theta
