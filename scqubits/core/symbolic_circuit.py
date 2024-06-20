@@ -180,7 +180,7 @@ class Branch:
                 if junc_order == 1:
                     self.parameters["EJ"] = parameters[0]
                 else:
-                    self.parameters[f"EJ{junc_order}"] = parameters[junc_order]
+                    self.parameters[f"EJ{junc_order}"] = parameters[junc_order - 1]
             self.parameters["ECJ"] = parameters[number_of_junc_params]
 
     def node_ids(self) -> Tuple[int, int]:
