@@ -44,7 +44,7 @@ appropriately acknowledged by citing:
 Download and Installation
 -------------------------
 
-For Python 3.7 - 3.12: installation via conda is supported. 
+For Python 3.7, 3.8, 3.9, and 3.10: installation via conda is supported. 
 ```
 conda install -c conda-forge scqubits
 ```
