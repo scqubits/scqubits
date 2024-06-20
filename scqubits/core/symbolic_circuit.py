@@ -1348,7 +1348,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         # defining a function for sawtooth
         saw = sympy.Function("saw", real=True)
-        
+
         if not self.use_dynamic_flux_grouping:
             flux_branch_assignment = self._flux_distribution()
         else:
@@ -1586,14 +1586,16 @@ class SymbolicCircuit(serializers.Serializable):
                 return sympy.Matrix(L_mat).inv()
 
         return L_mat
-    
+
     def _flux_distribution(self):
         """
         Returns an array of the flux allocation for each branch in the circuit
         """
         if not self.closure_branches or len(self.closure_branches) == 0:
             return np.zeros(len(self.branches))
-        flux_allocation_array = np.zeros((len(self.branches), len(self.closure_branches)))
+        flux_allocation_array = np.zeros(
+            (len(self.branches), len(self.closure_branches))
+        )
         if not self.closure_branches:
             return flux_allocation_array
         for flux_idx, element in enumerate(self.closure_branches):
@@ -1603,7 +1605,6 @@ class SymbolicCircuit(serializers.Serializable):
             for branch in element:
                 flux_allocation_array[branch.index, flux_idx] = element[branch]
         return np.dot(flux_allocation_array, self.external_fluxes)
-            
 
     def _inductor_terms(self, substitute_params: bool = False):
         """
@@ -1617,7 +1618,7 @@ class SymbolicCircuit(serializers.Serializable):
             flux_branch_assignment = self._flux_distribution()
         else:
             flux_branch_assignment = self._time_dependent_flux_distribution()
-            
+
         for l_branch in [branch for branch in self.branches if branch.type == "L"]:
             # adding external flux
             phi_ext = flux_branch_assignment[l_branch.index]
@@ -1848,7 +1849,9 @@ class SymbolicCircuit(serializers.Serializable):
 
         # if the closure branches are manually set, then the spanning tree would be all
         # the superconducting loop branches except the closure branches
-        if self.closure_branches != [] and np.all([isinstance(elem, Branch) for elem in self.closure_branches]):
+        if self.closure_branches != [] and np.all(
+            [isinstance(elem, Branch) for elem in self.closure_branches]
+        ):
             closure_branches_for_trees = [
                 [] for loop_branches in loop_branches_for_trees
             ]
@@ -1933,9 +1936,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         I = np.vstack(
             [
-                np.zeros(
-                    [len(self.nodes) - self.is_grounded, len(closure_branches)]
-                ),
+                np.zeros([len(self.nodes) - self.is_grounded, len(closure_branches)]),
                 np.identity(len(closure_branches)),
             ]
         )
@@ -2066,16 +2067,22 @@ class SymbolicCircuit(serializers.Serializable):
             prev_node_id = [idx for idx in branch.node_ids() if idx != prev_node_id][0]
         return branches_in_order
 
-    def _set_external_fluxes(self, closure_branches: Optional[List[Union[Branch, Dict[Branch, float]]]] = None):
+    def _set_external_fluxes(
+        self,
+        closure_branches: Optional[List[Union[Branch, Dict[Branch, float]]]] = None,
+    ):
         # setting the class properties
 
         if self.is_purely_harmonic:
             self.external_fluxes = []
             self.closure_branches = []
             return 0
-        
+
         if closure_branches:
-            closure_branch_list = [branch if isinstance(branch, Branch) else list(branch.keys()) for branch in closure_branches]
+            closure_branch_list = [
+                branch if isinstance(branch, Branch) else list(branch.keys())
+                for branch in closure_branches
+            ]
             closure_branch_list = flatten_list_recursive(closure_branch_list)
             for branch in closure_branch_list:
                 if branch.type == "C":
@@ -2200,7 +2207,11 @@ class SymbolicCircuit(serializers.Serializable):
         old_vars = [symbols(f"φ{index}") for index in range(1, 1 + num_vars)]
         transformed_expr = transformation_matrix.dot(new_vars)
         # add external flux
-        flux_branch_assignment = self._flux_distribution() if not self.use_dynamic_flux_grouping else self._time_dependent_flux_distribution()
+        flux_branch_assignment = (
+            self._flux_distribution()
+            if not self.use_dynamic_flux_grouping
+            else self._time_dependent_flux_distribution()
+        )
         phi_ext = flux_branch_assignment[branch.index]
         for idx, var in enumerate(old_vars):
             expr_node_vars = expr_node_vars.subs(var, transformed_expr[idx])

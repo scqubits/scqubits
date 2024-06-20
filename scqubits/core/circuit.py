@@ -1238,9 +1238,15 @@ class Circuit(
         """
         if not self.closure_branches:
             return {}
-        list_closure_branches = {element:idx for idx, element in enumerate(self.closure_branches) if isinstance(element, Branch)}
+        list_closure_branches = {
+            element: idx
+            for idx, element in enumerate(self.closure_branches)
+            if isinstance(element, Branch)
+        }
         return {
-            self._make_expr_human_readable(self.external_fluxes[list_closure_branches[branch]]): (
+            self._make_expr_human_readable(
+                self.external_fluxes[list_closure_branches[branch]]
+            ): (
                 branch,
                 self.symbolic_circuit._find_loop(branch),
             )
