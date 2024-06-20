@@ -151,7 +151,7 @@ class NoisyCircuit(NoisySystem, ABC):
                 diff_sym_expr = diff_sym_expr.expand()
                 if second_order:
                     diff_sym_expr2 = diff_sym_expr.diff(param_sym)
-                
+
                 # substitute all symbolic params
                 for param in all_sym_parameters:
                     diff_sym_expr = diff_sym_expr.subs(
@@ -163,7 +163,10 @@ class NoisyCircuit(NoisySystem, ABC):
                         )
                 # evaluate the expression
                 if second_order:
-                    return [parent_instance._evaluate_symbolic_expr(diff_sym_expr), parent_instance._evaluate_symbolic_expr(diff_sym_expr2)]
+                    return [
+                        parent_instance._evaluate_symbolic_expr(diff_sym_expr),
+                        parent_instance._evaluate_symbolic_expr(diff_sym_expr2),
+                    ]
                 return parent_instance._evaluate_symbolic_expr(diff_sym_expr)
 
             if param_sym in self.external_fluxes:
@@ -422,11 +425,13 @@ class NoisyCircuit(NoisySystem, ABC):
                     noise_op = noise_op_func(second_order=second_order)
                 else:
                     if second_order:
-                        raise ValueError("Second order noise not supported for CC noise")
+                        raise ValueError(
+                            "Second order noise not supported for CC noise"
+                        )
                     noise_op = noise_op_func()
                 if isinstance(noise_op, qt.Qobj):
                     noise_op = Qobj_to_scipy_csc_matrix(noise_op)
-                    
+
                 if isinstance(noise_op, list):
                     noise_op_new = []
                     for op in noise_op:
@@ -520,7 +525,12 @@ class NoisyCircuit(NoisySystem, ABC):
             for branch in [brnch for brnch in self.branches if "JJ" in brnch.type]:
                 tphi_times.append(
                     getattr(self, f"tphi_1_over_f_cc{branch.index}")(
-                        A_noise=A_noise, i=i, j=j, esys=esys, second_order=second_order, **kwargs
+                        A_noise=A_noise,
+                        i=i,
+                        j=j,
+                        esys=esys,
+                        second_order=second_order,
+                        **kwargs,
                     )
                 )
             total_rate = sum([1 / tphi for tphi in tphi_times])
