@@ -1545,22 +1545,27 @@ class ParameterSweep(  # type:ignore
                             kerr_subsys1_subsys2_all_l1_l2[..., 1, :],
                             self._parameters.paramvals_by_name,
                         )
-                        chi_prime_data[subsys_index1, subsys_index2] = NamedSlotsNdarray(
-                            kerr_subsys1_subsys2_all_l1_l2[..., 2, :]
-                            - 2 * kerr_subsys1_subsys2_all_l1_l2[..., 1, :],
-                            self._parameters.paramvals_by_name,
-                        ) / 2
-
+                        try:
+                            chi_prime_data[subsys_index1, subsys_index2] = NamedSlotsNdarray(
+                                kerr_subsys1_subsys2_all_l1_l2[..., 2, :]
+                                - 2 * kerr_subsys1_subsys2_all_l1_l2[..., 1, :],
+                                self._parameters.paramvals_by_name,
+                            ) / 2
+                        except IndexError:  # resonator dimension <= 2
+                            chi_prime_data[subsys_index1, subsys_index2] = np.asarray([])
                     else:
                         chi_data[subsys_index1, subsys_index2] = NamedSlotsNdarray(
                             kerr_subsys1_subsys2_all_l1_l2[..., :, 1],
                             self._parameters.paramvals_by_name,
                         )
-                        chi_prime_data[subsys_index1, subsys_index2] = NamedSlotsNdarray(
-                            kerr_subsys1_subsys2_all_l1_l2[..., :, 2]
-                            - 2 * kerr_subsys1_subsys2_all_l1_l2[..., :, 1],
-                            self._parameters.paramvals_by_name,
-                        ) / 2
+                        try:
+                            chi_prime_data[subsys_index1, subsys_index2] = NamedSlotsNdarray(
+                                kerr_subsys1_subsys2_all_l1_l2[..., :, 2]
+                                - 2 * kerr_subsys1_subsys2_all_l1_l2[..., :, 1],
+                                self._parameters.paramvals_by_name,
+                            ) / 2
+                        except IndexError:  # resonator dimension <= 2
+                            chi_prime_data[subsys_index1, subsys_index2] = np.asarray([])
                     kerr_data[subsys_index1, subsys_index2] = np.asarray([])
 
 
