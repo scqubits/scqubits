@@ -468,12 +468,14 @@ class SpectrumLookupMixin(MixinCompatible):
         ----------
         state_label:
             The bare label of the dressed state of interest. Could be 
-                - a tuple/list of bare labels (int)
-                - a single dressed label (int)
+            a tuple/list of bare labels (int)
+            or a single dressed label (int)
         truncate:
             The number of components to be returned. If None, all components 
             will be returned.
-        
+        param_npindices:
+            indices specifying the set of parameters
+
         Returns
         -------
         A tuple of two lists: 
