@@ -401,9 +401,9 @@ class CircuitRoutines(ABC):
         """
         # update the attribute for the current instance
         # first check if the input value is valid.
-        if not (np.isrealobj(value) and value >= 0):
+        if not (np.isrealobj(value)):
             raise AttributeError(
-                f"'{value}' is invalid. Branch parameters must be positive and real."
+                f"'{value}' is invalid. Branch parameters must be real."
             )
         setattr(self, f"_{param_name}", value)
 
