@@ -447,8 +447,32 @@ class SpectrumLookupMixin(MixinCompatible):
 
         """
         if isinstance(param_indices, slice):
+            # Convert a single slice to a tuple containing just that slice
             param_indices = (param_indices,)
-        return len(self._parameters) == len(param_indices)
+
+        # Check if each element in param_indices is an integer or a non-range slice
+        # A non-range slice would be something like slice(1, 2) which effectively selects a single index
+        fixed = []
+        for dim, idx in enumerate(param_indices):
+            
+            if len(self._parameters[dim]) == 1:
+                # if the parameter has only one value, then it is already fixed
+                fixed.append(True)
+            elif isinstance(idx, int):
+                # if the parameter is a single index, then it is fixed
+                fixed.append(True)
+            elif (
+                isinstance(idx, slice) 
+                and idx.start is not None 
+                and idx.stop is not None 
+                and idx.stop - idx.start == 1
+            ):
+                # if the parameter is a single slice, then it is fixed
+                fixed.append(True)
+            else:
+                fixed.append(False)
+
+        return all(fixed)
 
     @utils.check_lookup_exists
     @utils.check_sync_status
