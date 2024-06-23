@@ -227,6 +227,10 @@ class CircuitRoutines(ABC):
             self._transform_hamiltonian(self.hamiltonian_symbolic, eig_vecs).expand(),
             12,
         )
+        for flux in self.external_fluxes:
+            self._hamiltonian_sym_for_numerics = (
+                self._hamiltonian_sym_for_numerics.subs(flux, flux * np.pi * 2)
+            )
         # storing the annihilation operators in the eigenbasis
         osc_lengths = (
             np.diagonal(
@@ -1643,7 +1647,7 @@ class CircuitRoutines(ABC):
             hasattr(self, "hierarchical_diagonalization")
             and self.hierarchical_diagonalization
         ):
-            return None
+            return self._identity_qobj()
         dim = self.hilbertdim()
         if self.type_of_matrices == "sparse":
             op = sparse.identity(dim, format="csc")
@@ -1685,7 +1689,7 @@ class CircuitRoutines(ABC):
                     _i_d_dphi_operator(phi_grid).toarray() * prefactor * 1j
                 )
         elif var_basis == "harmonic":
-            osc_length = self.osc_lengths[var_index]
+            osc_length = self.get_osc_param(var_index, which_param="length")
             if "θ" in var_sym.name:
                 exp_argument_op = op.a_plus_adag_sparse(
                     self.cutoffs_dict()[var_index],
@@ -2550,8 +2554,8 @@ class CircuitRoutines(ABC):
                         + time_dep_terms[parameter_expr]
                     )
                 else:
-                    time_dep_terms[parameter_expr] = (
-                        operator_expr * expr_dict[term] * term_expr_dict[inner_term]
+                    time_dep_terms[parameter_expr] = round_symbolic_expr(
+                        operator_expr * expr_dict[term] * term_expr_dict[inner_term], 13
                     )
 
         for parameter_expr in time_dep_terms:
@@ -2701,7 +2705,7 @@ class CircuitRoutines(ABC):
         # string to describe the Circuit
         return self._id_str
 
-    def info(self):
+    def _repr_latex_(self):
         """
         Describes the Circuit instance, its parameters, and the symbolic Hamiltonian.
         """

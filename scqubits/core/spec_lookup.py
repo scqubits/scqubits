@@ -73,7 +73,7 @@ class SpectrumLookupMixin(MixinCompatible):
         if self._inside_hilbertspace:
             self._current_param_indices = 0
         else:
-            self._current_param_indices = slice(None, None, None)
+            self._current_param_indices = (slice(None, None, None),) * self._parameters.ndim()
 
     @property
     def _bare_product_states_labels(self) -> List[Tuple[int, ...]]:
@@ -492,12 +492,14 @@ class SpectrumLookupMixin(MixinCompatible):
         ----------
         state_label:
             The bare label of the dressed state of interest. Could be 
-                - a tuple/list of bare labels (int)
-                - a single dressed label (int)
+            a tuple/list of bare labels (int)
+            or a single dressed label (int)
         truncate:
             The number of components to be returned. If None, all components 
             will be returned.
-        
+        param_npindices:
+            indices specifying the set of parameters
+
         Returns
         -------
         A tuple of two lists: 
@@ -512,14 +514,15 @@ class SpectrumLookupMixin(MixinCompatible):
                 "the use of `.dressed_state_component`."
             )
 
-        evecs = self["evecs"][param_npindices][0]
+        zero_idx = (0,) * len(self._parameters)
+        evecs = self["evecs"][zero_idx]
             
         # find the desired state vector
         if isinstance(state_label, tuple | list): 
-            drs_idx = self.dressed_index(tuple(state_label))
+            drs_idx = self.dressed_index(tuple(state_label))[zero_idx]
             if drs_idx is None:
                 raise IndexError(f"no dressed state found for bare label {state_label}")
-        elif isinstance(state_label, int):
+        elif isinstance(state_label, int | np.int_):
             drs_idx = state_label
         evec_1 = evecs[drs_idx]
 

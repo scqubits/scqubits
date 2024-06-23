@@ -17,7 +17,6 @@ import warnings
 
 import inspect
 from collections.abc import Sequence
-from distutils.version import StrictVersion
 from io import StringIO
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
@@ -482,52 +481,6 @@ def number_of_lists_in_list(list_object: list) -> int:
     The number of lists in the list
     """
     return sum([1 for element in list_object if type(element) == list])
-
-
-def check_matplotlib_compatibility():
-    if _HAS_WIDGET_BACKEND and StrictVersion(matplotlib.__version__) < StrictVersion(
-        "3.5.1"
-    ):
-        warnings.warn(
-            "The widget backend requires Matplotlib >=3.5.1 for proper functioning",
-            UserWarning,
-        )
-
-def inspect_public_API(
-    module: Any,
-    public_names: List[str] = [],
-    private_names: List[str] = [],
-) -> List[str]:
-    """
-    Find all public names in a module.
-
-    Parameters
-    ----------
-    module:
-        Module to be inspected
-    public_names:
-        Names that have already been found / manually be set to public
-    private_names:
-        Names that should be excluded from the public API
-    """
-    for name, obj in inspect.getmembers(module):
-        if (
-            name.startswith("_") 
-            or name in public_names 
-            or name in private_names
-        ):
-            continue
-
-        if (
-            inspect.isclass(obj) 
-            or inspect.isfunction(obj) 
-            or inspect.ismodule(obj)
-        ):
-            public_names.append(name)
-        elif not callable(obj) and name.isupper():  # constants
-            public_names.append(name)
-
-    return public_names
 
 
 def inspect_public_API(

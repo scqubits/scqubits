@@ -52,6 +52,26 @@ def get_map_method(num_cpus: int) -> Callable:
 
         settings.POOL = multiprocessing.Pool(processes=num_cpus)
         return settings.POOL.map
+    elif settings.MULTIPROC == "ray":
+        try:
+            import ray
+        except ImportError:
+            raise ImportError(
+                "scqubits multiprocessing mode set to 'ray'. Need but cannot find 'ray'!"
+            )
+        else:
+            ray.shutdown()
+            ray.init(num_cpus=num_cpus)
+
+            def ray_map(func, iterable):
+                @ray.remote
+                def remote_func(x):
+                    return func(x)
+
+                result_refs = [remote_func.remote(x) for x in iterable]
+                return ray.get(result_refs)
+
+            return ray_map
     else:
         raise ValueError(
             "Unknown multiprocessing type: settings.MULTIPROC = {}".format(

@@ -28,18 +28,13 @@ class QutipEigenstates(np.ndarray, Serializable):
         Take the given IOData and return an instance of the described class, initialized
         with the data stored in io_data.
         """
-        qobj_dims = io_data.ndarrays["qobj_dims"]
+        # Qobj in Qutip>=5 wants this to be a nested list
+        qobj_dims = io_data.ndarrays["qobj_dims"].tolist()
         qobj_shape = io_data.ndarrays["qobj_shape"]
         evec_array = io_data.ndarrays["evecs"]
+
         qt_eigenstates = np.asarray(
-            [
-                (
-                    qt.Qobj(evec, type="ket")
-                    if qt.__version__ >= "5.0.0"
-                    else qt.Qobj(evec, dims=qobj_dims, shape=qobj_shape, type="ket")
-                )
-                for evec in evec_array
-            ],
+            [qt.Qobj(evec, dims=qobj_dims) for evec in evec_array],
             dtype=np.dtype("O"),
         )
         return qt_eigenstates

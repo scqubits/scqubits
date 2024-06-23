@@ -89,7 +89,6 @@ class GUI:
 
     @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
     def __init__(self):
-        utils.check_matplotlib_compatibility()
 
         # scq.settings.PROGRESSBAR_DISABLED = False
         scq.settings.T1_DEFAULT_WARNING = False

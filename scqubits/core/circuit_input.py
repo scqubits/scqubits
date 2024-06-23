@@ -78,7 +78,7 @@ energy_names = ["EJ", "EC", "EL"]
 UNITS_FREQ_ENERGY = Literal("Hz") ^ Literal("J") ^ Literal("eV")
 
 UNITS = {name: Opt(PREFIX, None) for name in energy_names}
-UNITS["EJ"] += UNITS_FREQ_ENERGY ^ Literal("A")  # Ampere
+UNITS["EJ"] += UNITS_FREQ_ENERGY ^ Literal("A") ^ Literal("H")  # Ampere, Henry
 UNITS["EC"] += UNITS_FREQ_ENERGY ^ Literal("F")  # Farad
 UNITS["EL"] += UNITS_FREQ_ENERGY ^ Literal("H")  # Henry
 for name, unit in UNITS.items():
