@@ -1678,15 +1678,17 @@ def generator(sweep: "ParameterSweepBase", func: Callable, **kwargs) -> np.ndarr
             paramvals_tuple=paramvals_tuple,
             **kw,
         )
-
+    
     if hasattr(func, "__name__"):
         func_name = func.__name__
     else:
         func_name = ""
 
+    target_map = cpu_switch.get_map_method(sweep._num_cpus)
+
     data_array = list(
         tqdm(
-            map(
+            target_map(
                 functools.partial(
                     func_effective,
                     params=reduced_parameters,
