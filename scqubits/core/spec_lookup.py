@@ -464,10 +464,18 @@ class SpectrumLookupMixin(MixinCompatible):
             elif (
                 isinstance(idx, slice) 
                 and idx.start is not None 
+                and isinstance(idx.start, str)
+            ):
+                # if the parameter is a name based slice and the only allowed
+                # name based slice is a single value
+                fixed.append(True)
+            elif (
+                isinstance(idx, slice) 
+                and idx.start is not None 
                 and idx.stop is not None 
                 and idx.stop - idx.start == 1
             ):
-                # if the parameter is a single slice, then it is fixed
+                # if the parameter is a single value slice, then it is fixed
                 fixed.append(True)
             else:
                 fixed.append(False)
@@ -519,7 +527,8 @@ class SpectrumLookupMixin(MixinCompatible):
             
         # find the desired state vector
         if isinstance(state_label, tuple | list): 
-            drs_idx = self.dressed_index(tuple(state_label))[zero_idx]
+            raveled_label = np.ravel_multi_index(state_label, self.hilbertspace.subsystem_dims)
+            drs_idx = self["dressed_indices"][zero_idx][raveled_label]
             if drs_idx is None:
                 raise IndexError(f"no dressed state found for bare label {state_label}")
         elif isinstance(state_label, int | np.int_):
