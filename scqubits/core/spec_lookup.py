@@ -464,10 +464,18 @@ class SpectrumLookupMixin(MixinCompatible):
             elif (
                 isinstance(idx, slice) 
                 and idx.start is not None 
+                and isinstance(idx.start, str)
+            ):
+                # if the parameter is a name based slice and the only allowed
+                # name based slice is a single value
+                fixed.append(True)
+            elif (
+                isinstance(idx, slice) 
+                and idx.start is not None 
                 and idx.stop is not None 
                 and idx.stop - idx.start == 1
             ):
-                # if the parameter is a single slice, then it is fixed
+                # if the parameter is a single value slice, then it is fixed
                 fixed.append(True)
             else:
                 fixed.append(False)
