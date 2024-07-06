@@ -643,20 +643,21 @@ class QubitBaseClass(QuantumSystem, ABC):
             # Info about shift in ng will be accessible in order to shift 
             # back the state components in charge basis, make "empty like"
             ng_len = int(len(param_vals))
-            # store original array as ng_original
+            # store original array with mod, remainder and reflection
             ng_mod_shift = np.empty((ng_len, 2), dtype=float)
-            ng_original = np.copy(param_vals)
+
             # store the mod of ng = red and int div of ng = shift 
-            ng_mod_shift[:, 0] = ng_original%1
-            ng_mod_shift[:, 1] = ng_original//1
+            ng_mod_shift[:, 0] = param_vals%1
+            ng_mod_shift[:, 1] = param_vals//1
 
             # Reduction in number of elements 
-            param_vals = np.empty((ng_len, 1), dtype=float)
+            param_vals = []
 
-            for idx in range(ng_len):
-                if not(ng_mod_shift[idx, 0] in param_vals):
-                    param_vals[idx] = ng_mod_shift[idx, 0]
+            for idx, mod in enumerate(ng_mod_shift[:, 0]):
+                if not(mod in param_vals):
+                    param_vals.append(mod)
             
+            param_vals = np.array(param_vals)
             # Concludes ng reduction 
 
 
@@ -716,10 +717,10 @@ class QubitBaseClass(QuantumSystem, ABC):
 
             # Complete energy_set using eigenvalue_table, 
             # then assign the latter to the former 
-            for idx_1, com in enumerate(ng_mod_shift[:, 0]):
-                for idx_2, red in enumerate(param_vals):
-                    if com == red:
-                        energy_set[idx_1] = eigenvalue_table[idx_2]
+            for idx_1, red in enumerate(param_vals):
+                for idx_2, mod in enumerate(ng_mod_shift[:, 0]):
+                    if mod == red:
+                        energy_set[idx_2] = eigenvalue_table[idx_1]
 
             eigenvalue_table = energy_set
             
@@ -731,10 +732,10 @@ class QubitBaseClass(QuantumSystem, ABC):
                 state_set = np.empty((ng_len, 1), dtype=float)
 
                 # complete the eigenstates 
-                for idx_1, com in enumerate(ng_mod_shift[:, 0]):
-                    for idx_2, red in enumerate(param_vals):
-                        if com == red:
-                            state_set[idx_1] = eigenstate_table[idx_2]
+                for idx_1, red in enumerate(param_vals):
+                    for idx_2, mod in enumerate(ng_mod_shift[:, 0]):
+                        if mod == red:
+                            state_set[idx_2] = eigenstate_table[idx_1]
 
                 # Shift charge states 
                 eigenstate_table = np.copy(state_set)
@@ -750,7 +751,7 @@ class QubitBaseClass(QuantumSystem, ABC):
                         
             
             # reassign the parameters values baack to the original ndarray 
-            param_vals = ng_original 
+            param_vals = ng_mod_shift[:, 0] + ng_mod_shift[:, 1]
             # This ends the modifications made to minimize calculation time 
             # by utilizing periodicity in the transmon offset charge. 
 
