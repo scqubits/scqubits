@@ -714,7 +714,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             # The eigenvalue_table only has the evals corresponding to the reduced ng 
             energy_set = np.empty((ng_len, 1), dtype=float)
 
-            # Complete energy set using eigenvalue_table, 
+            # Complete energy_set using eigenvalue_table, 
             # then assign the latter to the former 
             for idx_1, com in enumerate(ng_mod_shift[:, 0]):
                 for idx_2, red in enumerate(param_vals):
