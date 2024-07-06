@@ -651,13 +651,12 @@ class QubitBaseClass(QuantumSystem, ABC):
             ng_mod_shift[:, 1] = param_vals//1
 
             # Reduction in number of elements 
-            param_vals = []
+            param_vals = np.array([])
 
             for idx, mod in enumerate(ng_mod_shift[:, 0]):
                 if not(mod in param_vals):
-                    param_vals.append(mod)
+                    param_vals = np.append(param_vals, mod)
             
-            param_vals = np.array(param_vals)
             # Concludes ng reduction 
 
 
