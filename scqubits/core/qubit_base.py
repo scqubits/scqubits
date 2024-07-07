@@ -643,7 +643,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             # Info about shift in ng will be accessible in order to shift 
             # back the state components in charge basis, make "empty like"
             ng_len = int(len(param_vals))
-            # store original array with mod, remainder and reflection
+            # store original array with mod and remainder
             ng_mod_shift = np.empty((ng_len, 2), dtype=float)
 
             # store the mod of ng and int div of ng 
