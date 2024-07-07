@@ -635,7 +635,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         target_map = get_map_method(num_cpus)
 
         # Exploitation of periodicity in ng values 
-        using = False
+        using = True
         from transmon import Transmon
         # Check class is transmon and the parameter is ng
         if isinstance(self, Transmon) and param_name == 'ng' and using:
