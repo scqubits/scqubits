@@ -646,9 +646,9 @@ class QubitBaseClass(QuantumSystem, ABC):
             # store original array with mod, remainder and reflection
             ng_mod_shift = np.empty((ng_len, 2), dtype=float)
 
-            # store the mod of ng = red and int div of ng = shift 
-            ng_mod_shift[:, 0] = param_vals%1
-            ng_mod_shift[:, 1] = param_vals//1
+            # store the mod of ng and int div of ng 
+            ng_mod_shift[:, 0] = param_vals % 1
+            ng_mod_shift[:, 1] = param_vals // 1
 
             # Reduction in number of elements, empty param_vals first  
             param_vals = np.array([])
@@ -709,10 +709,10 @@ class QubitBaseClass(QuantumSystem, ABC):
                 eigensystem_mapdata
             )
 
-        # Complete evals and estates with plot against true ng array 
+        # Complete evals and estates 
         if isinstance(self, Transmon) and param_name == 'ng' and using:
             # The eigenvalue_table only has the evals corresponding to the reduced ng 
-            energy_set = np.empty((ng_len, 1), dtype=float)
+            energy_set = np.empty(ng_len, dtype=float)
 
             # Complete energy_set using eigenvalue_table, 
             # then assign the latter to the former 
@@ -726,9 +726,9 @@ class QubitBaseClass(QuantumSystem, ABC):
             # Only if it is needed, do the same for the estates but shift them 
             # according to the number of periods they were given 
             if get_eigenstates:
-                siz = 1 + 2 * Transmon.ncut
-                # define a temporary set for the set of estates  
-                state_set = np.empty((ng_len, 1), dtype=float)
+                num_n_states = 1 + 2 * Transmon.ncut
+                # define a temporary set for the set of estates
+                state_set = np.empty(ng_len, dtype=float)
 
                 # complete the eigenstates 
                 for idx_1, red in enumerate(param_vals):
@@ -739,17 +739,12 @@ class QubitBaseClass(QuantumSystem, ABC):
                 # Shift charge states 
                 eigenstate_table = np.copy(state_set)
                 for idx_1, mod, shf in enumerate(ng_mod_shift):
-                    for idx_2 in range(siz):
-                        # Effective shift respects limits of +/- ncut 
-                        if shf < 0:
-                            shf += siz
-                        
-                        eff = idx_2 + shf - siz * int((idx_2 + shf) / siz)
-                        
-                        eigenstate_table[idx_1, idx_2] = state_set[idx_1, eff]
+                    for idx_2 in range(num_n_states):
+                        # Effective shift respects limits of +/- ncut
+                        eigenstate_table[idx_1, idx_2] = state_set[idx_1, (idx_2 + shf) % num_n_states]
                         
             
-            # reassign the parameters values baack to the original ndarray 
+            # reassign the parameters values back to their original values 
             param_vals = ng_mod_shift[:, 0] + ng_mod_shift[:, 1]
             # This ends the modifications made to minimize calculation time 
             # by utilizing periodicity in the transmon offset charge. 
