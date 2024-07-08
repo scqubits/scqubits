@@ -635,10 +635,10 @@ class QubitBaseClass(QuantumSystem, ABC):
         target_map = get_map_method(num_cpus)
 
         # Exploitation of periodicity in ng values 
-        using = True   # For testing
+        
         from transmon import Transmon
         # Check class is transmon and the parameter is ng
-        if isinstance(self, Transmon) and param_name == 'ng' and using:
+        if isinstance(self, Transmon) and param_name == 'ng':
             # Define reduced ng array and store data from previous array
             # Info about shift in ng will be accessible in order to shift 
             # back the state components in charge basis
@@ -710,7 +710,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             )
 
         # Complete evals and estates 
-        if isinstance(self, Transmon) and param_name == 'ng' and using:
+        if isinstance(self, Transmon) and param_name == 'ng':
             # The eigenvalue_table only has the evals corresponding to the reduced ng 
             energy_set = np.empty(ng_len, dtype=float)
 
