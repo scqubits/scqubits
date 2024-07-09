@@ -635,7 +635,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         target_map = get_map_method(num_cpus)
 
         # Exploitation of periodicity in ng values 
-        using = False  # For testing
+        using = True  # For testing
         from transmon import Transmon
         # Check class is transmon and the parameter is ng
         if isinstance(self, Transmon) and param_name == 'ng' and using:
@@ -652,10 +652,10 @@ class QubitBaseClass(QuantumSystem, ABC):
             # Reduction in number of elements, empty param_vals first  
             param_vals = np.array([])
 
-            for idx, mod in enumerate(ng_mod_shift[:, 0]):
+            """for idx, mod in enumerate(ng_mod_shift[:, 0]):
                 if not(mod in param_vals):
                     param_vals = np.append(param_vals, mod)
-            
+            """
             # Concludes ng reduction 
 
 
