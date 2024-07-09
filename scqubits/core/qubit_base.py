@@ -710,14 +710,15 @@ class QubitBaseClass(QuantumSystem, ABC):
 
         # Complete evals and estates 
         if isinstance(self, Transmon) and param_name == 'ng' and using:
+            ng_len = len(ng_mod_shift[:, 0])
             # The eigenvalue_table only has the evals corresponding to the reduced ng 
             energy_set = np.empty(ng_len, dtype=float)
 
             # Complete energy_set using eigenvalue_table, 
             # then assign the latter to the former 
-            for idx_1, red in enumerate(param_vals):
+            for idx_1, ng in enumerate(param_vals):
                 for idx_2, mod in enumerate(ng_mod_shift[:, 0]):
-                    if mod == red:
+                    if mod == ng:
                         energy_set[idx_2] = eigenvalue_table[idx_1]
 
             eigenvalue_table = energy_set
@@ -730,9 +731,9 @@ class QubitBaseClass(QuantumSystem, ABC):
                 state_set = np.empty(ng_len, dtype=float)
 
                 # complete the eigenstates 
-                for idx_1, red in enumerate(param_vals):
+                for idx_1, ng in enumerate(param_vals):
                     for idx_2, mod in enumerate(ng_mod_shift[:, 0]):
-                        if mod == red:
+                        if mod == ng:
                             state_set[idx_2] = eigenstate_table[idx_1]
 
                 # Shift charge states 
