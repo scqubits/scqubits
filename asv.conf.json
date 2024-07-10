@@ -5,7 +5,7 @@
     "repo": ".",
 
     //"build_command": ["PIP_NO_BUILD_ISOLATION=false python -mpip wheel --no-deps --no-index -w {build_cache_dir} ."],
-    "branches": ["asvDevBranch"],
+    "branches": ["pull_request_fail"],
 
     "pythons": ["3.9"],
     "environment_type": "conda",
