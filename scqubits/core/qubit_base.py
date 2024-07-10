@@ -636,9 +636,9 @@ class QubitBaseClass(QuantumSystem, ABC):
 
         # Exploitation of periodicity in ng values 
         using = True  # For testing
-        from transmon import Transmon, TunableTransmon
+        from transmon import Transmon
         # Check class is transmon and the parameter is ng
-        if isinstance(self, TunableTransmon) and param_name == 'ng' and using:
+        if isinstance(self, Transmon) and param_name == 'ng' and using:
             # Define reduced ng array and store data from previous array
             # Info about shift in ng will be accessible in order to shift 
             # back the state components in charge basis
