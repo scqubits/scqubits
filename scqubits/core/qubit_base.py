@@ -650,12 +650,12 @@ class QubitBaseClass(QuantumSystem, ABC):
             ng_mod_shift[:, 1] = param_vals // 1
 
             # Reduction in number of elements, empty param_vals first  
-            param_vals = np.array([0])
+            param_vals = np.array([])
 
-            """for idx, mod in enumerate(ng_mod_shift[:, 0]):
+            for idx, mod in enumerate(ng_mod_shift[:, 0]):
                 if not(mod in param_vals):
                     param_vals = np.append(param_vals, mod)
-            """
+            
             print('TESTING!!!')
             # Concludes ng reduction 
 
@@ -713,7 +713,8 @@ class QubitBaseClass(QuantumSystem, ABC):
         if isinstance(self, Transmon) and param_name == 'ng' and using:
             ng_len = len(ng_mod_shift[:, 0])
             # The eigenvalue_table only has the evals corresponding to the reduced ng 
-            energy_set = np.empty(ng_len, dtype=float)
+            energy_set = np.empty((ng_len, len(eigenvalue_table[0])), dtype=float)
+            print(eigenvalue_table.shape)
 
             # Complete energy_set using eigenvalue_table, 
             # then assign the latter to the former 
