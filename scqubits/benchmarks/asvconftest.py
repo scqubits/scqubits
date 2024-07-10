@@ -20,6 +20,8 @@ TESTDIR = os.path.join(TESTDIR, "tests", "")  # local scqubits directory holding
 DATADIR = os.path.join(TESTDIR, "data", "")  # local data collection within scqubits
 
 
+# adding comment for difference
+
 class BaseTest:
     """Used as base class for the pytests of qubit classes"""
 
