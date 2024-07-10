@@ -636,7 +636,7 @@ class QubitBaseClass(QuantumSystem, ABC):
 
         # Exploitation of periodicity in ng values 
         using = True  # For testing
-        from transmon import Transmon
+        from scqubits import Transmon
         # Check class is transmon and the parameter is ng
         if isinstance(self, Transmon) and param_name == 'ng' and using:
             # Define reduced ng array and store data from previous array
