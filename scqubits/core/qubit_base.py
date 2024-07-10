@@ -656,12 +656,11 @@ class QubitBaseClass(QuantumSystem, ABC):
                 if not(mod in param_vals):
                     param_vals = np.append(param_vals, mod)
             
-            print('TESTING!!!')
             # Concludes ng reduction 
 
 
-
-        if not get_eigenstates:
+# TESTING!!! need 'not' below 
+        if get_eigenstates:
             func_evals = functools.partial(
                 self._evals_for_paramval, param_name=param_name, evals_count=evals_count
             )
@@ -714,7 +713,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             ng_len = len(ng_mod_shift[:, 0])
             # The eigenvalue_table only has the evals corresponding to the reduced ng 
             energy_set = np.empty((ng_len, len(eigenvalue_table[0])), dtype=float)
-            print(eigenvalue_table.shape)
+            print(eigenstate_table)
 
             # Complete energy_set using eigenvalue_table, 
             # then assign the latter to the former 
@@ -730,7 +729,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             if get_eigenstates:
                 num_n_states = 1 + 2 * Transmon.ncut
                 # define a temporary set for the set of estates
-                state_set = np.empty(ng_len, dtype=float)
+                state_set = np.empty((ng_len, len(eigenstate_table[0])), dtype=float)
 
                 # complete the eigenstates 
                 for idx_1, ng in enumerate(param_vals):
