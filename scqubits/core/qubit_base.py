@@ -656,6 +656,7 @@ class QubitBaseClass(QuantumSystem, ABC):
                 if not(mod in param_vals):
                     param_vals = np.append(param_vals, mod)
             """
+            print('TESTING!!!')
             # Concludes ng reduction 
 
 
