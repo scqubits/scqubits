@@ -9,6 +9,9 @@ on:
 jobs:
   asvContinuous:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
     strategy:
       max-parallel: 8
     steps:
@@ -22,9 +25,6 @@ jobs:
         python-version: 3.9
         channels: defaults,conda-forge
         show-channel-urls: true
-    - name: Add conda to system path
-      run: |
-        echo $CONDA/bin >> $GITHUB_PATH
     - name: Set up asv
       run: |
         conda activate cloud_env
