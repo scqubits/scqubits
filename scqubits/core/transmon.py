@@ -10,6 +10,8 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import time
+
 import math
 
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -99,6 +101,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         self.truncated_dim = truncated_dim
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
+        time.sleep(1)
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
