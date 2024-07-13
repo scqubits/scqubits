@@ -509,7 +509,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
         phi_grid = phi_grid or self._default_grid
         phi_basis_labels = phi_grid.make_linspace()
-        phi_wavefunc_amplitudes = np.empty(phi_grid.pt_count, dtype=np.float128)
+        phi_wavefunc_amplitudes = np.empty(phi_grid.pt_count, dtype=np.complex128)
         for k in range(phi_grid.pt_count):
             phi_wavefunc_amplitudes[k] = (1j**which / math.sqrt(2 * np.pi)) * np.sum(
                 n_wavefunc.amplitudes

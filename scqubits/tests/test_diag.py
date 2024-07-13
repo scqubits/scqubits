@@ -327,10 +327,10 @@ def test_custom_diagonalization_esys_method_matches_default(library):
             "esys_cupy_dense",
             "esys_cupy_sparse",
         ]:
-            # NOTE: These cases may be temporary failing
+            # NOTE: These cases may be temporary failing.
             warnings.warn(f"Skipping (known) failing test of {method}", Warning)
 
-            with pytest.raises(AssertionError):                
+            with pytest.raises(AssertionError):
                 assert np.all(
                     [
                         np.allclose(evecs[:, i], evecs_default[:, i], atol=1e-7)
