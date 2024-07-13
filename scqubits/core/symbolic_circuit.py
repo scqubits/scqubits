@@ -2057,7 +2057,7 @@ class SymbolicCircuit(serializers.Serializable):
         φ_dot_vars_θ = transformation_matrix.dot(θ_dot_vars)
 
         # C_terms = self._C_terms()
-        C_mat = self._capacitance_matrix()
+        C_mat = self._capacitance_matrix(substitute_params)
         if not self.is_any_branch_parameter_symbolic():
             # in terms of node variables
             C_terms_φ = C_mat.dot(φ_dot_vars).dot(φ_dot_vars) * 0.5
@@ -2244,7 +2244,7 @@ class SymbolicCircuit(serializers.Serializable):
         """
         Calculate the inverse of the transformed capacitance matrix C_mat_theta.
         """        
-        C_mat_full = self._capacitance_matrix()
+        C_mat_full = self._capacitance_matrix(substitute_params)
         total_params = C_mat_full.shape[0]
         
         # truncated capacitance matrix with no frozen indices
