@@ -2422,7 +2422,7 @@ class CircuitRoutines(ABC):
             cutoff = getattr(self, f"cutoff_ext_{var_index}")
             evals = (0.5 + np.arange(0, cutoff)) * self.normal_mode_freqs[idx]
             H_osc = sp.sparse.dia_matrix(
-                (evals, [0]), shape=(cutoff, cutoff), dtype=np.float_
+                (evals, [0]), shape=(cutoff, cutoff), dtype=np.float64
             )
             operator_for_var_index.append(self._kron_operator(H_osc, var_index))
         H = sum(operator_for_var_index)

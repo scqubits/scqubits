@@ -134,7 +134,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
             number of desired eigenvalues (default value = 6)
         """
         evals_count = evals_count or _default_evals_count
-        evecs = np.zeros(shape=(self.truncated_dim, evals_count), dtype=np.float_)
+        evecs = np.zeros(shape=(self.truncated_dim, evals_count), dtype=np.float64)
         np.fill_diagonal(evecs, 1.0)
 
         return self.eigenvals(evals_count=evals_count), evecs

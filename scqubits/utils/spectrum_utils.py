@@ -296,7 +296,7 @@ def convert_evecs_to_ndarray(evecs_qutip: ndarray) -> np.ndarray:
     """
     evals_count = len(evecs_qutip)
     dimension = evecs_qutip[0].shape[0]
-    evecs_ndarray = np.empty((evals_count, dimension), dtype=np.complex_)
+    evecs_ndarray = np.empty((evals_count, dimension), dtype=np.complex64)
     for index, eigenstate in enumerate(evecs_qutip):
         evecs_ndarray[index] = eigenstate.full()[:, 0]
     return evecs_ndarray
