@@ -364,7 +364,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         zeropi_dim = self.zeropi_cutoff
         zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
         zeropi_diag_hamiltonian = sparse.dia_matrix(
-            (zeropi_dim, zeropi_dim), dtype=np.complex64
+            (zeropi_dim, zeropi_dim), dtype=np.float128
         )
         zeropi_diag_hamiltonian.setdiag(zeropi_evals)
 
@@ -375,15 +375,15 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
         hamiltonian_mat = sparse.kron(
             zeropi_diag_hamiltonian,
-            sparse.identity(zeta_dim, format="dia", dtype=np.complex64),
+            sparse.identity(zeta_dim, format="dia", dtype=np.float128),
         )
         hamiltonian_mat += sparse.kron(
-            sparse.identity(zeropi_dim, format="dia", dtype=np.complex64),
+            sparse.identity(zeropi_dim, format="dia", dtype=np.float128),
             zeta_diag_hamiltonian,
         )
 
         gmat = self.g_coupling_matrix(zeropi_evecs)
-        zeropi_coupling = sparse.dia_matrix((zeropi_dim, zeropi_dim), dtype=np.complex64)
+        zeropi_coupling = sparse.dia_matrix((zeropi_dim, zeropi_dim), dtype=np.float128)
         for l1 in range(zeropi_dim):
             for l2 in range(zeropi_dim):
                 zeropi_coupling += gmat[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
@@ -527,7 +527,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             _, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
 
         op_eigen_basis = sparse.dia_matrix(
-            (zeropi_dim, zeropi_dim), dtype=np.complex64
+            (zeropi_dim, zeropi_dim), dtype=np.float128
         )  # guaranteed to be zero?
 
         op_zeropi = spec_utils.get_matrixelement_table(zeropi_operator, zeropi_evecs)
@@ -537,7 +537,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
         return sparse.kron(
             op_eigen_basis,
-            sparse.identity(zeta_dim, format="csc", dtype=np.complex64),
+            sparse.identity(zeta_dim, format="csc", dtype=np.float128),
             format="csc",
         )
 

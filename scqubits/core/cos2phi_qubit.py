@@ -1611,7 +1611,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         )
         wavefunc_amplitudes = np.zeros(
             (phi_grid.pt_count, zeta_grid.pt_count, theta_grid.pt_count),
-            dtype=np.complex64,
+            dtype=np.float128,
         )
         for i in range(self._dim_phi()):
             for j in range(self._dim_zeta()):

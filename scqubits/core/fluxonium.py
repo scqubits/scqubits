@@ -442,7 +442,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
         phi_basis_labels = phi_grid.make_linspace()
         wavefunc_osc_basis_amplitudes = evecs[:, which]
-        phi_wavefunc_amplitudes = np.zeros(phi_grid.pt_count, dtype=np.complex64)
+        phi_wavefunc_amplitudes = np.zeros(phi_grid.pt_count, dtype=np.float128)
         phi_osc = self.phi_osc()
         for n in range(dim):
             phi_wavefunc_amplitudes += wavefunc_osc_basis_amplitudes[

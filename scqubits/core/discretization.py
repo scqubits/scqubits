@@ -178,7 +178,7 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
             sparse matrix in `dia` format
         """
         if isinstance(prefactor, complex):
-            dtp = np.complex64
+            dtp = np.float128
         else:
             dtp = np.float64
 
@@ -212,7 +212,7 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
             sparse matrix in `dia` format
         """
         if isinstance(prefactor, complex):
-            dtp = np.complex64
+            dtp = np.float128
         else:
             dtp = np.float64
 
