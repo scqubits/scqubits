@@ -100,6 +100,7 @@ NOISE_PARAMS = {
     "M": 400,  # Mutual inductance between qubit and a flux line. Units: \Phi_0 / Ampere
     "R_k": sp.constants.h
     / sp.constants.e**2.0,  # Normal quantum resistance, aka Klitzing constant.
+    "G_k": sp.constants.e**2.0 / sp.constants.h,  # Normal quantum conductance.
     # Note, in some papers a superconducting quantum
     # resistance is used, and defined as: h/(2e)^2
 }
@@ -1794,8 +1795,9 @@ class NoisySystem(ABC):
             therm_ratio = calc_therm_ratio(omega, T)
 
             return (
-                2
-                * omega
+                omega
+                * 1
+                / NOISE_PARAMS["G_k"]
                 * complex(y_qp_fun(omega, T)).real
                 * (1 / np.tanh(0.5 * therm_ratio))
                 / (1 + np.exp(-therm_ratio))
