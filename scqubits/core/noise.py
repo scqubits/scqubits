@@ -921,7 +921,11 @@ class NoisySystem(ABC):
             return 1 / rate if rate != 0 else np.inf
 
     def transition_energy_derivative(
-        self, ni, nf, esys, hamiltonian_derivative,
+        self,
+        ni,
+        nf,
+        esys,
+        hamiltonian_derivative,
     ):
         """
         Returns the first order and second order derivative of the nth eigenenergy
@@ -988,9 +992,7 @@ class NoisySystem(ABC):
         esys = self.eigensys(evals_count=max(j, i) + 1) if esys is None else esys  # type: ignore
 
         if hasattr(self, "is_child"):  # find if self is a Circuit object
-            energy_variations = self.transition_energy_derivative(
-                i, j, esys, noise_op
-            )
+            energy_variations = self.transition_energy_derivative(i, j, esys, noise_op)
             rate_squared = (2 * np.abs(np.log(p["omega_low"] * p["t_exp"]))) * (
                 A_noise * np.abs(energy_variations[0])
             ) ** 2
