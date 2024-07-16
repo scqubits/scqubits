@@ -334,11 +334,10 @@ def test_custom_diagonalization_esys_method_matches_default(library):
         tmon.esys_method = None
         evals_default, evecs_default = tmon.eigensys()
 
-        print("method", method)
         if method in [
             "esys_cupy_sparse",
         ]:
-            # These cases are temporary failing.
+            # These cases are currently failing.
             warnings.warn(f"Skipping (known) failing test of {method}", Warning)
             with pytest.raises(AssertionError):
                 assert np.all(
