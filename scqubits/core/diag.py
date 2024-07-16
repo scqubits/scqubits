@@ -266,7 +266,6 @@ def evals_scipy_sparse(
         overwrite=True,
     )
     evals = sp.sparse.linalg.eigsh(m, k=evals_count, **options)
-    print("evecs.shape", evecs.shape)
 
     # have to reverse order if return_eigenvectors=False and which="SA"
     return evals[::-1]
@@ -320,14 +319,8 @@ def esys_scipy_sparse(
     )
     evals, evecs = sp.sparse.linalg.eigsh(m, k=evals_count, **options)
 
-    print("before evecs.dtype", evecs.dtype)
-    print("before evals.dtype", evals.dtype)
-
     if has_degeneracy(evals):
         evecs, _ = sp.linalg.qr(evecs, mode="economic")
-
-    print("after evecs.dtype", evecs.dtype)
-    print("after evals.dtype", evals.dtype)
 
     evecs = (
         _convert_evecs_to_qobjs(evecs, matrix) if isinstance(matrix, Qobj) else evecs
@@ -639,7 +632,8 @@ def evals_jax_dense(
     """
     try:
         import jax
-        # jax defaults to single precision, but we need to default to double precision 
+
+        # jax defaults to single precision, but we need to default to double precision
         jax.config.update("jax_enable_x64", True)
     except:
         raise ImportError("Package jax is not installed.")
@@ -649,11 +643,10 @@ def evals_jax_dense(
     # We explicitly cast to a numpy array
     evals = np.asarray(jax.scipy.linalg.eigh(m, eigvals_only=True, **kwargs))
 
-    # In eigh, the eigvals options is not currently implemented, although listed 
-    # in the jax docs, hence we only grab the number of evals that the user
-    # requested. We also "cast" to a numpy array via np.asarray. 
-    return  np.asarray(evals[:evals_count])
-
+    # In eigh, the eigvals options is not currently implemented, although listed
+    # in the jax docs, hence we have to "manually" only return the number of
+    # evals that the user requested. We also "cast" to a numpy array via np.asarray.
+    return np.asarray(evals[:evals_count])
 
 
 def esys_jax_dense(
@@ -686,7 +679,8 @@ def esys_jax_dense(
     """
     try:
         import jax
-        # jax defaults to single precision, but we need to default to double precision 
+
+        # jax defaults to single precision, but we need to default to double precision
         jax.config.update("jax_enable_x64", True)
     except:
         raise ImportError("Package jax is not installed.")
@@ -695,15 +689,14 @@ def esys_jax_dense(
 
     evals, evecs = jax.scipy.linalg.eigh(m, eigvals_only=False, **kwargs)
 
-    # In eigh, the eigvals options is not currently implemented, although listed 
-    # in the jax docs, hence we only grab the number of evals/evecs that the user
-    # requested. We also "cast" to a numpy array via np.asarray. 
+    # In eigh, the eigvals options is not currently implemented, although listed
+    # in the jax docs, hence we only "manually" select the number of evals/evecs
+    # that the user requested. We also "cast" to a numpy array via np.asarray.
     evals, evecs = np.asarray(evals[:evals_count]), np.asarray(evecs[:, :evals_count])
 
     evecs = (
         _convert_evecs_to_qobjs(evecs, matrix) if isinstance(matrix, Qobj) else evecs
     )
-    # return evals[:evals_count], evecs[:, :evals_count]
     return evals, evecs
 
 
