@@ -7,7 +7,7 @@ trigger:
   branches:
     include:
       - main
-      - spc-noise
+      - spc-higher-order-branches
       - jk-devel
       - Danny_vchos
       - devel_peterg

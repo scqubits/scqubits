@@ -401,9 +401,9 @@ class CircuitRoutines(ABC):
         """
         # update the attribute for the current instance
         # first check if the input value is valid.
-        if not (np.isrealobj(value) and value >= 0):
+        if not (np.isrealobj(value)):
             raise AttributeError(
-                f"'{value}' is invalid. Branch parameters must be positive and real."
+                f"'{value}' is invalid. Branch parameters must be real."
             )
         setattr(self, f"_{param_name}", value)
 
@@ -413,7 +413,7 @@ class CircuitRoutines(ABC):
 
         if (hasattr(self, "symbolic_circuit")) and (
             (
-                (len(self.symbolic_circuit.nodes)) > settings.SYM_INVERSION_MAX_NODES
+                (len(self.symbolic_circuit.nodes)) >= settings.SYM_INVERSION_MAX_NODES
                 or len(self.var_categories["frozen"]) > 0
             )
             or self.is_purely_harmonic
