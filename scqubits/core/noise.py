@@ -1742,9 +1742,9 @@ class NoisySystem(ABC):
             therm_ratio = calc_therm_ratio(omega, T)
 
             return (
-                omega
-                * 1
-                / NOISE_PARAMS["G_k"]
+                2
+                * omega
+                * NOISE_PARAMS["G_k"] ** -1
                 * complex(y_qp_fun(omega, T)).real
                 * (1 / np.tanh(0.5 * therm_ratio))
                 / (1 + np.exp(-therm_ratio))
