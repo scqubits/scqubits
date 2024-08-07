@@ -230,7 +230,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def exp_i_phi_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False, harmonic=1,
     ) -> ndarray:
         """
         Returns operator :math:`e^{i\\varphi}` in the charge or eigenenergy basis.
@@ -250,10 +250,10 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`e^{i\\varphi}` has dimensions of m x m,
             for m given eigenvectors.
         """
-        dimension = self.hilbertdim()
-        entries = np.repeat(1.0, dimension - 1)
-        exp_op = np.diag(entries, -1)
-        return self.process_op(native_op=exp_op, energy_esys=energy_esys)
+        dim = self.hilbertdim()
+        off_diag_elements = np.ones(dim - 1 - (harmonic - 1))
+        e_iphi_matrix = np.diag(off_diag_elements, k=-1 - (harmonic - 1))
+        return self.process_op(native_op=e_iphi_matrix, energy_esys=energy_esys)
 
     def cos_phi_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
@@ -838,47 +838,13 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
 class TransmonHigherHarmonics(Transmon, serializers.Serializable, NoisySystem):
     EJs_higher = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
 
-    def __init__(
-        self,
-        EJ: float,
-        EC: float,
-        EJs_higher: ndarray,
-        ng: float,
-        ncut: int,
-        truncated_dim: int = 6,
-        id_str: Optional[str] = None,
-        evals_method: Union[Callable, str, None] = None,
-        evals_method_options: Union[dict, None] = None,
-        esys_method: Union[Callable, str, None] = None,
-        esys_method_options: Union[dict, None] = None,
-    ) -> None:
-        base.QubitBaseClass.__init__(
-            self,
-            id_str=id_str,
-            evals_method=evals_method,
-            evals_method_options=evals_method_options,
-            esys_method=esys_method,
-            esys_method_options=esys_method_options,
-        )
-        self.EJ = EJ
-        self.EC = EC
+    def __init__(self, EJs_higher: ndarray, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self.EJs_higher = EJs_higher
-        self.ng = ng
-        self.ncut = ncut
-        self.truncated_dim = truncated_dim
-        self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
-        self._default_n_range = (-5, 6)
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
-        return {
-            "EJ": 15.0,
-            "EC": 0.3,
-            "ng": 0.0,
-            "EJs_higher": np.array([0.0, ]),
-            "ncut": 30,
-            "truncated_dim": 10
-        }
+        return super().default_params() | {"EJs_higher": np.array([0.0, ])}
 
     def hamiltonian(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
@@ -900,27 +866,16 @@ class TransmonHigherHarmonics(Transmon, serializers.Serializable, NoisySystem):
             `truncated_dim` x `truncated_dim`. For `energy_sys=esys`, the Hamiltonian has dimensions of m x m,
             for m given eigenvectors.
         """
-        dimension = self.hilbertdim()
-        hamiltonian_mat = super().hamiltonian(energy_esys=False)
+        hamiltonian_mat = super().hamiltonian(energy_esys=energy_esys)
         for ind_idx, EJ_higher in enumerate(self.EJs_higher):
-            ind = np.arange(dimension - 1 - (ind_idx + 1))
-            hamiltonian_mat[ind, ind + ind_idx + 2] = - self.EJs_higher[ind_idx] / 2.0
-            hamiltonian_mat[ind + ind_idx + 2, ind] = - self.EJs_higher[ind_idx] / 2.0
+            exp_i_harm_phi = self.exp_i_phi_operator(energy_esys=energy_esys, harmonic=ind_idx+2)
+            hamiltonian_mat += -0.5 * EJ_higher * (exp_i_harm_phi + exp_i_harm_phi.T)
         return self.process_hamiltonian(
             native_hamiltonian=hamiltonian_mat, energy_esys=energy_esys
         )
 
-    def __esys_calc(self, evals_count: int):
-        hamiltonian = self.hamiltonian(energy_esys=False)
-        return sp.linalg.eigh(
-            hamiltonian,
-            subset_by_index=[0, evals_count - 1],
-            check_finite=False,
-        )
-
     def _esys_calc(self, evals_count: int):
-        return self.__esys_calc(evals_count)
+        return base.QubitBaseClass1d._esys_calc(self, evals_count)
 
     def _evals_calc(self, evals_count: int):
-        evals, evecs = self.__esys_calc(evals_count)
-        return evals
+        return base.QubitBaseClass1d._evals_calc(self, evals_count)
