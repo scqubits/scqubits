@@ -904,7 +904,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         )
         paramvals_count = len(param_vals)
         matelem_table = np.empty(
-            shape=(paramvals_count, evals_count, evals_count), dtype=np.complex_
+            shape=(paramvals_count, evals_count, evals_count), dtype=np.complex128
         )
 
         paramval_before = getattr(self, param_name)

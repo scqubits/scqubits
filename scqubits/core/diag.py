@@ -632,6 +632,9 @@ def evals_jax_dense(
     """
     try:
         import jax
+
+        # jax defaults to single precision, but we need to default to double precision
+        jax.config.update("jax_enable_x64", True)
     except:
         raise ImportError("Package jax is not installed.")
 
@@ -640,7 +643,10 @@ def evals_jax_dense(
     # We explicitly cast to a numpy array
     evals = np.asarray(jax.scipy.linalg.eigh(m, eigvals_only=True, **kwargs))
 
-    return evals[:evals_count]
+    # In eigh, the eigvals options is not currently implemented, although listed
+    # in the jax docs, hence we have to "manually" only return the number of
+    # evals that the user requested. We also "cast" to a numpy array via np.asarray.
+    return np.asarray(evals[:evals_count])
 
 
 def esys_jax_dense(
@@ -673,6 +679,9 @@ def esys_jax_dense(
     """
     try:
         import jax
+
+        # jax defaults to single precision, but we need to default to double precision
+        jax.config.update("jax_enable_x64", True)
     except:
         raise ImportError("Package jax is not installed.")
 
@@ -680,13 +689,15 @@ def esys_jax_dense(
 
     evals, evecs = jax.scipy.linalg.eigh(m, eigvals_only=False, **kwargs)
 
-    # We explicitly cast to numpy arrays
-    evals, evecs = np.asarray(evals), np.asarray(evecs)
+    # In eigh, the eigvals options is not currently implemented, although listed
+    # in the jax docs, hence we only "manually" select the number of evals/evecs
+    # that the user requested. We also "cast" to a numpy array via np.asarray.
+    evals, evecs = np.asarray(evals[:evals_count]), np.asarray(evecs[:, :evals_count])
 
     evecs = (
         _convert_evecs_to_qobjs(evecs, matrix) if isinstance(matrix, Qobj) else evecs
     )
-    return evals[:evals_count], evecs[:, :evals_count]
+    return evals, evecs
 
 
 # Default values of various noise constants and parameters.

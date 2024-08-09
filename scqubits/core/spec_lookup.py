@@ -316,7 +316,7 @@ class SpectrumLookupMixin(MixinCompatible):
             return energy
 
         dressed_index = np.asarray(dressed_index)
-        energies = np.empty_like(dressed_index, dtype=np.float_)
+        energies = np.empty_like(dressed_index, dtype=np.float64)
         it = np.nditer(dressed_index, flags=["multi_index", "refs_ok"])
         sliced_energies = self["evals"][param_npindices]
 

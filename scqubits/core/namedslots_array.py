@@ -639,7 +639,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
 
         typename = "NamedSlotsNdarray"
         io_attributes = None
-        if self.dtype in [np.float_, np.complex_, np.int_]:
+        if self.dtype in [np.float64, np.complex128, np.int_]:
             io_ndarrays: Optional[Dict[str, ndarray]] = {
                 "input_array": self.view(np.ndarray)
             }

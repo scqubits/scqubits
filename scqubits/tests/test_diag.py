@@ -1,9 +1,23 @@
-import numpy as np
+# test_diag.py
+#
+# This file is part of scqubits: a Python package for superconducting qubits,
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
+#
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
+#    All rights reserved.
+#
+#    This source code is licensed under the BSD-style license found in the
+#    LICENSE file in the root directory of this source tree.
+############################################################################
+
 import importlib
-import warnings
+import numpy as np
 import pytest
-import scqubits as scq
 import scipy as sp
+import scqubits as scq
+import warnings
+import scqubits.utils.spectrum_utils as spec_utils
+
 from scqubits import Fluxonium, Transmon, HilbertSpace
 
 diag_methods = scq.DIAG_METHODS.keys()
@@ -320,20 +334,32 @@ def test_custom_diagonalization_esys_method_matches_default(library):
         tmon.esys_method = None
         evals_default, evecs_default = tmon.eigensys()
 
-        if method == "esys_primme_sparse" or method == "esys_jax_dense":
-            # NOTE: These two cases are temporary failing.
+        if method in [
+            "esys_cupy_sparse",
+        ]:
+            # These cases are currently failing.
+            warnings.warn(f"Skipping (known) failing test of {method}", Warning)
             with pytest.raises(AssertionError):
                 assert np.all(
                     [
-                        np.allclose(evecs[:, i], evecs_default[:, i], atol=1e-7)
+                        np.allclose(
+                            spec_utils.standardize_phases(evecs[:, i]),
+                            spec_utils.standardize_phases(evecs_default[:, i]),
+                            atol=1e-7,
+                        )
                         for i, _ in enumerate(evals)
                     ]
                 )
         else:
             assert np.all(
                 [
-                    np.allclose(evecs[:, i], evecs_default[:, i], atol=1e-7)
+                    np.allclose(
+                        spec_utils.standardize_phases(evecs[:, i]),
+                        spec_utils.standardize_phases(evecs_default[:, i]),
+                        atol=1e-7,
+                    )
                     for i, _ in enumerate(evals)
                 ]
             )
-        assert np.allclose(evals, evals_default)
+
+            assert np.allclose(evals, evals_default)

@@ -446,7 +446,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         initial_energies: NamedSlotsNdarray,
         param_indices: NpIndices,
     ) -> None:
-        if np.isnan(initial_energies.toarray().astype(np.float_)).any():
+        if np.isnan(initial_energies.toarray().astype(np.float64)).any():
             warnings.warn(
                 "The initial state undergoes significant hybridization. "
                 "Identification with a bare product state was not (fully) "

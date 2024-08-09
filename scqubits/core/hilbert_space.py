@@ -954,7 +954,7 @@ class HilbertSpace(
         """
         dim = subsystem.truncated_dim
         index = range(dim)
-        diag_matrix = np.zeros((dim, dim), dtype=np.float_)
+        diag_matrix = np.zeros((dim, dim), dtype=np.float64)
         diag_matrix[index, index] = diag_elements
         return spec_utils.identity_wrap(diag_matrix, subsystem, self.subsystem_list)
 
