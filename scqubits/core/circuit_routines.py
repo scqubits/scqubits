@@ -1233,18 +1233,20 @@ class CircuitRoutines(ABC):
                     else:
                         # check if all the varindices in the factor belong to the same subsystem
                         index_subsystem = [
-                            self.return_root_child(get_trailing_number(sym.name)) for sym in factor.free_symbols
+                            self.return_root_child(get_trailing_number(sym.name))
+                            for sym in factor.free_symbols
                         ]
                         if len(np.unique(index_subsystem)) > 1:
                             raise Exception(
                                 "Sawtooth function terms must belong to the same subsystem."
                             )
-                        operator = index_subsystem[0]._evaluate_matrix_sawtooth_terms(factor, bare_esys=bare_esys)
-                        operator = self.identity_wrap_for_hd(operator, index_subsystem[0], bare_esys=bare_esys)
-                        factor_op_list.append(
-                            operator
+                        operator = index_subsystem[0]._evaluate_matrix_sawtooth_terms(
+                            factor, bare_esys=bare_esys
                         )
-                        
+                        operator = self.identity_wrap_for_hd(
+                            operator, index_subsystem[0], bare_esys=bare_esys
+                        )
+                        factor_op_list.append(operator)
 
                 else:
                     power_dict = dict(factor.as_powers_dict())
