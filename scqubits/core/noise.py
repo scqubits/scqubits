@@ -1742,12 +1742,10 @@ class NoisySystem(ABC):
             therm_ratio = calc_therm_ratio(omega, T)
 
             return (
-                2
-                * omega
-                * NOISE_PARAMS["G_k"] ** -1
+                omega/(np.pi * NOISE_PARAMS["G_k"])
                 * complex(y_qp_fun(omega, T)).real
                 * (1 / np.tanh(0.5 * therm_ratio))
-                / (1 + np.exp(-therm_ratio))
+                / (1 + np.exp(-therm_ratio)) # the last two factors come by writing S(-omega) in terms of  S(omega) form Smith et al.
             )
 
         # In some literature the operator sin(phi/2) is used, which assumes
