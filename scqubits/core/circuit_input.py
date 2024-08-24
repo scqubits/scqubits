@@ -1,4 +1,3 @@
-from sre_constants import BRANCH
 import pyparsing as pp
 import os
 
