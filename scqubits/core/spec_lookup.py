@@ -522,13 +522,16 @@ class SpectrumLookupMixin(MixinCompatible):
                 "the use of `.dressed_state_component`."
             )
 
-        zero_idx = (0,) * len(self._parameters)
-        evecs = self["evecs"][zero_idx]
+        # I don't know why I use this zero_idx for slicing before.
+        # Now I think it is totally wrong.
+        # zero_idx = (0,) * len(self._parameters)
+        
+        evecs = self["evecs"][param_npindices]
             
         # find the desired state vector
         if isinstance(state_label, tuple | list): 
             raveled_label = np.ravel_multi_index(state_label, self.hilbertspace.subsystem_dims)
-            drs_idx = self["dressed_indices"][zero_idx][raveled_label]
+            drs_idx = self["dressed_indices"][param_npindices][raveled_label]
             if drs_idx is None:
                 raise IndexError(f"no dressed state found for bare label {state_label}")
         elif isinstance(state_label, int | np.int_):
