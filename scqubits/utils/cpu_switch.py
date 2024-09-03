@@ -10,12 +10,13 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import Callable
-
+import os
+from typing import Callable, Optional
+import warnings
 import scqubits.settings as settings
 
 
-def get_map_method(num_cpus: int) -> Callable:
+def get_map_method(num_cpus: int, cpu_per_task: Optional[int] = None) -> Callable:
     """
     Selects the correct `.map` method depending on the specified number of desired
     cores. If num_cpus>1, the multiprocessing/pathos/ray pool is started here.
@@ -23,6 +24,10 @@ def get_map_method(num_cpus: int) -> Callable:
     Parameters
     ----------
     num_cpus: int
+        Number of CPUs to use.
+    cpu_per_task: int = 1
+        Number of CPUs per task, only used if use ray as backend. By default, 
+        will
 
     Returns
     -------
@@ -62,9 +67,22 @@ def get_map_method(num_cpus: int) -> Callable:
         else:
             ray.shutdown()
             ray.init(num_cpus=num_cpus)
-
+            
+            # determine the number of cpus per task
+            if cpu_per_task is None:
+                # inspect number of cpus available
+                total_cpus = os.cpu_count()
+                if total_cpus is None:
+                    cpu_per_task = 1
+                    warnings.warn("Cannot determine number of CPUs available. "
+                                  "Cpu per task set to 1.")
+                else:
+                    cpu_per_task = total_cpus // num_cpus
+            if cpu_per_task < 1:    
+                raise ValueError("Number of CPUs per task is less than 1.")
+                
             def ray_map(func, iterable):
-                @ray.remote
+                @ray.remote(num_cpus=cpu_per_task)
                 def remote_func(x):
                     return func(x)
 
