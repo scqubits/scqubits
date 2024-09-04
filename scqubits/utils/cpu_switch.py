@@ -16,17 +16,17 @@ import warnings
 import scqubits.settings as settings
 
 
-def get_map_method(num_cpus: int, cpu_per_task: Optional[int] = None) -> Callable:
+def get_map_method(num_nodes: int, cpu_per_node: Optional[int] = None) -> Callable:
     """
     Selects the correct `.map` method depending on the specified number of desired
     cores. If num_cpus>1, the multiprocessing/pathos/ray pool is started here.
 
     Parameters
     ----------
-    num_cpus: int
-        Number of CPUs to use.
-    cpu_per_task: int = 1
-        Number of CPUs per task, only used if use ray as backend. By default, 
+    num_nodes: int
+        Number of nodes to use. 
+    cpu_per_node: int = 1
+        Number of CPUs per node, only used if use ray as backend. By default, 
         will
 
     Returns
@@ -34,7 +34,7 @@ def get_map_method(num_cpus: int, cpu_per_task: Optional[int] = None) -> Callabl
     function
         `.map` method to be used by caller
     """
-    if num_cpus == 1:
+    if num_nodes == 1:
         return map
 
     # num_cpus > 1 -----------------
@@ -50,12 +50,12 @@ def get_map_method(num_cpus: int, cpu_per_task: Optional[int] = None) -> Callabl
             )
         else:
             dill.settings["recurse"] = True
-            settings.POOL = pathos.pools.ProcessPool(nodes=num_cpus)
+            settings.POOL = pathos.pools.ProcessPool(nodes=num_nodes)
             return settings.POOL.map
     if settings.MULTIPROC == "multiprocessing":
         import multiprocessing
 
-        settings.POOL = multiprocessing.Pool(processes=num_cpus)
+        settings.POOL = multiprocessing.Pool(processes=num_nodes)
         return settings.POOL.map
     elif settings.MULTIPROC == "ray":
         try:
@@ -65,24 +65,25 @@ def get_map_method(num_cpus: int, cpu_per_task: Optional[int] = None) -> Callabl
                 "scqubits multiprocessing mode set to 'ray'. Need but cannot find 'ray'!"
             )
         else:
-            ray.shutdown()
-            ray.init(num_cpus=num_cpus)
             
             # determine the number of cpus per task
-            if cpu_per_task is None:
+            if cpu_per_node is None:
                 # inspect number of cpus available
                 total_cpus = os.cpu_count()
                 if total_cpus is None:
-                    cpu_per_task = 1
+                    cpu_per_node = 1
                     warnings.warn("Cannot determine number of CPUs available. "
                                   "Cpu per task set to 1.")
                 else:
-                    cpu_per_task = total_cpus // num_cpus
-            if cpu_per_task < 1:    
+                    cpu_per_node = total_cpus // num_nodes
+            if cpu_per_node < 1:    
                 raise ValueError("Number of CPUs per task is less than 1.")
-                
+            
+            ray.shutdown()
+            ray.init(num_cpus=num_nodes * cpu_per_node)
+            
             def ray_map(func, iterable):
-                @ray.remote(num_cpus=cpu_per_task)
+                @ray.remote(num_cpus=cpu_per_node)
                 def remote_func(x):
                     return func(x)
 
