@@ -17,12 +17,14 @@ import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
+from scipy import sparse
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
+import scqubits.core.diag as diag
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
@@ -149,10 +151,7 @@ class Dimon(base.QubitBaseClass, serializers.Serializable):
     def potential(self, phi1: ndarray, phi2: ndarray) -> ndarray:
         """Return value of the potential energy at phi1 and phi2, disregarding
         constants."""
-        return (
-            -self.EJ1 * np.cos(phi1)
-            - self.EJ2 * np.cos(phi2)
-        )
+        return -self.EJ1 * np.cos(phi1) - self.EJ2 * np.cos(phi2)
 
     def kineticmat(self) -> ndarray:
         """Return the kinetic energy matrix."""
@@ -161,29 +160,25 @@ class Dimon(base.QubitBaseClass, serializers.Serializable):
         kinetic_mat = (
             4.0
             * ECmat[0, 0]
-            * np.kron(
-                np.matmul(
-                    self._n_operator() - self.ng1 * self._identity(),
-                    self._n_operator() - self.ng1 * self._identity(),
-                ),
+            * sparse.kron(
+                (self._n_operator() - self.ng1 * self._identity())
+                @ (self._n_operator() - self.ng1 * self._identity()),
                 self._identity(),
             )
         )
         kinetic_mat += (
             4.0
             * ECmat[1, 1]
-            * np.kron(
+            * sparse.kron(
                 self._identity(),
-                np.matmul(
-                    self._n_operator() - self.ng2 * self._identity(),
-                    self._n_operator() - self.ng2 * self._identity(),
-                ),
+                (self._n_operator() - self.ng2 * self._identity())
+                @ (self._n_operator() - self.ng2 * self._identity()),
             )
         )
         kinetic_mat += (
             4.0
             * (ECmat[0, 1] + ECmat[1, 0])
-            * np.kron(
+            * sparse.kron(
                 self._n_operator() - self.ng1 * self._identity(),
                 self._n_operator() - self.ng2 * self._identity(),
             )
@@ -195,7 +190,7 @@ class Dimon(base.QubitBaseClass, serializers.Serializable):
         potential_mat = (
             -0.5
             * self.EJ1
-            * np.kron(
+            * sparse.kron(
                 self._exp_i_phi_operator() + self._exp_i_phi_operator().T,
                 self._identity(),
             )
@@ -203,7 +198,7 @@ class Dimon(base.QubitBaseClass, serializers.Serializable):
         potential_mat += (
             -0.5
             * self.EJ2
-            * np.kron(
+            * sparse.kron(
                 self._identity(),
                 self._exp_i_phi_operator() + self._exp_i_phi_operator().T,
             )
@@ -239,17 +234,19 @@ class Dimon(base.QubitBaseClass, serializers.Serializable):
 
     def _n_operator(self) -> ndarray:
         diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex_)
-        return np.diag(diag_elements)
+        return sparse.diags_array(diag_elements)
 
     def _exp_i_phi_operator(self, harmonic=1) -> ndarray:
         dim = 2 * self.ncut + 1
         off_diag_elements = np.ones(dim - 1 - (harmonic - 1), dtype=np.complex_)
-        e_iphi_matrix = np.diag(off_diag_elements, k=-1-(harmonic - 1))
+        e_iphi_matrix = sparse.diags_array(
+            off_diag_elements, offsets=-1 - (harmonic - 1)
+        )
         return e_iphi_matrix
 
     def _identity(self) -> ndarray:
         dim = 2 * self.ncut + 1
-        return np.eye(dim)
+        return sparse.eye(dim)
 
     def plot_potential(
         self,
@@ -358,6 +355,14 @@ class Dimon(base.QubitBaseClass, serializers.Serializable):
             kwargs["figsize"] = (5, 5)
         return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
 
+    def _evals_calc(self, evals_count: int) -> ndarray:
+        hamiltonian_mat = self.hamiltonian()
+        return diag.evals_scipy_sparse(hamiltonian_mat, evals_count)
+
+    def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
+        hamiltonian_mat = self.hamiltonian()
+        return diag.esys_scipy_sparse(hamiltonian_mat, evals_count)
+
 
 class DimonHigherHarmonics(Dimon):
     EJs_higher = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
@@ -368,7 +373,13 @@ class DimonHigherHarmonics(Dimon):
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
-        return super().default_params() | {"EJs_higher": np.array([0.0, ])}
+        return super().default_params() | {
+            "EJs_higher": np.array(
+                [
+                    0.0,
+                ]
+            )
+        }
 
     def hamiltonian(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
@@ -392,17 +403,17 @@ class DimonHigherHarmonics(Dimon):
         """
         hamiltonian_mat = super().hamiltonian()
         for ind_idx, EJ_higher in enumerate(self.EJs_higher):
-            exp_i_harm_phi_1 = np.kron(
+            exp_i_harm_phi_1 = sparse.kron(
                 self._exp_i_phi_operator(harmonic=ind_idx + 2), self._identity()
             )
-            exp_i_harm_phi_2 = np.kron(
+            exp_i_harm_phi_2 = sparse.kron(
                 self._identity(), self._exp_i_phi_operator(harmonic=ind_idx + 2)
             )
-            hamiltonian_mat += -0.5 * EJ_higher * (
-                    exp_i_harm_phi_1 + exp_i_harm_phi_1.T
+            hamiltonian_mat += (
+                -0.5 * EJ_higher * (exp_i_harm_phi_1 + exp_i_harm_phi_1.T)
             )
-            hamiltonian_mat += -0.5 * EJ_higher * (
-                    exp_i_harm_phi_2 + exp_i_harm_phi_2.T
+            hamiltonian_mat += (
+                -0.5 * EJ_higher * (exp_i_harm_phi_2 + exp_i_harm_phi_2.T)
             )
         return self.process_hamiltonian(
             native_hamiltonian=hamiltonian_mat, energy_esys=energy_esys
