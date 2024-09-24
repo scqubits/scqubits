@@ -2282,16 +2282,24 @@ class SymbolicCircuit(serializers.Serializable):
         if len(self.var_categories["frozen"]) > 0:
             frozen_eom_list = []
             for frozen_var_index in self.var_categories["frozen"]:
-                frozen_eom_list.append(potential_θ.diff(symbols(f"θ{frozen_var_index}")))
-                
-            frozen_exprs = sympy.solve(frozen_eom_list, [symbols(f"θ{frozen_var_index}") for frozen_var_index in self.var_categories["frozen"]]) 
+                frozen_eom_list.append(
+                    potential_θ.diff(symbols(f"θ{frozen_var_index}"))
+                )
 
+            frozen_exprs = sympy.solve(
+                frozen_eom_list,
+                [
+                    symbols(f"θ{frozen_var_index}")
+                    for frozen_var_index in self.var_categories["frozen"]
+                ],
+            )
 
             for frozen_var, frozen_expr in frozen_exprs.items():
-                potential_θ = potential_θ.replace(
-                    frozen_var, frozen_expr
-                ).expand()
-            self.frozen_var_exprs = {get_trailing_number(frozen_var.name): frozen_expr for frozen_var, frozen_expr in frozen_exprs.items()}
+                potential_θ = potential_θ.replace(frozen_var, frozen_expr).expand()
+            self.frozen_var_exprs = {
+                get_trailing_number(frozen_var.name): frozen_expr
+                for frozen_var, frozen_expr in frozen_exprs.items()
+            }
 
         lagrangian_θ = C_terms_θ - potential_θ
 
