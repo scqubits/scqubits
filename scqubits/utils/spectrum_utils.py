@@ -59,7 +59,7 @@ def has_degeneracy(evals: ndarray) -> bool:
 
 
 def order_eigensystem(
-    evals: np.ndarray, evecs: np.ndarray
+    evals: np.ndarray, evecs: np.ndarray, standardize_phase: bool = False
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Takes eigenvalues and corresponding eigenvectors and orders them (in place)
     according to the eigenvalues (from smallest to largest; real valued eigenvalues
@@ -71,10 +71,15 @@ def order_eigensystem(
         array of eigenvalues
     evecs:
         array containing eigenvectors; evecs[:, 0] is the first eigenvector etc.
+    standardize_phase:
+        if True, standardize the phase of the eigenvectors (default value = False)
     """
     ordered_evals_indices = evals.argsort()  # sort manually
     evals[:] = evals[ordered_evals_indices]
     evecs[:] = evecs[:, ordered_evals_indices]
+    if standardize_phase:
+        for j in range(evecs.shape[1]):
+            evecs[:, j] = standardize_phases(evecs[:, j])
     return evals, evecs
 
 

@@ -2654,7 +2654,7 @@ class CircuitRoutines(ABC):
                 eigvals_only=False,
                 subset_by_index=[0, evals_count - 1],
             )
-        evals, evecs = order_eigensystem(evals, evecs)
+        evals, evecs = order_eigensystem(evals, evecs, standardize_phase=True)
         return evals, evecs
 
     def generate_bare_eigensys(self):
