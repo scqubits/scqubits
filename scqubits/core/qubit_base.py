@@ -36,11 +36,12 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
+import qutip as qt
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
-from scipy.sparse import csc_matrix, dia_matrix
+from scipy.sparse import csc_matrix, dia_matrix, spmatrix
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
@@ -554,7 +555,7 @@ class QubitBaseClass(QuantumSystem, ABC):
 
     def matrixelement_table(
         self,
-        operator: str,
+        operator: Union[str, ndarray, qt.Qobj, spmatrix],
         evecs: ndarray = None,
         evals_count: int = 6,
         filename: str = None,
@@ -585,7 +586,10 @@ class QubitBaseClass(QuantumSystem, ABC):
         """
         if evecs is None:
             _, evecs = self.eigensys(evals_count=evals_count)
-        operator_matrix = getattr(self, operator)()
+        if isinstance(operator, str):
+            operator_matrix = getattr(self, operator)()
+        else:
+            operator_matrix = operator
         table = get_matrixelement_table(operator_matrix, evecs)
         if filename or return_datastore:
             data_store = DataStore(
@@ -869,7 +873,7 @@ class QubitBaseClass(QuantumSystem, ABC):
 
     def get_matelements_vs_paramvals(
         self,
-        operator: str,
+        operator: Union[str, ndarray, qt.Qobj, spmatrix],
         param_name: str,
         param_vals: ndarray,
         evals_count: int = 6,
@@ -1041,7 +1045,7 @@ class QubitBaseClass(QuantumSystem, ABC):
     @mpl.rc_context(matplotlib_settings)
     def plot_matrixelements(
         self,
-        operator: str,
+        operator: Union[str, ndarray, qt.Qobj, spmatrix],
         evecs: ndarray = None,
         evals_count: int = 6,
         mode: str = "abs",
@@ -1095,7 +1099,7 @@ class QubitBaseClass(QuantumSystem, ABC):
     @mpl.rc_context(matplotlib_settings)
     def plot_matelem_vs_paramvals(
         self,
-        operator: str,
+        operator: Union[str, ndarray, qt.Qobj, spmatrix],
         param_name: str,
         param_vals: ndarray,
         select_elems: Union[int, List[Tuple[int, int]]] = 4,

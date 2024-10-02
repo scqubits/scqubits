@@ -27,7 +27,7 @@ from matplotlib.figure import Figure
 from matplotlib.offsetbox import AnchoredText
 from numpy import ndarray
 from scipy.sparse import csc_matrix
-from sympy import csc
+from sympy import csc, sec
 
 import scqubits.core.units as units
 import scqubits.settings as settings
@@ -100,6 +100,7 @@ NOISE_PARAMS = {
     "M": 400,  # Mutual inductance between qubit and a flux line. Units: \Phi_0 / Ampere
     "R_k": sp.constants.h
     / sp.constants.e**2.0,  # Normal quantum resistance, aka Klitzing constant.
+    "G_k": sp.constants.e**2.0 / sp.constants.h,  # Normal quantum conductance.
     # Note, in some papers a superconducting quantum
     # resistance is used, and defined as: h/(2e)^2
 }
@@ -919,6 +920,29 @@ class NoisySystem(ABC):
         else:
             return 1 / rate if rate != 0 else np.inf
 
+    def transition_energy_derivative(
+        self,
+        ni,
+        nf,
+        esys,
+        hamiltonian_derivative,
+    ):
+        """
+        Returns the first order and second order derivative of the nth eigenenergy
+        """
+        eigs, evecs = esys
+        hamiltonian_derivative = (
+            [hamiltonian_derivative]
+            if not isinstance(hamiltonian_derivative, list)
+            else hamiltonian_derivative
+        )
+        deriv_lambda_1 = {}
+        for n in [ni, nf]:
+            deriv_lambda_1[n] = (
+                evecs[:, n].conj().T @ hamiltonian_derivative[0] @ evecs[:, n]
+            )
+        return np.array([deriv_lambda_1[ni] - deriv_lambda_1[nf]])
+
     def tphi_1_over_f(
         self,
         A_noise: float,
@@ -965,8 +989,20 @@ class NoisySystem(ABC):
         p = {key: NOISE_PARAMS[key] for key in ["omega_low", "omega_high", "t_exp"]}
         p.update(kwargs)
 
-        evals, evecs = self.eigensys(evals_count=max(j, i) + 1) if esys is None else esys  # type: ignore
+        esys = self.eigensys(evals_count=max(j, i) + 1) if esys is None else esys  # type: ignore
 
+        if hasattr(self, "is_child"):  # find if self is a Circuit object
+            energy_variations = self.transition_energy_derivative(i, j, esys, noise_op)
+            rate_squared = (2 * np.abs(np.log(p["omega_low"] * p["t_exp"]))) * (
+                A_noise * np.abs(energy_variations[0])
+            ) ** 2
+            rate = np.sqrt(rate_squared) * 2 * np.pi
+            if get_rate:
+                return rate
+            else:
+                return 1 / rate if rate != 0 else np.inf
+
+        eigs, evecs = esys
         if isinstance(
             noise_op, np.ndarray
         ):  # Check if the operator is given in dense form
@@ -1706,11 +1742,13 @@ class NoisySystem(ABC):
             therm_ratio = calc_therm_ratio(omega, T)
 
             return (
-                2
-                * omega
+                omega
+                / (np.pi * NOISE_PARAMS["G_k"])
                 * complex(y_qp_fun(omega, T)).real
                 * (1 / np.tanh(0.5 * therm_ratio))
-                / (1 + np.exp(-therm_ratio))
+                / (
+                    1 + np.exp(-therm_ratio)
+                )  # the last two factors come by writing S(-omega) in terms of  S(omega) form Smith et al.
             )
 
         # In some literature the operator sin(phi/2) is used, which assumes

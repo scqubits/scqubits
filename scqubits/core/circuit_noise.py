@@ -139,7 +139,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
             def param_derivative(self, param_sym=param_sym):
                 parent_instance = self.return_parent_circuit()
-                hamiltonian = parent_instance.fetch_symbolic_hamiltonian()
+                # hamiltonian = parent_instance.fetch_symbolic_hamiltonian()
                 hamiltonian = parent_instance._hamiltonian_sym_for_numerics
                 hamiltonian = hamiltonian.subs("I", 1)
                 all_sym_parameters = (
@@ -148,6 +148,7 @@ class NoisyCircuit(NoisySystem, ABC):
                     + parent_instance.offset_charges
                 )
                 diff_sym_expr = hamiltonian.diff(param_sym)
+                diff_sym_expr = diff_sym_expr.expand()
                 # substitute all symbolic params
                 for param in all_sym_parameters:
                     diff_sym_expr = diff_sym_expr.subs(
@@ -171,7 +172,7 @@ class NoisyCircuit(NoisySystem, ABC):
             def param_derivative(self, branch=branch):
                 return -self.junction_related_evaluation(branch, calc="dhdEJ")
 
-            cc_1_over_f_methods[f"d_hamiltonian_d_EJ{branch.id_str}"] = param_derivative
+            cc_1_over_f_methods[f"d_hamiltonian_d_EJ{branch.index}"] = param_derivative
         noise_helper_methods = {
             **ext_flux_1_over_f_methods,
             **ng_1_over_f_methods,
@@ -366,7 +367,7 @@ class NoisyCircuit(NoisySystem, ABC):
                 trailing_number = get_trailing_number(param_sym.name)
                 noise_op_func = getattr(self, f"{diff_func_name}{trailing_number}")
             elif param_sym in junction_branches:
-                trailing_number = param_sym.id_str
+                trailing_number = param_sym.index
                 noise_op_func = getattr(self, f"{diff_func_name}{trailing_number}")
 
             def tphi_1_over_f_func(
@@ -377,6 +378,7 @@ class NoisyCircuit(NoisySystem, ABC):
                 esys: Tuple[ndarray, ndarray] = None,
                 get_rate: bool = False,
                 noise_op_func=noise_op_func,
+                noise_type=noise_type,
                 **kwargs,
             ) -> float:
                 r"""
@@ -406,9 +408,20 @@ class NoisyCircuit(NoisySystem, ABC):
                 -------
                 float: The calculated 1/f dephasing time (or rate). This is a numerical value that represents the time it takes for the qubit to lose phase coherence due to the noise, or the rate at which the qubit loses phase coherence due to the noise.
                 """
-                noise_op = noise_op_func()
+                if noise_type != "cc":
+                    noise_op = noise_op_func()
+                else:
+                    noise_op = noise_op_func()
                 if isinstance(noise_op, qt.Qobj):
                     noise_op = Qobj_to_scipy_csc_matrix(noise_op)
+
+                if isinstance(noise_op, list):
+                    noise_op_new = []
+                    for op in noise_op:
+                        if isinstance(op, qt.Qobj):
+                            op = Qobj_to_scipy_csc_matrix(op)
+                        noise_op_new.append(op)
+                    noise_op = noise_op_new
 
                 return self.tphi_1_over_f(
                     A_noise=A_noise,
@@ -492,8 +505,12 @@ class NoisyCircuit(NoisySystem, ABC):
             tphi_times = []
             for branch in [brnch for brnch in self.branches if "JJ" in brnch.type]:
                 tphi_times.append(
-                    getattr(self, f"tphi_1_over_f_cc{branch.id_str}")(
-                        A_noise=A_noise, i=i, j=j, esys=esys, **kwargs
+                    getattr(self, f"tphi_1_over_f_cc{branch.index}")(
+                        A_noise=A_noise,
+                        i=i,
+                        j=j,
+                        esys=esys,
+                        **kwargs,
                     )
                 )
             total_rate = sum([1 / tphi for tphi in tphi_times])
@@ -762,17 +779,17 @@ class NoisyCircuit(NoisySystem, ABC):
 
         for branch in self.branches:
             if branch.type == "L":
-                t1_inductive_methods[f"t1_inductive{branch.id_str}"] = (
+                t1_inductive_methods[f"t1_inductive{branch.index}"] = (
                     self.wrapper_t1_inductive_capacitive(branch)
                 )
             else:
-                t1_capacitive_methods[f"t1_capacitive{branch.id_str}"] = (
+                t1_capacitive_methods[f"t1_capacitive{branch.index}"] = (
                     self.wrapper_t1_inductive_capacitive(branch)
                 )
             # # quasiparticle noise
             # if "JJ" in branch.type:
             #     t1_quasiparticle_tunneling_methods[
-            #         f"t1_quasiparticle_tunneling{branch.id_str}"
+            #         f"t1_quasiparticle_tunneling{branch.index}"
             #     ] = self.wrapper_t1_quasiparticle_tunneling(branch)
             # quasiparticle noise methods are not included yet
         noise_methods = {
@@ -1259,7 +1276,7 @@ class NoisyCircuit(NoisySystem, ABC):
             t1_times = []
             for branch in [b for b in self.branches if "JJ" in b.type]:
                 t1_times.append(
-                    getattr(self, f"t1_quasiparticle_tunneling{branch.id_str}")(
+                    getattr(self, f"t1_quasiparticle_tunneling{branch.index}")(
                         i=i,
                         j=j,
                         Y_qp=Y_qp,
@@ -1372,7 +1389,7 @@ class NoisyCircuit(NoisySystem, ABC):
             parent_circuit = self.return_parent_circuit()
             for branch in [b for b in parent_circuit.branches if b.type == "L"]:
                 t1_times.append(
-                    getattr(parent_circuit, f"t1_inductive{branch.id_str}")(
+                    getattr(parent_circuit, f"t1_inductive{branch.index}")(
                         i=i,
                         j=j,
                         Q_ind=Q_ind or self.Q_from_branch(branch),
@@ -1479,7 +1496,7 @@ class NoisyCircuit(NoisySystem, ABC):
             parent_circuit = self.return_parent_circuit()
             for branch in [b for b in parent_circuit.branches if b.type != "L"]:
                 t1_times.append(
-                    getattr(parent_circuit, f"t1_capacitive{branch.id_str}")(
+                    getattr(parent_circuit, f"t1_capacitive{branch.index}")(
                         i=i,
                         j=j,
                         Q_cap=Q_cap or self.Q_from_branch(branch),
@@ -1586,7 +1603,7 @@ class NoisyCircuit(NoisySystem, ABC):
             parent_circuit = self.return_parent_circuit()
             for branch in [b for b in parent_circuit.branches if b.type != "L"]:
                 t1_times.append(
-                    getattr(parent_circuit, f"t1_charge_impedance{branch.id_str}")(
+                    getattr(parent_circuit, f"t1_charge_impedance{branch.index}")(
                         i=i,
                         j=j,
                         Z=Z,
