@@ -102,8 +102,10 @@ NOISE_PARAMS = {
     # resistance is used, and defined as: h/(2e)^2
 }
 CONSTANTS = {
-    "R_k": sp.constants.h/ sp.constants.e**2.0,  # Normal quantum resistance, aka Klitzing constant.
+    "R_k": sp.constants.h
+    / sp.constants.e**2.0,  # Normal quantum resistance, aka Klitzing constant.
 }
+
 
 class NoisySystem(ABC):
     @classmethod
@@ -1741,7 +1743,10 @@ class NoisySystem(ABC):
             therm_ratio = calc_therm_ratio(omega, T)
 
             return (
-                2 * sp.constants.hbar * omega / sp.constants.e**2
+                2
+                * sp.constants.hbar
+                * omega
+                / sp.constants.e**2
                 * complex(y_qp_fun(omega, T)).real
                 * (1 / np.tanh(0.5 * therm_ratio))
                 / (
