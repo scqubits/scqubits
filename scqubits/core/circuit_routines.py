@@ -838,7 +838,7 @@ class CircuitRoutines(ABC):
             )
         return grids
 
-    def _constants_in_subsys(self, H_sys: sm.Expr, constants_expr: sm.Expr) -> sm.Expr:
+    def _constants_in_subsys(self, H_sys: sm.Expr, constants_list: List[sm.Expr]) -> sm.Expr:
         """
         Returns an expression of constants that belong to the subsystem with the
         Hamiltonian H_sys
@@ -852,13 +852,12 @@ class CircuitRoutines(ABC):
         -------
             expression of constants belonging to the subsystem
         """
-        constant_expr = 0
+        constants_expr = 0
         subsys_free_symbols = set(H_sys.free_symbols)
-        constant_terms = constants_expr.copy()
-        for term in constant_terms:
+        for term in constants_list:
             if set(term.free_symbols) & subsys_free_symbols == set(term.free_symbols):
-                constant_expr += term
-        return constant_expr
+                constants_expr += term
+        return constants_expr
 
     def _list_of_constants_from_expr(self, expr: sm.Expr) -> List[sm.Expr]:
         ordered_terms = expr.as_ordered_terms()
