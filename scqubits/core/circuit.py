@@ -628,7 +628,7 @@ class Circuit(
         generate_noise_methods:
             set to False by default. Indicates if the noise methods should be generated for the circuit instance.
         subsys_dict:
-            User provided dictionary with two keys "systems_sym" and "interaction_sym" defining the symbolic Hamiltonians and interactions for the subsystems. By default set to None, and is internally generated.  
+            User provided dictionary with two keys "systems_sym" and "interaction_sym" defining the symbolic Hamiltonians and interactions for the subsystems. By default set to None, and is internally generated.
         Raises
         ------
         Exception

@@ -599,7 +599,9 @@ class SymbolicCircuit(serializers.Serializable):
             ) = self.variable_transformation_matrix()
 
         # find the closure branches in the circuit
-        self.spanning_tree_dict = self._spanning_tree(consider_capacitive_loops=self.use_dynamic_flux_grouping)
+        self.spanning_tree_dict = self._spanning_tree(
+            consider_capacitive_loops=self.use_dynamic_flux_grouping
+        )
         self.closure_branches = closure_branches or self._closure_branches()
         # setting external flux and offset charge variables
         self._set_external_fluxes(closure_branches=self.closure_branches)
@@ -1585,7 +1587,7 @@ class SymbolicCircuit(serializers.Serializable):
         """
         if self.use_dynamic_flux_grouping:
             return self._time_dependent_flux_distribution()
-        
+
         if not self.closure_branches or len(self.closure_branches) == 0:
             return np.zeros(len(self.branches))
         flux_allocation_array = np.zeros(
@@ -1874,7 +1876,9 @@ class SymbolicCircuit(serializers.Serializable):
         Returns and stores the closure branches in the circuit.
         """
         return flatten_list_recursive(
-            (spanning_tree_dict or self.spanning_tree_dict)["closure_branches_for_trees"]
+            (spanning_tree_dict or self.spanning_tree_dict)[
+                "closure_branches_for_trees"
+            ]
         )
 
     def _time_dependent_flux_distribution(self):

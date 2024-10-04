@@ -918,12 +918,13 @@ class CircuitRoutines(ABC):
                     "Invalid value encountered in subsystem_trunc_dims. "
                     "Truncated dimension must be a positive integer."
                 )
-    
-    def _sym_subsystem_hamiltonian_and_interactions(self, 
-                                         hamiltonian: sm.Expr, 
-                                         subsys_indices: list, 
-                                         non_operator_symbols: List[sm.Symbol]
-                                         ):
+
+    def _sym_subsystem_hamiltonian_and_interactions(
+        self,
+        hamiltonian: sm.Expr,
+        subsys_indices: list,
+        non_operator_symbols: List[sm.Symbol],
+    ):
         systems_sym = []
         interaction_sym = []
         # collecting constants to remove them for processing the Hamiltonian
@@ -970,10 +971,14 @@ class CircuitRoutines(ABC):
 
         if len(constants) > 0:
             systems_sym[0] += sum(constants)
-        
+
         return systems_sym, interaction_sym
 
-    def generate_subsystems(self, only_update_subsystems: bool = False, subsys_dict: Optional[Dict[str, Any]] = None):
+    def generate_subsystems(
+        self,
+        only_update_subsystems: bool = False,
+        subsys_dict: Optional[Dict[str, Any]] = None,
+    ):
         """
         Generates the subsystems (child instances of Circuit) depending on the attribute
         `self.system_hierarchy`
@@ -993,8 +998,10 @@ class CircuitRoutines(ABC):
             systems_sym = subsys_dict["systems_sym"]
             interaction_sym = subsys_dict["interaction_sym"]
         else:
-            systems_sym, interaction_sym = self._sym_subsystem_hamiltonian_and_interactions(
-                hamiltonian, self.system_hierarchy, non_operator_symbols
+            systems_sym, interaction_sym = (
+                self._sym_subsystem_hamiltonian_and_interactions(
+                    hamiltonian, self.system_hierarchy, non_operator_symbols
+                )
             )
 
         if only_update_subsystems:
