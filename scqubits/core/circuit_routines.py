@@ -755,11 +755,19 @@ class CircuitRoutines(ABC):
             return hamiltonian_symbolic
         else:
             full_hamiltonian = self.parent.fetch_symbolic_hamiltonian()
-            hamiltonian, _ = self._sym_hamiltonian_for_var_indices(
+            non_operator_symbols = (
+                self.offset_charges
+                + self.free_charges
+                + self.external_fluxes
+                + list(self.symbolic_params.keys())
+                + [sm.symbols("I")]
+            )
+            hamiltonian_list, _ = self._sym_subsystem_hamiltonian_and_interactions(
                 full_hamiltonian,
                 self.dynamic_var_indices,
+                non_operator_symbols,
             )
-            return hamiltonian
+            return hamiltonian_list[0]
 
     def update(self, calculate_bare_esys: bool = True):
         """
@@ -840,7 +848,7 @@ class CircuitRoutines(ABC):
 
     def _constants_in_subsys(
         self, H_sys: sm.Expr, constants_list: List[sm.Expr]
-    ) -> sm.Expr:
+    ) -> List[sm.Expr]:
         """
         Returns an expression of constants that belong to the subsystem with the
         Hamiltonian H_sys
@@ -854,12 +862,12 @@ class CircuitRoutines(ABC):
         -------
             expression of constants belonging to the subsystem
         """
-        constants_expr = 0
+        constants_subsys_list = []
         subsys_free_symbols = set(H_sys.free_symbols)
         for term in constants_list:
             if set(term.free_symbols) & subsys_free_symbols == set(term.free_symbols):
-                constants_expr += term
-        return constants_expr
+                constants_subsys_list.append(term)
+        return constants_subsys_list
 
     def _list_of_constants_from_expr(self, expr: sm.Expr) -> List[sm.Expr]:
         ordered_terms = expr.as_ordered_terms()
@@ -910,85 +918,21 @@ class CircuitRoutines(ABC):
                     "Invalid value encountered in subsystem_trunc_dims. "
                     "Truncated dimension must be a positive integer."
                 )
-
-    def _sym_hamiltonian_for_var_indices(
-        self, hamiltonian_expr: sm.Expr, subsys_index_list: List[int]
-    ) -> sm.Expr:
-        """
-        Returns the symbolic Hamiltonian and interaction terms of the subsystem corresponding to the set of variable indices in subsys_index_list
-
-        Args:
-            hamiltonian_expr (sm.Expr): The full Hamiltonian expression
-            subsys_index_list (List[int]): A list or nested list of variable indices
-
-        Returns:
-            sm.Expr: Subsystem Hamiltonian for the given variable indices
-        """
-        # collecting constants to remove them for processing the Hamiltonian
-        constants = self._list_of_constants_from_expr(hamiltonian_expr)
-        for const in constants:
-            hamiltonian_expr -= const
-
-        non_operator_symbols = (
-            self.offset_charges
-            + self.free_charges
-            + self.external_fluxes
-            + list(self.symbolic_params.keys())
-            + [sm.symbols("I")]
-        )
-
-        subsys_index_list = flatten_list_recursive(subsys_index_list)
-
-        hamiltonian_terms = hamiltonian_expr.as_ordered_terms()
-
-        H_sys = 0 * sm.symbols("x")  # making an empty symbolic expression
-        H_int = 0 * sm.symbols("x")
-        for term in hamiltonian_terms:
-            term_operator_indices = [
-                get_trailing_number(var_sym.name)
-                for var_sym in term.free_symbols
-                if var_sym not in non_operator_symbols
-            ]
-            term_operator_indices_unique = unique_elements_in_list(
-                term_operator_indices
-            )
-
-            if len(set(term_operator_indices_unique) - set(subsys_index_list)) == 0:
-                H_sys += term
-
-            if (
-                len(set(term_operator_indices_unique) - set(subsys_index_list)) > 0
-                and len(set(term_operator_indices_unique) & set(subsys_index_list)) > 0
-            ):
-                H_int += term
-
-        return H_sys + self._constants_in_subsys(H_sys, constants), H_int
-
-    def generate_subsystems(self, only_update_subsystems: bool = False):
-        """
-        Generates the subsystems (child instances of Circuit) depending on the attribute
-        `self.system_hierarchy`
-        """
-        hamiltonian = self.hamiltonian_symbolic
-
+    
+    def _sym_subsystem_hamiltonian_and_interactions(self, 
+                                         hamiltonian: sm.Expr, 
+                                         subsys_indices: list, 
+                                         non_operator_symbols: List[sm.Symbol]
+                                         ):
+        systems_sym = []
+        interaction_sym = []
         # collecting constants to remove them for processing the Hamiltonian
         constants = self._list_of_constants_from_expr(hamiltonian)
         # self._constant_terms_in_hamiltonian = constants
         for const in constants:
             hamiltonian -= const
 
-        systems_sym = []
-        interaction_sym = []
-
-        non_operator_symbols = (
-            self.offset_charges
-            + self.free_charges
-            + self.external_fluxes
-            + list(self.symbolic_params.keys())
-            + [sm.symbols("I")]
-        )
-
-        for subsys_index_list in self.system_hierarchy:
+        for subsys_index_list in subsys_indices:
             subsys_index_list = flatten_list_recursive(subsys_index_list)
 
             hamiltonian_terms = hamiltonian.as_ordered_terms()
@@ -1016,15 +960,42 @@ class CircuitRoutines(ABC):
                     H_int += term
 
             # adding constants
-            subsys_const = self._constants_in_subsys(H_sys, constants)
-            if subsys_const in constants:
-                constants.remove(subsys_const)
-            systems_sym.append(H_sys + subsys_const)
+            subsys_const_list = self._constants_in_subsys(H_sys, constants)
+            for const in subsys_const_list:
+                if const in constants:
+                    constants.remove(const)
+            systems_sym.append(H_sys + sum(subsys_const_list))
             interaction_sym.append(H_int)
             hamiltonian -= H_sys + H_int  # removing the terms added to a subsystem
 
         if len(constants) > 0:
             systems_sym[0] += sum(constants)
+        
+        return systems_sym, interaction_sym
+
+    def generate_subsystems(self, only_update_subsystems: bool = False, subsys_dict: Optional[Dict[str, Any]] = None):
+        """
+        Generates the subsystems (child instances of Circuit) depending on the attribute
+        `self.system_hierarchy`
+        """
+        hamiltonian = self.hamiltonian_symbolic
+        systems_sym = []
+        interaction_sym = []
+
+        non_operator_symbols = (
+            self.offset_charges
+            + self.free_charges
+            + self.external_fluxes
+            + list(self.symbolic_params.keys())
+            + [sm.symbols("I")]
+        )
+        if subsys_dict:
+            systems_sym = subsys_dict["systems_sym"]
+            interaction_sym = subsys_dict["interaction_sym"]
+        else:
+            systems_sym, interaction_sym = self._sym_subsystem_hamiltonian_and_interactions(
+                hamiltonian, self.system_hierarchy, non_operator_symbols
+            )
 
         if only_update_subsystems:
             for subsys_index, subsys in enumerate(self.subsystems):
