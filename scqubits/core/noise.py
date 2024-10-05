@@ -98,11 +98,12 @@ NOISE_PARAMS = {
     "R_0": 50,  # Characteristic impedance of a transmission line. Units: Ohms
     "T": 0.015,  # Typical temperature for a superconducting circuit experiment. Units: K
     "M": 400,  # Mutual inductance between qubit and a flux line. Units: \Phi_0 / Ampere
-    "R_k": sp.constants.h
-    / sp.constants.e**2.0,  # Normal quantum resistance, aka Klitzing constant.
-    "G_k": sp.constants.e**2.0 / sp.constants.h,  # Normal quantum conductance.
     # Note, in some papers a superconducting quantum
     # resistance is used, and defined as: h/(2e)^2
+}
+CONSTANTS = {
+    "R_k": sp.constants.h
+    / sp.constants.e**2.0,  # Normal quantum resistance, aka Klitzing constant.
 }
 
 
@@ -1422,7 +1423,7 @@ class NoisySystem(ABC):
         def spectral_density(omega, T):
             # Note, our definition of Q_c is different from Zhang et al (2020) by a
             # factor of 2
-            Q_c = NOISE_PARAMS["R_k"] / (8 * np.pi * complex(Z_fun(omega)).real)
+            Q_c = CONSTANTS["R_k"] / (8 * np.pi * complex(Z_fun(omega)).real)
             therm_ratio = calc_therm_ratio(omega, T)
             s = (
                 2
@@ -1718,7 +1719,7 @@ class NoisySystem(ABC):
 
                 re_y_qp = (
                     np.sqrt(2 / np.pi)
-                    * (8 / NOISE_PARAMS["R_k"])
+                    * (8 / CONSTANTS["R_k"])
                     * (EJ_in_Hz / Delta_in_Hz)
                     * (2 * Delta_in_Hz / omega_in_Hz) ** (3 / 2)
                     * x_qp
@@ -1742,8 +1743,10 @@ class NoisySystem(ABC):
             therm_ratio = calc_therm_ratio(omega, T)
 
             return (
-                omega
-                / (np.pi * NOISE_PARAMS["G_k"])
+                2
+                * sp.constants.hbar
+                * omega
+                / sp.constants.e**2
                 * complex(y_qp_fun(omega, T)).real
                 * (1 / np.tanh(0.5 * therm_ratio))
                 / (

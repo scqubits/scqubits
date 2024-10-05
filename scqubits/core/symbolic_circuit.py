@@ -599,6 +599,9 @@ class SymbolicCircuit(serializers.Serializable):
             ) = self.variable_transformation_matrix()
 
         # find the closure branches in the circuit
+        self.spanning_tree_dict = self._spanning_tree(
+            consider_capacitive_loops=self.use_dynamic_flux_grouping
+        )
         self.closure_branches = closure_branches or self._closure_branches()
         # setting external flux and offset charge variables
         self._set_external_fluxes(closure_branches=self.closure_branches)
@@ -608,8 +611,8 @@ class SymbolicCircuit(serializers.Serializable):
         self.free_charges = [
             symbols(f"Qf{index}") for index in self.var_categories["free"]
         ]
-        # setting the branch parameter variables
-
+        # store the flux allocation for each branches
+        self.branch_flux_allocations = self._generate_branch_flux_allocations()
         # calculating the Hamiltonian directly when the number of nodes is less than 3
         substitute_params = False
         if (
@@ -1305,14 +1308,10 @@ class SymbolicCircuit(serializers.Serializable):
         junction_branch_order = [
             _junction_order(branch.type) for branch in junction_branches
         ]
-        if not self.use_dynamic_flux_grouping:
-            flux_branch_assignment = self._flux_distribution()
-        else:
-            flux_branch_assignment = self._time_dependent_flux_distribution()
 
         for branch_idx, jj_branch in enumerate(junction_branches):
             # adding external flux
-            phi_ext = flux_branch_assignment[jj_branch.index]
+            phi_ext = self.branch_flux_allocations[jj_branch.index]
 
             # if loop to check for the presence of ground node
             for order in range(1, junction_branch_order[branch_idx] + 1):
@@ -1349,14 +1348,9 @@ class SymbolicCircuit(serializers.Serializable):
         # defining a function for sawtooth
         saw = sympy.Function("saw", real=True)
 
-        if not self.use_dynamic_flux_grouping:
-            flux_branch_assignment = self._flux_distribution()
-        else:
-            flux_branch_assignment = self._time_dependent_flux_distribution()
-
         for branch_idx, jj_branch in enumerate(junction_branches):
             # adding external flux
-            phi_ext = flux_branch_assignment[jj_branch.index]
+            phi_ext = self.branch_flux_allocations[jj_branch.index]
 
             # if loop to check for the presence of ground node
             junction_param = "EJ"
@@ -1587,10 +1581,13 @@ class SymbolicCircuit(serializers.Serializable):
 
         return L_mat
 
-    def _flux_distribution(self):
+    def _generate_branch_flux_allocations(self):
         """
         Returns an array of the flux allocation for each branch in the circuit
         """
+        if self.use_dynamic_flux_grouping:
+            return self._time_dependent_flux_distribution()
+
         if not self.closure_branches or len(self.closure_branches) == 0:
             return np.zeros(len(self.branches))
         flux_allocation_array = np.zeros(
@@ -1614,14 +1611,9 @@ class SymbolicCircuit(serializers.Serializable):
             substitute_params, return_inverse=True
         )
         branch_fluxes = []
-        if not self.use_dynamic_flux_grouping:
-            flux_branch_assignment = self._flux_distribution()
-        else:
-            flux_branch_assignment = self._time_dependent_flux_distribution()
-
         for l_branch in [branch for branch in self.branches if branch.type == "L"]:
             # adding external flux
-            phi_ext = flux_branch_assignment[l_branch.index]
+            phi_ext = self.branch_flux_allocations[l_branch.index]
 
             if l_branch.nodes[0].index == 0:
                 branch_flux = symbols(f"φ{l_branch.nodes[1].index}") + phi_ext
@@ -1646,7 +1638,7 @@ class SymbolicCircuit(serializers.Serializable):
                 terms = terms.subs(symbol.name, self.symbolic_params[symbol])
         return terms
 
-    def _spanning_tree(self):
+    def _spanning_tree(self, consider_capacitive_loops: bool = False):
         r"""
         Returns a spanning tree (as a list of branches) for the given instance. Notice that
         if the circuit contains multiple capacitive islands, the returned spanning tree will
@@ -1681,10 +1673,12 @@ class SymbolicCircuit(serializers.Serializable):
 
         # **************** removing all the capacitive branches and updating the nodes *
         # identifying capacitive branches
-        capacitor_branches = [
-            branch for branch in list(circ_copy.branches) if branch.type == "C"
-        ]
-        for c_branch in capacitor_branches:
+        branches_to_be_removed = []
+        if not consider_capacitive_loops:
+            branches_to_be_removed = [
+                branch for branch in list(circ_copy.branches) if branch.type == "C"
+            ]
+        for c_branch in branches_to_be_removed:
             for (
                 node
             ) in (
@@ -1882,7 +1876,9 @@ class SymbolicCircuit(serializers.Serializable):
         Returns and stores the closure branches in the circuit.
         """
         return flatten_list_recursive(
-            (spanning_tree_dict or self._spanning_tree())["closure_branches_for_trees"]
+            (spanning_tree_dict or self.spanning_tree_dict)[
+                "closure_branches_for_trees"
+            ]
         )
 
     def _time_dependent_flux_distribution(self):
@@ -1967,7 +1963,7 @@ class SymbolicCircuit(serializers.Serializable):
             of branches on the path
         """
         # extract spanning trees node_sets (to determine the generation of the node)
-        tree_info_dict = spanning_tree_dict or self._spanning_tree()
+        tree_info_dict = spanning_tree_dict or self.spanning_tree_dict
         # find out the generation number of the node in the spanning tree
         for tree_idx, tree in enumerate(tree_info_dict["list_of_trees"]):
             node_sets = tree_info_dict["node_sets_for_trees"][tree_idx]
@@ -2035,7 +2031,7 @@ class SymbolicCircuit(serializers.Serializable):
         """
         # find out ancestor nodes, path to root and generation number for each node in the
         # closure branch
-        tree_info_dict = spanning_tree_dict or self._spanning_tree()
+        tree_info_dict = spanning_tree_dict or self.spanning_tree_dict
         _, _, path_1, tree_idx_0 = self._find_path_to_root(
             closure_branch.nodes[0], tree_info_dict
         )
@@ -2073,7 +2069,7 @@ class SymbolicCircuit(serializers.Serializable):
     ):
         # setting the class properties
 
-        if self.is_purely_harmonic:
+        if self.is_purely_harmonic and not self.use_dynamic_flux_grouping:
             self.external_fluxes = []
             self.closure_branches = []
             return 0
@@ -2085,9 +2081,9 @@ class SymbolicCircuit(serializers.Serializable):
             ]
             closure_branch_list = flatten_list_recursive(closure_branch_list)
             for branch in closure_branch_list:
-                if branch.type == "C":
+                if branch.type == "C" and not self.use_dynamic_flux_grouping:
                     raise ValueError(
-                        "The closure branch cannot be a capacitive branch."
+                        "The closure branch cannot be a capacitive branch, when dynamic flux grouping is not used."
                     )
 
         closure_branches = closure_branches or self._closure_branches()
@@ -2207,12 +2203,7 @@ class SymbolicCircuit(serializers.Serializable):
         old_vars = [symbols(f"φ{index}") for index in range(1, 1 + num_vars)]
         transformed_expr = transformation_matrix.dot(new_vars)
         # add external flux
-        flux_branch_assignment = (
-            self._flux_distribution()
-            if not self.use_dynamic_flux_grouping
-            else self._time_dependent_flux_distribution()
-        )
-        phi_ext = flux_branch_assignment[branch.index]
+        phi_ext = self.branch_flux_allocations[branch.index]
         for idx, var in enumerate(old_vars):
             expr_node_vars = expr_node_vars.subs(var, transformed_expr[idx])
         return round_symbolic_expr(expr_node_vars + phi_ext, 12)

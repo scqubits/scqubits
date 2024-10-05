@@ -597,6 +597,7 @@ class Circuit(
         ext_basis: Optional[str] = None,
         use_dynamic_flux_grouping: Optional[bool] = None,
         generate_noise_methods: bool = False,
+        subsys_dict: Optional[Dict[str, Any]] = None,
     ):
         """
         Method which re-initializes a circuit instance to update, hierarchical
@@ -626,6 +627,8 @@ class Circuit(
             set to False by default. Indicates if the flux allocation is done by assuming that flux is time dependent. When set to True, it disables the option to change the closure branches.
         generate_noise_methods:
             set to False by default. Indicates if the noise methods should be generated for the circuit instance.
+        subsys_dict:
+            User provided dictionary with two keys "systems_sym" and "interaction_sym" defining the symbolic Hamiltonians and interactions for the subsystems. By default set to None, and is internally generated.
         Raises
         ------
         Exception
@@ -638,6 +641,7 @@ class Circuit(
         old_system_hierarchy = self.system_hierarchy
         old_subsystem_trunc_dims = self.subsystem_trunc_dims
         old_ext_basis = self.ext_basis
+        old_subsys_dict = subsys_dict
         if hasattr(self, "symbolic_circuit"):
             old_transformation_matrix = self.transformation_matrix
             old_use_dynamic_flux_grouping = (
@@ -657,6 +661,7 @@ class Circuit(
                     ext_basis=ext_basis,
                     use_dynamic_flux_grouping=use_dynamic_flux_grouping,
                     generate_noise_methods=generate_noise_methods,
+                    subsys_dict=subsys_dict,
                 )
             else:
                 if (
@@ -671,6 +676,7 @@ class Circuit(
                     system_hierarchy=system_hierarchy,
                     subsystem_trunc_dims=subsystem_trunc_dims,
                     ext_basis=ext_basis,
+                    subsys_dict=subsys_dict,
                 )
         except:
             # resetting the necessary attributes
@@ -689,12 +695,14 @@ class Circuit(
                     ext_basis=old_ext_basis,
                     use_dynamic_flux_grouping=old_use_dynamic_flux_grouping,
                     generate_noise_methods=old_generate_noise_methods,
+                    subsys_dict=old_subsys_dict,
                 )
             else:
                 self._configure_sym_hamiltonian(
                     system_hierarchy=old_system_hierarchy,
                     subsystem_trunc_dims=old_subsystem_trunc_dims,
                     ext_basis=old_ext_basis,
+                    subsys_dict=old_subsys_dict,
                 )
             raise Exception("Configure failed due to incorrect parameters.")
 
@@ -728,6 +736,7 @@ class Circuit(
         self,
         system_hierarchy: Optional[list] = None,
         subsystem_trunc_dims: Optional[list] = None,
+        subsys_dict: Optional[Dict[str, Any]] = None,
         ext_basis: Optional[str] = None,
     ):
         """
@@ -743,6 +752,8 @@ class Circuit(
         subsystem_trunc_dims:
             dict object which can be generated for a specific system_hierarchy using the
             method `truncation_template`, by default `None`
+        subsys_dict:
+            User provided dictionary with two keys "systems_sym" and "interaction_sym" defining the symbolic Hamiltonians and interactions for the subsystems. By default set to None, and is internally generated.
         ext_basis:
             can be "discretized" or "harmonic" which chooses whether to use discretized
             phi or harmonic oscillator basis for extended variables,
@@ -861,7 +872,7 @@ class Circuit(
             if ext_basis:
                 self.ext_basis = ext_basis
             self.generate_hamiltonian_sym_for_numerics()
-            self.generate_subsystems()
+            self.generate_subsystems(subsys_dict=subsys_dict)
             self.ext_basis = (
                 self.get_ext_basis()
             )  # update the ext_basis after generating subsystems
@@ -884,6 +895,7 @@ class Circuit(
         closure_branches: Optional[List[Union[Branch, Dict[Branch, float]]]] = None,
         ext_basis: Optional[str] = None,
         use_dynamic_flux_grouping: Optional[bool] = None,
+        subsys_dict: Optional[Dict[str, Any]] = None,
         generate_noise_methods: bool = False,
     ):
         """
@@ -910,6 +922,8 @@ class Circuit(
             can be "discretized" or "harmonic" which chooses whether to use discretized, or can be a list of lists of lists, when hierarchical diagonalization is used.
         use_dynamic_flux_grouping:
             set to False by default. Indicates if the flux allocation is done by assuming that flux is time dependent. When set to True, it disables the option to change the closure branches.
+        subsys_dict:
+            User provided dictionary with two keys "systems_sym" and "interaction_sym" defining the symbolic Hamiltonians and interactions for the subsystems. By default set to None, and is internally generated.
         generate_noise_methods:
             set to False by default. Indicates if the noise methods should be generated for the circuit instance.
 
@@ -1067,7 +1081,7 @@ class Circuit(
             self.subsystem_trunc_dims = subsystem_trunc_dims
             self.generate_hamiltonian_sym_for_numerics()
             self.ext_basis = ext_basis or self.ext_basis
-            self.generate_subsystems()
+            self.generate_subsystems(subsys_dict=subsys_dict)
             self.ext_basis = self.get_ext_basis()
             self.update_interactions()
             self._check_truncation_indices()
