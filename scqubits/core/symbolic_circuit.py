@@ -599,10 +599,26 @@ class SymbolicCircuit(serializers.Serializable):
             ) = self.variable_transformation_matrix()
 
         # find the closure branches in the circuit
-        self.spanning_tree_dict = self._spanning_tree(
+        default_spanning_tree_dict = self._spanning_tree(
             consider_capacitive_loops=self.use_dynamic_flux_grouping
         )
-        self.closure_branches = closure_branches or self._closure_branches()
+        if closure_branches:
+            if len(closure_branches) != len(
+                flatten_list_recursive(
+                    default_spanning_tree_dict["closure_branches_for_trees"]
+                )
+            ):
+                raise ValueError(
+                    """The number of closure branches should be equal to the number of loops present in the circuit. Please check the attribute spanning_tree_dict of the SymbolicCircuit instance."""
+                )
+            self.closure_branches = closure_branches
+            self.spanning_tree_dict = self._spanning_tree(
+                consider_capacitive_loops=self.use_dynamic_flux_grouping
+            )
+        else:
+            self.spanning_tree_dict = default_spanning_tree_dict
+            self.closure_branches = self._closure_branches()
+
         # setting external flux and offset charge variables
         self._set_external_fluxes(closure_branches=self.closure_branches)
         self.offset_charges = [
