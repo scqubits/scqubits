@@ -4,7 +4,7 @@ on:
   push: 
     branches:
       - main
-      - spc-higher-order-branches
+      - spc-main-devel
   workflow_dispatch:
 
 jobs:
