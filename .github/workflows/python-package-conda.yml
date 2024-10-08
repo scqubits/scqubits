@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - spc-higher-order-branches
+      - devel_peterg
   workflow_dispatch:
 
 jobs:
