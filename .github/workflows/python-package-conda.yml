@@ -34,13 +34,19 @@ jobs:
             python-version: ${{ matrix.python-version }}
             channels: conda-forge
 
-      - name: conda info
-        run: conda info
+      - name: Ensure Conda is initialized
+        shell: bash
+        run: |
+          source $CONDA/bin/activate
+          conda init bash
 
       - name: Add conda to system path
         run: |
           # $CONDA is an environment variable pointing to the root of the miniconda directory
           echo $CONDA/bin >> $GITHUB_PATH
+
+      - name: conda info
+        run: conda info
 
       - name: Lint with flake8
         run: |
