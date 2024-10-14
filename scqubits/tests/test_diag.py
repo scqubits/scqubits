@@ -334,8 +334,7 @@ def test_custom_diagonalization_esys_method_matches_default(library):
         tmon.esys_method = None
         evals_default, evecs_default = tmon.eigensys()
 
-        if method in [ 
-        ]:
+        if method in []:
             # These cases are currently failing.
             warnings.warn(f"Skipping (known) failing test of {method}", Warning)
             with pytest.raises(AssertionError):
@@ -358,12 +357,12 @@ def test_custom_diagonalization_esys_method_matches_default(library):
                         atol=1e-7,
                     )
                     # There may be a slight numerical difference in the last eigenvector.
-                    # We allow for that here and neglect testing the last entry 
+                    # We allow for that here and neglect testing the last entry
                     # (various discussions about this online).
                     for i, _ in enumerate(evals[:-1])
                 ]
             )
             # There may be a slight numerical difference in the last eigenvalue.
-            # We allow for that here and neglect testing the last entry 
+            # We allow for that here and neglect testing the last entry
             # (various discussions about this online).
             assert np.allclose(evals[:-1], evals_default[:-1])
