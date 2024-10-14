@@ -28,7 +28,7 @@ jobs:
         if: ${{ matrix.os == 'macos-latest' }}
         uses: conda-incubator/setup-miniconda@v3
         with:
-            miniforge-variant: Miniforge
+            miniforge-variant: Miniforge3
             python-version: ${{ matrix.python-version }}
             architecture: arm64
             use-mamba: true
@@ -39,7 +39,7 @@ jobs:
         if: ${{ matrix.os != 'macos-latest' }}
         uses: conda-incubator/setup-miniconda@v3
         with:
-            miniforge-variant: Miniforge
+            miniforge-variant: Miniforge3
             python-version: ${{ matrix.python-version }}
             architecture: x64
             use-mamba: true
