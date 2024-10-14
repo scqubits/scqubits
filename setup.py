@@ -83,7 +83,7 @@ PACKAGES = [
     "scqubits/explorer",
 ]
 
-PYTHON_VERSION = ">=3.7"
+PYTHON_VERSION = ">=3.9"
 
 
 NAME = "scqubits"
