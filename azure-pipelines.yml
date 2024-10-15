@@ -130,11 +130,9 @@ jobs:
       pip install --no-dependencies  .
     displayName: 'Install scqubits'
   - script: |
-      export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
       pytest -v --pyargs scqubits
     displayName: 'Pytest: single-core'
   - script: |
-      export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
       export OMP_NUM_THREADS=1
       export OPENBLAS_NUM_THREADS=1
       export MKL_NUM_THREADS=1
