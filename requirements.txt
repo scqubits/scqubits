@@ -1,7 +1,7 @@
+numpy>=1.14.2,<2.1
 cycler
 cython>=0.29.20
 matplotlib>=3.5.1
-numpy>=1.14.2
 qutip>=4.3.1
 scipy>=1.5
 sympy
@@ -10,6 +10,6 @@ typing_extensions
 pathos ; sys_platform != 'darwin' 
 pathos<=3.1 ; sys_platform == 'darwin'
 dill ; sys_platform != 'darwin'
-dill<=3.8 ; sys_platform == 'darwin'
+dill<=3.7 ; sys_platform == 'darwin'
 
 
