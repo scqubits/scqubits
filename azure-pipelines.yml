@@ -41,7 +41,7 @@ jobs:
   - script: |
       pip install pipdeptree
       pipdeptree
-    displayName: 'pytreedep'
+    displayName: 'pipdeptree'
   - script: |
       pytest -v --pyargs scqubits
     displayName: 'Pytest: single-core'
