@@ -14,102 +14,13 @@ trigger:
       - peterg_qutip5
 
 jobs:
-- job: Linux
-  pool:
-    vmImage: 'ubuntu-latest'
-  strategy:
-    matrix:
-      Python39:
-        python.version: '3.9'
-      Python310:
-        python.version: '3.10'
-      Python311:
-        python.version: '3.11'
-      Python312:
-        python.version: '3.12'
-  steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '$(python.version)'
-    displayName: 'Use Python $(python.version)'
-  - script: |
-      python -m pip install --upgrade pip
-    displayName: 'Upgrade pip'
-  - script: |
-      pip install -r requirements.txt
-      pip install -r optional-requirements.txt
-    displayName: 'Install dependencies'
-  - script: |
-      pip install pytest pytest-azurepipelines
-      pip install --no-dependencies  .
-    displayName: 'Install scqubits'
-  - script: |
-      pytest -v --pyargs scqubits
-    displayName: 'Pytest: single-core'
-  - script: |
-      export OMP_NUM_THREADS=1
-      export OPENBLAS_NUM_THREADS=1
-      export MKL_NUM_THREADS=1
-      export VECLIB_MAXIMUM_THREADS=1
-      export NUMEXPR_NUM_THREADS=1
-      pytest -v --pyargs scqubits --num_cpus=4
-    displayName: 'Pytest: multiprocessing'
-#
-#
-- job: Windows
-  pool:
-    vmImage: 'windows-latest'
-  strategy:
-    matrix:
-      Python39:
-        python.version: '3.9'
-      Python310:
-        python.version: '3.10'
-      Python311:
-        python.version: '3.11'
-      Python312:
-        python.version: '3.12'
-  steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '$(python.version)'
-    displayName: 'Use Python $(python.version)'
-  - script: |
-      python -m pip install --upgrade pip
-    displayName: 'Upgrade pip'
-  - script: |
-      pip install -r requirements.txt
-      pip install -r optional-requirements.txt
-    displayName: 'Install dependencies'
-  - script: |
-      pip install --no-dependencies  .
-    displayName: 'Install scqubits'
-  - script: |
-      pytest -v --pyargs scqubits
-    displayName: 'Pytest: single-core'
-  - script: |
-      set OMP_NUM_THREADS=1
-      set OPENBLAS_NUM_THREADS=1
-      set MKL_NUM_THREADS=1
-      set VECLIB_MAXIMUM_THREADS=1
-      set NUMEXPR_NUM_THREADS=1
-      pytest -v --pyargs scqubits --num_cpus=4
-    displayName: 'Pytest: multiprocessing'
-#
-#
 - job: macOS
   pool:
     vmImage: "macos-latest"
   strategy:
     matrix:
-      Python39:
-        python.version: '3.9'
       Python310:
         python.version: '3.10'
-      Python311:
-        python.version: '3.11'
-      Python312:
-        python.version: '3.12'
   steps:
   - task: UsePythonVersion@0
     inputs:
@@ -127,6 +38,10 @@ jobs:
       pip install pytest-xdist
       pip install --no-dependencies  .
     displayName: 'Install scqubits'
+  - script: |
+      pip install pipdeptree
+      pipdeptree
+    displayName: 'pytreedep'
   - script: |
       pytest -v --pyargs scqubits
     displayName: 'Pytest: single-core'
