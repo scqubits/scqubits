@@ -43,6 +43,7 @@ jobs:
       pipdeptree
     displayName: 'pipdeptree'
   - script: |
+      export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
       pytest -v --pyargs scqubits
     displayName: 'Pytest: single-core'
   - script: |
@@ -51,5 +52,6 @@ jobs:
       export MKL_NUM_THREADS=1
       export VECLIB_MAXIMUM_THREADS=1
       export NUMEXPR_NUM_THREADS=1
+      export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
       pytest -v --pyargs scqubits --num_cpus=4
     displayName: 'Pytest: multiprocessing'
