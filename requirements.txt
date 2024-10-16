@@ -4,10 +4,12 @@ matplotlib>=3.5.1
 numpy>=1.14.2
 qutip>=4.3.1
 scipy>=1.5
+sympy
+tqdm
+typing_extensions
 pathos ; sys_platform != 'darwin' 
 pathos<=3.2 ; sys_platform == 'darwin'
 dill ; sys_platform != 'darwin'
 dill<=3.8 ; sys_platform == 'darwin'
-sympy
-tqdm
-typing_extensions
+
+
