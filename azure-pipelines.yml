@@ -38,7 +38,7 @@ jobs:
       pip install pytest-xdist
       pip install --no-dependencies  .
       pip install numpy==2.0.2
-      pip install pathos==3.2
+      pip install pathos==0.3.2
     displayName: 'Install scqubits'
   - script: |
       pip install pipdeptree
