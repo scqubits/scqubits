@@ -44,6 +44,10 @@ jobs:
       pip install --no-dependencies  .
     displayName: 'Install scqubits'
   - script: |
+      pip install pipdeptree
+      pipdeptree
+    displayName: 'pipdeptree'
+  - script: |
       pytest -v --pyargs scqubits
     displayName: 'Pytest: single-core'
   - script: |
@@ -84,6 +88,10 @@ jobs:
   - script: |
       pip install --no-dependencies  .
     displayName: 'Install scqubits'
+  - script: |
+      pip install pipdeptree
+      pipdeptree
+    displayName: 'pipdeptree'
   - script: |
       pytest -v --pyargs scqubits
     displayName: 'Pytest: single-core'
@@ -127,6 +135,10 @@ jobs:
       pip install pytest-xdist
       pip install --no-dependencies  .
     displayName: 'Install scqubits'
+  - script: |
+      pip install pipdeptree
+      pipdeptree
+    displayName: 'pipdeptree'
   - script: |
       pytest -v --pyargs scqubits
     displayName: 'Pytest: single-core'
