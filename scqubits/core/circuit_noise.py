@@ -468,7 +468,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
         Steps:
         ------
-        1. Checks if there are any existing methods for calculating Tphi due to 1/f cc noise. This is done by searching the methods of the current instance for method names that match the pattern "tphi_1_over_f_cc\d+$". If such methods exist, the function returns None and does not generate a new method.
+        1. Checks if there are any existing methods for calculating Tphi due to 1/f cc noise. This is done by searching the methods of the current instance for method names that match the pattern "tphi_1_over_f_cc\\d+$". If such methods exist, the function returns None and does not generate a new method.
 
         2. Defines a new method `tphi_1_over_f_cc` for calculating the overall Tphi due to 1/f cc noise. This method performs the following steps:
 
@@ -534,7 +534,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
         Steps:
         ------
-        1. Checks if there are any existing methods for calculating Tphi due to 1/f flux noise. This is done by searching the methods of the current instance for method names that match the pattern "tphi_1_over_f_flux\d+$". If such methods exist, the function returns None and does not generate a new method.
+        1. Checks if there are any existing methods for calculating Tphi due to 1/f flux noise. This is done by searching the methods of the current instance for method names that match the pattern "tphi_1_over_f_flux\\d+$". If such methods exist, the function returns None and does not generate a new method.
 
         2. Defines a new method `tphi_1_over_f_flux` for calculating the overall Tphi due to 1/f flux noise. This method performs the following steps:
 
@@ -603,7 +603,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
         Steps:
         ------
-        1. Checks if there are any existing methods for calculating Tphi due to 1/f flux noise. This is done by searching the methods of the current instance for method names that match the pattern "tphi_1_over_f_flux\d+$". If such methods exist, the function returns None and does not generate a new method.
+        1. Checks if there are any existing methods for calculating Tphi due to 1/f flux noise. This is done by searching the methods of the current instance for method names that match the pattern "tphi_1_over_f_flux\\d+$". If such methods exist, the function returns None and does not generate a new method.
 
         2. Defines a new method `tphi_1_over_f_flux` for calculating the overall Tphi due to 1/f flux noise. This method performs the following steps:
 

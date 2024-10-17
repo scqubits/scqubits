@@ -2694,7 +2694,7 @@ class CircuitRoutines(ABC):
         elif isinstance(expr, list):
             equalities_in_latex = "$ "
             for eqn in expr:
-                equalities_in_latex += sm.printing.latex(eqn) + " \\\ "
+                equalities_in_latex += sm.printing.latex(eqn) + r" \\\ "
             equalities_in_latex = equalities_in_latex[:-4] + " $"
             display(Latex(equalities_in_latex))
 
