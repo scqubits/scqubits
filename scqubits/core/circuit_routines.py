@@ -110,6 +110,10 @@ class CircuitRoutines(ABC):
         "use_dynamic_flux_grouping",
     ]
 
+    @classmethod
+    def create(cls) -> base.QuantumSystem:
+        raise NotImplementedError
+
     # methods for serialization
     def serialize(self) -> "IOData":
         obj_in_bytes = dill.dumps(self)
