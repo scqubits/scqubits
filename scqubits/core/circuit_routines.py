@@ -2412,28 +2412,27 @@ class CircuitRoutines(ABC):
         extra_terms: Optional[str] = None,
     ) -> Tuple[List[Union[qt.Qobj, Tuple[qt.Qobj, Callable]]], sm.Expr, List[sm.Expr]]:
         """
-        Returns the Hamiltonian in a format amenable to be forwarded to mesolve in Qutip. Also returns the symbolic expressions of time independent and time dependent terms of the Hamiltonian, which can be used for reference. `free_var_func_dict` is a dictionary with key-value pair {"var": f}, where `f` is a function returning the value of the variable `var` at time `t`. If one has extra terms to be added to the Hamiltonian (for instance, charge driving a fluxonium where there is no offset charge) they can be passed as a string in `extra_terms`.
-        For example, to get the Hamiltonian for a circuit where Φ1 is the time varying parameter, this method can be called in the following way:
+        Returns the Hamiltonian in a format amenable to be forwarded to mesolve in Qutip. Also returns the symbolic expressions of time independent and time dependent terms of the Hamiltonian, which can be used for reference. `free_var_func_dict` is a dictionary with key-value pair `{"var": f}`, where `f` is a function returning the value of the variable `var` at time `t`. If one has extra terms to be added to the Hamiltonian (for instance, charge driving a fluxonium where there is no offset charge) they can be passed as a string in `extra_terms`.
+        For example, to get the Hamiltonian for a circuit where Φ1 is the time varying parameter, this method can be called in the following way::
 
-        ```
-        def flux_t(t, args):
-            return 0.5 + 0.02*np.sin(t*2)
-        def ng_t(t, args):
-            return 0.5 + 0.02*np.cos(t*2)
-        def EJ_t(t, args):
-            return (1-np.exp(-t/1))*0.2
-        free_var_func_dict = {"Φ1": flux_t, "EJ": EJ_t, "ng": ng_t}
+            def flux_t(t, args):
+                return 0.5 + 0.02*np.sin(t*2)
+            def ng_t(t, args):
+                return 0.5 + 0.02*np.cos(t*2)
+            def EJ_t(t, args):
+                return (1-np.exp(-t/1))*0.2
+            free_var_func_dict = {"Φ1": flux_t, "EJ": EJ_t, "ng": ng_t}
 
-        mesolve_input_H = self.hamiltonian_for_qutip_dynamics(free_var_func_dict, extra_terms="0.1*ng*Q1")
-        ```
+            mesolve_input_H = self.hamiltonian_for_qutip_dynamics(free_var_func_dict, extra_terms="0.1*ng*Q1")
+
         Parameters
         ----------
         free_var_func_dict:
             Dict, as defined in the description above
         prefactor:
-            float, value with which the Hamiltonian and corresponding operators are multiplied, useful to set it to 2*np.pi for some qutip simulations
+            prefactor with which the Hamiltonian and corresponding operators are multiplied, useful to set it to `2*np.pi` for some qutip simulations
         extra_terms:
-            str, a string which will be converted into sympy expression, containing terms which are not present in the Circuit Hamiltonian. Is useful to define custom drive operators.
+            a string which will be converted into sympy expression, containing terms which are not present in the Circuit Hamiltonian. It is useful to define custom drive operators.
         """
         free_var_names = list(free_var_func_dict.keys())
         free_var_symbols = [sm.symbols(sym_name) for sym_name in free_var_names]

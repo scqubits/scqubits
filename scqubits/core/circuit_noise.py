@@ -34,7 +34,10 @@ from scqubits.core.symbolic_circuit import Branch
 
 
 class NoisyCircuit(NoisySystem, ABC):
-    """This class represents a noisy quantum circuit, extending the `NoisySystem` class. It provides a suite of methods for generating and evaluating expressions related to the Hamiltonian and its derivatives, as well as calculating the 1/f dephasing time or rate due to various noise sources.
+    """This class represents a noisy quantum circuit, extending the `NoisySystem` class.
+    It provides a suite of methods for generating and evaluating expressions related to
+    the Hamiltonian and its derivatives, as well as calculating the 1/f dephasing time
+    or rate due to various noise sources.
 
     Attributes:
     -----------
@@ -46,8 +49,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
     @staticmethod
     def Q_from_branch(branch):
-        """
-        Extracts the Quality Factor 'Q' from a Given Branch
+        """Extracts the Quality Factor 'Q' from a Given Branch.
 
         This method performs the following steps:
 
@@ -88,8 +90,8 @@ class NoisyCircuit(NoisySystem, ABC):
         return None
 
     def _generate_methods_d_hamiltonian_d(self):
-        """
-        This method generates methods that return the derivative of the Hamiltonian with respect to offset charges, external fluxes, and junction energies.
+        """This method generates methods that return the derivative of the Hamiltonian
+        with respect to offset charges, external fluxes, and junction energies.
 
         Steps:
         ------
@@ -170,8 +172,8 @@ class NoisyCircuit(NoisySystem, ABC):
     def _transform_expr_to_new_variables(
         self, expr_node_vars: sm.Expr, substitute_symbol: Optional[str] = None
     ):
-        """
-        This method transforms a symbolic expression that represents a physical quantity in the circuit from the old variables to the new variables.
+        """This method transforms a symbolic expression that represents a physical
+        quantity in the circuit from the old variables to the new variables.
 
         Steps:
         1. Retrieves the transformation matrix from the current instance.
@@ -213,8 +215,8 @@ class NoisyCircuit(NoisySystem, ABC):
         return expr_node_vars
 
     def _junction_related_evaluation(self, branch_junction: Branch, calc="dhdEJ"):
-        """
-        This method evaluates a physical quantity related to a specific junction in the quantum circuit.
+        """This method evaluates a physical quantity related to a specific junction in
+        the quantum circuit.
 
         Steps:
         1. Retrieves the parent circuit and its symbolic Hamiltonian. The parent circuit is the circuit that contains the junction, and the symbolic Hamiltonian is a sympy expression that represents the Hamiltonian of the parent circuit in terms of symbolic variables.
@@ -285,8 +287,11 @@ class NoisyCircuit(NoisySystem, ABC):
         return parent_instance._evaluate_symbolic_expr(term)
 
     def _generate_tphi_1_over_f_methods(self):
-        """
-        This function is a dynamic method generator, crafting methods for calculating the 1/f dephasing time (or rate) due to different types of noise in the quantum circuit. The generated methods are named `tphi_1_over_f_{noise_type}{index}`, where `noise_type` can be 'cc', 'ng', or 'flux', and `index` differentiates individual noise sources.
+        """This function is a dynamic method generator, crafting methods for calculating
+        the 1/f dephasing time (or rate) due to different types of noise in the quantum
+        circuit. The generated methods are named `tphi_1_over_f_{noise_type}{index}`,
+        where `noise_type` can be 'cc', 'ng', or 'flux', and `index` differentiates
+        individual noise sources.
 
         external_fluxes : list
             A collection of symbols representing external fluxes in the circuit.
@@ -343,8 +348,8 @@ class NoisyCircuit(NoisySystem, ABC):
                 noise_type=noise_type,
                 **kwargs,
             ) -> float:
-                r"""
-                This function calculates the 1/f dephasing time (or rate) due to a specific type of noise in the quantum circuit.
+                r"""This function calculates the 1/f dephasing time (or rate) due to a
+                specific type of noise in the quantum circuit.
 
                 Steps:
                 1. Invokes the `noise_op_func` function to generate the noise operator. The noise operator is a quantum object that represents the effect of the noise on the quantum states of the circuit.
@@ -1691,8 +1696,8 @@ class NoisyCircuit(NoisySystem, ABC):
         setattr(self, "t1_flux_bias_line", MethodType(t1_flux_bias_line, self))
 
     def generate_noise_methods(self):
-        """
-        This function is responsible for dynamically generating all the methods that calculate the different types of noise in the quantum circuit.
+        """This function is responsible for dynamically generating all the methods that
+        calculate the different types of noise in the quantum circuit.
 
         Parameters
         ----------

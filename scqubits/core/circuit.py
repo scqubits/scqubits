@@ -913,7 +913,7 @@ class Circuit(
         use_dynamic_flux_grouping:
             set to False by default. Indicates if the flux allocation is done by assuming that flux is time dependent. When set to True, it disables the option to change the closure branches.
         subsys_dict:
-            User provided dictionary with two keys "systems_sym" and "interaction_sym" defining the symbolic Hamiltonians and interactions for the subsystems. By default set to None, and is internally generated.
+            User provided dictionary with two keys `"systems_sym"` and `"interaction_sym"` defining the symbolic Hamiltonians and interactions for the subsystems. By default set to None, and is internally generated.
         generate_noise_methods:
             set to False by default. Indicates if the noise methods should be generated for the circuit instance.
 

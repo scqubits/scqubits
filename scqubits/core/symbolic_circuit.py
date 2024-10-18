@@ -49,8 +49,8 @@ from scqubits.core.circuit_input import (
 
 class Node:
     """Class representing a circuit node, and handled by `Circuit`. The attribute
-    `<Node>.branches` is a list of `Branch` objects containing all branches connected to
-    the node.
+    `branches` is a list of `Branch` objects containing all branches connected to the
+    node.
 
     Parameters
     ----------
@@ -75,10 +75,7 @@ class Node:
 
     def connected_nodes(self, branch_type: str) -> List["Node"]:
         """Returns a list of all nodes directly connected by branches to the current
-        node, either considering all branches or a specified `branch_type`:
-
-        "C", "L", "JJ", "all" for capacitive, inductive, Josephson junction, or all
-        types of branches.
+        node, either considering all branches or a specified `branch_type` - ("C", "L", "JJ", "all") for capacitive, inductive, Josephson junction, or all types of branches.
         """
         result = []
         if branch_type == "all":
@@ -118,18 +115,19 @@ class Branch:
     n_i, n_f:
         initial and final nodes connected by this branch;
     branch_type:
-        is the type of this Branch, example "C","JJ" or "L"
+        is the type of this Branch, example `"C"`,`"JJ"` or `"L"`
     parameters:
         list of parameters for the branch, namely for
-        capacitance: {"EC":  <value>};
-        for inductance: {"EL": <value>};
-        for Josephson Junction: {"EJ": <value>, "ECJ": <value>}
+        capacitance: `{"EC":  <value>}`;
+        for inductance: `{"EL": <value>}`;
+        for Josephson Junction: `{"EJ": <value>, "ECJ": <value>}`
     aux_params:
         Dictionary of auxiliary parameters which map a symbol from the input file a numeric parameter.
 
     Examples
     --------
-    `Branch("C", Node(1, 0), Node(2, 0))`
+    capacitive branch::
+        Branch("C", Node(1, 0), Node(2, 0))
     is a capacitive branch connecting the nodes with indices 0 and 1.
     """
 
@@ -183,6 +181,7 @@ class Branch:
             self.parameters["ECJ"] = parameters[number_of_junc_params]
 
     def node_ids(self) -> Tuple[int, int]:
+        """Returns the indices of the nodes connected by the branch."""
         return self.nodes[0].index, self.nodes[1].index
 
     def is_connected(self, branch) -> bool:
@@ -353,21 +352,20 @@ class SymbolicCircuit(serializers.Serializable):
 
     Examples
     --------
-    For a transmon qubit, the input file reads:
-        ```
+    For a transmon qubit, the input file reads::
+
         # file_name: transmon_num.inp
         nodes: 2
         branches:
         C       1,2     1
         JJ      1,2     1       10
-        ```
 
-    The `Circuit` object can be initiated using:
+    The `Circuit` object can be initiated using::
         `Circuit.from_input_file("transmon_num.inp")`
 
     Parameters
     ----------
-    nodes_list: List[Nodes]
+    nodes_list: List[Node]
         List of nodes in the circuit
     branches_list: List[Branch]
         List of branches connecting the above set of nodes.
@@ -735,9 +733,7 @@ class SymbolicCircuit(serializers.Serializable):
         """
         Constructs the instance of Circuit from an input string. Here is an example of
         an input string that is used to initiate an object of the
-        class `SymbolicCircuit`:
-
-            ```
+        class `SymbolicCircuit`::
             #zero-pi.yaml
             nodes    : 4
             # zero-pi
@@ -748,7 +744,6 @@ class SymbolicCircuit(serializers.Serializable):
             - [L, 4,1, 0.008]
             - [C, 1,3, 0.02]
             - [C, 2,4, 0.02]
-            ```
 
         Parameters
         ----------
