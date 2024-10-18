@@ -337,5 +337,5 @@ class TestCircuit:
         expectation_vals = result.expect[0]
         ref_expectation_vals = read(DATADIR + "/circuit_qutip_evolution_data.hdf5")
         assert np.allclose(
-            expectation_vals, np.array(ref_expectation_vals, dtype=float)
+            expectation_vals, ref_expectation_vals.astype(np.float64)
         )
