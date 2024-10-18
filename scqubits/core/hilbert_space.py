@@ -1064,14 +1064,14 @@ class HilbertSpace(
 
             signature::
 
-                .op_in_dressed_eigenbasis(op=<Callable>, truncated_dim=<int>)
+                .op_in_dressed_eigenbasis(op_callable_or_tuple=<Callable>, truncated_dim=<int>)
 
         2. subsystem operators may be passed as arrays, along with the
            corresponding subsystem. In this case the user must additionally
            specify if the operator is in the native, subsystem-internal
            basis or the subsystem bare eigenbasis::
 
-                .op_in_dressed_eigenbasis(op=(<ndarray>, <subsys>),
+                .op_in_dressed_eigenbasis(op_callable_or_tuple=(<ndarray>, <subsys>),
                                           truncated_dim=<int>,
                                           op_in_bare_eigenbasis=<Bool>)
         """
