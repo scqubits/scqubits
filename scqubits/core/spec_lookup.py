@@ -54,8 +54,9 @@ class MixinCompatible(Protocol):
 
 
 class SpectrumLookupMixin(MixinCompatible):
-    """
-    SpectrumLookupMixin is used as a mix-in class by `ParameterSweep`. It makes various
+    """SpectrumLookupMixin is used as a mix-in class by `ParameterSweep`.
+
+    It makes various
     spectrum and spectrum lookup related methods directly available at the
     `ParameterSweep` level.
     """
@@ -77,23 +78,22 @@ class SpectrumLookupMixin(MixinCompatible):
 
     @property
     def _bare_product_states_labels(self) -> List[Tuple[int, ...]]:
-        """
-        Generates the list of bare-state labels in canonical order. For example,
-         for a Hilbert space composed of two subsystems sys1 and sys2, each label is
-         of the type (3,0) meaning sys1 is in bare eigenstate 3, sys2 in bare
-         eigenstate 0. The full list then reads
-         [(0,0), (0,1), (0,2), ..., (0,max_2),
-         (1,0), (1,1), (1,2), ..., (1,max_2),
-         ...
-         (max_1,0), (max_1,1), (max_1,2), ..., (max_1,max_2)]
+        """Generates the list of bare-state labels in canonical order.
+
+        For example,
+        for a Hilbert space composed of two subsystems sys1 and sys2, each label is
+        of the type (3,0) meaning sys1 is in bare eigenstate 3, sys2 in bare
+        eigenstate 0. The full list then reads
+        [(0,0), (0,1), (0,2), ..., (0,max_2),
+        (1,0), (1,1), (1,2), ..., (1,max_2),
+        ...
+        (max_1,0), (max_1,1), (max_1,2), ..., (max_1,max_2)]
         """
         return list(np.ndindex(*self.hilbertspace.subsystem_dims))
 
     def generate_lookup(self) -> NamedSlotsNdarray:
-        """
-        For each parameter value of the parameter sweep, generate the map between
-        bare states and
-        dressed states.
+        """For each parameter value of the parameter sweep, generate the map between
+        bare states and dressed states.
 
         Returns
         -------
@@ -115,11 +115,10 @@ class SpectrumLookupMixin(MixinCompatible):
         self,
         param_indices: Tuple[int, ...],
     ) -> ndarray:
-        """
-        For a single set of parameter values, specified by a tuple of indices
-        ``param_indices``, create an array of the dressed-state indices in an order
-        that corresponds one-to-one to the bare product states with largest overlap
-        (whenever possible).
+        """For a single set of parameter values, specified by a tuple of indices
+        ``param_indices``, create an array of the dressed-state indices in an order that
+        corresponds one-to-one to the bare product states with largest overlap (whenever
+        possible).
 
         Parameters
         ----------
@@ -164,9 +163,7 @@ class SpectrumLookupMixin(MixinCompatible):
     def set_npindextuple(
         self, param_indices: Optional[NpIndices] = None
     ) -> NpIndexTuple:
-        """
-        Convert the NpIndices parameter indices to a tuple of NpIndices.
-        """
+        """Convert the NpIndices parameter indices to a tuple of NpIndices."""
         param_indices = param_indices or self._current_param_indices
         if not isinstance(param_indices, tuple):
             param_indices = (param_indices,)
@@ -179,8 +176,7 @@ class SpectrumLookupMixin(MixinCompatible):
         bare_labels: Tuple[int, ...],
         param_npindices: Optional[NpIndices] = None,
     ) -> Union[ndarray, int, None]:
-        """
-        For given bare product state return the corresponding dressed-state index.
+        """For given bare product state return the corresponding dressed-state index.
 
         Parameters
         ----------
@@ -212,8 +208,7 @@ class SpectrumLookupMixin(MixinCompatible):
         dressed_index: int,
         param_indices: Optional[Tuple[int, ...]] = None,
     ) -> Union[Tuple[int, ...], None]:
-        """
-        For given dressed index, look up the corresponding bare index.
+        """For given dressed index, look up the corresponding bare index.
 
         Returns
         -------
@@ -244,8 +239,7 @@ class SpectrumLookupMixin(MixinCompatible):
         self,
         param_indices: Optional[Tuple[int, ...]] = None,
     ) -> ndarray:
-        """
-        Return the list of dressed eigenvectors
+        """Return the list of dressed eigenvectors.
 
         Parameters
         ----------
@@ -288,8 +282,8 @@ class SpectrumLookupMixin(MixinCompatible):
         subtract_ground: bool = False,
         param_npindices: Optional[NpIndices] = None,
     ) -> Union[float, NamedSlotsNdarray]:  # the return value may also be np.nan
-        """
-        Look up dressed energy most closely corresponding to the given bare-state labels
+        """Look up dressed energy most closely corresponding to the given bare-state
+        labels.
 
         Parameters
         ----------
@@ -340,9 +334,8 @@ class SpectrumLookupMixin(MixinCompatible):
         subtract_ground: bool = False,
         param_indices: Optional[Tuple[int, ...]] = None,
     ) -> Union[float, NamedSlotsNdarray]:
-        """
-        Look up the dressed eigenenergy belonging to the given dressed index,
-        usually to be used with pre-slicing
+        """Look up the dressed eigenenergy belonging to the given dressed index, usually
+        to be used with pre-slicing.
 
         Parameters
         ----------
@@ -370,8 +363,8 @@ class SpectrumLookupMixin(MixinCompatible):
         subsys: "QuantumSys",
         param_indices: Optional[Tuple[int, ...]] = None,
     ) -> NamedSlotsNdarray:
-        """
-        Return ndarray of bare eigenstates for given subsystems and parameter index.
+        """Return ndarray of bare eigenstates for given subsystems and parameter index.
+
         Eigenstates are expressed in the basis internal to the subsystems. Usually to be
         used with pre-slicing when part of `ParameterSweep`.
         """
@@ -387,8 +380,7 @@ class SpectrumLookupMixin(MixinCompatible):
         subsys: "QuantumSys",
         param_indices: Optional[Tuple[int, ...]] = None,
     ) -> NamedSlotsNdarray:
-        """
-        Return `NamedSlotsNdarray` of bare eigenenergies for given subsystem, usually
+        """Return `NamedSlotsNdarray` of bare eigenenergies for given subsystem, usually
         to be used with preslicing.
 
         Parameters
@@ -412,10 +404,9 @@ class SpectrumLookupMixin(MixinCompatible):
         self,
         bare_index: Tuple[int, ...],
     ) -> Qobj:
-        """
-        Return the bare product state specified by `bare_index`. Note: no parameter
-        dependence here, since the Hamiltonian is always represented in the bare
-        product eigenbasis.
+        """Return the bare product state specified by `bare_index`. Note: no parameter
+        dependence here, since the Hamiltonian is always represented in the bare product
+        eigenbasis.
 
         Parameters
         ----------
@@ -433,8 +424,7 @@ class SpectrumLookupMixin(MixinCompatible):
         return qt.tensor(*product_state_list)
 
     def all_params_fixed(self, param_indices: Union[slice, tuple]) -> bool:
-        """
-        Checks whether the indices provided fix all the parameters.
+        """Checks whether the indices provided fix all the parameters.
 
         Parameters
         ----------
@@ -444,7 +434,6 @@ class SpectrumLookupMixin(MixinCompatible):
         Returns
         -------
             True if all parameters are being fixed by `param_indices`.
-
         """
         if isinstance(param_indices, slice):
             param_indices = (param_indices,)

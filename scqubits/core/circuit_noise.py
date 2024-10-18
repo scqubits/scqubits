@@ -738,8 +738,8 @@ class NoisyCircuit(NoisySystem, ABC):
             )
 
     def generate_t1_methods(self):
-        """
-        Generates methods for calculating the T1 coherence times due to capacitive, inductive, and charge impedance noise for each branch in the circuit.
+        """Generates methods for calculating the T1 coherence times due to capacitive,
+        inductive, and charge impedance noise for each branch in the circuit.
 
         Parameters
         ----------

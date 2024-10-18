@@ -66,8 +66,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
         get_rate: bool = False,
         **kwargs
     ) -> float:
-        r"""
-        Calculate the 1/f dephasing time (or rate) due to critical current noise of
+        r"""Calculate the 1/f dephasing time (or rate) due to critical current noise of
         junction associated with Josephson energy :math:`EJ1`.
 
         Parameters
@@ -87,7 +86,6 @@ class NoisyFluxQubit(NoisySystem, ABC):
         -------
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`,
              or rate in inverse units.
-
         """
         if "tphi_1_over_f_cc1" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -114,8 +112,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
         get_rate: bool = False,
         **kwargs
     ) -> float:
-        r"""
-        Calculate the 1/f dephasing time (or rate) due to critical current noise of
+        r"""Calculate the 1/f dephasing time (or rate) due to critical current noise of
         junction associated with Josephson energy :math:`EJ2`.
 
         Parameters
@@ -161,9 +158,8 @@ class NoisyFluxQubit(NoisySystem, ABC):
         get_rate: bool = False,
         **kwargs
     ) -> float:
-        r"""
-        Calculate the 1/f dephasing time (or rate) due to critical current noise of junction associated with
-        Josephson energy :math:`EJ3`.
+        r"""Calculate the 1/f dephasing time (or rate) due to critical current noise of
+        junction associated with Josephson energy :math:`EJ3`.
 
         Parameters
         ----------
@@ -207,10 +203,9 @@ class NoisyFluxQubit(NoisySystem, ABC):
         get_rate: bool = False,
         **kwargs
     ) -> float:
-        r"""
-        Calculate the 1/f dephasing time (or rate) due to critical-current noise
-        from all three Josephson junctions :math:`EJ1`, :math:`EJ2` and :math:`EJ3`.
-        The combined noise is calculated by summing the rates from the individual
+        r"""Calculate the 1/f dephasing time (or rate) due to critical-current noise from
+        all three Josephson junctions :math:`EJ1`, :math:`EJ2` and :math:`EJ3`. The
+        combined noise is calculated by summing the rates from the individual
         contributions.
 
         Parameters
@@ -256,7 +251,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
 
 
 class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
-    r"""Flux Qubit
+    r"""Flux Qubit.
 
     | [1] Orlando et al., Physical Review B, 60, 15398 (1999).
           https://link.aps.org/doi/10.1103/PhysRevB.60.15398
@@ -304,14 +299,14 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     id_str:
         optional string by which this instance can be referred to in `HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
-    esys_method: 
-        method for esys diagonalization, callable or string representation 
-    esys_method_options: 
-        dictionary with esys diagonalization options 
-    evals_method: 
-        method for evals diagonalization, callable or string representation 
-    evals_method_options: 
-        dictionary with evals diagonalization options 
+    esys_method:
+        method for esys diagonalization, callable or string representation
+    esys_method_options:
+        dictionary with esys diagonalization options
+    evals_method:
+        method for evals diagonalization, callable or string representation
+    evals_method_options:
+        dictionary with evals diagonalization options
     """
 
     EJ1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
@@ -393,7 +388,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
     @classmethod
     def supported_noise_channels(cls) -> List[str]:
-        """Return a list of supported noise channels"""
+        """Return a list of supported noise channels."""
         return [
             "tphi_1_over_f_cc1",
             "tphi_1_over_f_cc2",
@@ -406,7 +401,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         ]
 
     def EC_matrix(self) -> ndarray:
-        """Return the charging energy matrix"""
+        """Return the charging energy matrix."""
         Cmat = np.zeros((2, 2))
         CJ1 = 1.0 / (2 * self.ECJ1)  # capacitances in units where e is set to 1
         CJ2 = 1.0 / (2 * self.ECJ2)
@@ -530,8 +525,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def hamiltonian(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Return Hamiltonian in the basis obtained by employing charge basis for both
+        """Return Hamiltonian in the basis obtained by employing charge basis for both
         degrees of freedom or in the eigenenergy basis.
 
         Parameters
@@ -557,8 +551,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def d_hamiltonian_d_EJ1(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns operator representing a derivative of the Hamiltonian with respect to
+        """Returns operator representing a derivative of the Hamiltonian with respect to
         EJ1 in the native Hamiltonian basis or eigenenergy basis.
 
         Parameters
@@ -584,8 +577,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def d_hamiltonian_d_EJ2(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns operator representing a derivative of the Hamiltonian with respect to
+        """Returns operator representing a derivative of the Hamiltonian with respect to
         EJ2 in the native Hamiltonian basis or eigenenergy basis.
 
         Parameters
@@ -611,8 +603,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def d_hamiltonian_d_EJ3(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns operator representing a derivative of the Hamiltonian with respect to
+        """Returns operator representing a derivative of the Hamiltonian with respect to
         EJ3 in the native Hamiltonian basis or eigenenergy basis.
 
         Parameters
@@ -648,9 +639,8 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def d_hamiltonian_d_flux(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns the operator representing a derivative of the Hamiltonian with respect to flux
-        in the native Hamiltonian basis or eigenenergy basis.
+        """Returns the operator representing a derivative of the Hamiltonian with
+        respect to flux in the native Hamiltonian basis or eigenenergy basis.
 
         Parameters
         ----------
@@ -704,8 +694,8 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def n_1_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        r"""
-        Returns the charge number operator conjugate to :math:`\phi_1` in the charge? or eigenenergy basis.
+        r"""Returns the charge number operator conjugate to :math:`\phi_1` in the charge?
+        or eigenenergy basis.
 
         Parameters
         ----------
@@ -727,8 +717,8 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def n_2_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        r"""
-        Returns the charge number operator conjugate to :math:`\phi_2` in the charge? or eigenenergy basis.
+        r"""Returns the charge number operator conjugate to :math:`\phi_2` in the charge?
+        or eigenenergy basis.
 
         Parameters
         ----------
@@ -750,8 +740,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def exp_i_phi_1_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        r"""
-        Returns operator :math:`e^{i\phi_1}` in the charge or eigenenergy basis.
+        r"""Returns operator :math:`e^{i\phi_1}` in the charge or eigenenergy basis.
 
         Parameters
         ----------
@@ -774,8 +763,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def exp_i_phi_2_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        r"""
-        Returns operator :math:`e^{i\phi_2}` in the charge or eigenenergy basis.
+        r"""Returns operator :math:`e^{i\phi_2}` in the charge or eigenenergy basis.
 
         Parameters
         ----------
@@ -798,8 +786,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def cos_phi_1_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns operator :math:`\\cos \\phi_1` in the charge or eigenenergy basis.
+        """Returns operator :math:`\\cos \\phi_1` in the charge or eigenenergy basis.
 
         Parameters
         ----------
@@ -824,8 +811,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def cos_phi_2_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns operator :math:`\\cos \\phi_2` in the charge or eigenenergy basis.
+        """Returns operator :math:`\\cos \\phi_2` in the charge or eigenenergy basis.
 
         Parameters
         ----------
@@ -850,8 +836,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def sin_phi_1_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns operator :math:`\\sin \\phi_1` in the charge or eigenenergy basis.
+        """Returns operator :math:`\\sin \\phi_1` in the charge or eigenenergy basis.
 
         Parameters
         ----------
@@ -876,8 +861,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def sin_phi_2_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns operator :math:`\\sin \\phi_2` in the charge or eigenenergy basis.
+        """Returns operator :math:`\\sin \\phi_2` in the charge or eigenenergy basis.
 
         Parameters
         ----------
@@ -905,8 +889,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         contour_vals: ndarray = None,
         **kwargs
     ) -> Tuple[Figure, Axes]:
-        """
-        Draw contour plot of the potential energy.
+        """Draw contour plot of the potential energy.
 
         Parameters
         ----------
@@ -931,8 +914,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         which: int = 0,
         phi_grid: discretization.Grid1d = None,
     ) -> storage.WaveFunctionOnGrid:
-        """
-        Return a flux qubit wave function in phi1, phi2 basis
+        """Return a flux qubit wave function in phi1, phi2 basis.
 
         Parameters
         ----------

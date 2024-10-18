@@ -48,8 +48,7 @@ from scqubits.core.circuit_input import (
 
 
 class Node:
-    """
-    Class representing a circuit node, and handled by `Circuit`. The attribute
+    """Class representing a circuit node, and handled by `Circuit`. The attribute
     `<Node>.branches` is a list of `Branch` objects containing all branches connected to
     the node.
 
@@ -75,11 +74,11 @@ class Node:
         return "Node({})".format(self.index)
 
     def connected_nodes(self, branch_type: str) -> List["Node"]:
-        """
-        Returns a list of all nodes directly connected by branches to the current
+        """Returns a list of all nodes directly connected by branches to the current
         node, either considering all branches or a specified `branch_type`:
-        "C", "L", "JJ", "all" for capacitive, inductive, Josephson junction,
-        or all types of branches.
+
+        "C", "L", "JJ", "all" for capacitive, inductive, Josephson junction, or all
+        types of branches.
         """
         result = []
         if branch_type == "all":
@@ -96,8 +95,9 @@ class Node:
         return result
 
     def is_ground(self) -> bool:
-        """
-        Returns a bool if the node is a ground node. It is ground if the id is set to 0.
+        """Returns a bool if the node is a ground node.
+
+        It is ground if the id is set to 0.
         """
         return True if self.index == 0 else False
 
@@ -111,8 +111,7 @@ class Node:
 
 
 class Branch:
-    """
-    Class describing a circuit branch, used in the Circuit class.
+    """Class describing a circuit branch, used in the Circuit class.
 
     Parameters
     ----------
@@ -187,15 +186,15 @@ class Branch:
         return self.nodes[0].index, self.nodes[1].index
 
     def is_connected(self, branch) -> bool:
-        """Returns a boolean indicating whether the current branch is
-        connected to the given `branch`"""
+        """Returns a boolean indicating whether the current branch is connected to the
+        given `branch`"""
         distinct_node_count = len(set(self.nodes + branch.nodes))
         if distinct_node_count < 4:
             return True
         return False
 
     def common_node(self, branch) -> Set[Node]:
-        """Returns the common nodes between self and the `branch` given as input"""
+        """Returns the common nodes between self and the `branch` given as input."""
         return set(self.nodes) & set(branch.nodes)
 
     def __deepcopy__(self, memo):
@@ -208,8 +207,8 @@ class Branch:
 
 
 class Coupler:
-    """
-    Coupler class is used to define elements which couple two existing branches in the Circuit class.
+    """Coupler class is used to define elements which couple two existing branches in
+    the Circuit class.
 
     Parameters
     ----------
@@ -350,8 +349,7 @@ def make_branch(
 
 
 class SymbolicCircuit(serializers.Serializable):
-    r"""
-    Describes a circuit consisting of nodes and branches.
+    r"""Describes a circuit consisting of nodes and branches.
 
     Examples
     --------
@@ -360,8 +358,8 @@ class SymbolicCircuit(serializers.Serializable):
         # file_name: transmon_num.inp
         nodes: 2
         branches:
-        C	1,2	1
-        JJ	1,2	1	10
+        C       1,2     1
+        JJ      1,2     1       10
         ```
 
     The `Circuit` object can be initiated using:
@@ -456,8 +454,7 @@ class SymbolicCircuit(serializers.Serializable):
             return u @ metric @ v
 
         def projection(u, v, metric):
-            """
-            Projection of u on v
+            """Projection of u on v.
 
             Parameters
             ----------
@@ -556,8 +553,7 @@ class SymbolicCircuit(serializers.Serializable):
         closure_branches: Optional[List[Union[Branch, Dict[Branch, float]]]] = None,
         use_dynamic_flux_grouping: Optional[bool] = None,
     ):
-        """
-        Method to initialize the CustomQCircuit instance and initialize all the
+        """Method to initialize the CustomQCircuit instance and initialize all the
         attributes needed before it can be passed on to AnalyzeQCircuit.
 
         Parameters
@@ -659,11 +655,9 @@ class SymbolicCircuit(serializers.Serializable):
         )
 
     def _replace_energies_with_capacitances_L(self):
-        """
-        Method replaces the energies in the Lagrangian with capacitances which are
+        """Method replaces the energies in the Lagrangian with capacitances which are
         arbitrarily generated to make sure that the Lagrangian looks dimensionally
-        correct.
-        """
+        correct."""
         # Replacing energies with capacitances if any branch parameters are symbolic
         L = self._lagrangian_symbolic.expand()
         L_old = self.lagrangian_node_vars
@@ -698,8 +692,7 @@ class SymbolicCircuit(serializers.Serializable):
     def are_branchsets_disconnected(
         branch_list1: List[Branch], branch_list2: List[Branch]
     ) -> bool:
-        """
-        Determines whether two sets of branches are disconnected.
+        """Determines whether two sets of branches are disconnected.
 
         Parameters
         ----------
@@ -855,8 +848,7 @@ class SymbolicCircuit(serializers.Serializable):
         single_nodes: bool = True,
         basisvec_entries: Optional[List[int]] = None,
     ):
-        """
-        Returns the vectors which span a subspace where there is no generalized flux
+        """Returns the vectors which span a subspace where there is no generalized flux
         difference across the branches present in the branch_subset.
 
         Parameters
@@ -982,9 +974,8 @@ class SymbolicCircuit(serializers.Serializable):
 
     @staticmethod
     def _mode_in_subspace(mode, subspace) -> bool:
-        """
-        Method to check if the vector mode is a part of the subspace provided as a set
-        of vectors
+        """Method to check if the vector mode is a part of the subspace provided as a
+        set of vectors.
 
         Parameters
         ----------
@@ -1002,9 +993,8 @@ class SymbolicCircuit(serializers.Serializable):
     def check_transformation_matrix(
         self, transformation_matrix: ndarray, enable_warnings: bool = True
     ) -> Dict[str, list]:
-        """
-        Method to identify the different modes in the transformation matrix provided by
-        the user.
+        """Method to identify the different modes in the transformation matrix provided
+        by the user.
 
         Parameters
         ----------
@@ -1150,8 +1140,7 @@ class SymbolicCircuit(serializers.Serializable):
         return var_categories_user
 
     def variable_transformation_matrix(self) -> Tuple[ndarray, Dict[str, List[int]]]:
-        """
-        Evaluates the boundary conditions and constructs the variable transformation
+        """Evaluates the boundary conditions and constructs the variable transformation
         matrix, which is returned along with the dictionary `var_categories` which
         classifies the types of variables present in the circuit.
 
@@ -1299,9 +1288,7 @@ class SymbolicCircuit(serializers.Serializable):
         return np.array(new_basis), var_categories
 
     def update_param_init_val(self, param_name, value):
-        """
-        Updates the param init val for param_name
-        """
+        """Updates the param init val for param_name."""
         for index, param in enumerate(list(self.symbolic_params.keys())):
             if param_name == param.name:
                 self.symbolic_params[param] = value
@@ -1356,7 +1343,7 @@ class SymbolicCircuit(serializers.Serializable):
         return terms
 
     def _JJs_terms(self):
-        """To add terms for the sawtooth josephson junction"""
+        """To add terms for the sawtooth josephson junction."""
         terms = 0
         # looping over all the junction terms
         junction_branches = [branch for branch in self.branches if "JJs" in branch.type]
@@ -1391,8 +1378,7 @@ class SymbolicCircuit(serializers.Serializable):
         return terms
 
     def _inductance_inverse_matrix(self, substitute_params: bool = False):
-        """
-        Generate a inductance matrix for the circuit
+        """Generate a inductance matrix for the circuit.
 
         Parameters
         ----------
@@ -1446,8 +1432,7 @@ class SymbolicCircuit(serializers.Serializable):
         return L_mat
 
     def _capacitance_matrix(self, substitute_params: bool = False):
-        """
-        Generate a capacitance matrix for the circuit
+        """Generate a capacitance matrix for the circuit.
 
         Parameters
         ----------
@@ -1556,8 +1541,8 @@ class SymbolicCircuit(serializers.Serializable):
     def _inductance_matrix_branch_vars(
         self, substitute_params: bool = False, return_inverse: bool = False
     ):
-        """
-        Generate a inductance matrix for the circuit, including the mutual inductances
+        """Generate a inductance matrix for the circuit, including the mutual
+        inductances.
 
         Returns
         -------
@@ -1598,9 +1583,7 @@ class SymbolicCircuit(serializers.Serializable):
         return L_mat
 
     def _generate_branch_flux_allocations(self):
-        """
-        Returns an array of the flux allocation for each branch in the circuit
-        """
+        """Returns an array of the flux allocation for each branch in the circuit."""
         if self.use_dynamic_flux_grouping:
             return self._time_dependent_flux_distribution()
 
@@ -1620,9 +1603,7 @@ class SymbolicCircuit(serializers.Serializable):
         return np.dot(flux_allocation_array, self.external_fluxes)
 
     def _inductor_terms(self, substitute_params: bool = False):
-        """
-        Returns terms corresponding to purely inductive branches in the circuit
-        """
+        """Returns terms corresponding to purely inductive branches in the circuit."""
         inverse_inductance_mat = self._inductance_matrix_branch_vars(
             substitute_params, return_inverse=True
         )
@@ -1655,10 +1636,10 @@ class SymbolicCircuit(serializers.Serializable):
         return terms
 
     def _spanning_tree(self, consider_capacitive_loops: bool = False):
-        r"""
-        Returns a spanning tree (as a list of branches) for the given instance. Notice that
-        if the circuit contains multiple capacitive islands, the returned spanning tree will
-        not include the capacitive twig between two capacitive islands.
+        r"""Returns a spanning tree (as a list of branches) for the given instance.
+        Notice that if the circuit contains multiple capacitive islands, the returned
+        spanning tree will not include the capacitive twig between two capacitive
+        islands.
 
         This function also returns all the branches that form superconducting loops, and a
         list of lists of nodes (node_sets), which keeps the generation info for nodes, e.g.,
@@ -1888,9 +1869,7 @@ class SymbolicCircuit(serializers.Serializable):
         }
 
     def _closure_branches(self, spanning_tree_dict=None):
-        r"""
-        Returns and stores the closure branches in the circuit.
-        """
+        r"""Returns and stores the closure branches in the circuit."""
         return flatten_list_recursive(
             (spanning_tree_dict or self.spanning_tree_dict)[
                 "closure_branches_for_trees"
@@ -1959,8 +1938,7 @@ class SymbolicCircuit(serializers.Serializable):
     def _find_path_to_root(
         self, node: Node, spanning_tree_dict=None
     ) -> Tuple[int, List["Node"], List["Branch"]]:
-        r"""
-        Returns all the nodes and branches in the spanning tree path between the
+        r"""Returns all the nodes and branches in the spanning tree path between the
         input node and the root of the spanning tree. Also returns the distance
         (generation) between the input node and the root node. The root of the spanning
         tree is node 0 if there is a physical ground node, otherwise it is node 1.
@@ -2033,8 +2011,7 @@ class SymbolicCircuit(serializers.Serializable):
     def _find_loop(
         self, closure_branch: Branch, spanning_tree_dict=None
     ) -> List["Branch"]:
-        r"""
-        Find out the loop that is closed by the closure branch
+        r"""Find out the loop that is closed by the closure branch.
 
         Parameters
         ----------
@@ -2116,8 +2093,7 @@ class SymbolicCircuit(serializers.Serializable):
         return_charge: bool = False,
         substitute_params: bool = True,
     ):
-        """
-        Returns the voltage across the branch in terms of the charge operators
+        """Returns the voltage across the branch in terms of the charge operators.
 
         Args:
             branch (Branch): A branch of the instance
@@ -2315,8 +2291,7 @@ class SymbolicCircuit(serializers.Serializable):
     def generate_symbolic_hamiltonian(
         self, substitute_params=False, reevaluate_lagrangian: bool = False
     ) -> sympy.Expr:
-        r"""
-        Returns the Hamiltonian of the circuit in terms of the new variables
+        r"""Returns the Hamiltonian of the circuit in terms of the new variables
         :math:`\theta_i`.
 
         Parameters

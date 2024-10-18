@@ -46,7 +46,7 @@ _t1_default_warning_given_flag = False
 def calc_therm_ratio(
     omega: float, T: float, omega_in_standard_units: bool = False
 ) -> float:
-    r"""Returns the ratio
+    r"""Returns the ratio.
 
     :math:`\beta \omega = \frac{\hbar \omega}{k_B T}`
 
@@ -70,8 +70,7 @@ def calc_therm_ratio(
 
 
 def convert_eV_to_Hz(val: float) -> float:
-    r"""
-    Convert a value in electron volts to Hz.
+    r"""Convert a value in electron volts to Hz.
 
     Parameters
     ----------
@@ -119,9 +118,8 @@ class NoisySystem(ABC):
 
     @classmethod
     def effective_noise_channels(cls) -> List[str]:
-        """Return a list of noise channels that are used when calculating the
-        effective noise (i.e. via `t1_effective` and `t2_effective`.
-        """
+        """Return a list of noise channels that are used when calculating the effective
+        noise (i.e. via `t1_effective` and `t2_effective`."""
         return cls.supported_noise_channels()
 
     @mpl.rc_context(matplotlib_settings)
@@ -136,8 +134,7 @@ class NoisySystem(ABC):
         num_cpus: Optional[int] = None,
         **kwargs
     ) -> Tuple[Figure, Union[Axes, ndarray]]:
-        r"""
-        Show plots of coherence for various channels supported by the qubit as they
+        r"""Show plots of coherence for various channels supported by the qubit as they
         vary as a function of a changing parameter.
 
         For example, assuming `qubit` is a qubit object with `flux` being one of its
@@ -171,7 +168,6 @@ class NoisySystem(ABC):
         Returns
         -------
         Figure, Axes
-
         """
         num_cpus = num_cpus or settings.NUM_CPUS
         common_noise_options = (
@@ -350,9 +346,8 @@ class NoisySystem(ABC):
         num_cpus: Optional[int] = None,
         **kwargs
     ) -> Tuple[Figure, Axes]:
-        r"""
-        Plot effective :math:`T_1` coherence time (rate) as a function of
-        changing parameter.
+        r"""Plot effective :math:`T_1` coherence time (rate) as a function of changing
+        parameter.
 
         The effective :math:`T_1` is calculated by considering a variety of
         depolarizing noise channels, according to the formula:
@@ -395,7 +390,6 @@ class NoisySystem(ABC):
         Returns
         -------
         Figure, Axes
-
         """
         num_cpus = num_cpus or settings.NUM_CPUS
         common_noise_options = (
@@ -505,8 +499,7 @@ class NoisySystem(ABC):
         num_cpus: Optional[int] = None,
         **kwargs
     ) -> Tuple[Figure, Axes]:
-        r"""
-        Plot effective :math:`T_2` coherence time (rate) as a function of changing
+        r"""Plot effective :math:`T_2` coherence time (rate) as a function of changing
         parameter.
 
         The effective :math:`T_2` is calculated from both pure dephasing channels,
@@ -552,7 +545,6 @@ class NoisySystem(ABC):
         Returns
         -------
         Figure, Axes
-
         """
         num_cpus = num_cpus or settings.NUM_CPUS
         common_noise_options = (
@@ -648,8 +640,7 @@ class NoisySystem(ABC):
         esys: Tuple[ndarray, ndarray],
         noise_type: str,
     ) -> float:
-        """
-        Helper method used when calculating the effective rates by methods
+        """Helper method used when calculating the effective rates by methods
         `t1_effective` and `t2_effective`.
 
         Parameters
@@ -733,8 +724,7 @@ class NoisySystem(ABC):
         get_rate: bool = False,
         **kwargs
     ) -> float:
-        r"""
-        Calculate the effective :math:`T_1` time (or rate).
+        r"""Calculate the effective :math:`T_1` time (or rate).
 
         The effective :math:`T_1` is calculated by considering a variety of
         depolarizing noise channels, according to the formula:
@@ -770,8 +760,6 @@ class NoisySystem(ABC):
         -------
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
              in inverse units.
-
-
         """
         common_noise_options = (
             {} if common_noise_options is None else common_noise_options
@@ -837,8 +825,7 @@ class NoisySystem(ABC):
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
     ) -> float:
-        r"""
-        Calculate the effective :math:`T_2` time (or rate).
+        r"""Calculate the effective :math:`T_2` time (or rate).
 
         The effective :math:`T_2` is calculated by considering a variety of pure
         dephasing and depolarizing noise channels, according to the formula:
@@ -875,7 +862,6 @@ class NoisySystem(ABC):
         time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or
             rate in inverse units.
-
         """
         common_noise_options = (
             {} if common_noise_options is None else common_noise_options
@@ -928,9 +914,8 @@ class NoisySystem(ABC):
         esys,
         hamiltonian_derivative,
     ):
-        """
-        Returns the first order and second order derivative of the nth eigenenergy
-        """
+        """Returns the first order and second order derivative of the nth
+        eigenenergy."""
         eigs, evecs = esys
         hamiltonian_derivative = (
             [hamiltonian_derivative]
@@ -954,8 +939,7 @@ class NoisySystem(ABC):
         get_rate: bool = False,
         **kwargs
     ) -> float:
-        r"""
-        Calculate the 1/f dephasing time (or rate) due to  arbitrary noise source.
+        r"""Calculate the 1/f dephasing time (or rate) due to  arbitrary noise source.
 
         We assume that the qubit energies (or the passed in eigenspectrum) has units
         of frequency (and *not* angular frequency).
@@ -980,8 +964,6 @@ class NoisySystem(ABC):
         time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`,
             or rate in inverse units.
-
-
         """
         # Sanity check
         if i == j or i < 0 or j < 0:
@@ -1038,8 +1020,7 @@ class NoisySystem(ABC):
         get_rate: bool = False,
         **kwargs
     ) -> float:
-        r"""
-        Calculate the 1/f dephasing time (or rate) due to flux noise.
+        r"""Calculate the 1/f dephasing time (or rate) due to flux noise.
 
         Parameters
         ----------
@@ -1086,8 +1067,7 @@ class NoisySystem(ABC):
         get_rate: bool = False,
         **kwargs
     ) -> float:
-        r"""
-        Calculate the 1/f dephasing time (or rate) due to critical current noise.
+        r"""Calculate the 1/f dephasing time (or rate) due to critical current noise.
 
         Parameters
         ----------
@@ -1107,7 +1087,6 @@ class NoisySystem(ABC):
         time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or
             rate in inverse units.
-
         """
 
         if "tphi_1_over_f_cc" not in self.supported_noise_channels():
@@ -1135,8 +1114,7 @@ class NoisySystem(ABC):
         get_rate: bool = False,
         **kwargs
     ) -> float:
-        r"""
-        Calculate the 1/f dephasing time (or rate) due to charge noise.
+        r"""Calculate the 1/f dephasing time (or rate) due to charge noise.
 
         Parameters
         ----------
@@ -1185,8 +1163,7 @@ class NoisySystem(ABC):
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
     ) -> float:
-        r"""
-        Calculate the transition time (or rate) using Fermi's Golden Rule due to a
+        r"""Calculate the transition time (or rate) using Fermi's Golden Rule due to a
         noise channel with a spectral density `spectral_density` and system noise
         operator `noise_op`. Mathematically, it reads:
 
@@ -1228,7 +1205,6 @@ class NoisySystem(ABC):
         time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
             in inverse units.
-
         """
 
         if settings.T1_DEFAULT_WARNING:
@@ -1290,8 +1266,7 @@ class NoisySystem(ABC):
         noise_op: Optional[Union[ndarray, csc_matrix, qt.Qobj]] = None,
         branch_params: Optional[dict] = None,
     ) -> float:
-        r"""
-        :math:`T_1` due to dielectric dissipation in the Josephson junction
+        r""":math:`T_1` due to dielectric dissipation in the Josephson junction
         capacitances.
 
         References: Smith et al (2020), see also Nguyen et al (2019).
@@ -1319,7 +1294,6 @@ class NoisySystem(ABC):
         time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
              in inverse units.
-
         """
         if "t1_capacitive" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -1504,9 +1478,7 @@ class NoisySystem(ABC):
         Z_fun = Z if callable(Z) else lambda omega: Z
 
         def spectral_density(omega, T, Z=Z):
-            """
-            Our definitions assume that the noise_op is dH/dflux.
-            """
+            """Our definitions assume that the noise_op is dH/dflux."""
             therm_ratio = calc_therm_ratio(omega, T)
             s = (
                 2
@@ -1550,8 +1522,7 @@ class NoisySystem(ABC):
         noise_op: Optional[Union[ndarray, csc_matrix, qt.Qobj]] = None,
         branch_params: Optional[dict] = None,
     ) -> float:
-        r"""
-        :math:`T_1` due to inductive dissipation in a superinductor.
+        r""":math:`T_1` due to inductive dissipation in a superinductor.
 
         References: Smith et al (2020), see also Nguyen et al (2019).
 
@@ -1700,8 +1671,9 @@ class NoisySystem(ABC):
         if Y_qp is None:
 
             def y_qp_fun(omega, T):
-                """
-                Based on Eq. S23 in the appendix of Smith et al (2020).
+                """Based on Eq.
+
+                S23 in the appendix of Smith et al (2020).
                 """
                 # Note that y_qp_fun is always symmetric in omega, i.e. In Smith et al 2020,
                 # we essentially have something proportional to sinh(omega)/omega
@@ -1739,7 +1711,10 @@ class NoisySystem(ABC):
                 return Y_qp
 
         def spectral_density(omega, T):
-            """Based on Eq. 19 in Smith et al (2020)."""
+            """Based on Eq.
+
+            19 in Smith et al (2020).
+            """
             therm_ratio = calc_therm_ratio(omega, T)
 
             return (

@@ -48,9 +48,7 @@ class TestCircuit:
 
     @staticmethod
     def test_zero_pi_discretized():
-        """
-        Test for symmetric zero-pi in discretized phi basis.
-        """
+        """Test for symmetric zero-pi in discretized phi basis."""
         zp_yaml = """# zero-pi circuit
         branches:
         - ["JJ", 1, 2, 10, 20]
@@ -86,9 +84,7 @@ class TestCircuit:
 
     @staticmethod
     def test_circuit_with_symbolic_hamiltonian():
-        """
-        Test for initiating Circuit module with symbolic Hamiltonian.
-        """
+        """Test for initiating Circuit module with symbolic Hamiltonian."""
         import sympy as sm
 
         sym_hamiltonian = sm.parse_expr(
@@ -292,38 +288,54 @@ class TestCircuit:
         - [L, 1, 2, 1.3]
         - [C, 1, 2, 2]
         """
-        circ = scq.Circuit(inp_yaml, from_file=False, use_dynamic_flux_grouping=True, ext_basis="discretized")
+        circ = scq.Circuit(
+            inp_yaml,
+            from_file=False,
+            use_dynamic_flux_grouping=True,
+            ext_basis="discretized",
+        )
         circ.cutoff_ext_1 = 100
         circ.Φ1 = 0.5
 
         # defining Hierarchical diagonalization to limit to the lowest two states
         circ.configure(system_hierarchy=[[1]], subsystem_trunc_dims=[10])
 
-        # Define time dependent functions for the parameters 
+        # Define time dependent functions for the parameters
         def flux(t, args):
-                freq = args["freq"]
-                return 0.001*np.sin(2*np.pi*freq*t) + 0.5
+            freq = args["freq"]
+            return 0.001 * np.sin(2 * np.pi * freq * t) + 0.5
+
         # to charge drive the fluxonium, we need an extra parameter ng1. This can be added using extra_terms
         def charge(t, args):
             freq = args["freq"]
-            return 0.02*np.sin(2*np.pi*freq*t + np.pi/2)
+            return 0.02 * np.sin(2 * np.pi * freq * t + np.pi / 2)
 
         # Generating necessary operators and time dependent coefficients
-        H_mesolve, *H_sym_ref = circ.hamiltonian_for_qutip_dynamics(free_var_func_dict={"Φ1": flux, "ng1": charge},
-                                                                    extra_terms="Q1*ng1", 
-                                                                    prefactor=np.pi*2)
+        H_mesolve, *H_sym_ref = circ.hamiltonian_for_qutip_dynamics(
+            free_var_func_dict={"Φ1": flux, "ng1": charge},
+            extra_terms="Q1*ng1",
+            prefactor=np.pi * 2,
+        )
         # H_mesolve can be used to evolve the system using qutip functions like mesolve
 
         # ground state as initial state
         eigs, evecs = circ.eigensys(evals_count=5)
-        wf0 = qt.Qobj(evecs[:, 0]) 
+        wf0 = qt.Qobj(evecs[:, 0])
 
-        initial_state_proj = wf0 * wf0.dag() # to see the overlap
-        tf = 100 # final time in nanoseconds
-        freq = eigs[1] - eigs[0] # transition frequency between the first two states
+        initial_state_proj = wf0 * wf0.dag()  # to see the overlap
+        tf = 100  # final time in nanoseconds
+        freq = eigs[1] - eigs[0]  # transition frequency between the first two states
 
         # time evolve the system
-        result = qt.mesolve(H_mesolve, wf0, np.linspace(0, tf, 500), args={"freq": freq}, e_ops=[initial_state_proj])
+        result = qt.mesolve(
+            H_mesolve,
+            wf0,
+            np.linspace(0, tf, 500),
+            args={"freq": freq},
+            e_ops=[initial_state_proj],
+        )
         expectation_vals = result.expect[0]
         ref_expectation_vals = read(DATADIR + "/circuit_qutip_evolution_data.hdf5")
-        assert np.allclose(expectation_vals, np.array(ref_expectation_vals, dtype=float))
+        assert np.allclose(
+            expectation_vals, np.array(ref_expectation_vals, dtype=float)
+        )

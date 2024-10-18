@@ -91,8 +91,7 @@ def idx_for_value(value: Union[int, float, complex], param_vals: ndarray) -> int
 def convert_to_std_npindex(
     index_tuple: ExtIndexTuple, parameters: "Parameters"
 ) -> NpIndexTuple:
-    """
-    converts name-based and value-based indexing to standard numpy indexing
+    """Converts name-based and value-based indexing to standard numpy indexing.
 
     Parameters
     ----------
@@ -116,8 +115,7 @@ def convert_to_std_npindex(
 def process_ellipsis(
     array: Union["Parameters", np.ndarray], multi_idx: NpIndexTuple
 ) -> NpIndexTupleNoEllipsis:
-    """
-    Removes `...` from the multi-index by explicit slicing.
+    """Removes `...` from the multi-index by explicit slicing.
 
     Parameters
     ----------
@@ -149,8 +147,10 @@ def process_ellipsis(
 
 
 class ExtIndexObject:
-    """Object used for enabling enhanced indexing in NamedSlotsNdarray. Handles a
-    single idx_entry in multi-index"""
+    """Object used for enabling enhanced indexing in NamedSlotsNdarray.
+
+    Handles a single idx_entry in multi-index
+    """
 
     def __init__(
         self, idx_entry: ExtIndex, parameters: "Parameters", slot: Optional[int] = None
@@ -162,8 +162,8 @@ class ExtIndexObject:
         self.type, self.std_idx_entry = self.convert_to_np_idx_entry(idx_entry)
 
     def convert_to_np_slice_entry(self, slice_entry: ExtSliceEntry) -> NpSliceEntry:
-        """Handles value-based slices, converting a float or complex value based
-        entry into the corresponding position-based entry"""
+        """Handles value-based slices, converting a float or complex value based entry
+        into the corresponding position-based entry."""
         if isinstance(slice_entry, (int, np.integer)):
             return slice_entry
         if slice_entry is None:
@@ -178,7 +178,7 @@ class ExtIndexObject:
 
     def convert_to_np_idx_entry(self, idx_entry: ExtIndex) -> Tuple[str, NpIndex]:
         """Convert a generalized multi-index entry into a valid numpy multi-index entry,
-        and returns that along with a str recording the idx_entry type"""
+        and returns that along with a str recording the idx_entry type."""
         if isinstance(idx_entry, (int, np.integer)):
             return "int", idx_entry
 
@@ -333,7 +333,7 @@ class Parameters:
     @property
     def counts_by_name(self) -> Dict[str, int]:
         """Returns a dictionary specifying for each parameter name the number of
-        parameter values"""
+        parameter values."""
         return {
             name: len(self.paramvals_by_name[name])
             for name in self.paramvals_by_name.keys()
@@ -342,17 +342,17 @@ class Parameters:
     @property
     def ranges(self) -> List[Iterable]:
         """Return a list of range objects suitable for looping over each parameter
-        set"""
+        set."""
         return [range(count) for count in self.counts]
 
     @property
     def paramvals_list(self) -> List[ndarray]:
-        """Return list of all parameter values sets"""
+        """Return list of all parameter values sets."""
         return [self.paramvals_by_name[name] for name in self.paramnames_list]
 
     @property
     def counts(self) -> Tuple[int, ...]:
-        """Returns list of the number of parameter values for each parameter set"""
+        """Returns list of the number of parameter values for each parameter set."""
         return tuple(len(paramvals) for paramvals in self)
 
     def create_reduced(
@@ -360,9 +360,8 @@ class Parameters:
         fixed_parametername_list: List[str],
         fixed_values: Optional[List[float]] = None,
     ) -> "Parameters":
-        """
-        Creates and returns a reduced Parameters object reflecting the fixing of a
-        subset of parameters
+        """Creates and returns a reduced Parameters object reflecting the fixing of a
+        subset of parameters.
 
         Parameters
         ----------
@@ -393,8 +392,7 @@ class Parameters:
     def create_sliced(
         self, np_indices: NpIndices, remove_fixed: bool = True
     ) -> "Parameters":
-        """
-        Create and return a sliced Parameters object according to numpy slicing
+        """Create and return a sliced Parameters object according to numpy slicing
         information.
 
         Parameters
@@ -568,10 +566,8 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
 
     @classmethod
     def deserialize(cls, io_data: IOData) -> "NamedSlotsNdarray":
-        """
-        Take the given IOData and return an instance of the described class, initialized
-        with the data stored in io_data.
-        """
+        """Take the given IOData and return an instance of the described class,
+        initialized with the data stored in io_data."""
         if "input_array" in io_data.ndarrays:
             input_array = io_data.ndarrays["input_array"]
         else:
@@ -583,9 +579,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         return NamedSlotsNdarray(input_array, values_by_name)
 
     def serialize(self) -> IOData:
-        """
-        Convert the content of the current class instance into IOData format.
-        """
+        """Convert the content of the current class instance into IOData format."""
         import scqubits.io_utils.fileio as io
 
         typename = "NamedSlotsNdarray"

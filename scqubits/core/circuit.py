@@ -58,9 +58,8 @@ class Subsystem(
     dispatch.DispatchClient,
     NoisyCircuit,
 ):
-    """
-    Defines a subsystem for a circuit, which can further be used recursively to define
-    subsystems within subsystem.
+    """Defines a subsystem for a circuit, which can further be used recursively to
+    define subsystems within subsystem.
 
     Parameters
     ----------
@@ -182,10 +181,10 @@ class Subsystem(
         self._frozen = True
 
     def _find_and_set_sym_attrs(self):
-        """
-        Finds the symbolic and other circuit params from the symbolic Hamiltonian, and sets the attribs
-        external_fluxes, offset_charges and symbolic_params. Only works when _frozen is set to False, or
-        the above attribs are already set.
+        """Finds the symbolic and other circuit params from the symbolic Hamiltonian,
+        and sets the attribs external_fluxes, offset_charges and symbolic_params.
+
+        Only works when _frozen is set to False, or the above attribs are already set.
         """
         self.external_fluxes = [
             var
@@ -209,9 +208,7 @@ class Subsystem(
         }
 
     def _configure(self) -> None:
-        """
-        Function which is used to initiate the subsystem instance.
-        """
+        """Function which is used to initiate the subsystem instance."""
         self._frozen = False
         for idx, param in enumerate(self.symbolic_params):
             self._make_property(
@@ -286,8 +283,7 @@ class Circuit(
     dispatch.DispatchClient,
     NoisyCircuit,
 ):
-    """
-    Class for analysis of custom superconducting circuits.
+    """Class for analysis of custom superconducting circuits.
 
     Parameters
     ----------
@@ -436,9 +432,8 @@ class Circuit(
         initiate_sym_calc: bool = True,
         truncated_dim: int = None,
     ):
-        """
-        Wrapper to Circuit __init__ to create a class instance. This is deprecated and
-        will not be supported in future releases.
+        """Wrapper to Circuit __init__ to create a class instance. This is deprecated
+        and will not be supported in future releases.
 
         Parameters
         ----------
@@ -565,9 +560,7 @@ class Circuit(
         return {}
 
     def _clear_unnecessary_attribs(self):
-        """
-        Clear all the attributes which are not part of the circuit description
-        """
+        """Clear all the attributes which are not part of the circuit description."""
         necessary_attrib_names = (
             self.cutoff_names
             + [flux_symbol.name for flux_symbol in self.external_fluxes]
@@ -599,8 +592,7 @@ class Circuit(
         generate_noise_methods: bool = False,
         subsys_dict: Optional[Dict[str, Any]] = None,
     ):
-        """
-        Method which re-initializes a circuit instance to update, hierarchical
+        """Method which re-initializes a circuit instance to update, hierarchical
         diagonalization parameters or closure branches or the variable transformation
         used to describe the circuit.
 
@@ -739,8 +731,7 @@ class Circuit(
         subsys_dict: Optional[Dict[str, Any]] = None,
         ext_basis: Optional[str] = None,
     ):
-        """
-        Method which re-initializes a circuit instance to update, hierarchical
+        """Method which re-initializes a circuit instance to update, hierarchical
         diagonalization parameters or closure branches or the variable transformation
         used to describe the circuit.
 
@@ -898,8 +889,7 @@ class Circuit(
         subsys_dict: Optional[Dict[str, Any]] = None,
         generate_noise_methods: bool = False,
     ):
-        """
-        Method which re-initializes a circuit instance to update, hierarchical
+        """Method which re-initializes a circuit instance to update, hierarchical
         diagonalization parameters or closure branches or the variable transformation
         used to describe the circuit.
 
@@ -1097,7 +1087,7 @@ class Circuit(
         self.update()
 
     def supported_noise_channels(self) -> List[str]:
-        """Return a list of supported noise channels"""
+        """Return a list of supported noise channels."""
         if not hasattr(self, "_noise_methods_generated"):
             raise Exception(
                 "Noise methods are not generated, please use configure() with generate_noise_methods=True to generate them."
@@ -1120,9 +1110,7 @@ class Circuit(
         ]
 
     def variable_transformation(self, new_vars_to_node_vars=True) -> None:
-        """
-        Prints the variable transformation used in this circuit
-        """
+        """Prints the variable transformation used in this circuit."""
         trans_mat = self.transformation_matrix
         if new_vars_to_node_vars:
             trans_mat = np.linalg.inv(trans_mat)
@@ -1159,8 +1147,8 @@ class Circuit(
         print_latex: bool = False,
         return_expr: bool = False,
     ) -> Union[sm.Expr, None]:
-        """
-        Method that gives a user readable symbolic Lagrangian for the current instance
+        """Method that gives a user readable symbolic Lagrangian for the current
+        instance.
 
         Parameters
         ----------
@@ -1241,9 +1229,8 @@ class Circuit(
             print(lagrangian)
 
     def sym_external_fluxes(self) -> Dict[sm.Expr, Tuple["Branch", List["Branch"]]]:
-        """
-        Method returns a dictionary of Human readable external fluxes with associated
-        branches and loops (represented as lists of branches) for the current instance
+        """Method returns a dictionary of Human readable external fluxes with associated
+        branches and loops (represented as lists of branches) for the current instance.
 
         Returns
         -------
@@ -1268,12 +1255,11 @@ class Circuit(
         }
 
     def oscillator_list(self, osc_index_list: List[int]):
-        """
-        If hierarchical diagonalization is used, specify subsystems that corresponds to
-        single-mode oscillators, if there is any. The attributes `_osc_subsys_list` and
-        `osc_subsys_list` of the `hilbert_space` attribute of the Circuit instance will
-        be assigned accordingly, enabling the correct identification of harmonic modes
-        for the dispersive regime analysis in ParameterSweep.
+        """If hierarchical diagonalization is used, specify subsystems that corresponds
+        to single-mode oscillators, if there is any. The attributes `_osc_subsys_list`
+        and `osc_subsys_list` of the `hilbert_space` attribute of the Circuit instance
+        will be assigned accordingly, enabling the correct identification of harmonic
+        modes for the dispersive regime analysis in ParameterSweep.
 
         Parameters
         ----------
@@ -1297,12 +1283,11 @@ class Circuit(
         self.hilbert_space._osc_subsys_list = osc_subsys_list
 
     def qubit_list(self, qbt_index_list: List[int]):
-        """
-        If hierarchical diagonalization is used, specify subsystems that corresponds to
-        single-mode oscillators, if there is any. The attributes `_osc_subsys_list` and
-        `osc_subsys_list` of the `hilbert_space` attribute of the Circuit instance will
-        be assigned accordingly, enabling the correct identification of harmonic modes
-        for the dispersive regime analysis in ParameterSweep.
+        """If hierarchical diagonalization is used, specify subsystems that corresponds
+        to single-mode oscillators, if there is any. The attributes `_osc_subsys_list`
+        and `osc_subsys_list` of the `hilbert_space` attribute of the Circuit instance
+        will be assigned accordingly, enabling the correct identification of harmonic
+        modes for the dispersive regime analysis in ParameterSweep.
 
         Parameters
         ----------
