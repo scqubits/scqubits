@@ -136,18 +136,14 @@ class CircuitRoutines(ABC):
                 return subsys.return_root_child(var_index)
 
     def return_parent_circuit(self):
-        """
-        Returns the parent Circuit instance.
-        """
+        """Returns the parent Circuit instance."""
         if not self.is_child:
             return self
         return self.parent.return_parent_circuit()
 
     @staticmethod
     def _is_expression_purely_harmonic(hamiltonian):
-        """
-        Method used to check if the hamiltonian is purely harmonic.
-        """
+        """Method used to check if the hamiltonian is purely harmonic."""
         # if the hamiltonian contains any cos or sin term, return False
         if (
             len(
@@ -183,9 +179,8 @@ class CircuitRoutines(ABC):
         return True
 
     def _diagonalize_purely_harmonic_hamiltonian(self, return_osc_dict: bool = False):
-        """
-        Method used to decouple harmonic oscillators in purely harmonic Hamiltonians.
-        """
+        """Method used to decouple harmonic oscillators in purely harmonic
+        Hamiltonians."""
         if not self.is_purely_harmonic:
             raise Exception("The Subsystem Hamiltonian is not purely harmonic.")
         num_oscs = len(self.var_categories["extended"])
@@ -267,9 +262,8 @@ class CircuitRoutines(ABC):
         transformation_matrix: ndarray,
         return_transformed_exprs: bool = False,
     ):
-        """
-        Transforms the hamiltonian to a set of new variables using the transformation matrix.
-        """
+        """Transforms the hamiltonian to a set of new variables using the
+        transformation matrix."""
         ext_var_indices = self.var_categories["extended"]
         num_vars = len(ext_var_indices)
         Q_vars = [sm.symbols(f"Q{var_idx}") for var_idx in ext_var_indices]
@@ -297,9 +291,8 @@ class CircuitRoutines(ABC):
         return hamiltonian
 
     def offset_charge_transformation(self) -> None:
-        """
-        Prints the variable transformation between offset charges of transformed variables and the node charges.
-        """
+        """Prints the variable transformation between offset charges of
+        transformed variables and the node charges."""
         if not hasattr(self, "symbolic_circuit"):
             raise Exception(
                 f"{self._id_str} instance is not generated from a SymbolicCircuit instance, and hence does not have any associated branches."
@@ -331,9 +324,8 @@ class CircuitRoutines(ABC):
             print(periodic_offset_charge_eqns)
 
     def __setattr__(self, name, value):
-        """
-        Modifying the __setattr__ method to prevent creation of new attributes using the _frozen attribute.
-        """
+        """Modifying the __setattr__ method to prevent creation of new
+        attributes using the _frozen attribute."""
         if self._frozen and name in self._read_only_attributes:
             raise Exception(
                 f"{name} is a read only attribute. Please use configure method to change this property of Circuit/Subsystem instance."
@@ -370,9 +362,8 @@ class CircuitRoutines(ABC):
         return {}
 
     def cutoffs_dict(self) -> Dict[int, int]:
-        """
-        Returns a dictionary, where each variable is associated with its respective
-        cutoff.
+        """Returns a dictionary, where each variable is associated with its
+        respective cutoff.
 
         Returns
         -------
@@ -389,8 +380,8 @@ class CircuitRoutines(ABC):
     def _set_property_and_update_param_vars(
         self, param_name: str, value: float
     ) -> None:
-        """
-        Setter method to set parameter variables which are instance properties.
+        """Setter method to set parameter variables which are instance
+        properties.
 
         Parameters
         ----------
@@ -462,9 +453,8 @@ class CircuitRoutines(ABC):
     def _set_property_and_update_ext_flux_or_charge(
         self, param_name: str, value: float
     ) -> None:
-        """
-        Setter method to set external flux or offset charge variables which are instance
-        properties.
+        """Setter method to set external flux or offset charge variables which
+        are instance properties.
 
         Parameters
         ----------
@@ -493,8 +483,7 @@ class CircuitRoutines(ABC):
                     setattr(subsys, param_name, value)
 
     def _set_property_and_update_cutoffs(self, param_name: str, value: int) -> None:
-        """
-        Setter method to set cutoffs which are instance properties.
+        """Setter method to set cutoffs which are instance properties.
 
         Parameters
         ----------
@@ -520,9 +509,7 @@ class CircuitRoutines(ABC):
     def _set_property_and_update_user_changed_parameter(
         self, param_name: str, value: str
     ) -> None:
-        """
-        Setter method for changing the attrubute _user_changed_parameter
-        """
+        """Setter method for changing the attrubute _user_changed_parameter."""
         setattr(self, f"_{param_name}", value)
         if self.hierarchical_diagonalization:
             for subsys in self.subsystems:
@@ -535,10 +522,9 @@ class CircuitRoutines(ABC):
         property_update_type: str,
         use_central_dispatch: bool = True,
     ) -> None:
-        """
-        Creates a class instance property with the name attrib_name which is initialized
-        to `init_val`. The setter is set depending on the string in the
-        `property_update_type`.
+        """Creates a class instance property with the name attrib_name which is
+        initialized to `init_val`. The setter is set depending on the string in
+        the `property_update_type`.
 
         Parameters
         ----------
@@ -607,8 +593,7 @@ class CircuitRoutines(ABC):
     def set_discretized_phi_range(
         self, var_indices: Tuple[int], phi_range: Tuple[float]
     ) -> None:
-        """
-        Sets the flux range for discretized phi basis or for plotting
+        """Sets the flux range for discretized phi basis or for plotting.
 
         Parameters
         ----------
@@ -662,9 +647,8 @@ class CircuitRoutines(ABC):
         return self
 
     def get_ext_basis(self):
-        """
-        Get the ext_basis object for the Circuit instance, according to the setting in self.hierarchical_diagonalization
-        """
+        """Get the ext_basis object for the Circuit instance, according to the
+        setting in self.hierarchical_diagonalization."""
         if not self.hierarchical_diagonalization:
             return self.ext_basis
         else:
@@ -674,9 +658,8 @@ class CircuitRoutines(ABC):
             return ext_basis
 
     def sync_parameters_with_parent(self):
-        """
-        Method syncs the parameters of the subsystem with the parent instance.
-        """
+        """Method syncs the parameters of the subsystem with the parent
+        instance."""
         for param_var in (
             self.external_fluxes
             + self.offset_charges
@@ -706,9 +689,8 @@ class CircuitRoutines(ABC):
                 subsys._out_of_sync = False
 
     def receive(self, event: str, sender: object, **kwargs) -> None:
-        """
-        Method to help the CentralDispatch keep track of the sync status in Circuit and SubSystem modules
-        """
+        """Method to help the CentralDispatch keep track of the sync status in
+        Circuit and SubSystem modules."""
         if sender is self:
             self.broadcast("QUANTUMSYSTEM_UPDATE")
             if self.hierarchical_diagonalization:
@@ -720,18 +702,15 @@ class CircuitRoutines(ABC):
             self.hilbert_space._out_of_sync = True
 
     def _store_updated_subsystem_index(self, index: int) -> None:
-        """
-        Stores the index of the subsystem which is modified in affected_subsystem_indices
-        """
+        """Stores the index of the subsystem which is modified in
+        affected_subsystem_indices."""
         if not self.hierarchical_diagonalization:
             raise Exception(f"The subsystem provided to {self} has no subsystems.")
         if index not in self.affected_subsystem_indices:
             self.affected_subsystem_indices.append(index)
 
     def fetch_symbolic_hamiltonian(self):
-        """
-        Method to fetch the symbolic hamiltonian of an instance.
-        """
+        """Method to fetch the symbolic hamiltonian of an instance."""
         if isinstance(self, circuit.Circuit):
             # when the Circuit instance is created from a symbolic Hamiltonian, or nothing is updated or changed
             if not hasattr(self, "symbolic_circuit") or not (
@@ -770,9 +749,8 @@ class CircuitRoutines(ABC):
             return hamiltonian_list[0]
 
     def update(self, calculate_bare_esys: bool = True):
-        """
-        Syncs all the parameters of the subsystems with the current instance.
-        """
+        """Syncs all the parameters of the subsystems with the current
+        instance."""
         self._frozen = False
         self._perform_internal_updates(calculate_bare_esys=calculate_bare_esys)
         self._set_sync_status_to_True()
@@ -849,9 +827,8 @@ class CircuitRoutines(ABC):
     def _constants_in_subsys(
         self, H_sys: sm.Expr, constants_list: List[sm.Expr]
     ) -> List[sm.Expr]:
-        """
-        Returns an expression of constants that belong to the subsystem with the
-        Hamiltonian H_sys
+        """Returns an expression of constants that belong to the subsystem with
+        the Hamiltonian H_sys.
 
         Parameters
         ----------
@@ -889,9 +866,8 @@ class CircuitRoutines(ABC):
         return constants
 
     def _check_truncation_indices(self):
-        """
-        Checks to see if the truncation indices for subsystems are not out of the range.
-        """
+        """Checks to see if the truncation indices for subsystems are not out
+        of the range."""
         if not self.hierarchical_diagonalization:
             return
 
@@ -979,10 +955,8 @@ class CircuitRoutines(ABC):
         only_update_subsystems: bool = False,
         subsys_dict: Optional[Dict[str, Any]] = None,
     ):
-        """
-        Generates the subsystems (child instances of Circuit) depending on the attribute
-        `self.system_hierarchy`
-        """
+        """Generates the subsystems (child instances of Circuit) depending on
+        the attribute `self.system_hierarchy`"""
         hamiltonian = self.hamiltonian_symbolic
         systems_sym = []
         interaction_sym = []
@@ -1077,9 +1051,7 @@ class CircuitRoutines(ABC):
             self.hilbert_space = HilbertSpace(self.subsystems)
 
     def get_eigenstates(self) -> ndarray:
-        """
-        Returns the eigenstates for the SubSystem instance
-        """
+        """Returns the eigenstates for the SubSystem instance."""
         if self.is_child:
             subsys_index = self.parent.hilbert_space.subsystem_list.index(self)
             return self.parent.hilbert_space["bare_evecs"][subsys_index][0]
@@ -1087,9 +1059,8 @@ class CircuitRoutines(ABC):
             return self.eigensys()[1]
 
     def get_subsystem_index(self, var_index: int) -> int:
-        """
-        Returns the subsystem index for the subsystem to which the given var_index
-        belongs.
+        """Returns the subsystem index for the subsystem to which the given
+        var_index belongs.
 
         Parameters
         ----------
@@ -1109,10 +1080,8 @@ class CircuitRoutines(ABC):
         )
 
     def update_interactions(self, recursive=False) -> None:
-        """
-        Update interactions of the HilbertSpace object for the `Circuit` instance if
-        `hierarchical_diagonalization` is set to true.
-        """
+        """Update interactions of the HilbertSpace object for the `Circuit`
+        instance if `hierarchical_diagonalization` is set to true."""
         self.hilbert_space.interaction_list = []
 
         # Adding interactions using the symbolic interaction term
@@ -1282,9 +1251,8 @@ class CircuitRoutines(ABC):
     def _generate_symbols_list(
         self, var_str: str, iterable_list: Union[List[int], ndarray]
     ) -> List[sm.Symbol]:
-        """
-        Returns the list of symbols generated using the var_str + iterable as the name
-        of the symbol.
+        """Returns the list of symbols generated using the var_str + iterable
+        as the name of the symbol.
 
         Parameters
         ----------
@@ -1296,10 +1264,9 @@ class CircuitRoutines(ABC):
         return [sm.symbols(var_str + str(iterable)) for iterable in iterable_list]
 
     def _set_vars(self):
-        """
-        Sets the attribute vars which is a dictionary containing all the Sympy Symbol
-        objects for all the operators present in the circuit with no HD
-        """
+        """Sets the attribute vars which is a dictionary containing all the
+        Sympy Symbol objects for all the operators present in the circuit with
+        no HD."""
         if not self.hierarchical_diagonalization:
             return self._set_vars_no_hd()
         vars = {"periodic": {}, "extended": {}, "identity": [sm.symbols("I")]}
@@ -1319,9 +1286,8 @@ class CircuitRoutines(ABC):
         self.vars = vars
 
     def _set_vars_no_hd(self):
-        """
-        Method to set the attribute vars when hierarchical diagonalization is not used.
-        """
+        """Method to set the attribute vars when hierarchical diagonalization
+        is not used."""
         # Defining the list of variables for periodic operators
         periodic_symbols_sin = _generate_symbols_list(
             "sinθ", self.var_categories["periodic"]
@@ -1458,10 +1424,12 @@ class CircuitRoutines(ABC):
         hamiltonian: Optional[sm.Expr] = None,
         return_exprs=False,
     ):
-        """
-        Generates a symbolic expression which is ready for numerical evaluation starting
-        from the expression stored in the attribute hamiltonian_symbolic. Stores the
-        result in the attribute _hamiltonian_sym_for_numerics.
+        """Generates a symbolic expression which is ready for numerical
+        evaluation starting from the expression stored in the attribute
+        hamiltonian_symbolic.
+
+        Stores the result in the attribute
+        _hamiltonian_sym_for_numerics.
         """
 
         hamiltonian = hamiltonian or (
@@ -1499,9 +1467,8 @@ class CircuitRoutines(ABC):
     # ############## Functions to construct the operators #############
     # #################################################################
     def get_cutoffs(self) -> Dict[str, list]:
-        """
-        Method to get the cutoffs for each of the circuit's degree of freedom.
-        """
+        """Method to get the cutoffs for each of the circuit's degree of
+        freedom."""
         cutoffs_dict: Dict[str, List[Any]] = {
             "cutoff_n": [],
             "cutoff_ext": [],
@@ -1533,9 +1500,7 @@ class CircuitRoutines(ABC):
                     yield self.subsystem_trunc_dims[idx]
 
     def hilbertdim(self):
-        """
-        Returns the Hilbert dimension of the Circuit instance
-        """
+        """Returns the Hilbert dimension of the Circuit instance."""
         cutoff_values = np.fromiter(self._collect_cutoff_values(), dtype=int)
         return np.prod(cutoff_values)
 
@@ -1543,9 +1508,8 @@ class CircuitRoutines(ABC):
     def _kron_operator(
         self, operator: Union[csc_matrix, ndarray], var_index: int
     ) -> Union[csc_matrix, ndarray]:
-        """
-        Identity wraps the operator with identities generated for all the other variable
-        indices present in the current Subsystem.
+        """Identity wraps the operator with identities generated for all the
+        other variable indices present in the current Subsystem.
 
         Parameters
         ----------
@@ -1601,9 +1565,8 @@ class CircuitRoutines(ABC):
     def _sparsity_adaptive(
         self, matrix: Union[csc_matrix, ndarray]
     ) -> Union[csc_matrix, ndarray]:
-        """
-        Changes the type of matrix depending on the attribute
-        type_of_matrices
+        """Changes the type of matrix depending on the attribute
+        type_of_matrices.
 
         Parameters
         ----------
@@ -1626,9 +1589,7 @@ class CircuitRoutines(ABC):
         return matrix
 
     def _identity_qobj(self):
-        """
-        Returns the Qobj of the identity matrix of the right dimensions
-        """
+        """Returns the Qobj of the identity matrix of the right dimensions."""
         if not self.hierarchical_diagonalization:
             return qt.identity(self.hilbertdim())
 
@@ -1637,9 +1598,8 @@ class CircuitRoutines(ABC):
         return qt.tensor([qt.identity(truncdim) for truncdim in subsys_trunc_dims])
 
     def _identity(self):
-        """
-        Returns the Identity operator for the entire Hilbert space of the circuit.
-        """
+        """Returns the Identity operator for the entire Hilbert space of the
+        circuit."""
         if (
             hasattr(self, "hierarchical_diagonalization")
             and self.hierarchical_diagonalization
@@ -1655,8 +1615,9 @@ class CircuitRoutines(ABC):
     def exp_i_operator(
         self, var_sym: sm.Symbol, prefactor: float
     ) -> Union[csc_matrix, ndarray]:
-        """
-        Returns the bare operator exp(i*\theta*prefactor), without the kron product.
+        """Returns the bare operator exp(i*\theta*prefactor), without the kron
+        product.
+
         Needs the oscillator lengths to be set in the attribute, `osc_lengths`,
         when `ext_basis` is set to "harmonic".
         """
@@ -1883,10 +1844,8 @@ class CircuitRoutines(ABC):
         return purely_harmonic_operator_func
 
     def _generate_operator_methods(self) -> Dict[str, Callable]:
-        """
-        Returns the set of operator functions to be turned into methods of the `Circuit`
-        class.
-        """
+        """Returns the set of operator functions to be turned into methods of
+        the `Circuit` class."""
         periodic_vars = self.vars["periodic"]
         extended_vars = self.vars["extended"]
 
@@ -1989,28 +1948,22 @@ class CircuitRoutines(ABC):
     # ############### Functions for parameter queries #################
     # #################################################################
     def get_params(self) -> List[float]:
-        """
-        Method to get the circuit parameters set for all the branches.
-        """
+        """Method to get the circuit parameters set for all the branches."""
         params = []
         for param in self.symbolic_params:
             params.append(getattr(self, param.name))
         return params
 
     def offset_free_charge_values(self) -> List[float]:
-        """
-        Returns all the offset charges set using the circuit attributes for each of the
-        periodic degree of freedom.
-        """
+        """Returns all the offset charges set using the circuit attributes for
+        each of the periodic degree of freedom."""
         return [
             getattr(self, charge_var.name)
             for charge_var in self.offset_charges + self.free_charges
         ]
 
     def set_operators(self) -> Dict[str, Callable]:
-        """
-        Creates the operator methods `<name>_operator` for the circuit.
-        """
+        """Creates the operator methods `<name>_operator` for the circuit."""
 
         if self.hierarchical_diagonalization:
             for subsys in self.subsystems:
@@ -2023,9 +1976,8 @@ class CircuitRoutines(ABC):
         return {func_name: getattr(self, func_name) for func_name in op_func_by_name}
 
     def is_subsystem(self, instance):
-        """
-        Returns true if the instance is a subsystem of self (regardless of the hierarchy)
-        """
+        """Returns true if the instance is a subsystem of self (regardless of
+        the hierarchy)"""
         if len(set(self.dynamic_var_indices) & set(instance.dynamic_var_indices)) > 0:
             return True
         return False
@@ -2036,10 +1988,10 @@ class CircuitRoutines(ABC):
         child_instance,
         bare_esys: Optional[Dict[int, Tuple]] = None,
     ) -> qt.Qobj:
-        """
-        Returns an identity wrapped operator whose size is equal to the
-        `self.hilbertdim()`. Only converts operator which belongs to a specific variable
-        index. For example, operator Q_1 or cos(\theta_1). But not, Q1*Q2.
+        """Returns an identity wrapped operator whose size is equal to the
+        `self.hilbertdim()`. Only converts operator which belongs to a specific
+        variable index. For example, operator Q_1 or cos(\theta_1). But not,
+        Q1*Q2.
 
         Parameters
         ----------
@@ -2091,9 +2043,9 @@ class CircuitRoutines(ABC):
     def get_operator_by_name(
         self, operator_name: str, power: Optional[int] = None, bare_esys=None
     ) -> qt.Qobj:
-        """
-        Returns the operator for the given operator symbol which has the same dimension
-        as the hilbertdim of the instance from which the operator is requested.
+        """Returns the operator for the given operator symbol which has the
+        same dimension as the hilbertdim of the instance from which the
+        operator is requested.
 
         Parameters
         ----------
@@ -2215,10 +2167,8 @@ class CircuitRoutines(ABC):
         return term_string
 
     def _get_eval_hamiltonian_string(self, H: sm.Expr) -> str:
-        """
-        Returns the string which defines the expression for Hamiltonian in harmonic
-        oscillator basis
-        """
+        """Returns the string which defines the expression for Hamiltonian in
+        harmonic oscillator basis."""
         expr_dict = H.as_coefficients_dict()
         # removing zero terms
         expr_dict = {key: expr_dict[key] for key in expr_dict if expr_dict[key] != 0}
@@ -2368,7 +2318,8 @@ class CircuitRoutines(ABC):
     def _hamiltonian_for_purely_harmonic(
         self, return_unsorted: bool = False
     ) -> csc_matrix:
-        """Hamiltonian for purely harmonic systems when ext_basis is set to harmonic
+        """Hamiltonian for purely harmonic systems when ext_basis is set to
+        harmonic.
 
         Returns:
             csc_matrix:
@@ -2405,9 +2356,8 @@ class CircuitRoutines(ABC):
         )
 
     def _eigenvals_for_purely_harmonic(self, evals_count: int):
-        """
-        Returns Hamiltonian for purely harmonic circuits. Hierarchical diagonalization
-        is disabled for such circuits.
+        """Returns Hamiltonian for purely harmonic circuits. Hierarchical
+        diagonalization is disabled for such circuits.
 
         Parameters
         ----------
@@ -2429,9 +2379,7 @@ class CircuitRoutines(ABC):
 
     @check_sync_status_circuit
     def hamiltonian(self) -> Union[csc_matrix, ndarray]:
-        """
-        Returns the Hamiltonian of the Circuit.
-        """
+        """Returns the Hamiltonian of the Circuit."""
         if not self.hierarchical_diagonalization:
             if self.is_purely_harmonic and self.ext_basis == "harmonic":
                 return self._hamiltonian_for_purely_harmonic()
@@ -2451,6 +2399,16 @@ class CircuitRoutines(ABC):
                 return hamiltonian.full()
             if self.type_of_matrices == "sparse":
                 return Qobj_to_scipy_csc_matrix(hamiltonian)
+            
+    def _qutip_parameter_function_factory(self, parameter_expr: sm.Expr, free_var_func_dict: Dict[str, Callable], lambdify_func: Callable) -> Callable:
+        def parameter_func(t,args):
+                return lambdify_func(
+                    *[
+                        free_var_func_dict[sym.name](t, args)
+                        for sym in parameter_expr.free_symbols
+                    ]
+                )
+        return parameter_func
 
     @check_sync_status_circuit
     def hamiltonian_for_qutip_dynamics(
@@ -2460,30 +2418,26 @@ class CircuitRoutines(ABC):
         extra_terms: Optional[str] = None,
     ) -> Tuple[List[Union[qt.Qobj, Tuple[qt.Qobj, Callable]]], sm.Expr, List[sm.Expr]]:
         """
-        Returns the Hamiltonian in a format amenable to be forwarded to mesolve in
-        Qutip. Also returns the symbolic expressions of time independent and time
-        dependent terms of the Hamiltonian.
-        `free_var_func_dict` is a dictionary which has a tuple for every time dependent variable with the follwoing two elements:
-        1 - time dependent function for the variable
-        2 - the order to which the Hamiltonian needs to be expanded around the drive amplitude
-        For example, to get the Hamiltonian for a circuit where Φ1 is the time varying parameter and the drive is expanded to second order,
-        this method can be called in the following way:
+        Returns the Hamiltonian in a format amenable to be forwarded to mesolve in Qutip. Also returns the symbolic expressions of time independent and time dependent terms of the Hamiltonian, which can be used for reference. `free_var_func_dict` is a dictionary with key-value pair {"var": f}, where `f` is a function returning the value of the variable `var` at time `t`. If one has extra terms to be added to the Hamiltonian (for instance, charge driving a fluxonium where there is no offset charge) they can be passed as a string in `extra_terms`. 
+        For example, to get the Hamiltonian for a circuit where Φ1 is the time varying parameter, this method can be called in the following way:
 
         ```
         def flux_t(t, args):
-            return np.sin(t*2)
+            return 0.5 + 0.02*np.sin(t*2)
+        def ng_t(t, args):
+            return 0.5 + 0.02*np.cos(t*2)
         def EJ_t(t, args):
             return (1-np.exp(-t/1))*0.2
-        free_var_func_dict = {"Φ1": (flux_t, 2), "EJ":(EJ_t, 1)}
+        free_var_func_dict = {"Φ1": flux_t, "EJ": EJ_t, "ng": ng_t}
 
-        mesolve_input_H = self.hamiltonian_for_qutip_dynamics(free_var_func_dict)
+        mesolve_input_H = self.hamiltonian_for_qutip_dynamics(free_var_func_dict, extra_terms="0.1*ng*Q1")
         ```
         Parameters
         ----------
         free_var_func_dict:
             Dict, as defined in the description above
         prefactor:
-            float, value with which the Hamiltonian and corresponding operators are multiplied with
+            float, value with which the Hamiltonian and corresponding operators are multiplied, useful to set it to 2*np.pi for some qutip simulations
         extra_terms:
             str, a string which will be converted into sympy expression, containing terms which are not present in the Circuit Hamiltonian. Is useful to define custom drive operators.
         """
@@ -2493,18 +2447,12 @@ class CircuitRoutines(ABC):
         fixed_hamiltonian = 0 * sm.symbols("x")
         time_varying_hamiltonian = []
 
-        all_circuit_params = (
-            list(self.symbolic_params.keys())
-            + self.offset_charges
-            + self.external_fluxes
-            + self.free_charges
-        )
         # adding extra terms to the Hamiltonian
         if extra_terms:
             extra_terms = sm.parse_expr(extra_terms)
             for extra_sym in extra_terms.free_symbols:
                 if (
-                    extra_sym not in self._hamiltonian_sym_for_numerics.free_symbols
+                    extra_sym not in self.hamiltonian_symbolic.free_symbols
                     and extra_sym not in free_var_symbols
                 ):
                     raise Exception(f"{extra_sym.name} is unknown.")
@@ -2512,13 +2460,7 @@ class CircuitRoutines(ABC):
             extra_terms = 0
 
         sym_hamiltonian = self._hamiltonian_sym_for_numerics + extra_terms
-        sym_hamiltonian = sym_hamiltonian.subs("I", 1)
-        # series expand Hamiltonian around the bias
-        for free_var in free_var_symbols:
-            if free_var in all_circuit_params:
-                sym_hamiltonian = sym_hamiltonian.subs(
-                    free_var, free_var + getattr(self, free_var.name)
-                ).expand()
+        sym_hamiltonian = sym_hamiltonian.subs("I", 1).expand()
 
         expr_dict = sym_hamiltonian.expand().as_coefficients_dict()
         terms = list(expr_dict.keys())
@@ -2564,21 +2506,7 @@ class CircuitRoutines(ABC):
             lambdify_func = sm.lambdify(
                 list(parameter_expr.free_symbols), parameter_expr, "numpy"
             )
-
-            def parameter_func(
-                t,
-                args,
-                parameter_expr=parameter_expr,
-                self=self,
-                free_var_func_dict=free_var_func_dict,
-                lambdify_func=lambdify_func,
-            ):
-                return lambdify_func(
-                    *[
-                        free_var_func_dict[sym.name](t, args)
-                        for sym in parameter_expr.free_symbols
-                    ]
-                )
+            parameter_func = self._qutip_parameter_function_factory(parameter_expr, free_var_func_dict, lambdify_func)
 
             operator_matrix = (
                 self._evaluate_symbolic_expr(time_dep_terms[parameter_expr]) * prefactor
@@ -2681,8 +2609,7 @@ class CircuitRoutines(ABC):
     # ****************************************************************
     @staticmethod
     def print_expr_in_latex(expr: Union[sm.Expr, List["sm.Equality"]]) -> None:
-        """
-        Print a sympy expression or a list of equalities in LaTeX
+        """Print a sympy expression or a list of equalities in LaTeX.
 
         Parameters
         ----------
@@ -2703,9 +2630,8 @@ class CircuitRoutines(ABC):
         return self._id_str
 
     def _repr_latex_(self):
-        """
-        Describes the Circuit instance, its parameters, and the symbolic Hamiltonian.
-        """
+        """Describes the Circuit instance, its parameters, and the symbolic
+        Hamiltonian."""
         # string to describe the Circuit
         if not _HAS_IPYTHON:
             return self._id_str
@@ -2777,8 +2703,8 @@ class CircuitRoutines(ABC):
             display(Latex(f"Truncated Dimensions: {self.subsystem_trunc_dims}"))
 
     def _make_expr_human_readable(self, expr: sm.Expr, float_round: int = 6) -> sm.Expr:
-        """
-        Method returns a user readable symbolic expression for the current instance
+        """Method returns a user readable symbolic expression for the current
+        instance.
 
         Parameters
         ----------
@@ -2833,8 +2759,8 @@ class CircuitRoutines(ABC):
     def sym_potential(
         self, float_round: int = 6, print_latex: bool = False, return_expr: bool = False
     ) -> Union[sm.Expr, None]:
-        """
-        Method prints a user readable symbolic potential for the current instance
+        """Method prints a user readable symbolic potential for the current
+        instance.
 
         Parameters
         ----------
@@ -2872,8 +2798,8 @@ class CircuitRoutines(ABC):
         print_latex: bool = False,
         return_expr: bool = False,
     ) -> Union[sm.Expr, None]:
-        """
-        Prints a user readable symbolic Hamiltonian for the current instance
+        """Prints a user readable symbolic Hamiltonian for the current
+        instance.
 
         Parameters
         ----------
@@ -3006,10 +2932,9 @@ class CircuitRoutines(ABC):
         print_latex: bool = False,
         return_expr: bool = False,
     ) -> Union[sm.Expr, None]:
-        """
-        Print the interaction between any set of subsystems for the current instance.
-        It would print the interaction terms having operators from all the subsystems
-        mentioned in the tuple.
+        """Print the interaction between any set of subsystems for the current
+        instance. It would print the interaction terms having operators from
+        all the subsystems mentioned in the tuple.
 
         Parameters
         ----------
@@ -3070,9 +2995,8 @@ class CircuitRoutines(ABC):
     # ************* Functions for plotting potential *****************
     # ****************************************************************
     def potential_energy(self, **kwargs) -> ndarray:
-        """
-        Returns the full potential of the circuit evaluated in a grid of points as
-        chosen by the user or using default variable ranges.
+        """Returns the full potential of the circuit evaluated in a grid of
+        points as chosen by the user or using default variable ranges.
 
         Parameters
         ----------
@@ -3137,10 +3061,9 @@ class CircuitRoutines(ABC):
         return potential_func(*parameters.values())
 
     def plot_potential(self, **kwargs) -> Tuple[Figure, Axes]:
-        r"""
-        Returns the plot of the potential for the circuit instance. Make sure to not set
-        more than two variables in the instance.potential to a Numpy array, as the the
-        code cannot plot with more than 3 dimensions.
+        r"""Returns the plot of the potential for the circuit instance. Make
+        sure to not set more than two variables in the instance.potential to a
+        Numpy array, as the the code cannot plot with more than 3 dimensions.
 
         Parameters
         ----------
@@ -3217,9 +3140,8 @@ class CircuitRoutines(ABC):
     # ************* Functions for plotting wave function *************
     # ****************************************************************
     def get_osc_param(self, var_index: int, which_param: str = "length") -> float:
-        """
-        Returns the oscillator parameters based on the oscillator used to diagonalize
-        the Hamiltonian in the harmonic oscillator basis.
+        """Returns the oscillator parameters based on the oscillator used to
+        diagonalize the Hamiltonian in the harmonic oscillator basis.
 
         Parameters
         ----------
@@ -3244,16 +3166,15 @@ class CircuitRoutines(ABC):
     def _recursive_basis_change(
         self, wf_reshaped, wf_dim, subsystem, relevant_indices=None
     ):
-        """
-        Method to change the basis recursively, to reverse hierarchical diagonalization
-        and get to the basis in which the variables were initially defined.
+        """Method to change the basis recursively, to reverse hierarchical
+        diagonalization and get to the basis in which the variables were
+        initially defined.
 
         Parameters
         ----------
         wf_dim:
             The dimension of the wave function which needs to be rewritten in terms of
             the initial basis
-
         """
         U_subsys = (
             subsystem.get_eigenstates()
@@ -3296,9 +3217,7 @@ class CircuitRoutines(ABC):
     def _basis_change_harm_osc_to_n(
         self, wf_original_basis, wf_dim, var_index, grid_n: discretization.Grid1d
     ):
-        """
-        Method to change the basis from harmonic oscillator to n basis
-        """
+        """Method to change the basis from harmonic oscillator to n basis."""
         U_ho_n = np.array(
             [
                 osc.harm_osc_wavefunction(
@@ -3321,9 +3240,7 @@ class CircuitRoutines(ABC):
     def _basis_change_harm_osc_to_phi(
         self, wf_original_basis, wf_dim, var_index, grid_phi: discretization.Grid1d
     ):
-        """
-        Method to change the basis from harmonic oscillator to phi basis
-        """
+        """Method to change the basis from harmonic oscillator to phi basis."""
         U_ho_phi = np.array(
             [
                 osc.harm_osc_wavefunction(
@@ -3346,9 +3263,7 @@ class CircuitRoutines(ABC):
     def _basis_change_n_to_phi(
         self, wf_original_basis, wf_dim, var_index, grid_phi: discretization.Grid1d
     ):
-        """
-        Method to change the basis from harmonic oscillator to phi basis
-        """
+        """Method to change the basis from harmonic oscillator to phi basis."""
         U_n_phi = np.array(
             [
                 np.exp(n * grid_phi.make_linspace() * 1j)
@@ -3405,9 +3320,11 @@ class CircuitRoutines(ABC):
     def _reshape_and_change_to_variable_basis(
         self, wf: ndarray, var_indices: Tuple[int]
     ) -> ndarray:
-        """
-        This method changes the basis of the wavefunction when hierarchical diagonalization is used.
-        Then reshapes the wavefunction to represent each of the variable indices as a separate dimension.
+        """This method changes the basis of the wavefunction when hierarchical
+        diagonalization is used.
+
+        Then reshapes the wavefunction to represent each of the variable
+        indices as a separate dimension.
         """
         if self.hierarchical_diagonalization:
             subsys_index_for_var_index = unique_elements_in_list(
@@ -3448,10 +3365,8 @@ class CircuitRoutines(ABC):
         return wf_original_basis
 
     def _basis_for_var_index(self, var_index: int) -> str:
-        """
-        Returns the ext_basis of the subsystem with no further subsystems to which the
-        var_index belongs.
-        """
+        """Returns the ext_basis of the subsystem with no further subsystems to
+        which the var_index belongs."""
         if self.hierarchical_diagonalization:
             subsys = self.subsystems[self.get_subsystem_index(var_index)]
             return subsys._basis_for_var_index(var_index)
@@ -3468,9 +3383,8 @@ class CircuitRoutines(ABC):
         grids_dict: Dict[int, Union[discretization.Grid1d, ndarray]],
         change_discrete_charge_to_phi: bool,
     ):
-        """
-        Changes the basis of the varaible indices to discretized phi basis which is amenable to plotting
-        """
+        """Changes the basis of the varaible indices to discretized phi basis
+        which is amenable to plotting."""
         wf_ext_basis = wf_original_basis
         for var_index in var_indices:
             # finding the dimension corresponding to the var_index
@@ -3500,9 +3414,8 @@ class CircuitRoutines(ABC):
         change_discrete_charge_to_phi: bool = True,
         grids_dict: Dict[int, discretization.Grid1d] = None,
     ):
-        """
-        Returns treated wave function of the current Circuit instance for the
-        specified variables.
+        """Returns treated wave function of the current Circuit instance for
+        the specified variables.
 
         Parameters
         ----------
@@ -3593,15 +3506,13 @@ class CircuitRoutines(ABC):
         grids_dict: Dict[int, discretization.Grid1d] = {},
         **kwargs,
     ) -> Tuple[Figure, Axes]:
-        """
-        Returns the plot of the wavefunction in the requested variables.
-        At most 2 numbers of variables for
-        wavefunction can be specified as plotting axis. If the number of
-        plotting variables for wave function is smaller than the number of
-        variables in the circuit, the marginal probability distribution of the
-        state with respect to the specified variables is plotted. This means
-        the norm square of the wave function is integrated over the rest of the
-        variables and is then plotted.
+        """Returns the plot of the wavefunction in the requested variables. At
+        most 2 numbers of variables for wavefunction can be specified as
+        plotting axis. If the number of plotting variables for wave function is
+        smaller than the number of variables in the circuit, the marginal
+        probability distribution of the state with respect to the specified
+        variables is plotted. This means the norm square of the wave function
+        is integrated over the rest of the variables and is then plotted.
 
         Parameters
         ----------
@@ -3826,17 +3737,15 @@ class CircuitRoutines(ABC):
         return fig, axes
 
     def _get_cutoff_value(self, var_index: int) -> int:
-        """Return the cutoff value associated with the variable with integer index
-        `var_index`."""
+        """Return the cutoff value associated with the variable with integer
+        index `var_index`."""
         for cutoff_name in self.parent.cutoff_names:
             if str(var_index) in cutoff_name:
                 return getattr(self.parent, cutoff_name)
 
     def operator_names_in_hamiltonian_symbolic(self) -> List[str]:
-        """
-        Returns a list of the names (strings) of all operators
-        occurring in the symbolic Hamiltonian.
-        """
+        """Returns a list of the names (strings) of all operators occurring in
+        the symbolic Hamiltonian."""
         return [
             symbol.name
             for symbol in self.hamiltonian_symbolic.free_symbols
