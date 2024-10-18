@@ -594,7 +594,8 @@ class SymbolicCircuit(serializers.Serializable):
 
         # find the closure branches in the circuit
         default_spanning_tree_dict = self._spanning_tree(
-            consider_capacitive_loops=self.use_dynamic_flux_grouping
+            consider_capacitive_loops=self.use_dynamic_flux_grouping,
+            use_closure_branches=False,
         )
         if closure_branches:
             if len(closure_branches) != len(
@@ -1630,11 +1631,14 @@ class SymbolicCircuit(serializers.Serializable):
                 terms = terms.subs(symbol.name, self.symbolic_params[symbol])
         return terms
 
-    def _spanning_tree(self, consider_capacitive_loops: bool = False):
+    def _spanning_tree(
+        self, consider_capacitive_loops: bool = False, use_closure_branches: bool = True
+    ):
         r"""Returns a spanning tree (as a list of branches) for the given instance.
         Notice that if the circuit contains multiple capacitive islands, the returned
         spanning tree will not include the capacitive twig between two capacitive
-        islands.
+        islands. Option `use_closure_branches` can be set to `False` if one does not
+        want to use the internally set closure_branches.
 
         This function also returns all the branches that form superconducting loops, and a
         list of lists of nodes (node_sets), which keeps the generation info for nodes, e.g.,
@@ -1835,7 +1839,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         # if the closure branches are manually set, then the spanning tree would be all
         # the superconducting loop branches except the closure branches
-        if self.closure_branches != [] and np.all(
+        if (self.closure_branches != [] and use_closure_branches) and np.all(
             [isinstance(elem, Branch) for elem in self.closure_branches]
         ):
             closure_branches_for_trees = [
