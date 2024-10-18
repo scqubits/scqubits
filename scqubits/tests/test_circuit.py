@@ -335,14 +335,8 @@ class TestCircuit:
             e_ops=[initial_state_proj],
         )
         expectation_vals = result.expect[0]
-        ref_expectation_vals = read(DATADIR + "/circuit_qutip_evolution_data.hdf5")
-        try:
-            assert np.allclose(
-                expectation_vals, ref_expectation_vals.astype(np.float64)
-            )
-        except:
-            ref = np.empty_like(expectation_vals)
-            ref[:] = ref_expectation_vals[:]
-            assert np.allclose(
-                expectation_vals, ref,
-            )
+        ref_expectation_vals = np.empty_like(expectation_vals)
+        ref_expectation_vals[:] = read(DATADIR + "/circuit_qutip_evolution_data.hdf5")[:]
+        assert np.allclose(
+            expectation_vals, ref_expectation_vals,
+        )
