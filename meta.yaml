@@ -24,22 +24,19 @@ requirements:
     - pip
     - cython >=0.29.20
     - scipy >=1.5
+    - qutip >=4.7.1
     - numpy >=1.14.2
   build:
     - python                       
     - cython >=0.29.20
     - numpy >=1.14.2
-    - scipy >=1.5
-    - qutip >=4.7.1 [py>=39]
-    - qutip <5.0 [py<39]
     - {{ compiler('cxx') }}
   run:
     - python
     - cycler
     - matplotlib >=3.5.1
     - numpy >=1.14.2
-    - qutip >=4.7.1 [py>=39]
-    - qutip <5.0 [py<39]
+    - qutip >=4.7.1
     - scipy >=1.5
     - dill
     - sympy
