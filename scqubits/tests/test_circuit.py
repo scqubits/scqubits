@@ -333,6 +333,7 @@ class TestCircuit:
             np.linspace(0, tf, 500),
             args={"freq": freq},
             e_ops=[initial_state_proj],
+            options=dict(atol=1e-12)
         )
         expectation_vals = result.expect[0]
         ref_expectation_vals = np.empty_like(expectation_vals)
