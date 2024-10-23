@@ -24,7 +24,7 @@ requirements:
     - pip
     - cython >=0.29.20
     - scipy >=1.5
-    - qutip >=4.7.1
+    - qutip >=4.3.1
     - numpy >=1.14.2
   build:
     - python                       
@@ -36,7 +36,7 @@ requirements:
     - cycler
     - matplotlib >=3.5.1
     - numpy >=1.14.2
-    - qutip >=4.7.1
+    - qutip >=4.3.1
     - scipy >=1.5
     - dill
     - sympy
