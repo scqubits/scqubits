@@ -454,8 +454,8 @@ class SpectrumLookupMixin(MixinCompatible):
     @utils.check_sync_status
     def dressed_state_component(
         self, 
-        state_label: Tuple[int, ...] | List[int] | int,
-        truncate: Union[int, None] = None,
+        state_label: Union[Tuple[int, ...], List[int], int],
+        num_components: Union[int, None] = None,
         param_npindices: Optional[NpIndices] = None,
     ) -> Tuple[List[int], List[float]]:
         """
@@ -470,9 +470,14 @@ class SpectrumLookupMixin(MixinCompatible):
             The bare label of the dressed state of interest. Could be 
                 - a tuple/list of bare labels (int)
                 - a single dressed label (int)
-        truncate:
+                
+        num_components:
             The number of components to be returned. If None, all components 
             will be returned.
+            
+        param_npindices:
+            The parameter indices to be used. If None, the current parameter 
+            indices will be used.
         
         Returns
         -------
@@ -493,7 +498,10 @@ class SpectrumLookupMixin(MixinCompatible):
             
         # find the desired state vector
         if isinstance(state_label, tuple | list): 
-            drs_idx = self.dressed_index(tuple(state_label))[zero_idx]
+            raveled_bare_idx = np.ravel_multi_index(state_label, self.hilbertspace.subsystem_dims)
+            drs_idx = self["dressed_indices"][param_npindices][raveled_bare_idx]
+            
+            # drs_idx = self.dressed_index(tuple(state_label))[zero_idx]
             if drs_idx is None:
                 raise IndexError(f"no dressed state found for bare label {state_label}")
         elif isinstance(state_label, int):
@@ -511,8 +519,8 @@ class SpectrumLookupMixin(MixinCompatible):
             bare_label_list.append(bare_label)
             prob_list.append(prob)
 
-        if truncate is not None:
-            bare_label_list = bare_label_list[:truncate]
-            prob_list = prob_list[:truncate]
+        if num_components is not None:
+            bare_label_list = bare_label_list[:num_components]
+            prob_list = prob_list[:num_components]
 
         return bare_label_list, prob_list
