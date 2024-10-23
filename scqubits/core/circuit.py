@@ -145,8 +145,8 @@ class Subsystem(
 
         self.cutoff_names: List[str] = []
         for var_type in self.var_categories.keys():
-            if var_type == "periodic":
-                for var_index in self.var_categories["periodic"]:
+            if var_type in ["periodic", "discrete"]:
+                for var_index in self.var_categories[var_type]:
                     self.cutoff_names.append(f"cutoff_n_{var_index}")
             if var_type == "extended":
                 for var_index in self.var_categories["extended"]:
@@ -705,7 +705,8 @@ class Circuit(
         external_fluxes = []
         offset_charges = []
         free_charges = []
-        var_categories = {"periodic": [], "extended": [], "free": [], "frozen": []}
+        ####### TODO: Add the detection for discrete variables
+        var_categories = {"periodic": [], "discrete": [], "extended": [], "free": [], "frozen": []}
         for var_sym in free_symbols:
             if re.match(r"^ng\d+$", var_sym.name):
                 offset_charges.append(var_sym)
@@ -778,8 +779,8 @@ class Circuit(
         # initiating the class properties
         self.cutoff_names = []
         for var_type in self.var_categories.keys():
-            if var_type == "periodic":
-                for idx, var_index in enumerate(self.var_categories["periodic"]):
+            if var_type in ["periodic", "discrete"]:
+                for idx, var_index in enumerate(self.var_categories[var_type]):
                     if not hasattr(self, f"_cutoff_n_{var_index}"):
                         self._make_property(
                             f"cutoff_n_{var_index}", 5, "update_cutoffs"
@@ -794,7 +795,7 @@ class Circuit(
                     self.cutoff_names.append(f"cutoff_ext_{var_index}")
 
         self.dynamic_var_indices = (
-            self.var_categories["periodic"] + self.var_categories["extended"]
+            self.var_categories["periodic"] + self.var_categories["discrete"] + self.var_categories["extended"]
         )
 
         # default values for the parameters
@@ -977,8 +978,8 @@ class Circuit(
         # initiating the class properties
         self.cutoff_names = []
         for var_type in self.var_categories.keys():
-            if var_type == "periodic":
-                for idx, var_index in enumerate(self.var_categories["periodic"]):
+            if var_type in ["periodic", "discrete"]:
+                for idx, var_index in enumerate(self.var_categories[var_type]):
                     if not hasattr(self, f"_cutoff_n_{var_index}"):
                         self._make_property(
                             f"cutoff_n_{var_index}", 5, "update_cutoffs"
@@ -993,7 +994,7 @@ class Circuit(
                     self.cutoff_names.append(f"cutoff_ext_{var_index}")
 
         self.dynamic_var_indices = (
-            self.var_categories["periodic"] + self.var_categories["extended"]
+            self.var_categories["periodic"] + self.var_categories["discrete"] + self.var_categories["extended"]
         )
 
         # default values for the parameters
@@ -1021,7 +1022,7 @@ class Circuit(
 
         # changing the matrix type if necessary
         if (
-            len((self.var_categories["extended"] + self.var_categories["periodic"]))
+            len(self.dynamic_var_indices)
             == 1
         ):
             self.type_of_matrices = "dense"

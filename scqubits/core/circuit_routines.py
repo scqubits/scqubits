@@ -71,6 +71,11 @@ from scqubits.core.circuit_utils import (
     _sin_dia_dense,
     _sin_phi,
     _sin_theta,
+    _sin_discrete, 
+    _cos_discrete,
+    _exp_i_discrete_operator,
+    _exp_i_discrete_operator_conjugate,
+    _n_discrete_operator,
     get_operator_number,
     get_trailing_number,
     grid_operator_func_factory,
@@ -972,6 +977,9 @@ class CircuitRoutines(ABC):
         if subsys_dict:
             systems_sym = subsys_dict["systems_sym"]
             interaction_sym = subsys_dict["interaction_sym"]
+            self.hamiltonian_symbolic = (sum(systems_sym) + sum(interaction_sym)).expand()
+            self.potential_symbolic = self.generate_sym_potential()
+
         else:
             systems_sym, interaction_sym = (
                 self._sym_subsystem_hamiltonian_and_interactions(
@@ -1269,10 +1277,10 @@ class CircuitRoutines(ABC):
         objects for all the operators present in the circuit with no HD."""
         if not self.hierarchical_diagonalization:
             return self._set_vars_no_hd()
-        vars = {"periodic": {}, "extended": {}, "identity": [sm.symbols("I")]}
+        vars = {"periodic": {}, "discrete": {}, "extended": {}, "identity": [sm.symbols("I")]}
         for subsys in self.subsystems:
             subsys._set_vars()
-            for var_type in ["periodic", "extended"]:
+            for var_type in ["periodic", "discrete", "extended"]:
                 for operator_type in subsys.vars[var_type]:
                     if operator_type not in vars[var_type]:
                         vars[var_type][operator_type] = subsys.vars[var_type][
@@ -1300,35 +1308,34 @@ class CircuitRoutines(ABC):
             "n", self.var_categories["periodic"]
         )
 
+        # Defining the list of discrete variables
+        discrete_symbols_sin = _generate_symbols_list(
+            "sinQ", self.var_categories["discrete"]
+        )
+        discrete_symbols_cos = _generate_symbols_list(
+            "cosQ", self.var_categories["discrete"]
+        )
+        discrete_symbols_theta = _generate_symbols_list(
+            "θ", self.var_categories["discrete"]
+        )
+
         # Defining the list of discretized_ext variables
         y_symbols = _generate_symbols_list("θ", self.var_categories["extended"])
         p_symbols = _generate_symbols_list("Q", self.var_categories["extended"])
 
         if self.ext_basis == "discretized":
-            ps_symbols = [
-                sm.symbols("Qs" + str(i)) for i in self.var_categories["extended"]
-            ]
-            sin_symbols = [
-                sm.symbols(f"sinθ{i}") for i in self.var_categories["extended"]
-            ]
-            cos_symbols = [
-                sm.symbols(f"cosθ{i}") for i in self.var_categories["extended"]
-            ]
+            ps_symbols = _generate_symbols_list("Qs", self.var_categories["extended"])
+            sin_symbols = _generate_symbols_list("sinθ", self.var_categories["extended"])
+            cos_symbols = _generate_symbols_list("cosθ", self.var_categories["extended"])
 
         elif self.ext_basis == "harmonic":
-            a_symbols = [sm.symbols(f"a{i}") for i in self.var_categories["extended"]]
-            ad_symbols = [sm.symbols(f"ad{i}") for i in self.var_categories["extended"]]
-            Nh_symbols = [sm.symbols(f"Nh{i}") for i in self.var_categories["extended"]]
-            pos_symbols = [sm.symbols(f"θ{i}") for i in self.var_categories["extended"]]
-            sin_symbols = [
-                sm.symbols(f"sinθ{i}") for i in self.var_categories["extended"]
-            ]
-            cos_symbols = [
-                sm.symbols(f"cosθ{i}") for i in self.var_categories["extended"]
-            ]
-            momentum_symbols = [
-                sm.symbols(f"Q{i}") for i in self.var_categories["extended"]
-            ]
+            a_symbols = _generate_symbols_list("a", self.var_categories["extended"])
+            ad_symbols = _generate_symbols_list("ad", self.var_categories["extended"])
+            Nh_symbols = _generate_symbols_list("Nh", self.var_categories["extended"])
+            pos_symbols = _generate_symbols_list("θ", self.var_categories["extended"])
+            sin_symbols = _generate_symbols_list("sinθ", self.var_categories["extended"])
+            cos_symbols = _generate_symbols_list("cosθ", self.var_categories["extended"])
+            momentum_symbols = _generate_symbols_list("Q", self.var_categories["extended"])
 
         # setting the attribute self.vars
         self.vars: Dict[str, Any] = {
@@ -1336,6 +1343,11 @@ class CircuitRoutines(ABC):
                 "sin": periodic_symbols_sin,
                 "cos": periodic_symbols_cos,
                 "number": periodic_symbols_n,
+            },
+            "discrete": {
+                "sin": discrete_symbols_sin,
+                "cos": discrete_symbols_cos,
+                "theta": discrete_symbols_theta,
             },
             "identity": [sm.symbols("I")],
         }
@@ -1373,7 +1385,7 @@ class CircuitRoutines(ABC):
 
         flux_shift_equations = [
             hamiltonian.coeff(f"θ{var_index}").subs(
-                [(f"θ{i}", 0) for i in self.var_categories["extended"]]
+                [(f"θ{i}", 0) for i in self.var_categories["extended"]+self.var_categories["discrete"]]
             )
             for var_index in flux_shift_vars.keys()
         ]  # finding the coefficients of the linear terms
@@ -1524,7 +1536,7 @@ class CircuitRoutines(ABC):
 
         cutoffs_dict = self.cutoffs_dict()
         for var_idx in cutoffs_dict:
-            if var_idx in self.var_categories["periodic"]:
+            if var_idx in self.var_categories["periodic"]+self.var_categories["discrete"]:
                 cutoffs_dict[var_idx] = 2 * cutoffs_dict[var_idx] + 1
 
         var_dim_list = [cutoffs_dict[var_idx] for var_idx in dynamic_var_indices]
@@ -1842,6 +1854,7 @@ class CircuitRoutines(ABC):
         `Circuit` class."""
         periodic_vars = self.vars["periodic"]
         extended_vars = self.vars["extended"]
+        discrete_vars = self.vars["discrete"]
 
         # constructing the operators for extended variables
         extended_operators = {}
@@ -1932,8 +1945,28 @@ class CircuitRoutines(ABC):
                     periodic_operators[op_name] = operator_func_factory(
                         op_func, var_index
                     )
+        # constructing the operators for discrete variables
+        discrete_operators = {}
+        nonwrapped_ops = {
+            "sin": _sin_discrete,
+            "cos": _cos_discrete,
+            "theta": _n_discrete_operator,
+        }
+        for short_op_name, op_func in nonwrapped_ops.items():
+            for sym_variable in discrete_vars[short_op_name]:
+                var_index = get_operator_number(sym_variable.name)
+                op_name = sym_variable.name + "_operator"
+                if self.hierarchical_diagonalization:
+                    discrete_operators[op_name] = (
+                        hierarchical_diagonalization_func_factory(sym_variable.name)
+                    )
+                else:
+                    discrete_operators[op_name] = operator_func_factory(
+                        op_func, var_index
+                    )
         return {
             **periodic_operators,
+            **discrete_operators,
             **extended_operators,
             "I_operator": CircuitRoutines._identity,
         }

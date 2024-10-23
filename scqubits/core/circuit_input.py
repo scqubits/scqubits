@@ -55,6 +55,14 @@ BRANCH_TYPES["JJ"] = (
     QM + pp.Combine(pp.Word("JJ") + Opt(JJ_ORDER) + Opt(pp.Word("s"))) + QM
 )  # defining grammar to find "JJi" where i is an optional natural number
 
+# Phase slip junction
+PSJ_ORDER = pp.Word(pp.nums).add_condition(
+    lambda tokens: int(tokens[0]) > 0, message="Junction order must be greater than 0."
+)
+BRANCH_TYPES["PSJ"] = (
+    QM + pp.Combine(pp.Word("PSJ") + Opt(PSJ_ORDER) + Opt(pp.Word("s"))) + QM
+)  # defining grammar to find "PSJi" where i is an optional natural number
+
 # - Mutual inductance ************
 BRANCH_TYPES["ML"] = QM + "ML" + QM
 
@@ -72,13 +80,14 @@ prefix_dict = {
 }
 PREFIX = pp.Char(list(prefix_dict.keys()))
 
-energy_names = ["EJ", "EC", "EL", "EML"]
+energy_names = ["EJ", "EQ", "EC", "EL", "EML"]
 
 
 UNITS_FREQ_ENERGY = Literal("Hz") ^ Literal("J") ^ Literal("eV")
 
 UNITS = {name: Opt(PREFIX, None) for name in energy_names}
 UNITS["EJ"] += UNITS_FREQ_ENERGY ^ Literal("A") ^ Literal("H")  # Ampere, Henry
+UNITS["EQ"] += UNITS_FREQ_ENERGY ^ Literal("V") ^ Literal("C")  # Voltage, Capacitance
 UNITS["EC"] += UNITS_FREQ_ENERGY ^ Literal("F")  # Farad
 UNITS["EL"] += UNITS_FREQ_ENERGY ^ Literal("H")  # Henry
 UNITS["EML"] += UNITS_FREQ_ENERGY ^ Literal("H")  # Henry
@@ -115,15 +124,21 @@ AUX_PARAM = Group(pp.ZeroOrMore(CM + SYMBOL + Suppress(Literal("=")) + aux_val))
 order_count = pp.Empty()
 
 
-def find_jj_order(str_result: str, location: int, tokens: pp.ParseResults):
-    from scqubits.core.circuit_utils import _junction_order
+def junction_order_expr(branch_type: str = "JJ"):
+    order_count = pp.Empty()
 
-    JJ_TYPE = BEG + BRANCH_TYPES["JJ"]
-    JJ_TYPE.add_parse_action(lambda tokens: _junction_order(tokens[0]))
-    return JJ_TYPE.parse_string(str_result)
+    def find_junction_order(
+        str_result: str, location: int, tokens: pp.ParseResults, branch_type=branch_type
+    ):
+        from scqubits.core.circuit_utils import _junction_order
 
+        JJ_TYPE = BEG + BRANCH_TYPES[branch_type]
+        JJ_TYPE.add_parse_action(lambda tokens: _junction_order(tokens[0]))
+        return JJ_TYPE.parse_string(str_result)
 
-order_count.set_parse_action(find_jj_order)
+    order_count.set_parse_action(find_junction_order)
+    return order_count
+
 
 BRANCH_JJ = (
     BEG
@@ -133,8 +148,22 @@ BRANCH_JJ = (
     + CM
     + INT("node2")
     + CM
-    + pp.counted_array(PARAMS["EJ"] + CM, int_expr=order_count)("EJ_VALS")
+    + pp.counted_array(PARAMS["EJ"] + CM, int_expr=junction_order_expr("JJ"))("EJ_VALS")
     + PARAMS["EC"]("EC")
+    + AUX_PARAM
+    + END
+)
+
+BRANCH_PSJ = (
+    BEG
+    + BRANCH_TYPES["PSJ"]("BRANCH_TYPE")
+    + CM
+    + INT("node1")
+    + CM
+    + INT("node2")
+    + pp.counted_array(CM + PARAMS["EQ"], int_expr=junction_order_expr("PSJ"))(
+        "EQ_VALS"
+    )
     + AUX_PARAM
     + END
 )
@@ -178,7 +207,7 @@ BRANCH_EM = (
     + END
 )
 
-BRANCHES = Or([BRANCH_JJ, BRANCH_C, BRANCH_L, BRANCH_EM])
+BRANCHES = Or([BRANCH_JJ, BRANCH_PSJ, BRANCH_C, BRANCH_L, BRANCH_EM])
 
 # uncomment to create a html describing the grammar of this language
 # BRANCHES.create_diagram("branches.html")
@@ -264,8 +293,10 @@ def convert_value_to_GHz(val, units):
         return e**2 / (2 * val * h) * 1e-9
     elif unit_str == "H":
         return Φ0**2 / (val * h * (2 * np.pi) ** 2) * 1e-9
-    elif unit_str == "A":
+    elif unit_str == "A":  # Amperes
         return val * Φ0 / (2 * np.pi * h) * 1e-9
+    elif unit_str == "V":  # volts
+        return val * e / h * 1e-9
     else:
         raise ValueError(f"Unknown unit {unit_str}")
 

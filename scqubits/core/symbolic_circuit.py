@@ -118,9 +118,10 @@ class Branch:
         is the type of this Branch, example `"C"`,`"JJ"` or `"L"`
     parameters:
         list of parameters for the branch, namely for
-        capacitance: `{"EC":  <value>}`;
-        for inductance: `{"EL": <value>}`;
-        for Josephson Junction: `{"EJ": <value>, "ECJ": <value>}`
+        capacitance: {"EC":  <value>};
+        for inductance: {"EL": <value>};
+        for Josephson Junction: {"EJ": <value>, "ECJ": <value>}
+        for phase-slip Junction: {"EQ": <value>}
     aux_params:
         Dictionary of auxiliary parameters which map a symbol from the input file a numeric parameter.
 
@@ -179,6 +180,14 @@ class Branch:
                 else:
                     self.parameters[f"EJ{junc_order}"] = parameters[junc_order - 1]
             self.parameters["ECJ"] = parameters[number_of_junc_params]
+        elif "PSJ" in self.type:
+            number_of_junc_params = _junction_order(self.type)
+            self.parameters = {}
+            for junc_order in range(1, number_of_junc_params + 1):
+                if junc_order == 1:
+                    self.parameters["EQ"] = parameters[0]
+                else:
+                    self.parameters[f"EQ{junc_order}"] = parameters[junc_order - 1]
 
     def node_ids(self) -> Tuple[int, int]:
         """Returns the indices of the nodes connected by the branch."""
@@ -314,10 +323,16 @@ def make_branch(
             params_dict[sm.symbols(f"EJ{idx + 1}" if idx > 0 else "EJ")] = (
                 param[0] if param[0] is not None else param[1]
             )
-
         params_dict[sm.symbols("EC")] = (
             params[-1][0] if params[-1][0] is not None else params[-1][1]
         )
+
+    if "PSJ" in branch_type:
+        for idx, param in enumerate(params):  # getting EQi for all orders i specified
+            params_dict[sm.symbols(f"EQ{idx + 1}" if idx > 0 else "EQ")] = (
+                param[0] if param[0] is not None else param[1]
+            )
+
     if branch_type == "C":
         params_dict[sm.symbols("EC")] = (
             params[-1][0] if params[-1][0] is not None else params[-1][1]
@@ -566,10 +581,54 @@ class SymbolicCircuit(serializers.Serializable):
         """
         # if the circuit is purely harmonic, then store the eigenfrequencies
         branch_type_list = [branch.type for branch in self.branches]
-        self.is_purely_harmonic = "JJ" not in "".join(branch_type_list)
+        self.is_purely_harmonic = not any(
+            branch_type in "".join(branch_type_list) for branch_type in ["JJ", "PSJ"]
+        )
         if use_dynamic_flux_grouping is not None:
             self.use_dynamic_flux_grouping = use_dynamic_flux_grouping
 
+        ################# setting the spanning tree and closure branches #################
+        # if the user provides a transformation matrix
+        if transformation_matrix is not None:
+            self.var_categories = self.check_transformation_matrix(
+                transformation_matrix, enable_warnings=not self.is_purely_harmonic
+            )
+            self.transformation_matrix = transformation_matrix
+        # calculate the transformation matrix and identify the boundary conditions if
+        # the user does not provide a custom transformation matrix
+        else:
+            (
+                self.transformation_matrix,
+                self.var_categories,
+            ) = self.variable_transformation_matrix()
+
+        # find the closure branches in the circuit
+        default_spanning_tree_dict = self._spanning_tree(
+            consider_capacitive_loops=self.use_dynamic_flux_grouping,
+            use_closure_branches=False,
+        )
+        if closure_branches:
+            if len(closure_branches) != len(
+                flatten_list_recursive(
+                    default_spanning_tree_dict["closure_branches_for_trees"]
+                )
+            ):
+                raise ValueError(
+                    """The number of closure branches should be equal to the number of loops present in the circuit. Please check the attribute spanning_tree_dict of the SymbolicCircuit instance."""
+                )
+            self.closure_branches = closure_branches
+            self.spanning_tree_dict = self._spanning_tree(
+                consider_capacitive_loops=self.use_dynamic_flux_grouping
+            )
+        else:
+            self.spanning_tree_dict = default_spanning_tree_dict
+            self.closure_branches = self._closure_branches()
+
+        # setting external flux and offset charge variables
+        self._set_external_fluxes(closure_branches=self.closure_branches)
+        #####################################################################
+
+        ################# setting the transformation matrix #################
         if self.is_purely_harmonic:
             (
                 self.normal_mode_freqs,
@@ -591,6 +650,7 @@ class SymbolicCircuit(serializers.Serializable):
                 self.transformation_matrix,
                 self.var_categories,
             ) = self.variable_transformation_matrix()
+        #####################################################################
 
         # find the closure branches in the circuit
         default_spanning_tree_dict = self._spanning_tree(
@@ -986,6 +1046,198 @@ class SymbolicCircuit(serializers.Serializable):
         matrix = np.vstack([subspace, np.array(mode)])
         return np.linalg.matrix_rank(matrix) == len(subspace)
 
+    def _mode_dictionary(
+        self, return_linearly_independent_modes=False, spanning_tree_dict=None
+    ) -> Union[Tuple[Union[dict, ndarray], ...], dict]:
+        """
+        Returns a dictionary of modes present in the circuit. This will return all the possible modes that can be found,
+        other than extended modes: discrete, periodic, frozen, free, sigma and LC modes. Also, union of all the modes might not be linearly independent.
+
+
+        Returns
+        -------
+        dict
+            Dictionary of modes with keys "discrete", "periodic", "frozen" and "free" modes.
+        """
+        modes_dict: Dict[str, list] = {
+            "discrete": [],
+            "periodic": [],
+            "frozen": [],
+            "free": [],
+        }
+        # *************************** Finding the Discrete Modes **********************
+        # these are discrete flux modes coming from QPS in a loop with inductive branches
+        selected_branches = [
+            branch
+            for branch in self.branches
+            if branch.type == "C" or "JJ" in branch.type
+        ]
+        modes_dict["discrete"] = self._independent_modes(
+            selected_branches, single_nodes=True
+        )
+
+        # ****************  Finding the Frozen modes ****************
+        selected_branches = [branch for branch in self.branches if branch.type != "L"]
+        modes_dict["frozen"] = self._independent_modes(
+            selected_branches, single_nodes=True
+        )
+
+        # ****************  Finding the Periodic Modes ****************
+        selected_branches = [
+            branch
+            for branch in self.branches
+            if branch.type == "L" or "PSJ" in branch.type
+        ]
+        modes_dict["periodic"] = self._independent_modes(
+            selected_branches, single_nodes=True
+        )
+
+        # **************** Finding the Free Modes ****************
+        selected_branches = [branch for branch in self.branches if branch.type != "C"]
+        modes_dict["free"] = self._independent_modes(
+            selected_branches, single_nodes=True
+        )
+
+        # **************** including the Σ mode ****************
+        modes_dict["sigma"] = []
+        Σ = [1] * (len(self.nodes) - self.is_grounded)
+        if not self.is_grounded:  # only append if the circuit is not grounded
+            modes_dict["sigma"] = [Σ]
+        # identify sigma mode for galvanically disconnected subcircuits
+        # find the sigma mode for all the subcircuits with different node sets
+        node_sets = self._node_sets(self)
+        for node_set in node_sets:
+            node_set = flatten_list_recursive(node_set)
+            if self.ground_node in node_set:
+                continue
+            modes_dict["sigma"].append(
+                [
+                    1 if node in node_set else 0
+                    for node in self.nodes if node.index!=0
+                ]
+            )
+
+
+        # Do note that:
+        # 1. Discrete modes form a superset of the frozen modes
+        # 2. Periodic modes form a superset of the free modes
+
+        # **************** Finding the LC Modes ****************
+        selected_branches = [
+            branch
+            for branch in self.branches
+            if "JJ" in branch.type or "PSJ" in branch.type
+        ]
+        modes_dict["LC"] = self._independent_modes(selected_branches, single_nodes=True)
+
+        if return_linearly_independent_modes:
+            return modes_dict, *self._find_linearly_independent_modes(modes_dict)
+        return modes_dict
+
+    def _find_linearly_independent_modes(
+        self, modes_dict
+    ) -> Tuple[Dict[str, list], ndarray]:
+        """
+        Finds the dynamical linearly independent modes from the modes_dict. The non-dynamical modes are the free, frozen, and sigma modes.
+        """
+        # **************** Making the basis set with linearly independent vectors *********
+        mode_types_in_order = [
+            "sigma",
+            "frozen",
+            "free",
+            "periodic",
+            "discrete",
+            "LC",
+        ]  # this order is important
+
+        linearly_independent_modes = []  # starting with an empty list
+        mode_category_index_dict = {
+            mode_type: [] for mode_type in modes_dict
+        }  # saving the final modes
+        for mode_type in mode_types_in_order:
+            for m in modes_dict[mode_type]:
+                if not self._mode_in_subspace(m, linearly_independent_modes):
+                    linearly_independent_modes.append(m)
+                    mode_category_index_dict[mode_type].append(
+                        len(linearly_independent_modes) - 1
+                    )
+
+        # basis used to find the rest of the extended modes
+        standard_basis = self._standard_basis()
+        mode_category_index_dict["extended"] = []
+        # filling the basis
+        for m in standard_basis:  # completing the basis
+            if not self._mode_in_subspace(m, linearly_independent_modes):
+                linearly_independent_modes.append(m)
+                mode_category_index_dict["extended"].append(
+                    len(linearly_independent_modes) - 1
+                )
+        linearly_independent_modes = np.array(linearly_independent_modes)
+
+        # sort the modes in the order periodic, discrete, extended, free, frozen, sigma
+        mode_types_in_order = [
+            "periodic",
+            "discrete",
+            "LC",
+            "extended",
+            "free",
+            "frozen",
+            "sigma",
+        ]
+        linearly_independent_modes = linearly_independent_modes[
+            flatten_list_recursive(
+                [
+                    mode_category_index_dict[mode_type]
+                    for mode_type in mode_types_in_order
+                ]
+            )
+        ]
+        last_idx = 1
+        for mode_type in mode_types_in_order:
+            mode_category_index_dict[mode_type] = list(
+                range(last_idx, last_idx + len(mode_category_index_dict[mode_type]))
+            )
+            last_idx += len(mode_category_index_dict[mode_type])
+        # add LC modes to extended category
+        mode_category_index_dict["extended"] += mode_category_index_dict["LC"]
+        mode_category_index_dict["extended"].sort()
+
+        return mode_category_index_dict, linearly_independent_modes
+
+    def _standard_basis(self) -> List[List[int]]:
+        """
+        Returns the standard basis, which spans the space of variable transformations for this circuit, in node variables.
+        """
+        import itertools
+
+        # constructing a standard basis
+        if self.basis_completion == "heuristic":
+            node_count = len(self.nodes) - self.is_grounded
+            standard_basis = [[1] * node_count]
+
+            vector_ref = [1] * node_count
+            vector_ref[-1] = 0
+            if node_count > 2:
+                vector_ref[-2] = 0
+
+            vector_set = (
+                permutation
+                for permutation in itertools.permutations(vector_ref, node_count)
+            )  # making a generator
+            while np.linalg.matrix_rank(np.array(standard_basis)) < node_count:
+                a = next(vector_set)
+                mat = np.array(standard_basis + [a])
+                if np.linalg.matrix_rank(mat) == len(mat):
+                    standard_basis = standard_basis + [list(a)]
+
+        elif self.basis_completion == "canonical":
+            node_count = len(self.nodes) - self.is_grounded
+            standard_basis = [
+                [1 if j == i else 0 for j in range(node_count)]
+                for i in range(node_count)
+            ]
+        return standard_basis
+
     def check_transformation_matrix(
         self, transformation_matrix: ndarray, enable_warnings: bool = True
     ) -> Dict[str, list]:
@@ -1010,115 +1262,47 @@ class SymbolicCircuit(serializers.Serializable):
         if np.linalg.det(transformation_matrix) == 0:
             raise Exception("The transformation matrix provided is not invertible.")
 
-        # find all the different types of modes present in the circuit.
-
-        # *************************** Finding the Periodic Modes **********************
-        selected_branches = [branch for branch in self.branches if branch.type == "L"]
-        periodic_modes = self._independent_modes(selected_branches)
-
-        # *************************** Finding the frozen modes **********************
-        selected_branches = [branch for branch in self.branches if branch.type != "L"]
-        frozen_modes = self._independent_modes(selected_branches, single_nodes=True)
-
-        # *************************** Finding the Cyclic Modes ****************
-        selected_branches = [branch for branch in self.branches if branch.type != "C"]
-        free_modes = self._independent_modes(selected_branches)
-
-        # ***************************# Finding the LC Modes ****************
-        selected_branches = [branch for branch in self.branches if "JJ" in branch.type]
-        LC_modes = self._independent_modes(selected_branches, single_nodes=False)
-
-        # ******************* including the Σ mode ****************
-        Σ = [1] * (len(self.nodes) - self.is_grounded)
-        if not self.is_grounded:  # only append if the circuit is not grounded
-            mat = np.array(frozen_modes + [Σ])
-            # check to see if the vectors are still independent
-            if np.linalg.matrix_rank(mat) < len(frozen_modes) + 1:
-                frozen_modes = frozen_modes[1:] + [Σ]
-            else:
-                frozen_modes.append(Σ)
-
-        # *********** Adding periodic, free and extended modes to frozen ************
-        modes = []  # starting with the frozen modes
-
-        for m in (
-            frozen_modes + free_modes + periodic_modes + LC_modes  # + extended_modes
-        ):  # This order is important
-            if not self._mode_in_subspace(m, modes):
-                modes.append(m)
-
-        for m in LC_modes:  # adding the LC modes to the basis
-            if not self._mode_in_subspace(m, modes):
-                modes.append(m)
-
-        var_categories_circuit: Dict[str, list] = {
-            "periodic": [],
-            "extended": [],
-            "free": [],
-            "frozen": [],
-        }
-
-        for x, mode in enumerate(modes):
-            # calculate the number of periodic modes
-            if self._mode_in_subspace(Σ, [mode]) and not self.is_grounded:
-                continue
-
-            if self._mode_in_subspace(mode, frozen_modes):
-                var_categories_circuit["frozen"].append(x + 1)
-                continue
-
-            if self._mode_in_subspace(mode, free_modes):
-                var_categories_circuit["free"].append(x + 1)
-                continue
-
-            if self._mode_in_subspace(mode, periodic_modes):
-                var_categories_circuit["periodic"].append(x + 1)
-                continue
-
-            # Any mode which survived the above conditionals is an extended mode
-            var_categories_circuit["extended"].append(x + 1)
+        # get all the modes present in the circuit
+        modes_dict, var_categories, _ = self._mode_dictionary(
+            return_linearly_independent_modes=True
+        )
 
         # Classifying the modes given in the transformation by the user
-
         user_given_modes = transformation_matrix.transpose()
+        modes_dict_user = {mode_type: [] for mode_type in var_categories}
+        mode_types_in_order = [
+            "sigma",
+            "frozen",
+            "free",
+            "periodic",
+            "discrete",
+            "LC",
+        ]  # this order is important
 
-        var_categories_user: Dict[str, list] = {
-            "periodic": [],
-            "extended": [],
-            "free": [],
-            "frozen": [],
-            "sigma": [],
-        }
-        sigma_mode_found = False
-        for x, mode in enumerate(user_given_modes):
-            # calculate the number of periodic modes
-            if self._mode_in_subspace(Σ, [mode]) and not self.is_grounded:
-                sigma_mode_found = True
-                var_categories_user["sigma"].append(x + 1)
-                continue
+        def identify_mode(mode):
+            for mode_type in mode_types_in_order:
+                # calculate the number of periodic modes
+                if (mode_type == "sigma"):
+                    if (not self.is_grounded
+                    and self._mode_in_subspace(modes_dict["sigma"], [mode])):
+                        return "sigma"
 
-            if self._mode_in_subspace(mode, frozen_modes):
-                var_categories_user["frozen"].append(x + 1)
-                continue
+                elif self._mode_in_subspace(mode, modes_dict[mode_type]):
+                    return mode_type
+            return "extended"
 
-            if self._mode_in_subspace(mode, free_modes):
-                var_categories_user["free"].append(x + 1)
-                continue
+        for idx, mode in enumerate(user_given_modes):
+            mode_type = identify_mode(mode)
+            modes_dict_user[mode_type].append(idx + 1)
 
-            if self._mode_in_subspace(mode, periodic_modes):
-                var_categories_user["periodic"].append(x + 1)
-                continue
-
-            # Any mode which survived the above conditionals is an extended mode
-            var_categories_user["extended"].append(x + 1)
+        # add LC modes to the extended modes
+        modes_dict_user["extended"] += modes_dict_user["LC"]
+        modes_dict_user["extended"].sort()
 
         # comparing the modes in the user defined and the code generated transformation
-
-        mode_types = ["periodic", "extended", "free", "frozen"]
-
-        for mode_type in mode_types:
-            num_extra_modes = len(var_categories_circuit[mode_type]) - len(
-                var_categories_user[mode_type]
+        for mode_type in mode_types_in_order:
+            num_extra_modes = len(var_categories[mode_type]) - len(
+                modes_dict_user[mode_type]
             )
             if num_extra_modes > 0 and enable_warnings:
                 warnings.warn(
@@ -1128,12 +1312,12 @@ class SymbolicCircuit(serializers.Serializable):
                     + str(num_extra_modes)
                     + "\n"
                 )
-        if not self.is_grounded and not sigma_mode_found:
+        if not self.is_grounded and len(modes_dict_user["sigma"]) == 0:
             raise Exception(
                 "This circuit is not grounded, and so has a sigma mode. This transformation does not have a sigma mode."
             )
 
-        return var_categories_user
+        return modes_dict_user
 
     def variable_transformation_matrix(self) -> Tuple[ndarray, Dict[str, List[int]]]:
         """Evaluates the boundary conditions and constructs the variable transformation
@@ -1145,143 +1329,11 @@ class SymbolicCircuit(serializers.Serializable):
             tuple of transformation matrix for the node variables and `var_categories`
             dict which classifies the variable types for each variable index
         """
-
-        # ****************  Finding the Periodic Modes ****************
-        selected_branches = [branch for branch in self.branches if branch.type == "L"]
-        periodic_modes = self._independent_modes(selected_branches)
-
-        # ****************  Finding the frozen modes ****************
-        selected_branches = [branch for branch in self.branches if branch.type != "L"]
-        frozen_modes = self._independent_modes(selected_branches, single_nodes=True)
-
-        # **************** Finding the Cyclic Modes ****************
-        selected_branches = [branch for branch in self.branches if branch.type != "C"]
-        free_modes = self._independent_modes(selected_branches)
-
-        # ****************  including the Σ mode ****************
-        Σ = [1] * (len(self.nodes) - self.is_grounded)
-        if not self.is_grounded:  # only append if the circuit is not grounded
-            mat = np.array(frozen_modes + [Σ])
-            # check to see if the vectors are still independent
-            if np.linalg.matrix_rank(mat) < len(frozen_modes) + 1:
-                frozen_modes = frozen_modes[1:] + [Σ]
-            else:
-                frozen_modes.append(Σ)
-
-        # **************** Finding the LC Modes ****************
-        selected_branches = [branch for branch in self.branches if "JJ" in branch.type]
-        LC_modes = self._independent_modes(
-            selected_branches, single_nodes=False, basisvec_entries=[-1, 1]
+        _, var_categories, linearly_independent_modes = self._mode_dictionary(
+            return_linearly_independent_modes=True
         )
 
-        # **************** Adding frozen, free, periodic , LC and extended modes ****
-        modes = []  # starting with an empty list
-
-        for m in (
-            frozen_modes + free_modes + periodic_modes + LC_modes  # + extended_modes
-        ):  # This order is important
-            mat = np.array(modes + [m])
-            if np.linalg.matrix_rank(mat) == len(mat):
-                modes.append(m)
-
-        # ********** Completing the Basis ****************
-        # step 4: construct the new set of basis vectors
-
-        # constructing a standard basis
-        if self.basis_completion == "heuristic":
-            node_count = len(self.nodes) - self.is_grounded
-            standard_basis = [np.ones(node_count)]
-
-            vector_ref = np.zeros(node_count)
-            if node_count > 2:
-                vector_ref[: node_count - 2] = 1
-            else:
-                vector_ref[: node_count - 1] = 1
-
-            vector_set = (
-                permutation
-                for permutation in itertools.permutations(vector_ref, node_count)
-            )  # making a generator
-            while np.linalg.matrix_rank(np.array(standard_basis)) < node_count:
-                a = next(vector_set)
-                mat = np.array(standard_basis + [a])
-                if np.linalg.matrix_rank(mat) == len(mat):
-                    standard_basis = standard_basis + [list(a)]
-
-            standard_basis = np.array(standard_basis)
-
-        elif self.basis_completion == "canonical":
-            standard_basis = np.identity(len(self.nodes) - self.is_grounded)
-
-        new_basis = modes.copy()
-
-        for m in standard_basis:  # completing the basis
-            mat = np.array([i for i in new_basis] + [m])
-            if np.linalg.matrix_rank(mat) == len(mat):
-                new_basis.append(m)
-
-        new_basis = np.array(new_basis)
-
-        # sorting the basis so that the free, periodic and frozen variables occur at
-        # the beginning.
-        if not self.is_grounded:
-            pos_Σ = [i for i in range(len(new_basis)) if new_basis[i].tolist() == Σ]
-        else:
-            pos_Σ = []
-
-        pos_free = [
-            i
-            for i in range(len(new_basis))
-            if i not in pos_Σ
-            if new_basis[i].tolist() in free_modes
-        ]
-        pos_periodic = [
-            i
-            for i in range(len(new_basis))
-            if i not in pos_Σ
-            if i not in pos_free
-            if new_basis[i].tolist() in periodic_modes
-        ]
-        pos_frozen = [
-            i
-            for i in range(len(new_basis))
-            if i not in pos_Σ
-            if i not in pos_free
-            if i not in pos_periodic
-            if new_basis[i].tolist() in frozen_modes
-        ]
-        pos_rest = [
-            i
-            for i in range(len(new_basis))
-            if i not in pos_Σ
-            if i not in pos_free
-            if i not in pos_periodic
-            if i not in pos_frozen
-        ]
-        pos_list = pos_periodic + pos_rest + pos_free + pos_frozen + pos_Σ
-        # transforming the new_basis matrix
-        new_basis = new_basis[pos_list].T
-
-        # saving the variable identification to a dict
-        var_categories = {
-            "periodic": [
-                i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_periodic
-            ],
-            "extended": [
-                i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_rest
-            ],
-            "free": [i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_free],
-            "frozen": [
-                i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_frozen
-            ],
-            "sigma": (
-                [i + 1 for i in range(len(pos_list)) if pos_list[i] == pos_Σ[0]]
-                if not self.is_grounded
-                else []
-            ),
-        }
-
-        return np.array(new_basis), var_categories
+        return np.array(linearly_independent_modes).astype(float).T, var_categories
 
     def update_param_init_val(self, param_name, value):
         """Updates the param init val for param_name."""
@@ -1296,7 +1348,7 @@ class SymbolicCircuit(serializers.Serializable):
             ) = self.purely_harmonic_transformation()
             self.configure()
 
-    def _junction_terms(self):
+    def _josephson_junction_terms(self):
         terms = 0
         # looping over all the junction terms
         junction_branches = [
@@ -1336,6 +1388,31 @@ class SymbolicCircuit(serializers.Serializable):
                             + phi_ext
                         )
                     )
+        return terms
+
+    def _phase_slip_junction_terms(self):
+        terms = 0
+        # looping over all the junction terms
+        junction_branches = [
+            branch
+            for branch in self.branches
+            if "PSJ" in branch.type and "PSJs" not in branch.type
+        ]
+        junction_branch_order = [
+            _junction_order(branch.type) for branch in junction_branches
+        ]
+        flux_branch_assignment = self.branch_flux_allocations
+        # Qb denotes the branch variable, and Qbd denotes Qb_dot or time derivative of Qb
+        for branch_idx, psj_branch in enumerate(junction_branches):
+            # adding external flux
+            phi_ext = flux_branch_assignment[psj_branch.index]
+
+            # if loop to check for the presence of ground node
+            for order in range(1, junction_branch_order[branch_idx] + 1):
+                junction_param = "EQ" if order == 1 else f"EQ{order}"
+                terms += -psj_branch.parameters[junction_param] * sympy.cos(
+                    (order) * sympy.symbols(f"Qb{psj_branch.index}")
+                )
         return terms
 
     def _JJs_terms(self):
@@ -1427,20 +1504,27 @@ class SymbolicCircuit(serializers.Serializable):
             L_mat = L_mat[1:, 1:]
         return L_mat
 
-    def _capacitance_matrix(self, substitute_params: bool = False):
-        """Generate a capacitance matrix for the circuit.
+    def _capacitance_matrix(self, substitute_params: bool = False, in_node_vars: bool = False, remove_non_dynamical: bool = False, invert_matrix: bool = False) -> Union[ndarray, sympy.Matrix]:
+        """_summary_
 
-        Parameters
-        ----------
-        substitute_params:
-            when set to True all the symbolic branch parameters are substituted with
-            their corresponding attributes in float, by default False
+        Args:
+            substitute_params (bool, optional): Whether symbolic parameters should be substituted. Defaults to False.
+            in_node_vars (bool, optional): Set to True if the capacitance matrix is in terms of node variables, when set to True there are no non_dynamical variables and matrix inversion is not always possible. Defaults to False.
+            remove_non_dynamical (bool, optional): If non dynamical variables, discrete and frozen need to be removed. Defaults to True. It is automatically set to true when invert_matrix is set to True.
+            invert_matrix (bool, optional): Set to True if an inverted capacitance matrix is needed. Defaults to False.
 
-        Returns
-        -------
-        _type_
-            _description_
+        Raises:
+            ValueError: When in_node_vars is set to True and remove_non_dynamical or invert_matrix is set to True.
+
+        Returns:
+            _type_: ndarray or sympy symbolic matrix
         """
+        if in_node_vars and (remove_non_dynamical or invert_matrix):
+            raise ValueError("in_node_vars can only be set to True when remove_non_dynamical and invert_matrix are set to False.")
+        
+        if invert_matrix:
+            remove_non_dynamical = True
+
         branches_with_capacitance = [
             branch
             for branch in self.branches
@@ -1485,7 +1569,48 @@ class SymbolicCircuit(serializers.Serializable):
 
         if self.is_grounded:  # if grounded remove the 0th column and row from C_mat
             C_mat = C_mat[1:, 1:]
-        return C_mat
+            
+        if in_node_vars:
+            return C_mat
+            
+        transformation_matrix = self.transformation_matrix
+        # generating the C_mat_θ by inverting the capacitance matrix
+        is_sym_matrix = self.is_any_branch_parameter_symbolic() and not substitute_params
+        if is_sym_matrix:
+            C_mat_θ = (
+                transformation_matrix.T
+                * C_mat
+                * transformation_matrix
+            )
+        else:
+            C_mat_θ = (
+                transformation_matrix.T
+                @ C_mat
+                @ transformation_matrix
+            )
+            
+        if remove_non_dynamical:
+            null_capacitance_indices = [
+                i - 1
+                for i in self.var_categories["frozen"]
+                + self.var_categories["discrete"]
+                + self.var_categories["sigma"]
+            ]
+            if is_sym_matrix:
+                relevant_indices = [
+                    i for i in range(C_mat_θ.shape[0]) if i not in null_capacitance_indices
+                ]
+                C_mat_θ = C_mat_θ[relevant_indices, relevant_indices]
+            else:
+                C_mat_θ = np.delete(C_mat_θ, null_capacitance_indices, 0) # remove both the rows and columns for the null indices
+                C_mat_θ = np.delete(C_mat_θ, null_capacitance_indices, 1)
+            
+        if invert_matrix:
+            if is_sym_matrix:
+                return C_mat_θ.inv()
+            else:
+                return np.linalg.inv(C_mat_θ)
+        return C_mat_θ
 
     def _capacitor_terms(self):
         terms = 0
@@ -1630,105 +1755,23 @@ class SymbolicCircuit(serializers.Serializable):
             for symbol in self.symbolic_params:
                 terms = terms.subs(symbol.name, self.symbolic_params[symbol])
         return terms
-
-    def _spanning_tree(
-        self, consider_capacitive_loops: bool = False, use_closure_branches: bool = True
-    ):
-        r"""Returns a spanning tree (as a list of branches) for the given instance.
-        Notice that if the circuit contains multiple capacitive islands, the returned
-        spanning tree will not include the capacitive twig between two capacitive
-        islands. Option `use_closure_branches` can be set to `False` if one does not
-        want to use the internally set closure_branches.
-
-        This function also returns all the branches that form superconducting loops, and a
-        list of lists of nodes (node_sets), which keeps the generation info for nodes, e.g.,
-        for the following spanning tree:
-
-                   /---Node(2)
-        Node(1)---'
-                   '---Node(3)---Node(4)
-
-        has the node_sets returned as [[Node(1)], [Node(2),Node(3)], [Node(4)]]
-
-        Returns
-        -------
-            A list of spanning trees in the circuit, which does not include capacitor branches,
-            a list of branches that forms superconducting loops for each tree, and a list of lists of nodes
-            (node_sets) for each tree (which keeps the generation info for nodes of branches on the path)
-            and list of closure branches for each tree.
-        """
-
-        # Make a copy of self; do not need symbolic expressions etc., so do a minimal
-        # initialization only
-        circ_copy = copy.deepcopy(self)
-
-        # adding an attribute for node list without ground
-        circ_copy._node_list_without_ground = circ_copy.nodes
-        if circ_copy.is_grounded:
-            circ_copy._node_list_without_ground.remove(circ_copy.ground_node)
-
-        # **************** removing all the capacitive branches and updating the nodes *
-        # identifying capacitive branches
-        branches_to_be_removed = []
-        if not consider_capacitive_loops:
-            branches_to_be_removed = [
-                branch for branch in list(circ_copy.branches) if branch.type == "C"
-            ]
-        for c_branch in branches_to_be_removed:
-            for (
-                node
-            ) in (
-                c_branch.nodes
-            ):  # updating the branches attribute for each node that this branch
-                # connects
-                node.branches = [b for b in node.branches if b is not c_branch]
-            circ_copy.branches.remove(c_branch)  # removing the branch
-
-        num_float_nodes = 1
-        while num_float_nodes > 0:  # breaks when no floating nodes are detected
-            num_float_nodes = 0  # setting
-            for node in circ_copy._node_list_without_ground:
-                if len(node.branches) == 0:
-                    circ_copy._node_list_without_ground.remove(node)
-                    num_float_nodes += 1
-                    continue
-                if len(node.branches) == 1:
-                    branches_connected_to_node = node.branches[0]
-                    circ_copy.branches.remove(branches_connected_to_node)
-                    for new_node in branches_connected_to_node.nodes:
-                        if new_node != node:
-                            new_node.branches = [
-                                i
-                                for i in new_node.branches
-                                if i is not branches_connected_to_node
-                            ]
-                            num_float_nodes += 1
-                            continue
-                        else:
-                            circ_copy._node_list_without_ground.remove(node)
-
-        if circ_copy._node_list_without_ground == []:
-            return {
-                "list_of_trees": [],
-                "loop_branches_for_trees": [],
-                "node_sets_for_trees": [],
-                "closure_branches_for_trees": [],
-            }
-        # *****************************************************************************
-
-        # **************** Constructing the node_sets ***************
+    
+    @staticmethod
+    def _node_sets(circuit):
         node_sets_for_trees = []  # seperate node sets for separate trees
-        if circ_copy.is_grounded:
-            node_sets = [[circ_copy.ground_node]]
+        list_of_nodes = circuit.nodes.copy()
+        if circuit.is_grounded:
+            node_sets = [[circuit.ground_node]]
+            list_of_nodes.remove(circuit.ground_node)
         else:
             node_sets = [
-                [circ_copy._node_list_without_ground[0]]
+                [list_of_nodes[0]]
             ]  # starting with the first set that has the first node as the only element
         node_sets_for_trees.append(node_sets)
 
-        num_nodes = len(circ_copy._node_list_without_ground)
+        num_nodes = len(list_of_nodes)
         # this needs to be done as the ground node is not included in self.nodes
-        if circ_copy.is_grounded:
+        if circuit.is_grounded:
             num_nodes += 1
 
         # finding all the sets of nodes and filling node_sets
@@ -1757,7 +1800,7 @@ class SymbolicCircuit(serializers.Serializable):
             # code to handle two different capacitive islands in the circuit.
             if node_set == []:
                 node_sets_for_trees.append([])
-                for node in circ_copy._node_list_without_ground:
+                for node in list_of_nodes:
                     if node not in flatten_list_recursive(
                         node_sets_for_trees[tree_index]
                     ):
@@ -1769,6 +1812,95 @@ class SymbolicCircuit(serializers.Serializable):
 
             node_sets_for_trees[tree_index].append(node_set)
             node_set_index += 1
+        return node_sets_for_trees
+
+
+    def _spanning_tree(self, consider_capacitive_loops: bool = False, use_closure_branches: bool = True):
+        r"""
+        Returns a spanning tree (as a list of branches) for the given instance. Notice that
+        if the circuit contains multiple capacitive islands, the returned spanning tree will
+        not include the capacitive twig between two capacitive islands.
+
+        This function also returns all the branches that form superconducting loops, and a
+        list of lists of nodes (node_sets), which keeps the generation info for nodes, e.g.,
+        for the following spanning tree:
+
+                   /---Node(2)
+        Node(1)---'
+                   '---Node(3)---Node(4)
+
+        has the node_sets returned as [[Node(1)], [Node(2),Node(3)], [Node(4)]]
+
+        Returns
+        -------
+            A list of spanning trees in the circuit, which does not include capacitor branches,
+            a list of branches that forms superconducting loops for each tree, and a list of lists of nodes
+            (node_sets) for each tree (which keeps the generation info for nodes of branches on the path)
+            and list of closure branches for each tree.
+        """
+
+        # Make a copy of self; do not need symbolic expressions etc., so do a minimal
+        # initialization only
+        circ_copy = copy.deepcopy(self)
+
+        # adding an attribute for node list without ground
+        # circ_copy.nodes = circ_copy.nodes.copy()
+        if circ_copy.is_grounded:
+            circ_copy.nodes.remove(circ_copy.ground_node)
+
+        # **************** removing all the capacitive branches and updating the nodes *
+        # identifying capacitive branches
+        branches_to_be_removed = []
+        if not consider_capacitive_loops:
+            branches_to_be_removed = [
+                branch for branch in list(circ_copy.branches) if branch.type == "C"
+            ]
+        for c_branch in branches_to_be_removed:
+            for (
+                node
+            ) in (
+                c_branch.nodes
+            ):  # updating the branches attribute for each node that this branch
+                # connects
+                node.branches = [b for b in node.branches if b is not c_branch]
+            circ_copy.branches.remove(c_branch)  # removing the branch
+
+        num_float_nodes = 1
+        while num_float_nodes > 0:  # breaks when no floating nodes are detected
+            num_float_nodes = 0  # setting
+            for node in circ_copy.nodes:
+                if len(node.branches) == 0:
+                    circ_copy.nodes.remove(node)
+                    num_float_nodes += 1
+                    continue
+                if len(node.branches) == 1:
+                    branches_connected_to_node = node.branches[0]
+                    circ_copy.branches.remove(branches_connected_to_node)
+                    for new_node in branches_connected_to_node.nodes:
+                        if new_node != node:
+                            new_node.branches = [
+                                i
+                                for i in new_node.branches
+                                if i is not branches_connected_to_node
+                            ]
+                            num_float_nodes += 1
+                            continue
+                        else:
+                            circ_copy.nodes.remove(node)
+
+        if circ_copy.nodes == []:
+            return {
+                "list_of_trees": [],
+                "loop_branches_for_trees": [],
+                "node_sets_for_trees": [],
+                "closure_branches_for_trees": [],
+            }
+        if circ_copy.is_grounded:
+            circ_copy.nodes = [circ_copy.ground_node] + circ_copy.nodes
+        # *****************************************************************************
+
+        # **************** Constructing the node_sets ***************
+        node_sets_for_trees = self._node_sets(circ_copy)
         # ***************************
 
         # **************** constructing the spanning tree ##########
@@ -1799,7 +1931,12 @@ class SymbolicCircuit(serializers.Serializable):
                 for node in node_set:
                     for prev_node in node_sets[index - 1]:
                         if len(connecting_branches(node, prev_node)) != 0:
-                            tree.append(connecting_branches(node, prev_node)[0])
+                            # excluding pure PSJ from the tree. TODO
+                            relevant_branches = connecting_branches(node, prev_node)
+                            PSJ_branches = [branch for branch in relevant_branches if "PSJ" in branch.type]
+                            tree.append(
+                                PSJ_branches[0] if len(PSJ_branches) > 0 else relevant_branches[0]
+                            )
                             break
             list_of_trees.append(tree)
 
@@ -2105,26 +2242,7 @@ class SymbolicCircuit(serializers.Serializable):
                 for i in self.var_categories["frozen"] + self.var_categories["sigma"]
             ]
             # generating the C_mat_θ by inverting the capacitance matrix
-            if self.is_any_branch_parameter_symbolic() and not substitute_params:
-                C_mat_θ = (
-                    transformation_matrix.T
-                    * self._capacitance_matrix()
-                    * transformation_matrix
-                )
-                relevant_indices = [
-                    i for i in range(C_mat_θ.shape[0]) if i not in frozen_indices
-                ]
-                C_mat_θ = C_mat_θ[relevant_indices, relevant_indices]
-                EC_mat_θ = C_mat_θ.inv()
-            else:
-                C_mat_θ = (
-                    transformation_matrix.T
-                    @ self._capacitance_matrix(substitute_params=substitute_params)
-                    @ transformation_matrix
-                )
-                C_mat_θ = np.delete(C_mat_θ, frozen_indices, 0)
-                C_mat_θ = np.delete(C_mat_θ, frozen_indices, 1)
-                EC_mat_θ = np.linalg.inv(C_mat_θ)
+            EC_mat_θ = self._capacitance_matrix(invert_matrix=True)
             p_θ_vars = [
                 (
                     symbols(f"Q{i}")
@@ -2228,7 +2346,7 @@ class SymbolicCircuit(serializers.Serializable):
         φ_dot_vars_θ = transformation_matrix.dot(θ_dot_vars)
 
         # C_terms = self._C_terms()
-        C_mat = self._capacitance_matrix()
+        C_mat = self._capacitance_matrix(in_node_vars=True)
         if not self.is_any_branch_parameter_symbolic():
             # in terms of node variables
             C_terms_φ = C_mat.dot(φ_dot_vars).dot(φ_dot_vars) * 0.5
@@ -2246,11 +2364,13 @@ class SymbolicCircuit(serializers.Serializable):
 
         inductor_terms_φ = self._inductor_terms(substitute_params=substitute_params)
 
-        JJ_terms_φ = self._junction_terms() + self._JJs_terms()
+        JJ_terms_φ = self._josephson_junction_terms() + self._JJs_terms()
 
-        lagrangian_φ = C_terms_φ - inductor_terms_φ - JJ_terms_φ
+        PSJ_terms_Q = self._phase_slip_junction_terms()
 
-        potential_φ = inductor_terms_φ + JJ_terms_φ
+        lagrangian_φ = C_terms_φ + PSJ_terms_Q - inductor_terms_φ - JJ_terms_φ
+
+        potential_φ = inductor_terms_φ + JJ_terms_φ + PSJ_terms_Q
         potential_θ = (
             potential_φ.copy() if potential_φ != 0 else symbols("x") * 0
         )  # copying the potential in terms of the old variables to make substitutions
@@ -2307,31 +2427,8 @@ class SymbolicCircuit(serializers.Serializable):
             potential_symbolic = self.potential_symbolic
 
         transformation_matrix = self.transformation_matrix
-
-        frozen_indices = [
-            i - 1 for i in self.var_categories["frozen"] + self.var_categories["sigma"]
-        ]
         # generating the C_mat_θ by inverting the capacitance matrix
-        if self.is_any_branch_parameter_symbolic() and not substitute_params:
-            C_mat_θ = (
-                transformation_matrix.T
-                * self._capacitance_matrix()
-                * transformation_matrix
-            )
-            relevant_indices = [
-                i for i in range(C_mat_θ.shape[0]) if i not in frozen_indices
-            ]
-            C_mat_θ = C_mat_θ[relevant_indices, relevant_indices]
-            C_mat_θ = C_mat_θ.inv()
-        else:
-            C_mat_θ = (
-                transformation_matrix.T
-                @ self._capacitance_matrix(substitute_params=substitute_params)
-                @ transformation_matrix
-            )
-            C_mat_θ = np.delete(C_mat_θ, frozen_indices, 0)
-            C_mat_θ = np.delete(C_mat_θ, frozen_indices, 1)
-            C_mat_θ = np.linalg.inv(C_mat_θ)
+        C_inv_mat_θ = self._capacitance_matrix(invert_matrix=True, remove_non_dynamical=True)
 
         p_φ_vars = [
             (
@@ -2353,10 +2450,10 @@ class SymbolicCircuit(serializers.Serializable):
         # generating the kinetic energy terms for the Hamiltonian
         if not self.is_any_branch_parameter_symbolic():
             C_terms_new = (
-                C_mat_θ.dot(p_φ_vars).dot(p_φ_vars) * 0.5
+                C_inv_mat_θ.dot(p_φ_vars).dot(p_φ_vars) * 0.5
             )  # in terms of new variables
         else:
-            C_terms_new = (sympy.Matrix(p_φ_vars).T * C_mat_θ * sympy.Matrix(p_φ_vars))[
+            C_terms_new = (sympy.Matrix(p_φ_vars).T * C_inv_mat_θ * sympy.Matrix(p_φ_vars))[
                 0
             ] * 0.5  # in terms of new variables
 
@@ -2368,5 +2465,49 @@ class SymbolicCircuit(serializers.Serializable):
                 symbols(f"Q{var_index}"),
                 symbols(f"n{var_index}") + symbols(f"ng{var_index}"),
             )
+
+        ## deal with branch charge variables
+        transformation_matrix = self.transformation_matrix
+        # defining the θ dot variables
+        θ_dot_vars = [
+            symbols(f"vθ{i}") for i in range(1, len(self.nodes) - self.is_grounded + 1)
+        ]
+        # writing φ dot vars in terms of θ variables
+        φ_dot_vars_θ = transformation_matrix.dot(θ_dot_vars)
+        
+        lagrangian_terms_PSJ = sum(
+            [
+                sm.symbols(f"Qb{branch.index}")
+                * sum(
+                    [
+                        φ_dot_vars_θ[node.index - 1] * (-1) ** idx
+                        for idx, node in enumerate([n for n in branch.nodes if n.index])
+                    ]
+                )
+                for branch in self.branches
+                if "PSJ" in branch.type
+            ]
+        )
+        discrete_charge_symbols = [
+            sm.symbols(f"Q{idx}") for idx in self.var_categories["discrete"]
+        ]
+        discrete_charge_exprs = [
+            lagrangian_terms_PSJ.diff(f"vθ{var_idx}") - discrete_charge_symbols[idx]
+            for idx, var_idx in enumerate(self.var_categories["discrete"])
+        ]
+        # solve for branch charges from charge expressions
+        branch_charge_in_discrete_charge = sm.solve(
+            discrete_charge_exprs,
+            [
+                sm.symbols(f"Qb{branch.index}")
+                for branch in self.branches
+                if "PSJ" in branch.type
+            ],
+        )
+        if len(branch_charge_in_discrete_charge) == 0:
+            branch_charge_in_discrete_charge = {}
+        hamiltonian_symbolic = hamiltonian_symbolic.subs(
+            list(branch_charge_in_discrete_charge.items())
+        ).expand()
 
         return round_symbolic_expr(hamiltonian_symbolic.expand(), 12)

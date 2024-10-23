@@ -47,14 +47,12 @@ def _junction_order(branch_type: str) -> int:
     Returns:
         _type_: int, order of the josephson junction
     """
-    if "JJ" not in branch_type:
-        raise ValueError("The branch is not a JJ branch")
-    if len(branch_type) > 2:
-        if (
-            branch_type[2] == "s"
-        ):  # adding "JJs" which is a junction with sawtooth current phase relationship
-            return 1
-        return int(branch_type[2:])
+    if "JJ" not in branch_type and "PSJ" not in branch_type:
+        raise ValueError("The branch is not a JJ or PSJ branch.")
+    if "JJs" in branch_type:
+        return 1  # for the sawtooth Josephson junction
+    if get_trailing_number(branch_type) is not None:
+        return get_trailing_number(branch_type)
     else:
         return 1
 
@@ -278,7 +276,7 @@ def _sin_phi(grid: discretization.Grid1d) -> csc_matrix:
     sin_op.setdiag(diag_elements)
     return sin_op.tocsc()
 
-
+######################## Periodic operators ########################
 def _identity_theta(ncut: int) -> csc_matrix:
     """Returns Operator identity in the charge basis."""
     dim_theta = 2 * ncut + 1
@@ -331,7 +329,70 @@ def _sin_theta(ncut: int) -> csc_matrix:
         * (_exp_i_theta_operator(ncut) - _exp_i_theta_operator_conjugate(ncut))
     )
     return sin_op
+####################################################################
 
+########################## Discrete operators ##########################
+def _identity_discrete(ncut: int) -> csc_matrix:
+    """
+    Returns Operator identity in the discrete flux basis.
+    """
+    dim_discrete = 2 * ncut + 1
+    return sparse.identity(dim_discrete, format="csc")
+
+
+def _n_discrete_operator(ncut: int) -> csc_matrix:
+    """
+    Returns phi operator \theta in the discrete flux basis.
+    """
+    dim_discrete = 2 * ncut + 1
+    diag_elements = np.arange(-ncut, ncut + 1)*2*np.pi
+    n_discrete_matrix = sparse.dia_matrix(
+        (diag_elements, [0]), shape=(dim_discrete, dim_discrete)
+    ).tocsc()
+    return n_discrete_matrix
+
+
+def _exp_i_discrete_operator(ncut, prefactor=1) -> csc_matrix:
+    r"""
+    Operator :math:`exp(iQ)`, acting only on the `Q` Hilbert subspace.
+    """
+    # if type(prefactor) != int:
+    #     raise ValueError("Prefactor must be an integer")
+    dim_discrete = 2 * ncut + 1
+    matrix = sparse.dia_matrix(
+        (np.ones(dim_discrete), [-prefactor]),
+        shape=(dim_discrete, dim_discrete),
+    ).tocsc()
+    return matrix
+
+
+def _exp_i_discrete_operator_conjugate(ncut) -> csc_matrix:
+    r"""
+    Operator :math:`exp(-iQ)`, acting only on the `Q` Hilbert subspace.
+    """
+    dim_discrete = 2 * ncut + 1
+    matrix = sparse.dia_matrix(
+        (np.ones(dim_discrete), [1]),
+        shape=(dim_discrete, dim_discrete),
+    ).tocsc()
+    return matrix
+
+
+def _cos_discrete(ncut: int) -> csc_matrix:
+    """Returns operator :math:`\\cos \\Q` in the discrete flux basis"""
+    cos_op = 0.5 * (_exp_i_discrete_operator(ncut) + _exp_i_discrete_operator_conjugate(ncut))
+    return cos_op
+
+
+def _sin_discrete(ncut: int) -> csc_matrix:
+    """Returns operator :math:`\\sin \\Q` in the discrete flux basis"""
+    sin_op = (
+        -1j
+        * 0.5
+        * (_exp_i_discrete_operator(ncut) - _exp_i_discrete_operator_conjugate(ncut))
+    )
+    return sin_op
+########################################################################
 
 def _generate_symbols_list(
     var_str: str, iterable_list: List[int] or ndarray
