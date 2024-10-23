@@ -73,7 +73,7 @@ class SpectrumLookupMixin(MixinCompatible):
         if self._inside_hilbertspace:
             self._current_param_indices = 0
         else:
-            self._current_param_indices = slice(None, None, None)
+            self._current_param_indices = (slice(None, None, None),) * self._parameters.ndim()
 
     @property
     def _bare_product_states_labels(self) -> List[Tuple[int, ...]]:
@@ -528,7 +528,7 @@ class SpectrumLookupMixin(MixinCompatible):
             # drs_idx = self.dressed_index(tuple(state_label))[zero_idx]
             if drs_idx is None:
                 raise IndexError(f"no dressed state found for bare label {state_label}")
-        elif isinstance(state_label, int):
+        elif isinstance(state_label, int | np.int_):
             drs_idx = state_label
         evec_1 = evecs[drs_idx]
 
