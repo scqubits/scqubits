@@ -71,7 +71,6 @@ from scqubits.core.circuit_utils import (
     _sin_dia_dense,
     _sin_phi,
     _sin_theta,
-    get_operator_number,
     get_trailing_number,
     grid_operator_func_factory,
     hierarchical_diagonalization_func_factory,
@@ -1922,7 +1921,7 @@ class CircuitRoutines(ABC):
         }
         for short_op_name, op_func in nonwrapped_ops.items():
             for sym_variable in periodic_vars[short_op_name]:
-                var_index = get_operator_number(sym_variable.name)
+                var_index = get_trailing_number(sym_variable.name)
                 op_name = sym_variable.name + "_operator"
                 if self.hierarchical_diagonalization:
                     periodic_operators[op_name] = (

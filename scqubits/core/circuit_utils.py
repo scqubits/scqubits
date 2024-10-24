@@ -153,26 +153,6 @@ def get_trailing_number(input_str: str) -> Union[int, None]:
     return int(match.group()) if match else None
 
 
-def get_operator_number(input_str: str) -> int:
-    """Returns the number inside an operator name. Example: $
-    get_operator_number("annihilation9_operator") $ 9.
-
-    Parameters
-    ----------
-    input_str:
-        operator name (one of the methods ending with `_operator`)
-
-    Returns
-    -------
-        returns the integer as int, else returns None
-    """
-    match = re.search(r"(\d+)", input_str)
-    number = int(match.group())
-    if not number:
-        raise Exception(f"{input_str} is not a valid operator name.")
-    return number
-
-
 def _identity_phi(grid: discretization.Grid1d) -> csc_matrix:
     """Returns identity operator in the discretized_phi basis.
 
