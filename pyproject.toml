@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools", "wheel", "setuptools_scm"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+write_to = "scqubits/version.py"
+version_scheme = "post-release"
+local_scheme = "no-local-version"
+fallback_version = "0.0"
+
+[project]
+name = "scqubits"
+description = "scqubits: superconducting qubits in Python"
+dynamic = ["version"]
+readme = "README.md"
+license = "BSD"
+requires-python = ">=3.9"
+authors = [
+    { name = "Jens Koch", email = "jens-koch@northwestern.edu" },
+    { name = "Peter Groszkowski", email = "piotrekg@gmail.com" },
+]
+keywords = [
+    "qubits",
+    "superconducting",
+]
+classifiers = [
+    "Development Status :: 4.3 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "cycler",
+    "cython>=0.29.20",
+    "dill",
+    "matplotlib>=3.5.1",
+    "numpy>=1.14.2",
+    "pathos>=0.3.0",
+    "qutip>=4.3.1",
+    "scipy>=1.5 ; sys_platform != 'darwin'",
+    "scipy>=1.5 ; sys_platform == 'darwin' and python_version < '3.10'",
+    "scipy>=1.5,<=1.13.1 ; sys_platform == 'darwin' and python_version >= '3.10'",
+    "sympy",
+    "tqdm",
+    "typing_extensions",
+]
+
+[project.optional-dependencies]
+explorer = [
+    "ipywidgets (>=7.5)",
+]
+graphics = [
+    "matplotlib-label-lines (>=0.3.6)",
+]
+h5-support = [
+    "h5py (>=2.10)",
+]
+pathos = [
+    "dill",
+    "pathos",
+]
+
+[project.urls]
+Homepage = "https://scqubits.readthedocs.io"
+Repository = "https://github.com/scqubits/scqubits"
