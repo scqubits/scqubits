@@ -154,5 +154,5 @@ setuptools.setup(
     zip_safe=False,
     include_package_data=True,
     python_requires=PYTHON_VERSION,
-    **EXTRA_KWARGS
+    **EXTRA_KWARGS,
 )

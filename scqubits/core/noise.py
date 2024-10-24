@@ -132,7 +132,7 @@ class NoisySystem(ABC):
         spectrum_data: Optional[SpectrumData] = None,
         scale: float = 1,
         num_cpus: Optional[int] = None,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Figure, Union[Axes, ndarray]]:
         r"""Show plots of coherence for various channels supported by the qubit as they
         vary as a function of a changing parameter.
@@ -266,7 +266,7 @@ class NoisySystem(ABC):
                                 spectrum_data.energy_table[param_idx, :],  # type:ignore
                                 spectrum_data.state_table[param_idx],  # type:ignore
                             ),
-                            **common_noise_options
+                            **common_noise_options,
                         )
                         for param_idx, param_val in enumerate(param_vals)
                     ]
@@ -295,7 +295,7 @@ class NoisySystem(ABC):
                                 spectrum_data.energy_table[param_idx, :],  # type:ignore
                                 spectrum_data.state_table[param_idx],  # type:ignore
                             ),
-                            **options
+                            **options,
                         )
                         for param_idx, param_val in enumerate(param_vals)
                     ]
@@ -344,7 +344,7 @@ class NoisySystem(ABC):
         get_rate: bool = False,
         scale: float = 1,
         num_cpus: Optional[int] = None,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Figure, Axes]:
         r"""Plot effective :math:`T_1` coherence time (rate) as a function of changing
         parameter.
@@ -497,7 +497,7 @@ class NoisySystem(ABC):
         get_rate: bool = False,
         scale: float = 1,
         num_cpus: Optional[int] = None,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Figure, Axes]:
         r"""Plot effective :math:`T_2` coherence time (rate) as a function of changing
         parameter.
@@ -722,7 +722,7 @@ class NoisySystem(ABC):
         common_noise_options: Dict = None,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
+        **kwargs,
     ) -> float:
         r"""Calculate the effective :math:`T_1` time (or rate).
 
@@ -937,7 +937,7 @@ class NoisySystem(ABC):
         noise_op: Union[ndarray, csc_matrix],
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
+        **kwargs,
     ) -> float:
         r"""Calculate the 1/f dephasing time (or rate) due to  arbitrary noise source.
 
@@ -1018,7 +1018,7 @@ class NoisySystem(ABC):
         j: int = 1,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
+        **kwargs,
     ) -> float:
         r"""Calculate the 1/f dephasing time (or rate) due to flux noise.
 
@@ -1055,7 +1055,7 @@ class NoisySystem(ABC):
             noise_op=self.d_hamiltonian_d_flux(),  # type: ignore
             esys=esys,
             get_rate=get_rate,
-            **kwargs
+            **kwargs,
         )
 
     def tphi_1_over_f_cc(
@@ -1065,7 +1065,7 @@ class NoisySystem(ABC):
         j: int = 1,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
+        **kwargs,
     ) -> float:
         r"""Calculate the 1/f dephasing time (or rate) due to critical current noise.
 
@@ -1102,7 +1102,7 @@ class NoisySystem(ABC):
             noise_op=self.d_hamiltonian_d_EJ(),  # type: ignore
             esys=esys,
             get_rate=get_rate,
-            **kwargs
+            **kwargs,
         )
 
     def tphi_1_over_f_ng(
@@ -1112,7 +1112,7 @@ class NoisySystem(ABC):
         j: int = 1,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
+        **kwargs,
     ) -> float:
         r"""Calculate the 1/f dephasing time (or rate) due to charge noise.
 
@@ -1149,7 +1149,7 @@ class NoisySystem(ABC):
             noise_op=self.d_hamiltonian_d_ng(),  # type: ignore
             esys=esys,
             get_rate=get_rate,
-            **kwargs
+            **kwargs,
         )
 
     def t1(

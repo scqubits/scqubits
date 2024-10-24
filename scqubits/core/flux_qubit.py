@@ -64,7 +64,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
         j: int = 1,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
+        **kwargs,
     ) -> float:
         r"""Calculate the 1/f dephasing time (or rate) due to critical current noise of
         junction associated with Josephson energy :math:`EJ1`.
@@ -100,7 +100,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
             noise_op=self.d_hamiltonian_d_EJ1(),
             esys=esys,
             get_rate=get_rate,
-            **kwargs
+            **kwargs,
         )
 
     def tphi_1_over_f_cc2(
@@ -110,7 +110,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
         j: int = 1,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
+        **kwargs,
     ) -> float:
         r"""Calculate the 1/f dephasing time (or rate) due to critical current noise of
         junction associated with Josephson energy :math:`EJ2`.
@@ -146,7 +146,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
             noise_op=self.d_hamiltonian_d_EJ2(),
             esys=esys,
             get_rate=get_rate,
-            **kwargs
+            **kwargs,
         )
 
     def tphi_1_over_f_cc3(
@@ -156,7 +156,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
         j: int = 1,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
+        **kwargs,
     ) -> float:
         r"""Calculate the 1/f dephasing time (or rate) due to critical current noise of
         junction associated with Josephson energy :math:`EJ3`.
@@ -191,7 +191,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
             noise_op=self.d_hamiltonian_d_EJ3(),
             esys=esys,
             get_rate=get_rate,
-            **kwargs
+            **kwargs,
         )
 
     def tphi_1_over_f_cc(
@@ -201,7 +201,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
         j: int = 1,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
+        **kwargs,
     ) -> float:
         r"""Calculate the 1/f dephasing time (or rate) due to critical-current noise from
         all three Josephson junctions :math:`EJ1`, :math:`EJ2` and :math:`EJ3`. The
@@ -887,7 +887,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         self,
         phi_grid: discretization.Grid1d = None,
         contour_vals: ndarray = None,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Figure, Axes]:
         """Draw contour plot of the potential energy.
 
@@ -960,7 +960,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         phi_grid: discretization.Grid1d = None,
         mode: str = "abs",
         zero_calibrate: bool = True,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Figure, Axes]:
         """Plots 2d phase-basis wave function.
 

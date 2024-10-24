@@ -138,7 +138,7 @@ class DataStore(serializers.Serializable):
         system_params: Dict[str, Any],
         param_name: str = None,
         param_vals: np.ndarray = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         self.system_params = system_params
         self.param_name = param_name
@@ -208,7 +208,7 @@ class SpectrumData(DataStore):
         param_vals: np.ndarray = None,
         state_table: Union[List[QutipEigenstates], np.ndarray, List[np.ndarray]] = None,
         matrixelem_table: np.ndarray = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         self.system_params = system_params
         self.param_name = param_name
@@ -223,7 +223,7 @@ class SpectrumData(DataStore):
             energy_table=energy_table,
             state_table=state_table,
             matrixelem_table=matrixelem_table,
-            **kwargs
+            **kwargs,
         )
 
     def subtract_ground(self) -> None:
@@ -235,7 +235,7 @@ class SpectrumData(DataStore):
         which: Union[int, List[int]] = -1,
         subtract_ground: bool = False,
         label_list: List[str] = None,
-        **kwargs
+        **kwargs,
     ) -> "Tuple[Figure, Axes]":
         """Plots eigenvalues of as a function of one parameter, as stored in
         `SpectrumData` object.
@@ -263,5 +263,5 @@ class SpectrumData(DataStore):
             which=which,
             subtract_ground=subtract_ground,
             label_list=label_list,
-            **kwargs
+            **kwargs,
         )

@@ -612,7 +612,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
             xdata=self._parameters.paramvals_list[0],
             ydata=self,
             xlabel=self._parameters.names[0],
-            **kwargs
+            **kwargs,
         )
 
     @property

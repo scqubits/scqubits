@@ -1473,7 +1473,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             contour_vals=contour_vals,
             ylabel=r"$\theta$",
             xlabel=r"$\phi$",
-            **kwargs
+            **kwargs,
         )
 
     def wavefunction(
@@ -1564,7 +1564,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         theta_grid=None,
         mode="abs",
         zero_calibrate=True,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Figure, Axes]:
         r"""Plots a 2D wave function in :math:`\\theta, \\phi` basis, at :math:`\\zeta =
         0`
@@ -1625,7 +1625,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             zero_calibrate=zero_calibrate,
             ylabel=r"$\theta$",
             xlabel=r"$\phi$",
-            **kwargs
+            **kwargs,
         )
 
     def phi_1_operator(

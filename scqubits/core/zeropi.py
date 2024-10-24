@@ -716,7 +716,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         self,
         theta_grid: Grid1d = None,
         contour_vals: Union[List[float], ndarray] = None,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Figure, Axes]:
         """Draw contour plot of the potential energy.
 
@@ -739,7 +739,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             contour_vals=contour_vals,
             xlabel=r"$\phi$",
             ylabel=r"$\theta$",
-            **kwargs
+            **kwargs,
         )
 
     def wavefunction(
@@ -794,7 +794,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         theta_grid: Grid1d = None,
         mode: str = "abs",
         zero_calibrate: bool = True,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Figure, Axes]:
         """Plots 2d phase-basis wave function.
 
@@ -825,5 +825,5 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             zero_calibrate=zero_calibrate,
             xlabel=r"$\phi$",
             ylabel=r"$\theta$",
-            **kwargs
+            **kwargs,
         )

@@ -690,22 +690,22 @@ DIAG_METHODS = {
     "evals_scipy_sparse_LA_shift-inverse": lambda matrix, evals_count, **kwargs: evals_scipy_sparse(
         matrix,
         evals_count,
-        **_dict_merge(dict(which="LA", sigma=0), kwargs, overwrite=True)
+        **_dict_merge(dict(which="LA", sigma=0), kwargs, overwrite=True),
     ),
     "esys_scipy_sparse_LA_shift-inverse": lambda matrix, evals_count, **kwargs: esys_scipy_sparse(
         matrix,
         evals_count,
-        **_dict_merge(dict(which="LA", sigma=0), kwargs, overwrite=True)
+        **_dict_merge(dict(which="LA", sigma=0), kwargs, overwrite=True),
     ),
     "evals_scipy_sparse_LM_shift-inverse": lambda matrix, evals_count, **kwargs: evals_scipy_sparse(
         matrix,
         evals_count,
-        **_dict_merge(dict(which="LM", sigma=0), kwargs, overwrite=True)
+        **_dict_merge(dict(which="LM", sigma=0), kwargs, overwrite=True),
     ),
     "esys_scipy_sparse_LM_shift-inverse": lambda matrix, evals_count, **kwargs: esys_scipy_sparse(
         matrix,
         evals_count,
-        **_dict_merge(dict(which="LM", sigma=0), kwargs, overwrite=True)
+        **_dict_merge(dict(which="LM", sigma=0), kwargs, overwrite=True),
     ),
     # primme sparse
     "evals_primme_sparse": evals_primme_sparse,
@@ -713,7 +713,7 @@ DIAG_METHODS = {
     "evals_primme_sparse_SM": lambda matrix, evals_count, **kwargs: evals_primme_sparse(
         matrix=matrix,
         evals_count=evals_count,
-        **_dict_merge(dict(which="SM"), kwargs, overwrite=True)
+        **_dict_merge(dict(which="SM"), kwargs, overwrite=True),
     ),
     "esys_primme_sparse_SM": lambda matrix, evals_count, **kwargs: esys_primme_sparse(
         matrix, evals_count, **_dict_merge(dict(which="SM"), kwargs, overwrite=True)
@@ -721,22 +721,22 @@ DIAG_METHODS = {
     "evals_primme_sparse_LA_shift-inverse": lambda matrix, evals_count, **kwargs: evals_primme_sparse(
         matrix=matrix,
         evals_count=evals_count,
-        **_dict_merge(dict(which="LA", sigma=0), kwargs, overwrite=True)
+        **_dict_merge(dict(which="LA", sigma=0), kwargs, overwrite=True),
     ),
     "esys_primme_sparse_LA_shift-inverse": lambda matrix, evals_count, **kwargs: esys_primme_sparse(
         matrix=matrix,
         evals_count=evals_count,
-        **_dict_merge(dict(which="LA", sigma=0), kwargs, overwrite=True)
+        **_dict_merge(dict(which="LA", sigma=0), kwargs, overwrite=True),
     ),
     "evals_primme_sparse_LM_shift-inverse": lambda matrix, evals_count, **kwargs: evals_primme_sparse(
         matrix=matrix,
         evals_count=evals_count,
-        **_dict_merge(dict(which="LM", sigma=0), kwargs, overwrite=True)
+        **_dict_merge(dict(which="LM", sigma=0), kwargs, overwrite=True),
     ),
     "esys_primme_sparse_LM_shift-inverse": lambda matrix, evals_count, **kwargs: esys_primme_sparse(
         matrix=matrix,
         evals_count=evals_count,
-        **_dict_merge(dict(which="LM", sigma=0), kwargs, overwrite=True)
+        **_dict_merge(dict(which="LM", sigma=0), kwargs, overwrite=True),
     ),
     # cupy dense
     "evals_cupy_dense": evals_cupy_dense,

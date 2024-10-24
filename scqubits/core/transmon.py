@@ -401,7 +401,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         mode: str = "real",
         which: int = 0,
         nrange: Tuple[int, int] = None,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Figure, Axes]:
         """Plots transmon wave function in charge basis.
 
@@ -436,7 +436,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         phi_grid: Grid1d = None,
         mode: str = "abs_sqr",
         scaling: float = None,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Figure, Axes]:
         """Alias for plot_wavefunction."""
         return self.plot_wavefunction(
@@ -445,7 +445,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             phi_grid=phi_grid,
             mode=mode,
             scaling=scaling,
-            **kwargs
+            **kwargs,
         )
 
     def numberbasis_wavefunction(
