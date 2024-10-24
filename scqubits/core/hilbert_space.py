@@ -26,6 +26,7 @@ from typing import (
     Optional,
     Tuple,
     Union,
+    Literal,
     cast,
     overload,
 )
@@ -617,7 +618,63 @@ class HilbertSpace(
     ###################################################################################
     # HilbertSpace: generate SpectrumLookup
     ###################################################################################
-    def generate_lookup(self, update_subsystem_indices: List[int] = None) -> None:
+    def generate_lookup(
+        self, 
+        mode: Literal["O", "DF", "EF"] = "EF",
+        mode_priority: Union[List[int], None] = None,
+        transpose: bool = False,
+        truncate: Union[int, None] = None,
+        update_subsystem_indices: Union[List[int], None] = None,
+    ) -> None:
+        """
+        Generate the lookup table with one of the following methods:
+        - "O": label by overlaps (default)
+        - "DF": branch analysis with depth-first traversal of a tree 
+        formed by the bare state labels, generalized from  
+        Dumas et al. (2024).
+        - "EF": branch analysis with traversal ordered by the bare energy, 
+        which is particularly useful when the Hilbert space is too large and not 
+        all the eigenstates need to be labeled.
+        
+        Parameters
+        ----------
+        mode: Literal["O", "DF", "EF"]
+            The ordering method for the labeling
+            - "O": label by overlaps
+            - "DF": depth-first traversal the tree formed by the bare state labels
+            - "EF": traversal ordered by the bare energy  
+            
+        mode_priority: List[int] | None
+            A permutation of the mode indices. Only used for "DF" mode
+            during the branch analysis.
+            Since the eigenstates-bare-state-paring is based on the 
+            "first-come-first-served" principle, the ordering of such traversal will 
+            play an important role, which is specified by `mode_priority`. It 
+            represents the depth of the mode labels to be traversed. The later 
+            the mode appears in the list, the deeper it is in the recursion. For 
+            the last mode in the list, its states will be organized in a single 
+            branch - the innermost part of the nested list.
+        
+        transpose: bool
+            For "DF" mode only. If True, the returned array will be transposed 
+            according to the mode_priority. Otherwise, the array will be in the 
+            shape of the subsystem dimensions in the original order.
+            
+        truncate: int | None
+            For "EF" mode only. The number of eigenstates to be assigned.
+            
+        Returns
+        -------
+        branch_drs_indices: NamedSlotsNdarray
+            A NamedSlotsNdarray object containing the branch analysis results
+            organized by the parameter indices.
+            Each element is a flattened multi-dimensional array of the 
+            dressed indices organized by the mode_priority. If the dimensions 
+            of the subsystems are D0, D1 and D2, the returned array will 
+            be flattend from the shape (D0, D1, D2). If transposed is True, 
+            the array will be transposed according to the mode_priority 
+            (for "DF" mode only).
+        """
         self._lookup_exists = True
         bare_esys_dict = self.generate_bare_esys(
             update_subsystem_indices=update_subsystem_indices
@@ -635,7 +692,11 @@ class HilbertSpace(
         self._data["evals"] = NamedSlotsNdarray(np.array([evals]), dummy_params)
         self._data["evecs"] = NamedSlotsNdarray(evecs_wrapped, dummy_params)
         self._data["dressed_indices"] = spec_lookup.SpectrumLookupMixin.generate_lookup(
-            self
+            self, 
+            mode=mode,
+            mode_priority=mode_priority,
+            transpose=transpose,
+            truncate=truncate,
         )
 
     def lookup_exists(self) -> bool:

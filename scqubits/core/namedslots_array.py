@@ -15,7 +15,7 @@ import numbers
 import warnings
 
 from collections import OrderedDict
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, Literal
 
 import numpy as np
 
@@ -191,17 +191,35 @@ class ExtIndexObject:
         if isinstance(idx_entry, (float, complex)):
             return "val", idx_for_value(idx_entry, self._parameters[self.slot])
 
+        # slice(<str>, slice(...), None):  handle str based slices
+        if (
+            isinstance(idx_entry, slice) 
+            and isinstance(idx_entry.start, str) 
+            and isinstance(idx_entry.stop, slice)
+            and idx_entry.step is None
+        ):
+            self.name = idx_entry.start
+
+            slc = idx_entry.stop
+
+            start = self.convert_to_np_slice_entry(slc.start)
+            stop = self.convert_to_np_slice_entry(slc.stop)
+
+            if isinstance(start, (int, np.integer)) and (stop is None):
+                return "slice.name", start
+            return "slice.name", slice(start, stop, slc.step)
+
         # slice(<str>, ...):  handle str based slices
         if isinstance(idx_entry, slice) and isinstance(idx_entry.start, str):
             self.name = idx_entry.start
 
             start = self.convert_to_np_slice_entry(idx_entry.stop)
-            if isinstance(start, (complex, float)):
-                start = idx_for_value(start, self._parameters[self.slot])
+            # if isinstance(start, (complex, float)):
+            #     start = idx_for_value(start, self._parameters[self.slot])
 
             stop = self.convert_to_np_slice_entry(idx_entry.step)
-            if isinstance(stop, (complex, float)):
-                stop = idx_for_value(stop, self._parameters[self.slot])
+            # if isinstance(stop, (complex, float)):
+            #     stop = idx_for_value(stop, self._parameters[self.slot])
 
             if isinstance(start, (int, np.integer)) and (stop is None):
                 return "slice.name", start
@@ -288,7 +306,7 @@ class Parameters:
 
         self.names = self.paramnames_list
         self.ordered_dict = OrderedDict(
-            [(name, paramvals_by_name[name]) for name in self.names]
+            [(name, np.array(paramvals_by_name[name])) for name in self.names]
         )
         self.paramvals_by_name = self.ordered_dict
         self.index_by_name = {
@@ -441,6 +459,37 @@ class Parameters:
                 reduced_paramvals_by_name[name] = paramvals
 
         return Parameters(reduced_paramvals_by_name)
+    
+    def meshgrid_by_name(
+            self, 
+            indexing: Literal['ij', 'xy'] = 'ij', 
+        ) -> OrderedDict[str, "NamedSlotsNdarray"]:
+        """
+        Creates and returns returns a dictionary containing the meshgrids of the 
+        parameter lists. All meshgrids are instances of the NamedSlotNdarray
+
+        Parameters
+        ----------
+        indexing: {'ij', 'xy'}
+            Matrix ('ij', default) or cartesian ('xy') or indexing of output. This
+            argument will be passed to the np.meshgrid() directly
+
+        Returns
+        -------
+            An ordered dictionary or a list containing the meshgrids
+        """
+
+        param_mesh = np.meshgrid(*self.paramvals_list, indexing=indexing)
+
+        param_mesh_nsarray = [
+            NamedSlotsNdarray(mesh, self.paramvals_by_name) 
+            for mesh in param_mesh
+        ]
+        
+        return OrderedDict(zip(
+            self.paramnames_list, 
+            param_mesh_nsarray
+        ))
 
 
 class NamedSlotsNdarray(np.ndarray, Serializable):

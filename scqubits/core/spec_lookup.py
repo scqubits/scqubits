@@ -12,8 +12,10 @@
 
 import itertools
 import numbers
+from copy import copy
+from warnings import warn
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, Literal
 
 import numpy as np
 import qutip as qt
@@ -28,6 +30,7 @@ import scqubits.utils.spectrum_utils as spec_utils
 
 from scqubits.core.namedslots_array import NamedSlotsNdarray
 from scqubits.utils.typedefs import NpIndexTuple, NpIndices
+from scqubits.utils.spectrum_utils import identity_wrap
 
 if TYPE_CHECKING:
     from typing_extensions import Protocol
@@ -73,7 +76,7 @@ class SpectrumLookupMixin(MixinCompatible):
         if self._inside_hilbertspace:
             self._current_param_indices = 0
         else:
-            self._current_param_indices = slice(None, None, None)
+            self._current_param_indices = (slice(None, None, None),) * self._parameters.ndim()
 
     @property
     def _bare_product_states_labels(self) -> List[Tuple[int, ...]]:
@@ -88,12 +91,72 @@ class SpectrumLookupMixin(MixinCompatible):
          (max_1,0), (max_1,1), (max_1,2), ..., (max_1,max_2)]
         """
         return list(np.ndindex(*self.hilbertspace.subsystem_dims))
+    
+    def generate_lookup(
+        self,
+        mode: Literal["O", "DF", "EF"] = "EF",
+        mode_priority: Union[List[int], None] = None,
+        transpose: bool = False,
+        truncate: Union[int, None] = None,
+    ) -> NamedSlotsNdarray:
+        """
+        Generate the lookup table with one of the following methods:
+        - "O": label by overlaps (default)
+        - "DF": branch analysis with depth-first traversal of a tree 
+        formed by the bare state labels, generalized from  
+        Dumas et al. (2024).
+        - "EF": branch analysis with traversal ordered by the bare energy, 
+        which is particularly useful when the Hilbert space is too large and not 
+        all the eigenstates need to be labeled.
+        
+        Parameters
+        ----------
+        mode: Literal["O", "DF", "EF"]
+            The ordering method for the labeling
+            - "O": label by overlaps
+            - "DF": depth-first traversal the tree formed by the bare state labels
+            - "EF": traversal ordered by the bare energy  
+            
+        mode_priority: List[int] | None
+            A permutation of the mode indices. Only used for "DF" mode
+            during the branch analysis.
+            Since the eigenstates-bare-state-paring is based on the 
+            "first-come-first-served" principle, the ordering of such traversal will 
+            play an important role, which is specified by `mode_priority`. It 
+            represents the depth of the mode labels to be traversed. The later 
+            the mode appears in the list, the deeper it is in the recursion. For 
+            the last mode in the list, its states will be organized in a single 
+            branch - the innermost part of the nested list.
+        
+        transpose: bool
+            For "DF" mode only. If True, the returned array will be transposed 
+            according to the mode_priority. Otherwise, the array will be in the 
+            shape of the subsystem dimensions in the original order.
+            
+        truncate: int | None
+            For "EF" mode only. The number of eigenstates to be assigned.
+            
+        Returns
+        -------
+        branch_drs_indices: NamedSlotsNdarray
+            A NamedSlotsNdarray object containing the branch analysis results
+            organized by the parameter indices.
+            Each element is a flattened multi-dimensional array of the 
+            dressed indices organized by the mode_priority. If the dimensions 
+            of the subsystems are D0, D1 and D2, the returned array will 
+            be flattend from the shape (D0, D1, D2). If transposed is True, 
+            the array will be transposed according to the mode_priority 
+            (for "DF" mode only).
+        """
+        if mode == "DF" or mode == "EF":
+            return self._branch_analysis(mode, mode_priority, transpose, truncate)
+        else:
+            return self._generate_lookup_by_overlap()
 
-    def generate_lookup(self) -> NamedSlotsNdarray:
+    def _generate_lookup_by_overlap(self) -> NamedSlotsNdarray:
         """
         For each parameter value of the parameter sweep, generate the map between
-        bare states and
-        dressed states.
+        bare states and dressed states based on the overlap criterion.
 
         Returns
         -------
@@ -105,13 +168,13 @@ class SpectrumLookupMixin(MixinCompatible):
 
         param_indices = itertools.product(*map(range, self._parameters.counts))
         for index in param_indices:
-            dressed_indices[index] = self._generate_single_mapping(index)
+            dressed_indices[index] = self._generate_single_mapping_by_overlap(index)
         dressed_indices = np.asarray(dressed_indices[:].tolist())
 
         parameter_dict = self._parameters.ordered_dict.copy()
         return NamedSlotsNdarray(dressed_indices, parameter_dict)
 
-    def _generate_single_mapping(
+    def _generate_single_mapping_by_overlap(
         self,
         param_indices: Tuple[int, ...],
     ) -> ndarray:
@@ -447,5 +510,529 @@ class SpectrumLookupMixin(MixinCompatible):
 
         """
         if isinstance(param_indices, slice):
+            # Convert a single slice to a tuple containing just that slice
             param_indices = (param_indices,)
-        return len(self._parameters) == len(param_indices)
+
+        # Check if each element in param_indices is an integer or a non-range slice
+        # A non-range slice would be something like slice(1, 2) which effectively selects a single index
+        fixed = []
+        for dim, idx in enumerate(param_indices):
+            
+            if len(self._parameters[dim]) == 1:
+                # if the parameter has only one value, then it is already fixed
+                fixed.append(True)
+            elif isinstance(idx, int):
+                # if the parameter is a single index, then it is fixed
+                fixed.append(True)
+            elif (
+                isinstance(idx, slice) 
+                and idx.start is not None 
+                and isinstance(idx.start, str)
+            ):
+                # if the parameter is a name based slice and the only allowed
+                # name based slice is a single value
+                fixed.append(True)
+            elif (
+                isinstance(idx, slice) 
+                and idx.start is not None 
+                and idx.stop is not None 
+                and idx.stop - idx.start == 1
+            ):
+                # if the parameter is a single value slice, then it is fixed
+                fixed.append(True)
+            else:
+                fixed.append(False)
+
+        return all(fixed)
+
+    @utils.check_lookup_exists
+    @utils.check_sync_status
+    def dressed_state_component(
+        self, 
+        state_label: Union[Tuple[int, ...], List[int], int],
+        num_components: Union[int, None] = None,
+        param_npindices: Optional[NpIndices] = None,
+    ) -> Tuple[List[int], List[float]]:
+        """
+        A dressed state is a superposition of bare states. This function returns 
+        a dressed state's bare conponents and the 
+        corresponding occupation probability. 
+        They are sorted by probability in descending order.
+
+        Parameters
+        ----------
+        state_label:
+            The bare label of the dressed state of interest. Could be 
+                - a tuple/list of bare labels (int)
+                - a single dressed label (int)
+                
+        num_components:
+            The number of components to be returned. If None, all components 
+            will be returned.
+            
+        param_npindices:
+            The parameter indices to be used. If None, the current parameter 
+            indices will be used.
+        
+        Returns
+        -------
+        A tuple of two lists: 
+            - the first list contains the bare labels of the components
+            - the second list contains the occupation probabilities of the components
+        """
+        param_npindices = self.set_npindextuple(param_npindices)
+
+        if not self.all_params_fixed(param_npindices):
+            raise ValueError(
+                "All parameters must be fixed to concrete values for "
+                "the use of `.dressed_state_component`."
+            )
+
+        # I don't know why I use this zero_idx for slicing before.
+        # Now I think it is totally wrong.
+        # zero_idx = (0,) * len(self._parameters)
+        
+        evecs = self["evecs"][param_npindices]
+            
+        # find the desired state vector
+        if isinstance(state_label, tuple | list): 
+            raveled_label = np.ravel_multi_index(state_label, self.hilbertspace.subsystem_dims)
+            drs_idx = self["dressed_indices"][param_npindices][raveled_label]
+            if drs_idx is None:
+                raise IndexError(f"no dressed state found for bare label {state_label}")
+        elif isinstance(state_label, int | np.int_):
+            drs_idx = state_label
+        evec_1 = evecs[drs_idx]
+
+        ordered_label = np.argsort(np.abs(evec_1.full()[:, 0]))[::-1]
+        bare_label_list = []
+        prob_list = []
+        for idx in range(evec_1.shape[0]):
+            raveled_label = int(ordered_label[idx])
+            bare_label = np.unravel_index(raveled_label, self.hilbertspace.subsystem_dims)
+            prob = (np.abs(evec_1.full()[:, 0])**2)[raveled_label]
+
+            bare_label_list.append(bare_label)
+            prob_list.append(prob)
+
+        if num_components is not None:
+            bare_label_list = bare_label_list[:num_components]
+            prob_list = prob_list[:num_components]
+
+        return bare_label_list, prob_list
+
+    def _branch_analysis_excite_op(
+        self,
+        mode: "Union[int, QuantumSys]",
+    ) -> Qobj:
+        """
+        Branch analysis requires a step by step excitation of a chosen state, 
+        which help to cover the entire Hilbert space and complete the 
+        assignment of dressed indices.
+        This function returns the excitation operator for a given mode.
+        
+        For the moment, it returns the creation operator for linear modes,
+        and Sum_i |i+1><i| operator for other modes.
+        
+        Parameters
+        ----------
+        mode:
+            The mode to be excited.
+        
+        Returns
+        -------
+        The excitation operator for the given mode, tensor producted with 
+        the identity operators of the other subsystems.
+        """
+        hilbertspace = self.hilbertspace
+        if isinstance(mode, int):
+            mode_idx = mode
+            mode = hilbertspace.subsystem_list[mode]
+        else:
+            mode_idx = hilbertspace.subsystem_list.index(mode)
+            
+        if mode in hilbertspace.osc_subsys_list:
+            # annhilation operator
+            return hilbertspace.annihilate(mode).dag()
+        else:
+            # a sum of |j+1><j|
+            dims = hilbertspace.subsystem_dims
+            op = qt.qdiags(
+                np.ones(dims[mode_idx] - 1),
+                -1,
+            )
+            return identity_wrap(op, mode, hilbertspace.subsystem_list)
+            
+    def _branch_analysis_DF_step(
+        self,
+        mode_priority: List[int],
+        recusion_depth: int,
+        init_drs_idx: int, 
+        init_state: qt.Qobj, 
+        remaining_drs_indices: List[int], 
+        remaining_evecs: List[qt.Qobj], 
+    ) -> Tuple[List, List]:
+        """
+        Perform a single branch analysis according to Dumas et al. (2024). This 
+        is a core function to be run recursively, which realized a depth-first
+        search in the tree - its leaves can be labeled by bare labels.
+
+        In a nutshell, the function will:
+        1. Start from the "ground" state / starting point the branch, find
+        all of the branch states
+        2. Remove the found states from the remaining candidates
+        3. [If at the end of the depth-first search] Return the branch states
+        4. [If not at the end] For each branch state, use it as an init state to 
+        start such search again, which will return a (nested) list of branch 
+        states. Combine the list of branch states and return a nested list of
+        those states
+
+        In such way, the function will recursively go through this multi-dimensional
+        Hilbert space and assign the eigenstates to their labels.
+
+        Parameters
+        ----------
+        self:
+            SpectrumLookupMixin object, could be a `ParameterSweep` object or 
+            `HilbertSpace` object.
+        mode_priority:
+            A permutation of the mode indices. 
+            It represents the depth of the mode labels to be traversed. The later
+            the mode appears in the list, the deeper it is in the recursion.
+            For the last mode in the list, its states will be organized in a 
+            single branch - the innermost part of the nested list. 
+        recusion_depth:
+            The current depth of the recursion. It should be 0 at the beginning.
+        init_drs_idx:
+            The dressed index of the initial state of this branch.
+        init_state:
+            The initial state of this branch.
+        remaining_drs_indices:
+            The list of the remaining dressed indices to be assigned.
+        remaining_evecs:
+            The list of the remaining eigenstates to be assigned.
+        
+        Returns
+        -------
+        branch_drs_indices, branch_states
+            The (nested) list of the branch states and their dressed indices.
+        """
+
+        hspace = self.hilbertspace
+        mode_index = mode_priority[recusion_depth]
+        mode = hspace.subsystem_list[mode_index]
+        terminate_branch_length = hspace.subsystem_dims[mode_index]
+
+        # photon addition operator
+        excite_op = self._branch_analysis_excite_op(mode)
+
+        # loop over and find all states that matches the excited initial state
+        current_state = init_state
+        current_drs_idx = init_drs_idx
+        branch_drs_indices = []
+        branch_states = []
+        while True:
+            if recusion_depth == len(mode_priority) - 1:
+                # we are at the end of the depth-first search:
+                # just add the state to the branch
+                branch_drs_indices.append(current_drs_idx)
+                branch_states.append(current_state)
+            else:
+                # continue the depth-first search:
+                # recursively call the function and append all the branch states
+                (
+                    _branch_drs_indices, _branch_states
+                ) = self._branch_analysis_DF_step(
+                    mode_priority, 
+                    recusion_depth + 1,
+                    current_drs_idx,
+                    current_state, 
+                    remaining_drs_indices,
+                    remaining_evecs, 
+                )
+                branch_drs_indices.append(_branch_drs_indices)
+                branch_states.append(_branch_states)
+
+            # if the branch is long enough, terminate the loop
+            if len(branch_states) == terminate_branch_length:
+                break
+
+            # find the closest state to the excited current state
+            if len(remaining_evecs) == 0:
+                raise ValueError(
+                    "No more states to assign. It's likely that the eignestates "
+                    "are not complete. Please try to obtain a complete set of "
+                    "eigenstates by increasing `evals_count`."
+                )
+
+            excited_state = (excite_op * current_state).unit()
+            overlaps = [np.abs(excited_state.overlap(evec)) for evec in remaining_evecs]
+            max_overlap_index = np.argmax(overlaps)
+
+            current_state = remaining_evecs[max_overlap_index]
+            current_drs_idx = remaining_drs_indices[max_overlap_index]
+
+            # remove the state from the remaining states
+            remaining_evecs.pop(max_overlap_index)
+            remaining_drs_indices.pop(max_overlap_index)
+
+        return branch_drs_indices, branch_states
+
+    def _branch_analysis_DF(
+        self,
+        param_indices: Tuple[int, ...],
+        mode_priority: Optional[List[int]] = None,
+        transpose: bool = False,
+    ) -> np.ndarray:
+        """
+        Perform a full branch analysis according to Dumas et al. (2024) for 
+        a single parameter point using depth-first traversal. It will start 
+        a recursive search using method `_branch_analysis_DF_step`.
+
+        Since the eigenstates-picking is "first-come-first-served", the 
+        ordering of such search will play an important role, which is specified
+        by `mode_priority`. It represents the depth of the mode labels to 
+        be traversed. The later the mode appears in the list, the deeper it is 
+        in the recursion. For the last mode in the list, its states will be 
+        organized in a single branch - the innermost part of the nested list.
+        
+        At the end, this function will organize the eigenstates into a 
+        multi-dimensional array according to the mode_priority. 
+
+        Parameters
+        ----------
+        self:
+            SpectrumLookupMixin object, could be a `ParameterSweep` object or 
+            `HilbertSpace` object.
+        param_indices:
+            The indices of the parameter sweep to be analyzed.
+        mode_priority:
+            A permutation of the mode indices. 
+            It represents the depth of the mode labels to be traversed. The later
+            the mode appears in the list, the deeper it is in the recursion.
+            For the last mode in the list, its states will be organized in a 
+            single branch - the innermost part of the nested list.
+        transpose:
+            If True, the returned array will be transposed according to the
+            mode_priority. Otherwise, the array will be in the shape of 
+            the subsystem dimensions in the original order.
+
+        Returns
+        -------
+        branch_drs_indices
+            The multi-dimensional array of the dressed indices organized by 
+            the mode_priority. If the dimensions of the subsystems are
+            D0, D1 and D2, the returned array will have the shape (D0, D1, D2).
+            If transposed is True, the array will be transposed according to
+            the mode_priority.
+        """
+        if mode_priority is None:
+            mode_priority = list(range(self.hilbertspace.subsystem_count))
+        
+        # we assume that the ground state always has bare label (0, 0, ...)
+        evecs = self._data["evecs"][param_indices]
+        init_state = evecs[0]
+        remaining_evecs = list(evecs[1:])
+        remaining_drs_indices = list(range(1, self.hilbertspace.dimension))
+
+        branch_drs_indices, _ = self._branch_analysis_DF_step(
+            mode_priority, 
+            0, 
+            0, init_state,
+            remaining_drs_indices, remaining_evecs
+        )
+        branch_drs_indices = np.array(branch_drs_indices)
+
+        if not transpose:
+            reversed_permutation = np.argsort(mode_priority)
+            return np.transpose(
+                branch_drs_indices, reversed_permutation
+            )
+
+        return branch_drs_indices
+
+    def _branch_analysis_EF(
+        self,
+        param_indices: Tuple[int, ...],
+        truncate: Union[int, None] = None,
+    ) -> np.ndarray:
+        """
+        Perform a full branch analysis according to Dumas et al. (2024) for 
+        a single parameter point for a few eigenstates with the lowest bare 
+        energies. It is particularly useful when the Hilbert space is too large 
+        and not all the eigenstates need to be labeled.
+        
+        Parameters
+        ----------
+        param_indices:
+            The indices of the parameter sweep to be analyzed.
+        truncate:
+            The number of states to be assigned. If None, all states will be 
+            assigned.
+        """
+        hspace = self.hilbertspace
+        dims = hspace.subsystem_dims
+        
+        if truncate is None:
+            truncate = len(self._data["evecs"][param_indices])
+        elif len(self._data["evecs"][param_indices]) < truncate:
+            truncate = len(self._data["evecs"][param_indices])
+            warn(
+                "evals_count is less than truncate, truncate is set to "
+                f"{len(self._data['evecs'][param_indices])}."
+            )
+        
+        # get the associated excitation operators
+        excite_op_list = [self._branch_analysis_excite_op(mode) for mode in hspace.subsystem_list]
+        
+        # generate a list of their bare energies
+        bare_evals_by_sys = self._data["bare_evals"]
+        bare_evals = np.zeros(dims)
+        for idx in np.ndindex(tuple(dims)):
+            subsys_eval = [
+                bare_evals_by_sys[subsys_idx][param_indices][level_idx]
+                for subsys_idx, level_idx in enumerate(idx)
+            ]
+            bare_evals[idx] = np.sum(subsys_eval)
+        bare_evals = bare_evals.ravel()
+        
+        # sort the bare energies
+        # which will be the order of state assignment
+        sorted_indices = np.argsort(bare_evals)[:truncate]
+            
+        # mode assignment
+        branch_drs_indices = np.ndarray(dims, dtype=object)
+        branch_drs_indices.fill(None)
+        evecs = self._data["evecs"][param_indices]
+        remaining_evecs = list(evecs)
+        remaining_drs_indices = list(range(0, self.hilbertspace.dimension))
+        
+        for raveled_bare_idx in sorted_indices:
+            # assign the dressed index for bare_idx
+            bare_idx = list(np.unravel_index(raveled_bare_idx, dims))
+            
+            if raveled_bare_idx == 0:
+                # the (0, 0, ...) is always assigned the dressed index 0
+                branch_drs_indices[tuple(bare_idx)] = 0
+                remaining_drs_indices.pop(0)
+                remaining_evecs.pop(0)
+                continue
+            
+            # get previously assigned states (one less excitation) 
+            # By comparing the excited states with the dressed states,
+            # we can find the dressed index of the current state
+            prev_bare_indices = []
+            potential_drs_indices = []
+            for subsys_idx in range(len(dims)):
+                
+                # obtain the a bare index with one less excitation
+                prev_idx = copy(bare_idx)
+                if prev_idx[subsys_idx] == 0:
+                    continue
+                prev_idx[subsys_idx] -= 1
+                prev_drs_idx = branch_drs_indices[tuple(prev_idx)]
+                
+                prev_bare_indices.append(prev_idx)
+                
+                # state vector
+                prev_state = evecs[prev_drs_idx]
+                excited_state = excite_op_list[subsys_idx] * prev_state
+                excited_state = excited_state.unit()
+                
+                # find the dressed index
+                overlaps = [np.abs(excited_state.overlap(evec)) for evec in remaining_evecs]
+                max_overlap_index = np.argmax(overlaps)
+                
+                potential_drs_indices.append(remaining_drs_indices[max_overlap_index])
+                
+            # do a majority vote, if equal, chose the first one
+            unique_votes, counts = np.unique(potential_drs_indices, return_counts=True)
+            vote_result = np.argmax(counts)
+            drs_idx = unique_votes[vote_result]
+            idx_in_remaining_list = remaining_drs_indices.index(drs_idx)
+            
+            # remove the state from the remaining states
+            remaining_evecs.pop(idx_in_remaining_list)
+            remaining_drs_indices.pop(idx_in_remaining_list)
+            
+            branch_drs_indices[tuple(bare_idx)] = drs_idx
+            
+        return branch_drs_indices
+
+    def _branch_analysis(
+        self,
+        mode: Literal["DF", "EF"] = "EF",
+        mode_priority: Optional[List[int]] = None,
+        transpose: bool = False,
+        truncate: Union[int, None] = None,
+    ) -> NamedSlotsNdarray:
+        """
+        Perform a full branch analysis for all parameter points, according to 
+        Dumas et al. (2024). We provide two orderings methods for the labeling:
+        - "DF": depth-first traversal the tree formed by the bare state labels
+        - "EF": traversal ordered by the bare energy, which is particularly 
+            useful when the Hilbert space is too large and not all the eigenstates
+            need to be labeled.
+        
+        Parameters
+        ----------
+        mode: Literal["DF", "EF"]
+            The ordering method for the labeling
+            - "DF": depth-first traversal the tree formed by the bare state labels
+            - "EF": traversal ordered by the bare energy  
+            
+        mode_priority: List[int] | None
+            A permutation of the mode indices. 
+            Since the eigenstates-bare-state-paring is based on the 
+            "first-come-first-served" principle, the ordering of such traversal will 
+            play an important role, which is specified by `mode_priority`. It 
+            represents the depth of the mode labels to be traversed. The later 
+            the mode appears in the list, the deeper it is in the recursion. For 
+            the last mode in the list, its states will be organized in a single 
+            branch - the innermost part of the nested list.
+        
+        transpose: bool
+            For "DF" mode only. If True, the returned array will be transposed 
+            according to the mode_priority. Otherwise, the array will be in the 
+            shape of the subsystem dimensions in the original order.
+            
+        truncate: int | None
+            For "EF" mode only. The number of eigenstates to be assigned.
+            
+        Returns
+        -------
+        branch_drs_indices: NamedSlotsNdarray
+            A NamedSlotsNdarray object containing the branch analysis results
+            organized by the parameter indices.
+            Each element is a flattened multi-dimensional array of the 
+            dressed indices organized by the mode_priority. If the dimensions 
+            of the subsystems are D0, D1 and D2, the returned array will 
+            be flattend from the shape (D0, D1, D2). If transposed is True, 
+            the array will be transposed according to the mode_priority 
+            (for "DF" mode only).
+        """
+        dressed_indices = np.empty(shape=self._parameters.counts, dtype=object)
+
+        param_indices = itertools.product(*map(range, self._parameters.counts))
+        
+        for index in param_indices:
+            if mode == "DF":
+                dressed_indices[index] = self._branch_analysis_DF(
+                    index, mode_priority, transpose,
+                )
+            elif mode == "EF":
+                dressed_indices[index] = self._branch_analysis_EF(
+                    index, truncate,
+                )
+            else:
+                raise ValueError(f"Mode {mode} is not supported.")
+            
+        dressed_indices = np.asarray(dressed_indices[:].tolist())
+
+        parameter_dict = self._parameters.ordered_dict.copy()
+        shape = self._parameters.counts
+        return NamedSlotsNdarray(
+            dressed_indices.reshape(shape + (-1,)), 
+            parameter_dict,
+        )
+
