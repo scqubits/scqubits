@@ -91,12 +91,72 @@ class SpectrumLookupMixin(MixinCompatible):
          (max_1,0), (max_1,1), (max_1,2), ..., (max_1,max_2)]
         """
         return list(np.ndindex(*self.hilbertspace.subsystem_dims))
+    
+    def generate_lookup(
+        self,
+        mode: Literal["O", "DF", "EF"] = "EF",
+        mode_priority: Union[List[int], None] = None,
+        transpose: bool = False,
+        truncate: Union[int, None] = None,
+    ) -> NamedSlotsNdarray:
+        """
+        Generate the lookup table with one of the following methods:
+        - "O": label by overlaps (default)
+        - "DF": branch analysis with depth-first traversal of a tree 
+        formed by the bare state labels, generalized from  
+        Dumas et al. (2024).
+        - "EF": branch analysis with traversal ordered by the bare energy, 
+        which is particularly useful when the Hilbert space is too large and not 
+        all the eigenstates need to be labeled.
+        
+        Parameters
+        ----------
+        mode: Literal["O", "DF", "EF"]
+            The ordering method for the labeling
+            - "O": label by overlaps
+            - "DF": depth-first traversal the tree formed by the bare state labels
+            - "EF": traversal ordered by the bare energy  
+            
+        mode_priority: List[int] | None
+            A permutation of the mode indices. Only used for "DF" mode
+            during the branch analysis.
+            Since the eigenstates-bare-state-paring is based on the 
+            "first-come-first-served" principle, the ordering of such traversal will 
+            play an important role, which is specified by `mode_priority`. It 
+            represents the depth of the mode labels to be traversed. The later 
+            the mode appears in the list, the deeper it is in the recursion. For 
+            the last mode in the list, its states will be organized in a single 
+            branch - the innermost part of the nested list.
+        
+        transpose: bool
+            For "DF" mode only. If True, the returned array will be transposed 
+            according to the mode_priority. Otherwise, the array will be in the 
+            shape of the subsystem dimensions in the original order.
+            
+        truncate: int | None
+            For "EF" mode only. The number of eigenstates to be assigned.
+            
+        Returns
+        -------
+        branch_drs_indices: NamedSlotsNdarray
+            A NamedSlotsNdarray object containing the branch analysis results
+            organized by the parameter indices.
+            Each element is a flattened multi-dimensional array of the 
+            dressed indices organized by the mode_priority. If the dimensions 
+            of the subsystems are D0, D1 and D2, the returned array will 
+            be flattend from the shape (D0, D1, D2). If transposed is True, 
+            the array will be transposed according to the mode_priority 
+            (for "DF" mode only).
+        """
+        if mode == "DF" or mode == "EF":
+            return self._branch_analysis(mode, mode_priority, transpose, truncate)
+        else:
+            return self._generate_lookup_by_overlap()
 
-    def generate_lookup(self) -> NamedSlotsNdarray:
+    def _generate_lookup_by_overlap(self) -> NamedSlotsNdarray:
         """
         For each parameter value of the parameter sweep, generate the map between
-        bare states and
-        dressed states.
+        bare states and dressed states based on the overlap criterion.
 
         Returns
         -------
@@ -108,13 +168,13 @@ class SpectrumLookupMixin(MixinCompatible):
 
         param_indices = itertools.product(*map(range, self._parameters.counts))
         for index in param_indices:
-            dressed_indices[index] = self._generate_single_mapping(index)
+            dressed_indices[index] = self._generate_single_mapping_by_overlap(index)
         dressed_indices = np.asarray(dressed_indices[:].tolist())
 
         parameter_dict = self._parameters.ordered_dict.copy()
         return NamedSlotsNdarray(dressed_indices, parameter_dict)
 
-    def _generate_single_mapping(
+    def _generate_single_mapping_by_overlap(
         self,
         param_indices: Tuple[int, ...],
     ) -> ndarray:
@@ -718,7 +778,7 @@ class SpectrumLookupMixin(MixinCompatible):
 
         return branch_drs_indices, branch_states
 
-    def branch_analysis_DF(
+    def _branch_analysis_DF(
         self,
         param_indices: Tuple[int, ...],
         mode_priority: Optional[List[int]] = None,
@@ -791,10 +851,10 @@ class SpectrumLookupMixin(MixinCompatible):
 
         return branch_drs_indices
 
-    def branch_analysis_EF(
+    def _branch_analysis_EF(
         self,
         param_indices: Tuple[int, ...],
-        truncate: int | None = None,
+        truncate: Union[int, None] = None,
     ) -> np.ndarray:
         """
         Perform a full branch analysis according to Dumas et al. (2024) for 
@@ -899,12 +959,12 @@ class SpectrumLookupMixin(MixinCompatible):
             
         return branch_drs_indices
 
-    def branch_analysis(
+    def _branch_analysis(
         self,
         mode: Literal["DF", "EF"] = "EF",
         mode_priority: Optional[List[int]] = None,
         transpose: bool = False,
-        truncate: int | None = None,
+        truncate: Union[int, None] = None,
     ) -> NamedSlotsNdarray:
         """
         Perform a full branch analysis for all parameter points, according to 
@@ -944,11 +1004,12 @@ class SpectrumLookupMixin(MixinCompatible):
         branch_drs_indices: NamedSlotsNdarray
             A NamedSlotsNdarray object containing the branch analysis results
             organized by the parameter indices.
-            Each element is a multi-dimensional array of the 
+            Each element is a flattened multi-dimensional array of the 
             dressed indices organized by the mode_priority. If the dimensions 
-            of the subsystems are D0, D1 and D2, the returned array will have 
-            the shape (D0, D1, D2). If transposed is True, the array will be 
-            transposed according to the mode_priority (for "DF" mode only).
+            of the subsystems are D0, D1 and D2, the returned array will 
+            be flattend from the shape (D0, D1, D2). If transposed is True, 
+            the array will be transposed according to the mode_priority 
+            (for "DF" mode only).
         """
         dressed_indices = np.empty(shape=self._parameters.counts, dtype=object)
 
@@ -956,11 +1017,11 @@ class SpectrumLookupMixin(MixinCompatible):
         
         for index in param_indices:
             if mode == "DF":
-                dressed_indices[index] = self.branch_analysis_DF(
+                dressed_indices[index] = self._branch_analysis_DF(
                     index, mode_priority, transpose,
                 )
             elif mode == "EF":
-                dressed_indices[index] = self.branch_analysis_EF(
+                dressed_indices[index] = self._branch_analysis_EF(
                     index, truncate,
                 )
             else:
