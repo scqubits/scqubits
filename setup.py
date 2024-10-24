@@ -73,18 +73,7 @@ EXTRAS_REQUIRE = {
 
 TESTS_REQUIRE = ["h5py (>=2.7.1)", "pathos", "dill", "ipywidgets", "pytest"]
 
-PACKAGES = [
-    "scqubits",
-    "scqubits/core",
-    "scqubits/tests",
-    "scqubits/utils",
-    "scqubits/ui",
-    "scqubits/io_utils",
-    "scqubits/explorer",
-]
-
 PYTHON_VERSION = ">=3.9"
-
 
 NAME = "scqubits"
 AUTHOR = "Jens Koch, Peter Groszkowski"
@@ -121,7 +110,8 @@ short_version = '%(version)s'
 version = '%(fullversion)s'
 release = %(isrelease)s
 """
-    versionfile = open(filename, "w")
+    version_path = os.path.join(os.path.dirname(__file__), "scqubits", "version.py")
+    versionfile = open(version_path, "w")
     try:
         versionfile.write(
             cnt
@@ -148,7 +138,7 @@ write_version_py()
 setuptools.setup(
     name=NAME,
     version=FULLVERSION,
-    packages=PACKAGES,
+    packages=setuptools.find_packages(),
     author=AUTHOR,
     author_email=AUTHOR_EMAIL,
     license=LICENSE,
@@ -164,5 +154,5 @@ setuptools.setup(
     zip_safe=False,
     include_package_data=True,
     python_requires=PYTHON_VERSION,
-    **EXTRA_KWARGS
+    **EXTRA_KWARGS,
 )

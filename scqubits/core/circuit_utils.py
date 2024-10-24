@@ -35,9 +35,8 @@ if TYPE_CHECKING:
 
 
 def _junction_order(branch_type: str) -> int:
-    """
-    Returns the order of the branch if it is a JJ branch,
-    if the order is n its energy is given by cos(phi) + cos(2*phi) + ... + cos(n*phi)
+    """Returns the order of the branch if it is a JJ branch, if the order is n its
+    energy is given by cos(phi) + cos(2*phi) + ... + cos(n*phi)
 
     Args:
         branch (_type_): Branch
@@ -61,9 +60,8 @@ def _junction_order(branch_type: str) -> int:
 
 
 def sawtooth_operator(x: Union[ndarray, csc_matrix]):
-    """
-    Returns the operator evaluated using applying the sawtooth_potential function on the
-    diagonal elements of the operator x
+    """Returns the operator evaluated using applying the sawtooth_potential function on
+    the diagonal elements of the operator x.
 
     Args:
         x (Union[ndarray, csc_matrix]): argument of the sawtooth operator in the Hamiltonian
@@ -96,9 +94,7 @@ def sawtooth_potential(phi_pts):
 
 
 def _capactiance_variable_for_branch(branch_type: str):
-    """
-    Returns the parameter name that stores the capacitance of the branch
-    """
+    """Returns the parameter name that stores the capacitance of the branch."""
     if "C" in branch_type:
         return "EC"
     elif "JJ" in branch_type:
@@ -110,9 +106,8 @@ def _capactiance_variable_for_branch(branch_type: str):
 def truncation_template(
     system_hierarchy: list, individual_trunc_dim: int = 6, combined_trunc_dim: int = 30
 ) -> list:
-    """
-    Function to generate a template for defining the truncated dimensions for subsystems
-    when hierarchical diagonalization is used.
+    """Function to generate a template for defining the truncated dimensions for
+    subsystems when hierarchical diagonalization is used.
 
     Parameters
     ----------
@@ -142,10 +137,8 @@ def truncation_template(
 
 
 def get_trailing_number(input_str: str) -> Union[int, None]:
-    """
-    Returns the number trailing a string given as input. Example:
-        $ get_trailing_number("a23")
-        $ 23
+    """Returns the number trailing a string given as input. Example: $
+    get_trailing_number("a23") $ 23.
 
     Parameters
     ----------
@@ -160,31 +153,8 @@ def get_trailing_number(input_str: str) -> Union[int, None]:
     return int(match.group()) if match else None
 
 
-def get_operator_number(input_str: str) -> int:
-    """
-    Returns the number inside an operator name. Example:
-        $ get_operator_number("annihilation9_operator")
-        $ 9
-
-    Parameters
-    ----------
-    input_str:
-        operator name (one of the methods ending with `_operator`)
-
-    Returns
-    -------
-        returns the integer as int, else returns None
-    """
-    match = re.search(r"(\d+)", input_str)
-    number = int(match.group())
-    if not number:
-        raise Exception(f"{input_str} is not a valid operator name.")
-    return number
-
-
 def _identity_phi(grid: discretization.Grid1d) -> csc_matrix:
-    """
-    Returns identity operator in the discretized_phi basis.
+    """Returns identity operator in the discretized_phi basis.
 
     Parameters
     ----------
@@ -200,8 +170,7 @@ def _identity_phi(grid: discretization.Grid1d) -> csc_matrix:
 
 
 def _phi_operator(grid: discretization.Grid1d) -> csc_matrix:
-    """
-    Returns phi operator in the discretized_phi basis.
+    """Returns phi operator in the discretized_phi basis.
 
     Parameters
     ----------
@@ -221,8 +190,7 @@ def _phi_operator(grid: discretization.Grid1d) -> csc_matrix:
 
 
 def _i_d_dphi_operator(grid: discretization.Grid1d) -> csc_matrix:
-    """
-    Returns i*d/dphi operator in the discretized_phi basis.
+    """Returns i*d/dphi operator in the discretized_phi basis.
 
     Parameters
     ----------
@@ -237,8 +205,7 @@ def _i_d_dphi_operator(grid: discretization.Grid1d) -> csc_matrix:
 
 
 def _i_d2_dphi2_operator(grid: discretization.Grid1d) -> csc_matrix:
-    """
-    Returns i*d2/dphi2 operator in the discretized_phi basis.
+    """Returns i*d2/dphi2 operator in the discretized_phi basis.
 
     Parameters
     ----------
@@ -253,8 +220,7 @@ def _i_d2_dphi2_operator(grid: discretization.Grid1d) -> csc_matrix:
 
 
 def _cos_phi(grid: discretization.Grid1d) -> csc_matrix:
-    """
-    Returns cos operator in the discretized_phi basis.
+    """Returns cos operator in the discretized_phi basis.
 
     Parameters
     ----------
@@ -274,8 +240,7 @@ def _cos_phi(grid: discretization.Grid1d) -> csc_matrix:
 
 
 def _sin_phi(grid: discretization.Grid1d) -> csc_matrix:
-    """
-    Returns sin operator in the discretized_phi basis.
+    """Returns sin operator in the discretized_phi basis.
 
     Parameters
     ----------
@@ -295,17 +260,13 @@ def _sin_phi(grid: discretization.Grid1d) -> csc_matrix:
 
 
 def _identity_theta(ncut: int) -> csc_matrix:
-    """
-    Returns Operator identity in the charge basis.
-    """
+    """Returns Operator identity in the charge basis."""
     dim_theta = 2 * ncut + 1
     return sparse.identity(dim_theta, format="csc")
 
 
 def _n_theta_operator(ncut: int) -> csc_matrix:
-    """
-    Returns charge operator `n` in the charge basis.
-    """
+    """Returns charge operator `n` in the charge basis."""
     dim_theta = 2 * ncut + 1
     diag_elements = np.arange(-ncut, ncut + 1)
     n_theta_matrix = sparse.dia_matrix(
@@ -315,9 +276,7 @@ def _n_theta_operator(ncut: int) -> csc_matrix:
 
 
 def _exp_i_theta_operator(ncut, prefactor=1) -> csc_matrix:
-    r"""
-    Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace.
-    """
+    r"""Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace."""
     # if type(prefactor) != int:
     #     raise ValueError("Prefactor must be an integer")
     dim_theta = 2 * ncut + 1
@@ -329,9 +288,7 @@ def _exp_i_theta_operator(ncut, prefactor=1) -> csc_matrix:
 
 
 def _exp_i_theta_operator_conjugate(ncut) -> csc_matrix:
-    r"""
-    Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace.
-    """
+    r"""Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace."""
     dim_theta = 2 * ncut + 1
     matrix = sparse.dia_matrix(
         (np.ones(dim_theta), [1]),
@@ -341,13 +298,13 @@ def _exp_i_theta_operator_conjugate(ncut) -> csc_matrix:
 
 
 def _cos_theta(ncut: int) -> csc_matrix:
-    """Returns operator :math:`\\cos \\varphi` in the charge basis"""
+    """Returns operator :math:`\\cos \\varphi` in the charge basis."""
     cos_op = 0.5 * (_exp_i_theta_operator(ncut) + _exp_i_theta_operator_conjugate(ncut))
     return cos_op
 
 
 def _sin_theta(ncut: int) -> csc_matrix:
-    """Returns operator :math:`\\sin \\varphi` in the charge basis"""
+    """Returns operator :math:`\\sin \\varphi` in the charge basis."""
     sin_op = (
         -1j
         * 0.5
@@ -359,9 +316,8 @@ def _sin_theta(ncut: int) -> csc_matrix:
 def _generate_symbols_list(
     var_str: str, iterable_list: List[int] or ndarray
 ) -> List[sm.Symbol]:
-    """
-    Returns the list of symbols generated using the var_str + iterable as the name
-    of the symbol.
+    """Returns the list of symbols generated using the var_str + iterable as the name of
+    the symbol.
 
     Parameters
     ----------
@@ -374,8 +330,7 @@ def _generate_symbols_list(
 
 
 def is_potential_term(term: sm.Expr) -> bool:
-    """
-    Determines if a given sympy expression term is part of the potential
+    """Determines if a given sympy expression term is part of the potential.
 
     Parameters
     ----------
@@ -394,9 +349,8 @@ def is_potential_term(term: sm.Expr) -> bool:
 
 
 def example_circuit(qubit: str) -> str:
-    """
-    Returns example input strings for AnalyzeQCircuit and CustomQCircuit for some of the
-    popular qubits.
+    """Returns example input strings for AnalyzeQCircuit and CustomQCircuit for some of
+    the popular qubits.
 
     Parameters
     ----------
@@ -482,32 +436,24 @@ def compose(f: Callable, g: Callable) -> Callable:
 
 
 def _cos_dia(x: csc_matrix) -> csc_matrix:
-    """
-    Take the diagonal of the array x, compute its cosine, and fill the result into
-    the diagonal of a sparse matrix
-    """
+    """Take the diagonal of the array x, compute its cosine, and fill the result into
+    the diagonal of a sparse matrix."""
     return sparse.diags(np.cos(x.diagonal())).tocsc()
 
 
 def _sin_dia(x: csc_matrix) -> csc_matrix:
-    """
-    Take the diagonal of the array x, compute its sine, and fill the result into
-    the diagonal of a sparse matrix.
-    """
+    """Take the diagonal of the array x, compute its sine, and fill the result into the
+    diagonal of a sparse matrix."""
     return sparse.diags(np.sin(x.diagonal())).tocsc()
 
 
 def _sin_dia_dense(x: ndarray) -> ndarray:
-    """
-    This is a special function to calculate the sin of dense diagonal matrices
-    """
+    """This is a special function to calculate the sin of dense diagonal matrices."""
     return np.diag(np.sin(x.diagonal()))
 
 
 def _cos_dia_dense(x: ndarray) -> ndarray:
-    """
-    This is a special function to calculate the cos of dense diagonal matrices
-    """
+    """This is a special function to calculate the cos of dense diagonal matrices."""
     return np.diag(np.cos(x.diagonal()))
 
 
@@ -824,10 +770,9 @@ def assemble_circuit(
 def assemble_transformation_matrix(
     transformation_matrix_list: List[ndarray],
 ) -> ndarray:
-    """
-    Assemble a transformation matrix for a large circuit that are made of smaller sub-circuits
-    and coupling elements. This method takes a list of sub-circuit transformation matrices as
-    the argument.
+    """Assemble a transformation matrix for a large circuit that are made of smaller
+    sub-circuits and coupling elements. This method takes a list of sub-circuit
+    transformation matrices as the argument.
 
     Parameters
     ----------

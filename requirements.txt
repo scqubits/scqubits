@@ -9,7 +9,7 @@ qutip>=4.3.1
 sympy
 tqdm
 typing_extensions
-pathos 
+pathos>=0.3.0
 dill 
 
 

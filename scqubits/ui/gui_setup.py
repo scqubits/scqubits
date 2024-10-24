@@ -62,10 +62,10 @@ def init_filename_textfield():
 
 @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def init_noise_param_floattextfield(noise_param: str) -> ui.ValidatedNumberField:
-    """
-    Creates a `ValidatedNumberField` widget for each noise parameter.
-    The function takes one argument, the name of the noise parameter, and returns a `ValidatedNumberField` widget set to
-    the current value of that noise parameter in the `NOISE_PARAMS` dictionary.
+    """Creates a `ValidatedNumberField` widget for each noise parameter. The function
+    takes one argument, the name of the noise parameter, and returns a
+    `ValidatedNumberField` widget set to the current value of that noise parameter in
+    the `NOISE_PARAMS` dictionary.
 
     Parameters
     ----------
@@ -203,7 +203,7 @@ def init_dict_v_plot_options(
 
 @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def init_dict_v_noise_params(active_qubit) -> Dict[str, v.VuetifyWidget]:
-    """Creates all the widgets associated with coherence times plots"""
+    """Creates all the widgets associated with coherence times plots."""
     dict_v_noise_params = {}
     noise_params = ["T", "omega_low", "omega_high", "t_exp"]
     noise_channels = active_qubit.supported_noise_channels()
@@ -234,9 +234,7 @@ def init_qubit_params_widgets_dict(
     qubit_params: Dict[str, float],
     defaults: Dict[str, Any],
 ) -> Dict[str, v.VuetifyWidget]:
-    """Creates all the widgets associated with the parameters of the
-    chosen qubit.
-    """
+    """Creates all the widgets associated with the parameters of the chosen qubit."""
     dict_v_qubit_params = {}
 
     for param_name, param_val in qubit_params.items():
@@ -295,9 +293,8 @@ def init_qubit_params_widgets_dict(
 def init_ranges_widgets_dict(
     qubit, dict_v_plot_options, dict_v_qubit_params
 ) -> Dict[str, Any]:
-    """Creates all the widgets associated with changing the ranges of
-    certain qubit plot options as well as all of the qubit's parameters.
-    """
+    """Creates all the widgets associated with changing the ranges of certain qubit plot
+    options as well as all of the qubit's parameters."""
     dict_v_ranges = {}
     total_dict = {
         **dict_v_plot_options,

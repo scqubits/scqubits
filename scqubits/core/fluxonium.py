@@ -119,7 +119,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
     @classmethod
     def supported_noise_channels(cls) -> List[str]:
-        """Return a list of supported noise channels"""
+        """Return a list of supported noise channels."""
         return [
             "tphi_1_over_f_cc",
             "tphi_1_over_f_flux",
@@ -158,8 +158,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def phi_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns the phi operator in the LC harmonic oscillator or eigenenergy basis.
+        """Returns the phi operator in the LC harmonic oscillator or eigenenergy basis.
 
         Parameters
         ----------
@@ -220,9 +219,9 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         beta: float = 0.0,
         energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
     ) -> ndarray:
-        """
-        Returns the :math:`e^{i (\\alpha \\phi + \\beta) }` operator, with :math:`\\alpha` and :math:`\\beta` being
-        numbers, in the LC harmonic oscillator or eigenenergy basis.
+        """Returns the :math:`e^{i (\\alpha \\phi + \\beta) }` operator, with
+        :math:`\\alpha` and :math:`\\beta` being numbers, in the LC harmonic oscillator
+        or eigenenergy basis.
 
         Parameters
         ----------
@@ -251,9 +250,9 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         beta: float = 0.0,
         energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
     ) -> ndarray:
-        """
-        Returns the :math:`\\cos (\\alpha \\phi + \\beta)` operator with :math:`\\alpha` and :math:`\\beta` being
-        numbers, in the LC harmonic oscillator or eigenenergy basis.
+        """Returns the :math:`\\cos (\\alpha \\phi + \\beta)` operator with
+        :math:`\\alpha` and :math:`\\beta` being numbers, in the LC harmonic oscillator
+        or eigenenergy basis.
 
         Parameters
         ----------
@@ -279,9 +278,9 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         beta: float = 0.0,
         energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
     ) -> ndarray:
-        """
-        Returns the :math:`\\sin (\\alpha \\phi + \\beta)` operator with :math:`\\alpha` and :math:`\\beta` being
-        numbers, in the LC harmonic oscillator or eigenenergy basis.
+        """Returns the :math:`\\sin (\\alpha \\phi + \\beta)` operator with
+        :math:`\\alpha` and :math:`\\beta` being numbers, in the LC harmonic oscillator
+        or eigenenergy basis.
 
         Parameters
         ----------
@@ -304,9 +303,8 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def hamiltonian(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:  # follow Zhu et al., PRB 87, 024510 (2013)
-        """
-        Constructs Hamiltonian matrix in harmonic-oscillator, following Zhu
-        et al., PRB 87, 024510 (2013), or eigenenergy basis.
+        """Constructs Hamiltonian matrix in harmonic-oscillator, following Zhu et al.,
+        PRB 87, 024510 (2013), or eigenenergy basis.
 
         Parameters
         ----------
@@ -337,9 +335,9 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def d_hamiltonian_d_EJ(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns operator representing a derivative of the Hamiltonian with respect to
-        EJ in the harmonic-oscillator or eigenenergy basis. The flux is grouped as in the Hamiltonian.
+        """Returns operator representing a derivative of the Hamiltonian with respect to
+        EJ in the harmonic-oscillator or eigenenergy basis. The flux is grouped as in
+        the Hamiltonian.
 
         Parameters
         ----------
@@ -370,9 +368,9 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def d_hamiltonian_d_flux(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns operator representing a derivative of the Hamiltonian with respect to
-        flux in the harmonic-oscillator or eigenenergy basis. The flux is grouped as in the Hamiltonian.
+        """Returns operator representing a derivative of the Hamiltonian with respect to
+        flux in the harmonic-oscillator or eigenenergy basis. The flux is grouped as in
+        the Hamiltonian.
 
         Parameters
         ----------
@@ -420,7 +418,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         which: int = 0,
         phi_grid: "Grid1d" = None,
     ) -> storage.WaveFunction:
-        """Returns a fluxonium wave function in `phi` basis
+        """Returns a fluxonium wave function in `phi` basis.
 
         Parameters
         ----------

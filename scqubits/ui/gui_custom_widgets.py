@@ -117,8 +117,10 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             return True
 
     class NumberEntryWidget(ValidatedNumberField):
-        """A widget consisting of a text field and a slider, linked to each other. The text field acts as the main
-        class, while the slider is stored as a class attribute and displayed alongside.
+        """A widget consisting of a text field and a slider, linked to each other.
+
+        The text field acts as the main class, while the slider is stored as a class
+        attribute and displayed alongside.
         """
 
         def __init__(
@@ -410,7 +412,8 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             return list(self.panel_by_id.keys())
 
         def setup_card(self, new_panel: ClosablePanel):
-            """Sets up a new card, connecting its close button to the card collection's `close_card` method."""
+            """Sets up a new card, connecting its close button to the card collection's
+            `close_card` method."""
             card = new_panel.card
             card.id = new_panel.panel_id
             btn = new_panel.btn
@@ -464,24 +467,21 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
                     card.height = height
 
         def change_cols(self, ncols: int):
-            """
-            Changes the number of columns in the grid by setting `explorer.cols` and resizing all widgets in the grid.
+            """Changes the number of columns in the grid by setting `explorer.cols` and
+            resizing all widgets in the grid.
 
             Parameters
             ----------
             ncols:
                 number of columns in the grid
-
             """
             self.ncols = ncols
             self.resize_all(width=f"{100 / self.ncols - 1}%")
 
         def show(self):
-            """
-            The show function is the main function of a component. It returns
-            a VDOM object that will be rendered in the browser. The show function
-            is called every time an event occurs, and it's return value is used to
-            update the DOM.
+            """The show function is the main function of a component. It returns a VDOM
+            object that will be rendered in the browser. The show function is called
+            every time an event occurs, and it's return value is used to update the DOM.
 
             Returns
             -------
