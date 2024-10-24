@@ -127,9 +127,9 @@ class NoisySystem(ABC):
         self,
         param_name: str,
         param_vals: ndarray,
-        noise_channels: Union[str, List[str], List[Tuple[str, Dict]]] = None,
-        common_noise_options: Dict = None,
-        spectrum_data: SpectrumData = None,
+        noise_channels: Optional[Union[str, List[str], List[Tuple[str, Dict]]]] = None,
+        common_noise_options: Optional[Dict] = None,
+        spectrum_data: Optional[SpectrumData] = None,
         scale: float = 1,
         num_cpus: Optional[int] = None,
         **kwargs
