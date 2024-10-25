@@ -7,7 +7,7 @@ trigger:
   branches:
     include:
       - main
-      - spc-noise
+      - spc-higher-order-branches
       - jk-devel
       - Danny_vchos
       - devel_peterg
@@ -19,10 +19,6 @@ jobs:
     vmImage: 'ubuntu-latest'
   strategy:
     matrix:
-      Python37:
-        python.version: '3.7'
-      Python38:
-        python.version: '3.8'
       Python39:
         python.version: '3.9'
       Python310:
@@ -45,9 +41,12 @@ jobs:
     displayName: 'Install dependencies'
   - script: |
       pip install pytest pytest-azurepipelines
-      pip install pathos
       pip install --no-dependencies  .
     displayName: 'Install scqubits'
+  - script: |
+      pip install pipdeptree
+      pipdeptree
+    displayName: 'pipdeptree'
   - script: |
       pytest -v --pyargs scqubits
     displayName: 'Pytest: single-core'
@@ -66,10 +65,6 @@ jobs:
     vmImage: 'windows-latest'
   strategy:
     matrix:
-      Python37:
-        python.version: '3.7'
-      Python38:
-        python.version: '3.8'
       Python39:
         python.version: '3.9'
       Python310:
@@ -94,6 +89,10 @@ jobs:
       pip install --no-dependencies  .
     displayName: 'Install scqubits'
   - script: |
+      pip install pipdeptree
+      pipdeptree
+    displayName: 'pipdeptree'
+  - script: |
       pytest -v --pyargs scqubits
     displayName: 'Pytest: single-core'
   - script: |
@@ -111,10 +110,6 @@ jobs:
     vmImage: "macos-latest"
   strategy:
     matrix:
-      Python37:
-        python.version: '3.7'
-      Python38:
-        python.version: '3.8'
       Python39:
         python.version: '3.9'
       Python310:
@@ -138,19 +133,22 @@ jobs:
   - script: |
       pip install pytest pytest-azurepipelines
       pip install pytest-xdist
-      pip install pathos
       pip install --no-dependencies  .
     displayName: 'Install scqubits'
+  - script: |
+      pip install pipdeptree
+      pipdeptree
+    displayName: 'pipdeptree'
   - script: |
       export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
       pytest -v --pyargs scqubits
     displayName: 'Pytest: single-core'
   - script: |
-      export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
       export OMP_NUM_THREADS=1
       export OPENBLAS_NUM_THREADS=1
       export MKL_NUM_THREADS=1
       export VECLIB_MAXIMUM_THREADS=1
       export NUMEXPR_NUM_THREADS=1
+      export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
       pytest -v --pyargs scqubits --num_cpus=4
     displayName: 'Pytest: multiprocessing'
