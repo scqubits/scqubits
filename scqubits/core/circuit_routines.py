@@ -764,7 +764,7 @@ class CircuitRoutines(ABC):
             )
             hamiltonian_list, _ = self._sym_subsystem_hamiltonian_and_interactions(
                 full_hamiltonian,
-                self.dynamic_var_indices,
+                [self.dynamic_var_indices],
                 non_operator_symbols,
             )
             return hamiltonian_list[0]
