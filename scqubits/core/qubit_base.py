@@ -622,7 +622,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         num_cpus: Optional[int] = None,
     ) -> SpectrumData:
         """Calculates eigenvalues/eigenstates for a varying system parameter, given an
-        array of parameter values. Returns a `SpectrumData` object with `energy_data[n]`
+        array of parameter values. Returns a `SpectrumData` object with `energy_table[n]`
         containing eigenvalues calculated for parameter value `param_vals[n]`.
 
         Parameters
@@ -781,7 +781,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         num_cpus: Optional[int] = None,
     ) -> SpectrumData:
         """Calculates eigenvalues/eigenstates for a varying system parameter, given an
-        array of parameter values. Returns a `SpectrumData` object with `energy_data[n]`
+        array of parameter values. Returns a `SpectrumData` object with `energy_table[n]`
         containing eigenvalues calculated for parameter value `param_vals[n]`.
 
         Parameters
