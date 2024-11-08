@@ -28,7 +28,7 @@ import scqubits.settings as settings
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
 
-from scqubits.core.namedslots_array import NamedSlotsNdarray
+from scqubits.core.namedslots_array import NamedSlotsNdarray, convert_to_std_npindex
 from scqubits.utils.typedefs import NpIndexTuple, NpIndices
 from scqubits.utils.spectrum_utils import identity_wrap
 
@@ -509,40 +509,15 @@ class SpectrumLookupMixin(MixinCompatible):
             True if all parameters are being fixed by `param_indices`.
 
         """
-        if isinstance(param_indices, slice):
-            # Convert a single slice to a tuple containing just that slice
-            param_indices = (param_indices,)
-
-        # Check if each element in param_indices is an integer or a non-range slice
-        # A non-range slice would be something like slice(1, 2) which effectively selects a single index
+        param_indices_std = convert_to_std_npindex(
+            np.index_exp[param_indices], self._parameters
+        )
+        
+        # Check if each dimension is being fixed to a single value or a length-1 array
         fixed = []
-        for dim, idx in enumerate(param_indices):
+        for params, idx in zip(self._parameters.paramvals_by_name.values(), param_indices_std):
+            fixed.append(np.size(params[idx]) == 1)
             
-            if len(self._parameters[dim]) == 1:
-                # if the parameter has only one value, then it is already fixed
-                fixed.append(True)
-            elif isinstance(idx, int):
-                # if the parameter is a single index, then it is fixed
-                fixed.append(True)
-            elif (
-                isinstance(idx, slice) 
-                and idx.start is not None 
-                and isinstance(idx.start, str)
-            ):
-                # if the parameter is a name based slice and the only allowed
-                # name based slice is a single value
-                fixed.append(True)
-            elif (
-                isinstance(idx, slice) 
-                and idx.start is not None 
-                and idx.stop is not None 
-                and idx.stop - idx.start == 1
-            ):
-                # if the parameter is a single value slice, then it is fixed
-                fixed.append(True)
-            else:
-                fixed.append(False)
-
         return all(fixed)
 
     @utils.check_lookup_exists
