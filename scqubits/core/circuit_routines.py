@@ -16,6 +16,7 @@ import operator as builtin_op
 import re
 from types import MethodType
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+
 if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem
 
@@ -1781,9 +1782,11 @@ class CircuitRoutines(ABC):
         self.osc_freqs = osc_freqs
 
     def _purely_harmonic_operator_func_factory(self, operator_name: str):
-        def purely_harmonic_operator_func(self: "Subsystem", energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False):
-            """
-            Returns the operator <op_name> (corresponds to the name of the method "<op_name>_operator") for the Circuit/Subsystem instance.
+        def purely_harmonic_operator_func(
+            self: "Subsystem", energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+        ):
+            """Returns the operator <op_name> (corresponds to the name of the method
+            "<op_name>_operator") for the Circuit/Subsystem instance.
 
             Parameters
             ----------
@@ -1793,7 +1796,7 @@ class CircuitRoutines(ABC):
                 If `energy_esys = esys`, where `esys` is a tuple containing two ndarrays (eigenvalues and energy
                 eigenvectors), returns charge operator n in the energy eigenbasis, and does not have to recalculate the
                 eigenspectrum.
-            
+
             Returns
             -------
                 Returns the operator <op_name>(corresponds to the name of the method "<op_name>_operator").

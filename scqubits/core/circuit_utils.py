@@ -376,7 +376,9 @@ def example_circuit(qubit: str) -> str:
 
 
 def grid_operator_func_factory(inner_op: Callable, index: int) -> Callable:
-    def operator_func(self: "Subsystem", energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False):
+    def operator_func(
+        self: "Subsystem", energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ):
         native = self._kron_operator(
             inner_op(self.discretized_grids_dict_for_vars()[index]), index
         )
@@ -386,9 +388,11 @@ def grid_operator_func_factory(inner_op: Callable, index: int) -> Callable:
 
 
 def hierarchical_diagonalization_func_factory(symbol_name: str) -> Callable:
-    def operator_func(self: "Subsystem", energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False):
-        """
-        Returns the operator <op_name> (corresponds to the name of the method "<op_name>_operator") for the Circuit/Subsystem instance.
+    def operator_func(
+        self: "Subsystem", energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ):
+        """Returns the operator <op_name> (corresponds to the name of the method
+        "<op_name>_operator") for the Circuit/Subsystem instance.
 
         Parameters
         ----------
@@ -398,7 +402,7 @@ def hierarchical_diagonalization_func_factory(symbol_name: str) -> Callable:
             If `energy_esys = esys`, where `esys` is a tuple containing two ndarrays (eigenvalues and energy
             eigenvectors), returns charge operator n in the energy eigenbasis, and does not have to recalculate the
             eigenspectrum.
-        
+
         Returns
         -------
             Returns the operator <op_name>(corresponds to the name of the method "<op_name>_operator").
@@ -430,9 +434,11 @@ def keep_terms_for_subsystem(sym_expr, subsys, substitute_zero=False):
 def operator_func_factory(
     inner_op: Callable, index: int, op_type: Optional[str] = None
 ) -> Callable:
-    def operator_func(self: "Subsystem", energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False):
-        """
-        Returns the operator <op_name> (corresponds to the name of the method "<op_name>_operator") for the Circuit/Subsystem instance.
+    def operator_func(
+        self: "Subsystem", energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ):
+        """Returns the operator <op_name> (corresponds to the name of the method
+        "<op_name>_operator") for the Circuit/Subsystem instance.
 
         Parameters
         ----------
@@ -442,7 +448,7 @@ def operator_func_factory(
             If `energy_esys = esys`, where `esys` is a tuple containing two ndarrays (eigenvalues and energy
             eigenvectors), returns charge operator n in the energy eigenbasis, and does not have to recalculate the
             eigenspectrum.
-        
+
         Returns
         -------
             Returns the operator <op_name>(corresponds to the name of the method "<op_name>_operator").
