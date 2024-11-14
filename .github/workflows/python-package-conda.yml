@@ -1,6 +1,12 @@
 name: Python Package using Conda
 
-on: [push, workflow_dispatch]
+on: 
+  push: 
+    branches:
+      - main
+      - devel_peterg
+      - spc-main-devel
+  workflow_dispatch:
 
 jobs:
   build-all:
@@ -13,48 +19,50 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest", "macos-latest", "windows-latest"]
-        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11', '3.12']
+        python-version: ['3.9', '3.10', '3.11', '3.12']
     steps:
       - uses: actions/checkout@v4
         name: Checkout repository
-      - name: Python setup for macos-latest with python 3.7
-        if: ${{matrix.python-version == '3.7' && matrix.os == 'macos-latest'}}
-        uses: conda-incubator/setup-miniconda@v3
-        with:
-            miniforge-variant: Mambaforge
-            use-mamba: true
-            auto-update-conda: true
-            python-version: ${{ matrix.python-version }}
-            architecture: x64
-            channels: conda-forge
 
       - name: Python setup for the rest of the jobs
-        if: ${{!(matrix.python-version == '3.7' && matrix.os == 'macos-latest')}}
         uses: conda-incubator/setup-miniconda@v3
         with:
-            miniforge-variant: Mambaforge
+            miniforge-variant: Miniforge3
             use-mamba: true
             auto-update-conda: true
             python-version: ${{ matrix.python-version }}
             channels: conda-forge
+
+      # Conda environment initialization (Linux & MacOS)
+      - name: Initialize Conda (Linux & MacOS)
+        if: ${{ matrix.os != 'windows-latest' }}
+        shell: bash
+        run: |
+          source $CONDA/bin/activate
+          conda init bash
+
+      # Conda environment initialization (Windows)
+      - name: Initialize Conda (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          conda init
+          conda activate base
+
+      - name: Add conda to system path (all OS)
+        run: |
+          echo $CONDA/bin >> $GITHUB_PATH
 
       - name: conda info
         run: conda info
 
-      - name: Add conda to system path
-        run: |
-          # $CONDA is an environment variable pointing to the root of the miniconda directory
-          echo $CONDA/bin >> $GITHUB_PATH
-
       - name: Lint with flake8
         run: |
           mamba install flake8
-          # stop the build if there are Python syntax errors or undefined names
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
       - name: Build with conda and run tests
         run: |
           mamba install boa
           conda mambabuild .
+

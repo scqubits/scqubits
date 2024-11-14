@@ -416,7 +416,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
     def wavefunction(
         self,
-        esys: Optional[Tuple[ndarray, ndarray]],
+        esys: Optional[Tuple[ndarray, ndarray]] = None,
         which: int = 0,
         phi_grid: "Grid1d" = None,
     ) -> storage.WaveFunction:
@@ -442,7 +442,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
         phi_basis_labels = phi_grid.make_linspace()
         wavefunc_osc_basis_amplitudes = evecs[:, which]
-        phi_wavefunc_amplitudes = np.zeros(phi_grid.pt_count, dtype=np.complex_)
+        phi_wavefunc_amplitudes = np.zeros(phi_grid.pt_count, dtype=np.complex128)
         phi_osc = self.phi_osc()
         for n in range(dim):
             phi_wavefunc_amplitudes += wavefunc_osc_basis_amplitudes[

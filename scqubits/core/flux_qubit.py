@@ -688,12 +688,12 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def _n_operator(self) -> ndarray:
-        diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex_)
+        diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex128)
         return np.diag(diag_elements)
 
     def _exp_i_phi_operator(self) -> ndarray:
         dim = 2 * self.ncut + 1
-        off_diag_elements = np.ones(dim - 1, dtype=np.complex_)
+        off_diag_elements = np.ones(dim - 1, dtype=np.complex128)
         e_iphi_matrix = np.diag(off_diag_elements, k=-1)
         return e_iphi_matrix
 

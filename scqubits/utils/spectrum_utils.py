@@ -59,7 +59,7 @@ def has_degeneracy(evals: ndarray) -> bool:
 
 
 def order_eigensystem(
-    evals: np.ndarray, evecs: np.ndarray
+    evals: np.ndarray, evecs: np.ndarray, standardize_phase: bool = False
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Takes eigenvalues and corresponding eigenvectors and orders them (in place)
     according to the eigenvalues (from smallest to largest; real valued eigenvalues
@@ -71,10 +71,15 @@ def order_eigensystem(
         array of eigenvalues
     evecs:
         array containing eigenvectors; evecs[:, 0] is the first eigenvector etc.
+    standardize_phase:
+        if True, standardize the phase of the eigenvectors (default value = False)
     """
     ordered_evals_indices = evals.argsort()  # sort manually
     evals[:] = evals[ordered_evals_indices]
     evecs[:] = evecs[:, ordered_evals_indices]
+    if standardize_phase:
+        for j in range(evecs.shape[1]):
+            evecs[:, j] = standardize_phases(evecs[:, j])
     return evals, evecs
 
 
@@ -189,11 +194,8 @@ def get_matrixelement_table(
         table of matrix elements
     """
     if isinstance(operator, qt.Qobj):
-        states_in_columns = state_table.T
-    else:
-        states_in_columns = state_table
-
-    mtable = states_in_columns.conj().T @ operator @ states_in_columns
+        operator = Qobj_to_scipy_csc_matrix(operator)
+    mtable = state_table.conj().T @ operator @ state_table
     return mtable
 
 
@@ -296,7 +298,7 @@ def convert_evecs_to_ndarray(evecs_qutip: ndarray) -> np.ndarray:
     """
     evals_count = len(evecs_qutip)
     dimension = evecs_qutip[0].shape[0]
-    evecs_ndarray = np.empty((evals_count, dimension), dtype=np.complex_)
+    evecs_ndarray = np.empty((evals_count, dimension), dtype=np.complex128)
     for index, eigenstate in enumerate(evecs_qutip):
         evecs_ndarray[index] = eigenstate.full()[:, 0]
     return evecs_ndarray

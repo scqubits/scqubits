@@ -67,7 +67,7 @@ def hubbard_sparse(j1: int, j2: int, dimension: int) -> csc_matrix:
     -------
         sparse number operator matrix, size dimension x dimension
     """
-    hubbardmat = sp.sparse.dok_matrix((dimension, dimension), dtype=np.float_)
+    hubbardmat = sp.sparse.dok_matrix((dimension, dimension), dtype=np.float64)
     hubbardmat[j1, j2] = 1.0
     return hubbardmat.asformat("csc")
 
@@ -91,7 +91,7 @@ def number(
     -------
         number operator matrix, size dimension x dimension
     """
-    diag_elements = np.arange(dimension, dtype=np.float_)
+    diag_elements = np.arange(dimension, dtype=np.float64)
     if prefactor:
         diag_elements *= prefactor
     return np.diagflat(diag_elements)
@@ -115,11 +115,11 @@ def number_sparse(
     -------
         sparse number operator matrix, size dimension x dimension
     """
-    diag_elements = np.arange(dimension, dtype=np.float_)
+    diag_elements = np.arange(dimension, dtype=np.float64)
     if prefactor:
         diag_elements *= prefactor
     return sp.sparse.dia_matrix(
-        (diag_elements, [0]), shape=(dimension, dimension), dtype=np.float_
+        (diag_elements, [0]), shape=(dimension, dimension), dtype=np.float64
     ).tocsc()
 
 
