@@ -230,7 +230,9 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def exp_i_phi_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False, harmonic=1,
+        self,
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+        harmonic=1,
     ) -> ndarray:
         """
         Returns operator :math:`e^{i\\varphi}` in the charge or eigenenergy basis.
@@ -874,6 +876,7 @@ class TransmonHigherHarmonics(Transmon, serializers.Serializable, NoisySystem):
     evals_method_options:
         dictionary with evals diagonalization options
     """
+
     EJs_higher = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(self, EJs_higher: ndarray, *args, **kwargs) -> None:
@@ -882,7 +885,13 @@ class TransmonHigherHarmonics(Transmon, serializers.Serializable, NoisySystem):
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
-        return super().default_params() | {"EJs_higher": np.array([0.0, ])}
+        return super().default_params() | {
+            "EJs_higher": np.array(
+                [
+                    0.0,
+                ]
+            )
+        }
 
     def hamiltonian(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
@@ -906,7 +915,9 @@ class TransmonHigherHarmonics(Transmon, serializers.Serializable, NoisySystem):
         """
         hamiltonian_mat = super().hamiltonian(energy_esys=energy_esys)
         for ind_idx, EJ_higher in enumerate(self.EJs_higher):
-            exp_i_harm_phi = self.exp_i_phi_operator(energy_esys=energy_esys, harmonic=ind_idx+2)
+            exp_i_harm_phi = self.exp_i_phi_operator(
+                energy_esys=energy_esys, harmonic=ind_idx + 2
+            )
             hamiltonian_mat += -0.5 * EJ_higher * (exp_i_harm_phi + exp_i_harm_phi.T)
         return self.process_hamiltonian(
             native_hamiltonian=hamiltonian_mat, energy_esys=energy_esys
