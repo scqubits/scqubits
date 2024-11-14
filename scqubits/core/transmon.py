@@ -836,6 +836,44 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
 
 
 class TransmonHigherHarmonics(Transmon, serializers.Serializable, NoisySystem):
+    r"""Class for the transmon including higher-harmonic contributions. The Hamiltonian
+    is represented in dense form in the number basis,
+    :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2-\sum_{k=1}^{k_{\rm cut}}
+    \frac{E_\text{Jk}}{2}(|n\rangle\langle n+k|+\text{h.c.})`.
+
+    Initialize with, for example::
+
+        Transmon(EJ=1.0, EC=2.0, ng=0.2, ncut=30, EJs_higher=[0.2, -0.001])
+
+    to include `EJ2` and `EJ3` higher harmonic contributions (in addition to the normal
+    `EJ1=EJ` contribution)
+
+    Parameters
+    ----------
+    EJ:
+       Josephson energy
+    EC:
+        charging energy
+    ng:
+        offset charge
+    ncut:
+        charge basis cutoff, `n = -ncut, ..., ncut`
+    EJs_higher:
+        list of energies of higher harmonic contributions to include
+    truncated_dim:
+        desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
+    esys_method:
+        method for esys diagonalization, callable or string representation
+    esys_method_options:
+        dictionary with esys diagonalization options
+    evals_method:
+        method for evals diagonalization, callable or string representation
+    evals_method_options:
+        dictionary with evals diagonalization options
+    """
     EJs_higher = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(self, EJs_higher: ndarray, *args, **kwargs) -> None:
