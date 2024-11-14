@@ -879,8 +879,32 @@ class TransmonHigherHarmonics(Transmon, serializers.Serializable, NoisySystem):
 
     EJs_higher = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
 
-    def __init__(self, EJs_higher: ndarray, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        EJ: float,
+        EC: float,
+        ng: float,
+        ncut: int,
+        EJs_higher: ndarray,
+        truncated_dim: int = 6,
+        id_str: Optional[str] = None,
+        evals_method: Union[Callable, str, None] = None,
+        evals_method_options: Union[dict, None] = None,
+        esys_method: Union[Callable, str, None] = None,
+        esys_method_options: Union[dict, None] = None,
+    ) -> None:
+        super().__init__(
+            EJ=EJ,
+            EC=EC,
+            ng=ng,
+            ncut=ncut,
+            truncated_dim=truncated_dim,
+            id_str=id_str,
+            evals_method=evals_method,
+            evals_method_options=evals_method_options,
+            esys_method=esys_method,
+            esys_method_options=esys_method_options,
+        )
         self.EJs_higher = EJs_higher
 
     @staticmethod
