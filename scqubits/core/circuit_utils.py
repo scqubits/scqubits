@@ -376,17 +376,38 @@ def example_circuit(qubit: str) -> str:
 
 
 def grid_operator_func_factory(inner_op: Callable, index: int) -> Callable:
-    def operator_func(self: "Subsystem"):
-        return self._kron_operator(
+    def operator_func(self: "Subsystem", energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False):
+        native = self._kron_operator(
             inner_op(self.discretized_grids_dict_for_vars()[index]), index
         )
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
     return operator_func
 
 
 def hierarchical_diagonalization_func_factory(symbol_name: str) -> Callable:
-    def operator_func(self: "Subsystem"):
-        return Qobj_to_scipy_csc_matrix(self.get_operator_by_name(symbol_name))
+    def operator_func(self: "Subsystem", energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False):
+        """
+        Returns the operator <op_name> (corresponds to the name of the method "<op_name>_operator") for the Circuit/Subsystem instance.
+
+        Parameters
+        ----------
+        energy_esys:
+            If `False` (default), returns charge operator n in the charge basis.
+            If `True`, energy eigenspectrum is computed, returns charge operator n in the energy eigenbasis.
+            If `energy_esys = esys`, where `esys` is a tuple containing two ndarrays (eigenvalues and energy
+            eigenvectors), returns charge operator n in the energy eigenbasis, and does not have to recalculate the
+            eigenspectrum.
+        
+        Returns
+        -------
+            Returns the operator <op_name>(corresponds to the name of the method "<op_name>_operator").
+            For `energy_esys=True`, n has dimensions of `truncated_dim` x `truncated_dim`.
+            If an actual eigensystem is handed to `energy_sys`, then `n` has dimensions of m x m,
+            where m is the number of given eigenvectors.
+        """
+        native = Qobj_to_scipy_csc_matrix(self.get_operator_by_name(symbol_name))
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
     return operator_func
 
@@ -409,7 +430,26 @@ def keep_terms_for_subsystem(sym_expr, subsys, substitute_zero=False):
 def operator_func_factory(
     inner_op: Callable, index: int, op_type: Optional[str] = None
 ) -> Callable:
-    def operator_func(self, op_type=op_type):
+    def operator_func(self: "Subsystem", energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False):
+        """
+        Returns the operator <op_name> (corresponds to the name of the method "<op_name>_operator") for the Circuit/Subsystem instance.
+
+        Parameters
+        ----------
+        energy_esys:
+            If `False` (default), returns charge operator n in the charge basis.
+            If `True`, energy eigenspectrum is computed, returns charge operator n in the energy eigenbasis.
+            If `energy_esys = esys`, where `esys` is a tuple containing two ndarrays (eigenvalues and energy
+            eigenvectors), returns charge operator n in the energy eigenbasis, and does not have to recalculate the
+            eigenspectrum.
+        
+        Returns
+        -------
+            Returns the operator <op_name>(corresponds to the name of the method "<op_name>_operator").
+            For `energy_esys=True`, n has dimensions of `truncated_dim` x `truncated_dim`.
+            If an actual eigensystem is handed to `energy_sys`, then `n` has dimensions of m x m,
+            where m is the number of given eigenvectors.
+        """
         prefactor = None
         if self.ext_basis == "harmonic":
             if op_type in ["position", "sin", "cos"]:
@@ -417,11 +457,12 @@ def operator_func_factory(
             elif op_type == "momentum":
                 prefactor = 1 / (self.osc_lengths[index] * 2**0.5)
         if prefactor:
-            return self._kron_operator(
+            native = self._kron_operator(
                 inner_op(self.cutoffs_dict()[index], prefactor=prefactor), index
             )
         else:
-            return self._kron_operator(inner_op(self.cutoffs_dict()[index]), index)
+            native = self._kron_operator(inner_op(self.cutoffs_dict()[index]), index)
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
     return operator_func
 

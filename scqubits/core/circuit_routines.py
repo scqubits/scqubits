@@ -15,7 +15,9 @@ import itertools
 import operator as builtin_op
 import re
 from types import MethodType
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+if TYPE_CHECKING:
+    from scqubits.core.circuit import Subsystem
 
 import numpy as np
 import qutip as qt
@@ -1778,8 +1780,27 @@ class CircuitRoutines(ABC):
         self.osc_lengths = osc_lengths
         self.osc_freqs = osc_freqs
 
-    def _wrapper_operator_for_purely_harmonic_system(self, operator_name: str):
-        def purely_harmonic_operator_func(self=self, operator_name=operator_name):
+    def _purely_harmonic_operator_func_factory(self, operator_name: str):
+        def purely_harmonic_operator_func(self: "Subsystem", energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False):
+            """
+            Returns the operator <op_name> (corresponds to the name of the method "<op_name>_operator") for the Circuit/Subsystem instance.
+
+            Parameters
+            ----------
+            energy_esys:
+                If `False` (default), returns charge operator n in the charge basis.
+                If `True`, energy eigenspectrum is computed, returns charge operator n in the energy eigenbasis.
+                If `energy_esys = esys`, where `esys` is a tuple containing two ndarrays (eigenvalues and energy
+                eigenvectors), returns charge operator n in the energy eigenbasis, and does not have to recalculate the
+                eigenspectrum.
+            
+            Returns
+            -------
+                Returns the operator <op_name>(corresponds to the name of the method "<op_name>_operator").
+                For `energy_esys=True`, n has dimensions of `truncated_dim` x `truncated_dim`.
+                If an actual eigensystem is handed to `energy_sys`, then `n` has dimensions of m x m,
+                where m is the number of given eigenvectors.
+            """
             var_index = get_trailing_number(operator_name)
             Q_new, θ_new = self._transform_hamiltonian(
                 hamiltonian=self.hamiltonian_symbolic,
@@ -1832,7 +1853,7 @@ class CircuitRoutines(ABC):
                 operator = annihilation_operator.T
             elif main_op_type == "Nh":
                 operator = annihilation_operator.T * annihilation_operator
-            return operator
+            return self.process_op(native_op=operator, energy_esys=energy_esys)
 
         return purely_harmonic_operator_func
 
@@ -1892,7 +1913,7 @@ class CircuitRoutines(ABC):
                         "creation",
                     ]:
                         sym_variable = extended_vars[short_op_name][list_idx]
-                        op_func = self._wrapper_operator_for_purely_harmonic_system(
+                        op_func = self._purely_harmonic_operator_func_factory(
                             sym_variable.name
                         )
                         op_name = sym_variable.name + "_operator"
