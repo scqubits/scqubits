@@ -7,7 +7,7 @@ trigger:
   branches:
     include:
       - main
-      # - spc-main-devel
+      - spc-main-devel
       - jk-devel
       - Danny_vchos
       - devel_peterg
