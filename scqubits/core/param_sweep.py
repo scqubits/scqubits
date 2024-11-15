@@ -1106,7 +1106,9 @@ class ParameterSweep(  # type:ignore
             self._hilbertspace = stored_hilbertspace  # restore original state
         settings.DISPATCH_ENABLED = True
 
-    def _bare_spectrum_sweep(self) -> Tuple[NamedSlotsNdarray, NamedSlotsNdarray, NamedSlotsNdarray]:
+    def _bare_spectrum_sweep(
+        self,
+    ) -> Tuple[NamedSlotsNdarray, NamedSlotsNdarray, NamedSlotsNdarray]:
         """
         The bare energy spectra are computed according to the following scheme.
         1. Perform a loop over all subsystems to separately obtain the bare energy
@@ -1182,7 +1184,8 @@ class ParameterSweep(  # type:ignore
         updating_parameters = [
             name
             for name in self._subsys_update_info.keys()
-            if subsystem.id_str in [subsys.id_str for subsys in self._subsys_update_info[name]]
+            if subsystem.id_str
+            in [subsys.id_str for subsys in self._subsys_update_info[name]]
         ]
         return list(set(self._parameters.names) - set(updating_parameters))
 
