@@ -34,7 +34,7 @@ jobs:
     displayName: 'Use Python $(python.version)'
   - script: |
       pip install pytest pytest-azurepipelines
-      pip install .
+      pip install ".[gui, develop]"
     displayName: 'Install scqubits'
   - script: |
       pip install pipdeptree
@@ -72,8 +72,8 @@ jobs:
       versionSpec: '$(python.version)'
     displayName: 'Use Python $(python.version)'
   - script: |
-      pip install pytest pytest-azurepipelines
-      pip install .
+      pip install pytest-azurepipelines
+      pip install ".[gui, develop]"
     displayName: 'Install scqubits'
   - script: |
       pip install pipdeptree
@@ -111,9 +111,9 @@ jobs:
       versionSpec: '$(python.version)'
     displayName: 'Use Python $(python.version)'
   - script: |
-      pip install pytest pytest-azurepipelines
+      pip install pytest-azurepipelines
       pip install pytest-xdist
-      pip install .
+      pip install ".[gui, develop]"
     displayName: 'Install scqubits'
   - script: |
       pip install pipdeptree

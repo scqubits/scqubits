@@ -52,17 +52,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-explorer = [
-    "ipywidgets (>=7.5)", "ipyvuetify"
+gui = [
+    "ipywidgets (>=7.5)", "ipyvuetify", "matplotlib-label-lines (>=0.3.6)", "h5py (>=2.10)",
 ]
 develop = [
-    "pytest", "traitlets"
-]
-graphics = [
-    "matplotlib-label-lines (>=0.3.6)",
-]
-fileio = [
-    "h5py (>=2.10)",
+    "pytest", "traitlets", "h5py (>=2.10)",
 ]
 
 [project.urls]
