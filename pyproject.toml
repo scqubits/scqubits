@@ -6,14 +6,13 @@ build-backend = "setuptools.build_meta"
 write_to = "scqubits/version.py"
 version_scheme = "post-release"
 local_scheme = "no-local-version"
-fallback_version = "0.0"
 
 [project]
 name = "scqubits"
 description = "scqubits: superconducting qubits in Python"
 dynamic = ["version"]
 readme = "README.md"
-license = "BSD"
+license = { file = "LICENSE" }
 requires-python = ">=3.9"
 authors = [
     { name = "Jens Koch", email = "jens-koch@northwestern.edu" },
@@ -39,6 +38,7 @@ dependencies = [
     "cycler",
     "cython>=0.29.20",
     "dill",
+    "pathos>=0.3.0",
     "matplotlib>=3.5.1",
     "numpy>=1.14.2",
     "pathos>=0.3.0",
@@ -53,17 +53,16 @@ dependencies = [
 
 [project.optional-dependencies]
 explorer = [
-    "ipywidgets (>=7.5)",
+    "ipywidgets (>=7.5)", "ipyvuetify"
+]
+develop = [
+    "pytest", "traitlets"
 ]
 graphics = [
     "matplotlib-label-lines (>=0.3.6)",
 ]
-h5-support = [
+fileio = [
     "h5py (>=2.10)",
-]
-pathos = [
-    "dill",
-    "pathos",
 ]
 
 [project.urls]

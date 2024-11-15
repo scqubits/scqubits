@@ -1,6 +1,0 @@
-h5py >= 2.10
-pytest
-ipywidgets
-ipyvuetify
-traitlets
-typing_extensions
