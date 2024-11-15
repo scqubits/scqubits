@@ -29,7 +29,6 @@ jobs:
       - name: Python setup for the rest of the jobs
         uses: conda-incubator/setup-miniconda@v3
         with:
-            miniforge-variant: Miniforge3
             use-mamba: true
             auto-update-conda: true
             python-version: ${{ matrix.python-version }}
@@ -63,8 +62,8 @@ jobs:
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-      # - name: Build with conda and run tests
-      #   run: |
-      #     mamba install boa
-      #     conda mambabuild .
+      - name: Build with conda and run tests
+        run: |
+          conda install boa
+          conda mambabuild .
 
