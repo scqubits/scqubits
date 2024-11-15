@@ -34,7 +34,7 @@ jobs:
     displayName: 'Use Python $(python.version)'
   - script: |
       pip install pytest pytest-azurepipelines
-      pip install --no-dependencies  .
+      pip install .
     displayName: 'Install scqubits'
   - script: |
       pip install pipdeptree
