@@ -72,14 +72,7 @@ jobs:
       versionSpec: '$(python.version)'
     displayName: 'Use Python $(python.version)'
   - script: |
-      python -m pip install --upgrade pip
-    displayName: 'Upgrade pip'
-  - script: |
-      pip install -r requirements.txt
-      pip install -r optional-requirements.txt
-    displayName: 'Install dependencies'
-  - script: |
-      pip install --no-dependencies  .
+      pip install .
     displayName: 'Install scqubits'
   - script: |
       pip install pipdeptree
@@ -117,16 +110,9 @@ jobs:
       versionSpec: '$(python.version)'
     displayName: 'Use Python $(python.version)'
   - script: |
-      python -m pip install --upgrade pip
-    displayName: 'Upgrade pip'
-  - script: |
-      pip install -r requirements.txt
-      pip install -r optional-requirements.txt
-    displayName: 'Install dependencies'
-  - script: |
       pip install pytest pytest-azurepipelines
       pip install pytest-xdist
-      pip install --no-dependencies  .
+      pip install .
     displayName: 'Install scqubits'
   - script: |
       pip install pipdeptree
