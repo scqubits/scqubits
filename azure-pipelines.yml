@@ -72,6 +72,7 @@ jobs:
       versionSpec: '$(python.version)'
     displayName: 'Use Python $(python.version)'
   - script: |
+      pip install pytest pytest-azurepipelines
       pip install .
     displayName: 'Install scqubits'
   - script: |
