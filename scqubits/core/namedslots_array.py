@@ -191,35 +191,17 @@ class ExtIndexObject:
         if isinstance(idx_entry, (float, complex)):
             return "val", idx_for_value(idx_entry, self._parameters[self.slot])
 
-        # slice(<str>, slice(...), None):  handle str based slices
-        if (
-            isinstance(idx_entry, slice) 
-            and isinstance(idx_entry.start, str) 
-            and isinstance(idx_entry.stop, slice)
-            and idx_entry.step is None
-        ):
-            self.name = idx_entry.start
-
-            slc = idx_entry.stop
-
-            start = self.convert_to_np_slice_entry(slc.start)
-            stop = self.convert_to_np_slice_entry(slc.stop)
-
-            if isinstance(start, (int, np.integer)) and (stop is None):
-                return "slice.name", start
-            return "slice.name", slice(start, stop, slc.step)
-
         # slice(<str>, ...):  handle str based slices
         if isinstance(idx_entry, slice) and isinstance(idx_entry.start, str):
             self.name = idx_entry.start
 
             start = self.convert_to_np_slice_entry(idx_entry.stop)
-            # if isinstance(start, (complex, float)):
-            #     start = idx_for_value(start, self._parameters[self.slot])
+            if isinstance(start, (complex, float)):
+                start = idx_for_value(start, self._parameters[self.slot])
 
             stop = self.convert_to_np_slice_entry(idx_entry.step)
-            # if isinstance(stop, (complex, float)):
-            #     stop = idx_for_value(stop, self._parameters[self.slot])
+            if isinstance(stop, (complex, float)):
+                stop = idx_for_value(stop, self._parameters[self.slot])
 
             if isinstance(start, (int, np.integer)) and (stop is None):
                 return "slice.name", start
@@ -306,7 +288,7 @@ class Parameters:
 
         self.names = self.paramnames_list
         self.ordered_dict = OrderedDict(
-            [(name, np.array(paramvals_by_name[name])) for name in self.names]
+            [(name, paramvals_by_name[name]) for name in self.names]
         )
         self.paramvals_by_name = self.ordered_dict
         self.index_by_name = {
