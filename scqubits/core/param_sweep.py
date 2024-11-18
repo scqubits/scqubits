@@ -945,28 +945,28 @@ class ParameterSweep(  # type:ignore
     bare_only:
         if set to True, only bare eigendata is calculated; useful when performing a
         sweep for a single quantum system, no interaction (default: False)
-    lookup_scheme: 
-        the scheme of genenrating the dressed state labeling in lookup table. 
-        - "DE" (Dressed Energy): traverse the eigenstates 
-        in the order of their dressed energy, and find the corresponding bare 
+    lookup_scheme:
+        the scheme of genenrating the dressed state labeling in lookup table.
+        - "DE" (Dressed Energy): traverse the eigenstates
+        in the order of their dressed energy, and find the corresponding bare
         state label by overlaps (default)
-        - "LX" (Lexical ordering): traverse the bare states in lexical order, 
+        - "LX" (Lexical ordering): traverse the bare states in lexical order,
         and perform the branch analysis generalized from Dumas et al. (2024).
-        - "BE" (Bare Energy): traverse the bare states in the order of 
-        their energy before coupling and perform label assignment. This is particularly 
-        useful when the Hilbert space is too large and not all the eigenstates need 
+        - "BE" (Bare Energy): traverse the bare states in the order of
+        their energy before coupling and perform label assignment. This is particularly
+        useful when the Hilbert space is too large and not all the eigenstates need
         to be labeled.
-        
+
     lookup_mode_priority: List[int] | None
-        a permutation of the mode indices, representing the order of the modes 
+        a permutation of the mode indices, representing the order of the modes
         traversed during the branch analysis, for "LX" scheme only.
-        The eigenstates-bare-state-paring is based on the 
-        "first-come-first-served" principle, the ordering of such traversal will 
-        permute the bare labels and change the traversal order based on the 
-        lexical order. For the last mode in the list, its states will be labelled 
+        The eigenstates-bare-state-paring is based on the
+        "first-come-first-served" principle, the ordering of such traversal will
+        permute the bare labels and change the traversal order based on the
+        lexical order. For the last mode in the list, its states will be labelled
         sequentially and organized in a single branch.
     lookup_labels_count: int | None
-        the number of dressed states to be labeled, for "BE" scheme only. 
+        the number of dressed states to be labeled, for "BE" scheme only.
     ignore_low_overlap:
         if set to False (default), bare product states and dressed eigenstates are
         identified if `|<psi_bare|psi_dressed>|^2 > 0.5`; if True,

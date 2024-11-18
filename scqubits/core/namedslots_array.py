@@ -441,13 +441,13 @@ class Parameters:
                 reduced_paramvals_by_name[name] = paramvals
 
         return Parameters(reduced_paramvals_by_name)
-    
+
     def meshgrids_by_paramname(
-        self, 
-        indexing: Literal['ij', 'xy'] = 'ij', 
+        self,
+        indexing: Literal["ij", "xy"] = "ij",
     ) -> OrderedDict[str, "NamedSlotsNdarray"]:
         """
-        Creates and returns returns a dictionary containing the meshgrids of the 
+        Creates and returns returns a dictionary containing the meshgrids of the
         parameter lists. All meshgrids are instances of the NamedSlotNdarray
 
         Parameters
@@ -464,14 +464,10 @@ class Parameters:
         param_mesh = np.meshgrid(*self.paramvals_list, indexing=indexing)
 
         param_mesh_nsarray = [
-            NamedSlotsNdarray(mesh, self.paramvals_by_name) 
-            for mesh in param_mesh
+            NamedSlotsNdarray(mesh, self.paramvals_by_name) for mesh in param_mesh
         ]
-        
-        return OrderedDict(zip(
-            self.paramnames_list, 
-            param_mesh_nsarray
-        ))
+
+        return OrderedDict(zip(self.paramnames_list, param_mesh_nsarray))
 
 
 class NamedSlotsNdarray(np.ndarray, Serializable):

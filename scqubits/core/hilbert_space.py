@@ -619,25 +619,25 @@ class HilbertSpace(
     # HilbertSpace: generate SpectrumLookup
     ###################################################################################
     def generate_lookup(
-        self, 
+        self,
         ordering: Literal["DE", "LX", "BE"] = "BE",
         mode_priority: Union[List[int], None] = None,
         labels_count: Union[int, None] = None,
         update_subsystem_indices: Union[List[int], None] = None,
     ) -> None:
         """
-        Label the dressed states by bare labels and generate the lookup table 
+        Label the dressed states by bare labels and generate the lookup table
         with one of the following methods:
-        - Dressed Energy (ordering="DE"): traverse the eigenstates 
-        in the order of their dressed energy, and find the corresponding bare 
+        - Dressed Energy (ordering="DE"): traverse the eigenstates
+        in the order of their dressed energy, and find the corresponding bare
         state label by overlaps (default)
-        - Lexical (ordering="LX"): traverse the bare states in lexical order, 
+        - Lexical (ordering="LX"): traverse the bare states in lexical order,
         and perform the branch analysis generalized from Dumas et al. (2024).
-        - Bare Energy (ordering="BE"): traverse the bare states in the order of 
-        their energy before coupling and perform label assignment. This is particularly 
-        useful when the Hilbert space is too large and not all the eigenstates need 
+        - Bare Energy (ordering="BE"): traverse the bare states in the order of
+        their energy before coupling and perform label assignment. This is particularly
+        useful when the Hilbert space is too large and not all the eigenstates need
         to be labeled.
-        
+
         Parameters
         ----------
         ordering:
@@ -645,26 +645,26 @@ class HilbertSpace(
             - "DE": Dressed Energy (default)
             - "LX": Lexical ordering
             - "BE": Bare Energy
-            
+
         mode_priority:
-            a permutation of the mode indices, representing the order of the modes 
+            a permutation of the mode indices, representing the order of the modes
             traversed during the branch analysis, for "LX" scheme only.
-            The eigenstates-bare-state-paring is based on the 
-            "first-come-first-served" principle, the ordering of such traversal will 
-            permute the bare labels and change the traversal order based on the 
-            lexical order. For the last mode in the list, its states will be labelled 
+            The eigenstates-bare-state-paring is based on the
+            "first-come-first-served" principle, the ordering of such traversal will
+            permute the bare labels and change the traversal order based on the
+            lexical order. For the last mode in the list, its states will be labelled
             sequentially and organized in a single branch.
-            
-        labels_count: 
+
+        labels_count:
             the number of eigenstates to be assigned, for "BE" scheme only.
-            
+
         Returns
         -------
         a NamedSlotsNdarray object containing the branch analysis results
         organized by the parameter indices.
-        For each parameter point, a flattened multi-dimensional array 
-        is stored, representing the dressed indices organized by the 
-        bare indices. E.g. if the dimensions of the subsystems are D0, D1 and D2, 
+        For each parameter point, a flattened multi-dimensional array
+        is stored, representing the dressed indices organized by the
+        bare indices. E.g. if the dimensions of the subsystems are D0, D1 and D2,
         the returned array will be ravelled from the shape (D0, D1, D2).
         """
         self._lookup_exists = True
@@ -684,7 +684,7 @@ class HilbertSpace(
         self._data["evals"] = NamedSlotsNdarray(np.array([evals]), dummy_params)
         self._data["evecs"] = NamedSlotsNdarray(evecs_wrapped, dummy_params)
         self._data["dressed_indices"] = spec_lookup.SpectrumLookupMixin.generate_lookup(
-            self, 
+            self,
             ordering=ordering,
             mode_priority=mode_priority,
             labels_count=labels_count,

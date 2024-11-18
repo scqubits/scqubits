@@ -53,4 +53,9 @@ def tst_name():
 
 def test_paramvals_list():
     tst = Parameters(paramvals_by_name)
-    assert all([all(test == ref) for test, ref in zip(tst.paramvals_list, [paramvals1, paramvals2])])
+    assert all(
+        [
+            all(test == ref)
+            for test, ref in zip(tst.paramvals_list, [paramvals1, paramvals2])
+        ]
+    )
