@@ -620,7 +620,7 @@ class HilbertSpace(
     ###################################################################################
     def generate_lookup(
         self,
-        ordering: Literal["DE", "LX", "BE"] = "BE",
+        ordering: Literal["DE", "LX", "BE"] = "DE",
         mode_priority: Union[List[int], None] = None,
         labels_count: Union[int, None] = None,
         update_subsystem_indices: Union[List[int], None] = None,
