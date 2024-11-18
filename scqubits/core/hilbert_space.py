@@ -620,60 +620,52 @@ class HilbertSpace(
     ###################################################################################
     def generate_lookup(
         self, 
-        mode: Literal["O", "DF", "EF"] = "EF",
+        ordering: Literal["DE", "LX", "BE"] = "BE",
         mode_priority: Union[List[int], None] = None,
-        transpose: bool = False,
-        truncate: Union[int, None] = None,
+        labels_count: Union[int, None] = None,
         update_subsystem_indices: Union[List[int], None] = None,
     ) -> None:
         """
-        Generate the lookup table with one of the following methods:
-        - "O": label by overlaps (default)
-        - "DF": branch analysis with depth-first traversal of a tree 
-        formed by the bare state labels, generalized from  
-        Dumas et al. (2024).
-        - "EF": branch analysis with traversal ordered by the bare energy, 
-        which is particularly useful when the Hilbert space is too large and not 
-        all the eigenstates need to be labeled.
+        Label the dressed states by bare labels and generate the lookup table 
+        with one of the following methods:
+        - Dressed Energy (ordering="DE"): traverse the eigenstates 
+        in the order of their dressed energy, and find the corresponding bare 
+        state label by overlaps (default)
+        - Lexical (ordering="LX"): traverse the bare states in lexical order, 
+        and perform the branch analysis generalized from Dumas et al. (2024).
+        - Bare Energy (ordering="BE"): traverse the bare states in the order of 
+        their energy before coupling and perform label assignment. This is particularly 
+        useful when the Hilbert space is too large and not all the eigenstates need 
+        to be labeled.
         
         Parameters
         ----------
-        mode: Literal["O", "DF", "EF"]
-            The ordering method for the labeling
-            - "O": label by overlaps
-            - "DF": depth-first traversal the tree formed by the bare state labels
-            - "EF": traversal ordered by the bare energy  
+        ordering:
+            the ordering method for the labeling
+            - "DE": Dressed Energy (default)
+            - "LX": Lexical ordering
+            - "BE": Bare Energy
             
-        mode_priority: List[int] | None
-            A permutation of the mode indices. Only used for "DF" mode
-            during the branch analysis.
-            Since the eigenstates-bare-state-paring is based on the 
+        mode_priority:
+            a permutation of the mode indices, representing the order of the modes 
+            traversed during the branch analysis, for "LX" scheme only.
+            The eigenstates-bare-state-paring is based on the 
             "first-come-first-served" principle, the ordering of such traversal will 
-            play an important role, which is specified by `mode_priority`. It 
-            represents the depth of the mode labels to be traversed. The later 
-            the mode appears in the list, the deeper it is in the recursion. For 
-            the last mode in the list, its states will be organized in a single 
-            branch - the innermost part of the nested list.
-        
-        transpose: bool
-            For "DF" mode only. If True, the returned array will be transposed 
-            according to the mode_priority. Otherwise, the array will be in the 
-            shape of the subsystem dimensions in the original order.
+            permute the bare labels and change the traversal order based on the 
+            lexical order. For the last mode in the list, its states will be labelled 
+            sequentially and organized in a single branch.
             
-        truncate: int | None
-            For "EF" mode only. The number of eigenstates to be assigned.
+        labels_count: 
+            the number of eigenstates to be assigned, for "BE" scheme only.
             
         Returns
         -------
-        branch_drs_indices: NamedSlotsNdarray
-            A NamedSlotsNdarray object containing the branch analysis results
-            organized by the parameter indices.
-            Each element is a flattened multi-dimensional array of the 
-            dressed indices organized by the mode_priority. If the dimensions 
-            of the subsystems are D0, D1 and D2, the returned array will 
-            be flattend from the shape (D0, D1, D2). If transposed is True, 
-            the array will be transposed according to the mode_priority 
-            (for "DF" mode only).
+        a NamedSlotsNdarray object containing the branch analysis results
+        organized by the parameter indices.
+        For each parameter point, a flattened multi-dimensional array 
+        is stored, representing the dressed indices organized by the 
+        bare indices. E.g. if the dimensions of the subsystems are D0, D1 and D2, 
+        the returned array will be ravelled from the shape (D0, D1, D2).
         """
         self._lookup_exists = True
         bare_esys_dict = self.generate_bare_esys(
@@ -693,10 +685,9 @@ class HilbertSpace(
         self._data["evecs"] = NamedSlotsNdarray(evecs_wrapped, dummy_params)
         self._data["dressed_indices"] = spec_lookup.SpectrumLookupMixin.generate_lookup(
             self, 
-            mode=mode,
+            ordering=ordering,
             mode_priority=mode_priority,
-            transpose=transpose,
-            truncate=truncate,
+            labels_count=labels_count,
         )
 
     def lookup_exists(self) -> bool:

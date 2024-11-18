@@ -945,6 +945,28 @@ class ParameterSweep(  # type:ignore
     bare_only:
         if set to True, only bare eigendata is calculated; useful when performing a
         sweep for a single quantum system, no interaction (default: False)
+    lookup_scheme: 
+        the scheme of genenrating the dressed state labeling in lookup table. 
+        - "DE" (Dressed Energy): traverse the eigenstates 
+        in the order of their dressed energy, and find the corresponding bare 
+        state label by overlaps (default)
+        - "LX" (Lexical ordering): traverse the bare states in lexical order, 
+        and perform the branch analysis generalized from Dumas et al. (2024).
+        - "BE" (Bare Energy): traverse the bare states in the order of 
+        their energy before coupling and perform label assignment. This is particularly 
+        useful when the Hilbert space is too large and not all the eigenstates need 
+        to be labeled.
+        
+    lookup_mode_priority: List[int] | None
+        a permutation of the mode indices, representing the order of the modes 
+        traversed during the branch analysis, for "LX" scheme only.
+        The eigenstates-bare-state-paring is based on the 
+        "first-come-first-served" principle, the ordering of such traversal will 
+        permute the bare labels and change the traversal order based on the 
+        lexical order. For the last mode in the list, its states will be labelled 
+        sequentially and organized in a single branch.
+    lookup_labels_count: int | None
+        the number of dressed states to be labeled, for "BE" scheme only. 
     ignore_low_overlap:
         if set to False (default), bare product states and dressed eigenstates are
         identified if `|<psi_bare|psi_dressed>|^2 > 0.5`; if True,
@@ -997,6 +1019,9 @@ class ParameterSweep(  # type:ignore
         evals_count: int = 20,
         subsys_update_info: Optional[Dict[str, List[QuantumSystem]]] = None,
         bare_only: bool = False,
+        lookup_scheme: Literal["DE", "LX", "BE"] = "DE",
+        lookup_mode_priority: Union[List[int], None] = None,
+        lookup_labels_count: Union[int, None] = None,
         ignore_low_overlap: bool = False,
         autorun: bool = settings.AUTORUN_SWEEP,
         deepcopy: bool = False,
@@ -1010,6 +1035,9 @@ class ParameterSweep(  # type:ignore
         self._subsys_update_info = subsys_update_info
         self._data: Dict[str, Any] = {}
         self._bare_only = bare_only
+        self._lookup_scheme = lookup_scheme
+        self._lookup_mode_priority = lookup_mode_priority
+        self._lookup_labels_count = lookup_labels_count
         self._ignore_low_overlap = ignore_low_overlap
         self._deepcopy = deepcopy
         self._num_cpus = num_cpus
@@ -1100,7 +1128,11 @@ class ParameterSweep(  # type:ignore
         ) = self._bare_spectrum_sweep()
         if not self._bare_only:
             self._data["evals"], self._data["evecs"] = self._dressed_spectrum_sweep()
-            self._data["dressed_indices"] = self.generate_lookup()
+            self._data["dressed_indices"] = self.generate_lookup(
+                ordering=self._lookup_scheme,
+                mode_priority=self._lookup_mode_priority,
+                labels_count=self._lookup_labels_count,
+            )
             (
                 self._data["lamb"],
                 self._data["chi"],

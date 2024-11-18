@@ -94,64 +94,63 @@ class SpectrumLookupMixin(MixinCompatible):
     
     def generate_lookup(
         self,
-        mode: Literal["O", "DF", "EF"] = "EF",
+        ordering: Literal["DE", "LX", "BE"] = "BE",
         mode_priority: Union[List[int], None] = None,
-        transpose: bool = False,
-        truncate: Union[int, None] = None,
+        labels_count: Union[int, None] = None,
     ) -> NamedSlotsNdarray:
         """
-        Generate the lookup table with one of the following methods:
-        - "O": label by overlaps (default)
-        - "DF": branch analysis with depth-first traversal of a tree 
-        formed by the bare state labels, generalized from  
-        Dumas et al. (2024).
-        - "EF": branch analysis with traversal ordered by the bare energy, 
-        which is particularly useful when the Hilbert space is too large and not 
-        all the eigenstates need to be labeled.
+        Label the dressed states by bare labels and generate the lookup table 
+        with one of the following methods:
+        - Dressed Energy (ordering="DE"): traverse the eigenstates 
+        in the order of their dressed energy, and find the corresponding bare 
+        state label by overlaps (default)
+        - Lexical (ordering="LX"): traverse the bare states in lexical order, 
+        and perform the branch analysis generalized from Dumas et al. (2024).
+        - Bare Energy (ordering="BE"): traverse the bare states in the order of 
+        their energy before coupling and perform label assignment. This is particularly 
+        useful when the Hilbert space is too large and not all the eigenstates need 
+        to be labeled.
         
         Parameters
         ----------
-        mode: Literal["O", "DF", "EF"]
-            The ordering method for the labeling
-            - "O": label by overlaps
-            - "DF": depth-first traversal the tree formed by the bare state labels
-            - "EF": traversal ordered by the bare energy  
+        ordering: 
+            the ordering method for the dressed state labeling
+            - "DE": Dressed Energy (default)
+            - "LX": Lexical ordering
+            - "BE": Bare Energy
             
         mode_priority: List[int] | None
-            A permutation of the mode indices. Only used for "DF" mode
-            during the branch analysis.
-            Since the eigenstates-bare-state-paring is based on the 
+            a permutation of the mode indices, representing the order of the modes 
+            traversed during the branch analysis, for "LX" scheme only.
+            The eigenstates-bare-state-paring is based on the 
             "first-come-first-served" principle, the ordering of such traversal will 
-            play an important role, which is specified by `mode_priority`. It 
-            represents the depth of the mode labels to be traversed. The later 
-            the mode appears in the list, the deeper it is in the recursion. For 
-            the last mode in the list, its states will be organized in a single 
-            branch - the innermost part of the nested list.
-        
-        transpose: bool
-            For "DF" mode only. If True, the returned array will be transposed 
-            according to the mode_priority. Otherwise, the array will be in the 
-            shape of the subsystem dimensions in the original order.
+            permute the bare labels and change the traversal order based on the 
+            lexical order. For the last mode in the list, its states will be labelled 
+            sequentially and organized in a single branch.
             
-        truncate: int | None
-            For "EF" mode only. The number of eigenstates to be assigned.
+        labels_count: int | None
+            the number of eigenstates to be assigned, for "BE" scheme only.
             
         Returns
         -------
-        branch_drs_indices: NamedSlotsNdarray
-            A NamedSlotsNdarray object containing the branch analysis results
-            organized by the parameter indices.
-            Each element is a flattened multi-dimensional array of the 
-            dressed indices organized by the mode_priority. If the dimensions 
-            of the subsystems are D0, D1 and D2, the returned array will 
-            be flattend from the shape (D0, D1, D2). If transposed is True, 
-            the array will be transposed according to the mode_priority 
-            (for "DF" mode only).
+        a NamedSlotsNdarray object containing the branch analysis results
+        organized by the parameter indices.
+        For each parameter point, a flattened multi-dimensional array 
+        is stored, representing the dressed indices organized by the 
+        bare indices. E.g. if the dimensions of the subsystems are D0, D1 and D2, 
+        the returned array will be ravelled from the shape (D0, D1, D2).
         """
-        if mode == "DF" or mode == "EF":
-            return self._branch_analysis(mode, mode_priority, transpose, truncate)
-        else:
+        if ordering == "LX" or ordering == "BE":
+            return self._branch_analysis(
+                ordering=ordering, 
+                mode_priority=mode_priority, 
+                transpose=False,
+                labels_count=labels_count
+            )
+        elif ordering == "DE":
             return self._generate_lookup_by_overlap()
+        else:
+            raise ValueError(f"Invalid ordering method: {ordering}")
 
     def _generate_lookup_by_overlap(self) -> NamedSlotsNdarray:
         """
@@ -637,7 +636,7 @@ class SpectrumLookupMixin(MixinCompatible):
             # annhilation operator
             return hilbertspace.annihilate(mode).dag()
         else:
-            # a sum of |j+1><j|
+            # sum_j |j+1><j|
             dims = hilbertspace.subsystem_dims
             op = qt.qdiags(
                 np.ones(dims[mode_idx] - 1),
@@ -645,7 +644,7 @@ class SpectrumLookupMixin(MixinCompatible):
             )
             return identity_wrap(op, mode, hilbertspace.subsystem_list)
             
-    def _branch_analysis_DF_step(
+    def _branch_analysis_LX_step(
         self,
         mode_priority: List[int],
         recusion_depth: int,
@@ -674,23 +673,20 @@ class SpectrumLookupMixin(MixinCompatible):
 
         Parameters
         ----------
-        self:
-            SpectrumLookupMixin object, could be a `ParameterSweep` object or 
-            `HilbertSpace` object.
         mode_priority:
-            A permutation of the mode indices. 
+            a permutation of the mode indices. 
             It represents the depth of the mode labels to be traversed. The later
             the mode appears in the list, the deeper it is in the recursion.
-            For the last mode in the list, its states will be organized in a 
-            single branch - the innermost part of the nested list. 
+            For the last mode in the list, its states will be labelled sequentially
+            and organized in a single branch.
         recusion_depth:
-            The current depth of the recursion. It should be 0 at the beginning.
+            the current depth of the recursion. It should be 0 at the beginning.
         init_drs_idx:
-            The dressed index of the initial state of this branch.
+            the dressed index of the initial state of this branch.
         init_state:
-            The initial state of this branch.
+            the initial state of this branch.
         remaining_drs_indices:
-            The list of the remaining dressed indices to be assigned.
+            the list of the remaining dressed indices to be assigned.
         remaining_evecs:
             The list of the remaining eigenstates to be assigned.
         
@@ -724,7 +720,7 @@ class SpectrumLookupMixin(MixinCompatible):
                 # recursively call the function and append all the branch states
                 (
                     _branch_drs_indices, _branch_states
-                ) = self._branch_analysis_DF_step(
+                ) = self._branch_analysis_LX_step(
                     mode_priority, 
                     recusion_depth + 1,
                     current_drs_idx,
@@ -760,7 +756,7 @@ class SpectrumLookupMixin(MixinCompatible):
 
         return branch_drs_indices, branch_states
 
-    def _branch_analysis_DF(
+    def _branch_analysis_LX(
         self,
         param_indices: Tuple[int, ...],
         mode_priority: Optional[List[int]] = None,
@@ -768,41 +764,38 @@ class SpectrumLookupMixin(MixinCompatible):
     ) -> np.ndarray:
         """
         Perform a full branch analysis according to Dumas et al. (2024) for 
-        a single parameter point using depth-first traversal. It will start 
-        a recursive search using method `_branch_analysis_DF_step`.
+        a single parameter point using lexical ordering. Running through all
+        bare labels in the lexical order is equivalent to a depth-first traversal 
+        in a tree structure. The method will start a recursive labeling using 
+        method `_branch_analysis_LX_step`.
 
-        Since the eigenstates-picking is "first-come-first-served", the 
-        ordering of such search will play an important role, which is specified
-        by `mode_priority`. It represents the depth of the mode labels to 
-        be traversed. The later the mode appears in the list, the deeper it is 
-        in the recursion. For the last mode in the list, its states will be 
-        organized in a single branch - the innermost part of the nested list.
+        The eigenstates-bare-state-paring is based on the 
+        "first-come-first-served" principle, the ordering of such traversal will 
+        permute the bare labels and change the traversal order based on the 
+        lexical order. For the last mode in the list, its states will be labelled 
+        sequentially and organized in a single branch.
         
         At the end, this function will organize the eigenstates into a 
         multi-dimensional array according to the mode_priority. 
 
         Parameters
         ----------
-        self:
-            SpectrumLookupMixin object, could be a `ParameterSweep` object or 
-            `HilbertSpace` object.
         param_indices:
-            The indices of the parameter sweep to be analyzed.
+            the indices of the parameter sweep to be analyzed.
+            
         mode_priority:
-            A permutation of the mode indices. 
-            It represents the depth of the mode labels to be traversed. The later
-            the mode appears in the list, the deeper it is in the recursion.
-            For the last mode in the list, its states will be organized in a 
-            single branch - the innermost part of the nested list.
-        transpose:
-            If True, the returned array will be transposed according to the
-            mode_priority. Otherwise, the array will be in the shape of 
-            the subsystem dimensions in the original order.
-
+            a permutation of the mode indices, representing the order of the modes 
+            traversed during the branch analysis.
+            
+        transpose: 
+            if True, the returned array will be transposed, according to the 
+            mode_priority. Otherwise, the array will be in the 
+            shape of the subsystem dimensions in the original order.
+            
         Returns
         -------
         branch_drs_indices
-            The multi-dimensional array of the dressed indices organized by 
+            the multi-dimensional array of the dressed indices organized by 
             the mode_priority. If the dimensions of the subsystems are
             D0, D1 and D2, the returned array will have the shape (D0, D1, D2).
             If transposed is True, the array will be transposed according to
@@ -817,7 +810,7 @@ class SpectrumLookupMixin(MixinCompatible):
         remaining_evecs = list(evecs[1:])
         remaining_drs_indices = list(range(1, self.hilbertspace.dimension))
 
-        branch_drs_indices, _ = self._branch_analysis_DF_step(
+        branch_drs_indices, _ = self._branch_analysis_LX_step(
             mode_priority, 
             0, 
             0, init_state,
@@ -833,10 +826,10 @@ class SpectrumLookupMixin(MixinCompatible):
 
         return branch_drs_indices
 
-    def _branch_analysis_EF(
+    def _branch_analysis_BE(
         self,
         param_indices: Tuple[int, ...],
-        truncate: Union[int, None] = None,
+        labels_count: Union[int, None] = None,
     ) -> np.ndarray:
         """
         Perform a full branch analysis according to Dumas et al. (2024) for 
@@ -847,20 +840,20 @@ class SpectrumLookupMixin(MixinCompatible):
         Parameters
         ----------
         param_indices:
-            The indices of the parameter sweep to be analyzed.
+            the indices of the parameter sweep to be analyzed.
         truncate:
-            The number of states to be assigned. If None, all states will be 
+            the number of states to be assigned. If None, all states will be 
             assigned.
         """
         hspace = self.hilbertspace
         dims = hspace.subsystem_dims
         
-        if truncate is None:
-            truncate = len(self._data["evecs"][param_indices])
-        elif len(self._data["evecs"][param_indices]) < truncate:
-            truncate = len(self._data["evecs"][param_indices])
+        if labels_count is None:
+            labels_count = len(self._data["evecs"][param_indices])
+        elif len(self._data["evecs"][param_indices]) < labels_count:
+            labels_count = len(self._data["evecs"][param_indices])
             warn(
-                "evals_count is less than truncate, truncate is set to "
+                "evals_count is less than labels_count, labels_count is set to "
                 f"{len(self._data['evecs'][param_indices])}."
             )
         
@@ -880,7 +873,7 @@ class SpectrumLookupMixin(MixinCompatible):
         
         # sort the bare energies
         # which will be the order of state assignment
-        sorted_indices = np.argsort(bare_evals)[:truncate]
+        sorted_indices = np.argsort(bare_evals)[:labels_count]
             
         # mode assignment
         branch_drs_indices = np.ndarray(dims, dtype=object)
@@ -943,71 +936,64 @@ class SpectrumLookupMixin(MixinCompatible):
 
     def _branch_analysis(
         self,
-        mode: Literal["DF", "EF"] = "EF",
+        ordering: Literal["LX", "BE"] = "BE",
         mode_priority: Optional[List[int]] = None,
         transpose: bool = False,
-        truncate: Union[int, None] = None,
+        labels_count: Union[int, None] = None,
     ) -> NamedSlotsNdarray:
         """
         Perform a full branch analysis for all parameter points, according to 
         Dumas et al. (2024). We provide two orderings methods for the labeling:
-        - "DF": depth-first traversal the tree formed by the bare state labels
-        - "EF": traversal ordered by the bare energy, which is particularly 
-            useful when the Hilbert space is too large and not all the eigenstates
-            need to be labeled.
+        - Lexical (ordering="LX"): traverse the bare states in lexical order, 
+        and perform the branch analysis generalized from Dumas et al. (2024).
+        - Bare Energy (ordering="BE"): traverse the bare states in the order of 
+        their energy before coupling, and perform the label assignment. This is 
+        particularly useful when the Hilbert space is too large and not all the 
+        eigenstates need to be labeled.
         
         Parameters
         ----------
-        mode: Literal["DF", "EF"]
-            The ordering method for the labeling
-            - "DF": depth-first traversal the tree formed by the bare state labels
-            - "EF": traversal ordered by the bare energy  
+        ordering: 
+            the ordering method for the labeling
+            - "LX": Lexical ordering
+            - "BE": Bare Energy  
             
-        mode_priority: List[int] | None
-            A permutation of the mode indices. 
-            Since the eigenstates-bare-state-paring is based on the 
+        mode_priority:
+            a permutation of the mode indices, representing the order of the modes 
+            traversed during the branch analysis, for "LX" scheme only.
+            The eigenstates-bare-state-paring is based on the 
             "first-come-first-served" principle, the ordering of such traversal will 
-            play an important role, which is specified by `mode_priority`. It 
-            represents the depth of the mode labels to be traversed. The later 
-            the mode appears in the list, the deeper it is in the recursion. For 
-            the last mode in the list, its states will be organized in a single 
-            branch - the innermost part of the nested list.
+            permute the bare labels and change the traversal order based on the 
+            lexical order. For the last mode in the list, its states will be labelled 
+            sequentially and organized in a single branch.
         
-        transpose: bool
-            For "DF" mode only. If True, the returned array will be transposed 
-            according to the mode_priority. Otherwise, the array will be in the 
-            shape of the subsystem dimensions in the original order.
-            
-        truncate: int | None
-            For "EF" mode only. The number of eigenstates to be assigned.
+        labels_count:
+            the number of eigenstates to be labeled, for "BE" scheme only.
             
         Returns
         -------
-        branch_drs_indices: NamedSlotsNdarray
-            A NamedSlotsNdarray object containing the branch analysis results
-            organized by the parameter indices.
-            Each element is a flattened multi-dimensional array of the 
-            dressed indices organized by the mode_priority. If the dimensions 
-            of the subsystems are D0, D1 and D2, the returned array will 
-            be flattend from the shape (D0, D1, D2). If transposed is True, 
-            the array will be transposed according to the mode_priority 
-            (for "DF" mode only).
+        a NamedSlotsNdarray object containing the branch analysis results
+        organized by the parameter indices.
+        For each parameter point, a flattened multi-dimensional array 
+        is stored, representing the dressed indices organized by the 
+        bare indices. E.g. if the dimensions of the subsystems are D0, D1 and D2, 
+        the returned array will be ravelled from the shape (D0, D1, D2).
         """
         dressed_indices = np.empty(shape=self._parameters.counts, dtype=object)
 
         param_indices = itertools.product(*map(range, self._parameters.counts))
         
         for index in param_indices:
-            if mode == "DF":
-                dressed_indices[index] = self._branch_analysis_DF(
+            if ordering == "LX":
+                dressed_indices[index] = self._branch_analysis_LX(
                     index, mode_priority, transpose,
                 )
-            elif mode == "EF":
-                dressed_indices[index] = self._branch_analysis_EF(
-                    index, truncate,
+            elif ordering == "BE":
+                dressed_indices[index] = self._branch_analysis_BE(
+                    index, labels_count,
                 )
             else:
-                raise ValueError(f"Mode {mode} is not supported.")
+                raise ValueError(f"Ordering {ordering} is not supported.")
             
         dressed_indices = np.asarray(dressed_indices[:].tolist())
 
