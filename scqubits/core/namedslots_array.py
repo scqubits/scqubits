@@ -442,7 +442,7 @@ class Parameters:
 
         return Parameters(reduced_paramvals_by_name)
     
-    def meshgrid_by_name(
+    def meshgrids_by_paramname(
             self, 
             indexing: Literal['ij', 'xy'] = 'ij', 
         ) -> OrderedDict[str, "NamedSlotsNdarray"]:
