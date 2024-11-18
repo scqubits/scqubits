@@ -51,9 +51,10 @@ jobs:
       #    conda init
       #    conda activate base
 
-      - name: Add conda to system path (all OS)
+      - name: Add bin and Scripts to system path
         run: |
           echo $CONDA/bin >> $GITHUB_PATH
+          echo $CONDA/Scripts >> $GITHUB_PATH
 
       - name: conda info
         run: conda info
