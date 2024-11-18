@@ -525,14 +525,14 @@ class SpectrumLookupMixin(MixinCompatible):
     def dressed_state_component(
         self, 
         state_label: Union[Tuple[int, ...], List[int], int],
-        num_components: Union[int, None] = None,
+        component_count: Union[int, None] = None,
+        return_probability: bool = True,
         param_npindices: Optional[NpIndices] = None,
-    ) -> Tuple[List[int], List[float]]:
+    ) -> Dict[Tuple[int, ...], float]:
         """
         A dressed state is a superposition of bare states. This function returns 
-        a dressed state's bare conponents and the 
-        corresponding occupation probability. 
-        They are sorted by probability in descending order.
+        a dressed state's bare conponents and the associated occupation 
+        probabilities. They are sorted by probability in descending order.
 
         Parameters
         ----------
@@ -545,15 +545,21 @@ class SpectrumLookupMixin(MixinCompatible):
             The number of components to be returned. If None, all components 
             will be returned.
             
+        return_probability:
+            Whether to return the occupation probabilities. If not, return 
+            the probability amplitudes.
+            
         param_npindices:
-            The parameter indices to be used. If None, the current parameter 
-            indices will be used.
+            This method only allows for a HilbertSpace object or a single 
+            parameter ParameterSweep. If it's a multi-dimensional sweep,  
+            param_npindices should be provided to specify a point in the 
+            parameter space. If None, the current parameter preslicing will 
+            be used.
         
         Returns
         -------
-        A tuple of two lists: 
-            - the first list contains the bare labels of the components
-            - the second list contains the occupation probabilities of the components
+        A dictionary of the bare labels and their associated probability 
+        (or probability amplitude if specified).
         """
         param_npindices = self.set_npindextuple(param_npindices)
 
@@ -562,11 +568,7 @@ class SpectrumLookupMixin(MixinCompatible):
                 "All parameters must be fixed to concrete values for "
                 "the use of `.dressed_state_component`."
             )
-
-        # I don't know why I use this zero_idx for slicing before.
-        # Now I think it is totally wrong.
-        # zero_idx = (0,) * len(self._parameters)
-        
+            
         evecs = self["evecs"][param_npindices]
             
         # find the desired state vector
@@ -585,16 +587,21 @@ class SpectrumLookupMixin(MixinCompatible):
         for idx in range(evec_1.shape[0]):
             raveled_label = int(ordered_label[idx])
             bare_label = np.unravel_index(raveled_label, self.hilbertspace.subsystem_dims)
-            prob = (np.abs(evec_1.full()[:, 0])**2)[raveled_label]
+            prob_amp = evec_1.full()[raveled_label, 0]
 
             bare_label_list.append(bare_label)
-            prob_list.append(prob)
+            
+            if return_probability:
+                prob = np.abs(prob_amp)**2
+                prob_list.append(prob)
+            else:
+                prob_list.append(prob_amp)
 
-        if num_components is not None:
-            bare_label_list = bare_label_list[:num_components]
-            prob_list = prob_list[:num_components]
+        if component_count is not None:
+            bare_label_list = bare_label_list[:component_count]
+            prob_list = prob_list[:component_count]
 
-        return bare_label_list, prob_list
+        return dict(zip(bare_label_list, prob_list))
 
     def _branch_analysis_excite_op(
         self,
