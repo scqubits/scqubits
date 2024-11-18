@@ -443,9 +443,9 @@ class Parameters:
         return Parameters(reduced_paramvals_by_name)
     
     def meshgrids_by_paramname(
-            self, 
-            indexing: Literal['ij', 'xy'] = 'ij', 
-        ) -> OrderedDict[str, "NamedSlotsNdarray"]:
+        self, 
+        indexing: Literal['ij', 'xy'] = 'ij', 
+    ) -> OrderedDict[str, "NamedSlotsNdarray"]:
         """
         Creates and returns returns a dictionary containing the meshgrids of the 
         parameter lists. All meshgrids are instances of the NamedSlotNdarray
