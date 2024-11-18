@@ -28,25 +28,29 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
             miniforge-variant: Miniforge3
+            mamba-version: "*"
             use-mamba: true
             auto-update-conda: true
             python-version: ${{ matrix.python-version }}
-            channels: conda-forge
+            channels: conda-forge, defaults
+            channel-priority: true
+            auto-activate-base: true
+            activate-environment: ""
 
       # Conda environment initialization (Linux & MacOS)
-      - name: Initialize Conda (Linux & MacOS)
-        if: ${{ matrix.os != 'windows-latest' }}
-        shell: bash
-        run: |
-          source $CONDA/bin/activate
-          conda init bash
+      #- name: Initialize Conda (Linux & MacOS)
+      #  if: ${{ matrix.os != 'windows-latest' }}
+      #  shell: bash -el {0}
+      #  run: |
+      #    source $CONDA/bin/activate
+      #     conda init bash
 
       # Conda environment initialization (Windows)
-      - name: Initialize Conda (Windows)
-        if: ${{ matrix.os == 'windows-latest' }}
-        run: |
-          conda init
-          conda activate base
+      #- name: Initialize Conda (Windows)
+      #  if: ${{ matrix.os == 'windows-latest' }}
+      #  run: |
+      #    conda init
+      #    conda activate base
 
       - name: Add conda to system path (all OS)
         run: |
