@@ -21,8 +21,10 @@ jobs:
         os: ["ubuntu-latest", "macos-latest", "windows-latest"]
         python-version: ['3.9', '3.10', '3.11', '3.12']
     steps:
-      - uses: actions/checkout@v4
-        name: Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Python setup for the rest of the jobs
         uses: conda-incubator/setup-miniconda@v3
@@ -67,4 +69,6 @@ jobs:
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v4
         with:
+          directory: ./coverage/reports/
           token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
