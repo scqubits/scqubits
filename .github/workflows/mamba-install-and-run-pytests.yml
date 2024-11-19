@@ -50,13 +50,21 @@ jobs:
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-      - name: Build with mambabuild and run tests
+      - name: Build with mambabuild
         run: |
           mamba install boa
-          conda mambabuild .
+          conda mambabuild . --no-test
+
+      - name: Install scqubits locally and run tests
+        run: |
+          mamba install --use-local scqubits
+          mamba install pytest
+          mamba install pytest-cov
+          mamba install pathos
+          pytest -v --pyargs --cov=scqubits --cov-report=xml
+          pytest -v --pyargs scqubits --num_cpus=4
 
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: $GITHUB_WORKSPACE/coverage.xml

@@ -59,7 +59,7 @@ test:
   imports:
     - scqubits
   commands:
-    - pytest -v --pyargs -cov=scqubits --cov-report=xml:$GITHUB_WORKSPACE/coverage.xml
+    - pytest -v --pyargs scqubits
     - pytest -v --pyargs scqubits --num_cpus=4
 
 about:
