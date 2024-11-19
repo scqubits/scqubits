@@ -54,13 +54,9 @@ jobs:
         run: |
           mamba install boa
           conda mambabuild .
-          
-      - name: Locate coverage report
-        run: |
-          find . -name 'coverage.xml' -print
-
 
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          files: $GITHUB_WORKSPACE/coverage.xml
