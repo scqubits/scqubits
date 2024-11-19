@@ -53,7 +53,15 @@ jobs:
       - name: Build with mambabuild and run tests
         run: |
           mamba install boa
-          conda mambabuild .
+          conda mambabuild . --no-test
+
+      - name: Run pytests (serial)
+        run: |
+          pytest -v --pyargs --cov=scqubits --cov-report=xml
+
+      - name: Run pytests (multiprocessing)
+        run: |
+          pytest -v --pyargs scqubits --num_cpus=4
 
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v4
