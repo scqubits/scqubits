@@ -647,8 +647,8 @@ class HilbertSpace(
             - "BE": Bare Energy
 
         mode_priority:
-            a permutation of the mode indices, representing the order of the modes
-            traversed during the branch analysis, for "LX" scheme only.
+            a list of the mode indices, which specifies the way for permute
+            the bare label before lexical ordering, for "LX" scheme only.
             The eigenstates-bare-state-paring is based on the
             "first-come-first-served" principle, the ordering of such traversal will
             permute the bare labels and change the traversal order based on the

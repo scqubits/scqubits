@@ -121,16 +121,16 @@ class SpectrumLookupMixin(MixinCompatible):
             - "LX": Lexical ordering
             - "BE": Bare Energy
 
-        mode_priority: List[int] | None
-            a permutation of the mode indices, representing the order of the modes
-            traversed during the branch analysis, for "LX" scheme only.
+        mode_priority:
+            a list of the mode indices, which specifies the way for permute
+            the bare label before lexical ordering, for "LX" scheme only.
             The eigenstates-bare-state-paring is based on the
             "first-come-first-served" principle, the ordering of such traversal will
             permute the bare labels and change the traversal order based on the
             lexical order. For the last mode in the list, its states will be labelled
             sequentially and organized in a single branch.
 
-        labels_count: int | None
+        labels_count: 
             the number of eigenstates to be assigned, for "BE" scheme only.
 
         Returns
@@ -682,8 +682,9 @@ class SpectrumLookupMixin(MixinCompatible):
         Parameters
         ----------
         mode_priority:
-            a permutation of the mode indices.
-            It represents the depth of the mode labels to be traversed. The later
+            a list of the mode indices, which specifies the way for permute
+            the bare label before lexical ordering.
+            It also represents the depth of the mode labels to be traversed. The later
             the mode appears in the list, the deeper it is in the recursion.
             For the last mode in the list, its states will be labelled sequentially
             and organized in a single branch.
@@ -790,8 +791,8 @@ class SpectrumLookupMixin(MixinCompatible):
             the indices of the parameter sweep to be analyzed.
 
         mode_priority:
-            a permutation of the mode indices, representing the order of the modes
-            traversed during the branch analysis.
+            a list of the mode indices, which specifies the way for permute
+            the bare label before lexical ordering.
 
         transpose:
             if True, the returned array will be transposed, according to the
@@ -964,8 +965,8 @@ class SpectrumLookupMixin(MixinCompatible):
             - "BE": Bare Energy
 
         mode_priority:
-            a permutation of the mode indices, representing the order of the modes
-            traversed during the branch analysis, for "LX" scheme only.
+            a list of the mode indices, which specifies the way for permute
+            the bare label before lexical ordering, for "LX" scheme only.
             The eigenstates-bare-state-paring is based on the
             "first-come-first-served" principle, the ordering of such traversal will
             permute the bare labels and change the traversal order based on the

@@ -957,15 +957,15 @@ class ParameterSweep(  # type:ignore
         useful when the Hilbert space is too large and not all the eigenstates need
         to be labeled.
 
-    lookup_mode_priority: List[int] | None
-        a permutation of the mode indices, representing the order of the modes
-        traversed during the branch analysis, for "LX" scheme only.
+    lookup_mode_priority:
+        a list of the mode indices, which specifies the way for permute
+        the bare label before lexical ordering, for "LX" scheme only.
         The eigenstates-bare-state-paring is based on the
         "first-come-first-served" principle, the ordering of such traversal will
         permute the bare labels and change the traversal order based on the
         lexical order. For the last mode in the list, its states will be labelled
         sequentially and organized in a single branch.
-    lookup_labels_count: int | None
+    lookup_labels_count:
         the number of dressed states to be labeled, for "BE" scheme only.
     ignore_low_overlap:
         if set to False (default), bare product states and dressed eigenstates are
