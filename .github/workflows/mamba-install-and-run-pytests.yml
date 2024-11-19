@@ -53,15 +53,12 @@ jobs:
       - name: Build with mambabuild and run tests
         run: |
           mamba install boa
-          conda mambabuild . --no-test
-
-      - name: Run pytests (serial)
+          conda mambabuild .
+          
+      - name: Locate coverage report
         run: |
-          pytest -v --pyargs --cov=scqubits --cov-report=xml
+          find . -name 'coverage.xml' -print
 
-      - name: Run pytests (multiprocessing)
-        run: |
-          pytest -v --pyargs scqubits --num_cpus=4
 
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v4
