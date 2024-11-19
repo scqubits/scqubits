@@ -22,14 +22,13 @@ requirements:
   host:
     - python
     - pip
-    - cython >=0.29.20
-    - scipy >=1.5
-    - qutip >=4.3.1
+    - cython >=0.29.20                
     - numpy >=1.14.2
   build:
-    - python                       
-    - cython >=0.29.20
+    - python                               
+    - cython >=0.29.20                  
     - numpy >=1.14.2
+    - scipy                         
     - {{ compiler('cxx') }}
   run:
     - python
@@ -52,6 +51,7 @@ requirements:
 test:
   requires:
     - pytest
+    - pytest-cov
     - pathos
   source_files:
     - scqubits/
@@ -60,7 +60,6 @@ test:
   commands:
     - pytest -v --pyargs scqubits
     - pytest -v --pyargs scqubits --num_cpus=4
-    # -k 'test_circuit_with_symbolic_hamiltonian' #if selecting a single test
 
 about:
   home: https://github.com/scqubits/scqubits
