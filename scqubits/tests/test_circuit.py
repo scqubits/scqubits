@@ -62,10 +62,9 @@ class TestCircuit:
         circ_d = scq.Circuit(zp_yaml, from_file=False, ext_basis="discretized")
         circ_d.cutoff_n_1 = 30
         circ_d.cutoff_ext_2 = 30
-        circ_d.cutoff_ext_3 = 80
+        circ_d.cutoff_ext_3 = 200
         circ_d.configure(system_hierarchy=[[1, 3], [2]], subsystem_trunc_dims=[30, 20])
 
-        circ_d.cutoff_ext_3 = 200
         sym_zp = circ_d.subsystems[0]
         eigensys = sym_zp.eigensys()
         eigs = eigensys[0]
