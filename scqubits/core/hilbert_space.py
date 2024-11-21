@@ -621,8 +621,8 @@ class HilbertSpace(
     def generate_lookup(
         self,
         ordering: Literal["DE", "LX", "BE"] = "DE",
-        mode_priority: Union[List[int], None] = None,
-        labels_count: Union[int, None] = None,
+        subsys_priority: Union[List[int], None] = None,
+        BE_count: Union[int, None] = None,
         update_subsystem_indices: Union[List[int], None] = None,
     ) -> None:
         """
@@ -631,7 +631,7 @@ class HilbertSpace(
         - Dressed Energy (ordering="DE"): traverse the eigenstates
         in the order of their dressed energy, and find the corresponding bare
         state label by overlaps (default)
-        - Lexical (ordering="LX"): traverse the bare states in lexical order,
+        - Lexical (ordering="LX"): traverse the bare states in `lexical order`_,
         and perform the branch analysis generalized from Dumas et al. (2024).
         - Bare Energy (ordering="BE"): traverse the bare states in the order of
         their energy before coupling and perform label assignment. This is particularly
@@ -646,16 +646,13 @@ class HilbertSpace(
             - "LX": Lexical ordering
             - "BE": Bare Energy
 
-        mode_priority:
-            a list of the mode indices, which specifies the way for permute
-            the bare label before lexical ordering, for "LX" scheme only.
-            The eigenstates-bare-state-paring is based on the
-            "first-come-first-served" principle, the ordering of such traversal will
-            permute the bare labels and change the traversal order based on the
-            lexical order. For the last mode in the list, its states will be labelled
-            sequentially and organized in a single branch.
+        subsys_priority: LX_subsys_ordering
+            a permutation of the subsystem indices and bare labels. If it is provided,
+            lexical ordering is performed on the permuted labels. A "branch" is defined
+            as a series of eigenstates formed by putting excitations into the last
+            subsystem in the list.
 
-        labels_count:
+        BE_count: BE_labels_count
             the number of eigenstates to be assigned, for "BE" scheme only.
 
         Returns
@@ -666,6 +663,8 @@ class HilbertSpace(
         is stored, representing the dressed indices organized by the
         bare indices. E.g. if the dimensions of the subsystems are D0, D1 and D2,
         the returned array will be ravelled from the shape (D0, D1, D2).
+
+        .. _lexical order: https://en.wikipedia.org/wiki/Lexicographic_order#Cartesian_products/
         """
         self._lookup_exists = True
         bare_esys_dict = self.generate_bare_esys(
@@ -673,9 +672,12 @@ class HilbertSpace(
         )
         dummy_params = self._parameters.paramvals_by_name
 
-        evals, evecs = self.eigensys(
-            evals_count=self.dimension, bare_esys=bare_esys_dict
-        )
+        if ordering == "DE" or ordering == "LX":
+            num_evals = self.dimension
+        else:
+            num_evals = BE_count
+
+        evals, evecs = self.eigensys(evals_count=num_evals, bare_esys=bare_esys_dict)
         # The following workaround ensures that eigenvectors maintain QutipEigenstates
         # view when getting placed inside an outer array
         evecs_wrapped = np.empty(shape=1, dtype=object)
@@ -686,8 +688,8 @@ class HilbertSpace(
         self._data["dressed_indices"] = spec_lookup.SpectrumLookupMixin.generate_lookup(
             self,
             ordering=ordering,
-            mode_priority=mode_priority,
-            labels_count=labels_count,
+            subsys_priority=subsys_priority,
+            BE_count=BE_count,
         )
 
     def lookup_exists(self) -> bool:

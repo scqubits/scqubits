@@ -2398,7 +2398,7 @@ class SymbolicCircuit(serializers.Serializable):
         return round_symbolic_expr(hamiltonian_symbolic.expand(), 12)
 
     def trans_cap_matrix(
-        self, 
+        self,
         substitute_params: bool = False,
     ) -> sympy.Expr:
         """
@@ -2430,7 +2430,7 @@ class SymbolicCircuit(serializers.Serializable):
                 i for i in range(C_mat_theta.shape[0]) if i not in frozen_indices
             ]
             C_mat_theta = C_mat_theta[relevant_indices, relevant_indices]
-            
+
         else:
             C_mat_theta = (
                 self.transformation_matrix.T
@@ -2439,33 +2439,31 @@ class SymbolicCircuit(serializers.Serializable):
             )
             C_mat_theta = np.delete(C_mat_theta, frozen_indices, 0)
             C_mat_theta = np.delete(C_mat_theta, frozen_indices, 1)
-            
+
         return C_mat_theta
-    
+
     def inv_trans_cap_matrix(
         self,
         substitute_params: bool = False,
     ) -> sympy.Expr:
         """
         Calculate the inverse of the transformed capacitance matrix C_mat_theta.
-        """        
+        """
         C_mat_theta = self.trans_cap_matrix(substitute_params=substitute_params)
-        
+
         # remove free indices
-        free_indices = [
-            i - 1 for i in self.var_categories["free"]
-        ]
+        free_indices = [i - 1 for i in self.var_categories["free"]]
         if self.is_any_branch_parameter_symbolic() and not substitute_params:
             inv_C_mat_theta = C_mat_theta.inv()
-            
+
             relevant_indices = [
                 i for i in range(C_mat_theta.shape[0]) if i not in free_indices
             ]
             inv_C_mat_theta = inv_C_mat_theta[relevant_indices, relevant_indices]
-        
+
         else:
             inv_C_mat_theta = np.linalg.inv(C_mat_theta)
             inv_C_mat_theta = np.delete(inv_C_mat_theta, free_indices, 0)
             inv_C_mat_theta = np.delete(inv_C_mat_theta, free_indices, 1)
-            
+
         return inv_C_mat_theta

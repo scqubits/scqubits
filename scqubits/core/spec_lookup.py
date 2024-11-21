@@ -97,8 +97,8 @@ class SpectrumLookupMixin(MixinCompatible):
     def generate_lookup(
         self,
         ordering: Literal["DE", "LX", "BE"] = "DE",
-        mode_priority: Union[List[int], None] = None,
-        labels_count: Union[int, None] = None,
+        subsys_priority: Union[List[int], None] = None,
+        BE_count: Union[int, None] = None,
     ) -> NamedSlotsNdarray:
         """
         Label the dressed states by bare labels and generate the lookup table
@@ -106,7 +106,7 @@ class SpectrumLookupMixin(MixinCompatible):
         - Dressed Energy (ordering="DE"): traverse the eigenstates
         in the order of their dressed energy, and find the corresponding bare
         state label by overlaps (default)
-        - Lexical (ordering="LX"): traverse the bare states in lexical order,
+        - Lexical (ordering="LX"): traverse the bare states in `lexical order`_,
         and perform the branch analysis generalized from Dumas et al. (2024).
         - Bare Energy (ordering="BE"): traverse the bare states in the order of
         their energy before coupling and perform label assignment. This is particularly
@@ -121,16 +121,13 @@ class SpectrumLookupMixin(MixinCompatible):
             - "LX": Lexical ordering
             - "BE": Bare Energy
 
-        mode_priority:
-            a list of the mode indices, which specifies the way for permute
-            the bare label before lexical ordering, for "LX" scheme only.
-            The eigenstates-bare-state-paring is based on the
-            "first-come-first-served" principle, the ordering of such traversal will
-            permute the bare labels and change the traversal order based on the
-            lexical order. For the last mode in the list, its states will be labelled
-            sequentially and organized in a single branch.
+        subsys_priority:
+            a permutation of the subsystem indices and bare labels. If it is provided,
+            lexical ordering is performed on the permuted labels. A "branch" is defined
+            as a series of eigenstates formed by putting excitations into the last
+            subsystem in the list.
 
-        labels_count: 
+        BE_count:
             the number of eigenstates to be assigned, for "BE" scheme only.
 
         Returns
@@ -141,15 +138,26 @@ class SpectrumLookupMixin(MixinCompatible):
         is stored, representing the dressed indices organized by the
         bare indices. E.g. if the dimensions of the subsystems are D0, D1 and D2,
         the returned array will be ravelled from the shape (D0, D1, D2).
+
+        .. _lexical order: https://en.wikipedia.org/wiki/Lexicographic_order#Cartesian_products/
         """
         if ordering == "LX" or ordering == "BE":
             return self._branch_analysis(
                 ordering=ordering,
-                mode_priority=mode_priority,
+                subsys_priority=subsys_priority,
                 transpose=False,
-                labels_count=labels_count,
+                BE_count=BE_count,
             )
         elif ordering == "DE":
+            if BE_count is not None:
+                warn(
+                    "BE_count is not supported for DE ordering, " "it will be ignored."
+                )
+            if subsys_priority is not None:
+                warn(
+                    "subsys_priority is not supported for DE ordering, "
+                    "it will be ignored."
+                )
             return self._generate_lookup_by_overlap()
         else:
             raise ValueError(f"Invalid ordering method: {ordering}")
@@ -525,10 +533,10 @@ class SpectrumLookupMixin(MixinCompatible):
 
     @utils.check_lookup_exists
     @utils.check_sync_status
-    def dressed_state_component(
+    def dressed_state_components(
         self,
         state_label: Union[Tuple[int, ...], List[int], int],
-        component_count: Union[int, None] = None,
+        components_count: Union[int, None] = None,
         return_probability: bool = True,
         param_npindices: Optional[NpIndices] = None,
     ) -> Dict[Tuple[int, ...], float]:
@@ -544,7 +552,7 @@ class SpectrumLookupMixin(MixinCompatible):
                 - a tuple/list of bare labels (int)
                 - a single dressed label (int)
 
-        num_components:
+        components_count:
             The number of components to be returned. If None, all components
             will be returned.
 
@@ -604,9 +612,9 @@ class SpectrumLookupMixin(MixinCompatible):
             else:
                 prob_list.append(prob_amp)
 
-        if component_count is not None:
-            bare_label_list = bare_label_list[:component_count]
-            prob_list = prob_list[:component_count]
+        if components_count is not None:
+            bare_label_list = bare_label_list[:components_count]
+            prob_list = prob_list[:components_count]
 
         return dict(zip(bare_label_list, prob_list))
 
@@ -654,7 +662,7 @@ class SpectrumLookupMixin(MixinCompatible):
 
     def _branch_analysis_LX_step(
         self,
-        mode_priority: List[int],
+        subsys_priority: List[int],
         recusion_depth: int,
         init_drs_idx: int,
         init_state: qt.Qobj,
@@ -681,13 +689,13 @@ class SpectrumLookupMixin(MixinCompatible):
 
         Parameters
         ----------
-        mode_priority:
-            a list of the mode indices, which specifies the way for permute
-            the bare label before lexical ordering.
-            It also represents the depth of the mode labels to be traversed. The later
-            the mode appears in the list, the deeper it is in the recursion.
-            For the last mode in the list, its states will be labelled sequentially
-            and organized in a single branch.
+        subsys_priority:
+            a permutation of the subsystem indices and bare labels. If it is
+            provided, lexical ordering is performed on the permuted labels.
+            It also represents the depth of the subsystem labels to be traversed. The later
+            the subsystem appears in the list, the deeper it is in the recursion.
+            A "branch" is defined as a series of eigenstates formed by
+            putting excitations into the last subsystem in the list.
         recusion_depth:
             the current depth of the recursion. It should be 0 at the beginning.
         init_drs_idx:
@@ -706,7 +714,7 @@ class SpectrumLookupMixin(MixinCompatible):
         """
 
         hspace = self.hilbertspace
-        mode_index = mode_priority[recusion_depth]
+        mode_index = subsys_priority[recusion_depth]
         mode = hspace.subsystem_list[mode_index]
         terminate_branch_length = hspace.subsystem_dims[mode_index]
 
@@ -719,7 +727,7 @@ class SpectrumLookupMixin(MixinCompatible):
         branch_drs_indices = []
         branch_states = []
         while True:
-            if recusion_depth == len(mode_priority) - 1:
+            if recusion_depth == len(subsys_priority) - 1:
                 # we are at the end of the depth-first search:
                 # just add the state to the branch
                 branch_drs_indices.append(current_drs_idx)
@@ -728,7 +736,7 @@ class SpectrumLookupMixin(MixinCompatible):
                 # continue the depth-first search:
                 # recursively call the function and append all the branch states
                 (_branch_drs_indices, _branch_states) = self._branch_analysis_LX_step(
-                    mode_priority,
+                    subsys_priority,
                     recusion_depth + 1,
                     current_drs_idx,
                     current_state,
@@ -745,9 +753,10 @@ class SpectrumLookupMixin(MixinCompatible):
             # find the closest state to the excited current state
             if len(remaining_evecs) == 0:
                 raise ValueError(
-                    "No more states to assign. It's likely that the eignestates "
-                    "are not complete. Please try to obtain a complete set of "
-                    "eigenstates by increasing `evals_count`."
+                    "No enough eigenstates to be assigned with a label. "
+                    "It's likely that the eignestates are not complete. "
+                    "Please try to obtain a complete set of eigenstates by "
+                    "increasing `evals_count` before running the branch analysis."
                 )
 
             excited_state = (excite_op * current_state).unit()
@@ -766,7 +775,7 @@ class SpectrumLookupMixin(MixinCompatible):
     def _branch_analysis_LX(
         self,
         param_indices: Tuple[int, ...],
-        mode_priority: Optional[List[int]] = None,
+        subsys_priority: Optional[List[int]] = None,
         transpose: bool = False,
     ) -> np.ndarray:
         """
@@ -790,14 +799,17 @@ class SpectrumLookupMixin(MixinCompatible):
         param_indices:
             the indices of the parameter sweep to be analyzed.
 
-        mode_priority:
-            a list of the mode indices, which specifies the way for permute
-            the bare label before lexical ordering.
+        subsys_priority:
+            a permutation of the subsystem indices and bare labels. If
+            it is provided, lexical ordering is performed on the permuted labels.
+            A "branch" is defined as a series of eigenstates formed by putting
+            excitations into the last subsystem in the list.
 
         transpose:
             if True, the returned array will be transposed, according to the
             mode_priority. Otherwise, the array will be in the
-            shape of the subsystem dimensions in the original order.
+            shape of the subsystem dimensions in the original order. Now
+            it is a purely internal knob for testing.
 
         Returns
         -------
@@ -808,8 +820,21 @@ class SpectrumLookupMixin(MixinCompatible):
             If transposed is True, the array will be transposed according to
             the mode_priority.
         """
-        if mode_priority is None:
-            mode_priority = list(range(self.hilbertspace.subsystem_count))
+        if subsys_priority is None:
+            subsys_priority = list(range(self.hilbertspace.subsystem_count))
+        else:
+            # check if the subsys_priority is a valid permutation of
+            # the subsystem indices: length and unique
+            if len(subsys_priority) != self.hilbertspace.subsystem_count:
+                raise ValueError(
+                    "The length of subsys_priority does not match "
+                    "the number of subsystems."
+                )
+            if len(subsys_priority) != len(set(subsys_priority)):
+                raise ValueError(
+                    "subsys_priority contains duplicate values, "
+                    "which is supposed to be a permutation."
+                )
 
         # we assume that the ground state always has bare label (0, 0, ...)
         evecs = self._data["evecs"][param_indices]
@@ -818,12 +843,12 @@ class SpectrumLookupMixin(MixinCompatible):
         remaining_drs_indices = list(range(1, self.hilbertspace.dimension))
 
         branch_drs_indices, _ = self._branch_analysis_LX_step(
-            mode_priority, 0, 0, init_state, remaining_drs_indices, remaining_evecs
+            subsys_priority, 0, 0, init_state, remaining_drs_indices, remaining_evecs
         )
         branch_drs_indices = np.array(branch_drs_indices)
 
         if not transpose:
-            reversed_permutation = np.argsort(mode_priority)
+            reversed_permutation = np.argsort(subsys_priority)
             return np.transpose(branch_drs_indices, reversed_permutation)
 
         return branch_drs_indices
@@ -831,7 +856,9 @@ class SpectrumLookupMixin(MixinCompatible):
     def _branch_analysis_BE(
         self,
         param_indices: Tuple[int, ...],
+        subsys_priority: Optional[List[int]] = None,
         labels_count: Union[int, None] = None,
+        source_maj_vote: bool = False,
     ) -> np.ndarray:
         """
         Perform a full branch analysis according to Dumas et al. (2024) for
@@ -839,16 +866,39 @@ class SpectrumLookupMixin(MixinCompatible):
         energies. It is particularly useful when the Hilbert space is too large
         and not all the eigenstates need to be labeled.
 
+        In the bare energy ordering for branch analysis, the way to obtain the
+        excited dressed states
+        is ambiguous, e.g. |21> can be excited from |11> or |20>. So we need the
+        user to input `subsys_priority` to specify the path / branch to be taken.
+        It specifies the order of the subsystems to be excited, the last subsystem
+        in the list will be excited if possible.
+
         Parameters
         ----------
         param_indices:
             the indices of the parameter sweep to be analyzed.
-        truncate:
+        subsys_priority:
+            a permutation of the subsystem indices and bare labels. If
+            it is provided, lexical ordering is performed on the permuted labels.
+            A "branch" is defined as a series of eigenstates formed by putting
+            excitations into the last subsystem in the list.
+        labels_count:
             the number of states to be assigned. If None, all states will be
             assigned.
+        source_maj_vote:
+            if True, the branch will be determined by majority vote of the
+            potential candidates. It is purely an internal knob to test the
+            behavior of the branch analysis. It overrides mode_priority.
+
+        Returns
+        -------
+        the multi-dimensional array of the dressed indices
         """
         hspace = self.hilbertspace
         dims = hspace.subsystem_dims
+
+        if subsys_priority is None:
+            subsys_priority = list(range(hspace.subsystem_count))
 
         if labels_count is None:
             labels_count = len(self._data["evecs"][param_indices])
@@ -902,7 +952,7 @@ class SpectrumLookupMixin(MixinCompatible):
             # we can find the dressed index of the current state
             prev_bare_indices = []
             potential_drs_indices = []
-            for subsys_idx in range(len(dims)):
+            for subsys_idx in subsys_priority[::-1]:
 
                 # obtain the a bare index with one less excitation
                 prev_idx = copy(bare_idx)
@@ -910,7 +960,6 @@ class SpectrumLookupMixin(MixinCompatible):
                     continue
                 prev_idx[subsys_idx] -= 1
                 prev_drs_idx = branch_drs_indices[tuple(prev_idx)]
-
                 prev_bare_indices.append(prev_idx)
 
                 # state vector
@@ -926,7 +975,15 @@ class SpectrumLookupMixin(MixinCompatible):
 
                 potential_drs_indices.append(remaining_drs_indices[max_overlap_index])
 
+                if not source_maj_vote:
+                    # we only need one path, which is the last one in the mode_priority
+                    break
+                else:
+                    # we need to check all the paths
+                    continue
+
             # do a majority vote, if equal, chose the first one
+            # this also works for source_maj_vote = False, when all lists are length 1
             unique_votes, counts = np.unique(potential_drs_indices, return_counts=True)
             vote_result = np.argmax(counts)
             drs_idx = unique_votes[vote_result]
@@ -943,19 +1000,19 @@ class SpectrumLookupMixin(MixinCompatible):
     def _branch_analysis(
         self,
         ordering: Literal["LX", "BE"] = "BE",
-        mode_priority: Optional[List[int]] = None,
+        subsys_priority: Optional[List[int]] = None,
         transpose: bool = False,
-        labels_count: Union[int, None] = None,
+        BE_count: Union[int, None] = None,
     ) -> NamedSlotsNdarray:
         """
         Perform a full branch analysis for all parameter points, according to
         Dumas et al. (2024). We provide two orderings methods for the labeling:
-        - Lexical (ordering="LX"): traverse the bare states in lexical order,
+        - Lexical (ordering="LX"): traverse the bare states in `lexical order`_,
         and perform the branch analysis generalized from Dumas et al. (2024).
         - Bare Energy (ordering="BE"): traverse the bare states in the order of
-        their energy before coupling, and perform the label assignment. This is
-        particularly useful when the Hilbert space is too large and not all the
-        eigenstates need to be labeled.
+        their energy before coupling and perform label assignment. This is particularly
+        useful when the Hilbert space is too large and not all the eigenstates need
+        to be labeled.
 
         Parameters
         ----------
@@ -965,15 +1022,12 @@ class SpectrumLookupMixin(MixinCompatible):
             - "BE": Bare Energy
 
         mode_priority:
-            a list of the mode indices, which specifies the way for permute
-            the bare label before lexical ordering, for "LX" scheme only.
-            The eigenstates-bare-state-paring is based on the
-            "first-come-first-served" principle, the ordering of such traversal will
-            permute the bare labels and change the traversal order based on the
-            lexical order. For the last mode in the list, its states will be labelled
-            sequentially and organized in a single branch.
+            a permutation of the subsystem indices and bare labels. If it
+            is provided, lexical ordering is performed on the permuted labels.
+            A "branch" is defined as a series of eigenstates formed by putting
+            excitations into the last subsystem in the list.
 
-        labels_count:
+        BE_count:
             the number of eigenstates to be labeled, for "BE" scheme only.
 
         Returns
@@ -984,6 +1038,8 @@ class SpectrumLookupMixin(MixinCompatible):
         is stored, representing the dressed indices organized by the
         bare indices. E.g. if the dimensions of the subsystems are D0, D1 and D2,
         the returned array will be ravelled from the shape (D0, D1, D2).
+
+        .. _lexical order: https://en.wikipedia.org/wiki/Lexicographic_order#Cartesian_products/
         """
         dressed_indices = np.empty(shape=self._parameters.counts, dtype=object)
 
@@ -991,15 +1047,21 @@ class SpectrumLookupMixin(MixinCompatible):
 
         for index in param_indices:
             if ordering == "LX":
+                if BE_count is not None:
+                    warn(
+                        "BE_count is not supported for lexical ordering, "
+                        "it will be ignored."
+                    )
                 dressed_indices[index] = self._branch_analysis_LX(
                     index,
-                    mode_priority,
+                    subsys_priority,
                     transpose,
                 )
             elif ordering == "BE":
                 dressed_indices[index] = self._branch_analysis_BE(
                     index,
-                    labels_count,
+                    subsys_priority,
+                    BE_count,
                 )
             else:
                 raise ValueError(f"Ordering {ordering} is not supported.")

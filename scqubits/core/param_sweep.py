@@ -950,22 +950,19 @@ class ParameterSweep(  # type:ignore
         - "DE" (Dressed Energy): traverse the eigenstates
         in the order of their dressed energy, and find the corresponding bare
         state label by overlaps (default)
-        - "LX" (Lexical ordering): traverse the bare states in lexical order,
+        - "LX" (Lexical ordering): traverse the bare states in `lexical order`_,
         and perform the branch analysis generalized from Dumas et al. (2024).
         - "BE" (Bare Energy): traverse the bare states in the order of
         their energy before coupling and perform label assignment. This is particularly
         useful when the Hilbert space is too large and not all the eigenstates need
         to be labeled.
 
-    lookup_mode_priority:
-        a list of the mode indices, which specifies the way for permute
-        the bare label before lexical ordering, for "LX" scheme only.
-        The eigenstates-bare-state-paring is based on the
-        "first-come-first-served" principle, the ordering of such traversal will
-        permute the bare labels and change the traversal order based on the
-        lexical order. For the last mode in the list, its states will be labelled
-        sequentially and organized in a single branch.
-    lookup_labels_count:
+    lookup_subsys_priority:
+        a permutation of the subsystem indices and bare labels. If it is provided,
+        lexical ordering is performed on the permuted labels. A "branch" is defined
+        as a series of eigenstates formed by putting excitations into the last
+        subsystem in the list.
+    lookup_BE_count:
         the number of dressed states to be labeled, for "BE" scheme only.
     ignore_low_overlap:
         if set to False (default), bare product states and dressed eigenstates are
@@ -1009,6 +1006,8 @@ class ParameterSweep(  # type:ignore
     Array-like access is responsible for "pre-slicing",
     enable lookup functionality such as
     `<Sweep>[p1, p2, ...].eigensys()`
+
+    .. _lexical order: https://en.wikipedia.org/wiki/Lexicographic_order#Cartesian_products/
     """
 
     def __init__(
@@ -1019,9 +1018,9 @@ class ParameterSweep(  # type:ignore
         evals_count: int = 20,
         subsys_update_info: Optional[Dict[str, List[QuantumSystem]]] = None,
         bare_only: bool = False,
-        lookup_scheme: Literal["DE", "LX", "BE"] = "DE",
-        lookup_mode_priority: Union[List[int], None] = None,
-        lookup_labels_count: Union[int, None] = None,
+        labeling_scheme: Literal["DE", "LX", "BE"] = "DE",
+        labeling_subsys_priority: Union[List[int], None] = None,
+        labeling_BE_count: Union[int, None] = None,
         ignore_low_overlap: bool = False,
         autorun: bool = settings.AUTORUN_SWEEP,
         deepcopy: bool = False,
@@ -1035,9 +1034,9 @@ class ParameterSweep(  # type:ignore
         self._subsys_update_info = subsys_update_info
         self._data: Dict[str, Any] = {}
         self._bare_only = bare_only
-        self._lookup_scheme = lookup_scheme
-        self._lookup_mode_priority = lookup_mode_priority
-        self._lookup_labels_count = lookup_labels_count
+        self._labeling_scheme = labeling_scheme
+        self._labeling_subsys_priority = labeling_subsys_priority
+        self._labeling_BE_count = labeling_BE_count
         self._ignore_low_overlap = ignore_low_overlap
         self._deepcopy = deepcopy
         self._num_cpus = num_cpus
@@ -1129,9 +1128,9 @@ class ParameterSweep(  # type:ignore
         if not self._bare_only:
             self._data["evals"], self._data["evecs"] = self._dressed_spectrum_sweep()
             self._data["dressed_indices"] = self.generate_lookup(
-                ordering=self._lookup_scheme,
-                mode_priority=self._lookup_mode_priority,
-                labels_count=self._lookup_labels_count,
+                ordering=self._labeling_scheme,
+                subsys_priority=self._labeling_subsys_priority,
+                BE_count=self._labeling_BE_count,
             )
             (
                 self._data["lamb"],
