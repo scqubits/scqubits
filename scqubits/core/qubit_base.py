@@ -28,6 +28,7 @@ from typing import (
     overload,
     TypeVar,
     Type,
+    Callable,
 )
 
 import matplotlib as mpl
@@ -276,9 +277,9 @@ class QubitBaseClass(QuantumSystem, ABC):
     def __init__(
         self,
         id_str: Union[str, None],
-        evals_method: Union[str, None] = None,
+        evals_method: Union[Callable, str, None] = None,
         evals_method_options: Union[Dict, None] = None,
-        esys_method: Union[str, None] = None,
+        esys_method: Union[Callable, str, None] = None,
         esys_method_options: Union[Dict, None] = None,
     ):
         super().__init__(id_str=id_str)
@@ -552,9 +553,9 @@ class QubitBaseClass(QuantumSystem, ABC):
     def matrixelement_table(
         self,
         operator: Union[str, ndarray, qt.Qobj, spmatrix],
-        evecs: ndarray = None,
+        evecs: Optional[ndarray] = None,
         evals_count: int = 6,
-        filename: str = None,
+        filename: Optional[str] = None,
         return_datastore: bool = False,
     ) -> Union[DataStore, ndarray]:
         """Returns table of matrix elements for `operator` with respect to the

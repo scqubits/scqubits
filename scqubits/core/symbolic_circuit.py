@@ -12,17 +12,15 @@
 import copy
 import itertools
 import warnings
-from symtable import Symbol
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
+from numpy import ndarray
 import scipy as sp
 import sympy
 import sympy as sm
-import random
+from sympy import symbols, Symbol
 
-from numpy import ndarray
-from sympy import symbols, use
 from scqubits.core.circuit_utils import (
     round_symbolic_expr,
     _capactiance_variable_for_branch,
@@ -32,10 +30,10 @@ from scqubits.core.circuit_utils import (
 
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
+from itertools import chain
 
 from scqubits.utils.misc import (
     flatten_list_recursive,
-    is_string_float,
     unique_elements_in_list,
 )
 from scqubits.core.circuit_input import (
@@ -61,10 +59,10 @@ class Node:
         method independent_modes.
     """
 
-    def __init__(self, index: int, marker: int):
-        self.index = index
-        self.marker = marker
-        self._init_params = {"id": self.index, "marker": self.marker}
+    def __init__(self, index: int, marker: int = 0):
+        self.index: int = index
+        self.marker: int = marker
+        self._init_params: Dict[str, int] = {"id": self.index, "marker": self.marker}
         self.branches: List[Branch] = []
 
     def __str__(self) -> str:
@@ -118,9 +116,9 @@ class Branch:
         is the type of this Branch, example `"C"`,`"JJ"` or `"L"`
     parameters:
         list of parameters for the branch, namely for
-        capacitance: `{"EC":  <value>}`;
-        for inductance: `{"EL": <value>}`;
-        for Josephson Junction: `{"EJ": <value>, "ECJ": <value>}`
+        capacitance: `[EC]`;
+        for inductance: `[10]`;
+        for Josephson Junction: `[EJ, 1]`
     aux_params:
         Dictionary of auxiliary parameters which map a symbol from the input file a numeric parameter.
 
@@ -136,18 +134,16 @@ class Branch:
         n_i: Node,
         n_f: Node,
         branch_type: str,
-        parameters: Optional[List[Union[float, Symbol, int]]] = None,
+        parameters: List[Union[float, Symbol, int]],
         index: Optional[int] = None,
         aux_params: Dict[Symbol, float] = {},
     ):
         self.nodes = (n_i, n_f)
         self.type = branch_type
-        self.parameters = parameters
         self.index = index
         # store info of current branch inside the provided nodes
         # setting the parameters if it is provided
-        if parameters is not None:
-            self.set_parameters(parameters)
+        self.set_parameters(parameters)
         self.aux_params = aux_params
         self.nodes[0].branches.append(self)
         self.nodes[1].branches.append(self)
@@ -230,14 +226,13 @@ class Coupler:
         branch1: Branch,
         branch2: Branch,
         coupling_type: str,
-        parameters: Optional[List[Union[float, Symbol, int]]] = None,
+        parameters: List[Union[float, Symbol, int]],
         index: Optional[int] = None,
         aux_params: Dict[Symbol, float] = {},
     ):
         self.branches = (branch1, branch2)
         self.type = coupling_type
-        if parameters is not None:
-            self.set_parameters(parameters)
+        self.set_parameters(parameters)
         self.aux_params = aux_params
         self.index = index
 
@@ -394,35 +389,35 @@ class SymbolicCircuit(serializers.Serializable):
         initiate_sym_calc: bool = True,
         input_string: str = "",
     ):
-        self.branches = branches_list
-        self.nodes = nodes_list
-        self.couplers = couplers_list
-        self.input_string = input_string
+        self.branches: List[Branch] = branches_list
+        self.nodes: List[Node] = nodes_list
+        self.couplers: List[Coupler] = couplers_list
+        self.input_string: str = input_string
 
         self._sys_type = type(self).__name__  # for object description
 
         # attributes set by methods
-        self.transformation_matrix: Optional[ndarray] = None
+        self.transformation_matrix: ndarray
 
-        self.var_categories: Optional[List[int]] = None
+        self.var_categories: Dict[str, List[int]] = {}
         self.external_fluxes: List[Symbol] = []
-        self.closure_branches: Optional[List[Union[Branch, Dict[Branch, float]]]] = []
+        self.closure_branches: List[Union[Branch, Dict[Branch, float]]] = []
 
         self.symbolic_params: Dict[Symbol, float] = branch_var_dict
 
-        self.hamiltonian_symbolic: Optional[sympy.Expr] = None
+        self.hamiltonian_symbolic: sympy.Expr
         # to store the internally used lagrangian
-        self._lagrangian_symbolic: Optional[sympy.Expr] = None
-        self.lagrangian_symbolic: Optional[sympy.Expr] = None
+        self._lagrangian_symbolic: sympy.Expr
+        self.lagrangian_symbolic: sympy.Expr
         # symbolic lagrangian in terms of untransformed generalized flux variables
-        self.lagrangian_node_vars: Optional[sympy.Expr] = None
+        self.lagrangian_node_vars: sympy.Expr
         # symbolic expression for potential energy
-        self.potential_symbolic: Optional[sympy.Expr] = None
-        self.potential_node_vars: Optional[sympy.Expr] = None
+        self.potential_symbolic: sympy.Expr
+        self.potential_node_vars: sympy.Expr
 
         # parameters for grounding the circuit
         self.is_grounded = False
-        self.ground_node = None
+        self.ground_node: Optional[Node] = None
         for node in self.nodes:
             if node.is_ground():
                 self.ground_node = node
@@ -653,7 +648,7 @@ class SymbolicCircuit(serializers.Serializable):
             substitute_params=substitute_params
         )
 
-    def _replace_energies_with_capacitances_L(self):
+    def _replace_energies_with_capacitances_L(self) -> Tuple[sympy.Expr, sympy.Expr]:
         """Method replaces the energies in the Lagrangian with capacitances which are
         arbitrarily generated to make sure that the Lagrangian looks dimensionally
         correct."""
@@ -710,7 +705,7 @@ class SymbolicCircuit(serializers.Serializable):
         return np.intersect1d(node_array1, node_array2).size == 0
 
     @staticmethod
-    def _parse_nodes(branches_list) -> Tuple[Optional[Node], List[Node]]:
+    def _parse_nodes(branches_list) -> List[Node]:
         node_index_list = []
         for branch_list_input in [
             branch for branch in branches_list if branch[0] != "ML"
@@ -720,7 +715,7 @@ class SymbolicCircuit(serializers.Serializable):
                 if node_idx not in node_index_list:
                     node_index_list.append(node_idx)
         node_index_list.sort()
-        return [Node(idx, 0) for idx in node_index_list]
+        return [Node(idx) for idx in node_index_list]
 
     @classmethod
     def from_yaml(
@@ -728,7 +723,7 @@ class SymbolicCircuit(serializers.Serializable):
         input_string: str,
         from_file: bool = True,
         basis_completion: str = "heuristic",
-        use_dynamic_flux_grouping: Optional[bool] = None,
+        use_dynamic_flux_grouping: bool = False,
         initiate_sym_calc: bool = True,
     ):
         """
@@ -858,7 +853,7 @@ class SymbolicCircuit(serializers.Serializable):
         nodes_copy = copy.copy(self.nodes)  # copying self.nodes as it is being modified
 
         # making sure that the ground node is placed at the end of the list
-        if self.is_grounded:
+        if self.ground_node is not None:
             nodes_copy.pop(0)  # removing the ground node
             nodes_copy = nodes_copy + [
                 copy.copy(self.ground_node)
@@ -871,7 +866,9 @@ class SymbolicCircuit(serializers.Serializable):
         # branch_subset, then identifying the sets of nodes in each of those sets
         branch_subset_copy = branch_subset.copy()
 
-        max_connected_subgraphs = []  # list containing the maximum connected subgraphs
+        max_connected_subgraphs: List[List[Branch]] = (
+            []
+        )  # list containing the maximum connected subgraphs
 
         while (
             len(branch_subset_copy) > 0
@@ -892,7 +889,9 @@ class SymbolicCircuit(serializers.Serializable):
 
         # finding the nodes in each of the maximum connected subgraph
         nodes_in_max_connected_branchsets = [
-            unique_elements_in_list(sum([branch.nodes for branch in branch_set], ()))
+            unique_elements_in_list(
+                list(chain(*[branch.nodes for branch in branch_set]))
+            )
             for branch_set in max_connected_subgraphs
         ]
 
@@ -988,7 +987,7 @@ class SymbolicCircuit(serializers.Serializable):
 
     def check_transformation_matrix(
         self, transformation_matrix: ndarray, enable_warnings: bool = True
-    ) -> Dict[str, list]:
+    ) -> Dict[str, List[int]]:
         """Method to identify the different modes in the transformation matrix provided
         by the user.
 
@@ -1406,7 +1405,7 @@ class SymbolicCircuit(serializers.Serializable):
         for branch in branches_with_inductance:
             if len(set(branch.nodes)) > 1:  # branch if shorted is not considered
                 inductance = branch.parameters["EL"]
-                if type(inductance) != float and substitute_params:
+                if not isinstance(inductance, float) and substitute_params:
                     inductance = param_init_vals_dict[inductance]
                 if self.is_grounded:
                     L_mat[branch.nodes[0].index, branch.nodes[1].index] += -inductance
@@ -1464,7 +1463,7 @@ class SymbolicCircuit(serializers.Serializable):
                 capacitance = branch.parameters[
                     _capactiance_variable_for_branch(branch.type)
                 ]
-                if type(capacitance) != float and substitute_params:
+                if not isinstance(capacitance, float) and substitute_params:
                     capacitance = param_init_vals_dict[capacitance]
                 if self.is_grounded:
                     C_mat[branch.nodes[0].index, branch.nodes[1].index] += -1 / (
@@ -1553,13 +1552,13 @@ class SymbolicCircuit(serializers.Serializable):
         # filling the diagonal entries
         for branch in [b for b in self.branches if b.type == "L"]:
             EL = branch.parameters["EL"]
-            if type(EL) != float and substitute_params:
+            if not isinstance(EL, float) and substitute_params:
                 EL = self.symbolic_params[EL]
             L_mat[branch.index, branch.index] = 1 / EL
         # filling the non-diagonal entries
         for idx, coupler in enumerate([c for c in self.couplers if c.type == "ML"]):
             EML = coupler.parameters["EML"]
-            if type(EML) != float and substitute_params:
+            if not isinstance(EML, float) and substitute_params:
                 EML = self.symbolic_params[EML]
             L_mat[coupler.branches[0].index, coupler.branches[1].index] = 1 / EML
             L_mat[coupler.branches[1].index, coupler.branches[0].index] = 1 / EML
@@ -1663,9 +1662,9 @@ class SymbolicCircuit(serializers.Serializable):
         circ_copy = copy.deepcopy(self)
 
         # adding an attribute for node list without ground
-        circ_copy._node_list_without_ground = circ_copy.nodes
-        if circ_copy.is_grounded:
-            circ_copy._node_list_without_ground.remove(circ_copy.ground_node)
+        # circ_copy.nodes = circ_copy.nodes
+        if circ_copy.ground_node is not None:
+            circ_copy.nodes.remove(circ_copy.ground_node)
 
         # **************** removing all the capacitive branches and updating the nodes *
         # identifying capacitive branches
@@ -1687,9 +1686,9 @@ class SymbolicCircuit(serializers.Serializable):
         num_float_nodes = 1
         while num_float_nodes > 0:  # breaks when no floating nodes are detected
             num_float_nodes = 0  # setting
-            for node in circ_copy._node_list_without_ground:
+            for node in circ_copy.nodes:
                 if len(node.branches) == 0:
-                    circ_copy._node_list_without_ground.remove(node)
+                    circ_copy.nodes.remove(node)
                     num_float_nodes += 1
                     continue
                 if len(node.branches) == 1:
@@ -1705,9 +1704,9 @@ class SymbolicCircuit(serializers.Serializable):
                             num_float_nodes += 1
                             continue
                         else:
-                            circ_copy._node_list_without_ground.remove(node)
+                            circ_copy.nodes.remove(node)
 
-        if circ_copy._node_list_without_ground == []:
+        if circ_copy.nodes == []:
             return {
                 "list_of_trees": [],
                 "loop_branches_for_trees": [],
@@ -1722,11 +1721,11 @@ class SymbolicCircuit(serializers.Serializable):
             node_sets = [[circ_copy.ground_node]]
         else:
             node_sets = [
-                [circ_copy._node_list_without_ground[0]]
+                [circ_copy.nodes[0]]
             ]  # starting with the first set that has the first node as the only element
         node_sets_for_trees.append(node_sets)
 
-        num_nodes = len(circ_copy._node_list_without_ground)
+        num_nodes = len(circ_copy.nodes)
         # this needs to be done as the ground node is not included in self.nodes
         if circ_copy.is_grounded:
             num_nodes += 1
@@ -1757,7 +1756,7 @@ class SymbolicCircuit(serializers.Serializable):
             # code to handle two different capacitive islands in the circuit.
             if node_set == []:
                 node_sets_for_trees.append([])
-                for node in circ_copy._node_list_without_ground:
+                for node in circ_copy.nodes:
                     if node not in flatten_list_recursive(
                         node_sets_for_trees[tree_index]
                     ):
@@ -1913,7 +1912,7 @@ class SymbolicCircuit(serializers.Serializable):
                     if branch.type == "C"
                     else branch.parameters["ECJ"]
                 )
-                if isinstance(EC, sympy.Expr):
+                if isinstance(EC, sympy.Symbol):
                     EC = self.symbolic_params[EC]
                 C_diag[idx, idx] = 1 / (EC * 8)
             for node_idx, node in enumerate(branch.nodes):
@@ -1936,7 +1935,7 @@ class SymbolicCircuit(serializers.Serializable):
 
     def _find_path_to_root(
         self, node: Node, spanning_tree_dict=None
-    ) -> Tuple[int, List["Node"], List["Branch"]]:
+    ) -> Tuple[int, List[Node], List[Branch], int]:
         r"""Returns all the nodes and branches in the spanning tree path between the
         input node and the root of the spanning tree. Also returns the distance
         (generation) between the input node and the root node. The root of the spanning
@@ -2347,9 +2346,9 @@ class SymbolicCircuit(serializers.Serializable):
             # replacing the free charge with 0, as it would not affect the circuit
             # Lagrangian.
         ]
-        ### NOTE: sorting the variable indices in the above step is important as the transformation
-        ### matrix already takes care of defining the appropriate momenta in the new variables. So, the above variables should be
-        ### in the node variable order.
+        # NOTE: sorting the variable indices in the above step is important as the transformation
+        # matrix already takes care of defining the appropriate momenta in the new variables. So, the above variables should be
+        # in the node variable order.
         # generating the kinetic energy terms for the Hamiltonian
         if not self.is_any_branch_parameter_symbolic():
             C_terms_new = (

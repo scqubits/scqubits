@@ -1,7 +1,7 @@
+from typing import Tuple, Optional, Union, Dict
 import pyparsing as pp
 import os
 
-from typing import List, Tuple
 from scqubits.utils.misc import is_string_float
 from pyparsing import Group, Opt, Or, Literal, Suppress
 import numpy as np
@@ -206,11 +206,13 @@ pp.autoname_elements()
 def parse_code_line(code_line: str, _branch_count):
     """
 
-    Args:
+    Parameters
+    ----------
         code_line (str): string describing the branch from the input file
         _branch_count (_type_): the count of the branch in a given circuit
 
-    Returns:
+    Returns
+    -------
         branch_type: str
         node_idx1: int
         node_idx2: int
@@ -231,14 +233,17 @@ def convert_value_to_GHz(val, units):
     string in the format "pU" where p is an optional multiplier prefix and U is units.
     For example: "pH", "nA", "fF", "eV".
 
-    Args:
+    Parameters
+    ----------
         val (float): value in given units
         units (str): units described in a string with an optional multiplier prefix
 
-    Raises:
+    Raises
+    ------
         ValueError: If the unit is unknown.
 
-    Returns:
+    Returns
+    -------
         float: Energy in GHz
     """
     # all the possible units
@@ -270,7 +275,9 @@ def convert_value_to_GHz(val, units):
         raise ValueError(f"Unknown unit {unit_str}")
 
 
-def process_param(pattern):
+def process_param(
+    pattern,
+) -> Union[Dict[sm.Symbol, float], Tuple[Optional[sm.Symbol], Optional[float]]]:
     """Returns a tuple containing (symbol, value) given a pattern as detected by
     pyparsing.
 
@@ -281,15 +288,15 @@ def process_param(pattern):
     if name == "ASSIGN":
         sym = sm.symbols(pattern[0])
         val = pattern[1]
-        units = None if pattern[-1] == None else pattern[-2:]
+        units = None if pattern[-1] is None else pattern[-2:]
         val_converted = convert_value_to_GHz(val, units)
-        return sym, val_converted
+        return (sym, val_converted)
     if name == "SYMBOL":
-        return sm.symbols(pattern[0]), None
+        return (sm.symbols(pattern[0]), None)
     if name == "VALUE":
-        units = None if pattern[-1] == None else pattern[-2:]
+        units = None if pattern[-1] is None else pattern[-2:]
         converted_val = convert_value_to_GHz(pattern[0], units)
-        return None, converted_val
+        return (None, converted_val)
     if name == "AUX_PARAM":
         num_of_aux_params = int(len(pattern) / 2)
         aux_params = {}

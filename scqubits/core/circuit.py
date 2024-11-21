@@ -12,18 +12,15 @@
 
 import re
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Union, Callable
+from typing import Any, Dict, List, Optional, Tuple, Union, Callable, get_type_hints
 
 import numpy as np
 import sympy as sm
-from matplotlib import pyplot as plt
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
 from numpy import ndarray
 from sympy import latex
 
 try:
-    from IPython.display import Latex, display
+    import IPython
 except ImportError:
     _HAS_IPYTHON = False
 else:
@@ -34,10 +31,8 @@ import scqubits.core.central_dispatch as dispatch
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 
-from scqubits import settings
 from scqubits.core.circuit_utils import (
     get_trailing_number,
-    is_potential_term,
 )
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
 from scqubits.utils.misc import (
@@ -85,9 +80,9 @@ class Subsystem(
         parent: "Subsystem",
         hamiltonian_symbolic: sm.Expr,
         ext_basis: Union[str, List],
-        system_hierarchy: Optional[List] = None,
-        subsystem_trunc_dims: Optional[List] = None,
-        truncated_dim: Optional[int] = 10,
+        system_hierarchy: list = [],
+        subsystem_trunc_dims: list = [],
+        truncated_dim: int = 10,
         evals_method: Union[Callable, str, None] = None,
         evals_method_options: Union[dict, None] = None,
         esys_method: Union[Callable, str, None] = None,
@@ -130,10 +125,6 @@ class Subsystem(
         self.dynamic_var_indices: List[int] = flatten_list_recursive(
             [self.system_hierarchy]
         )
-        parent_cutoffs_dict = self.parent.cutoffs_dict()
-        cutoffs: List[int] = [
-            parent_cutoffs_dict[var_index] for var_index in self.dynamic_var_indices
-        ]
 
         self.var_categories: Dict[str, List[int]] = {}
         for var_type in self.parent.var_categories:
@@ -243,16 +234,6 @@ class Subsystem(
         else:
             self.is_purely_harmonic = False
 
-        # Creating the attributes for purely harmonic circuits
-        if (
-            isinstance(self, Circuit) and self.parent.is_purely_harmonic
-        ):  # assuming that the parent has only extended variables and are ordered
-            # starting from 1, 2, 3, ...
-            self.is_purely_harmonic = self.parent.is_purely_harmonic
-            self.normal_mode_freqs = self.parent.normal_mode_freqs[
-                [var_idx - 1 for var_idx in self.var_categories["extended"]]
-            ]
-
         if self.hierarchical_diagonalization:
             # attribute to note updated subsystem indices
             self.affected_subsystem_indices = []
@@ -323,8 +304,8 @@ class Circuit(
         generate_noise_methods: bool = False,
         initiate_sym_calc: bool = True,
         truncated_dim: int = 10,
-        symbolic_param_dict: Dict[str, float] = None,
-        symbolic_hamiltonian: sm.Expr = None,
+        symbolic_param_dict: Dict[str, float] = {},
+        symbolic_hamiltonian: Optional[sm.Expr] = None,
         evals_method: Union[Callable, str, None] = None,
         evals_method_options: Union[dict, None] = None,
         esys_method: Union[Callable, str, None] = None,
@@ -342,7 +323,11 @@ class Circuit(
         )
         if symbolic_hamiltonian and input_string:
             raise Exception(
-                "Circuit instance cannot be initialized with both input_string and symbolic_hamiltonian."
+                "Circuit instance cannot be initialized with both input_string and a symbolic hamiltonian."
+            )
+        if not symbolic_hamiltonian and not input_string:
+            raise Exception(
+                "Circuit instance must be initialized with either input_string or a symbolic hamiltonian."
             )
         if input_string:
             self.from_yaml(
@@ -356,7 +341,7 @@ class Circuit(
                 truncated_dim=truncated_dim,
             )
 
-        else:
+        elif symbolic_hamiltonian:
             if use_dynamic_flux_grouping or generate_noise_methods:
                 raise Exception(
                     "Circuit instance initialized using symbolic Hamiltonian cannot be configured with closure_branches, use_dynamic_flux_grouping, transformation_matrix or generate_noise_methods."
@@ -390,8 +375,8 @@ class Circuit(
 
         self.ext_basis = ext_basis
         self.truncated_dim: int = truncated_dim
-        self.system_hierarchy: list = None
-        self.subsystem_trunc_dims: list = None
+        self.system_hierarchy: list = []
+        self.subsystem_trunc_dims: list = []
         self.operators_by_name = None
 
         self.discretized_phi_range: Dict[int, Tuple[float, float]] = {}
@@ -430,7 +415,7 @@ class Circuit(
         use_dynamic_flux_grouping: bool = False,
         generate_noise_methods: bool = False,
         initiate_sym_calc: bool = True,
-        truncated_dim: int = None,
+        truncated_dim: int = 10,
     ):
         """Wrapper to Circuit __init__ to create a class instance. This is deprecated
         and will not be supported in future releases.
@@ -482,8 +467,8 @@ class Circuit(
         self.ext_basis = ext_basis
         self.hierarchical_diagonalization: bool = False
         self.truncated_dim: int = truncated_dim
-        self.system_hierarchy: list = None
-        self.subsystem_trunc_dims: list = None
+        self.system_hierarchy: list = []
+        self.subsystem_trunc_dims: list = []
         self.operators_by_name = None
 
         self.discretized_phi_range: Dict[int, Tuple[float, float]] = {}
@@ -587,7 +572,7 @@ class Circuit(
         system_hierarchy: Optional[list] = None,
         subsystem_trunc_dims: Optional[list] = None,
         closure_branches: Optional[List[Union[Branch, Dict[Branch, float]]]] = None,
-        ext_basis: Optional[str] = None,
+        ext_basis: Optional[Union[str, List[str]]] = None,
         use_dynamic_flux_grouping: Optional[bool] = None,
         generate_noise_methods: bool = False,
         subsys_dict: Optional[Dict[str, Any]] = None,
@@ -729,7 +714,7 @@ class Circuit(
         system_hierarchy: Optional[list] = None,
         subsystem_trunc_dims: Optional[list] = None,
         subsys_dict: Optional[Dict[str, Any]] = None,
-        ext_basis: Optional[str] = None,
+        ext_basis: Optional[Union[str, List[str]]] = None,
     ):
         """Method which re-initializes a circuit instance to update, hierarchical
         diagonalization parameters or closure branches or the variable transformation
@@ -884,7 +869,7 @@ class Circuit(
         system_hierarchy: Optional[list] = None,
         subsystem_trunc_dims: Optional[list] = None,
         closure_branches: Optional[List[Union[Branch, Dict[Branch, float]]]] = None,
-        ext_basis: Optional[str] = None,
+        ext_basis: Optional[Union[str, List[str]]] = None,
         use_dynamic_flux_grouping: Optional[bool] = None,
         subsys_dict: Optional[Dict[str, Any]] = None,
         generate_noise_methods: bool = False,
@@ -1276,7 +1261,7 @@ class Circuit(
                 )
             elif len(subsystem.var_categories["extended"]) != 1:
                 raise Exception(
-                    f"the subsystem has more than one harmonic oscillator mode"
+                    "the subsystem has more than one harmonic oscillator mode"
                 )
             else:
                 osc_subsys_list.append(subsystem)

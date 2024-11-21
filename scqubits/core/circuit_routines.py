@@ -9,7 +9,6 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
-import copy
 import functools
 import itertools
 import operator as builtin_op
@@ -50,21 +49,18 @@ import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as utils
 from scqubits import get_units
 import scqubits.core.qubit_base as base
-
 from scqubits import HilbertSpace, settings
 from scqubits.io_utils.fileio_serializers import dict_serialize
 from scqubits.io_utils.fileio import IOData
 from scqubits.core import operators as op
 from scqubits.core.circuit_utils import (
     is_potential_term,
-    sawtooth_operator,
     sawtooth_potential,
     _cos_dia,
     _cos_dia_dense,
     _cos_phi,
     _cos_theta,
     _exp_i_theta_operator,
-    _exp_i_theta_operator_conjugate,
     _generate_symbols_list,
     _i_d2_dphi2_operator,
     _i_d_dphi_operator,
@@ -419,17 +415,6 @@ class CircuitRoutines(ABC):
                 for branch in self.branches
                 if (branch.type == "C" or "JJ" in branch.type)
             ]
-            capacitance_params = [
-                (
-                    branch.parameters["EC"]
-                    if branch.type == "C"
-                    else branch.parameters["ECJ"]
-                )
-                for branch in capacitance_branches
-            ]
-            capacitance_sym_params = [
-                param for param in capacitance_params if isinstance(param, sm.Expr)
-            ]
 
             self.symbolic_circuit.update_param_init_val(param_name, value)
             # if param_name in [param.name for param in capacitance_sym_params]:
@@ -651,7 +636,7 @@ class CircuitRoutines(ABC):
             self.update()
         return self
 
-    def get_ext_basis(self):
+    def get_ext_basis(self) -> Union[str, List[str]]:
         """Get the ext_basis object for the Circuit instance, according to the setting
         in self.hierarchical_diagonalization."""
         if not self.hierarchical_diagonalization:
@@ -1025,13 +1010,13 @@ class CircuitRoutines(ABC):
                         system_hierarchy=self.system_hierarchy[index],
                         truncated_dim=(
                             self.subsystem_trunc_dims[index][0]
-                            if type(self.subsystem_trunc_dims[index]) == list
+                            if isinstance(self.subsystem_trunc_dims[index], list)
                             else self.subsystem_trunc_dims[index]
                         ),
                         ext_basis=ext_basis,
                         subsystem_trunc_dims=(
                             self.subsystem_trunc_dims[index][1]
-                            if type(self.subsystem_trunc_dims[index]) == list
+                            if isinstance(self.subsystem_trunc_dims[index], list)
                             else None
                         ),
                         evals_method=(
@@ -1250,21 +1235,6 @@ class CircuitRoutines(ABC):
             return self._evaluate_symbolic_expr(sym_expr, bare_esys=bare_esys)
 
         return wrapper_func
-
-    def _generate_symbols_list(
-        self, var_str: str, iterable_list: Union[List[int], ndarray]
-    ) -> List[sm.Symbol]:
-        """Returns the list of symbols generated using the var_str + iterable as the
-        name of the symbol.
-
-        Parameters
-        ----------
-        var_str:
-            name of the variable which needs to be generated
-        iterable_list:
-            The list of indices which generates the symbols
-        """
-        return [sm.symbols(var_str + str(iterable)) for iterable in iterable_list]
 
     def _set_vars(self):
         """Sets the attribute vars which is a dictionary containing all the Sympy Symbol
@@ -2336,7 +2306,7 @@ class CircuitRoutines(ABC):
     ) -> csc_matrix:
         """Hamiltonian for purely harmonic systems when ext_basis is set to harmonic.
 
-        Returns:
+        Returns
             csc_matrix:
         """
         hamiltonian = self._hamiltonian_sym_for_numerics
@@ -2349,8 +2319,6 @@ class CircuitRoutines(ABC):
         ):
             hamiltonian = hamiltonian.subs(sym_param, getattr(self, sym_param.name))
         hamiltonian = hamiltonian.subs("I", 1)
-        H_diag_basis = self._identity() * 0
-        identity = self._identity()
         operator_dict = {}
         for var_index in self.dynamic_var_indices:
             cutoff = getattr(self, f"cutoff_ext_{var_index}")
@@ -2437,7 +2405,9 @@ class CircuitRoutines(ABC):
         free_var_func_dict: Dict[str, Callable],
         prefactor: float = 1.0,
         extra_terms: Optional[str] = None,
-    ) -> Tuple[List[Union[qt.Qobj, Tuple[qt.Qobj, Callable]]], sm.Expr, List[sm.Expr]]:
+    ) -> Tuple[
+        List[Union[qt.Qobj, Tuple[qt.Qobj, Callable]]], sm.Expr, Dict[qt.Qobj, sm.Expr]
+    ]:
         """
         Returns the Hamiltonian in a format amenable to be forwarded to mesolve in Qutip. Also returns the symbolic expressions of time independent and time dependent terms of the Hamiltonian, which can be used for reference. `free_var_func_dict` is a dictionary with key-value pair `{"var": f}`, where `f` is a function returning the value of the variable `var` at time `t`. If one has extra terms to be added to the Hamiltonian (for instance, charge driving a fluxonium where there is no offset charge) they can be passed as a string in `extra_terms`.
         For example, to get the Hamiltonian for a circuit where Φ1 is the time varying parameter, this method can be called in the following way::
@@ -2469,17 +2439,17 @@ class CircuitRoutines(ABC):
 
         # adding extra terms to the Hamiltonian
         if extra_terms:
-            extra_terms = sm.parse_expr(extra_terms)
-            for extra_sym in extra_terms.free_symbols:
+            extra_terms_sym = sm.parse_expr(extra_terms)
+            for extra_sym in extra_terms_sym.free_symbols:
                 if (
                     extra_sym not in self.hamiltonian_symbolic.free_symbols
                     and extra_sym not in free_var_symbols
                 ):
                     raise Exception(f"{extra_sym.name} is unknown.")
         else:
-            extra_terms = 0
+            extra_terms_sym = 0
 
-        sym_hamiltonian = self._hamiltonian_sym_for_numerics + extra_terms
+        sym_hamiltonian = self._hamiltonian_sym_for_numerics + extra_terms_sym
         sym_hamiltonian = sym_hamiltonian.subs("I", 1).expand()
 
         expr_dict = sym_hamiltonian.expand().as_coefficients_dict()
@@ -2491,7 +2461,7 @@ class CircuitRoutines(ABC):
                 fixed_hamiltonian = fixed_hamiltonian + term * expr_dict[term]
                 continue
             # if the term does have a free variable
-            ### expand trigonometrically
+            # expand trigonometrically
             should_trig_expand = any(
                 [
                     (free_sym in term.free_symbols and term.coeff(free_sym) == 0)
@@ -2546,9 +2516,6 @@ class CircuitRoutines(ABC):
         )
 
     def _evals_calc(self, evals_count: int) -> ndarray:
-        # dimension of the hamiltonian
-        hilbertdim = self.hilbertdim()
-
         if self.is_purely_harmonic and not self.hierarchical_diagonalization:
             return self._eigenvals_for_purely_harmonic(evals_count=evals_count)
 

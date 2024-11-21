@@ -15,7 +15,7 @@ import os
 import numpy as np
 import qutip as qt
 import pytest
-from scqubits.io_utils.fileio import write, read
+from scqubits.io_utils.fileio import read
 
 import scqubits as scq
 

@@ -11,12 +11,11 @@
 ############################################################################
 
 import re
-from typing import TYPE_CHECKING, Any, Callable, List, Union, Optional, Tuple, Dict
+from typing import TYPE_CHECKING, Callable, List, Union, Optional, Tuple, Dict
 
 import numpy as np
 import scipy as sp
 import sympy as sm
-import qutip as qt
 from numpy import ndarray
 from scipy import sparse
 from scipy.sparse import csc_matrix
@@ -44,7 +43,7 @@ def _junction_order(branch_type: str) -> int:
     Raises:
         ValueError: when the branch is not a josephson junction
 
-    Returns:
+    Returns
         _type_: int, order of the josephson junction
     """
     if "JJ" not in branch_type:
@@ -471,15 +470,6 @@ def operator_func_factory(
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     return operator_func
-
-
-def compose(f: Callable, g: Callable) -> Callable:
-    """Returns the function f o g:  x |-> f(g(x))"""
-
-    def g_after_f(x: Any) -> Any:
-        return f(g(x))
-
-    return g_after_f
 
 
 def _cos_dia(x: csc_matrix) -> csc_matrix:
