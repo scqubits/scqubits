@@ -962,7 +962,7 @@ class ParameterSweep(  # type:ignore
         lexical ordering is performed on the permuted labels. A "branch" is defined
         as a series of eigenstates formed by putting excitations into the last
         subsystem in the list.
-    lookup_BE_count:
+    lookup_BEs_count:
         the number of dressed states to be labeled, for "BE" scheme only.
     ignore_low_overlap:
         if set to False (default), bare product states and dressed eigenstates are
@@ -1020,7 +1020,7 @@ class ParameterSweep(  # type:ignore
         bare_only: bool = False,
         labeling_scheme: Literal["DE", "LX", "BE"] = "DE",
         labeling_subsys_priority: Union[List[int], None] = None,
-        labeling_BE_count: Union[int, None] = None,
+        labeling_BEs_count: Union[int, None] = None,
         ignore_low_overlap: bool = False,
         autorun: bool = settings.AUTORUN_SWEEP,
         deepcopy: bool = False,
@@ -1036,7 +1036,7 @@ class ParameterSweep(  # type:ignore
         self._bare_only = bare_only
         self._labeling_scheme = labeling_scheme
         self._labeling_subsys_priority = labeling_subsys_priority
-        self._labeling_BE_count = labeling_BE_count
+        self._labeling_BEs_count = labeling_BEs_count
         self._ignore_low_overlap = ignore_low_overlap
         self._deepcopy = deepcopy
         self._num_cpus = num_cpus
@@ -1130,7 +1130,7 @@ class ParameterSweep(  # type:ignore
             self._data["dressed_indices"] = self.generate_lookup(
                 ordering=self._labeling_scheme,
                 subsys_priority=self._labeling_subsys_priority,
-                BE_count=self._labeling_BE_count,
+                BEs_count=self._labeling_BEs_count,
             )
             (
                 self._data["lamb"],

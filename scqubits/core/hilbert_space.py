@@ -622,7 +622,7 @@ class HilbertSpace(
         self,
         ordering: Literal["DE", "LX", "BE"] = "DE",
         subsys_priority: Union[List[int], None] = None,
-        BE_count: Union[int, None] = None,
+        BEs_count: Union[int, None] = None,
         update_subsystem_indices: Union[List[int], None] = None,
     ) -> None:
         """
@@ -646,14 +646,15 @@ class HilbertSpace(
             - "LX": Lexical ordering
             - "BE": Bare Energy
 
-        subsys_priority: LX_subsys_ordering
+        subsys_priority:
             a permutation of the subsystem indices and bare labels. If it is provided,
             lexical ordering is performed on the permuted labels. A "branch" is defined
             as a series of eigenstates formed by putting excitations into the last
             subsystem in the list.
 
-        BE_count: BE_labels_count
-            the number of eigenstates to be assigned, for "BE" scheme only.
+        BEs_count:
+            the number of eigenstates to be assigned, for "BE" scheme only. If None,
+            all eigenstates will be generated and labeled.
 
         Returns
         -------
@@ -672,10 +673,10 @@ class HilbertSpace(
         )
         dummy_params = self._parameters.paramvals_by_name
 
-        if ordering == "DE" or ordering == "LX":
+        if ordering == "DE" or ordering == "LX" or BEs_count is None:
             num_evals = self.dimension
         else:
-            num_evals = BE_count
+            num_evals = BEs_count
 
         evals, evecs = self.eigensys(evals_count=num_evals, bare_esys=bare_esys_dict)
         # The following workaround ensures that eigenvectors maintain QutipEigenstates
@@ -689,7 +690,7 @@ class HilbertSpace(
             self,
             ordering=ordering,
             subsys_priority=subsys_priority,
-            BE_count=BE_count,
+            BEs_count=BEs_count,
         )
 
     def lookup_exists(self) -> bool:

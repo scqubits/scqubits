@@ -589,7 +589,7 @@ class TestHilbertSpace:
         hspace.generate_lookup(ordering="LX", subsys_priority=[2, 1, 0])
         assert np.all(hspace["dressed_indices"][0].astype(int) == reference_indices)
 
-        hspace.generate_lookup(ordering="BE", subsys_priority=[2, 1, 0], BE_count=10)
+        hspace.generate_lookup(ordering="BE", subsys_priority=[2, 1, 0], BEs_count=10)
         assert np.all(hspace["dressed_indices"][0] == reference_indices_BE10)
 
         hspace.generate_lookup(ordering="DE")

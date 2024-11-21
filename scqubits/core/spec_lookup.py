@@ -98,7 +98,7 @@ class SpectrumLookupMixin(MixinCompatible):
         self,
         ordering: Literal["DE", "LX", "BE"] = "DE",
         subsys_priority: Union[List[int], None] = None,
-        BE_count: Union[int, None] = None,
+        BEs_count: Union[int, None] = None,
     ) -> NamedSlotsNdarray:
         """
         Label the dressed states by bare labels and generate the lookup table
@@ -127,8 +127,9 @@ class SpectrumLookupMixin(MixinCompatible):
             as a series of eigenstates formed by putting excitations into the last
             subsystem in the list.
 
-        BE_count:
-            the number of eigenstates to be assigned, for "BE" scheme only.
+        BEs_count:
+            the number of eigenstates to be assigned, for "BE" scheme only. If None,
+            all available eigenstates will be labeled.
 
         Returns
         -------
@@ -146,12 +147,12 @@ class SpectrumLookupMixin(MixinCompatible):
                 ordering=ordering,
                 subsys_priority=subsys_priority,
                 transpose=False,
-                BE_count=BE_count,
+                BEs_count=BEs_count,
             )
         elif ordering == "DE":
-            if BE_count is not None:
+            if BEs_count is not None:
                 warn(
-                    "BE_count is not supported for DE ordering, " "it will be ignored."
+                    "BEs_count is not supported for DE ordering, " "it will be ignored."
                 )
             if subsys_priority is not None:
                 warn(
@@ -857,7 +858,7 @@ class SpectrumLookupMixin(MixinCompatible):
         self,
         param_indices: Tuple[int, ...],
         subsys_priority: Optional[List[int]] = None,
-        labels_count: Union[int, None] = None,
+        BEs_count: Union[int, None] = None,
         source_maj_vote: bool = False,
     ) -> np.ndarray:
         """
@@ -882,9 +883,9 @@ class SpectrumLookupMixin(MixinCompatible):
             it is provided, lexical ordering is performed on the permuted labels.
             A "branch" is defined as a series of eigenstates formed by putting
             excitations into the last subsystem in the list.
-        labels_count:
-            the number of states to be assigned. If None, all states will be
-            assigned.
+        BEs_count:
+            the number of states to be assigned. If None, all available eigenstates 
+            will be assigned.
         source_maj_vote:
             if True, the branch will be determined by majority vote of the
             potential candidates. It is purely an internal knob to test the
@@ -900,12 +901,12 @@ class SpectrumLookupMixin(MixinCompatible):
         if subsys_priority is None:
             subsys_priority = list(range(hspace.subsystem_count))
 
-        if labels_count is None:
-            labels_count = len(self._data["evecs"][param_indices])
-        elif len(self._data["evecs"][param_indices]) < labels_count:
-            labels_count = len(self._data["evecs"][param_indices])
+        if BEs_count is None:
+            BEs_count = len(self._data["evecs"][param_indices])
+        elif len(self._data["evecs"][param_indices]) < BEs_count:
+            BEs_count = len(self._data["evecs"][param_indices])
             warn(
-                "evals_count is less than labels_count, labels_count is set to "
+                "evals_count is less than BEs_count, BEs_count is set to "
                 f"{len(self._data['evecs'][param_indices])}."
             )
 
@@ -927,7 +928,7 @@ class SpectrumLookupMixin(MixinCompatible):
 
         # sort the bare energies
         # which will be the order of state assignment
-        sorted_indices = np.argsort(bare_evals)[:labels_count]
+        sorted_indices = np.argsort(bare_evals)[:BEs_count]
 
         # mode assignment
         branch_drs_indices = np.ndarray(dims, dtype=object)
@@ -1002,7 +1003,7 @@ class SpectrumLookupMixin(MixinCompatible):
         ordering: Literal["LX", "BE"] = "BE",
         subsys_priority: Optional[List[int]] = None,
         transpose: bool = False,
-        BE_count: Union[int, None] = None,
+        BEs_count: Union[int, None] = None,
     ) -> NamedSlotsNdarray:
         """
         Perform a full branch analysis for all parameter points, according to
@@ -1027,8 +1028,9 @@ class SpectrumLookupMixin(MixinCompatible):
             A "branch" is defined as a series of eigenstates formed by putting
             excitations into the last subsystem in the list.
 
-        BE_count:
-            the number of eigenstates to be labeled, for "BE" scheme only.
+        BEs_count:
+            the number of eigenstates to be labeled, for "BE" scheme only. If
+            None, all available eigenstates will be labeled.
 
         Returns
         -------
@@ -1047,9 +1049,9 @@ class SpectrumLookupMixin(MixinCompatible):
 
         for index in param_indices:
             if ordering == "LX":
-                if BE_count is not None:
+                if BEs_count is not None:
                     warn(
-                        "BE_count is not supported for lexical ordering, "
+                        "BEs_count is not supported for lexical ordering, "
                         "it will be ignored."
                     )
                 dressed_indices[index] = self._branch_analysis_LX(
@@ -1061,7 +1063,7 @@ class SpectrumLookupMixin(MixinCompatible):
                 dressed_indices[index] = self._branch_analysis_BE(
                     index,
                     subsys_priority,
-                    BE_count,
+                    BEs_count,
                 )
             else:
                 raise ValueError(f"Ordering {ordering} is not supported.")
