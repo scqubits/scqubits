@@ -26,6 +26,7 @@ circ.configure(
 circ.update()
 esys = circ.eigensys()
 
+
 class TestCircuitPlot:
     @staticmethod
     def test_plot_wf():
