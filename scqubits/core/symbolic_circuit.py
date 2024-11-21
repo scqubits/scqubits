@@ -265,7 +265,7 @@ def make_coupler(
     params = [process_param(param) for param in params]
     if coupler_type == "ML":
         params_dict[sm.symbols("EML")] = (
-            params[0][0] if params[0][0] is not None else params[0][1]
+            params[0][0] or params[0][1]
         )
         for idx in [idx1, idx2]:
             if branches_list[idx].type != "L":
@@ -275,7 +275,7 @@ def make_coupler(
         branch1 = branches_list[idx1]
         branch2 = branches_list[idx2]
     sym_params_dict = {
-        param[0]: param[1] for param in params if param[0] is not None
+        param[0]: param[1] for param in params if param[0]
     }  # dictionary of symbolic params and the default values
     return (
         Coupler(
@@ -307,19 +307,19 @@ def make_branch(
             params[:-1]
         ):  # getting EJi for all orders i specified
             params_dict[sm.symbols(f"EJ{idx + 1}" if idx > 0 else "EJ")] = (
-                param[0] if param[0] is not None else param[1]
+                param[0] or param[1]
             )
 
         params_dict[sm.symbols("EC")] = (
-            params[-1][0] if params[-1][0] is not None else params[-1][1]
+            params[-1][0] or params[-1][1]
         )
     if branch_type == "C":
         params_dict[sm.symbols("EC")] = (
-            params[-1][0] if params[-1][0] is not None else params[-1][1]
+            params[-1][0] or params[-1][1]
         )
     elif branch_type == "L":
         params_dict[sm.symbols("EL")] = (
-            params[-1][0] if params[-1][0] is not None else params[-1][1]
+            params[-1][0] or params[-1][1]
         )
 
     # return idx1, idx2, branch_type, list(params_dict.keys()), str(_branch_count), process_param(aux_params)
@@ -327,7 +327,7 @@ def make_branch(
     node_1 = nodes_list[idx1 if is_grounded else idx1 - 1]
     node_2 = nodes_list[idx2 if is_grounded else idx2 - 1]
     sym_params_dict = {
-        param[0]: param[1] for param in params if param[0] is not None
+        param[0]: param[1] for param in params if param[0]
     }  # dictionary of symbolic params and the default values
     return (
         Branch(
@@ -562,7 +562,7 @@ class SymbolicCircuit(serializers.Serializable):
         # if the circuit is purely harmonic, then store the eigenfrequencies
         branch_type_list = [branch.type for branch in self.branches]
         self.is_purely_harmonic = "JJ" not in "".join(branch_type_list)
-        if use_dynamic_flux_grouping is not None:
+        if use_dynamic_flux_grouping:
             self.use_dynamic_flux_grouping = use_dynamic_flux_grouping
 
         if self.is_purely_harmonic:
@@ -799,11 +799,11 @@ class SymbolicCircuit(serializers.Serializable):
         for parsed_branch in individual_branches:
             branch, sym_params = make_branch(nodes_list, *parsed_branch)
             for sym_param in sym_params:
-                if sym_param in branch_var_dict and sym_params[sym_param] is not None:
+                if sym_param in branch_var_dict and sym_params[sym_param]:
                     raise Exception(
                         f"Symbol {sym_param} has already been assigned a value."
                     )
-                if sym_params[sym_param] is not None:
+                if sym_params[sym_param]:
                     branch_var_dict[sym_param] = sym_params[sym_param]
             branches_list.append(branch)
         # make couplers
@@ -813,11 +813,11 @@ class SymbolicCircuit(serializers.Serializable):
         for parsed_branch in coupler_branches:
             coupler, sym_params = make_coupler(branches_list, *parsed_branch)
             for sym_param in sym_params:
-                if sym_param in branch_var_dict and sym_params[sym_param] is not None:
+                if sym_param in branch_var_dict and sym_params[sym_param]:
                     raise Exception(
                         f"Symbol {sym_param} has already been assigned a value."
                     )
-                if sym_params[sym_param] is not None:
+                if sym_params[sym_param]:
                     branch_var_dict[sym_param] = sym_params[sym_param]
             couplers_list.append(coupler)
 
@@ -853,7 +853,7 @@ class SymbolicCircuit(serializers.Serializable):
         nodes_copy = copy.copy(self.nodes)  # copying self.nodes as it is being modified
 
         # making sure that the ground node is placed at the end of the list
-        if self.ground_node is not None:
+        if self.ground_node:
             nodes_copy.pop(0)  # removing the ground node
             nodes_copy = nodes_copy + [
                 copy.copy(self.ground_node)
@@ -1663,7 +1663,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         # adding an attribute for node list without ground
         # circ_copy.nodes = circ_copy.nodes
-        if circ_copy.ground_node is not None:
+        if circ_copy.ground_node:
             circ_copy.nodes.remove(circ_copy.ground_node)
 
         # **************** removing all the capacitive branches and updating the nodes *
