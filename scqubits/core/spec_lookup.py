@@ -884,7 +884,7 @@ class SpectrumLookupMixin(MixinCompatible):
             A "branch" is defined as a series of eigenstates formed by putting
             excitations into the last subsystem in the list.
         BEs_count:
-            the number of states to be assigned. If None, all available eigenstates 
+            the number of states to be assigned. If None, all available eigenstates
             will be assigned.
         source_maj_vote:
             if True, the branch will be determined by majority vote of the
