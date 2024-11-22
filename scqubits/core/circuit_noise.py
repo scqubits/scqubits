@@ -90,7 +90,7 @@ class NoisyCircuit(NoisySystem, ABC):
             self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
         ):
             parent_instance = self.return_parent_circuit()
-            # hamiltonian = parent_instance.fetch_symbolic_hamiltonian()
+            # hamiltonian = parent_instance._fetch_symbolic_hamiltonian()
             hamiltonian = parent_instance._hamiltonian_sym_for_numerics
             hamiltonian = hamiltonian.subs("I", 1)
             all_sym_parameters = (
@@ -127,7 +127,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
         5. Adds each method to the current instance as an attribute with the same name as the key in the dictionary using `setattr`.
 
-        The generated methods use the 'return_parent_circuit' method to get a parent circuit with a symbolic Hamiltonian and symbolic parameters, the 'fetch_symbolic_hamiltonian' method to get the symbolic Hamiltonian, the '_evaluate_symbolic_expr' method to evaluate a symbolic expression, and the '_junction_related_evaluation' method to calculate a quantity related to a junction.
+        The generated methods use the 'return_parent_circuit' method to get a parent circuit with a symbolic Hamiltonian and symbolic parameters, the '_fetch_symbolic_hamiltonian' method to get the symbolic Hamiltonian, the '_evaluate_symbolic_expr' method to evaluate a symbolic expression, and the '_junction_related_evaluation' method to calculate a quantity related to a junction.
 
         Raises
         ------
@@ -254,7 +254,7 @@ class NoisyCircuit(NoisySystem, ABC):
             AttributeError: If the current instance or the parent circuit does not have the required methods or attributes.
         """
         parent_instance = self.return_parent_circuit()
-        hamiltonian = parent_instance.fetch_symbolic_hamiltonian()
+        hamiltonian = parent_instance._fetch_symbolic_hamiltonian()
         hamiltonian = parent_instance._hamiltonian_sym_for_numerics
 
         for sym in parent_instance.offset_charges + list(

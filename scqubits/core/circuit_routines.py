@@ -730,7 +730,7 @@ class CircuitRoutines(ABC):
 
             return hamiltonian_symbolic
         else:
-            full_hamiltonian = self.parent.fetch_symbolic_hamiltonian()
+            full_hamiltonian = self.parent._fetch_symbolic_hamiltonian()
             non_operator_symbols = (
                 self.offset_charges
                 + self.free_charges
