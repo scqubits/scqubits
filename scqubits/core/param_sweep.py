@@ -1082,6 +1082,9 @@ class ParameterSweep(  # type:ignore
         subsys_update_info is a dictionary with parameter names as keys and
         corresponding subsystem lists as values.
         """
+        if self._subsys_update_info is None:
+            return
+
         param_names = self._parameters.names
         id_strs = [subsystem.id_str for subsystem in self.hilbertspace.subsystem_list]
 
