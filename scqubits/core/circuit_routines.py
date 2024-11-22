@@ -128,6 +128,14 @@ class CircuitRoutines(ABC):
         return dill.loads(obj_in_bytes)
 
     def return_root_child(self, var_index: int):
+        """Returns the root child of the subsystem instance with `var_index` in its `dynamic_var_indices`.
+
+        Args:
+            var_index: index of one of the dynamical degrees of freedom (from :attr:`dynamic_var_indices`)
+
+        Returns:
+            Subsystem instance with `var_index` in its `dynamic_var_indices`.
+        """
         if (
             not self.hierarchical_diagonalization
             and var_index in self.dynamic_var_indices
@@ -327,7 +335,7 @@ class CircuitRoutines(ABC):
 
     def __setattr__(self, name, value):
         """Modifying the __setattr__ method to prevent creation of new attributes using
-        the _frozen attribute."""
+        the `_frozen` attribute."""
         if self._frozen and name in self._read_only_attributes:
             raise Exception(
                 f"{name} is a read only attribute. Please use configure method to change this property of Circuit/Subsystem instance."
@@ -463,7 +471,7 @@ class CircuitRoutines(ABC):
         setattr(self, f"_{param_name}", value)
 
         if self.is_purely_harmonic and self.ext_basis == "harmonic":
-            self.set_operators()
+            self._set_operators()
 
         # update all subsystem instances
         if self.hierarchical_diagonalization:
@@ -606,7 +614,7 @@ class CircuitRoutines(ABC):
                     f"Variable with index {var_index} is not an extended variable."
                 )
             self.discretized_phi_range[var_index] = phi_range
-        self.operators_by_name = self.set_operators()
+        self.operators_by_name = self._set_operators()
 
     def set_and_return(self, attr_name: str, value: Any) -> base.QubitBaseClass:
         """
@@ -647,7 +655,7 @@ class CircuitRoutines(ABC):
                 ext_basis.append(subsys.get_ext_basis())
             return ext_basis
 
-    def sync_parameters_with_parent(self):
+    def _sync_parameters_with_parent(self):
         """Method syncs the parameters of the subsystem with the parent instance."""
         for param_var in (
             self.external_fluxes
@@ -698,7 +706,7 @@ class CircuitRoutines(ABC):
         if index not in self.affected_subsystem_indices:
             self.affected_subsystem_indices.append(index)
 
-    def fetch_symbolic_hamiltonian(self):
+    def _fetch_symbolic_hamiltonian(self):
         """Method to fetch the symbolic hamiltonian of an instance."""
         if isinstance(self, circuit.Circuit):
             # when the Circuit instance is created from a symbolic Hamiltonian, or nothing is updated or changed
@@ -750,15 +758,15 @@ class CircuitRoutines(ABC):
         # if purely harmonic the circuit attributes should change
         if self._user_changed_parameter:
             if fetch_hamiltonian:
-                self.hamiltonian_symbolic = self.fetch_symbolic_hamiltonian()
-            self.potential_symbolic = self.generate_sym_potential()
+                self.hamiltonian_symbolic = self._fetch_symbolic_hamiltonian()
+            self.potential_symbolic = self._generate_sym_potential()
 
             if self.is_child:
                 self._frozen = False
                 self._find_and_set_sym_attrs()
                 self._configure()
 
-            self.generate_hamiltonian_sym_for_numerics()
+            self._generate_hamiltonian_sym_for_numerics()
             # copy the transformation matrix and normal_mode_freqs if self is a Circuit instance.
             if self.is_purely_harmonic:
                 if not self.is_child:
@@ -767,10 +775,10 @@ class CircuitRoutines(ABC):
                     )
                 self._diagonalize_purely_harmonic_hamiltonian()
 
-            self.operators_by_name = self.set_operators()
+            self.operators_by_name = self._set_operators()
             if self.hierarchical_diagonalization:
-                self.generate_subsystems(only_update_subsystems=True)
-                self.update_interactions()
+                self._generate_subsystems(only_update_subsystems=True)
+                self._update_interactions()
 
         if self.hierarchical_diagonalization:
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
@@ -938,13 +946,13 @@ class CircuitRoutines(ABC):
 
         return systems_sym, interaction_sym
 
-    def generate_subsystems(
+    def _generate_subsystems(
         self,
         only_update_subsystems: bool = False,
         subsys_dict: Optional[Dict[str, Any]] = None,
     ):
         """Generates the subsystems (child instances of Circuit) depending on the
-        attribute `self.system_hierarchy`"""
+        :attr:`system_hierarchy`"""
         hamiltonian = self.hamiltonian_symbolic
         systems_sym = []
         interaction_sym = []
@@ -1067,9 +1075,9 @@ class CircuitRoutines(ABC):
             f"The var_index={var_index} could not be identified with any subsystem."
         )
 
-    def update_interactions(self, recursive=False) -> None:
-        """Update interactions of the HilbertSpace object for the `Circuit` instance if
-        `hierarchical_diagonalization` is set to true."""
+    def _update_interactions(self, recursive=False) -> None:
+        """Update interactions of the HilbertSpace object for the :class:`Circuit` instance if
+        :attr:`hierarchical_diagonalization` is set to true."""
         self.hilbert_space.interaction_list = []
 
         # Adding interactions using the symbolic interaction term
@@ -1117,7 +1125,7 @@ class CircuitRoutines(ABC):
         if recursive:
             for subsys in self.subsystems:
                 if subsys.hierarchical_diagonalization:
-                    subsys.update_interactions(recursive=recursive)
+                    subsys._update_interactions(recursive=recursive)
 
     @check_sync_status_circuit
     def _evaluate_symbolic_expr(self, sym_expr, bare_esys=None) -> qt.Qobj:
@@ -1237,7 +1245,7 @@ class CircuitRoutines(ABC):
         return wrapper_func
 
     def _set_vars(self):
-        """Sets the attribute vars which is a dictionary containing all the Sympy Symbol
+        """Sets the attribute :attr:`vars` which is a dictionary containing all the Sympy Symbol
         objects for all the operators present in the circuit with no HD."""
         if not self.hierarchical_diagonalization:
             return self._set_vars_no_hd()
@@ -1375,7 +1383,7 @@ class CircuitRoutines(ABC):
         return round_symbolic_expr(hamiltonian.expand(), 16)
         # * ##########################################################################
 
-    def generate_sym_potential(self):
+    def _generate_sym_potential(self):
         # and bringing the potential into the same form as for the class Circuit
         potential_symbolic = 0 * sm.symbols("x")
         for term in self.hamiltonian_symbolic.as_ordered_terms():
@@ -1391,15 +1399,15 @@ class CircuitRoutines(ABC):
             )
         return potential_symbolic
 
-    def generate_hamiltonian_sym_for_numerics(
+    def _generate_hamiltonian_sym_for_numerics(
         self,
         hamiltonian: Optional[sm.Expr] = None,
         return_exprs=False,
     ):
         """Generates a symbolic expression which is ready for numerical evaluation
-        starting from the expression stored in the attribute hamiltonian_symbolic.
+        starting from the expression stored in the attribute :attr:`Circuit.hamiltonian_symbolic`.
 
-        Stores the result in the attribute _hamiltonian_sym_for_numerics.
+        Stores the result in the attribute :attr:`Circuit._hamiltonian_sym_for_numerics`.
         """
 
         hamiltonian = hamiltonian or (
@@ -1534,7 +1542,7 @@ class CircuitRoutines(ABC):
     def _sparsity_adaptive(
         self, matrix: Union[csc_matrix, ndarray]
     ) -> Union[csc_matrix, ndarray]:
-        """Changes the type of matrix depending on the attribute type_of_matrices.
+        """Changes the type of matrix depending on the attribute :attr:`type_of_matrices`.
 
         Parameters
         ----------
@@ -1584,7 +1592,7 @@ class CircuitRoutines(ABC):
     ) -> Union[csc_matrix, ndarray]:
         """Returns the bare operator exp(i*\theta*prefactor), without the kron product.
 
-        Needs the oscillator lengths to be set in the attribute, `osc_lengths`,
+        Needs the oscillator lengths to be set in the attribute, :attr:`osc_lengths`,
         when `ext_basis` is set to "harmonic".
         """
         var_index = get_trailing_number(var_sym.name)
@@ -1770,7 +1778,7 @@ class CircuitRoutines(ABC):
             Returns
             -------
                 Returns the operator <op_name>(corresponds to the name of the method "<op_name>_operator").
-                For `energy_esys=True`, n has dimensions of `truncated_dim` x `truncated_dim`.
+                For `energy_esys=True`, n has dimensions of :attr:`truncated_dim` x :attr:`truncated_dim`.
                 If an actual eigensystem is handed to `energy_sys`, then `n` has dimensions of m x m,
                 where m is the number of given eigenvectors.
             """
@@ -1934,13 +1942,6 @@ class CircuitRoutines(ABC):
     # #################################################################
     # ############### Functions for parameter queries #################
     # #################################################################
-    def get_params(self) -> List[float]:
-        """Method to get the circuit parameters set for all the branches."""
-        params = []
-        for param in self.symbolic_params:
-            params.append(getattr(self, param.name))
-        return params
-
     def offset_free_charge_values(self) -> List[float]:
         """Returns all the offset charges set using the circuit attributes for each of
         the periodic degree of freedom."""
@@ -1949,12 +1950,12 @@ class CircuitRoutines(ABC):
             for charge_var in self.offset_charges + self.free_charges
         ]
 
-    def set_operators(self) -> Dict[str, Callable]:
+    def _set_operators(self) -> Dict[str, Callable]:
         """Creates the operator methods `<name>_operator` for the circuit."""
 
         if self.hierarchical_diagonalization:
             for subsys in self.subsystems:
-                subsys.operators_by_name = subsys.set_operators()
+                subsys.operators_by_name = subsys._set_operators()
 
         op_func_by_name = self._generate_operator_methods()
         for op_name, op_func in op_func_by_name.items():
@@ -2037,7 +2038,7 @@ class CircuitRoutines(ABC):
         ----------
         operator_name:
             Name of a sympy Symbol object which should be one among the symbols in the
-            attribute vars
+            attribute :attr:`vars`
         power:
             If asking for an operator raised to a certain power. Which wen set to None
             defaults to 1
@@ -2554,6 +2555,7 @@ class CircuitRoutines(ABC):
         return evals, evecs
 
     def generate_bare_eigensys(self):
+        """Returns the eigensystem of the Circuit, and all the subsystems involved in the bare basis."""
         if not self.hierarchical_diagonalization:
             return self.eigensys(evals_count=self.truncated_dim)
 
@@ -2566,6 +2568,7 @@ class CircuitRoutines(ABC):
         return self.eigensys(evals_count=self.truncated_dim), subsys_eigensys
 
     def set_bare_eigensys(self, eigensys):
+        """Sets the bare eigensystem of the Circuit in the lookup table of :attr:`hilbert_space` attribute, if hierarchical diagonalization is used."""
         if not self.hierarchical_diagonalization:
             return None
         bare_evals = np.empty((len(self.subsystems),), dtype=object)

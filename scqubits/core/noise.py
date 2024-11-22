@@ -137,9 +137,9 @@ class NoisySystem(ABC):
         r"""Show plots of coherence for various channels supported by the qubit as they
         vary as a function of a changing parameter.
 
-        For example, assuming `qubit` is a qubit object with `flux` being one of its
+        For example, assuming `qubit` is a qubit object with :attr:`flux` being one of its
         parameters, one can see how coherence due to various noise channels vary as
-        the `flux` changes::
+        the :attr:`flux` changes::
 
             qubit.plot_coherence_vs_paramvals(param_name='flux',
                                               param_vals=np.linspace(-0.5, 0.5, 100),
@@ -359,8 +359,8 @@ class NoisySystem(ABC):
         noise. By default all the depolarizing noise channels given by the method
         `effective_noise_channels` are included.
 
-        For example, assuming `qubit` is a qubit object with `flux` being one of its
-        parameters, one can see how the effective :math:`T_1` varies as the `flux`
+        For example, assuming `qubit` is a qubit object with :attr:`flux` being one of its
+        parameters, one can see how the effective :math:`T_1` varies as the :attr:`flux`
         changes::
 
             qubit.plot_t1_effective_vs_paramvals(param_name='flux',
@@ -514,8 +514,8 @@ class NoisySystem(ABC):
         default all noise channels given by the method `effective_noise_channels` are
         included.
 
-        For example, assuming `qubit` is a qubit object with `flux` being one of its
-        parameters, one can see how the effective :math:`T_2` varies as the `flux`
+        For example, assuming `qubit` is a qubit object with :attr:`flux` being one of its
+        parameters, one can see how the effective :math:`T_2` varies as the :attr:`flux`
         changes::
 
             qubit.plot_t2_effective_vs_paramvals(param_name='flux',
@@ -718,9 +718,9 @@ class NoisySystem(ABC):
 
     def t1_effective(
         self,
-        noise_channels: Union[str, List[str], List[Tuple[str, Dict]]] = None,
-        common_noise_options: Dict = None,
-        esys: Tuple[ndarray, ndarray] = None,
+        noise_channels: Optional[Union[str, List[str], List[Tuple[str, Dict]]]] = None,
+        common_noise_options: Optional[Dict] = None,
+        esys: Optional[Tuple[ndarray, ndarray]] = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
@@ -822,7 +822,7 @@ class NoisySystem(ABC):
         self,
         noise_channels: Union[str, List[str], List[Tuple[str, Dict]]] = None,
         common_noise_options: Dict = None,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: Optional[Tuple[ndarray, ndarray]] = None,
         get_rate: bool = False,
     ) -> float:
         r"""Calculate the effective :math:`T_2` time (or rate).
@@ -935,7 +935,7 @@ class NoisySystem(ABC):
         i: int,
         j: int,
         noise_op: Union[ndarray, csc_matrix],
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: Optional[Tuple[ndarray, ndarray]] = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
@@ -1016,7 +1016,7 @@ class NoisySystem(ABC):
         A_noise: float = NOISE_PARAMS["A_flux"],
         i: int = 0,
         j: int = 1,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: Optional[Tuple[ndarray, ndarray]] = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
@@ -1063,7 +1063,7 @@ class NoisySystem(ABC):
         A_noise: float = NOISE_PARAMS["A_cc"],
         i: int = 0,
         j: int = 1,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: Optional[Tuple[ndarray, ndarray]] = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
@@ -1110,7 +1110,7 @@ class NoisySystem(ABC):
         A_noise: float = NOISE_PARAMS["A_ng"],
         i: int = 0,
         j: int = 1,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: Optional[Tuple[ndarray, ndarray]] = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
@@ -1160,7 +1160,7 @@ class NoisySystem(ABC):
         spectral_density: Callable,
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: Optional[Tuple[ndarray, ndarray]] = None,
         get_rate: bool = False,
     ) -> float:
         r"""Calculate the transition time (or rate) using Fermi's Golden Rule due to a
@@ -1258,10 +1258,10 @@ class NoisySystem(ABC):
         self,
         i: int = 1,
         j: int = 0,
-        Q_cap: Union[float, Callable] = None,
+        Q_cap: Optional[Union[float, Callable]] = None,
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: Optional[Tuple[ndarray, ndarray]] = None,
         get_rate: bool = False,
         noise_op: Optional[Union[ndarray, csc_matrix, qt.Qobj]] = None,
         branch_params: Optional[dict] = None,
@@ -1356,7 +1356,7 @@ class NoisySystem(ABC):
         Z: Union[float, Callable] = NOISE_PARAMS["R_0"],
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: Optional[Tuple[ndarray, ndarray]] = None,
         get_rate: bool = False,
         noise_op: Optional[Union[ndarray, csc_matrix, qt.Qobj]] = None,
     ) -> float:
@@ -1435,7 +1435,7 @@ class NoisySystem(ABC):
         Z: Union[complex, float, Callable] = NOISE_PARAMS["R_0"],
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: Optional[Tuple[ndarray, ndarray]] = None,
         get_rate: bool = False,
         noise_op_method: Optional[Callable] = None,
     ) -> float:
@@ -1517,7 +1517,7 @@ class NoisySystem(ABC):
         Q_ind: Union[float, Callable] = None,
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: Optional[Tuple[ndarray, ndarray]] = None,
         get_rate: bool = False,
         noise_op: Optional[Union[ndarray, csc_matrix, qt.Qobj]] = None,
         branch_params: Optional[dict] = None,
@@ -1621,12 +1621,12 @@ class NoisySystem(ABC):
         self,
         i: int = 1,
         j: int = 0,
-        Y_qp: Union[float, Callable] = None,
+        Y_qp: Optional[Union[float, Callable]] = None,
         x_qp: float = NOISE_PARAMS["x_qp"],
         T: float = NOISE_PARAMS["T"],
         Delta: float = NOISE_PARAMS["Delta"],
         total: bool = True,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: Optional[Tuple[ndarray, ndarray]] = None,
         get_rate: bool = False,
         noise_op: Optional[Union[ndarray, csc_matrix, qt.Qobj]] = None,
     ) -> float:

@@ -460,7 +460,7 @@ class QubitBaseClass(QuantumSystem, ABC):
     ) -> Union[ndarray, csc_matrix]:
         """Processes the operator `native_op`: either hand back `native_op` unchanged,
         or transform it into the energy eigenbasis. (Native basis refers to the basis
-        used internally by each qubit, e.g., charge basis in the case of `Transmon`.
+        used internally by each qubit, e.g., charge basis in the case of :class:`Transmon`.
 
         Parameters
         ----------
@@ -623,7 +623,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         num_cpus: Optional[int] = None,
     ) -> SpectrumData:
         """Calculates eigenvalues/eigenstates for a varying system parameter, given an
-        array of parameter values. Returns a `SpectrumData` object with
+        array of parameter values. Returns a :class:`SpectrumData` object with
         `energy_table[n]` containing eigenvalues calculated for parameter value
         `param_vals[n]`.
 
@@ -783,7 +783,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         num_cpus: Optional[int] = None,
     ) -> SpectrumData:
         """Calculates eigenvalues/eigenstates for a varying system parameter, given an
-        array of parameter values. Returns a `SpectrumData` object with
+        array of parameter values. Returns a :class:`SpectrumData` object with
         `energy_table[n]` containing eigenvalues calculated for parameter value
         `param_vals[n]`.
 
@@ -877,7 +877,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         num_cpus: Optional[int] = None,
     ) -> SpectrumData:
         """Calculates matrix elements for a varying system parameter, given an array of
-        parameter values. Returns a `SpectrumData` object containing matrix element
+        parameter values. Returns a :class:`SpectrumData` object containing matrix element
         data, eigenvalue data, and eigenstate data..
 
         Parameters

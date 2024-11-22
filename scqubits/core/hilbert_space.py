@@ -372,7 +372,7 @@ class HilbertSpace(
     interaction_list:
         (optional) typically, interaction terms are added one by one by means of the
         `add_interaction` method. Alternatively, a list of interaction term objects
-        can be supplied here upon initialization of a `HilbertSpace` instance.
+        can be supplied here upon initialization of a :class:`HilbertSpace` instance.
     esys_method:
         method for esys diagonalization, callable or string representation
     esys_method_options:
@@ -1110,7 +1110,7 @@ class HilbertSpace(
     def add_interaction(
         self, check_validity=True, id_str: Optional[str] = None, **kwargs
     ) -> None:
-        """Specify the interaction between subsystems making up the `HilbertSpace`
+        """Specify the interaction between subsystems making up the :class:`HilbertSpace`
         instance. `add_interaction(...)` offers three different interfaces:
 
         * Simple interface for operator products
@@ -1157,7 +1157,7 @@ class HilbertSpace(
             optional bool indicating whether to check the validity of the interaction;
             switch this off for speed if you are sure the interaction is valid
         id_str:
-            optional string by which this instance can be referred to in `HilbertSpace`
+            optional string by which this instance can be referred to in :class:`HilbertSpace`
             and `ParameterSweep`. If not provided, an id is auto-generated.
         """
         if "expr" in kwargs:

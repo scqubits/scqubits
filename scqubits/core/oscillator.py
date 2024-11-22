@@ -86,7 +86,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
-        optional string by which this instance can be referred to in `HilbertSpace`
+        optional string by which this instance can be referred to in :class:`HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
 
@@ -204,7 +204,7 @@ class KerrOscillator(Oscillator, serializers.Serializable):
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
-        optional string by which this instance can be referred to in `HilbertSpace`
+        optional string by which this instance can be referred to in :class:`HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
 

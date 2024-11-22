@@ -238,7 +238,7 @@ class SpectrumData(DataStore):
         **kwargs,
     ) -> "Tuple[Figure, Axes]":
         """Plots eigenvalues of as a function of one parameter, as stored in
-        `SpectrumData` object.
+        :class:`SpectrumData` object.
 
         Parameters
         ----------

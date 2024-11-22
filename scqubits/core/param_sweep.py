@@ -233,7 +233,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
 
         Returns
         -------
-            List of `SpectrumData` objects with bare eigensystem data, one per subsystem
+            List of :class:`SpectrumData` objects with bare eigensystem data, one per subsystem
         """
         multi_index = self._current_param_indices
         sweep_param_indices = self.get_sweep_indices(multi_index)  # type:ignore
@@ -265,7 +265,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
 
         Returns
         -------
-            `SpectrumData` object with bare eigensystem data
+            :class:`SpectrumData` object with bare eigensystem data
         """
         multi_index = self._current_param_indices
         sweep_param_indices = self.get_sweep_indices(multi_index)  # type:ignore
@@ -727,7 +727,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
             can either be specified as a tuple referring to a bare product state,
             or as an integer representing the dressed state index. For bare product
             states, the required tuple has as many entries as the underlying
-            `HilbertSpace` object has subsystems. (If `subsystems` is given, then the
+            :class:`HilbertSpace` object has subsystems. (If `subsystems` is given, then the
             tuple may be reduced to entries for just these subsystems; other subsystems
             are given a "0" entry automatically.) The dressed state corresponding to the
             given bare product state is determined by considerations of overlaps.
@@ -904,17 +904,17 @@ class ParameterSweep(  # type:ignore
     ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable
 ):
     """Create multi-dimensional parameter sweeps for a quantum system described by a
-    `HilbertSpace` object.
+    :class:`HilbertSpace` object.
 
     Parameters
     ----------
     hilbertspace:
-        `HilbertSpace` object describing the quantum system of interest
+        :class:`HilbertSpace` object describing the quantum system of interest
     paramvals_by_name:
         Dictionary which specifies a parameter name for each set of parameter values,
         and the set of values to be used in the sweep.
     update_hilbertspace:
-        function that updates the associated `hilbertspace` object with a given
+        function that updates the associated :class:`HilbertSpace` object with a given
         set of parameters; signature is either
         `update_hilbertspace(paramval1, paramval2, ...)`
         or
@@ -923,7 +923,7 @@ class ParameterSweep(  # type:ignore
         dict-like access to subsystems and interaction terms
     evals_count:
         number of dressed eigenvalues/eigenstates to keep. (The number of bare
-        eigenvalues/eigenstates is determined for each subsystem by `truncated_dim`.)
+        eigenvalues/eigenstates is determined for each subsystem by :attr:`truncated_dim`.)
         (default: 20)
     subsys_update_info:
         To speed up calculations, the user may provide information that specifies which

@@ -90,10 +90,7 @@ class Node:
         return result
 
     def is_ground(self) -> bool:
-        """Returns a bool if the node is a ground node.
-
-        It is ground if the id is set to 0.
-        """
+        """Returns a bool if the node is a ground node (Node with index set to 0)."""
         return True if self.index == 0 else False
 
     def __deepcopy__(self, memo):
@@ -110,10 +107,12 @@ class Branch:
 
     Parameters
     ----------
-    n_i, n_f:
-        initial and final nodes connected by this branch;
+    n_i:
+        initial `Node` of the branch
+    n_f:
+        final `Node` of the branch
     branch_type:
-        is the type of this Branch, example `"C"`,`"JJ"` or `"L"`
+        is the type of this Branch, example `"C"`, `"JJ"` or `"L"`
     parameters:
         list of parameters for the branch, namely for
         capacitance: `[EC]`;
@@ -124,9 +123,7 @@ class Branch:
 
     Examples
     --------
-    capacitive branch::
-        Branch("C", Node(1, 0), Node(2, 0))
-    is a capacitive branch connecting the nodes with indices 0 and 1.
+    `Branch("C", Node(1, 0), Node(2, 0))` is a capacitive branch connecting the nodes with indices 0 and 1.
     """
 
     def __init__(
@@ -143,7 +140,7 @@ class Branch:
         self.index = index
         # store info of current branch inside the provided nodes
         # setting the parameters if it is provided
-        self.set_parameters(parameters)
+        self._set_parameters(parameters)
         self.aux_params = aux_params
         self.nodes[0].branches.append(self)
         self.nodes[1].branches.append(self)
@@ -163,7 +160,7 @@ class Branch:
     def __repr__(self) -> str:
         return f"Branch({self.type}, {self.nodes[0].index}, {self.nodes[1].index}, index: {self.index})"
 
-    def set_parameters(self, parameters) -> None:
+    def _set_parameters(self, parameters) -> None:
         if self.type in ["C", "L"]:
             self.parameters = {f"E{self.type}": parameters[0]}
         elif "JJ" in self.type:
@@ -232,11 +229,11 @@ class Coupler:
     ):
         self.branches = (branch1, branch2)
         self.type = coupling_type
-        self.set_parameters(parameters)
+        self._set_parameters(parameters)
         self.aux_params = aux_params
         self.index = index
 
-    def set_parameters(self, parameters) -> None:
+    def _set_parameters(self, parameters) -> None:
         if self.type in ["ML"]:
             self.parameters = {f"E{self.type}": parameters[0]}
 
@@ -264,9 +261,7 @@ def make_coupler(
     params_dict = {}
     params = [process_param(param) for param in params]
     if coupler_type == "ML":
-        params_dict[sm.symbols("EML")] = (
-            params[0][0] or params[0][1]
-        )
+        params_dict[sm.symbols("EML")] = params[0][0] or params[0][1]
         for idx in [idx1, idx2]:
             if branches_list[idx].type != "L":
                 raise ValueError(
@@ -310,17 +305,11 @@ def make_branch(
                 param[0] or param[1]
             )
 
-        params_dict[sm.symbols("EC")] = (
-            params[-1][0] or params[-1][1]
-        )
+        params_dict[sm.symbols("EC")] = params[-1][0] or params[-1][1]
     if branch_type == "C":
-        params_dict[sm.symbols("EC")] = (
-            params[-1][0] or params[-1][1]
-        )
+        params_dict[sm.symbols("EC")] = params[-1][0] or params[-1][1]
     elif branch_type == "L":
-        params_dict[sm.symbols("EL")] = (
-            params[-1][0] or params[-1][1]
-        )
+        params_dict[sm.symbols("EL")] = params[-1][0] or params[-1][1]
 
     # return idx1, idx2, branch_type, list(params_dict.keys()), str(_branch_count), process_param(aux_params)
     is_grounded = True if any([node.is_ground() for node in nodes_list]) else False
@@ -438,7 +427,7 @@ class SymbolicCircuit(serializers.Serializable):
         if initiate_sym_calc:
             self.configure()
 
-    def is_any_branch_parameter_symbolic(self):
+    def _is_any_branch_parameter_symbolic(self):
         return True if len(self.symbolic_params) > 0 else False
 
     @staticmethod
@@ -486,7 +475,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         return orthogonal_evecs
 
-    def purely_harmonic_transformation(self) -> Tuple[ndarray, ndarray]:
+    def _purely_harmonic_transformation(self) -> Tuple[ndarray, ndarray]:
         trans_mat, _ = self.variable_transformation_matrix()
         c_mat = (
             trans_mat.T @ self._capacitance_matrix(substitute_params=True) @ trans_mat
@@ -569,7 +558,7 @@ class SymbolicCircuit(serializers.Serializable):
             (
                 self.normal_mode_freqs,
                 transformation_matrix_normal_mode,
-            ) = self.purely_harmonic_transformation()
+            ) = self._purely_harmonic_transformation()
             if transformation_matrix is None:
                 transformation_matrix = transformation_matrix_normal_mode
 
@@ -655,7 +644,7 @@ class SymbolicCircuit(serializers.Serializable):
         # Replacing energies with capacitances if any branch parameters are symbolic
         L = self._lagrangian_symbolic.expand()
         L_old = self.lagrangian_node_vars
-        if self.is_any_branch_parameter_symbolic():
+        if self._is_any_branch_parameter_symbolic():
             # finding the unique capacitances
             uniq_capacitances = []
             for c, b in enumerate(
@@ -730,6 +719,7 @@ class SymbolicCircuit(serializers.Serializable):
         Constructs the instance of Circuit from an input string. Here is an example of
         an input string that is used to initiate an object of the
         class `SymbolicCircuit`::
+
             #zero-pi.yaml
             nodes    : 4
             # zero-pi
@@ -1292,7 +1282,7 @@ class SymbolicCircuit(serializers.Serializable):
             (
                 self.normal_mode_freqs,
                 self.transformation_matrix,
-            ) = self.purely_harmonic_transformation()
+            ) = self._purely_harmonic_transformation()
             self.configure()
 
     def _junction_terms(self):
@@ -1397,7 +1387,7 @@ class SymbolicCircuit(serializers.Serializable):
             num_nodes = len(self.nodes) - self.is_grounded
         else:
             num_nodes = len(self.nodes) - self.is_grounded + 1
-        if not self.is_any_branch_parameter_symbolic() or substitute_params:
+        if not self._is_any_branch_parameter_symbolic() or substitute_params:
             L_mat = np.zeros([num_nodes, num_nodes])
         else:
             L_mat = sympy.zeros(num_nodes)
@@ -1414,7 +1404,7 @@ class SymbolicCircuit(serializers.Serializable):
                         branch.nodes[0].index - 1, branch.nodes[1].index - 1
                     ] += -inductance
 
-        if not self.is_any_branch_parameter_symbolic() or substitute_params:
+        if not self._is_any_branch_parameter_symbolic() or substitute_params:
             L_mat = L_mat + L_mat.T - np.diag(L_mat.diagonal())
         else:
             L_mat = L_mat + L_mat.T - sympy.diag(*L_mat.diagonal())
@@ -1453,7 +1443,7 @@ class SymbolicCircuit(serializers.Serializable):
             num_nodes = len(self.nodes) - self.is_grounded
         else:
             num_nodes = len(self.nodes) - self.is_grounded + 1
-        if not self.is_any_branch_parameter_symbolic() or substitute_params:
+        if not self._is_any_branch_parameter_symbolic() or substitute_params:
             C_mat = np.zeros([num_nodes, num_nodes])
         else:
             C_mat = sympy.zeros(num_nodes)
@@ -1474,7 +1464,7 @@ class SymbolicCircuit(serializers.Serializable):
                         branch.nodes[0].index - 1, branch.nodes[1].index - 1
                     ] += -1 / (capacitance * 8)
 
-        if not self.is_any_branch_parameter_symbolic() or substitute_params:
+        if not self._is_any_branch_parameter_symbolic() or substitute_params:
             C_mat = C_mat + C_mat.T - np.diag(C_mat.diagonal())
         else:
             C_mat = C_mat + C_mat.T - sympy.diag(*C_mat.diagonal())
@@ -1545,7 +1535,7 @@ class SymbolicCircuit(serializers.Serializable):
             _description_
         """
         num_branches = len(self.branches)
-        if not self.is_any_branch_parameter_symbolic() or substitute_params:
+        if not self._is_any_branch_parameter_symbolic() or substitute_params:
             L_mat = np.zeros([num_branches, num_branches])
         else:
             L_mat = sympy.zeros(num_branches)
@@ -1569,7 +1559,7 @@ class SymbolicCircuit(serializers.Serializable):
         L_mat = np.delete(L_mat, irrelevant_indices, axis=0)
         L_mat = np.delete(L_mat, irrelevant_indices, axis=1)
         if return_inverse:
-            if substitute_params or not self.is_any_branch_parameter_symbolic():
+            if substitute_params or not self._is_any_branch_parameter_symbolic():
                 return np.linalg.inv(L_mat)
             else:
                 # return sympy matrix inverse
@@ -2104,7 +2094,7 @@ class SymbolicCircuit(serializers.Serializable):
                 for i in self.var_categories["frozen"] + self.var_categories["sigma"]
             ]
             # generating the C_mat_θ by inverting the capacitance matrix
-            if self.is_any_branch_parameter_symbolic() and not substitute_params:
+            if self._is_any_branch_parameter_symbolic() and not substitute_params:
                 C_mat_θ = (
                     transformation_matrix.T
                     * self._capacitance_matrix()
@@ -2228,7 +2218,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         # C_terms = self._C_terms()
         C_mat = self._capacitance_matrix()
-        if not self.is_any_branch_parameter_symbolic():
+        if not self._is_any_branch_parameter_symbolic():
             # in terms of node variables
             C_terms_φ = C_mat.dot(φ_dot_vars).dot(φ_dot_vars) * 0.5
             # in terms of new variables
@@ -2311,7 +2301,7 @@ class SymbolicCircuit(serializers.Serializable):
             i - 1 for i in self.var_categories["frozen"] + self.var_categories["sigma"]
         ]
         # generating the C_mat_θ by inverting the capacitance matrix
-        if self.is_any_branch_parameter_symbolic() and not substitute_params:
+        if self._is_any_branch_parameter_symbolic() and not substitute_params:
             C_mat_θ = (
                 transformation_matrix.T
                 * self._capacitance_matrix()
@@ -2350,7 +2340,7 @@ class SymbolicCircuit(serializers.Serializable):
         # matrix already takes care of defining the appropriate momenta in the new variables. So, the above variables should be
         # in the node variable order.
         # generating the kinetic energy terms for the Hamiltonian
-        if not self.is_any_branch_parameter_symbolic():
+        if not self._is_any_branch_parameter_symbolic():
             C_terms_new = (
                 C_mat_θ.dot(p_φ_vars).dot(p_φ_vars) * 0.5
             )  # in terms of new variables

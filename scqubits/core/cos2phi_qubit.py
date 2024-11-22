@@ -520,7 +520,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
-        optional string by which this instance can be referred to in `HilbertSpace`
+        optional string by which this instance can be referred to in :class:`HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     esys_method:
         method for esys diagonalization, callable or string representation
@@ -1265,8 +1265,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
             Hamiltonian in chosen basis as csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, the Hamiltonian has dimensions of `truncated_dim`
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, Hamiltonian has
+            unless `energy_esys` is specified, the Hamiltonian has dimensions of :attr:`truncated_dim`
+            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, Hamiltonian has
             dimensions of m x m, for m given eigenvectors.
         """
         phi_osc_mat = self._kron3(
@@ -1648,7 +1648,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         -------
             Operator in chosen basis. If harmonic oscillator basis chosen, operator
             returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
             basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
             and is returned as an ndarray.
@@ -1676,7 +1676,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         -------
             Operator in chosen basis. If harmonic oscillator basis chosen, operator
             returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
             basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
             and is returned as an ndarray.
@@ -1704,7 +1704,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         -------
             Operator in chosen basis. If harmonic oscillator basis chosen, operator
             returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
             basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
             and is returned as an ndarray.
@@ -1734,7 +1734,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         -------
             Operator in chosen basis. If harmonic oscillator basis chosen, operator
             returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
             basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
             and is returned as an ndarray.
@@ -1764,7 +1764,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         -------
             Operator in chosen basis. If harmonic oscillator basis chosen, operator
             returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
             basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
             and is returned as an ndarray.
@@ -1816,7 +1816,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         -------
             Operator in chosen basis. If harmonic oscillator basis chosen, operator
             returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
             basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
             and is returned as an ndarray.
@@ -1861,7 +1861,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         -------
             Operator in chosen basis. If harmonic oscillator basis chosen, operator
             returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
             basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
             and is returned as an ndarray.

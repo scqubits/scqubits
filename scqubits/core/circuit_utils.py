@@ -405,7 +405,7 @@ def hierarchical_diagonalization_func_factory(symbol_name: str) -> Callable:
         Returns
         -------
             Returns the operator <op_name>(corresponds to the name of the method "<op_name>_operator").
-            For `energy_esys=True`, n has dimensions of `truncated_dim` x `truncated_dim`.
+            For `energy_esys=True`, n has dimensions of :attr:`truncated_dim` x :attr:`truncated_dim`.
             If an actual eigensystem is handed to `energy_sys`, then `n` has dimensions of m x m,
             where m is the number of given eigenvectors.
         """
@@ -451,7 +451,7 @@ def operator_func_factory(
         Returns
         -------
             Returns the operator <op_name>(corresponds to the name of the method "<op_name>_operator").
-            For `energy_esys=True`, n has dimensions of `truncated_dim` x `truncated_dim`.
+            For `energy_esys=True`, n has dimensions of :attr:`truncated_dim` x :attr:`truncated_dim`.
             If an actual eigensystem is handed to `energy_sys`, then `n` has dimensions of m x m,
             where m is the number of given eigenvectors.
         """
