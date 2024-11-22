@@ -1043,7 +1043,7 @@ class ParameterSweep(  # type:ignore
 
         self._out_of_sync = False
         self.reset_preslicing()
-        
+
         self._check_subsys_id_strs()
         self._check_subsys_update_info()
 
@@ -1066,34 +1066,38 @@ class ParameterSweep(  # type:ignore
 
         if autorun:
             self.run()
-            
+
     def _check_subsys_id_strs(self) -> None:
         """
-        Repeated id_str are not allowed in ParameterSweep. 
-        We now uses id_str to find the corresponding subsystem listed in 
+        Repeated id_str are not allowed in ParameterSweep.
+        We now uses id_str to find the corresponding subsystem listed in
         subsys_update_info.
         """
         id_strs = [subsystem.id_str for subsystem in self.hilbertspace.subsystem_list]
         if len(id_strs) != len(set(id_strs)):
             raise ValueError("Repeated id_str are not allowed in ParameterSweep.")
-    
+
     def _check_subsys_update_info(self) -> None:
         """
-        subsys_update_info is a dictionary with parameter names as keys and 
+        subsys_update_info is a dictionary with parameter names as keys and
         corresponding subsystem lists as values.
         """
         param_names = self._parameters.names
         id_strs = [subsystem.id_str for subsystem in self.hilbertspace.subsystem_list]
-        
+
         for parameter_name, subsystems in self._subsys_update_info.items():
             if not all(subsystem.id_str in id_strs for subsystem in subsystems):
-                raise ValueError(f"Subsystems specified in "
-                                 f"subsys_update_info['{parameter_name}'] are not "
-                                 "found in the provided HilbertSpace object.")
+                raise ValueError(
+                    f"Subsystems specified in "
+                    f"subsys_update_info['{parameter_name}'] are not "
+                    "found in the provided HilbertSpace object."
+                )
             if not parameter_name in param_names:
-                raise ValueError(f"Parameter name '{parameter_name}' in "
-                                 "subsys_update_info is not found in the "
-                                 "parameter list.")
+                raise ValueError(
+                    f"Parameter name '{parameter_name}' in "
+                    "subsys_update_info is not found in the "
+                    "parameter list."
+                )
 
     @property
     def tqdm_disabled(self) -> bool:
@@ -1248,7 +1252,8 @@ class ParameterSweep(  # type:ignore
         updating_parameters = [
             name
             for name in self._subsys_update_info.keys()
-            if subsystem.id_str in [subsys.id_str for subsys in self._subsys_update_info[name]]
+            if subsystem.id_str
+            in [subsys.id_str for subsys in self._subsys_update_info[name]]
         ]
         return list(set(self._parameters.names) - set(updating_parameters))
 
