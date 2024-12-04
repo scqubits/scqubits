@@ -230,7 +230,9 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def exp_i_phi_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+        self,
+        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
+        harmonic=1,
     ) -> ndarray:
         """
         Returns operator :math:`e^{i\\varphi}` in the charge or eigenenergy basis.
@@ -250,10 +252,10 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`e^{i\\varphi}` has dimensions of m x m,
             for m given eigenvectors.
         """
-        dimension = self.hilbertdim()
-        entries = np.repeat(1.0, dimension - 1)
-        exp_op = np.diag(entries, -1)
-        return self.process_op(native_op=exp_op, energy_esys=energy_esys)
+        dim = self.hilbertdim()
+        off_diag_elements = np.ones(dim - 1 - (harmonic - 1))
+        e_iphi_matrix = np.diag(off_diag_elements, k=-1 - (harmonic - 1))
+        return self.process_op(native_op=e_iphi_matrix, energy_esys=energy_esys)
 
     def cos_phi_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
@@ -833,3 +835,120 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
                 )
             dispersion_list.append(list_ij)
         return specdata_flux_0.energy_table, np.asarray(dispersion_list)  # type:ignore
+
+
+class TransmonHigherHarmonics(Transmon, serializers.Serializable, NoisySystem):
+    r"""Class for the transmon including higher-harmonic contributions. The Hamiltonian
+    is represented in dense form in the number basis,
+    :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2-\sum_{k=1}^{k_{\rm cut}}
+    \frac{E_\text{Jk}}{2}(|n\rangle\langle n+k|+\text{h.c.})`.
+
+    Initialize with, for example::
+
+        Transmon(EJ=1.0, EC=2.0, ng=0.2, ncut=30, EJs_higher=[0.2, -0.001])
+
+    to include `EJ2` and `EJ3` higher harmonic contributions (in addition to the normal
+    `EJ1=EJ` contribution)
+
+    Parameters
+    ----------
+    EJ:
+       Josephson energy
+    EC:
+        charging energy
+    ng:
+        offset charge
+    ncut:
+        charge basis cutoff, `n = -ncut, ..., ncut`
+    EJs_higher:
+        list of energies of higher harmonic contributions to include
+    truncated_dim:
+        desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
+    esys_method:
+        method for esys diagonalization, callable or string representation
+    esys_method_options:
+        dictionary with esys diagonalization options
+    evals_method:
+        method for evals diagonalization, callable or string representation
+    evals_method_options:
+        dictionary with evals diagonalization options
+    """
+
+    EJs_higher = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+
+    def __init__(
+        self,
+        EJ: float,
+        EC: float,
+        ng: float,
+        ncut: int,
+        EJs_higher: ndarray,
+        truncated_dim: int = 6,
+        id_str: Optional[str] = None,
+        evals_method: Union[Callable, str, None] = None,
+        evals_method_options: Union[dict, None] = None,
+        esys_method: Union[Callable, str, None] = None,
+        esys_method_options: Union[dict, None] = None,
+    ) -> None:
+        super().__init__(
+            EJ=EJ,
+            EC=EC,
+            ng=ng,
+            ncut=ncut,
+            truncated_dim=truncated_dim,
+            id_str=id_str,
+            evals_method=evals_method,
+            evals_method_options=evals_method_options,
+            esys_method=esys_method,
+            esys_method_options=esys_method_options,
+        )
+        self.EJs_higher = EJs_higher
+
+    @staticmethod
+    def default_params() -> Dict[str, Any]:
+        return super().default_params() | {
+            "EJs_higher": np.array(
+                [
+                    0.0,
+                ]
+            )
+        }
+
+    def hamiltonian(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
+        """
+        Returns Hamiltonian in the charge or eigenenergy basis.
+
+        Parameters
+        ----------
+        energy_esys:
+            If `False` (default), returns Hamiltonian in the charge basis.
+            If `True`, the energy eigenspectrum is computed; returns Hamiltonian in the energy eigenbasis.
+            If `energy_esys = esys`, where `esys` is a tuple containing two ndarrays (eigenvalues and energy
+            eigenvectors); then return the Hamiltonian in the energy eigenbasis, do not recalculate eigenspectrum.
+
+        Returns
+        -------
+            Hamiltonian in chosen basis as ndarray. For `energy_esys=False`, the Hamiltonian has dimensions of
+            `truncated_dim` x `truncated_dim`. For `energy_sys=esys`, the Hamiltonian has dimensions of m x m,
+            for m given eigenvectors.
+        """
+        hamiltonian_mat = super().hamiltonian(energy_esys=energy_esys)
+        for ind_idx, EJ_higher in enumerate(self.EJs_higher):
+            exp_i_harm_phi = self.exp_i_phi_operator(
+                energy_esys=energy_esys, harmonic=ind_idx + 2
+            )
+            hamiltonian_mat += -0.5 * EJ_higher * (exp_i_harm_phi + exp_i_harm_phi.T)
+        return self.process_hamiltonian(
+            native_hamiltonian=hamiltonian_mat, energy_esys=energy_esys
+        )
+
+    def _esys_calc(self, evals_count: int):
+        return base.QubitBaseClass1d._esys_calc(self, evals_count)
+
+    def _evals_calc(self, evals_count: int):
+        return base.QubitBaseClass1d._evals_calc(self, evals_count)
