@@ -20,9 +20,7 @@ TargetType = TypeVar("TargetType")
 
 
 class ReadOnlyProperty(Generic[TargetType]):
-    """
-    Descriptor for read-only properties (stored in xxx._name)
-    """
+    """Descriptor for read-only properties (stored in xxx._name)"""
 
     def __init__(self, target_type: Type[TargetType]):
         super().__init__()
@@ -40,10 +38,9 @@ class ReadOnlyProperty(Generic[TargetType]):
 
 
 class WatchedProperty(Generic[TargetType]):
-    """
-    Descriptor class for properties that are to be monitored for changes. Upon change
+    """Descriptor class for properties that are to be monitored for changes. Upon change
     of the value, the instance class invokes its `broadcast()` method to send the
-    appropriate event notification to CentralDispatch
+    appropriate event notification to CentralDispatch.
 
     Parameters
     ----------
