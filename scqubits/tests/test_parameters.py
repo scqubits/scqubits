@@ -51,6 +51,6 @@ def tst_name():
     assert tst.names[0] == "p1"
 
 
-def test_paravals_list():
+def test_paramvals_list():
     tst = Parameters(paramvals_by_name)
     assert tst.paramvals_list == [paramvals1, paramvals2]
