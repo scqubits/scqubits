@@ -1083,7 +1083,7 @@ class ParameterSweep(  # type:ignore
         self._lookup_exists = True
         if self._deepcopy:
             instance_str = dill.dumps(self.hilbertspace)
-            stored_hilbertspace = dill.loads(instance_str)
+            stored_hilbertspace = self._hilbertspace
             self._hilbertspace = dill.loads(instance_str)
         else:
             self.cause_dispatch()
