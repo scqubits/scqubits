@@ -1409,10 +1409,10 @@ class ParameterSweep(  # type:ignore
         )
 
     def _sweep_function_keyword_modify(
-            self, 
-            sweep_function: Callable, 
-            update_hilbertspace: bool
-        ):
+        self, 
+        sweep_function: Callable, 
+        update_hilbertspace: bool
+    ):
         """
         Support different keyword arguments for receiving parameters from the generator. 
         For example, those are supported keywords and the value feeded to it when iterating
@@ -1429,6 +1429,20 @@ class ParameterSweep(  # type:ignore
         def desired_func(parametersweep, paramindex_tuple, paramvals_tuple, **kwargs):
             if update_hilbertspace:
                 self._update_hilbertspace(self, *paramvals_tuple)
+                
+                # Circuit module updates, similar to self._update_and_compute_dressed_esys
+                for subsys_index, subsys in enumerate(self.hilbertspace.subsystem_list):
+                    if (
+                        hasattr(subsys, "hierarchical_diagonalization")
+                        and subsys.hierarchical_diagonalization
+                    ):
+                        subsys.set_bare_eigensys(
+                            self._data["circuit_esys"][subsys_index][paramindex_tuple]
+                        )
+                if hasattr(
+                    self.hilbertspace.subsystem_list[0], "parent"
+                ):  # update necessary interactions and attributes
+                    self.hilbertspace.subsystem_list[0].parent.update(calculate_bare_esys=False)
 
             kwargs_to_pass = {}
             if "paramindex_tuple" in arguement_name:
