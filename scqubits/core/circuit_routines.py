@@ -1060,14 +1060,6 @@ class CircuitRoutines(ABC):
 
             self.hilbert_space = HilbertSpace(self.subsystems)
 
-    def get_eigenstates(self) -> ndarray:
-        """Returns the eigenstates for the SubSystem instance."""
-        if self.is_child:
-            subsys_index = self.parent.hilbert_space.subsystem_list.index(self)
-            return self.parent.hilbert_space["bare_evecs"][subsys_index][0]
-        else:
-            return self.eigensys()[1]
-
     def get_subsystem_index(self, var_index: int) -> int:
         """Returns the subsystem index for the subsystem to which the given var_index
         belongs.
@@ -2000,6 +1992,8 @@ class CircuitRoutines(ABC):
             operator in the form of csc_matrix, ndarray
         instance:
             The subsystem to which the operator belongs
+        bare_esys:
+            Dict containing subsystem indices starting from 0, paired with the bare esys for each of the subsystem
 
         Returns
         -------
@@ -2026,7 +2020,7 @@ class CircuitRoutines(ABC):
             evecs=(
                 bare_esys[subsystem_index][1]
                 if bare_esys
-                else subsystem.get_eigenstates()
+                else subsystem.eigensys(evals_count=subsystem.truncated_dim)[1]
             ),
         )
         return identity_wrap(
@@ -2036,7 +2030,7 @@ class CircuitRoutines(ABC):
             evecs=(
                 bare_esys[subsystem_index][1]
                 if bare_esys
-                else subsystem.get_eigenstates()
+                else subsystem.eigensys(evals_count=subsystem.truncated_dim)[1]
             ),
         )
 
@@ -2101,7 +2095,7 @@ class CircuitRoutines(ABC):
             evecs=(
                 bare_esys[subsystem_index][1]
                 if bare_esys
-                else subsystem.get_eigenstates()
+                else subsystem.eigensys(evals_count=subsystem.truncated_dim)[1]
             ),
         )
         return identity_wrap(
@@ -2111,7 +2105,7 @@ class CircuitRoutines(ABC):
             evecs=(
                 bare_esys[subsystem_index][1]
                 if bare_esys
-                else subsystem.get_eigenstates()
+                else subsystem.eigensys(evals_count=subsystem.truncated_dim)[1]
             ),
         )
 
@@ -2531,6 +2525,11 @@ class CircuitRoutines(ABC):
         )
 
     def _evals_calc(self, evals_count: int) -> ndarray:
+
+        if self.is_child and self._is_diagonalization_necessary():
+            subsys_index = self.parent.subsystems.index(self)
+            return self.parent.hilbert_space["bare_evals"][subsys_index][0][:evals_count]
+        
         if self.is_purely_harmonic and not self.hierarchical_diagonalization:
             return self._eigenvals_for_purely_harmonic(evals_count=evals_count)
 
@@ -2549,7 +2548,12 @@ class CircuitRoutines(ABC):
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
-        # dimension of the hamiltonian
+        
+        if self.is_child and not self._is_diagonalization_necessary():
+            subsys_index = self.parent.subsystems.index(self)
+            return self.parent.hilbert_space["bare_evals"][subsys_index][0][:evals_count], self.parent.hilbert_space["bare_evecs"][subsys_index][0][:, :evals_count]
+
+        print("calculating esys:", self.id_str)
 
         hamiltonian_mat = self.hamiltonian()
         if self.type_of_matrices == "sparse":
@@ -2572,7 +2576,8 @@ class CircuitRoutines(ABC):
         """Returns the eigensystem of the Circuit, and all the subsystems involved in the bare basis."""
         if not self.hierarchical_diagonalization:
             return self.eigensys(evals_count=self.truncated_dim)
-
+        
+        self._update_bare_esys()
         subsys_eigensys = dict.fromkeys([i for i in range(len(self.subsystems))])
         for idx, subsys in enumerate(self.subsystems):
             if subsys.hierarchical_diagonalization:
@@ -2609,6 +2614,8 @@ class CircuitRoutines(ABC):
         self.hilbert_space._data["bare_evecs"] = NamedSlotsNdarray(
             bare_evecs, {"subsys": np.arange(len(self.subsystems))}
         )
+        # empty the affected_subsystem_indices
+        self.affected_subsystem_indices = []
 
     # ****************************************************************
     # ***** Functions for pretty display of symbolic expressions *****
@@ -3180,7 +3187,7 @@ class CircuitRoutines(ABC):
             the initial basis
         """
         U_subsys = (
-            subsystem.get_eigenstates()
+            subsystem.eigensys(evals_count=subsystem.truncated_dim)[1]
         )  # eigensys(evals_count=subsystem.truncated_dim)
         wf_sublist = list(range(len(wf_reshaped.shape)))
         U_sublist = [wf_dim, len(wf_sublist)]

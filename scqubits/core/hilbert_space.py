@@ -649,6 +649,7 @@ class HilbertSpace(
                 subsys.hilbert_space.generate_bare_esys(
                     update_subsystem_indices=subsys.affected_subsystem_indices
                 )
+                subsys.affected_subsystem_indices = []
             # diagonalizing only those subsystems present in update_subsystem_indices
             if subsys_index in update_subsystem_indices:
                 bare_esys = subsys.eigensys(evals_count=subsys.truncated_dim)

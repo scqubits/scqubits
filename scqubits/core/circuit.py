@@ -262,7 +262,6 @@ class Subsystem(
 
         if self.hierarchical_diagonalization:
             # attribute to note updated subsystem indices
-            self.affected_subsystem_indices = []
             self._hamiltonian_sym_for_numerics = self.hamiltonian_symbolic.copy()
             self._generate_subsystems()
             self.ext_basis = self.get_ext_basis()
@@ -282,6 +281,13 @@ class Subsystem(
             self._out_of_sync = False  # for use with CentralDispatch
             dispatch.CENTRAL_DISPATCH.register("CIRCUIT_UPDATE", self)
         self._frozen = True
+
+    def _is_diagonalization_necessary(self) -> bool:
+        """Checks if the subsystem needs to be diagonalized."""
+        parent_subsys_idx = self.parent.subsystems.index(self)
+        if parent_subsys_idx in self.parent.affected_subsystem_indices:
+            return True
+        return False
 
 
 class Circuit(
@@ -884,7 +890,6 @@ class Circuit(
             self.operators_by_name = self._set_operators()
         else:
             # list for updating necessary subsystems when calling build hilbertspace
-            self.affected_subsystem_indices = []
             self.operators_by_name = None
             self.system_hierarchy = system_hierarchy
             if subsystem_trunc_dims is None:
@@ -1093,7 +1098,6 @@ class Circuit(
                 self._diagonalize_purely_harmonic_hamiltonian()
         else:
             # list for updating necessary subsystems when calling build hilbertspace
-            self.affected_subsystem_indices = []
             self.operators_by_name = None
             self.system_hierarchy = system_hierarchy
             if subsystem_trunc_dims is None:
