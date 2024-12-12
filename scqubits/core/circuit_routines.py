@@ -1241,7 +1241,7 @@ class CircuitRoutines(ABC):
                         subsys = self.return_root_child(
                             get_trailing_number(free_sym.name)
                         )
-                        
+
                         operator = subsys.get_operator_by_name(
                             free_sym.name,
                             power=power_dict[free_sym],
@@ -1262,7 +1262,8 @@ class CircuitRoutines(ABC):
             operator_list += [
                 self.identity_wrap_for_hd(
                     functools.reduce(builtin_op.mul, operators_per_subsys[subsys]),
-                    subsys, bare_esys=bare_esys
+                    subsys,
+                    bare_esys=bare_esys,
                 )
                 for subsys in operators_per_subsys
             ]
