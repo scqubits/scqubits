@@ -2582,8 +2582,6 @@ class CircuitRoutines(ABC):
                 ],
             )
 
-        print("calculating esys:", self.id_str)
-
         hamiltonian_mat = self.hamiltonian()
         if self.type_of_matrices == "sparse":
             evals, evecs = utils.eigsh_safe(
