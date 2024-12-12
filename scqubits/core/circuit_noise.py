@@ -90,7 +90,6 @@ class NoisyCircuit(NoisySystem, ABC):
             self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
         ):
             parent_instance = self.return_parent_circuit()
-            # hamiltonian = parent_instance._fetch_symbolic_hamiltonian()
             hamiltonian = parent_instance._hamiltonian_sym_for_numerics
             hamiltonian = hamiltonian.subs("I", 1)
             all_sym_parameters = (
@@ -127,7 +126,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
         5. Adds each method to the current instance as an attribute with the same name as the key in the dictionary using `setattr`.
 
-        The generated methods use the 'return_parent_circuit' method to get a parent circuit with a symbolic Hamiltonian and symbolic parameters, the '_fetch_symbolic_hamiltonian' method to get the symbolic Hamiltonian, the '_evaluate_symbolic_expr' method to evaluate a symbolic expression, and the '_junction_related_evaluation' method to calculate a quantity related to a junction.
+        The generated methods use the 'return_parent_circuit' method to get a parent circuit with a symbolic Hamiltonian and symbolic parameters, the '_evaluate_symbolic_expr' method to evaluate a symbolic expression, and the '_junction_related_evaluation' method to calculate a quantity related to a junction.
 
         Raises
         ------
@@ -254,7 +253,6 @@ class NoisyCircuit(NoisySystem, ABC):
             AttributeError: If the current instance or the parent circuit does not have the required methods or attributes.
         """
         parent_instance = self.return_parent_circuit()
-        hamiltonian = parent_instance._fetch_symbolic_hamiltonian()
         hamiltonian = parent_instance._hamiltonian_sym_for_numerics
 
         for sym in parent_instance.offset_charges + list(
@@ -910,7 +908,19 @@ class NoisyCircuit(NoisySystem, ABC):
 
         return t1_quasiparticle_tunneling
 
-    def _wrapper_t1_charge_impedance(self, branch: Branch):
+    def _wrapper_t1_charge_impedance(self, node_expr: sm.Expr):
+        """Generates the t1_charge_impedance method necessary for a given impedance line, which 
+        couples to the circuit with a capacitance to one or a set of nodes. The input `node_expr`, 
+        is the symbolic expression for the nodes coupled to the impedance line.
+
+        Parameters
+        ----------
+
+        node_expr: 
+            The symbolic expression for the nodes coupled to the impedance line. 
+        """
+        # find the conjugate charge operator for the given node_expr
+        
         def t1_charge_impedance(
             self,
             i: int = 1,
@@ -1058,8 +1068,8 @@ class NoisyCircuit(NoisySystem, ABC):
                     in inverse units.
                 """
                 parent_circuit = self.return_parent_circuit()
-                branch_charge_expr = parent_circuit.symbolic_circuit._branch_sym_expr(
-                    branch, return_charge=True
+                branch_charge_expr = parent_circuit.symbolic_circuit._branch_charge_expr(
+                    branch
                 )
 
                 branch_param = (
@@ -1127,7 +1137,7 @@ class NoisyCircuit(NoisySystem, ABC):
                     in inverse units.
                 """
                 parent_circuit = self.return_parent_circuit()
-                branch_var_expr = parent_circuit.symbolic_circuit._branch_sym_expr(
+                branch_var_expr = parent_circuit.symbolic_circuit._branch_flux_expr(
                     branch
                 )
 
@@ -1157,11 +1167,6 @@ class NoisyCircuit(NoisySystem, ABC):
         ------------------------------------------------------------
 
         This function generates an overall method for calculating the T1 coherence time due to quasiparticle tunneling for the entire circuit.
-
-        Parameters
-        ----------
-        self : object
-            The instance of the class where this method is being added.
 
         Returns
         -------
