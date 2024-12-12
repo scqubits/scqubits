@@ -150,40 +150,52 @@ class CircuitRoutines(ABC):
         if not self.is_child:
             return self
         return self.parent.return_parent_circuit()
-
+    
     @staticmethod
-    def _is_expression_purely_harmonic(hamiltonian):
+    def _contains_trigonometric_terms(hamiltonian):
+        """Check if the hamiltonian contains any trigonometric terms."""
+        trigonometric_operators = [sm.cos, sm.sin, sm.Function("saw", real=True)]
+        return any(hamiltonian.atoms(operator) for operator in trigonometric_operators)
+    
+    @staticmethod
+    def _is_symbol_periodic_charge(sym):
+        return sym.name[0] == "n" and sym.name[1:].isnumeric()
+    @staticmethod
+    def _is_symbol_continuous_charge(sym):
+        return sym.name[0] == "Q" and sym.name[1:].isnumeric()
+    @staticmethod
+    def _is_symbol_phase(sym):
+        return sym.name[0] == "θ" and sym.name[1:].isnumeric()
+    
+    @staticmethod
+    def _find_and_categorize_variable_indices(hamiltonian):
+        periodic_var_indices = set(
+            get_trailing_number(symbol.name) 
+            for symbol in hamiltonian.free_symbols 
+            if CircuitRoutines._is_symbol_periodic_charge(symbol)
+            )
+        extended_var_indices = set(
+            get_trailing_number(symbol.name) 
+            for symbol in hamiltonian.free_symbols 
+            if CircuitRoutines._is_symbol_continuous_charge(symbol)
+            )
+        phase_var_indices = set(
+            get_trailing_number(symbol.name) 
+            for symbol in hamiltonian.free_symbols 
+            if CircuitRoutines._is_symbol_phase(symbol)
+            )
+        return periodic_var_indices, extended_var_indices, phase_var_indices
+    # @staticmethod
+    def _is_expression_purely_harmonic(self, hamiltonian):
         """Method used to check if the hamiltonian is purely harmonic."""
         # if the hamiltonian contains any cos or sin term, return False
-        if (
-            len(
-                set.union(
-                    *[
-                        (hamiltonian).atoms(operator)
-                        for operator in [sm.cos, sm.sin, sm.Function("saw", real=True)]
-                    ]
-                )
-            )
-            > 0
-        ):
+        if self._contains_trigonometric_terms(hamiltonian):
             return False
-        # further, if the hamiltonian contains any charge operator of periodic variables
-        # return False
-        periodic_charge_variable_index = set()
-        extended_charge_variable_index = set()
-        phase_variable_index = set()
-        variable_str_list = [str(symbol) for symbol in list(hamiltonian.free_symbols)]
-        for variable_str in variable_str_list:
-            if variable_str[0] == "n" and variable_str[1:].isnumeric():
-                periodic_charge_variable_index.add(variable_str[1:])
-            if variable_str[0] == "Q" and variable_str[1:].isnumeric():
-                extended_charge_variable_index.add(variable_str[1:])
-            if variable_str[0] == "θ" and variable_str[1:].isnumeric():
-                phase_variable_index.add(variable_str[1:])
+        # if the hamiltonian contains any charge operator of periodic variables, return false
+        periodic_charge_variable_index, extended_charge_variable_index, phase_variable_index = self._find_and_categorize_variable_indices(hamiltonian)
         if len(periodic_charge_variable_index) > 0:
             return False
-        # further, if the hamiltonian has any DoF where only its charge
-        # or flux operator is present, return False
+        # if the hamiltonian has any DoF where only its charge or flux operator is present, return False
         if extended_charge_variable_index != phase_variable_index:
             return False
         return True
@@ -1133,6 +1145,13 @@ class CircuitRoutines(ABC):
                 if subsys.hierarchical_diagonalization:
                     subsys._update_interactions(recursive=recursive)
 
+    def _operator_from_sym_expr_wrapper(self, sym_expr):
+        def wrapper_func(self=self, sym_expr=sym_expr, bare_esys=None):
+            # The bare esys here is a dict of esys for each of the subsystem present under hilbert_space
+            return self._evaluate_symbolic_expr(sym_expr, bare_esys=bare_esys)
+
+        return wrapper_func
+
     @check_sync_status_circuit
     def _evaluate_symbolic_expr(self, sym_expr, bare_esys=None) -> qt.Qobj:
         # substitute circuit parameters
@@ -1243,12 +1262,6 @@ class CircuitRoutines(ABC):
                 functools.reduce(builtin_op.mul, operator_list) * coefficient_sympy
             )
         return sum(eval_matrix_list)
-
-    def _operator_from_sym_expr_wrapper(self, sym_expr):
-        def wrapper_func(self=self, sym_expr=sym_expr, bare_esys=None):
-            return self._evaluate_symbolic_expr(sym_expr, bare_esys=bare_esys)
-
-        return wrapper_func
 
     def _set_vars(self):
         """Sets the attribute :attr:`vars` which is a dictionary containing all the Sympy Symbol
