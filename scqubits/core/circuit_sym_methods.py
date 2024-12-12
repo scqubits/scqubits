@@ -192,7 +192,17 @@ class CircuitSymMethods(ABC):
 
     @check_sync_status_circuit
     def _evaluate_symbolic_expr(self, sym_expr, bare_esys=None) -> qt.Qobj:
-        # substitute circuit parameters
+        sym_expr = self._substitute_parameters(sym_expr)
+        if sym_expr == 0:
+            return 0
+        expr_dict = sym_expr.as_coefficients_dict()
+        terms = list(expr_dict.keys())
+        eval_matrix_list = [
+            self._evaluate_term(term, expr_dict[term], bare_esys) for term in terms
+        ]
+        return sum(eval_matrix_list)
+
+    def _substitute_parameters(self, sym_expr):
         param_symbols = (
             self.external_fluxes
             + self.offset_charges
@@ -201,106 +211,80 @@ class CircuitSymMethods(ABC):
         )
         for param in param_symbols:
             sym_expr = sym_expr.subs(param, getattr(self, param.name))
+        return sym_expr
 
-        # if the expression is zero
-        if sym_expr == 0:
-            return 0
-        expr_dict = sym_expr.as_coefficients_dict()
-        terms = list(expr_dict.keys())
+    def _evaluate_term(self, term, coefficient_sympy, bare_esys):
+        if term == 1:
+            return self._identity_qobj() * float(coefficient_sympy)
+        factors = term.as_ordered_factors()
+        factor_op_list = [
+            self._evaluate_factor(factor, bare_esys) for factor in factors
+        ]
+        operator_list = self._combine_factors(factor_op_list, bare_esys)
+        return functools.reduce(builtin_op.mul, operator_list) * float(
+            coefficient_sympy
+        )
 
-        eval_matrix_list = []
-        for idx, term in enumerate(terms):
-            coefficient_sympy = float(expr_dict[term])
-            if term == 1:
-                eval_matrix_list.append(self._identity_qobj() * (coefficient_sympy))
-                continue
+    def _evaluate_factor(self, factor, bare_esys):
+        if any([arg.has(sm.cos) or arg.has(sm.sin) for arg in (1.0 * factor).args]):
+            return self._evaluate_matrix_cosine_terms(factor, bare_esys=bare_esys)
+        elif any(
+            [arg.has(sm.Function("saw", real=True)) for arg in (1.0 * factor).args]
+        ):
+            return self._evaluate_sawtooth_factor(factor, bare_esys)
+        else:
+            return self._evaluate_operator_factor(factor)
 
-            factors = term.as_ordered_factors()
-            factor_op_list = []
-
-            for factor in factors:
-                if any(
-                    [arg.has(sm.cos) or arg.has(sm.sin) for arg in (1.0 * factor).args]
-                ):
-                    factor_op_list.append(
-                        self._evaluate_matrix_cosine_terms(factor, bare_esys=bare_esys)
-                    )
-                elif any(
-                    [
-                        arg.has(sm.Function("saw", real=True))
-                        for arg in (1.0 * factor).args
-                    ]
-                ):
-                    if not self.hierarchical_diagonalization:
-                        factor_op_list.append(
-                            self._evaluate_matrix_sawtooth_terms(
-                                factor, bare_esys=bare_esys
-                            )
-                        )
-                    else:
-                        # check if all the varindices in the factor belong to the same subsystem
-                        index_subsystem = [
-                            self.return_root_child(get_trailing_number(sym.name))
-                            for sym in factor.free_symbols
-                        ]
-                        if len(np.unique(index_subsystem)) > 1:
-                            raise Exception(
-                                "Sawtooth function terms must belong to the same subsystem."
-                            )
-                        operator = index_subsystem[0]._evaluate_matrix_sawtooth_terms(
-                            factor
-                        )
-                        operator = self.identity_wrap_for_hd(
-                            operator, index_subsystem[0], bare_esys=bare_esys
-                        )
-                        factor_op_list.append(operator)
-
-                else:
-                    power_dict = dict(factor.as_powers_dict())
-                    free_sym = list(factor.free_symbols)[0]
-                    if not self.hierarchical_diagonalization:
-                        factor_op_list.append(
-                            self.get_operator_by_name(
-                                free_sym.name,
-                                bare_esys=bare_esys,
-                                power=power_dict[free_sym],
-                            )
-                        )
-                    else:
-                        subsys = self.return_root_child(
-                            get_trailing_number(free_sym.name)
-                        )
-
-                        operator = subsys.get_operator_by_name(
-                            free_sym.name,
-                            power=power_dict[free_sym],
-                        )
-                        factor_op_list.append((subsys, operator))
-            operators_per_subsys = {}
-            operator_list = []
-            for factor_op in factor_op_list:
-                if not isinstance(factor_op, tuple):
-                    operator_list.append(factor_op)
-                    continue
-                subsys, operator = factor_op
-                if subsys not in operators_per_subsys:
-                    operators_per_subsys[subsys] = [operator]
-                else:
-                    operators_per_subsys[subsys].append(operator)
-
-            operator_list += [
-                self.identity_wrap_for_hd(
-                    functools.reduce(builtin_op.mul, operators_per_subsys[subsys]),
-                    subsys,
-                    bare_esys=bare_esys,
-                )
-                for subsys in operators_per_subsys
-            ]
-
-            eval_matrix_list.append(
-                functools.reduce(builtin_op.mul, operator_list) * coefficient_sympy
+    def _evaluate_sawtooth_factor(self, factor, bare_esys):
+        if not self.hierarchical_diagonalization:
+            return self._evaluate_matrix_sawtooth_terms(factor, bare_esys=bare_esys)
+        index_subsystem = [
+            self.return_root_child(get_trailing_number(sym.name))
+            for sym in factor.free_symbols
+        ]
+        if len(np.unique(index_subsystem)) > 1:
+            raise Exception(
+                "Sawtooth function terms must belong to the same subsystem."
             )
-        return sum(eval_matrix_list)
+        operator = index_subsystem[0]._evaluate_matrix_sawtooth_terms(
+            factor
+        )
+        return self.identity_wrap_for_hd(
+            operator, index_subsystem[0], bare_esys=bare_esys
+        )
+
+    def _evaluate_operator_factor(self, factor):
+        power_dict = dict(factor.as_powers_dict())
+        free_sym = list(factor.free_symbols)[0]
+        if not self.hierarchical_diagonalization:
+            return self.get_operator_by_name(
+                free_sym.name, power=power_dict[free_sym]
+            )
+        subsys = self.return_root_child(get_trailing_number(free_sym.name))
+        operator = subsys.get_operator_by_name(
+            free_sym.name, power=power_dict[free_sym]
+        )
+        return (subsys, operator)
+
+    def _combine_factors(self, factor_op_list, bare_esys):
+        operators_per_subsys = {}
+        operator_list = []
+        for factor_op in factor_op_list:
+            if not isinstance(factor_op, tuple):
+                operator_list.append(factor_op)
+                continue
+            subsys, operator = factor_op
+            if subsys not in operators_per_subsys:
+                operators_per_subsys[subsys] = [operator]
+            else:
+                operators_per_subsys[subsys].append(operator)
+        operator_list += [
+            self.identity_wrap_for_hd(
+                functools.reduce(builtin_op.mul, operators_per_subsys[subsys]), subsys, bare_esys=bare_esys
+            )
+            for subsys in operators_per_subsys
+        ]
+        return operator_list
 
     def _shift_harmonic_oscillator_potential(self, hamiltonian: sm.Expr) -> sm.Expr:
         # shifting the harmonic oscillator potential to the point of external fluxes
