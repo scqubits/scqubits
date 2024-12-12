@@ -908,7 +908,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
         return t1_quasiparticle_tunneling
 
-    def _wrapper_t1_charge_impedance(self, node_expr: sm.Expr):
+    def _wrapper_t1_charge_impedance(self, branch: Branch):
         """Generates the t1_charge_impedance method necessary for a given impedance line, which
         couples to the circuit with a capacitance to one or a set of nodes. The input `node_expr`,
         is the symbolic expression for the nodes coupled to the impedance line.
