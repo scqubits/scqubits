@@ -243,39 +243,6 @@ class CircuitRoutines(ABC):
 
         return hamiltonian
 
-    def offset_charge_transformation(self) -> None:
-        """Prints the variable transformation between offset charges of transformed
-        variables and the node charges."""
-        if not hasattr(self, "symbolic_circuit"):
-            raise Exception(
-                f"{self._id_str} instance is not generated from a SymbolicCircuit instance, and hence does not have any associated branches."
-            )
-        trans_mat = np.linalg.inv(self.transformation_matrix.T)
-        node_offset_charge_vars = [
-            sm.symbols(f"q_n{index}")
-            for index in range(
-                1, len(self.symbolic_circuit.nodes) - self.is_grounded + 1
-            )
-        ]
-        periodic_offset_charge_vars = [
-            sm.symbols(f"ng{index}")
-            for index in self.symbolic_circuit.var_categories["periodic"]
-        ]
-        periodic_offset_charge_eqns = []
-        for idx, node_var in enumerate(periodic_offset_charge_vars):
-            periodic_offset_charge_eqns.append(
-                self._make_expr_human_readable(
-                    sm.Eq(
-                        periodic_offset_charge_vars[idx],
-                        np.sum(trans_mat[idx, :] * node_offset_charge_vars),
-                    )
-                )
-            )
-        if _HAS_IPYTHON:
-            self.print_expr_in_latex(periodic_offset_charge_eqns)
-        else:
-            print(periodic_offset_charge_eqns)
-
     def __setattr__(self, name, value):
         """Modifying the __setattr__ method to prevent creation of new attributes using
         the `_frozen` attribute."""
