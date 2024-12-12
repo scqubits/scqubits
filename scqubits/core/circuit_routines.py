@@ -1219,7 +1219,7 @@ class CircuitRoutines(ABC):
                                 "Sawtooth function terms must belong to the same subsystem."
                             )
                         operator = index_subsystem[0]._evaluate_matrix_sawtooth_terms(
-                            factor, bare_esys=bare_esys
+                            factor
                         )
                         operator = self.identity_wrap_for_hd(
                             operator, index_subsystem[0], bare_esys=bare_esys
@@ -1241,9 +1241,9 @@ class CircuitRoutines(ABC):
                         subsys = self.return_root_child(
                             get_trailing_number(free_sym.name)
                         )
+                        
                         operator = subsys.get_operator_by_name(
                             free_sym.name,
-                            bare_esys=None,
                             power=power_dict[free_sym],
                         )
                         factor_op_list.append((subsys, operator))
@@ -1262,7 +1262,7 @@ class CircuitRoutines(ABC):
             operator_list += [
                 self.identity_wrap_for_hd(
                     functools.reduce(builtin_op.mul, operators_per_subsys[subsys]),
-                    subsys,
+                    subsys, bare_esys=bare_esys
                 )
                 for subsys in operators_per_subsys
             ]

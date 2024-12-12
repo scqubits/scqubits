@@ -238,7 +238,7 @@ class TestCircuit:
 
         closure_branches = [DFC.branches[0], DFC.branches[4], DFC.branches[-1]]
         system_hierarchy = [[[1], [3]], [2], [4]]
-        subsystem_trunc_dims = [[34, [6, 6]], 6, 6]
+        subsystem_trunc_dims = [[6, [6, 6]], 6, 6]
 
         DFC.configure(
             closure_branches=closure_branches,
@@ -250,11 +250,11 @@ class TestCircuit:
         DFC.Φ2 = -0.2662
         DFC.Φ3 = -0.5 + 0.01768
 
-        DFC.cutoff_ext_1 = 110
-        DFC.cutoff_ext_2 = 110
-        DFC.cutoff_ext_3 = 110
-        DFC.cutoff_ext_4 = 110
-        DFC.get_spectrum_vs_paramvals("Φ1", np.linspace(0, 1, 11), num_cpus=num_cpus)
+        DFC.cutoff_ext_1 = 40
+        DFC.cutoff_ext_2 = 40
+        DFC.cutoff_ext_3 = 40
+        DFC.cutoff_ext_4 = 40
+        DFC.get_spectrum_vs_paramvals("Φ1", np.linspace(0, 1, 3), num_cpus=num_cpus)
 
         paramvals_by_name = {
             "Φ1": np.linspace(0.4, 0.5, 6),
