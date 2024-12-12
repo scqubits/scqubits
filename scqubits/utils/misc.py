@@ -185,11 +185,18 @@ def check_sync_status(func: Callable) -> Callable:
 def check_sync_status_circuit(func: Callable) -> Callable:
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
+        if self.is_child and self._out_of_sync_with_parent:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                warnings.warn(
+                    "[scqubits] Some quantum system parameters have been changed and"
+                    " generated circuit data could be outdated, potentially leading to"
+                    " incorrect results. Circuit data can be refreshed via"
+                    " <Circuit>.generate_circuit()",
+                    Warning,
+                )
         # update the circuit if necessary
-        if (self._user_changed_parameter) or (
-            self.hierarchical_diagonalization
-            and (self._out_of_sync or len(self.affected_subsystem_indices) > 0)
-        ):
+        if self.hierarchical_diagonalization:
             self.update()
         return func(self, *args, **kwargs)
 

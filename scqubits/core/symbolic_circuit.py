@@ -1274,16 +1274,8 @@ class SymbolicCircuit(serializers.Serializable):
 
     def update_param_init_val(self, param_name, value):
         """Updates the param init val for param_name."""
-        for index, param in enumerate(list(self.symbolic_params.keys())):
-            if param_name == param.name:
-                self.symbolic_params[param] = value
-                break
-        if self.is_purely_harmonic:
-            (
-                self.normal_mode_freqs,
-                self.transformation_matrix,
-            ) = self._purely_harmonic_transformation()
-            self.configure()
+        self.symbolic_params[sm.symbols(param_name)] = value
+        self.configure()
 
     def _junction_terms(self):
         terms = 0

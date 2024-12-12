@@ -144,16 +144,7 @@ class Subsystem(
 
         self.junction_potential = None
         self._H_LC_str_harmonic = None
-        # attribute to keep track if the symbolic Hamiltonian needs to be updated
-        self._make_property(
-            "_user_changed_parameter",
-            False,
-            "update_user_changed_parameter",
-            use_central_dispatch=False,
-        )
-
         self.ext_basis = ext_basis
-        self._find_and_set_sym_attrs()
 
         self.dynamic_var_indices: List[int] = flatten_list_recursive(
             [self.system_hierarchy]
@@ -230,10 +221,6 @@ class Subsystem(
             for var in self.parent.symbolic_params
             if var in self.hamiltonian_symbolic.free_symbols
         }
-
-    def _configure(self) -> None:
-        """Function which is used to initiate the subsystem instance."""
-        self._frozen = False
         for idx, param in enumerate(self.symbolic_params):
             self._make_property(
                 param.name, getattr(self.parent, param.name), "update_param_vars"
@@ -252,11 +239,17 @@ class Subsystem(
                 getattr(self.parent, charge_var.name),
                 "update_external_flux_or_charge",
             )
-
         for cutoff_str in self.cutoff_names:
             self._make_property(
                 cutoff_str, getattr(self.parent, cutoff_str), "update_cutoffs"
             )
+
+    def _configure(self) -> None:
+        """Function which is used to initiate the subsystem instance."""
+        self._frozen = False
+
+        self._find_and_set_sym_attrs()
+
         # if subsystem hamiltonian is purely harmonic
         if (
             self._is_expression_purely_harmonic(self.hamiltonian_symbolic)
@@ -284,6 +277,7 @@ class Subsystem(
         self._set_vars()
         self.operators_by_name = self._set_operators()
 
+        self._out_of_sync_with_parent = False
         if self.hierarchical_diagonalization:
             self._out_of_sync = False  # for use with CentralDispatch
             dispatch.CENTRAL_DISPATCH.register("CIRCUIT_UPDATE", self)
@@ -462,13 +456,6 @@ class Circuit(
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
         self._out_of_sync = False  # for use with CentralDispatch
-        self._make_property(
-            "_user_changed_parameter",
-            False,
-            "update_user_changed_parameter",
-            use_central_dispatch=False,
-        )
-
         if initiate_sym_calc:
             self.configure()
         self._frozen = True
@@ -576,12 +563,6 @@ class Circuit(
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
         self._out_of_sync = False  # for use with CentralDispatch
-        self._make_property(
-            "_user_changed_parameter",
-            False,
-            "update_user_changed_parameter",
-            use_central_dispatch=False,
-        )
 
         if initiate_sym_calc:
             self.configure()

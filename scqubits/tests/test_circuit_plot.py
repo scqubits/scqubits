@@ -23,7 +23,6 @@ circ.configure(
     system_hierarchy=system_hierarchy,
     subsystem_trunc_dims=[10, 10],
 )
-circ.update()
 esys = circ.eigensys()
 
 
