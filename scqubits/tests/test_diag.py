@@ -134,7 +134,8 @@ def test_custom_diagonalization_raises_error_if_nonexistent_method_provided_esys
     ],
 )
 def test_custom_diagonalization_evals_method_matches_default(library):
-    """Test custom diagonalization gives the same eigenvalues as using the default method."""
+    """Test custom diagonalization gives the same eigenvalues as using the default
+    method."""
 
     if library == "jax":
         # To evade np.allclose errors when not using 64-bit calculations.
@@ -176,7 +177,8 @@ def test_custom_diagonalization_evals_method_matches_default(library):
     ],
 )
 def test_custom_diagonalization_matches_default_with_composite_systems(library):
-    """Test custom diagonalization gives same eigenvalues as using the default method for composite systems."""
+    """Test custom diagonalization gives same eigenvalues as using the default method
+    for composite systems."""
 
     if library == "jax":
         # To evade np.allclose errors when not using 64-bit calculations.
@@ -218,7 +220,8 @@ def test_custom_diagonalization_matches_default_with_composite_systems(library):
 
 
 def test_custom_diagonalization_matches_default_using_custom_procedure():
-    """Test custom diagonalization gives same result as using the default method when using a custom procedure."""
+    """Test custom diagonalization gives same result as using the default method when
+    using a custom procedure."""
 
     def custom_esys(matrix, evals_count, **kwargs):
         evals, evecs = sp.linalg.eigh(

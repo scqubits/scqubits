@@ -19,15 +19,13 @@ from scqubits.utils import misc as utils
 
 
 class QutipEigenstates(np.ndarray, Serializable):
-    """Wrapper class that adds serialization functionality to the numpy
-    ndarray class."""
+    """Wrapper class that adds serialization functionality to the numpy ndarray
+    class."""
 
     @classmethod
     def deserialize(cls, io_data: IOData) -> np.ndarray:  # type:ignore
-        """
-        Take the given IOData and return an instance of the described class, initialized
-        with the data stored in io_data.
-        """
+        """Take the given IOData and return an instance of the described class,
+        initialized with the data stored in io_data."""
         # Qobj in Qutip>=5 wants this to be a nested list
         qobj_dims = io_data.ndarrays["qobj_dims"].tolist()
         qobj_shape = io_data.ndarrays["qobj_shape"]
@@ -40,9 +38,7 @@ class QutipEigenstates(np.ndarray, Serializable):
         return qt_eigenstates
 
     def serialize(self) -> IOData:
-        """
-        Convert the content of the current class instance into IOData format.
-        """
+        """Convert the content of the current class instance into IOData format."""
         import scqubits.io_utils.fileio as io
 
         typename = type(self).__name__
@@ -60,8 +56,11 @@ class QutipEigenstates(np.ndarray, Serializable):
         return io.IOData(typename, io_attributes, io_ndarrays, objects=None)
 
     def filewrite(self, filename: str):
-        """Convenience method bound to the class. Simply accesses the
-        `write` function."""
+        """Convenience method bound to the class.
+
+        Simply accesses the
+        `write` function.
+        """
         import scqubits.io_utils.fileio as io
 
         io.write(self, filename)
