@@ -246,9 +246,7 @@ class CircuitSymMethods(ABC):
             raise Exception(
                 "Sawtooth function terms must belong to the same subsystem."
             )
-        operator = index_subsystem[0]._evaluate_matrix_sawtooth_terms(
-            factor
-        )
+        operator = index_subsystem[0]._evaluate_matrix_sawtooth_terms(factor)
         return self.identity_wrap_for_hd(
             operator, index_subsystem[0], bare_esys=bare_esys
         )
@@ -257,9 +255,7 @@ class CircuitSymMethods(ABC):
         power_dict = dict(factor.as_powers_dict())
         free_sym = list(factor.free_symbols)[0]
         if not self.hierarchical_diagonalization:
-            return self.get_operator_by_name(
-                free_sym.name, power=power_dict[free_sym]
-            )
+            return self.get_operator_by_name(free_sym.name, power=power_dict[free_sym])
         subsys = self.return_root_child(get_trailing_number(free_sym.name))
         operator = subsys.get_operator_by_name(
             free_sym.name, power=power_dict[free_sym]
@@ -280,7 +276,9 @@ class CircuitSymMethods(ABC):
                 operators_per_subsys[subsys].append(operator)
         operator_list += [
             self.identity_wrap_for_hd(
-                functools.reduce(builtin_op.mul, operators_per_subsys[subsys]), subsys, bare_esys=bare_esys
+                functools.reduce(builtin_op.mul, operators_per_subsys[subsys]),
+                subsys,
+                bare_esys=bare_esys,
             )
             for subsys in operators_per_subsys
         ]
