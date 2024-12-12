@@ -46,8 +46,7 @@ def set_wavefunction_scaling(
     wavefunctions: "List[WaveFunction]",
     potential_vals: np.ndarray,
 ) -> float:
-    """
-    Sets the scaling parameter for 1d wavefunctions
+    """Sets the scaling parameter for 1d wavefunctions.
 
     Returns
     -------
@@ -128,7 +127,8 @@ def wavefunction1d_discrete(mode: Optional[str] = None) -> Dict[str, Any]:
     Parameters
     ----------
     mode:
-        amplitude modifier, needed to give the correct default y label"""
+        amplitude modifier, needed to give the correct default y label
+    """
     ylabel = r"$\psi_j(n)$"
     if mode:
         ylabel = constants.MODE_STR_DICT[mode](ylabel)
@@ -136,26 +136,26 @@ def wavefunction1d_discrete(mode: Optional[str] = None) -> Dict[str, Any]:
 
 
 def wavefunction2d() -> Dict[str, Any]:
-    """Plot defaults for plotting.wavefunction2d"""
+    """Plot defaults for plotting.wavefunction2d."""
     return {"figsize": (8, 3)}
 
 
 def contours(
     x_vals: Union[List[float], np.ndarray], y_vals: Union[List[float], np.ndarray]
 ) -> Dict[str, Any]:
-    """Plot defaults for plotting.contours"""
+    """Plot defaults for plotting.contours."""
     aspect_ratio = (y_vals[-1] - y_vals[0]) / (x_vals[-1] - x_vals[0])
     figsize = (8, 8 * aspect_ratio)
     return {"figsize": figsize}
 
 
 def matrix() -> Dict[str, Any]:
-    """Plot defaults for plotting.matrix"""
+    """Plot defaults for plotting.matrix."""
     return {"figsize": (10, 5)}
 
 
 def evals_vs_paramvals(specdata: "SpectrumData", **kwargs) -> Dict[str, Any]:
-    """Plot defaults for plotting.evals_vs_paramvals"""
+    """Plot defaults for plotting.evals_vs_paramvals."""
     kwargs["xlabel"] = kwargs.get("xlabel") or recast_name(specdata.param_name)
     kwargs["ylabel"] = kwargs.get("ylabel") or "energy [{}]".format(units.get_units())
     return kwargs
@@ -164,12 +164,12 @@ def evals_vs_paramvals(specdata: "SpectrumData", **kwargs) -> Dict[str, Any]:
 def matelem_vs_paramvals(
     specdata: Union["SpectrumData", "DataStore"]
 ) -> Dict[str, Any]:
-    """Plot defaults for plotting.matelem_vs_paramvals"""
+    """Plot defaults for plotting.matelem_vs_paramvals."""
     return {"xlabel": recast_name(specdata.param_name), "ylabel": "matrix element"}
 
 
 def chi(param_name: Union[str, None], **kwargs) -> Dict[str, Any]:
-    """Plot defaults for sweep_plotting.chi"""
+    """Plot defaults for sweep_plotting.chi."""
     kwargs["xlabel"] = kwargs.get("xlabel") or recast_name(param_name)
     kwargs["ylabel"] = kwargs.get("ylabel") or r"$\chi_j$ [{}]".format(
         units.get_units()
@@ -178,7 +178,7 @@ def chi(param_name: Union[str, None], **kwargs) -> Dict[str, Any]:
 
 
 def chi01(param_name: Union[str, None], yval: float, **kwargs) -> Dict[str, Any]:
-    """Plot defaults for sweep_plotting.chi01"""
+    """Plot defaults for sweep_plotting.chi01."""
     kwargs["xlabel"] = kwargs.get("xlabel") or recast_name(param_name)
     kwargs["ylabel"] = kwargs.get("ylabel") or r"$\chi_{{01}}$ [{}]".format(
         units.get_units()
@@ -190,7 +190,7 @@ def chi01(param_name: Union[str, None], yval: float, **kwargs) -> Dict[str, Any]
 
 
 def charge_matrixelem(param_name: str, **kwargs) -> Dict[str, Any]:
-    """Plot defaults for sweep_plotting.charge_matrixelem"""
+    """Plot defaults for sweep_plotting.charge_matrixelem."""
     kwargs["xlabel"] = kwargs.get("xlabel") or recast_name(param_name)
     kwargs["ylabel"] = kwargs.get("ylabel") or r"$|\langle i |n| j \rangle|$"
     return kwargs

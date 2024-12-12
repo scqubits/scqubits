@@ -39,8 +39,7 @@ def create_widget(
     init_params: Dict[str, Any],
     image_filename: Optional[str] = None,
 ) -> None:
-    """
-    Displays ipyvuetify for initialization of a QuantumSystem object.
+    """Displays ipyvuetify for initialization of a QuantumSystem object.
 
     Parameters
     ----------

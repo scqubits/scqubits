@@ -50,8 +50,8 @@ QuantumSys = Union[QubitBaseClass, Oscillator]
 
 
 class HilbertSpaceUi:
-    """Class for setup and display of the widget used for creation of a
-    HilbertSpace object."""
+    """Class for setup and display of the widget used for creation of a HilbertSpace
+    object."""
 
     @utils.Required(ipyvuetify=_HAS_IPYVUETIFY)
     def __init__(self):
@@ -581,9 +581,8 @@ class HilbertSpaceUi:
 
 @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def create_hilbertspace_widget(callback_func):
-    """
-    Display ipywidgets interface for creating a HilbertSpace object. Typically,
-    this function will be called by `HilbertSpace.create()``.
+    """Display ipywidgets interface for creating a HilbertSpace object. Typically, this
+    function will be called by `HilbertSpace.create()``.
 
     Parameters
     ----------

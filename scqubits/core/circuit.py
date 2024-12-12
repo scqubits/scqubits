@@ -12,18 +12,15 @@
 
 import re
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Union, Callable
+from typing import Any, Dict, List, Optional, Tuple, Union, Callable, get_type_hints
 
 import numpy as np
 import sympy as sm
-from matplotlib import pyplot as plt
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
 from numpy import ndarray
 from sympy import latex
 
 try:
-    from IPython.display import Latex, display
+    import IPython
 except ImportError:
     _HAS_IPYTHON = False
 else:
@@ -34,10 +31,8 @@ import scqubits.core.central_dispatch as dispatch
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 
-from scqubits import settings
 from scqubits.core.circuit_utils import (
     get_trailing_number,
-    is_potential_term,
 )
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
 from scqubits.utils.misc import (
@@ -48,19 +43,24 @@ from scqubits.utils.misc import (
 )
 
 from scqubits.core.circuit_routines import CircuitRoutines
+from scqubits.core.circuit_plotting import CircuitPlot
+from scqubits.core.circuit_sym_methods import CircuitSymMethods
 from scqubits.core.circuit_noise import NoisyCircuit
 
 
+class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot):
+    pass
+
+
 class Subsystem(
-    CircuitRoutines,
+    CircuitABC,
     base.QubitBaseClass,
     serializers.Serializable,
     dispatch.DispatchClient,
     NoisyCircuit,
 ):
-    """
-    Defines a subsystem for a circuit, which can further be used recursively to define
-    subsystems within subsystem.
+    """Defines a subsystem for a circuit, which can further be used recursively to
+    define subsystems within subsystem.
 
     Parameters
     ----------
@@ -79,6 +79,39 @@ class Subsystem(
         by default `None`
     truncated_dim: Optional[int], optional
         sets the truncated dimension for the current subsystem, set to 10 by default.
+
+    Attributes
+    ----------
+    hierarchical_diagonalization: bool
+        set to True when the circuit is defined hierarchically, by default `False`
+    hamiltonian_symbolic: Sympy.Expr
+        the symbolic Hamiltonian for the circuit
+    external_fluxes: List[Sympy.Symbol]
+        list of external flux variables
+    offset_charges: List[Sympy.Symbol]
+        list of offset charge variables
+    free_charges: List[Sympy.Symbol]
+        list of free charge variables
+    var_categories: Dict[str, List[int]]
+        dictionary with keys "periodic", "extended", "free", "frozen" and values as
+        the indices of the respective variable types
+    cutoff_names: List[str]
+        list of cutoff names for the variables
+    discretized_phi_range: Dict[int, Tuple[float, float]]
+        dictionary with keys as the indices of the extended variables and values as
+        the range of discretized phi variables
+    type_of_matrices: str
+        type of matrices used to construct the operators "dense" or "sparse", by default "sparse"
+    system_hierarchy: list
+        list of lists containing variable indices which is provided by the user to define subsystems
+    subsystem_trunc_dims: list
+        list of truncated dimensions for the subsystems inside the current subsystem
+    hilbert_space: HilbertSpace
+        HilbertSpace instance for the circuit, when hierarchical diagonalization is used
+    truncated_dim: int
+        truncated dimension for the current instance
+    is_purely_harmonic: bool
+        internally set to True when the instance is purely harmonic
     """
 
     def __init__(
@@ -86,9 +119,9 @@ class Subsystem(
         parent: "Subsystem",
         hamiltonian_symbolic: sm.Expr,
         ext_basis: Union[str, List],
-        system_hierarchy: Optional[List] = None,
-        subsystem_trunc_dims: Optional[List] = None,
-        truncated_dim: Optional[int] = 10,
+        system_hierarchy: list = [],
+        subsystem_trunc_dims: list = [],
+        truncated_dim: int = 10,
         evals_method: Union[Callable, str, None] = None,
         evals_method_options: Union[dict, None] = None,
         esys_method: Union[Callable, str, None] = None,
@@ -107,34 +140,21 @@ class Subsystem(
         )
 
         self.system_hierarchy = system_hierarchy
-        self.truncated_dim = truncated_dim
+        self.truncated_dim: int = truncated_dim
         self.subsystem_trunc_dims = subsystem_trunc_dims
 
-        self.is_child = True
+        self.is_child: bool = True
         self.parent = parent
         self.hamiltonian_symbolic = hamiltonian_symbolic
         self._default_grid_phi = self.parent._default_grid_phi
 
         self.junction_potential = None
         self._H_LC_str_harmonic = None
-        # attribute to keep track if the symbolic Hamiltonian needs to be updated
-        self._make_property(
-            "_user_changed_parameter",
-            False,
-            "update_user_changed_parameter",
-            use_central_dispatch=False,
-        )
-
         self.ext_basis = ext_basis
-        self._find_and_set_sym_attrs()
 
         self.dynamic_var_indices: List[int] = flatten_list_recursive(
             [self.system_hierarchy]
         )
-        parent_cutoffs_dict = self.parent.cutoffs_dict()
-        cutoffs: List[int] = [
-            parent_cutoffs_dict[var_index] for var_index in self.dynamic_var_indices
-        ]
 
         self.var_categories: Dict[str, List[int]] = {}
         for var_type in self.parent.var_categories:
@@ -161,7 +181,7 @@ class Subsystem(
 
         # storing the potential terms separately
 
-        self.potential_symbolic = self.generate_sym_potential()
+        self.potential_symbolic = self._generate_sym_potential()
 
         self.hierarchical_diagonalization: bool = (
             system_hierarchy != [] and number_of_lists_in_list(system_hierarchy) > 0
@@ -182,10 +202,10 @@ class Subsystem(
         self._frozen = True
 
     def _find_and_set_sym_attrs(self):
-        """
-        Finds the symbolic and other circuit params from the symbolic Hamiltonian, and sets the attribs
-        external_fluxes, offset_charges and symbolic_params. Only works when _frozen is set to False, or
-        the above attribs are already set.
+        """Finds the symbolic and other circuit params from the symbolic Hamiltonian,
+        and sets the attribs external_fluxes, offset_charges and symbolic_params.
+
+        Only works when _frozen is set to False, or the above attribs are already set.
         """
         self.external_fluxes = [
             var
@@ -207,12 +227,6 @@ class Subsystem(
             for var in self.parent.symbolic_params
             if var in self.hamiltonian_symbolic.free_symbols
         }
-
-    def _configure(self) -> None:
-        """
-        Function which is used to initiate the subsystem instance.
-        """
-        self._frozen = False
         for idx, param in enumerate(self.symbolic_params):
             self._make_property(
                 param.name, getattr(self.parent, param.name), "update_param_vars"
@@ -231,11 +245,17 @@ class Subsystem(
                 getattr(self.parent, charge_var.name),
                 "update_external_flux_or_charge",
             )
-
         for cutoff_str in self.cutoff_names:
             self._make_property(
                 cutoff_str, getattr(self.parent, cutoff_str), "update_cutoffs"
             )
+
+    def _configure(self) -> None:
+        """Function which is used to initiate the subsystem instance."""
+        self._frozen = False
+
+        self._find_and_set_sym_attrs()
+
         # if subsystem hamiltonian is purely harmonic
         if (
             self._is_expression_purely_harmonic(self.hamiltonian_symbolic)
@@ -246,89 +266,120 @@ class Subsystem(
         else:
             self.is_purely_harmonic = False
 
-        # Creating the attributes for purely harmonic circuits
-        if (
-            isinstance(self, Circuit) and self.parent.is_purely_harmonic
-        ):  # assuming that the parent has only extended variables and are ordered
-            # starting from 1, 2, 3, ...
-            self.is_purely_harmonic = self.parent.is_purely_harmonic
-            self.normal_mode_freqs = self.parent.normal_mode_freqs[
-                [var_idx - 1 for var_idx in self.var_categories["extended"]]
-            ]
-
         if self.hierarchical_diagonalization:
             # attribute to note updated subsystem indices
-            self.affected_subsystem_indices = []
             self._hamiltonian_sym_for_numerics = self.hamiltonian_symbolic.copy()
-            self.generate_subsystems()
+            self._generate_subsystems()
             self.ext_basis = self.get_ext_basis()
-            self.update_interactions()
+            self._update_interactions()
             self._check_truncation_indices()
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
         else:
-            self.generate_hamiltonian_sym_for_numerics()
+            self._generate_hamiltonian_sym_for_numerics()
             if self.is_purely_harmonic and self.ext_basis == "harmonic":
                 self._diagonalize_purely_harmonic_hamiltonian()
 
         self._set_vars()
-        self.operators_by_name = self.set_operators()
+        self.operators_by_name = self._set_operators()
 
+        self._out_of_sync_with_parent = False
         if self.hierarchical_diagonalization:
             self._out_of_sync = False  # for use with CentralDispatch
             dispatch.CENTRAL_DISPATCH.register("CIRCUIT_UPDATE", self)
         self._frozen = True
 
+    def _is_diagonalization_necessary(self) -> bool:
+        """Checks if the subsystem needs to be diagonalized."""
+        parent_subsys_idx = self.parent.subsystems.index(self)
+        if parent_subsys_idx in self.parent.affected_subsystem_indices:
+            return True
+        return False
+
 
 class Circuit(
-    CircuitRoutines,
+    CircuitABC,
     base.QubitBaseClass,
     serializers.Serializable,
     dispatch.DispatchClient,
     NoisyCircuit,
 ):
-    """
-    Class for analysis of custom superconducting circuits.
+    """Class for analysis of custom superconducting circuits.
 
     Parameters
     ----------
-    input_string: str
+    input_string:
         String describing the number of nodes and branches connecting then along
         with their parameters
-    from_file: bool
+    from_file:
         Set to True by default, when a file name should be provided to
         `input_string`, else the circuit graph description in YAML should be
         provided as a string.
-    basis_completion: str
+    basis_completion:
         either "heuristic" or "canonical", defines the matrix used for completing the
         transformation matrix. Sometimes used to change the variable transformation
         to result in a simpler symbolic Hamiltonian, by default "heuristic"
-    ext_basis: str
+    ext_basis:
         can be "discretized" or "harmonic" which chooses whether to use discretized
         phi or harmonic oscillator basis for extended variables,
         by default "discretized"
-    use_dynamic_flux_grouping: bool
+    use_dynamic_flux_grouping:
         set to False by default. Indicates if the flux allocation is done by assuming
         that flux is time dependent. When set to True, it disables the option to change
         the closure branches.
-    initiate_sym_calc: bool
-        attribute to initiate Circuit instance, by default `True`
-    truncated_dim: Optional[int]
+    initiate_sym_calc:
+        parameter to initiate Circuit instance, by default `True`
+    truncated_dim:
         truncated dimension if the user wants to use this circuit instance in
         HilbertSpace, by default `None`
+
+    Attributes
+    ----------
+    hierarchical_diagonalization: bool
+        set to True when the circuit is defined hierarchically, by default `False`
+    hamiltonian_symbolic: sm.Expr
+        the symbolic Hamiltonian for the circuit
+    external_fluxes: List[sm.Symbol]
+        list of external flux variables
+    offset_charges: List[sm.Symbol]
+        list of offset charge variables
+    free_charges: List[sm.Symbol]
+        list of free charge variables
+    var_categories: Dict[str, List[int]]
+        dictionary with keys "periodic", "extended", "free", "frozen" and values as
+        the indices of the respective variable types
+    cutoff_names: List[str]
+        list of cutoff names for the variables
+    discretized_phi_range: Dict[int, Tuple[float, float]]
+        dictionary with keys as the indices of the extended variables and values as
+        the range of discretized phi variables
+    type_of_matrices: str
+        type of matrices used to construct the operators "dense" or "sparse", by default "sparse"
+    truncated_dim: int
+        truncated dimension for the current instance
+    is_purely_harmonic: bool
+        internally set to True when the instance is purely harmonic
+    dynamic_var_indices: List[int]
+        list of dynamic variable indices, showing the degrees of freedom of the circuit.
+    hilbert_space: HilbertSpace
+        HilbertSpace instance for the instance, when hierarchical diagonalization is used
+    system_hierarchy: list
+        list of lists containing variable indices which is provided by the user to define subsystems
+    subsystem_trunc_dims: list
+        list of truncated dimensions for the subsystems inside the current subsystem
     """
 
     def __init__(
         self,
         input_string: Optional[str] = None,
         from_file: bool = True,
-        basis_completion="heuristic",
+        basis_completion: str = "heuristic",
         ext_basis: str = "discretized",
         use_dynamic_flux_grouping: bool = False,
         generate_noise_methods: bool = False,
         initiate_sym_calc: bool = True,
         truncated_dim: int = 10,
-        symbolic_param_dict: Dict[str, float] = None,
-        symbolic_hamiltonian: sm.Expr = None,
+        symbolic_param_dict: Dict[str, float] = {},
+        symbolic_hamiltonian: Optional[sm.Expr] = None,
         evals_method: Union[Callable, str, None] = None,
         evals_method_options: Union[dict, None] = None,
         esys_method: Union[Callable, str, None] = None,
@@ -346,7 +397,11 @@ class Circuit(
         )
         if symbolic_hamiltonian and input_string:
             raise Exception(
-                "Circuit instance cannot be initialized with both input_string and symbolic_hamiltonian."
+                "Circuit instance cannot be initialized with both input_string and a symbolic hamiltonian."
+            )
+        if not symbolic_hamiltonian and not input_string:
+            raise Exception(
+                "Circuit instance must be initialized with either input_string or a symbolic hamiltonian."
             )
         if input_string:
             self.from_yaml(
@@ -360,12 +415,12 @@ class Circuit(
                 truncated_dim=truncated_dim,
             )
 
-        else:
+        elif symbolic_hamiltonian:
             if use_dynamic_flux_grouping or generate_noise_methods:
                 raise Exception(
                     "Circuit instance initialized using symbolic Hamiltonian cannot be configured with closure_branches, use_dynamic_flux_grouping, transformation_matrix or generate_noise_methods."
                 )
-            self.from_symbolic_hamiltonian(
+            self._from_symbolic_hamiltonian(
                 symbolic_hamiltonian=symbolic_hamiltonian,
                 symbolic_param_dict=symbolic_param_dict,
                 initiate_sym_calc=initiate_sym_calc,
@@ -373,7 +428,7 @@ class Circuit(
                 ext_basis=ext_basis,
             )
 
-    def from_symbolic_hamiltonian(
+    def _from_symbolic_hamiltonian(
         self,
         symbolic_hamiltonian: sm.Expr,
         symbolic_param_dict: Dict[str, float],
@@ -394,8 +449,8 @@ class Circuit(
 
         self.ext_basis = ext_basis
         self.truncated_dim: int = truncated_dim
-        self.system_hierarchy: list = None
-        self.subsystem_trunc_dims: list = None
+        self.system_hierarchy: list = []
+        self.subsystem_trunc_dims: list = []
         self.operators_by_name = None
 
         self.discretized_phi_range: Dict[int, Tuple[float, float]] = {}
@@ -413,13 +468,6 @@ class Circuit(
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
         self._out_of_sync = False  # for use with CentralDispatch
-        self._make_property(
-            "_user_changed_parameter",
-            False,
-            "update_user_changed_parameter",
-            use_central_dispatch=False,
-        )
-
         if initiate_sym_calc:
             self.configure()
         self._frozen = True
@@ -434,11 +482,10 @@ class Circuit(
         use_dynamic_flux_grouping: bool = False,
         generate_noise_methods: bool = False,
         initiate_sym_calc: bool = True,
-        truncated_dim: int = None,
+        truncated_dim: int = 10,
     ):
-        """
-        Wrapper to Circuit __init__ to create a class instance. This is deprecated and
-        will not be supported in future releases.
+        """Wrapper to Circuit __init__ to create a class instance. This is deprecated
+        and will not be supported in future releases.
 
         Parameters
         ----------
@@ -487,8 +534,8 @@ class Circuit(
         self.ext_basis = ext_basis
         self.hierarchical_diagonalization: bool = False
         self.truncated_dim: int = truncated_dim
-        self.system_hierarchy: list = None
-        self.subsystem_trunc_dims: list = None
+        self.system_hierarchy: list = []
+        self.subsystem_trunc_dims: list = []
         self.operators_by_name = None
 
         self.discretized_phi_range: Dict[int, Tuple[float, float]] = {}
@@ -528,12 +575,6 @@ class Circuit(
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
         self._out_of_sync = False  # for use with CentralDispatch
-        self._make_property(
-            "_user_changed_parameter",
-            False,
-            "update_user_changed_parameter",
-            use_central_dispatch=False,
-        )
 
         if initiate_sym_calc:
             self.configure()
@@ -565,9 +606,7 @@ class Circuit(
         return {}
 
     def _clear_unnecessary_attribs(self):
-        """
-        Clear all the attributes which are not part of the circuit description
-        """
+        """Clear all the attributes which are not part of the circuit description."""
         necessary_attrib_names = (
             self.cutoff_names
             + [flux_symbol.name for flux_symbol in self.external_fluxes]
@@ -594,13 +633,12 @@ class Circuit(
         system_hierarchy: Optional[list] = None,
         subsystem_trunc_dims: Optional[list] = None,
         closure_branches: Optional[List[Union[Branch, Dict[Branch, float]]]] = None,
-        ext_basis: Optional[str] = None,
+        ext_basis: Optional[Union[str, List[str]]] = None,
         use_dynamic_flux_grouping: Optional[bool] = None,
         generate_noise_methods: bool = False,
         subsys_dict: Optional[Dict[str, Any]] = None,
     ):
-        """
-        Method which re-initializes a circuit instance to update, hierarchical
+        """Method which re-initializes a circuit instance to update, hierarchical
         diagonalization parameters or closure branches or the variable transformation
         used to describe the circuit.
 
@@ -737,10 +775,9 @@ class Circuit(
         system_hierarchy: Optional[list] = None,
         subsystem_trunc_dims: Optional[list] = None,
         subsys_dict: Optional[Dict[str, Any]] = None,
-        ext_basis: Optional[str] = None,
+        ext_basis: Optional[Union[str, List[str]]] = None,
     ):
-        """
-        Method which re-initializes a circuit instance to update, hierarchical
+        """Method which re-initializes a circuit instance to update, hierarchical
         diagonalization parameters or closure branches or the variable transformation
         used to describe the circuit.
 
@@ -829,7 +866,7 @@ class Circuit(
                     charge_var.name, 0.0, "update_external_flux_or_charge"
                 )
 
-        self.potential_symbolic = self.generate_sym_potential()
+        self.potential_symbolic = self._generate_sym_potential()
 
         # changing the matrix type if necessary
         if len(flatten_list(self.var_categories.values())) == 1:
@@ -848,7 +885,7 @@ class Circuit(
                     )
                     self.ext_basis = "harmonic"
             self.ext_basis = ext_basis or self.ext_basis
-            self.generate_hamiltonian_sym_for_numerics()
+            self._generate_hamiltonian_sym_for_numerics()
             if self.is_purely_harmonic and self.ext_basis == "harmonic":
                 # using the default methods
                 self.evals_method = None
@@ -856,10 +893,9 @@ class Circuit(
                 self._annihilation_operator_in_eigenbasis = None
                 self._diagonalize_purely_harmonic_hamiltonian()
             self._set_vars()  # setting the attribute vars to store operator symbols
-            self.operators_by_name = self.set_operators()
+            self.operators_by_name = self._set_operators()
         else:
             # list for updating necessary subsystems when calling build hilbertspace
-            self.affected_subsystem_indices = []
             self.operators_by_name = None
             self.system_hierarchy = system_hierarchy
             if subsystem_trunc_dims is None:
@@ -871,16 +907,16 @@ class Circuit(
             self.subsystem_trunc_dims = subsystem_trunc_dims
             if ext_basis:
                 self.ext_basis = ext_basis
-            self.generate_hamiltonian_sym_for_numerics()
-            self.generate_subsystems(subsys_dict=subsys_dict)
+            self._generate_hamiltonian_sym_for_numerics()
+            self._generate_subsystems(subsys_dict=subsys_dict)
             self.ext_basis = (
                 self.get_ext_basis()
             )  # update the ext_basis after generating subsystems
             self._set_vars()  # setting the attribute vars to store operator symbols
             self._check_truncation_indices()
-            self.operators_by_name = self.set_operators()
+            self.operators_by_name = self._set_operators()
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
-            self.update_interactions()
+            self._update_interactions()
 
         # clear unnecessary attribs
         self._clear_unnecessary_attribs()
@@ -893,13 +929,12 @@ class Circuit(
         system_hierarchy: Optional[list] = None,
         subsystem_trunc_dims: Optional[list] = None,
         closure_branches: Optional[List[Union[Branch, Dict[Branch, float]]]] = None,
-        ext_basis: Optional[str] = None,
+        ext_basis: Optional[Union[str, List[str]]] = None,
         use_dynamic_flux_grouping: Optional[bool] = None,
         subsys_dict: Optional[Dict[str, Any]] = None,
         generate_noise_methods: bool = False,
     ):
-        """
-        Method which re-initializes a circuit instance to update, hierarchical
+        """Method which re-initializes a circuit instance to update, hierarchical
         diagonalization parameters or closure branches or the variable transformation
         used to describe the circuit.
 
@@ -923,7 +958,7 @@ class Circuit(
         use_dynamic_flux_grouping:
             set to False by default. Indicates if the flux allocation is done by assuming that flux is time dependent. When set to True, it disables the option to change the closure branches.
         subsys_dict:
-            User provided dictionary with two keys "systems_sym" and "interaction_sym" defining the symbolic Hamiltonians and interactions for the subsystems. By default set to None, and is internally generated.
+            User provided dictionary with two keys `"systems_sym"` and `"interaction_sym"` defining the symbolic Hamiltonians and interactions for the subsystems. By default set to None, and is internally generated.
         generate_noise_methods:
             set to False by default. Indicates if the noise methods should be generated for the circuit instance.
 
@@ -1059,7 +1094,7 @@ class Circuit(
                         "Purely harmonic circuits need ext_basis to be set to 'harmonic'"
                     )
                     self.ext_basis = "harmonic"
-            self.generate_hamiltonian_sym_for_numerics()
+            self._generate_hamiltonian_sym_for_numerics()
             self.ext_basis = ext_basis or self.ext_basis
             if self.is_purely_harmonic and self.ext_basis == "harmonic":
                 # using the default methods
@@ -1069,7 +1104,6 @@ class Circuit(
                 self._diagonalize_purely_harmonic_hamiltonian()
         else:
             # list for updating necessary subsystems when calling build hilbertspace
-            self.affected_subsystem_indices = []
             self.operators_by_name = None
             self.system_hierarchy = system_hierarchy
             if subsystem_trunc_dims is None:
@@ -1079,16 +1113,16 @@ class Circuit(
                 )
 
             self.subsystem_trunc_dims = subsystem_trunc_dims
-            self.generate_hamiltonian_sym_for_numerics()
+            self._generate_hamiltonian_sym_for_numerics()
             self.ext_basis = ext_basis or self.ext_basis
-            self.generate_subsystems(subsys_dict=subsys_dict)
+            self._generate_subsystems(subsys_dict=subsys_dict)
             self.ext_basis = self.get_ext_basis()
-            self.update_interactions()
+            self._update_interactions()
             self._check_truncation_indices()
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
 
         self._set_vars()  # setting the attribute vars to store operator symbols
-        self.operators_by_name = self.set_operators()
+        self.operators_by_name = self._set_operators()
         # clear unnecessary attribs
         self._clear_unnecessary_attribs()
         if generate_noise_methods:
@@ -1097,7 +1131,7 @@ class Circuit(
         self.update()
 
     def supported_noise_channels(self) -> List[str]:
-        """Return a list of supported noise channels"""
+        """Return a list of supported noise channels."""
         if not hasattr(self, "_noise_methods_generated"):
             raise Exception(
                 "Noise methods are not generated, please use configure() with generate_noise_methods=True to generate them."
@@ -1120,9 +1154,7 @@ class Circuit(
         ]
 
     def variable_transformation(self, new_vars_to_node_vars=True) -> None:
-        """
-        Prints the variable transformation used in this circuit
-        """
+        """Prints the variable transformation used in this circuit."""
         trans_mat = self.transformation_matrix
         if new_vars_to_node_vars:
             trans_mat = np.linalg.inv(trans_mat)
@@ -1159,8 +1191,8 @@ class Circuit(
         print_latex: bool = False,
         return_expr: bool = False,
     ) -> Union[sm.Expr, None]:
-        """
-        Method that gives a user readable symbolic Lagrangian for the current instance
+        """Method that gives a user readable symbolic Lagrangian for the current
+        instance.
 
         Parameters
         ----------
@@ -1241,9 +1273,8 @@ class Circuit(
             print(lagrangian)
 
     def sym_external_fluxes(self) -> Dict[sm.Expr, Tuple["Branch", List["Branch"]]]:
-        """
-        Method returns a dictionary of Human readable external fluxes with associated
-        branches and loops (represented as lists of branches) for the current instance
+        """Method returns a dictionary of Human readable external fluxes with associated
+        branches and loops (represented as lists of branches) for the current instance.
 
         Returns
         -------
@@ -1268,12 +1299,11 @@ class Circuit(
         }
 
     def oscillator_list(self, osc_index_list: List[int]):
-        """
-        If hierarchical diagonalization is used, specify subsystems that corresponds to
-        single-mode oscillators, if there is any. The attributes `_osc_subsys_list` and
-        `osc_subsys_list` of the `hilbert_space` attribute of the Circuit instance will
-        be assigned accordingly, enabling the correct identification of harmonic modes
-        for the dispersive regime analysis in ParameterSweep.
+        """If hierarchical diagonalization is used, specify subsystems that corresponds
+        to single-mode oscillators, if there is any. The attributes `_osc_subsys_list`
+        and `osc_subsys_list` of the :attr:`hilbert_space` attribute of the Circuit instance
+        will be assigned accordingly, enabling the correct identification of harmonic
+        modes for the dispersive regime analysis in ParameterSweep.
 
         Parameters
         ----------
@@ -1290,19 +1320,18 @@ class Circuit(
                 )
             elif len(subsystem.var_categories["extended"]) != 1:
                 raise Exception(
-                    f"the subsystem has more than one harmonic oscillator mode"
+                    "the subsystem has more than one harmonic oscillator mode"
                 )
             else:
                 osc_subsys_list.append(subsystem)
         self.hilbert_space._osc_subsys_list = osc_subsys_list
 
     def qubit_list(self, qbt_index_list: List[int]):
-        """
-        If hierarchical diagonalization is used, specify subsystems that corresponds to
-        single-mode oscillators, if there is any. The attributes `_osc_subsys_list` and
-        `osc_subsys_list` of the `hilbert_space` attribute of the Circuit instance will
-        be assigned accordingly, enabling the correct identification of harmonic modes
-        for the dispersive regime analysis in ParameterSweep.
+        """If hierarchical diagonalization is used, specify subsystems that corresponds
+        to single-mode oscillators, if there is any. The attributes `_osc_subsys_list`
+        and `osc_subsys_list` of the `hilbert_space` attribute of the Circuit instance
+        will be assigned accordingly, enabling the correct identification of harmonic
+        modes for the dispersive regime analysis in ParameterSweep.
 
         Parameters
         ----------

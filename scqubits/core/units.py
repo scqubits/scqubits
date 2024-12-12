@@ -42,7 +42,8 @@ def get_units() -> str:
 
 def set_units(units: str) -> str:
     """The set_units function is used to set the system units for all qubit instances.
-    The default unit system is GHz, but this can be changed by calling `set_units()` with one of the `_supported_units`
+    The default unit system is GHz, but this can be changed by calling `set_units()`
+    with one of the `_supported_units`
 
     Parameters
     ----------
@@ -80,7 +81,7 @@ def set_units(units: str) -> str:
 
 
 def get_units_time_label(units: Optional[str] = None) -> str:
-    """Get a latex representation of 1/units"""
+    """Get a latex representation of 1/units."""
     units = units or _current_units
     if units not in _supported_units:
         raise ValueError(
@@ -98,9 +99,8 @@ def show_supported_units() -> List[str]:
 
 
 def to_standard_units(value: float) -> float:
-    r"""
-    Converts `value` (a frequency or angular frequency) from currently set system units,
-    to standard units (Hz or  2pi/s).
+    r"""Converts `value` (a frequency or angular frequency) from currently set system
+    units, to standard units (Hz or  2pi/s).
 
     Parameters
     ----------
@@ -115,9 +115,8 @@ def to_standard_units(value: float) -> float:
 
 
 def from_standard_units(value: float) -> float:
-    r"""
-    Converts `value` (a frequency or angular frequency) from standard units
-    (`[Hz]` or  `2\pi / [s]`) to currently set system units.
+    r"""Converts `value` (a frequency or angular frequency) from standard units (`[Hz]`
+    or  `2\pi / [s]`) to currently set system units.
 
     Parameters
     ----------
@@ -128,15 +127,15 @@ def from_standard_units(value: float) -> float:
     Returns
     -------
         frequency or angular frequency converted to system units
-
     """
     return value / _units_factor[_current_units]
 
 
 def units_scale_factor(units: Optional[str] = None) -> float:
-    """The units_scale_factor function returns a numerical scaling factor that converts from Hz to the `units` given as
-    a string argument. If no argument is given, the current units stored in `_current_units` are used. If the units are
-    not supported, a `ValueError` is raised.
+    """The units_scale_factor function returns a numerical scaling factor that converts
+    from Hz to the `units` given as a string argument. If no argument is given, the
+    current units stored in `_current_units` are used. If the units are not supported, a
+    `ValueError` is raised.
 
     Parameters
     ----------

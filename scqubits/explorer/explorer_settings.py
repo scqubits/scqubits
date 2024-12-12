@@ -43,8 +43,7 @@ else:
 
 
 class ExplorerSettings:
-    """
-    Generates the UI for Explorer settings.
+    """Generates the UI for Explorer settings.
 
     Parameters
     ----------

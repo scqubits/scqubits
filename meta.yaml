@@ -12,7 +12,7 @@ source:
 
 build:
   number: 0
-  skip: true  # [py<35]
+  skip: true  # [py<37]
   script: "{{ PYTHON }} -m pip install . -vv"
 
 channels:
@@ -35,8 +35,7 @@ requirements:
     - cycler
     - matplotlib >=3.5.1
     - numpy >=1.14.2
-    - qutip >=4.3.1 [py>=39]
-    - qutip <5.0 [py<39]
+    - qutip >=4.3.1
     - scipy >=1.5
     - dill
     - sympy
