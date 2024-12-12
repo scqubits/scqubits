@@ -972,10 +972,10 @@ class ParameterSweep(  # type:ignore
 
     `"evals"` and `"evecs"`
         dressed eigenenergies and eigenstates as
-        `NamedSlotsNdarray`; eigenstates are decomposed in the bare product-state basis
+        :obj:`.NamedSlotsNdarray`; eigenstates are decomposed in the bare product-state basis
         of the non-interacting subsystems' eigenbases
     `"bare_evals"` and `"bare_evecs"`
-        bare eigenenergies and eigenstates as `NamedSlotsNdarray`
+        bare eigenenergies and eigenstates as :obj:`.NamedSlotsNdarray`
     `"lamb"`, `"chi"`, and `"kerr"`
         dispersive energy coefficients
     `"<custom sweep>"`

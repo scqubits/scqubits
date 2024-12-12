@@ -85,7 +85,14 @@ QuantumSystemType = TypeVar("QuantumSystemType", bound="QuantumSystem")
 
 
 class QuantumSystem(DispatchClient, ABC):
-    """Generic quantum system class."""
+    """Generic quantum system class.
+
+    Attributes
+    ----------
+    truncated_dim: int
+        Hilbert space dimension
+
+    """
 
     truncated_dim = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
     _init_params: List[str]
@@ -266,6 +273,25 @@ class QubitBaseClass(QuantumSystem, ABC):
 
     Provide general mechanisms and routines for plotting spectra, matrix elements, and
     writing data to files
+
+    Attributes
+    ----------
+    truncated_dim: int
+        Hilbert space dimension
+    _default_grid: Grid1d
+        Discretization grid
+    _sys_type: str
+        Type of quantum system
+    _init_params: list
+        List of parameters used for initialization
+    evals_method: Union[Callable, str, None]
+        Method for calculating eigenvalues
+    evals_method_options: Union[Dict, None]
+        Options for eigenvalue calculation
+    esys_method: Union[Callable, str, None]
+        Method for calculating eigenvalues and eigenvectors
+    esys_method_options: Union[Dict, None]
+        Options for eigenvalue and eigenvector calculation
     """
 
     # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
@@ -393,7 +419,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         self,
         evals_count: int = 6,
         filename: Optional[str] = None,
-        return_spectrumdata: "Literal[False]" = False,
+        return_spectrumdata: bool = False,
     ) -> Tuple[ndarray, ndarray]: ...
 
     @overload
@@ -401,7 +427,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         self,
         evals_count: int,
         filename: Optional[str],
-        return_spectrumdata: "Literal[True]",
+        return_spectrumdata: bool,
     ) -> SpectrumData: ...
 
     def eigensys(

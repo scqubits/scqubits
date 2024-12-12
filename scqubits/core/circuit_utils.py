@@ -62,8 +62,10 @@ def sawtooth_operator(x: Union[ndarray, csc_matrix]):
     """Returns the operator evaluated using applying the sawtooth_potential function on
     the diagonal elements of the operator x.
 
-    Args:
-        x (Union[ndarray, csc_matrix]): argument of the sawtooth operator in the Hamiltonian
+    Parameters
+    ----------
+    x:
+        argument of the sawtooth operator in the Hamiltonian
     """
     diagonal_elements = sawtooth_potential(x.diagonal())
 
@@ -92,7 +94,7 @@ def sawtooth_potential(phi_pts):
     return -V
 
 
-def _capactiance_variable_for_branch(branch_type: str):
+def _capacitance_variable_for_branch(branch_type: str):
     """Returns the parameter name that stores the capacitance of the branch."""
     if "C" in branch_type:
         return "EC"

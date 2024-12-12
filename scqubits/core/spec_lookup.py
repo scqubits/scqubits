@@ -380,7 +380,7 @@ class SpectrumLookupMixin(MixinCompatible):
         subsys: "QuantumSys",
         param_indices: Optional[Tuple[int, ...]] = None,
     ) -> NamedSlotsNdarray:
-        """Return `NamedSlotsNdarray` of bare eigenenergies for given subsystem, usually
+        """Return :obj:`.NamedSlotsNdarray` of bare eigenenergies for given subsystem, usually
         to be used with preslicing.
 
         Parameters

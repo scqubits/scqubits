@@ -150,41 +150,44 @@ class CircuitRoutines(ABC):
         if not self.is_child:
             return self
         return self.parent.return_parent_circuit()
-    
+
     @staticmethod
     def _contains_trigonometric_terms(hamiltonian):
         """Check if the hamiltonian contains any trigonometric terms."""
         trigonometric_operators = [sm.cos, sm.sin, sm.Function("saw", real=True)]
         return any(hamiltonian.atoms(operator) for operator in trigonometric_operators)
-    
+
     @staticmethod
     def _is_symbol_periodic_charge(sym):
         return sym.name[0] == "n" and sym.name[1:].isnumeric()
+
     @staticmethod
     def _is_symbol_continuous_charge(sym):
         return sym.name[0] == "Q" and sym.name[1:].isnumeric()
+
     @staticmethod
     def _is_symbol_phase(sym):
         return sym.name[0] == "θ" and sym.name[1:].isnumeric()
-    
+
     @staticmethod
     def _find_and_categorize_variable_indices(hamiltonian):
         periodic_var_indices = set(
-            get_trailing_number(symbol.name) 
-            for symbol in hamiltonian.free_symbols 
+            get_trailing_number(symbol.name)
+            for symbol in hamiltonian.free_symbols
             if CircuitRoutines._is_symbol_periodic_charge(symbol)
-            )
+        )
         extended_var_indices = set(
-            get_trailing_number(symbol.name) 
-            for symbol in hamiltonian.free_symbols 
+            get_trailing_number(symbol.name)
+            for symbol in hamiltonian.free_symbols
             if CircuitRoutines._is_symbol_continuous_charge(symbol)
-            )
+        )
         phase_var_indices = set(
-            get_trailing_number(symbol.name) 
-            for symbol in hamiltonian.free_symbols 
+            get_trailing_number(symbol.name)
+            for symbol in hamiltonian.free_symbols
             if CircuitRoutines._is_symbol_phase(symbol)
-            )
+        )
         return periodic_var_indices, extended_var_indices, phase_var_indices
+
     # @staticmethod
     def _is_expression_purely_harmonic(self, hamiltonian):
         """Method used to check if the hamiltonian is purely harmonic."""
@@ -192,7 +195,11 @@ class CircuitRoutines(ABC):
         if self._contains_trigonometric_terms(hamiltonian):
             return False
         # if the hamiltonian contains any charge operator of periodic variables, return false
-        periodic_charge_variable_index, extended_charge_variable_index, phase_variable_index = self._find_and_categorize_variable_indices(hamiltonian)
+        (
+            periodic_charge_variable_index,
+            extended_charge_variable_index,
+            phase_variable_index,
+        ) = self._find_and_categorize_variable_indices(hamiltonian)
         if len(periodic_charge_variable_index) > 0:
             return False
         # if the hamiltonian has any DoF where only its charge or flux operator is present, return False
@@ -398,7 +405,7 @@ class CircuitRoutines(ABC):
                 if str(var_index) in cutoff_name:
                     cutoffs_dict[var_index] = getattr(self, cutoff_name)
         return cutoffs_dict
-    
+
     ##############################################
     ####### Methods for parameter updates ########
     ##############################################
@@ -514,10 +521,11 @@ class CircuitRoutines(ABC):
         self._frozen = True
 
     def _perform_internal_updates(
-        self, fetch_hamiltonian: bool = True,
+        self,
+        fetch_hamiltonian: bool = True,
     ):
         """
-        Method to perform internal updates in the Circuit instance. This updates the symbolic expressions, as well as the other methods needed to 
+        Method to perform internal updates in the Circuit instance. This updates the symbolic expressions, as well as the other methods needed to
         generate operators.
 
         Parameters
@@ -538,9 +546,7 @@ class CircuitRoutines(ABC):
         # copy the transformation matrix and normal_mode_freqs if self is a Circuit instance.
         if self.is_purely_harmonic and self.ext_basis == "harmonic":
             if not self.is_child:
-                self.transformation_matrix = (
-                    self.symbolic_circuit.transformation_matrix
-                )
+                self.transformation_matrix = self.symbolic_circuit.transformation_matrix
             self._diagonalize_purely_harmonic_hamiltonian()
 
         self.operators_by_name = self._set_operators()
@@ -552,9 +558,7 @@ class CircuitRoutines(ABC):
             self.affected_subsystem_indices = list(range(len(self.subsystems)))
             # making internal updates in all subsystems
             for subsys in self.subsystems:
-                subsys._perform_internal_updates(
-                    fetch_hamiltonian=False
-                )
+                subsys._perform_internal_updates(fetch_hamiltonian=False)
         self._frozen = True
 
     def _update_bare_esys(self):
@@ -578,16 +582,21 @@ class CircuitRoutines(ABC):
         is_circuit = hasattr(self, "symbolic_circuit")
         if not is_circuit:
             return False
-        num_nodes_threshold = (len(self.symbolic_circuit.nodes)) >= settings.SYM_INVERSION_MAX_NODES
+        num_nodes_threshold = (
+            len(self.symbolic_circuit.nodes)
+        ) >= settings.SYM_INVERSION_MAX_NODES
         frozen_vars = len(self.var_categories["frozen"]) > 0
         # check to see if it is a junction symbolic param
-        if not self.is_purely_harmonic and sm.symbols(param_name) in self.junction_potential.free_symbols:
+        if (
+            not self.is_purely_harmonic
+            and sm.symbols(param_name) in self.junction_potential.free_symbols
+        ):
             return False
-        
+
         if num_nodes_threshold or frozen_vars or self.is_purely_harmonic:
             return True
         return False
-    
+
     def _mark_all_subsystems_as_affected(self):
         """Method to mark all subsystems as affected."""
         if not self.hierarchical_diagonalization:
@@ -2541,8 +2550,10 @@ class CircuitRoutines(ABC):
 
         if self.is_child and self._is_diagonalization_necessary():
             subsys_index = self.parent.subsystems.index(self)
-            return self.parent.hilbert_space["bare_evals"][subsys_index][0][:evals_count]
-        
+            return self.parent.hilbert_space["bare_evals"][subsys_index][0][
+                :evals_count
+            ]
+
         if self.is_purely_harmonic and not self.hierarchical_diagonalization:
             return self._eigenvals_for_purely_harmonic(evals_count=evals_count)
 
@@ -2561,10 +2572,15 @@ class CircuitRoutines(ABC):
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
-        
+
         if self.is_child and not self._is_diagonalization_necessary():
             subsys_index = self.parent.subsystems.index(self)
-            return self.parent.hilbert_space["bare_evals"][subsys_index][0][:evals_count], self.parent.hilbert_space["bare_evecs"][subsys_index][0][:, :evals_count]
+            return (
+                self.parent.hilbert_space["bare_evals"][subsys_index][0][:evals_count],
+                self.parent.hilbert_space["bare_evecs"][subsys_index][0][
+                    :, :evals_count
+                ],
+            )
 
         print("calculating esys:", self.id_str)
 
@@ -2589,7 +2605,7 @@ class CircuitRoutines(ABC):
         """Returns the eigensystem of the Circuit, and all the subsystems involved in the bare basis."""
         if not self.hierarchical_diagonalization:
             return self.eigensys(evals_count=self.truncated_dim)
-        
+
         self._update_bare_esys()
         subsys_eigensys = dict.fromkeys([i for i in range(len(self.subsystems))])
         for idx, subsys in enumerate(self.subsystems):
@@ -3199,9 +3215,9 @@ class CircuitRoutines(ABC):
             The dimension of the wave function which needs to be rewritten in terms of
             the initial basis
         """
-        U_subsys = (
-            subsystem.eigensys(evals_count=subsystem.truncated_dim)[1]
-        )  # eigensys(evals_count=subsystem.truncated_dim)
+        U_subsys = subsystem.eigensys(evals_count=subsystem.truncated_dim)[
+            1
+        ]  # eigensys(evals_count=subsystem.truncated_dim)
         wf_sublist = list(range(len(wf_reshaped.shape)))
         U_sublist = [wf_dim, len(wf_sublist)]
         target_sublist = wf_sublist.copy()

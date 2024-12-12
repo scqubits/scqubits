@@ -58,8 +58,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
     Josephson energies :math:`E_\text{J}`, inductive energies :math:`E_\text{L}`,
     and relative amounts of disorder :math:`dC_\text{J}`, :math:`dE_\text{J}`,
     :math:`dC`, :math:`dE_\text{L}` follows [Groszkowski2018]_. Internally,
-    the ``FullZeroPi`` class formulates the Hamiltonian matrix via the
-    product basis of the decoupled Zero-Pi qubit (see `:class:`ZeroPi``)  on one hand, and the
+    the `FullZeroPi` class formulates the Hamiltonian matrix via the
+    product basis of the decoupled Zero-Pi qubit (see :class:`ZeroPi`)  on one hand, and the
     zeta LC oscillator on the other hand.
 
     Parameters

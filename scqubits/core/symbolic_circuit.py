@@ -2141,7 +2141,9 @@ class SymbolicCircuit(serializers.Serializable):
             node_voltages = [0] + node_voltages
         return node_voltages
 
-    def _branch_charge_expr(self, branch: Branch, substitute_params: bool = True) -> sm.Expr:
+    def _branch_charge_expr(
+        self, branch: Branch, substitute_params: bool = True
+    ) -> sm.Expr:
         """Returns the charge on the branch in terms of the charge operators.
 
         Parameters
@@ -2342,7 +2344,9 @@ class SymbolicCircuit(serializers.Serializable):
                 EC_mat_θ.dot(p_φ_vars).dot(p_φ_vars) * 0.5
             )  # in terms of new variables
         else:
-            C_terms_new = (sympy.Matrix(p_φ_vars).T * EC_mat_θ * sympy.Matrix(p_φ_vars))[
+            C_terms_new = (
+                sympy.Matrix(p_φ_vars).T * EC_mat_θ * sympy.Matrix(p_φ_vars)
+            )[
                 0
             ] * 0.5  # in terms of new variables
 

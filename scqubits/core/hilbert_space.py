@@ -361,7 +361,7 @@ class HilbertSpace(
     """Class holding information about the full Hilbert space, usually composed of
     multiple subsystems. The class provides methods to turn subsystem operators into
     operators acting on the full Hilbert space, and establishes the interface to qutip.
-    Returned operators are of the `qutip.Qobj` type. The class also provides methods for
+    Returned operators are of the :py:obj:`~qutip.Qobj` type. The class also provides methods for
     obtaining eigenvalues, absorption and emission spectra as a function of an external
     parameter.
 
@@ -684,7 +684,7 @@ class HilbertSpace(
         bare_esys: Optional[Dict[int, Union[ndarray, List[ndarray]]]] = None,
     ) -> ndarray:
         """Calculates eigenvalues of the full Hamiltonian. Qutip's
-        `qutip.Qobj.eigenenergies()` is used by default, unless `self.evals_method` has
+        :py:obj:`~qutip.Qobj.eigenenergies` is used by default, unless `self.evals_method` has
         been set to something other than `None`.
 
         Parameters
@@ -1111,7 +1111,7 @@ class HilbertSpace(
     def add_interaction(
         self, check_validity=True, id_str: Optional[str] = None, **kwargs
     ) -> None:
-        """Specify the interaction between subsystems making up the :class:`HilbertSpace`
+        """Specify the interaction between subsystems making up the :py:class:`HilbertSpace`
         instance. `add_interaction(...)` offers three different interfaces:
 
         * Simple interface for operator products
@@ -1119,7 +1119,7 @@ class HilbertSpace(
         * General Qobj interface
 
         1. Simple interface for operator products
-            Specify `ndarray`, `csc_matrix`, or `dia_matrix` (subsystem operator in
+            Specify :py:class:`ndarray`, :py:class:`csc_matrix`, or :py:class:`dia_matrix` (subsystem operator in
             subsystem-internal basis) along with the corresponding subsystem
 
             signature::
@@ -1158,8 +1158,8 @@ class HilbertSpace(
             optional bool indicating whether to check the validity of the interaction;
             switch this off for speed if you are sure the interaction is valid
         id_str:
-            optional string by which this instance can be referred to in :class:`HilbertSpace`
-            and `ParameterSweep`. If not provided, an id is auto-generated.
+            optional string by which this instance can be referred to in :py:class:`HilbertSpace`
+            and :py:class:`scqubits.ParameterSweep`. If not provided, an id is auto-generated.
         """
         if "expr" in kwargs:
             interaction: Union[InteractionTerm, InteractionTermStr] = (
