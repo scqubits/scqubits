@@ -532,7 +532,7 @@ class SymbolicCircuit(serializers.Serializable):
     def configure(
         self,
         transformation_matrix: Optional[ndarray] = None,
-        closure_branches: Optional[List[Union[Branch, Dict[Branch, float]]]] = None,
+        closure_branches: List[Union[Branch, Dict[Branch, float]]] = [],
         use_dynamic_flux_grouping: Optional[bool] = None,
     ):
         """Method to initialize the CustomQCircuit instance and initialize all the
@@ -548,11 +548,15 @@ class SymbolicCircuit(serializers.Serializable):
             the external flux will be associated with that branch. If the element is a dictionary, the external flux variable
             will be distributed across the branches according to the dictionary with the factor given as a key value.
         """
+        if transformation_matrix is None and hasattr(self, "transformation_matrix"):
+            transformation_matrix = self.transformation_matrix
+        closure_branches = closure_branches or self.closure_branches
+        if use_dynamic_flux_grouping:
+            self.use_dynamic_flux_grouping = use_dynamic_flux_grouping
+
         # if the circuit is purely harmonic, then store the eigenfrequencies
         branch_type_list = [branch.type for branch in self.branches]
         self.is_purely_harmonic = "JJ" not in "".join(branch_type_list)
-        if use_dynamic_flux_grouping:
-            self.use_dynamic_flux_grouping = use_dynamic_flux_grouping
 
         if self.is_purely_harmonic:
             (
