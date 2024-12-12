@@ -43,11 +43,17 @@ from scqubits.utils.misc import (
 )
 
 from scqubits.core.circuit_routines import CircuitRoutines
+from scqubits.core.circuit_plotting import CircuitPlot
+from scqubits.core.circuit_sym_methods import CircuitSymMethods
 from scqubits.core.circuit_noise import NoisyCircuit
 
 
+class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot):
+    pass
+
+
 class Subsystem(
-    CircuitRoutines,
+    CircuitABC,
     base.QubitBaseClass,
     serializers.Serializable,
     dispatch.DispatchClient,
@@ -291,7 +297,7 @@ class Subsystem(
 
 
 class Circuit(
-    CircuitRoutines,
+    CircuitABC,
     base.QubitBaseClass,
     serializers.Serializable,
     dispatch.DispatchClient,
