@@ -1239,7 +1239,7 @@ class QubitBaseClass1d(QubitBaseClass):
             If which is -1, all wavefunctions up to the truncation limit are plotted.
         mode:
             choices as specified in `constants.MODE_FUNC_DICT`
-            (default value = 'abs_sqr')
+            (default value = 'real')
         esys:
             eigenvalues, eigenvectors
         phi_grid:
