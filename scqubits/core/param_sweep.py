@@ -257,7 +257,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
                     param_vals=self._parameters[sweep_param_name],
                 )
             )
-        self._preslicing_reset()
+        self.reset_preslicing()
         return specdata_list
 
     @property
@@ -285,7 +285,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
             param_name=sweep_param_name,
             param_vals=self._parameters[sweep_param_name],
         )
-        self._preslicing_reset()
+        self.reset_preslicing()
         return specdata
 
     def get_sweep_indices(self, multi_index: GIndexTuple) -> List[int]:
@@ -303,15 +303,12 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
                 (list, tuple, ndarray),
             )
         ]
-        self._preslicing_reset()
+        self.reset_preslicing()
         return sweep_indices
 
     @property
     def system_params(self) -> Dict[str, Any]:
         return self.hilbertspace.get_initdata()
-
-    def _preslicing_reset(self) -> None:
-        self._current_param_indices = slice(None, None, None)
 
     def _slice_is_1d_sweep(self, param_indices: Optional[NpIndices]) -> bool:
         param_indices = param_indices or self._current_param_indices
@@ -985,6 +982,25 @@ class ParameterSweep(  # type:ignore
     bare_only:
         if set to True, only bare eigendata is calculated; useful when performing a
         sweep for a single quantum system, no interaction (default: False)
+    lookup_scheme:
+        the scheme of genenrating the dressed state labeling in lookup table.
+        - "DE" (Dressed Energy): traverse the eigenstates
+        in the order of their dressed energy, and find the corresponding bare
+        state label by overlaps (default)
+        - "LX" (Lexical ordering): traverse the bare states in `lexical order`_,
+        and perform the branch analysis generalized from Dumas et al. (2024).
+        - "BE" (Bare Energy): traverse the bare states in the order of
+        their energy before coupling and perform label assignment. This is particularly
+        useful when the Hilbert space is too large and not all the eigenstates need
+        to be labeled.
+
+    lookup_subsys_priority:
+        a permutation of the subsystem indices and bare labels. If it is provided,
+        lexical ordering is performed on the permuted labels. A "branch" is defined
+        as a series of eigenstates formed by putting excitations into the last
+        subsystem in the list.
+    lookup_BEs_count:
+        the number of dressed states to be labeled, for "BE" scheme only.
     ignore_low_overlap:
         if set to False (default), bare product states and dressed eigenstates are
         identified if `|<psi_bare|psi_dressed>|^2 > 0.5`; if True,
@@ -1027,6 +1043,8 @@ class ParameterSweep(  # type:ignore
     Array-like access is responsible for "pre-slicing",
     enable lookup functionality such as
     `<Sweep>[p1, p2, ...].eigensys()`
+
+    .. _lexical order: https://en.wikipedia.org/wiki/Lexicographic_order#Cartesian_products/
     """
 
     def __init__(
@@ -1037,6 +1055,9 @@ class ParameterSweep(  # type:ignore
         evals_count: int = 20,
         subsys_update_info: Optional[Dict[str, Union[List[QuantumSystem], None]]] = None,
         bare_only: bool = False,
+        labeling_scheme: Literal["DE", "LX", "BE"] = "DE",
+        labeling_subsys_priority: Union[List[int], None] = None,
+        labeling_BEs_count: Union[int, None] = None,
         ignore_low_overlap: bool = False,
         autorun: bool = settings.AUTORUN_SWEEP,
         deepcopy: bool = False,
@@ -1050,12 +1071,18 @@ class ParameterSweep(  # type:ignore
         self._subsys_update_info = subsys_update_info
         self._data: Dict[str, Any] = {}
         self._bare_only = bare_only
+        self._labeling_scheme = labeling_scheme
+        self._labeling_subsys_priority = labeling_subsys_priority
+        self._labeling_BEs_count = labeling_BEs_count
         self._ignore_low_overlap = ignore_low_overlap
         self._deepcopy = deepcopy
         self._num_cpus = num_cpus
 
         self._out_of_sync = False
         self.reset_preslicing()
+
+        self._check_subsys_id_strs()
+        self._check_subsys_update_info()
 
         dispatch.CENTRAL_DISPATCH.register("PARAMETERSWEEP_UPDATE", self)
         dispatch.CENTRAL_DISPATCH.register("HILBERTSPACE_UPDATE", self)
@@ -1076,6 +1103,41 @@ class ParameterSweep(  # type:ignore
 
         if autorun:
             self.run()
+
+    def _check_subsys_id_strs(self) -> None:
+        """
+        Repeated id_str are not allowed in ParameterSweep.
+        We now uses id_str to find the corresponding subsystem listed in
+        subsys_update_info.
+        """
+        id_strs = [subsystem.id_str for subsystem in self.hilbertspace.subsystem_list]
+        if len(id_strs) != len(set(id_strs)):
+            raise ValueError("Repeated id_str are not allowed in ParameterSweep.")
+
+    def _check_subsys_update_info(self) -> None:
+        """
+        subsys_update_info is a dictionary with parameter names as keys and
+        corresponding subsystem lists as values.
+        """
+        if self._subsys_update_info is None:
+            return
+
+        param_names = self._parameters.names
+        id_strs = [subsystem.id_str for subsystem in self.hilbertspace.subsystem_list]
+
+        for parameter_name, subsystems in self._subsys_update_info.items():
+            if not all(subsystem.id_str in id_strs for subsystem in subsystems):
+                raise ValueError(
+                    f"Subsystems specified in "
+                    f"subsys_update_info['{parameter_name}'] are not "
+                    "found in the provided HilbertSpace object."
+                )
+            if not parameter_name in param_names:
+                raise ValueError(
+                    f"Parameter name '{parameter_name}' in "
+                    "subsys_update_info is not found in the "
+                    "parameter list."
+                )
 
     @property
     def tqdm_disabled(self) -> bool:
@@ -1140,7 +1202,11 @@ class ParameterSweep(  # type:ignore
         ) = self._bare_spectrum_sweep()
         if not self._bare_only:
             self._data["evals"], self._data["evecs"] = self._dressed_spectrum_sweep()
-            self._data["dressed_indices"] = self.generate_lookup()
+            self._data["dressed_indices"] = self.generate_lookup(
+                ordering=self._labeling_scheme,
+                subsys_priority=self._labeling_subsys_priority,
+                BEs_count=self._labeling_BEs_count,
+            )
             (
                 self._data["lamb"],
                 self._data["chi"],
@@ -1224,24 +1290,13 @@ class ParameterSweep(  # type:ignore
     def _paramnames_no_subsys_update(self, subsystem) -> List[str]:       
         if self._subsys_update_info is None:
             return []
-        
-        parameters_no_update = []
-        for name in self.parameters.names:
-            # Assume changing parameters with no update info WILL update all subsystems. 
-            if name not in self._subsys_update_info.keys():
-                continue
-
-            info = self._subsys_update_info[name]
-
-            # Changing parameters with None as update info WILL NOT update any subsystems.
-            if info is None:
-                parameters_no_update.append(name)
-                continue
-
-            if subsystem not in info and subsystem.id_str not in info:
-                parameters_no_update.append(name)
-
-        return parameters_no_update
+        updating_parameters = [
+            name
+            for name in self._subsys_update_info.keys()
+            if subsystem.id_str
+            in [subsys.id_str for subsys in self._subsys_update_info[name]]
+        ]
+        return list(set(self._parameters.names) - set(updating_parameters))
 
     def _subsys_bare_spectrum_sweep(self, subsystem) -> ndarray:
         """

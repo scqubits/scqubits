@@ -22,14 +22,13 @@ requirements:
   host:
     - python
     - pip
-    - cython >=0.29.20                # [build_platform != target_platform]
+    - cython >=0.29.20                
     - numpy >=1.14.2
   build:
-    - python                                 # [build_platform != target_platform]
-    # - cross-python_{{ target_platform }}     # [build_platform != target_platform]
-    - cython >=0.29.20                       # [build_platform != target_platform]
+    - python                               
+    - cython >=0.29.20                  
     - numpy >=1.14.2
-    - scipy                                  # [build_platform != target_platform]
+    - scipy                         
     - {{ compiler('cxx') }}
   run:
     - python
@@ -53,6 +52,7 @@ requirements:
 test:
   requires:
     - pytest
+    - pytest-cov
     - pathos
   source_files:
     - scqubits/
@@ -61,7 +61,6 @@ test:
   commands:
     - pytest -v --pyargs scqubits
     - pytest -v --pyargs scqubits --num_cpus=4
-    # -k 'test_circuit_with_symbolic_hamiltonian' #if selecting a single test
 
 about:
   home: https://github.com/scqubits/scqubits
