@@ -41,8 +41,8 @@ class NoisyFullZeroPi(NoisySystem):
 
 class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi):
     r"""Zero-Pi qubit [Brooks2013]_ [Dempster2014]_ including coupling to the zeta mode.
-    The circuit is described by the Hamiltonian
-    :math:`H = H_{0-\pi} + H_\text{int} + H_\zeta`, where
+    The circuit is described by the Hamiltonian :math:`H = H_{0-\pi} + H_\text{int} +
+    H_\zeta`, where.
 
     .. math::
 
@@ -101,14 +101,14 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
     id_str:
         optional string by which this instance can be referred to in `HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
-    esys_method: 
-        method for esys diagonalization, callable or string representation 
-    esys_method_options: 
-        dictionary with esys diagonalization options 
-    evals_method: 
-        method for evals diagonalization, callable or string representation 
-    evals_method_options: 
-        dictionary with evals diagonalization options 
+    esys_method:
+        method for esys diagonalization, callable or string representation
+    esys_method_options:
+        dictionary with esys diagonalization options
+    evals_method:
+        method for evals diagonalization, callable or string representation
+    evals_method_options:
+        dictionary with evals diagonalization options
     """
 
     EJ = descriptors.WatchedProperty(
@@ -238,7 +238,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
     @classmethod
     def supported_noise_channels(cls) -> List[str]:
-        """Return a list of supported noise channels"""
+        """Return a list of supported noise channels."""
         return [
             "tphi_1_over_f_cc",
             "tphi_1_over_f_flux",
@@ -293,7 +293,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
     @property
     def E_zeta(self) -> float:
-        """Returns energy quantum of the zeta mode"""
+        """Returns energy quantum of the zeta mode."""
         return (8.0 * self.EL * self.EC) ** 0.5
 
     def set_E_zeta(self, value: float) -> None:
@@ -340,7 +340,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
     ) -> Union[csc_matrix, Tuple[csc_matrix, ndarray, ndarray, ndarray]]:
         r"""Returns Hamiltonian in basis obtained by discretizing :math:`\phi`, employing
-        charge basis for :math:`\theta`, and Fock basis for :math:`\zeta`, or in the eigenenergy basis.
+        charge basis for :math:`\theta`, and Fock basis for :math:`\zeta`, or in the
+        eigenenergy basis.
 
         Parameters
         ----------
@@ -359,7 +360,6 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             unless `energy_esys` is specified, the Hamiltonian has dimensions of `truncated_dim`
             x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, Hamiltonian has dimensions of m x m,
             for m given eigenvectors.
-
         """
         zeropi_dim = self.zeropi_cutoff
         zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
@@ -411,9 +411,9 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         zeropi_evecs: ndarray = None,
         energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Calculates a derivative of the Hamiltonian w.r.t flux, at the current value of flux,
-        as stored in the object. The returned operator is in the product basis or eigenenergy basis.
+        r"""Calculates a derivative of the Hamiltonian w.r.t flux, at the current value
+        of flux, as stored in the object. The returned operator is in the product basis
+        or eigenenergy basis.
 
         Helper method _zeropi_operator_in_product_basis is employed which converts
         a zeropi operator into one in the product basis. If user already has zeropi eigenvectors, user can input
@@ -451,9 +451,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         zeropi_evecs: ndarray = None,
         energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Calculates a derivative of the Hamiltonian w.r.t EJ. The returned operator is in the
-        product basis or eigenenergy basis.
+        r"""Calculates a derivative of the Hamiltonian w.r.t EJ. The returned operator is
+        in the product basis or eigenenergy basis.
 
         Helper method _zeropi_operator_in_product_basis is employed which converts
         a zeropi operator into one in the product basis. If user already has zeropi eigenvectors, user can input
@@ -489,10 +488,9 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
     def d_hamiltonian_d_ng(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Calculates a derivative of the Hamiltonian w.r.t ng.
-        Returns matrix representing a derivative of the Hamiltonian in the native Hamiltonian basis
-        or eigenenergy basis.
+        r"""Calculates a derivative of the Hamiltonian w.r.t ng. Returns matrix
+        representing a derivative of the Hamiltonian in the native Hamiltonian basis or
+        eigenenergy basis.
 
         Parameters
         ----------
@@ -548,8 +546,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         zeropi_evecs: ndarray = None,
         energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Returns :math:`i d/d\phi` operator in the product or eigenenergy basis.
+        r"""Returns :math:`i d/d\phi` operator in the product or eigenenergy basis.
 
         Helper method _zeropi_operator_in_product_basis is employed which converts
         a zeropi operator into one in the product basis. If user already has zeropi eigenvectors, user can input
@@ -587,8 +584,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         zeropi_evecs: ndarray = None,
         energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Returns :math:`n_\theta`  operator in the product or eigenenergy basis.
+        r"""Returns :math:`n_\theta`  operator in the product or eigenenergy basis.
 
         Helper method _zeropi_operator_in_product_basis is employed which converts
         a zeropi operator into one in the product basis. If user already has zeropi eigenvectors, user can input
@@ -626,8 +622,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         zeropi_evecs: ndarray = None,
         energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Returns :math:`\phi`  operator in the product or eigenenergy basis.
+        r"""Returns :math:`\phi`  operator in the product or eigenenergy basis.
 
         Helper method _zeropi_operator_in_product_basis is employed which converts
         a zeropi operator into one in the product basis. If user already has zeropi eigenvectors, user can input
@@ -661,7 +656,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def hilbertdim(self) -> int:
-        """Returns Hilbert space dimension
+        """Returns Hilbert space dimension.
 
         Returns
         -------
@@ -699,8 +694,9 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return evals, evecs
 
     def g_phi_coupling_matrix(self, zeropi_states: ndarray) -> ndarray:
-        """Returns a matrix of coupling strengths g^\\phi_{ll'}
-        [cmp. Dempster et al., Eq. (18)], using the states from the list
+        """Returns a matrix of coupling strengths g^\\phi_{ll'} [cmp.
+
+        Dempster et al., Eq. (18)], using the states from the list
         `zeropi_states`. Most commonly, `zeropi_states` will contain eigenvectors of the
         `DisorderedZeroPi` type.
         """
@@ -710,9 +706,9 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         )
 
     def g_theta_coupling_matrix(self, zeropi_states: ndarray) -> ndarray:
-        """Returns a matrix of coupling strengths i*g^\\theta_{ll'}
-        [cmp. Dempster et al., Eq. (17)], using the states from the list
-        'zeropi_states'.
+        """Returns a matrix of coupling strengths i*g^\\theta_{ll'} [cmp.
+
+        Dempster et al., Eq. (17)], using the states from the list 'zeropi_states'.
         """
         prefactor = 1j * self.ECS * (self.dC / 2.0) * (32.0 * self.EL / self.EC) ** 0.25
         return prefactor * spec_utils.get_matrixelement_table(
@@ -722,7 +718,9 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
     def g_coupling_matrix(
         self, zeropi_states: ndarray = None, evals_count: int = None
     ) -> ndarray:
-        """Returns a matrix of coupling strengths g_{ll'} [cmp. Dempster et al., text
+        """Returns a matrix of coupling strengths g_{ll'} [cmp.
+
+        Dempster et al., text
         above Eq. (17)], using the states from 'zeropi_states'. If
         `zeropi_states==None`, then a set of `self.zeropi` eigenstates is calculated.
         Only in that case is `which` used for the eigenstate number (and hence the

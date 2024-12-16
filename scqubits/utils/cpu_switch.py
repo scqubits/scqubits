@@ -19,7 +19,7 @@ import scqubits.settings as settings
 def get_map_method(num_nodes: int, cpu_per_node: Optional[int] = None) -> Callable:
     """
     Selects the correct `.map` method depending on the specified number of desired
-    cores. If num_cpus>1, the multiprocessing/pathos/ray pool is started here.
+    cores. If num_cpus>1, the multiprocessing/pathos pool is started here.
 
     Parameters
     ----------

@@ -69,13 +69,13 @@ def io_type(pytestconfig):
 
 @pytest.mark.usefixtures("num_cpus", "io_type")
 class BaseTest:
-    """Used as base class for the pytests of qubit classes"""
+    """Used as base class for the pytests of qubit classes."""
 
     qbt = None  # class instance of qubit to be tested
 
     @pytest.fixture(autouse=True)
     def set_tmpdir(self, request):
-        """Pytest fixture that provides a temporary directory for writing test files"""
+        """Pytest fixture that provides a temporary directory for writing test files."""
         setattr(self, "tmpdir", request.getfixturevalue("tmpdir"))
 
     @classmethod

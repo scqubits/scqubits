@@ -79,8 +79,7 @@ _faulty_interactionterm_warning_issued = False  # flag to ensure single-time war
 
 
 class ParameterSlice:
-    """
-    Stores information about a 1d slice of a (possibly) multi-dimensional parameter
+    """Stores information about a 1d slice of a (possibly) multi-dimensional parameter
     sweep.
 
     Parameters
@@ -115,10 +114,8 @@ class ParameterSlice:
 
 
 class ParameterSweepBase(ABC, SpectrumLookupMixin):
-    """
-    The_ParameterSweepBase class is an abstract base class for ParameterSweep and
-    StoredSweep
-    """
+    """The_ParameterSweepBase class is an abstract base class for ParameterSweep and
+    StoredSweep."""
 
     _lookup_exists = False
     _parameters = descriptors.WatchedProperty(Parameters, "PARAMETERSWEEP_UPDATE")
@@ -195,8 +192,8 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     def receive(self, event: str, sender: object, **kwargs) -> None:
         """Hook to CENTRAL_DISPATCH. This method is accessed by the global
         CentralDispatch instance whenever an event occurs that ParameterSweep is
-        registered for. In reaction to update events, the lookup table is marked as
-        out of sync.
+        registered for. In reaction to update events, the lookup table is marked as out
+        of sync.
 
         Parameters
         ----------
@@ -214,8 +211,11 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
 
     def set_update_func(self, update_hilbertspace: Callable) -> Callable:
         """Account for the two possible signatures of the `update_hilbertspace`
-        function. Inspect whether a `self` argument is given. If not, return a
-        function that accepts `self` as a dummy argument."""
+        function.
+
+        Inspect whether a `self` argument is given. If not, return a
+        function that accepts `self` as a dummy argument.
+        """
         arguments = inspect.signature(update_hilbertspace)
         if len(arguments.parameters) == len(self._parameters) + 1:
             # update_hilbertspace function already includes self argument
@@ -229,9 +229,8 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
 
     @property
     def bare_specdata_list(self) -> List[SpectrumData]:
-        """
-        Wrap bare eigensystem data into a SpectrumData object. To be used with
-        pre-slicing, e.g. `<ParameterSweep>[0, :].bare_specdata_list`
+        """Wrap bare eigensystem data into a SpectrumData object. To be used with pre-
+        slicing, e.g. `<ParameterSweep>[0, :].bare_specdata_list`
 
         Returns
         -------
@@ -262,8 +261,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
 
     @property
     def dressed_specdata(self) -> "SpectrumData":
-        """
-        Wrap dressed eigensystem data into a SpectrumData object. To be used with
+        """Wrap dressed eigensystem data into a SpectrumData object. To be used with
         pre-slicing, e.g. `<ParameterSweep>[0, :].dressed_specdata`
 
         Returns
@@ -289,10 +287,8 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         return specdata
 
     def get_sweep_indices(self, multi_index: GIndexTuple) -> List[int]:
-        """
-        For given generalized multi-index, return a list of the indices that are being
-        swept.
-        """
+        """For given generalized multi-index, return a list of the indices that are
+        being swept."""
         std_multi_index = convert_to_std_npindex(multi_index, self._parameters)
 
         sweep_indices = [
@@ -363,8 +359,10 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         partial_state: BareLabel,
         subsys_list: List[QuantumSystem],
     ) -> BareLabel:
-        """A partial state only includes entries for active subsystems. Complete this
-        state by inserting 0 entries for all inactive subsystems."""
+        """A partial state only includes entries for active subsystems.
+
+        Complete this state by inserting 0 entries for all inactive subsystems.
+        """
         state_full = [0] * len(self.hilbertspace)
         for entry, subsys in zip(partial_state, subsys_list):
             subsys_index = self.get_subsys_index(subsys)
@@ -518,10 +516,9 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         Tuple[List[Tuple[StateLabel, StateLabel]], List[NamedSlotsNdarray]],
         SpectrumData,
     ]:
-        """
-        Use dressed eigenenergy data and lookup based on bare product state labels to
-        extract transition energy data. Usage is based on preslicing to select all or
-        a subset of parameters to be involved in the sweep, e.g.,
+        """Use dressed eigenenergy data and lookup based on bare product state labels to
+        extract transition energy data. Usage is based on preslicing to select all or a
+        subset of parameters to be involved in the sweep, e.g.,
 
         `<ParameterSweep>[0, :, 2].transitions()`
 
@@ -647,12 +644,12 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         initial: Optional[Union[StateLabel, List[Tuple[int, ...]]]] = None,
         final: Optional[Union[StateLabel, List[Tuple[int, ...]]]] = None,
     ) -> None:
-        """
-        Validates the conformity of initial and final state tuples with the dimensions and limits of
-        the subsystems defined in the hilbertspace. This method ensures that each state tuple, either
-        initial or final, is correctly structured and within the valid range for the quantum system's
-        dimensions. If the state tuples are not lists, they are converted into lists for validation.
-        Raises errors for any mismatch or exceeding values.
+        """Validates the conformity of initial and final state tuples with the
+        dimensions and limits of the subsystems defined in the hilbertspace. This method
+        ensures that each state tuple, either initial or final, is correctly structured
+        and within the valid range for the quantum system's dimensions. If the state
+        tuples are not lists, they are converted into lists for validation. Raises
+        errors for any mismatch or exceeding values.
 
         Parameters
         ----------
@@ -707,10 +704,9 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         param_indices: Optional[NpIndices] = None,
         **kwargs,
     ) -> Tuple[Figure, Axes]:
-        """
-        Plot transition energies as a function of one external parameter. Usage is based
-        on preslicing of the ParameterSweep object to select a single parameter to be
-        involved in the sweep. E.g.,
+        """Plot transition energies as a function of one external parameter. Usage is
+        based on preslicing of the ParameterSweep object to select a single parameter to
+        be involved in the sweep. E.g.,
 
         `<ParameterSweep>[0, :, 2].plot_transitions()`
 
@@ -822,8 +818,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         sweep_name: Optional[str] = None,
         **kwargs,
     ) -> None:
-        """
-        Add a new sweep to the ParameterSweep object. The generated data is
+        """Add a new sweep to the ParameterSweep object. The generated data is
         subsequently accessible through <ParameterSweep>[<sweep_function>] or
         <ParameterSweep>[<sweep_name>]
 
@@ -936,8 +931,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
 class ParameterSweep(  # type:ignore
     ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable
 ):
-    """
-    Create multi-dimensional parameter sweeps for a quantum system described by a
+    """Create multi-dimensional parameter sweeps for a quantum system described by a
     `HilbertSpace` object.
 
     Parameters
@@ -1144,7 +1138,7 @@ class ParameterSweep(  # type:ignore
         return settings.PROGRESSBAR_DISABLED or (self._num_cpus > 1)
 
     def faulty_interactionterm_suspected(self) -> bool:
-        """Check if any interaction terms are specified as fixed matrices"""
+        """Check if any interaction terms are specified as fixed matrices."""
         for interactionterm in self._hilbertspace.interaction_list:
             if isinstance(interactionterm, (ndarray, Qobj, csc_matrix)):
                 return True
@@ -1162,8 +1156,7 @@ class ParameterSweep(  # type:ignore
         pass
 
     def serialize(self) -> "IOData":
-        """
-        Convert the content of the current class instance into IOData format.
+        """Convert the content of the current class instance into IOData format.
 
         Returns
         -------
@@ -1753,9 +1746,8 @@ class StoredSweep(
 
     @classmethod
     def deserialize(cls, iodata: "IOData") -> "StoredSweep":
-        """
-        Take the given IOData and return an instance of the described class, initialized
-        with the data stored in io_data.
+        """Take the given IOData and return an instance of the described class,
+        initialized with the data stored in io_data.
 
         Parameters
         ----------

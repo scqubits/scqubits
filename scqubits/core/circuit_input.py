@@ -227,9 +227,9 @@ def parse_code_line(code_line: str, _branch_count):
 
 
 def convert_value_to_GHz(val, units):
-    """
-    Converts a given value and units to energy in GHz. The units are given in a string in the format "pU"
-    where p is an optional multiplier prefix and U is units. For example: "pH", "nA", "fF", "eV"
+    """Converts a given value and units to energy in GHz. The units are given in a
+    string in the format "pU" where p is an optional multiplier prefix and U is units.
+    For example: "pH", "nA", "fF", "eV".
 
     Args:
         val (float): value in given units
@@ -271,9 +271,11 @@ def convert_value_to_GHz(val, units):
 
 
 def process_param(pattern):
-    """
-    Returns a tuple containing (symbol, value) given a pattern as detected by pyparsing.
-    Either the symbol or the value can be returned to be none, when the symbol is already assigned or no symbol is assigned to the given branch parameter.
+    """Returns a tuple containing (symbol, value) given a pattern as detected by
+    pyparsing.
+
+    Either the symbol or the value can be returned to be none, when the symbol is
+    already assigned or no symbol is assigned to the given branch parameter.
     """
     name = pattern.getName()
     if name == "ASSIGN":
