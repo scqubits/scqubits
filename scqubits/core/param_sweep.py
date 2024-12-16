@@ -1290,11 +1290,20 @@ class ParameterSweep(  # type:ignore
     def _paramnames_no_subsys_update(self, subsystem) -> List[str]:       
         if self._subsys_update_info is None:
             return []
+        
+        # for danyang branch only, we allow for None in subsys_update_info
+        # indicating that the parameter has no update effect on the subsystem
+        # as well as the joint system
+        update_info_replace_none = {
+            key: value if value is not None else []
+            for key, value in self._subsys_update_info.items()
+        }
+        
         updating_parameters = [
             name
-            for name in self._subsys_update_info.keys()
+            for name in update_info_replace_none.keys()
             if subsystem.id_str
-            in [subsys.id_str for subsys in self._subsys_update_info[name]]
+            in [subsys.id_str for subsys in update_info_replace_none[name]]
         ]
         return list(set(self._parameters.names) - set(updating_parameters))
 
@@ -1469,11 +1478,13 @@ class ParameterSweep(  # type:ignore
         update_hilbertspace: bool
     ):
         """
-        Support different keyword arguments for receiving parameters from the generator. 
-        For example, those are supported keywords and the value feeded to it when iterating
-         - paramindex_tuple / idx: a tuple containing multi-dimensional indices
-         - paramvals_tuple / vals: a tuple containing the parameter values
-
+        For danyang branch only, we modify the add_sweep function to:
+        - allow for different keyword arguments for receiving parameters from the generator,
+        including:
+            - paramindex_tuple / idx: a tuple containing multi-dimensional indices
+            - paramvals_tuple / vals: a tuple containing the parameter values
+        - update the hilbertspace before calling the sweep_function
+        
         Returns
         -------
         A function for generating custom sweep with arguement (parametersweep, 
@@ -1521,6 +1532,9 @@ class ParameterSweep(  # type:ignore
         **kwargs
     ) -> None:
         """
+        This function inherits from Base class, but for danyang branch only,
+        as we want to modify the add_sweep function.
+        
         Add a new sweep to the ParameterSweep object. The generated data is
         subsequently accessible through <ParameterSweep>[<sweep_function>] or
         <ParameterSweep>[<sweep_name>]
