@@ -40,7 +40,7 @@ class NoisyFullZeroPi(NoisySystem):
 
 
 class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi):
-    r"""Zero-Pi qubit [Brooks2013]_ [Dempster2014]_ including coupling to the zeta mode.
+    r"""Zero-Pi qubit [Brooks2013]_ [Dempster2014]_ including coupling to the :math:`\zeta` mode.
     The circuit is described by the Hamiltonian
     :math:`H = H_{0-\pi} + H_\text{int} + H_\zeta`, where
 
@@ -699,7 +699,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return evals, evecs
 
     def g_phi_coupling_matrix(self, zeropi_states: ndarray) -> ndarray:
-        """Returns a matrix of coupling strengths g^\\phi_{ll'}
+        r"""Returns a matrix of coupling strengths :math:`g^\phi_{ll'}`
         [cmp. Dempster et al., Eq. (18)], using the states from the list
         `zeropi_states`. Most commonly, `zeropi_states` will contain eigenvectors of the
         `DisorderedZeroPi` type.
@@ -710,7 +710,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         )
 
     def g_theta_coupling_matrix(self, zeropi_states: ndarray) -> ndarray:
-        """Returns a matrix of coupling strengths i*g^\\theta_{ll'}
+        r"""Returns a matrix of coupling strengths :math:`ig^\theta_{ll'}`
         [cmp. Dempster et al., Eq. (17)], using the states from the list
         'zeropi_states'.
         """
@@ -722,7 +722,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
     def g_coupling_matrix(
         self, zeropi_states: ndarray = None, evals_count: int = None
     ) -> ndarray:
-        """Returns a matrix of coupling strengths g_{ll'} [cmp. Dempster et al., text
+        r"""Returns a matrix of coupling strengths :math:`g_{ll'}` [cmp. Dempster et al., text
         above Eq. (17)], using the states from 'zeropi_states'. If
         `zeropi_states==None`, then a set of `self.zeropi` eigenstates is calculated.
         Only in that case is `which` used for the eigenstate number (and hence the

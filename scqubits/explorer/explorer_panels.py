@@ -155,7 +155,7 @@ def display_matrixelement_sweep(
 
     matelem_table = np.empty(
         shape=(paramvals_count, subsys.truncated_dim, subsys.truncated_dim),
-        dtype=np.complex_,
+        dtype=np.complex128,
     )
     for index, paramval in enumerate(param_vals):
         evecs = specdata.state_table[index]
