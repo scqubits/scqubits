@@ -85,7 +85,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
 
         Returns
         -------
-            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`,
+            decoherence time in units of :math:`2\pi` (system units),
              or rate in inverse units.
 
         """
@@ -134,7 +134,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
         Returns
         -------
             :math:`T_{\phi}` time or rate:
-            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+            decoherence time in units of :math:`2\pi` (system units), or rate in inverse units.
         """
         if "tphi_1_over_f_cc2" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -180,7 +180,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
 
         Returns
         -------
-            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+            decoherence time in units of :math:`2\pi` (system units), or rate in inverse units.
         """
         if "tphi_1_over_f_cc3" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -798,22 +798,22 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def cos_phi_1_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns operator :math:`\\cos \\phi_1` in the charge or eigenenergy basis.
+        r"""
+        Returns operator :math:`\cos \phi_1` in the charge or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator :math:`\\cos \\phi_1` in the charge basis.
-            If `True`, the energy eigenspectrum is computed, returns operator :math:`\\cos \\phi_1` in the energy eigenbasis.
+            If `False` (default), returns operator :math:`\cos \phi_1` in the charge basis.
+            If `True`, the energy eigenspectrum is computed, returns operator :math:`\cos \phi_1` in the energy eigenbasis.
             If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator :math:`\\cos \\phi_1` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            returns operator :math:`\cos \phi_1` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            Operator :math:`\\cos \\phi_1` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`\\cos \\phi_1` has dimensions of truncated_dim
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\\cos \\phi_1` has dimensions of m x m,
+            Operator :math:`\cos \phi_1` in chosen basis as ndarray. If the eigenenergy basis is chosen,
+            unless energy_esys is specified, :math:`\cos \phi_1` has dimensions of truncated_dim
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\cos \phi_1` has dimensions of m x m,
             for m given eigenvectors.
         """
         cos_op = 0.5 * self.exp_i_phi_1_operator()
@@ -824,22 +824,22 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def cos_phi_2_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns operator :math:`\\cos \\phi_2` in the charge or eigenenergy basis.
+        r"""
+        Returns operator :math:`\cos \phi_2` in the charge or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator :math:`\\cos \\phi_2` in the charge basis.
-            If `True`, the energy eigenspectrum is computed, returns operator :math:`\\cos \\phi_2` in the energy eigenbasis.
+            If `False` (default), returns operator :math:`\cos \phi_2` in the charge basis.
+            If `True`, the energy eigenspectrum is computed, returns operator :math:`\cos \phi_2` in the energy eigenbasis.
             If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator :math:`\\cos \\phi_2` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            returns operator :math:`\cos \phi_2` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            Operator :math:`\\cos \\phi_2` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`\\cos \\phi_2` has dimensions of truncated_dim
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\\cos \\phi_2` has dimensions of m x m,
+            Operator :math:`\cos \phi_2` in chosen basis as ndarray. If the eigenenergy basis is chosen,
+            unless energy_esys is specified, :math:`\cos \phi_2` has dimensions of truncated_dim
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\cos \phi_2` has dimensions of m x m,
             for m given eigenvectors.
         """
         cos_op = 0.5 * self.exp_i_phi_2_operator()
@@ -850,22 +850,22 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def sin_phi_1_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns operator :math:`\\sin \\phi_1` in the charge or eigenenergy basis.
+        r"""
+        Returns operator :math:`\sin \phi_1` in the charge or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator :math:`\\sin \\phi_1` in the charge basis.
-            If `True`, the energy eigenspectrum is computed, returns operator :math:`\\sin \\phi_1` in the energy eigenbasis.
+            If `False` (default), returns operator :math:`\sin \phi_1` in the charge basis.
+            If `True`, the energy eigenspectrum is computed, returns operator :math:`\sin \phi_1` in the energy eigenbasis.
             If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator :math:`\\sin \\phi_1` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            returns operator :math:`\sin \phi_1` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            Operator :math:`\\sin \\phi_1` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`\\sin \\phi_1` has dimensions of truncated_dim
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\\sin \\phi_1` has dimensions of m x m,
+            Operator :math:`\sin \phi_1` in chosen basis as ndarray. If the eigenenergy basis is chosen,
+            unless energy_esys is specified, :math:`\sin \phi_1` has dimensions of truncated_dim
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\sin \phi_1` has dimensions of m x m,
             for m given eigenvectors.
         """
         sin_op = -1j * 0.5 * self.exp_i_phi_1_operator()
@@ -876,22 +876,22 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def sin_phi_2_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns operator :math:`\\sin \\phi_2` in the charge or eigenenergy basis.
+        r"""
+        Returns operator :math:`\sin \phi_2` in the charge or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator :math:`\\sin \\phi_2` in the charge basis.
-            If `True`, the energy eigenspectrum is computed, returns operator :math:`\\sin \\phi_1` in the energy eigenbasis.
+            If `False` (default), returns operator :math:`\sin \phi_2` in the charge basis.
+            If `True`, the energy eigenspectrum is computed, returns operator :math:`\sin \phi_1` in the energy eigenbasis.
             If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator :math:`\\sin \\phi_1` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            returns operator :math:`\sin \phi_1` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            Operator :math:`\\sin \\phi_2` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`\\sin \\phi_2` has dimensions of truncated_dim
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\\sin \\phi_2` has dimensions of m x m,
+            Operator :math:`\sin \phi_2` in chosen basis as ndarray. If the eigenenergy basis is chosen,
+            unless energy_esys is specified, :math:`\sin \phi_2` has dimensions of truncated_dim
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\sin \phi_2` has dimensions of m x m,
             for m given eigenvectors.
         """
         sin_op = -1j * 0.5 * self.exp_i_phi_2_operator()
@@ -905,13 +905,13 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         contour_vals: ndarray = None,
         **kwargs
     ) -> Tuple[Figure, Axes]:
-        """
+        r"""
         Draw contour plot of the potential energy.
 
         Parameters
         ----------
         phi_grid:
-            used for setting a custom grid for phi; if None use self._default_grid
+            used for setting a custom grid for :math:`\phi`; if None use self._default_grid
         contour_vals:
             specific contours to draw
         **kwargs:
@@ -931,8 +931,8 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         which: int = 0,
         phi_grid: discretization.Grid1d = None,
     ) -> storage.WaveFunctionOnGrid:
-        """
-        Return a flux qubit wave function in phi1, phi2 basis
+        r"""
+        Return a flux qubit wave function in :math:`\phi_1`, :math:`\phi2` basis
 
         Parameters
         ----------
@@ -941,7 +941,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         which:
             index of desired wave function (default value = 0)
         phi_grid:
-            used for setting a custom grid for phi; if None use self._default_grid
+            used for setting a custom grid for :math:`\phi`; if None use self._default_grid
         """
         evals_count = max(which + 1, 3)
         if esys is None:
@@ -980,19 +980,19 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         zero_calibrate: bool = True,
         **kwargs
     ) -> Tuple[Figure, Axes]:
-        """Plots 2d phase-basis wave function.
+        r"""Plots 2d phase-basis wave function.
 
         Parameters
         ----------
         esys:
             eigenvalues, eigenvectors as obtained from `.eigensystem()`
         which:
-            index of wave function to be plotted (default value = (0)
+            index of wave function to be plotted (default value = 0)
         phi_grid:
-            used for setting a custom grid for phi; if None use self._default_grid
+            used for setting a custom grid for :math:`\phi`; if None use self._default_grid
         mode:
             choices as specified in `constants.MODE_FUNC_DICT`
-            (default value = 'abs_sqr')
+            (default value = 'abs')
         zero_calibrate:
             if True, colors are adjusted to use zero wavefunction amplitude as the
             neutral color in the palette
