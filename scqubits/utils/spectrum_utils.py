@@ -39,7 +39,8 @@ def eigsh_safe(*args, **kwargs):
     1. Always use the same "random" starting vector v0. Otherwise, results show
        random behavior (small deviations between different runs, problem for pytests)
     2. Test for degenerate eigenvalues. If there are any, need to orthogonalize the
-        eigenvectors properly."""
+        eigenvectors properly.
+    """
     mat_size = args[0].shape[0]
     kwargs["v0"] = settings.RANDOM_ARRAY[:mat_size]
 
@@ -88,8 +89,8 @@ def extract_phase(
 ) -> float:
     """Extracts global phase from `complex_array` at given `position`. If position is
     not specified, the `position` is set as follows. Find the maximum between the
-    leftmost point and the halfway point of the wavefunction. The position of that
-    point is used to determine the phase factor to be eliminated.
+    leftmost point and the halfway point of the wavefunction. The position of that point
+    is used to determine the phase factor to be eliminated.
 
     Parameters
     ----------
@@ -108,8 +109,8 @@ def extract_phase(
 
 
 def standardize_phases(complex_array: np.ndarray) -> np.ndarray:
-    """Uses `extract_phase` to obtain global phase from `array` and returns
-    standardized array with global phase factor standardized.
+    """Uses `extract_phase` to obtain global phase from `array` and returns standardized
+    array with global phase factor standardized.
 
     Parameters
     ----------
@@ -126,9 +127,9 @@ def standardize_sign(real_array: np.ndarray) -> np.ndarray:
     the sum of all amplitudes up to the wavefunctions mid-position and making it
     positive.
 
-    Summing up to the midpoint only is to address the danger that the sum is
-    actually zero, which may be the case for odd wavefunctions taken over an interval
-    centered at zero.
+    Summing up to the midpoint only is to address the danger that the sum is actually
+    zero, which may be the case for odd wavefunctions taken over an interval centered at
+    zero.
     """
     halfway_position = len(real_array) // 2
     return np.sign(np.sum(real_array[:halfway_position])) * real_array
@@ -261,9 +262,11 @@ def get_eigenstate_index_maxoverlap(
 
 def absorption_spectrum(spectrum_data: "SpectrumData") -> "SpectrumData":
     """Takes spectral data of energy eigenvalues and returns the absorption spectrum
-    relative to a state of given index. Calculated by subtracting from eigenenergies
-    the energy of the select state. Resulting negative frequencies, if the reference
-    state is not the ground state, are omitted.
+    relative to a state of given index.
+
+    Calculated by subtracting from eigenenergies the energy of the select state.
+    Resulting negative frequencies, if the reference state is not the ground state, are
+    omitted.
     """
     assert isinstance(spectrum_data.energy_table, ndarray)
     spectrum_data.energy_table = spectrum_data.energy_table.clip(min=0.0)  # type:ignore
@@ -272,10 +275,11 @@ def absorption_spectrum(spectrum_data: "SpectrumData") -> "SpectrumData":
 
 def emission_spectrum(spectrum_data: "SpectrumData") -> "SpectrumData":
     """Takes spectral data of energy eigenvalues and returns the emission spectrum
-    relative to a state of given index. The resulting "upwards" transition
-    frequencies are calculated by subtracting from eigenenergies the energy of the
-    select state, and multiplying the result by -1. Resulting negative frequencies,
-    corresponding to absorption instead, are omitted.
+    relative to a state of given index.
+
+    The resulting "upwards" transition frequencies are calculated by subtracting from
+    eigenenergies the energy of the select state, and multiplying the result by -1.
+    Resulting negative frequencies, corresponding to absorption instead, are omitted.
     """
     assert isinstance(spectrum_data.energy_table, ndarray)
     spectrum_data.energy_table *= -1.0
@@ -284,8 +288,8 @@ def emission_spectrum(spectrum_data: "SpectrumData") -> "SpectrumData":
 
 
 def convert_evecs_to_ndarray(evecs_qutip: ndarray) -> np.ndarray:
-    """Takes a qutip eigenstates array, as obtained with .eigenstates(), and converts
-    it into a pure numpy array.
+    """Takes a qutip eigenstates array, as obtained with .eigenstates(), and converts it
+    into a pure numpy array.
 
     Parameters
     ----------
@@ -340,23 +344,24 @@ def convert_operator_to_qobj(
     evecs: Optional[np.ndarray],
 ) -> qt.Qobj:
     if isinstance(operator, qt.Qobj):
-        return operator
-    if isinstance(operator, (np.ndarray, csc_matrix, csr_matrix, dia_matrix)):
-        return convert_matrix_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)
+        operator = Qobj_to_scipy_csc_matrix(operator)
     if isinstance(operator, str):
         return convert_opstring_to_qobj(operator, subsystem, evecs)
-    raise TypeError("Unsupported operator type: ", type(operator))
+    elif isinstance(operator, (np.ndarray, csc_matrix, csr_matrix, dia_matrix)):
+        return convert_matrix_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)
+    else:
+        raise TypeError("Unsupported operator type: ", type(operator))
 
 
 def generate_target_states_list(
     sweep: "ParameterSweep", initial_state_labels: Tuple[int, ...]
 ) -> List[Tuple[int, ...]]:
-    """Based on a bare state label (i1, i2, ...)  with i1 being the excitation level
-    of subsystem 1, i2 the excitation level of subsystem 2 etc., generate a list of
-    new bare state labels. These bare state labels correspond to target states
-    reached from the given initial one by single-photon qubit transitions. These are
-    transitions where one of the qubit excitation levels increases at a time. There
-    are no changes in oscillator photon numbers.
+    """Based on a bare state label (i1, i2, ...)  with i1 being the excitation level of
+    subsystem 1, i2 the excitation level of subsystem 2 etc., generate a list of new
+    bare state labels. These bare state labels correspond to target states reached from
+    the given initial one by single-photon qubit transitions. These are transitions
+    where one of the qubit excitation levels increases at a time. There are no changes
+    in oscillator photon numbers.
 
     Parameters
     ----------
@@ -382,9 +387,8 @@ def generate_target_states_list(
 def recast_esys_mapdata(
     esys_mapdata: List[Tuple[np.ndarray, np.ndarray]]
 ) -> Tuple[np.ndarray, List[np.ndarray]]:
-    """
-    Takes data generated by a map of eigensystem calls and returns the eigenvalue and
-    eigenstate tables
+    """Takes data generated by a map of eigensystem calls and returns the eigenvalue and
+    eigenstate tables.
 
     Returns
     -------
@@ -405,12 +409,11 @@ def identity_wrap(
     op_in_eigenbasis: bool = False,
     evecs: Optional[ndarray] = None,
 ) -> Qobj:
-    """Takes the `operator` belonging to `subsystem` and "wraps" it in identities.
-    The full Hilbert space is taken to consist of all subsystems given as
-    `subsys_list`. `subsystem` must be one element in that list. For each of the
-    other subsystems in the list, an identity operator of the correct dimension is
-    generated and inserted into the appropriate Kronecker product "sandwiching" the
-    operator.
+    """Takes the `operator` belonging to `subsystem` and "wraps" it in identities. The
+    full Hilbert space is taken to consist of all subsystems given as `subsys_list`.
+    `subsystem` must be one element in that list. For each of the other subsystems in
+    the list, an identity operator of the correct dimension is generated and inserted
+    into the appropriate Kronecker product "sandwiching" the operator.
 
     Parameters
     ----------
@@ -423,8 +426,7 @@ def identity_wrap(
         list of all subsystems relevant to the Hilbert space.
     op_in_eigenbasis:
         whether `operator` is given in the `subsystem` eigenbasis; otherwise,
-        `operator` is assumed to be in the internal QuantumSystem basis. This
-        argument is ignored if `operator` is given as a Qobj.
+        `operator` is assumed to be in the internal QuantumSystem basis.
     evecs:
         internal `QuantumSystem` eigenstates, used to convert `operator` into eigenbasis
 
@@ -432,15 +434,11 @@ def identity_wrap(
     -------
         operator in the full Hilbert space (as specified by `subsystem_list`). This
         operator is expressed in the bare product basis consisting of the energy
-        eigenstates of each subsystem (unless `operator` is provided as a `Qobj`,
-        in which case no conversion takes place).
+        eigenstates of each subsystem.
     """
+    # checking if operator is not qt.Qobj, as callable(qt.Qobj) returns True.
     if not isinstance(operator, qt.Qobj) and callable(operator):
-        try:
-            operator = operator(energy_esys=(None, evecs))
-        except TypeError:
-            operator = operator()
-        op_in_eigenbasis = True
+        operator = operator()
 
     subsys_operator = convert_operator_to_qobj(
         operator, subsystem, op_in_eigenbasis, evecs  # type:ignore

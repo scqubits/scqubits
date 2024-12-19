@@ -8,14 +8,15 @@
 #
 #     This source code is licensed under the BSD-style license found in the
 #     LICENSE file in the root directory of this source tree.
-"""scqubits is an open-source Python library for simulating superconducting qubits.
+"""Scqubits is an open-source Python library for simulating superconducting qubits.
+
 It is meant to give the user a convenient way to obtain energy spectra of common
 superconducting qubits, plot energy levels as a function of external parameters,
 calculate matrix elements etc. The library further provides an interface to QuTiP,
 making it easy to work with composite Hilbert spaces consisting of coupled
 superconducting qubits and harmonic modes. Internally, numerics within scqubits is
-carried out with the help of Numpy and Scipy; plotting capabilities rely on
-Matplotlib."""
+carried out with the help of Numpy and Scipy; plotting capabilities rely on Matplotlib.
+"""
 #######################################################################################
 
 
