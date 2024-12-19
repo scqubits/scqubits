@@ -889,7 +889,9 @@ class HilbertSpace(
         if evals is None:
             evals = subsystem.eigenvals(evals_count=evals_count)
         diag_qt_op = qt.Qobj(np.diagflat(evals[0:evals_count]))  # type:ignore
-        return spec_utils.identity_wrap(diag_qt_op, subsystem, self.subsystem_list)
+        return spec_utils.identity_wrap(
+            diag_qt_op, subsystem, self.subsystem_list, op_in_eigenbasis=True
+        )
 
     ###################################################################################
     # HilbertSpace: identity wrapping, operators

@@ -1630,6 +1630,7 @@ class CircuitRoutines(ABC):
                 if bare_esys
                 else subsystem.eigensys(evals_count=subsystem.truncated_dim)[1]
             ),
+            op_in_eigenbasis=True,
         )
 
     @check_sync_status_circuit
@@ -1700,11 +1701,7 @@ class CircuitRoutines(ABC):
             operator,
             subsystem,
             self.subsystems,
-            evecs=(
-                bare_esys[subsystem_index][1]
-                if bare_esys
-                else subsystem.eigensys(evals_count=subsystem.truncated_dim)[1]
-            ),
+            op_in_eigenbasis=True,
         )
 
     # #################################################################

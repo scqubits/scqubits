@@ -344,12 +344,13 @@ def convert_operator_to_qobj(
     evecs: Optional[np.ndarray],
 ) -> qt.Qobj:
     if isinstance(operator, qt.Qobj):
-        return operator
-    if isinstance(operator, (np.ndarray, csc_matrix, csr_matrix, dia_matrix)):
-        return convert_matrix_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)
+        operator = Qobj_to_scipy_csc_matrix(operator)
     if isinstance(operator, str):
         return convert_opstring_to_qobj(operator, subsystem, evecs)
-    raise TypeError("Unsupported operator type: ", type(operator))
+    elif isinstance(operator, (np.ndarray, csc_matrix, csr_matrix, dia_matrix)):
+        return convert_matrix_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)
+    else:
+        raise TypeError("Unsupported operator type: ", type(operator))
 
 
 def generate_target_states_list(
@@ -425,8 +426,7 @@ def identity_wrap(
         list of all subsystems relevant to the Hilbert space.
     op_in_eigenbasis:
         whether `operator` is given in the `subsystem` eigenbasis; otherwise,
-        `operator` is assumed to be in the internal QuantumSystem basis. This
-        argument is ignored if `operator` is given as a Qobj.
+        `operator` is assumed to be in the internal QuantumSystem basis.
     evecs:
         internal `QuantumSystem` eigenstates, used to convert `operator` into eigenbasis
 
@@ -434,15 +434,11 @@ def identity_wrap(
     -------
         operator in the full Hilbert space (as specified by `subsystem_list`). This
         operator is expressed in the bare product basis consisting of the energy
-        eigenstates of each subsystem (unless `operator` is provided as a `Qobj`,
-        in which case no conversion takes place).
+        eigenstates of each subsystem.
     """
+    # checking if operator is not qt.Qobj, as callable(qt.Qobj) returns True.
     if not isinstance(operator, qt.Qobj) and callable(operator):
-        try:
-            operator = operator(energy_esys=(None, evecs))
-        except TypeError:
-            operator = operator()
-        op_in_eigenbasis = True
+        operator = operator()
 
     subsys_operator = convert_operator_to_qobj(
         operator, subsystem, op_in_eigenbasis, evecs  # type:ignore
