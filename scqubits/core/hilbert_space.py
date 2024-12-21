@@ -320,7 +320,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
             else:
                 evecs = None
             idwrapped_ops_by_name[name] = spec_utils.identity_wrap(
-                op, subsys_list[subsys_index], subsys_list, evecs=evecs
+                op, subsys_list[subsys_index], subsys_list, evecs=evecs, op_in_eigenbasis=False
             )
         return idwrapped_ops_by_name
 
@@ -913,7 +913,7 @@ class HilbertSpace(
         index = range(dim)
         diag_matrix = np.zeros((dim, dim), dtype=np.float64)
         diag_matrix[index, index] = diag_elements
-        return spec_utils.identity_wrap(diag_matrix, subsystem, self.subsystem_list)
+        return spec_utils.identity_wrap(diag_matrix, subsystem, self.subsystem_list, op_in_eigenbasis=True)
 
     def hubbard_operator(self, j: int, k: int, subsystem: QuantumSys) -> qt.Qobj:
         """Hubbard operator :math:`|j\\rangle\\langle k|` for system `subsystem`
@@ -927,7 +927,7 @@ class HilbertSpace(
         """
         dim = subsystem.truncated_dim
         operator = qt.states.basis(dim, j) * qt.states.basis(dim, k).dag()
-        return spec_utils.identity_wrap(operator, subsystem, self.subsystem_list)
+        return spec_utils.identity_wrap(operator, subsystem, self.subsystem_list, op_in_eigenbasis=True)
 
     def annihilate(self, subsystem: QuantumSys) -> qt.Qobj:
         """Annihilation operator a for `subsystem`
@@ -939,7 +939,7 @@ class HilbertSpace(
         """
         dim = subsystem.truncated_dim
         operator = qt.destroy(dim)
-        return spec_utils.identity_wrap(operator, subsystem, self.subsystem_list)
+        return spec_utils.identity_wrap(operator, subsystem, self.subsystem_list, op_in_eigenbasis=True)
 
     ###################################################################################
     # HilbertSpace: spectrum sweep
