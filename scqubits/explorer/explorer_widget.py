@@ -61,7 +61,10 @@ else:
 
 
 class PlotID:
-    """Class for storing plot identifiers. Used for plot panel selection."""
+    """Class for storing plot identifiers.
+
+    Used for plot panel selection.
+    """
 
     SEP = " | "
 
@@ -92,8 +95,7 @@ class PlotID:
 
 
 class Explorer:
-    """
-    Generates the UI for exploring `ParameterSweep` objects.
+    """Generates the UI for exploring `ParameterSweep` objects.
 
     Parameters
     ----------
@@ -498,7 +500,8 @@ class Explorer:
 
     @property
     def active_switches_by_plot_id(self) -> Dict[PlotID, "ui.LinkedSwitch"]:
-        """Returns a dictionary labeling all selected switches by their plot_id names."""
+        """Returns a dictionary labeling all selected switches by their plot_id
+        names."""
         return {
             plot_id: switch
             for plot_id, switch in self.ui["panel_switch_by_plot_id"].items()
@@ -507,13 +510,13 @@ class Explorer:
 
     @property
     def selected_plot_id_list(self) -> List[PlotID]:
-        """Returns a list of strings capturing the names of all panels selected via
-        the switches."""
+        """Returns a list of strings capturing the names of all panels selected via the
+        switches."""
         return list(self.active_switches_by_plot_id.keys())
 
     def create_sliders(self) -> Dict[str, "v.VuetifyWidget"]:
-        """Returns a list of selection sliders, one for each parameter that is part
-        of the underlying ParameterSweep object."""
+        """Returns a list of selection sliders, one for each parameter that is part of
+        the underlying ParameterSweep object."""
         slider_by_name = {
             param_name: ui.DiscreteSetSlider(
                 param_name=param_name,
