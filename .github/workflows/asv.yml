@@ -3,8 +3,6 @@ name: Benchmark with ASV
 on:
   push:
     branches: asvDevBranch
-  pull_request:
-    branches: asvDevBranch # not tested yet
 
 jobs:
   asvContinuous:
@@ -28,7 +26,6 @@ jobs:
     - name: Set up asv
       run: |
         conda activate cloud_env
-        conda env list
         conda install asv
         git fetch origin $GITHUB_BASE_REF:base $GITHUB_REF:incoming
         asv machine --machine github-cloud-machine --yes
