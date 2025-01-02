@@ -79,8 +79,9 @@ def get_map_method(num_nodes: int, cpu_per_node: Optional[int] = None) -> Callab
             if cpu_per_node < 1:    
                 raise ValueError("Number of CPUs per task is less than 1.")
             
-            ray.shutdown()
-            ray.init(num_cpus=num_nodes * cpu_per_node)
+            # Initialize Ray only if it isn't already
+            if not ray.is_initialized():
+                ray.init(num_cpus=num_nodes * cpu_per_node)
             
             def ray_map(func, iterable):
                 @ray.remote(num_cpus=cpu_per_node)
