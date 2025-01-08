@@ -650,7 +650,7 @@ class SpectrumLookupMixin(MixinCompatible):
                 np.ones(dims[mode_idx] - 1),
                 -1,
             )
-            return identity_wrap(op, mode, hilbertspace.subsystem_list)
+            return identity_wrap(op, mode, hilbertspace.subsystem_list, op_in_eigenbasis=True)
 
     def _branch_analysis_LX_step(
         self,
