@@ -30,8 +30,8 @@ if TYPE_CHECKING:
 
 
 class WaveFunction:
-    """Container for wave function amplitudes defined for a specific basis.
-    Optionally,  a corresponding energy is saved as well.
+    """Container for wave function amplitudes defined for a specific basis. Optionally,
+    a corresponding energy is saved as well.
 
     Parameters
     ----------
@@ -52,26 +52,24 @@ class WaveFunction:
         self.energy = energy
 
     def rescale(self, scale_factor: float) -> None:
-        """Rescale the wavefunction amplitudes by a given factor"""
+        """Rescale the wavefunction amplitudes by a given factor."""
         self.amplitudes *= scale_factor
 
     def rescale_to_potential(self, potential_vals: np.ndarray):
-        """
-        Rescale the dimensionless amplitude to a (pseudo-)energy that allows us to plot
-        wavefunctions and potential energies in the same plot.
+        """Rescale the dimensionless amplitude to a (pseudo-)energy that allows us to
+        plot wavefunctions and potential energies in the same plot.
 
         Parameters
         ----------
         potential_vals:
             array of potential energy values (that determine the energy range on the y axis
-
         """
         self.amplitudes *= self.amplitude_scale_factor(potential_vals)
 
     def amplitude_scale_factor(self, potential_vals: np.ndarray) -> float:
-        """
-        Returnn scale factor that converts the dimensionless amplitude to a (pseudo-)energy that allows us to plot
-        wavefunctions and potential energies in the same plot.
+        """Returnn scale factor that converts the dimensionless amplitude to a
+        (pseudo-)energy that allows us to plot wavefunctions and potential energies in
+        the same plot.
 
         Parameters
         ----------
@@ -81,7 +79,6 @@ class WaveFunction:
         Returns
         -------
             scale factor
-
         """
         FILL_FACTOR = 0.1
         energy_range = np.max(potential_vals) - np.min(potential_vals)
@@ -141,7 +138,7 @@ class DataStore(serializers.Serializable):
         system_params: Dict[str, Any],
         param_name: str = None,
         param_vals: np.ndarray = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         self.system_params = system_params
         self.param_name = param_name
@@ -160,8 +157,7 @@ class DataStore(serializers.Serializable):
             )  # register additional dataset for file IO
 
     def add_data(self, **kwargs) -> None:
-        """
-        Adds one or several data sets to the DataStorage object.
+        """Adds one or several data sets to the DataStorage object.
 
         Parameters
         ----------
@@ -182,8 +178,8 @@ class DataStore(serializers.Serializable):
 
 class SpectrumData(DataStore):
     """Container holding energy and state data as a function of a particular parameter
-    that is varied. Also stores all other system parameters used for generating the
-    set, and provides method for writing data to file.
+    that is varied. Also stores all other system parameters used for generating the set,
+    and provides method for writing data to file.
 
     Parameters
     ----------
@@ -212,7 +208,7 @@ class SpectrumData(DataStore):
         param_vals: np.ndarray = None,
         state_table: Union[List[QutipEigenstates], np.ndarray, List[np.ndarray]] = None,
         matrixelem_table: np.ndarray = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         self.system_params = system_params
         self.param_name = param_name
@@ -227,11 +223,11 @@ class SpectrumData(DataStore):
             energy_table=energy_table,
             state_table=state_table,
             matrixelem_table=matrixelem_table,
-            **kwargs
+            **kwargs,
         )
 
     def subtract_ground(self) -> None:
-        """Subtract ground state energies from spectrum"""
+        """Subtract ground state energies from spectrum."""
         self.energy_table -= self.energy_table[:, 0]  # type:ignore
 
     def plot_evals_vs_paramvals(
@@ -239,10 +235,10 @@ class SpectrumData(DataStore):
         which: Union[int, List[int]] = -1,
         subtract_ground: bool = False,
         label_list: List[str] = None,
-        **kwargs
+        **kwargs,
     ) -> "Tuple[Figure, Axes]":
         """Plots eigenvalues of as a function of one parameter, as stored in
-        `SpectrumData` object.
+        :class:`SpectrumData` object.
 
         Parameters
         ----------
@@ -267,5 +263,5 @@ class SpectrumData(DataStore):
             which=which,
             subtract_ground=subtract_ground,
             label_list=label_list,
-            **kwargs
+            **kwargs,
         )

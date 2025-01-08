@@ -38,7 +38,7 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
     E:
        qubit energy splitting
     id_str:
-        optional string by which this instance can be referred to in `HilbertSpace`
+        optional string by which this instance can be referred to in :class:`HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
 
@@ -60,7 +60,7 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
         return 0.5 * self.E * self.sz_operator()
 
     def hilbertdim(self) -> int:
-        """Returns Hilbert space dimension"""
+        """Returns Hilbert space dimension."""
         return 2
 
     def eigenvals(self, evals_count: int = 2) -> ndarray:

@@ -29,9 +29,8 @@ def bare_matrixelement(
     operator_name: str,
     subsystem: QubitBaseClass,
 ) -> np.ndarray:
-    """
-    Given parameter sweep data, compute and return a matrix element table using the bare
-    states of the specified subsystem.
+    """Given parameter sweep data, compute and return a matrix element table using the
+    bare states of the specified subsystem.
 
     Parameters
     ----------
@@ -68,8 +67,7 @@ def dressed_matrixelement(
     paramvals_tuple: Tuple[float, ...],
     operator: Qobj,
 ) -> np.ndarray:
-    """
-    Given parameter sweep data, compute and return a matrix element table using the
+    """Given parameter sweep data, compute and return a matrix element table using the
     dressed states of the composite Hilbert space.
 
     Parameters

@@ -58,7 +58,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     truncated_dim: int
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str: str
-        optional string by which this instance can be referred to in `HilbertSpace`
+        optional string by which this instance can be referred to in :class:`HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     esys_method:
         method for esys diagonalization, callable or string representation
@@ -119,7 +119,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
     @classmethod
     def supported_noise_channels(cls) -> List[str]:
-        """Return a list of supported noise channels"""
+        """Return a list of supported noise channels."""
         return [
             "tphi_1_over_f_cc",
             "tphi_1_over_f_flux",
@@ -158,8 +158,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def phi_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns the phi operator in the LC harmonic oscillator or eigenenergy basis.
+        """Returns the phi operator in the LC harmonic oscillator or eigenenergy basis.
 
         Parameters
         ----------
@@ -173,7 +172,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         -------
             Phi operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
             unless energy_esys is specified, phi operator has dimensions of truncated_dim
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, phi operator has dimensions of m x m,
+            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, phi operator has dimensions of m x m,
             for m given eigenvectors.
         """
         dimension = self.hilbertdim()
@@ -203,7 +202,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         -------
             Operator :math:`n = - i d/d\\phi` in chosen basis as ndarray. If the eigenenergy basis is chosen,
             unless energy_esys is specified, :math:`n = - i d/d\\phi` has dimensions of truncated_dim
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`n = - i d/d\\phi` has dimensions of
+            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`n = - i d/d\\phi` has dimensions of
             m x m, for m given eigenvectors.
         """
         dimension = self.hilbertdim()
@@ -220,9 +219,9 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         beta: float = 0.0,
         energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
     ) -> ndarray:
-        """
-        Returns the :math:`e^{i (\\alpha \\phi + \\beta) }` operator, with :math:`\\alpha` and :math:`\\beta` being
-        numbers, in the LC harmonic oscillator or eigenenergy basis.
+        """Returns the :math:`e^{i (\\alpha \\phi + \\beta) }` operator, with
+        :math:`\\alpha` and :math:`\\beta` being numbers, in the LC harmonic oscillator
+        or eigenenergy basis.
 
         Parameters
         ----------
@@ -238,7 +237,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         -------
             Operator :math:`e^{i (\\alpha \\phi + \\beta) }` in chosen basis as ndarray. If the eigenenergy basis is
             chosen, unless energy_esys is specified, :math:`e^{i (\\alpha \\phi + \\beta) }` has dimensions of
-            `truncated_dim`x `truncated_dim`. Otherwise, if eigenenergy basis is chosen,
+            :attr:`truncated_dim`x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen,
             :math:`e^{i (\\alpha \\phi + \\beta) }` has dimensions of m x m, for m given eigenvectors.
         """
         exponent = 1j * (alpha * self.phi_operator())
@@ -251,9 +250,9 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         beta: float = 0.0,
         energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
     ) -> ndarray:
-        """
-        Returns the :math:`\\cos (\\alpha \\phi + \\beta)` operator with :math:`\\alpha` and :math:`\\beta` being
-        numbers, in the LC harmonic oscillator or eigenenergy basis.
+        """Returns the :math:`\\cos (\\alpha \\phi + \\beta)` operator with
+        :math:`\\alpha` and :math:`\\beta` being numbers, in the LC harmonic oscillator
+        or eigenenergy basis.
 
         Parameters
         ----------
@@ -267,7 +266,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         -------
             Operator :math:`\\cos (\\alpha \\phi + \\beta)` in chosen basis as ndarray. If the eigenenergy basis is chosen,
             unless energy_esys is specified, :math:`\\cos (\\alpha \\phi + \\beta)` has dimensions of truncated_dim
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\\cos (\\alpha \\phi + \\beta)` has dimensions of m x m, for m given eigenvectors.
+            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\\cos (\\alpha \\phi + \\beta)` has dimensions of m x m, for m given eigenvectors.
         """
         argument = alpha * self.phi_operator() + beta * np.eye(self.hilbertdim())
         native = sp.linalg.cosm(argument)
@@ -279,9 +278,9 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         beta: float = 0.0,
         energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
     ) -> ndarray:
-        """
-        Returns the :math:`\\sin (\\alpha \\phi + \\beta)` operator with :math:`\\alpha` and :math:`\\beta` being
-        numbers, in the LC harmonic oscillator or eigenenergy basis.
+        """Returns the :math:`\\sin (\\alpha \\phi + \\beta)` operator with
+        :math:`\\alpha` and :math:`\\beta` being numbers, in the LC harmonic oscillator
+        or eigenenergy basis.
 
         Parameters
         ----------
@@ -295,7 +294,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         -------
             Operator :math:`\\sin (\\alpha \\phi + \\beta)` in chosen basis as ndarray. If the eigenenergy basis is chosen,
             unless energy_esys is specified, :math:`\\sin (\\alpha \\phi + \\beta)` has dimensions of truncated_dim
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\\sin (\\alpha \\phi + \\beta)` has dimensions of m x m, for m given eigenvectors.
+            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\\sin (\\alpha \\phi + \\beta)` has dimensions of m x m, for m given eigenvectors.
         """
         argument = alpha * self.phi_operator() + beta * np.eye(self.hilbertdim())
         native = sp.linalg.sinm(argument)
@@ -304,9 +303,8 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def hamiltonian(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:  # follow Zhu et al., PRB 87, 024510 (2013)
-        """
-        Constructs Hamiltonian matrix in harmonic-oscillator, following Zhu
-        et al., PRB 87, 024510 (2013), or eigenenergy basis.
+        """Constructs Hamiltonian matrix in harmonic-oscillator, following Zhu et al.,
+        PRB 87, 024510 (2013), or eigenenergy basis.
 
         Parameters
         ----------
@@ -319,8 +317,8 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         Returns
         -------
             Hamiltonian in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, the Hamiltonian has dimensions of `truncated_dim`
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, Hamiltonian has dimensions of m x m,
+            unless `energy_esys` is specified, the Hamiltonian has dimensions of :attr:`truncated_dim`
+            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, Hamiltonian has dimensions of m x m,
             for m given eigenvectors.
         """
         dimension = self.hilbertdim()
@@ -337,9 +335,9 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def d_hamiltonian_d_EJ(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns operator representing a derivative of the Hamiltonian with respect to
-        EJ in the harmonic-oscillator or eigenenergy basis. The flux is grouped as in the Hamiltonian.
+        """Returns operator representing a derivative of the Hamiltonian with respect to
+        EJ in the harmonic-oscillator or eigenenergy basis. The flux is grouped as in
+        the Hamiltonian.
 
         Parameters
         ----------
@@ -352,8 +350,8 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         Returns
         -------
             Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
             for m given eigenvectors.
         """
         native = -self.cos_phi_operator(1, 2 * np.pi * self.flux)
@@ -370,9 +368,9 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def d_hamiltonian_d_flux(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns operator representing a derivative of the Hamiltonian with respect to
-        flux in the harmonic-oscillator or eigenenergy basis. The flux is grouped as in the Hamiltonian.
+        """Returns operator representing a derivative of the Hamiltonian with respect to
+        flux in the harmonic-oscillator or eigenenergy basis. The flux is grouped as in
+        the Hamiltonian.
 
         Parameters
         ----------
@@ -385,8 +383,8 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         Returns
         -------
             Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
             for m given eigenvectors.
         """
         native = -2 * np.pi * self.EJ * self.sin_phi_operator(1, 2 * np.pi * self.flux)
@@ -420,7 +418,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         which: int = 0,
         phi_grid: "Grid1d" = None,
     ) -> storage.WaveFunction:
-        """Returns a fluxonium wave function in `phi` basis
+        """Returns a fluxonium wave function in `phi` basis.
 
         Parameters
         ----------

@@ -54,8 +54,7 @@ def wavefunction1d(
     scaling: Optional[float] = None,
     **kwargs,
 ) -> Tuple[Figure, Axes]:
-    """
-    Plots the amplitude of a single real-valued 1d wave function, along with the
+    """Plots the amplitude of a single real-valued 1d wave function, along with the
     potential energy if provided.
 
     Parameters
@@ -97,8 +96,7 @@ def wavefunction1d_nopotential(
     offset: Union[float, Iterable[float]] = 0,
     **kwargs,
 ) -> Tuple[Figure, Axes]:
-    """
-    Plots the amplitude of a single real-valued 1d wave function, along with the
+    """Plots the amplitude of a single real-valued 1d wave function, along with the
     potential energy if provided.
 
     Parameters
@@ -132,8 +130,7 @@ def wavefunction1d_nopotential(
 
 @mpl.rc_context(matplotlib_settings)
 def wavefunction1d_discrete(wavefunc: "WaveFunction", **kwargs) -> Tuple[Figure, Axes]:
-    """
-    Plots the amplitude of a real-valued 1d wave function in a discrete basis.
+    """Plots the amplitude of a real-valued 1d wave function in a discrete basis.
     (Example: transmon in the charge basis.)
 
     Parameters
@@ -164,8 +161,7 @@ def wavefunction1d_discrete(wavefunc: "WaveFunction", **kwargs) -> Tuple[Figure,
 def wavefunction2d(
     wavefunc: "WaveFunctionOnGrid", zero_calibrate: bool = False, **kwargs
 ) -> Tuple[Figure, Axes]:
-    """
-    Creates a density plot of the amplitude of a real-valued wave function in 2
+    """Creates a density plot of the amplitude of a real-valued wave function in 2
     "spatial" dimensions.
 
     Parameters
@@ -271,8 +267,7 @@ def contours(
 def matrix(
     data_matrix: np.ndarray, mode: str = "abs", show_numbers: bool = False, **kwargs
 ) -> Tuple[Figure, Tuple[Axes, Axes]]:
-    """
-    Create a "skyscraper" plot and a 2d color-coded plot of a matrix.
+    """Create a "skyscraper" plot and a 2d color-coded plot of a matrix.
 
     Parameters
     ----------
@@ -310,7 +305,7 @@ def matrix(
 def matrix_skyscraper(
     matrix: np.ndarray, mode: str = "abs", **kwargs
 ) -> Tuple[Figure, Axes]:
-    """Display a 3d skyscraper plot of the matrix
+    """Display a 3d skyscraper plot of the matrix.
 
     Parameters
     ----------
@@ -456,8 +451,8 @@ def data_vs_paramvals(
     label_list: Union[List[str], List[int]] = None,
     **kwargs,
 ) -> Tuple[Figure, Axes]:
-    """Plot of a set of ydata vs xdata.
-    The individual points correspond to the a provided array of parameter values.
+    """Plot of a set of ydata vs xdata. The individual points correspond to the a
+    provided array of parameter values.
 
     Parameters
     ----------
@@ -562,8 +557,8 @@ def matelem_vs_paramvals(
     mode: str = "abs",
     **kwargs,
 ) -> Tuple[Figure, Axes]:
-    """Generates a simple plot of matrix elements as a function of one parameter.
-    The individual points correspond to the a provided array of parameter values.
+    """Generates a simple plot of matrix elements as a function of one parameter. The
+    individual points correspond to the a provided array of parameter values.
 
     Parameters
     ----------
