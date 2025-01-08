@@ -15,7 +15,7 @@ import numbers
 import warnings
 
 from collections import OrderedDict
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, Literal
 
 import numpy as np
 
@@ -441,6 +441,33 @@ class Parameters:
                 reduced_paramvals_by_name[name] = paramvals
 
         return Parameters(reduced_paramvals_by_name)
+
+    def meshgrids_by_paramname(
+        self,
+        indexing: Literal["ij", "xy"] = "ij",
+    ) -> OrderedDict[str, "NamedSlotsNdarray"]:
+        """
+        Creates and returns returns a dictionary containing the meshgrids of the
+        parameter lists. All meshgrids are instances of the NamedSlotNdarray
+
+        Parameters
+        ----------
+        indexing: {'ij', 'xy'}
+            Matrix ('ij', default) or cartesian ('xy') or indexing of output. This
+            argument will be passed to the np.meshgrid() directly
+
+        Returns
+        -------
+            An ordered dictionary or a list containing the meshgrids
+        """
+
+        param_mesh = np.meshgrid(*self.paramvals_list, indexing=indexing)
+
+        param_mesh_nsarray = [
+            NamedSlotsNdarray(mesh, self.paramvals_by_name) for mesh in param_mesh
+        ]
+
+        return OrderedDict(zip(self.paramnames_list, param_mesh_nsarray))
 
 
 class NamedSlotsNdarray(np.ndarray, Serializable):
