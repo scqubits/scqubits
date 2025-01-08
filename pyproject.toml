@@ -36,7 +36,6 @@ classifiers = [
 ]
 dependencies = [
     "cycler",
-    "cython>=0.29.20",
     "dill",
     "pathos>=0.3.0",
     "matplotlib>=3.5.1",
