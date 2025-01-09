@@ -63,7 +63,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
-        optional string by which this instance can be referred to in `HilbertSpace`
+        optional string by which this instance can be referred to in :class:`HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     esys_method:
         method for esys diagonalization, callable or string representation
@@ -115,7 +115,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
     @classmethod
     def supported_noise_channels(cls) -> List[str]:
-        """Return a list of supported noise channels"""
+        """Return a list of supported noise channels."""
         return [
             "tphi_1_over_f_cc",
             "tphi_1_over_f_ng",
@@ -125,8 +125,8 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
     @classmethod
     def effective_noise_channels(cls) -> List[str]:
-        """Return a default list of channels used when calculating effective t1 and
-        t2 noise."""
+        """Return a default list of channels used when calculating effective t1 and t2
+        noise."""
         noise_channels = cls.supported_noise_channels()
         noise_channels.remove("t1_charge_impedance")
         return noise_channels
@@ -169,8 +169,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def find_EJ_EC(
         E01: float, anharmonicity: float, ng=0, ncut=30
     ) -> Tuple[float, float]:
-        """
-        Finds the EJ and EC values given a qubit splitting `E01` and `anharmonicity`.
+        """Finds the EJ and EC values given a qubit splitting `E01` and `anharmonicity`.
 
         Parameters
         ----------
@@ -206,8 +205,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def n_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns charge operator n in the charge or eigenenergy basis.
+        """Returns charge operator n in the charge or eigenenergy basis.
 
         Parameters
         ----------
@@ -221,7 +219,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         Returns
         -------
             Charge operator n in chosen basis as ndarray.
-            For `energy_esys=True`, n has dimensions of `truncated_dim` x `truncated_dim`.
+            For `energy_esys=True`, n has dimensions of :attr:`truncated_dim` x :attr:`truncated_dim`.
             If an actual eigensystem is handed to `energy_sys`, then `n` has dimensions of m x m,
             where m is the number of given eigenvectors.
         """
@@ -308,8 +306,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def hamiltonian(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns Hamiltonian in the charge or eigenenergy basis.
+        """Returns Hamiltonian in the charge or eigenenergy basis.
 
         Parameters
         ----------
@@ -322,7 +319,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         Returns
         -------
             Hamiltonian in chosen basis as ndarray. For `energy_esys=False`, the Hamiltonian has dimensions of
-            `truncated_dim` x `truncated_dim`. For `energy_sys=esys`, the Hamiltonian has dimensions of m x m,
+            :attr:`truncated_dim` x :attr:`truncated_dim`. For `energy_sys=esys`, the Hamiltonian has dimensions of m x m,
             for m given eigenvectors.
         """
         dimension = self.hilbertdim()
@@ -342,9 +339,8 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def d_hamiltonian_d_ng(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns operator representing a derivative of the Hamiltonian with respect to
-        charge offset `ng` in the charge or eigenenergy basis.
+        """Returns operator representing a derivative of the Hamiltonian with respect to
+        charge offset :attr:`ng` in the charge or eigenenergy basis.
 
         Parameters
         ----------
@@ -357,8 +353,8 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         Returns
         -------
             Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
             for m given eigenvectors.
         """
         native = -8 * self.EC * self.n_operator(energy_esys=energy_esys)
@@ -367,8 +363,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def d_hamiltonian_d_EJ(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """
-        Returns operator representing a derivative of the Hamiltonian with respect to
+        """Returns operator representing a derivative of the Hamiltonian with respect to
         EJ in the charge or eigenenergy basis.
 
         Parameters
@@ -382,15 +377,15 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         Returns
         -------
             Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
             for m given eigenvectors.
         """
         native = -self.cos_phi_operator()
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def hilbertdim(self) -> int:
-        """Returns Hilbert space dimension"""
+        """Returns Hilbert space dimension."""
         return 2 * self.ncut + 1
 
     def potential(self, phi: Union[float, ndarray]) -> ndarray:
@@ -409,9 +404,9 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         mode: str = "real",
         which: int = 0,
         nrange: Tuple[int, int] = None,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Figure, Axes]:
-        """Plots transmon wave function in charge basis
+        """Plots transmon wave function in charge basis.
 
         Parameters
         ----------
@@ -444,16 +439,16 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         phi_grid: Grid1d = None,
         mode: str = "abs_sqr",
         scaling: float = None,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Figure, Axes]:
-        """Alias for plot_wavefunction"""
+        """Alias for plot_wavefunction."""
         return self.plot_wavefunction(
             esys=esys,
             which=which,
             phi_grid=phi_grid,
             mode=mode,
             scaling=scaling,
-            **kwargs
+            **kwargs,
         )
 
     def numberbasis_wavefunction(
@@ -601,11 +596,10 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
     r"""Class for the flux-tunable transmon qubit. The Hamiltonian is represented in
     dense form in the number basis, :math:`H_\text{CPB}=4E_\text{C}(\hat{
-    n}-n_g)^2-\frac{\mathcal{E}_\text{J}(\Phi)}{2}(|n\rangle\langle n+1|+\text{
-    h.c.})`, Here, the effective Josephson energy is flux-tunable: :math:`\mathcal{
-    E}_J(\Phi) = E_{J,\text{max}} \sqrt{\cos^2(\pi\Phi/\Phi_0) + d^2 \sin^2(
-    \pi\Phi/\Phi_0)}` and :math:`d=(E_{J2}-E_{J1})(E_{J1}+E_{J2})` parametrizes the
-    junction asymmetry.
+    n}-n_g)^2-\frac{\mathcal{E}_\text{J}(\Phi)}{2}(|n\rangle\langle n+1|+\text{ h.c.})`,
+    Here, the effective Josephson energy is flux-tunable: :math:`\mathcal{ E}_J(\Phi) =
+    E_{J,\text{max}} \sqrt{\cos^2(\pi\Phi/\Phi_0) + d^2 \sin^2( \pi\Phi/\Phi_0)}` and
+    :math:`d=(E_{J2}-E_{J1})(E_{J1}+E_{J2})` parametrizes the junction asymmetry.
 
     Initialize with, for example::
 
@@ -629,7 +623,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
-        optional string by which this instance can be referred to in `HilbertSpace`
+        optional string by which this instance can be referred to in :class:`HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     esys_method:
         method for esys diagonalization, callable or string representation
@@ -680,8 +674,8 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
 
     @property
     def EJ(self) -> float:  # type: ignore
-        """This is the effective, flux dependent Josephson energy, playing the role
-        of EJ in the parent class `Transmon`"""
+        """This is the effective, flux dependent Josephson energy, playing the role of
+        EJ in the parent class :class:`Transmon`"""
         return self.EJmax * np.sqrt(
             np.cos(np.pi * self.flux) ** 2 + self.d**2 * np.sin(np.pi * self.flux) ** 2
         )
@@ -700,7 +694,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
 
     @classmethod
     def supported_noise_channels(cls) -> List[str]:
-        """Return a list of supported noise channels"""
+        """Return a list of supported noise channels."""
         return [
             "tphi_1_over_f_flux",
             "tphi_1_over_f_cc",
@@ -714,7 +708,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
         r"""Returns operator representing a derivative of the Hamiltonian with respect to
-        `flux` in the charge or eigenenergy basis.
+        :attr:`flux` in the charge or eigenenergy basis.
 
         Here, the derivative is taken with respect to flux before the qubit's :math:`\phi` degree of
         freedom in the Hamiltonian is shifted by a flux-dependent quantity :math:`\varphi_{0}`
@@ -733,8 +727,8 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         Returns
         -------
             Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
             for m given eigenvectors.
         """
         native = (

@@ -82,8 +82,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
     ) -> float:
-        r"""
-        :math:`T_1` due to inductive dissipation in superinductors.
+        r""":math:`T_1` due to inductive dissipation in superinductors.
 
         References: nguyen et al (2019), Smith et al (2020)
 
@@ -143,9 +142,8 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
                 return Q_ind
 
         def spectral_density1(omega, T):
-            r"""
-            Calculates the first spectral density from the angular frequency
-            and temperature.
+            r"""Calculates the first spectral density from the angular frequency and
+            temperature.
 
             Parameters
             ----------
@@ -157,7 +155,6 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             Returns
             -------
             Spectral density
-
             """
             therm_ratio = calc_therm_ratio(omega, T)
             s = (
@@ -176,9 +173,8 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         noise_op1 = self.phi_1_operator()
 
         def spectral_density2(omega, T):
-            r"""
-            Calculates the second spectral density from the angular frequency
-            and temperature.
+            r"""Calculates the second spectral density from the angular frequency and
+            temperature.
 
             Parameters
             ----------
@@ -190,7 +186,6 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             Returns
             -------
             Spectral Density
-
             """
             therm_ratio = calc_therm_ratio(omega, T)
             s = (
@@ -242,8 +237,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
     ) -> float:
-        r"""
-        :math:`T_1` due to dielectric dissipation in the Josephson junction
+        r""":math:`T_1` due to dielectric dissipation in the Josephson junction
         capacitances.
 
         References:  Nguyen et al (2019), Smith et al (2020)
@@ -271,7 +265,6 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         time or rate: float
             decoherence time in units of :math:`2\pi` (system units), or rate
              in inverse units.
-
         """
         if "t1_capacitive" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -294,9 +287,8 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
                 return Q_cap
 
         def spectral_density1(omega, T):
-            r"""
-            Calculates the first spectral density from the angular frequency
-            and temperature.
+            r"""Calculates the first spectral density from the angular frequency and
+            temperature.
 
             Parameters
             ----------
@@ -308,7 +300,6 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             Returns
             -------
             Spectral density
-
             """
             therm_ratio = calc_therm_ratio(omega, T)
             s1 = (
@@ -326,9 +317,8 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             return s1
 
         def spectral_density2(omega, T):
-            r"""
-            Calculates the second spectral density from the angular frequency
-            and temperature.
+            r"""Calculates the second spectral density from the angular frequency and
+            temperature.
 
             Parameters
             ----------
@@ -340,7 +330,6 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             Returns
             -------
             Spectral density
-
             """
             therm_ratio = calc_therm_ratio(omega, T)
             s2 = (
@@ -394,8 +383,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
     ) -> float:
-        r"""
-        :math:`T_1` due to dielectric dissipation in the shunt capacitor.
+        r""":math:`T_1` due to dielectric dissipation in the shunt capacitor.
 
         References:  Nguyen et al (2019), Smith et al (2020)
 
@@ -422,7 +410,6 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         time or rate
             decoherence time in units of :math:`2\pi` (system units), or rate
             in inverse units.
-
         """
         if "t1_purcell" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -445,9 +432,8 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
                 return Q_cap
 
         def spectral_density(omega, T):
-            r"""
-            Calculates the spectral density from the angular frequency
-            and temperature.
+            r"""Calculates the spectral density from the angular frequency and
+            temperature.
 
             Parameters
             ----------
@@ -459,7 +445,6 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             Returns
             -------
             Spectral density
-
             """
             therm_ratio = calc_therm_ratio(omega, T)
             s = (
@@ -490,9 +475,9 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
 
 # -Cosine two phi qubit ----------------------------------------------------------------
 class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQubit):
-    r"""Cosine Two Phi Qubit
+    r"""Cosine Two Phi Qubit.
 
-    | [1] Smith et al., NPJ Quantum Inf. 6, 8 (2020) 
+    | [1] Smith et al., NPJ Quantum Inf. 6, 8 (2020)
     http://www.nature.com/articles/s41534-019-0231-2
 
     .. math::
@@ -535,16 +520,16 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
-        optional string by which this instance can be referred to in `HilbertSpace`
+        optional string by which this instance can be referred to in :class:`HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
-    esys_method: 
-        method for esys diagonalization, callable or string representation 
-    esys_method_options: 
-        dictionary with esys diagonalization options 
-    evals_method: 
-        method for evals diagonalization, callable or string representation 
-    evals_method_options: 
-        dictionary with evals diagonalization options 
+    esys_method:
+        method for esys diagonalization, callable or string representation
+    esys_method_options:
+        dictionary with esys diagonalization options
+    evals_method:
+        method for evals diagonalization, callable or string representation
+    evals_method_options:
+        dictionary with evals diagonalization options
     """
 
     EJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
@@ -608,9 +593,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
-        r"""
-        Returns the default parameters for EJ, ECJ, EL, dCJ, dL,
-        dEJ, flux, ng, ncut, zeta_cut, and phi_cut variables.
+        r"""Returns the default parameters for EJ, ECJ, EL, dCJ, dL, dEJ, flux, ng, ncut,
+        zeta_cut, and phi_cut variables.
 
         EJ:
             Josephson energy of the two junctions
@@ -662,8 +646,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
     @classmethod
     def create(cls) -> "Cos2PhiQubit":
-        r"""
-        Method to create a Cosine Two Phi Qubit.
+        r"""Method to create a Cosine Two Phi Qubit.
 
         Parameters
         ----------
@@ -673,7 +656,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Cos Two Phi Qubit
-
         """
         init_params = cls.default_params()
         cosinetwophiqubit = cls(**init_params)
@@ -682,8 +664,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
     @classmethod
     def supported_noise_channels(cls) -> List[str]:
-        r"""
-        Return a list of supported noise channels
+        r"""Return a list of supported noise channels.
 
         Parameters
         ----------
@@ -716,7 +697,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Integer
-
         """
         return self.phi_cut
 
@@ -733,7 +713,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Integer
-
         """
         return self.zeta_cut
 
@@ -741,6 +720,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         r"""
         Returns Hilbert space dimension of :math:`\theta` degree of freedom
 
+
         Parameters
         ----------
         self:
@@ -749,13 +729,11 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Integer
-
         """
         return 2 * self.ncut + 1
 
     def hilbertdim(self) -> int:
-        r"""
-        Returns total Hilbert space dimension
+        r"""Returns total Hilbert space dimension.
 
         Parameters
         ----------
@@ -765,13 +743,11 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Integer
-
         """
         return self._dim_phi() * self._dim_zeta() * self._dim_theta()
 
     def _disordered_el(self) -> float:
-        r"""
-        Returns inductive energy renormalized by with disorder.
+        r"""Returns inductive energy renormalized by with disorder.
 
         Parameters
         ----------
@@ -785,8 +761,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return self.EL / (1 - self.dL**2)
 
     def _disordered_ecj(self) -> float:
-        r"""
-        Returns junction capacitance energy renormalized by with disorder.
+        r"""Returns junction capacitance energy renormalized by with disorder.
 
         Parameters
         ----------
@@ -796,7 +771,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Float
-
         """
         return self.ECJ / (1 - self.dCJ**2)
 
@@ -812,7 +786,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Float
-
         """
         return (2 * self._disordered_ecj() / self._disordered_el()) ** 0.25
 
@@ -828,7 +801,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Float
-
         """
         return (4 * self.EC / self._disordered_el()) ** 0.25
 
@@ -844,7 +816,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Float
-
         """
         return math.sqrt(8.0 * self._disordered_el() * self._disordered_ecj())
 
@@ -860,13 +831,11 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Float
-
         """
         return math.sqrt(16.0 * self.EC * self._disordered_el())
 
     def _phi_operator(self) -> csc_matrix:
-        r"""
-        Returns `phi` operator in the harmonic oscillator basis.
+        r"""Returns `phi` operator in the harmonic oscillator basis.
 
         Parameters
         ----------
@@ -876,7 +845,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Compressed Sparse Column Matrix
-
         """
         dimension = self._dim_phi()
         return (
@@ -888,8 +856,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     def phi_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Returns the :math:`\phi` operator in the native or eigenenergy basis.
+        r"""Returns the :math:`\phi` operator in the native or eigenenergy basis.
 
         Parameters
         ----------
@@ -909,7 +876,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is
             chosen, :math:`\phi` operator has dimensions of m x m, for m given eigenvectors,
             and is returned as an ndarray.
-
         """
         native = self._kron3(
             self._phi_operator(), self._identity_zeta(), self._identity_theta()
@@ -917,8 +883,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def _n_phi_operator(self) -> csc_matrix:
-        r"""
-        Returns `n_\phi` operator in the harmonic oscillator basis.
+        r"""Returns `n_\phi` operator in the harmonic oscillator basis.
 
         Parameters
         ----------
@@ -928,7 +893,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Compressed Sparse Column Matrix
-
         """
         dimension = self._dim_phi()
         return (
@@ -941,8 +905,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     def n_phi_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, coo_matrix]:
-        r"""
-        Returns the :math:`n_\phi` operator in the harmonic oscillator or eigenenergy basis.
+        r"""Returns the :math:`n_\phi` operator in the harmonic oscillator or eigenenergy
+        basis.
 
         Parameters
         ----------
@@ -962,7 +926,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is
             chosen, :math:`n_\phi` operator has dimensions of m x m, for m given eigenvectors,
             and is returned as an ndarray :math:`\zeta`.
-
         """
         native = self._kron3(
             self._n_phi_operator(), self._identity_zeta(), self._identity_theta()
@@ -970,8 +933,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def _zeta_operator(self) -> csc_matrix:
-        r"""
-        Returns `zeta` operator in the harmonic oscillator basis.
+        r"""Returns `zeta` operator in the harmonic oscillator basis.
 
         Parameters
         ----------
@@ -981,7 +943,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Compressed Sparse Column Matrix
-
         """
         dimension = self._dim_zeta()
         return (
@@ -993,8 +954,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     def zeta_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Returns the :math:`\zeta`  operator in the harmonic oscillator or eigenenergy basis.
+        r"""Returns the :math:`\zeta`  operator in the harmonic oscillator or eigenenergy
+        basis.
 
         Parameters
         ----------
@@ -1021,8 +982,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def _n_zeta_operator(self) -> csc_matrix:
-        r"""
-        Returns `n_\zeta` operator in the harmonic oscillator basis.
+        r"""Returns `n_\zeta` operator in the harmonic oscillator basis.
 
         Parameters
         ----------
@@ -1032,7 +992,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Compressed Sparse Column Matrix
-
         """
         dimension = self._dim_zeta()
         return (
@@ -1044,8 +1003,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     def n_zeta_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Returns the :math:`n_\zeta`  operator in the harmonic oscillator or eigenenergy basis.
+        r"""Returns the :math:`n_\zeta`  operator in the harmonic oscillator or
+        eigenenergy basis.
 
         Parameters
         ----------
@@ -1065,7 +1024,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             truncated_dim x truncated_dim, and is returned as an ndarray. Otherwise, if
             eigenenergy basis is chosen, :math:`n_\zeta` operator has dimensions of m x m,
             for m given eigenvectors, and is returned as an ndarray.
-
         """
         native = self._kron3(
             self._identity_phi(), self._n_zeta_operator(), self._identity_theta()
@@ -1073,8 +1031,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def _exp_i_phi_operator(self) -> csc_matrix:
-        r"""
-        Returns `e^{i*phi}` operator in the  harmonic oscillator basis
+        r"""Returns `e^{i*phi}` operator in the  harmonic oscillator basis.
 
         Parameters
         ----------
@@ -1084,14 +1041,12 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Compressed Sparse Column Matrix
-
         """
         exponent = 1j * self._phi_operator()
         return sp.sparse.linalg.expm(exponent)
 
     def _cos_phi_operator(self) -> csc_matrix:
-        r"""
-        Returns `cos phi` operator in the harmonic oscillator basis.
+        r"""Returns `cos phi` operator in the harmonic oscillator basis.
 
         Parameters
         ----------
@@ -1101,15 +1056,13 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Compressed Sparse Column Matrix
-
         """
         cos_phi_op = 0.5 * self._exp_i_phi_operator()
         cos_phi_op += cos_phi_op.conj().T
         return cos_phi_op
 
     def _sin_phi_operator(self) -> csc_matrix:
-        r"""
-        Returns `sin phi/2` operator in the LC harmonic oscillator basis.
+        r"""Returns `sin phi/2` operator in the LC harmonic oscillator basis.
 
         Parameters
         ----------
@@ -1119,7 +1072,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Compressed Sparse Column Matrix
-
         """
         sin_phi_op = -1j * 0.5 * self._exp_i_phi_operator()
         sin_phi_op += sin_phi_op.conj().T
@@ -1137,7 +1089,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Compressed Sparse Column Matrix
-
         """
         diag_elements = np.arange(-self.ncut, self.ncut + 1)
         return dia_matrix(
@@ -1168,7 +1119,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             truncated_dim x truncated_dim, and is returned as an ndarray. Otherwise, if
             eigenenergy basis is chosen, :math:`n_\theta` operator has dimensions of m x m,
             for m given eigenvectors, and is returned as an ndarray.
-
         """
         native = self._kron3(
             self._identity_phi(), self._identity_zeta(), self._n_theta_operator()
@@ -1176,8 +1126,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def _cos_theta_operator(self) -> csc_matrix:
-        r"""
-        Returns operator :math:`\cos \theta` in the charge basis
+        r"""Returns operator :math:`\cos \theta` in the charge basis.
 
         Parameters
         ----------
@@ -1187,7 +1136,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Compressed Sparse Column Matrix
-
         """
         cos_op = (
             0.5
@@ -1206,8 +1154,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return cos_op
 
     def _sin_theta_operator(self) -> csc_matrix:
-        r"""
-        Returns operator :math:`\sin \theta` in the charge basis.
+        r"""Returns operator :math:`\sin \theta` in the charge basis.
 
         Parameters
         ----------
@@ -1217,7 +1164,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Compressed Sparse Column Matrix
-
         """
         sin_op = (
             0.5
@@ -1236,8 +1182,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return sin_op * (-1j)
 
     def _kron3(self, mat1, mat2, mat3) -> csc_matrix:
-        r"""
-        Returns Kronecker product of three matrices.
+        r"""Returns Kronecker product of three matrices.
 
         Parameters
         ----------
@@ -1247,7 +1192,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Compressed Sparse Column Matrix
-
         """
         return sparse.kron(sparse.kron(mat1, mat2), mat3)
 
@@ -1264,15 +1208,12 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Compressed Sparse Column Matrix
-
         """
         dimension = self._dim_phi()
         return sparse.eye(dimension)
 
     def _identity_zeta(self) -> csc_matrix:
-        r"""
-        Returns Identity operator acting only on the :math:`\zeta`
-        Hilbert subspace.
+        r"""Returns Identity operator acting only on the :math:`\zeta` Hilbert subspace.
 
         Parameters
         ----------
@@ -1282,15 +1223,12 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Compressed Sparse Column Matrix
-
         """
         dimension = self._dim_zeta()
         return sparse.eye(dimension)
 
     def _identity_theta(self) -> csc_matrix:
-        r"""
-        Returns Identity operator acting only on the :math:`\theta`
-        Hilbert subspace.
+        r"""Returns Identity operator acting only on the :math:`\theta` Hilbert subspace.
 
         Parameters
         ----------
@@ -1300,7 +1238,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Compressed Sparse Column Matrix
-
         """
         dimension = self._dim_theta()
         return sparse.eye(dimension)
@@ -1316,7 +1253,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Compressed Sparse Column Matrix
-
         """
         return self._kron3(
             self._identity_phi(), self._identity_zeta(), self._identity_theta()
@@ -1343,10 +1279,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
             Hamiltonian in chosen basis as csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, the Hamiltonian has dimensions of `truncated_dim`
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, Hamiltonian has
+            unless `energy_esys` is specified, the Hamiltonian has dimensions of :attr:`truncated_dim`
+            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, Hamiltonian has
             dimensions of m x m, for m given eigenvectors.
-
         """
         phi_osc_mat = self._kron3(
             op.number_sparse(self._dim_phi(), self.phi_plasma()),
@@ -1430,8 +1365,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         )
 
     def _evals_calc(self, evals_count) -> ndarray:
-        r"""
-        Evaluvates the hamiltonian, and returns the safe eigensvalues.
+        r"""Evaluvates the hamiltonian, and returns the safe eigensvalues.
 
         Parameters
         ----------
@@ -1443,7 +1377,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Sorted list of eigenvalues
-
         """
         hamiltonian_mat = self.hamiltonian()
         evals = utils.eigsh_safe(
@@ -1456,9 +1389,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return np.sort(evals)
 
     def _esys_calc(self, evals_count) -> Tuple[ndarray, ndarray]:
-        r"""
-        Evaluvates the Hamiltonian and returns the eigenvalues and
-        eigenvectors.
+        r"""Evaluvates the Hamiltonian and returns the eigenvalues and eigenvectors.
 
         Parameters
         ----------
@@ -1470,7 +1401,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Eigenvalues, Eigenvectors
-
         """
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = utils.eigsh_safe(
@@ -1487,6 +1417,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         r"""
         Returns full potential evaluated at :math:`\phi, \zeta, \theta`
 
+
         Parameters
         ----------
         phi: float or ndarray
@@ -1499,7 +1430,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Float
-
         """
         return (
             self._disordered_el() * (phi * phi)
@@ -1509,8 +1439,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         )
 
     def reduced_potential(self, phi, theta) -> float:
-        r"""
-        Returns reduced potential by setting :math:`zeta = 0`.
+        r"""Returns reduced potential by setting :math:`zeta = 0`.
 
         Parameters
         ----------
@@ -1524,7 +1453,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Float
-
         """
         return self.potential(phi, 0, theta)
 
@@ -1534,6 +1462,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         r"""
         Draw contour plot of the potential energy in :math:`\theta, \phi` basis,
         at :math:`\zeta = 0`.
+
 
         Parameters
         ----------
@@ -1549,7 +1478,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Figure, Axes
-
         """
         phi_grid = phi_grid or self._default_phi_grid
         theta_grid = theta_grid or self._default_theta_grid
@@ -1563,7 +1491,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             contour_vals=contour_vals,
             ylabel=r"$\theta$",
             xlabel=r"$\phi$",
-            **kwargs
+            **kwargs,
         )
 
     def wavefunction(
@@ -1655,10 +1583,11 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         theta_grid=None,
         mode="abs",
         zero_calibrate=True,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Figure, Axes]:
         r"""
         Plots a 2D wave function in :math:`\theta, \phi` basis, at :math:`\zeta = 0`
+
 
         Parameters
         ----------
@@ -1682,7 +1611,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
         Figure, Axes
-
         """
         phi_grid = phi_grid or self._default_phi_grid
         zeta_grid = discretization.Grid1d(0, 0, 1)
@@ -1717,14 +1645,13 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             zero_calibrate=zero_calibrate,
             ylabel=r"$\theta$",
             xlabel=r"$\phi$",
-            **kwargs
+            **kwargs,
         )
 
     def phi_1_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Returns operator representing the phase across inductor 1 in harmonic
+        r"""Returns operator representing the phase across inductor 1 in harmonic
         oscillator or eigenenergy basis.
 
         Parameters
@@ -1741,11 +1668,10 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         -------
             Operator in chosen basis. If harmonic oscillator basis chosen, operator
             returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
             basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
             and is returned as an ndarray.
-
         """
         native = self.zeta_operator() - self.phi_operator()
         return self.process_op(native_op=native, energy_esys=energy_esys)
@@ -1753,8 +1679,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     def phi_2_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Returns operator representing the phase across inductor 2 in harmonic
+        r"""Returns operator representing the phase across inductor 2 in harmonic
         oscillator or eigenenergy basis.
 
         Parameters
@@ -1771,11 +1696,10 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         -------
             Operator in chosen basis. If harmonic oscillator basis chosen, operator
             returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
             basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
             and is returned as an ndarray.
-
         """
         native = -self.zeta_operator() - self.phi_operator()
         return self.process_op(native_op=native, energy_esys=energy_esys)
@@ -1783,9 +1707,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     def n_1_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Returns operator representing the charge difference across junction 1 in native
-        or eigenenergy basis.
+        r"""Returns operator representing the charge difference across junction 1 in
+        native or eigenenergy basis.
 
         Parameters
         ----------
@@ -1801,11 +1724,10 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         -------
             Operator in chosen basis. If harmonic oscillator basis chosen, operator
             returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
             basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
             and is returned as an ndarray.
-
         """
         native = 0.5 * self.n_phi_operator() + 0.5 * (
             self.n_theta_operator() - self.n_zeta_operator()
@@ -1815,9 +1737,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     def n_2_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Returns operator representing the charge difference across junction 2 in native
-        or eigenenergy basis.
+        r"""Returns operator representing the charge difference across junction 2 in
+        native or eigenenergy basis.
 
         Parameters
         ----------
@@ -1833,11 +1754,10 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         -------
             Operator in chosen basis. If harmonic oscillator basis chosen, operator
             returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
             basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
             and is returned as an ndarray.
-
         """
         native = 0.5 * self.n_phi_operator() - 0.5 * (
             self.n_theta_operator() - self.n_zeta_operator()
@@ -1847,8 +1767,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     def d_hamiltonian_d_flux(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Returns operator representing a derivative of the Hamiltonian with respect to
+        r"""Returns operator representing a derivative of the Hamiltonian with respect to
         flux in the native or eigenenergy basis.
 
         Parameters
@@ -1865,11 +1784,10 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         -------
             Operator in chosen basis. If harmonic oscillator basis chosen, operator
             returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
             basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
             and is returned as an ndarray.
-
         """
         phi_flux_term = self._sin_phi_operator() * np.cos(
             self.flux * np.pi
@@ -1901,8 +1819,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     def d_hamiltonian_d_EJ(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Returns operator representing a derivative of the Hamiltonian with respect to
+        r"""Returns operator representing a derivative of the Hamiltonian with respect to
         EJ in the native or eigenenergy basis.
 
         Parameters
@@ -1919,11 +1836,10 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         -------
             Operator in chosen basis. If harmonic oscillator basis chosen, operator
             returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
             basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
             and is returned as an ndarray.
-
         """
         phi_flux_term = self._cos_phi_operator() * np.cos(
             self.flux * np.pi
@@ -1948,8 +1864,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     def d_hamiltonian_d_ng(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Returns operator representing a derivative of the Hamiltonian with respect to
+        r"""Returns operator representing a derivative of the Hamiltonian with respect to
         ng in the native or eigenenergy basis.
 
         Parameters
@@ -1966,11 +1881,10 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         -------
             Operator in chosen basis. If harmonic oscillator basis chosen, operator
             returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
             basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
             and is returned as an ndarray.
-
         """
         native = (
             4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator()

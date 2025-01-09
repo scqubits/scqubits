@@ -48,7 +48,7 @@ class NoisyZeroPi(NoisySystem):
 
 
 class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
-    r"""Zero-Pi Qubit
+    r"""Zero-Pi Qubit.
 
     | [1] Brooks et al., Physical Review A, 87(5), 052306 (2013). http://doi.org/10.1103/PhysRevA.87.052306
     | [2] Dempster et al., Phys. Rev. B, 90, 094518 (2014). http://doi.org/10.1103/PhysRevB.90.094518
@@ -96,17 +96,17 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
-        optional string by which this instance can be referred to in `HilbertSpace`
+        optional string by which this instance can be referred to in :class:`HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
-    esys_method: 
-        method for esys diagonalization, callable or string representation 
-    esys_method_options: 
-        dictionary with esys diagonalization options 
-    evals_method: 
-        method for evals diagonalization, callable or string representation 
-    evals_method_options: 
-        dictionary with evals diagonalization options 
-   """
+    esys_method:
+        method for esys diagonalization, callable or string representation
+    esys_method_options:
+        dictionary with esys diagonalization options
+    evals_method:
+        method for evals diagonalization, callable or string representation
+    evals_method_options:
+        dictionary with evals diagonalization options
+    """
 
     EJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     EL = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
@@ -200,7 +200,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
     @classmethod
     def supported_noise_channels(cls) -> List[str]:
-        """Return a list of supported noise channels"""
+        """Return a list of supported noise channels."""
         return [
             "tphi_1_over_f_cc",
             "tphi_1_over_f_flux",
@@ -270,11 +270,11 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     ECS = property(get_ECS, set_ECS)
 
     def set_EC_via_ECS(self, ECS: float) -> None:
-        """Helper function to set `EC` by providing `ECS`, keeping `ECJ` constant."""
+        """Helper function to set :attr:`EC` by providing `ECS`, keeping `ECJ` constant."""
         self.EC = 1 / (1 / ECS - 1 / self.ECJ)
 
     def hilbertdim(self) -> int:
-        """Returns Hilbert space dimension"""
+        """Returns Hilbert space dimension."""
         return self.grid.pt_count * (2 * self.ncut + 1)
 
     def potential(self, phi: ndarray, theta: ndarray) -> ndarray:
@@ -294,8 +294,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         )
 
     def sparse_kinetic_mat(self) -> csc_matrix:
-        """
-        Kinetic energy portion of the Hamiltonian.
+        """Kinetic energy portion of the Hamiltonian.
 
         Returns
         -------
@@ -331,8 +330,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return kinetic_matrix
 
     def sparse_potential_mat(self) -> csc_matrix:
-        """
-        Potential energy portion of the Hamiltonian.
+        """Potential energy portion of the Hamiltonian.
 
         Returns
         -------
@@ -385,10 +383,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     def hamiltonian(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> csc_matrix:
-        r"""
-        Calculates Hamiltonian in basis obtained by discretizing :math:`\phi` and employing
-        charge basis for :math:`\theta` or in the eigenenergy basis. Returns matrix representing
-        the potential energy operator.
+        r"""Calculates Hamiltonian in basis obtained by discretizing :math:`\phi` and
+        employing charge basis for :math:`\theta` or in the eigenenergy basis. Returns
+        matrix representing the potential energy operator.
 
         Parameters
         ----------
@@ -402,8 +399,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         Returns
         -------
             Hamiltonian in chosen basis as csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, the Hamiltonian has dimensions of `truncated_dim`
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, Hamiltonian has dimensions of m x m,
+            unless `energy_esys` is specified, the Hamiltonian has dimensions of :attr:`truncated_dim`
+            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, Hamiltonian has dimensions of m x m,
             for m given eigenvectors.
         """
         hamiltonian_mat = self.sparse_kinetic_mat() + self.sparse_potential_mat()
@@ -412,9 +409,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         )
 
     def sparse_d_potential_d_flux_mat(self) -> csc_matrix:
-        r"""
-        Calculates a derivative of the potential energy w.r.t flux, at the current value of
-        flux, as stored in the object.
+        r"""Calculates a derivative of the potential energy w.r.t flux, at the current
+        value of flux, as stored in the object.
 
         The flux is assumed to be given in the units of the ratio :math:`\Phi_{\rm ext}/\Phi_0`.
         So if :math:`\frac{\partial U}{\partial \Phi_{\rm ext}}`, is needed, the expr returned
@@ -439,12 +435,10 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     def d_hamiltonian_d_flux(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Calculates a derivative of the Hamiltonian w.r.t flux, at the current value
+        r"""Calculates a derivative of the Hamiltonian w.r.t flux, at the current value
         of flux, as stored in the object. The flux is assumed to be given in the units
-        of the ratio :math:`\Phi_{ext}/\Phi_0`.
-        Returns matrix representing a derivative of the Hamiltonian in the native Hamiltonian basis
-        or eigenenergy basis.
+        of the ratio :math:`\Phi_{ext}/\Phi_0`. Returns matrix representing a derivative
+        of the Hamiltonian in the native Hamiltonian basis or eigenenergy basis.
 
         Parameters
         ----------
@@ -458,7 +452,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         -------
             Operator in chosen basis. If native basis chosen, operator
             returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
@@ -481,10 +475,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     def d_hamiltonian_d_EJ(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Calculates a derivative of the Hamiltonian w.r.t EJ.
-        Returns matrix representing a derivative of the Hamiltonian in the native Hamiltonian basis
-        or eigenenergy basis.
+        r"""Calculates a derivative of the Hamiltonian w.r.t EJ. Returns matrix
+        representing a derivative of the Hamiltonian in the native Hamiltonian basis or
+        eigenenergy basis.
 
         Parameters
         ----------
@@ -498,7 +491,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         -------
             Operator in chosen basis. If native basis chosen, operator
             returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
@@ -508,10 +501,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     def d_hamiltonian_d_ng(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Calculates a derivative of the Hamiltonian w.r.t ng as stored in the object.
-        Returns matrix representing a derivative of the Hamiltonian in the native Hamiltonian basis
-        or eigenenergy basis.
+        r"""Calculates a derivative of the Hamiltonian w.r.t ng as stored in the object.
+        Returns matrix representing a derivative of the Hamiltonian in the native
+        Hamiltonian basis or eigenenergy basis.
 
         Parameters
         ----------
@@ -525,7 +517,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         -------
             Operator in chosen basis. If native basis chosen, operator
             returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
@@ -547,9 +539,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return sparse.identity(dim_theta, format="csc")
 
     def i_d_dphi_operator(self) -> csc_matrix:
-        r"""
-        Operator :math:`i d/d\phi`.
-        """
+        r"""Operator :math:`i d/d\phi`."""
         return sparse.kron(
             self.grid.first_derivative_matrix(prefactor=1j),
             self._identity_theta(),
@@ -570,8 +560,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     def phi_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Returns :math:`\phi` operator in the native or eigenenergy basis.
+        r"""Returns :math:`\phi` operator in the native or eigenenergy basis.
 
         Parameters
         ----------
@@ -585,7 +574,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         -------
             Operator in chosen basis. If native basis chosen, operator
             returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
@@ -595,8 +584,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     def n_theta_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Returns :math:`n_\theta` operator in the native or eigenenergy basis.
+        r"""Returns :math:`n_\theta` operator in the native or eigenenergy basis.
 
         Parameters
         ----------
@@ -610,7 +598,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         -------
             Operator in chosen basis. If native basis chosen, operator
             returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
@@ -667,8 +655,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     def cos_theta_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Returns :math:`\cos(\theta)` operator in the native or eigenenergy basis.
+        r"""Returns :math:`\cos(\theta)` operator in the native or eigenenergy basis.
 
         Parameters
         ----------
@@ -682,7 +669,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         -------
             Operator in chosen basis. If native basis chosen, operator
             returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
@@ -713,8 +700,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     def sin_theta_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
-        r"""
-        Returns :math:`\sin(\theta)` operator in the native or eigenenergy basis.
+        r"""Returns :math:`\sin(\theta)` operator in the native or eigenenergy basis.
 
         Parameters
         ----------
@@ -728,7 +714,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         -------
             Operator in chosen basis. If native basis chosen, operator
             returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of `truncated_dim`
+            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
             x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
             operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
@@ -741,7 +727,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         self,
         theta_grid: Grid1d = None,
         contour_vals: Union[List[float], ndarray] = None,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Figure, Axes]:
         r"""Draw contour plot of the potential energy.
 
@@ -764,7 +750,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             contour_vals=contour_vals,
             xlabel=r"$\phi$",
             ylabel=r"$\theta$",
-            **kwargs
+            **kwargs,
         )
 
     def wavefunction(
@@ -819,7 +805,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         theta_grid: Grid1d = None,
         mode: str = "abs",
         zero_calibrate: bool = True,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Figure, Axes]:
         """Plots 2d phase-basis wave function.
 
@@ -850,5 +836,5 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             zero_calibrate=zero_calibrate,
             xlabel=r"$\phi$",
             ylabel=r"$\theta$",
-            **kwargs
+            **kwargs,
         )

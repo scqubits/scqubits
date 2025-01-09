@@ -30,7 +30,7 @@ _default_evals_count = 6
 def harm_osc_wavefunction(
     n: int, x: Union[float, ndarray], l_osc: float
 ) -> Union[float, ndarray]:
-    r"""For given quantum number :math:`n=0,1,2,\dots` return the value of the harmonic
+    r"""For given quantum number :math:`n=0,1,2,\ldots` return the value of the harmonic
     oscillator wave function :math:`\psi_n(x) = N H_n(x/l_{\rm osc}) \exp(-x^2/2
     l_{\rm osc})`, N being the proper normalization factor.
 
@@ -86,7 +86,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
-        optional string by which this instance can be referred to in `HilbertSpace`
+        optional string by which this instance can be referred to in :class:`HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
 
@@ -126,7 +126,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
     def eigensys(
         self, evals_count: int = _default_evals_count
     ) -> Tuple[ndarray, ndarray]:
-        """Returns array of eigenvalues and eigenvectors
+        """Returns array of eigenvalues and eigenvectors.
 
         Parameters
         ----------
@@ -140,15 +140,15 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         return self.eigenvals(evals_count=evals_count), evecs
 
     def hilbertdim(self) -> int:
-        """Returns Hilbert space dimension"""
+        """Returns Hilbert space dimension."""
         return self.truncated_dim
 
     def creation_operator(self) -> ndarray:
-        """Returns the creation operator"""
+        """Returns the creation operator."""
         return op.creation(self.truncated_dim)
 
     def annihilation_operator(self) -> ndarray:
-        """Returns the annihilation operator"""
+        """Returns the annihilation operator."""
         return op.annihilation(self.truncated_dim)
 
     def matrixelement_table(self, *args, **kwargs) -> ndarray:
@@ -205,7 +205,7 @@ class KerrOscillator(Oscillator, serializers.Serializable):
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
-        optional string by which this instance can be referred to in `HilbertSpace`
+        optional string by which this instance can be referred to in :class:`HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
 

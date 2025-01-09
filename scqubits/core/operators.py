@@ -20,18 +20,15 @@ from scipy.sparse import csc_matrix
 
 
 def annihilation(dimension: int) -> ndarray:
-    """
-    Returns a dense matrix of size dimension x dimension representing the annihilation
-    operator in number basis.
-    """
+    """Returns a dense matrix of size dimension x dimension representing the
+    annihilation operator in number basis."""
     offdiag_elements = np.sqrt(range(1, dimension))
     return np.diagflat(offdiag_elements, 1)
 
 
 def annihilation_sparse(dimension: int) -> csc_matrix:
     """Returns a matrix of size dimension x dimension representing the annihilation
-    operator in the format of a scipy sparse.csc_matrix.
-    """
+    operator in the format of a scipy sparse.csc_matrix."""
     offdiag_elements = np.sqrt(range(dimension))
     return sp.sparse.dia_matrix(
         (offdiag_elements, [1]), shape=(dimension, dimension)
@@ -39,17 +36,14 @@ def annihilation_sparse(dimension: int) -> csc_matrix:
 
 
 def creation(dimension: int) -> ndarray:
-    """
-    Returns a dense matrix of size dimension x dimension representing the creation
-    operator in number basis.
-    """
+    """Returns a dense matrix of size dimension x dimension representing the creation
+    operator in number basis."""
     return annihilation(dimension).T
 
 
 def creation_sparse(dimension: int) -> csc_matrix:
     """Returns a matrix of size dimension x dimension representing the creation operator
-    in the format of a scipy sparse.csc_matrix
-    """
+    in the format of a scipy sparse.csc_matrix."""
     return annihilation_sparse(dimension).transpose().tocsc()
 
 
@@ -76,8 +70,8 @@ def number(
     dimension: int, prefactor: Optional[Union[float, complex]] = None
 ) -> ndarray:
     """Number operator matrix of size dimension x dimension in sparse matrix
-    representation. An additional prefactor can be directly included in the
-    generation of the matrix by supplying 'prefactor'.
+    representation. An additional prefactor can be directly included in the generation
+    of the matrix by supplying 'prefactor'.
 
     Parameters
     ----------
@@ -101,8 +95,8 @@ def number_sparse(
     dimension: int, prefactor: Optional[Union[float, complex]] = None
 ) -> csc_matrix:
     """Number operator matrix of size dimension x dimension in sparse matrix
-    representation. An additional prefactor can be directly included in the
-    generation of the matrix by supplying 'prefactor'.
+    representation. An additional prefactor can be directly included in the generation
+    of the matrix by supplying 'prefactor'.
 
     Parameters
     ----------
