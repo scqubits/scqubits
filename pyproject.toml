@@ -6,7 +6,6 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools_scm]
 write_to = "scqubits/version.py"
 version_scheme = "only-version"
-local_scheme = "no-local-version"
 
 [project]
 name = "scqubits"
