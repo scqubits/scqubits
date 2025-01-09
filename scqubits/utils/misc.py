@@ -17,7 +17,6 @@ import warnings
 
 import inspect
 from collections.abc import Sequence
-from distutils.version import StrictVersion
 from io import StringIO
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
@@ -60,8 +59,7 @@ def process_which(which: Union[int, Iterable[int]], max_index: int) -> List[int]
 
 
 def make_bare_labels(subsystem_count: int, *args) -> Tuple[int, ...]:
-    """
-    For two given subsystem states, return the full-system bare state label obtained
+    """For two given subsystem states, return the full-system bare state label obtained
     by placing all remaining subsys_list in their ground states.
 
     Parameters
@@ -84,7 +82,7 @@ def make_bare_labels(subsystem_count: int, *args) -> Tuple[int, ...]:
 
 
 def drop_private_keys(full_dict: Dict[str, Any]) -> Dict[str, Any]:
-    """Filter for entries in the full dictionary that have numerical values"""
+    """Filter for entries in the full dictionary that have numerical values."""
     return {key: value for key, value in full_dict.items() if key[0] != "_"}
 
 
@@ -187,11 +185,18 @@ def check_sync_status(func: Callable) -> Callable:
 def check_sync_status_circuit(func: Callable) -> Callable:
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
+        if self.is_child and self._out_of_sync_with_parent:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                warnings.warn(
+                    "[scqubits] Some quantum system parameters have been changed and"
+                    " generated circuit data could be outdated, potentially leading to"
+                    " incorrect results. Circuit data can be refreshed via"
+                    " <Circuit>.generate_circuit()",
+                    Warning,
+                )
         # update the circuit if necessary
-        if (self._user_changed_parameter) or (
-            self.hierarchical_diagonalization
-            and (self._out_of_sync or len(self.affected_subsystem_indices) > 0)
-        ):
+        if self.hierarchical_diagonalization:
             self.update()
         return func(self, *args, **kwargs)
 
@@ -264,13 +269,11 @@ def Qobj_to_scipy_csc_matrix(qobj_array: qt.Qobj) -> sp.sparse.csc_matrix:
 
 
 def get_shape(lst, shape=()):
-    """
-    returns the shape of nested lists similarly to numpy's shape.
+    """Returns the shape of nested lists similarly to numpy's shape.
 
     :param lst: the nested list
     :param shape: the shape up to the current recursion depth
-    :return: the shape including the current depth
-            (finally this will be the full depth)
+    :return: the shape including the current depth (finally this will be the full depth)
     """
     if not isinstance(lst, Sequence):
         # base case
@@ -322,9 +325,8 @@ def to_list(obj: Any) -> List[Any]:
 
 
 def about(print_info=True) -> Optional[str]:
-    """Prints or returns a string with basic information about
-    scqubits as well as installed version of various packages
-    that scqubits depends on.
+    """Prints or returns a string with basic information about scqubits as well as
+    installed version of various packages that scqubits depends on.
 
     Parameters
     ----------
@@ -363,8 +365,7 @@ def about(print_info=True) -> Optional[str]:
 
 
 def cite(print_info=True):
-    """Prints or returns a string with scqubits citation
-    information.
+    """Prints or returns a string with scqubits citation information.
 
     Parameters
     ----------
@@ -375,7 +376,6 @@ def cite(print_info=True):
     Returns
     -------
     None or str
-
     """
     fs = StringIO()
     fs.write("Peter Groszkowski and Jens Koch,\n")
@@ -411,8 +411,7 @@ def list_intersection(list1: list, list2: list) -> list:
 
 
 def flatten_list(nested_list):
-    """
-    Flattens a list of lists once, not recursive.
+    """Flattens a list of lists once, not recursive.
 
     Parameters
     ----------
@@ -428,8 +427,7 @@ def flatten_list(nested_list):
 
 
 def flatten_list_recursive(some_list: list) -> list:
-    """
-    Flattens a list of lists recursively.
+    """Flattens a list of lists recursively.
 
     Parameters
     ----------
@@ -450,8 +448,7 @@ def flatten_list_recursive(some_list: list) -> list:
 
 
 def unique_elements_in_list(list_object: list) -> list:
-    """
-    Returns a list of all the unique elements in the list
+    """Returns a list of all the unique elements in the list.
 
     Parameters
     ----------
@@ -468,9 +465,8 @@ def unique_elements_in_list(list_object: list) -> list:
 
 
 def number_of_lists_in_list(list_object: list) -> int:
-    """
-    Takes a list as an argument and returns the number of lists in that list. (Counts lists at root level only, no
-    recursion.)
+    """Takes a list as an argument and returns the number of lists in that list. (Counts
+    lists at root level only, no recursion.)
 
     Parameters
     ----------
@@ -484,23 +480,12 @@ def number_of_lists_in_list(list_object: list) -> int:
     return sum([1 for element in list_object if type(element) == list])
 
 
-def check_matplotlib_compatibility():
-    if _HAS_WIDGET_BACKEND and StrictVersion(matplotlib.__version__) < StrictVersion(
-        "3.5.1"
-    ):
-        warnings.warn(
-            "The widget backend requires Matplotlib >=3.5.1 for proper functioning",
-            UserWarning,
-        )
-
-
 def inspect_public_API(
     module: Any,
     public_names: List[str] = [],
     private_names: List[str] = [],
 ) -> List[str]:
-    """
-    Find all public names in a module.
+    """Find all public names in a module.
 
     Parameters
     ----------

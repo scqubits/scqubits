@@ -1,7 +1,7 @@
+from typing import Tuple, Optional, Union, Dict
 import pyparsing as pp
 import os
 
-from typing import List, Tuple
 from scqubits.utils.misc import is_string_float
 from pyparsing import Group, Opt, Or, Literal, Suppress
 import numpy as np
@@ -42,11 +42,9 @@ NUM = pp.common.fnumber  # float
 
 
 # - Branch types ***************************************************
-branch_type_names = ["C", "L"]
-
 # build up dictionary of branch types
-# allow, for example, both "JJ" as well as just JJ
-BRANCH_TYPES = {name: QM + name + QM for name in branch_type_names}
+# allow, for example, both "JJ" as well as just JJ using QM
+BRANCH_TYPES = {name: QM + name + QM for name in ["C", "L"]}
 for BTYPE in BRANCH_TYPES.values():
     BTYPE.set_results_name("branch_type")
 
@@ -57,6 +55,8 @@ BRANCH_TYPES["JJ"] = (
     QM + pp.Combine(pp.Word("JJ") + Opt(JJ_ORDER) + Opt(pp.Word("s"))) + QM
 )  # defining grammar to find "JJi" where i is an optional natural number
 
+# - Mutual inductance ************
+BRANCH_TYPES["ML"] = QM + "ML" + QM
 
 # - Units: prefixes etc. **************************************************
 prefix_dict = {
@@ -72,15 +72,16 @@ prefix_dict = {
 }
 PREFIX = pp.Char(list(prefix_dict.keys()))
 
-energy_names = ["EJ", "EC", "EL"]
+energy_names = ["EJ", "EC", "EL", "EML"]
 
 
 UNITS_FREQ_ENERGY = Literal("Hz") ^ Literal("J") ^ Literal("eV")
 
 UNITS = {name: Opt(PREFIX, None) for name in energy_names}
-UNITS["EJ"] += UNITS_FREQ_ENERGY ^ Literal("A")  # Ampere
+UNITS["EJ"] += UNITS_FREQ_ENERGY ^ Literal("A") ^ Literal("H")  # Ampere, Henry
 UNITS["EC"] += UNITS_FREQ_ENERGY ^ Literal("F")  # Farad
 UNITS["EL"] += UNITS_FREQ_ENERGY ^ Literal("H")  # Henry
+UNITS["EML"] += UNITS_FREQ_ENERGY ^ Literal("H")  # Henry
 for name, unit in UNITS.items():
     unit.leave_whitespace()  # allow only "kHz", not "k Hz"
     unit.set_name(f"{name}_UNITS")
@@ -164,7 +165,20 @@ BRANCH_L = (
     + END
 )
 
-BRANCHES = Or([BRANCH_JJ, BRANCH_C, BRANCH_L])
+BRANCH_EM = (
+    BEG
+    + BRANCH_TYPES["ML"]("BRANCH_TYPE")
+    + CM
+    + INT("branch1")
+    + CM
+    + INT("branch2")
+    + CM
+    + PARAMS["EML"]("EML")
+    + AUX_PARAM
+    + END
+)
+
+BRANCHES = Or([BRANCH_JJ, BRANCH_C, BRANCH_L, BRANCH_EM])
 
 # uncomment to create a html describing the grammar of this language
 # BRANCHES.create_diagram("branches.html")
@@ -192,11 +206,13 @@ pp.autoname_elements()
 def parse_code_line(code_line: str, _branch_count):
     """
 
-    Args:
+    Parameters
+    ----------
         code_line (str): string describing the branch from the input file
         _branch_count (_type_): the count of the branch in a given circuit
 
-    Returns:
+    Returns
+    -------
         branch_type: str
         node_idx1: int
         node_idx2: int
@@ -213,18 +229,21 @@ def parse_code_line(code_line: str, _branch_count):
 
 
 def convert_value_to_GHz(val, units):
-    """
-    Converts a given value and units to energy in GHz. The units are given in a string in the format "pU"
-    where p is an optional multiplier prefix and U is units. For example: "pH", "nA", "fF", "eV"
+    """Converts a given value and units to energy in GHz. The units are given in a
+    string in the format "pU" where p is an optional multiplier prefix and U is units.
+    For example: "pH", "nA", "fF", "eV".
 
-    Args:
+    Parameters
+    ----------
         val (float): value in given units
         units (str): units described in a string with an optional multiplier prefix
 
-    Raises:
+    Raises
+    ------
         ValueError: If the unit is unknown.
 
-    Returns:
+    Returns
+    -------
         float: Energy in GHz
     """
     # all the possible units
@@ -256,24 +275,28 @@ def convert_value_to_GHz(val, units):
         raise ValueError(f"Unknown unit {unit_str}")
 
 
-def process_param(pattern):
-    """
-    Returns a tuple containing (symbol, value) given a pattern as detected by pyparsing.
-    Either the symbol or the value can be returned to be none, when the symbol is already assigned or no symbol is assigned to the given branch parameter.
+def process_param(
+    pattern,
+) -> Union[Dict[sm.Symbol, float], Tuple[Optional[sm.Symbol], Optional[float]]]:
+    """Returns a tuple containing (symbol, value) given a pattern as detected by
+    pyparsing.
+
+    Either the symbol or the value can be returned to be none, when the symbol is
+    already assigned or no symbol is assigned to the given branch parameter.
     """
     name = pattern.getName()
     if name == "ASSIGN":
         sym = sm.symbols(pattern[0])
         val = pattern[1]
-        units = None if pattern[-1] == None else pattern[-2:]
+        units = None if pattern[-1] is None else pattern[-2:]
         val_converted = convert_value_to_GHz(val, units)
-        return sym, val_converted
+        return (sym, val_converted)
     if name == "SYMBOL":
-        return sm.symbols(pattern[0]), None
+        return (sm.symbols(pattern[0]), None)
     if name == "VALUE":
-        units = None if pattern[-1] == None else pattern[-2:]
+        units = None if pattern[-1] is None else pattern[-2:]
         converted_val = convert_value_to_GHz(pattern[0], units)
-        return None, converted_val
+        return (None, converted_val)
     if name == "AUX_PARAM":
         num_of_aux_params = int(len(pattern) / 2)
         aux_params = {}

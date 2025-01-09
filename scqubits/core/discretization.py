@@ -47,13 +47,11 @@ def band_matrix(
     dtype: Any = None,
     has_corners: bool = False,
 ) -> csc_matrix:
-    """
-    Returns a dim x dim sparse matrix with constant diagonals of values `band_coeffs[
+    """Returns a dim x dim sparse matrix with constant diagonals of values `band_coeffs[
     0]`, `band_coeffs[1]`, ... along the (off-)diagonals specified by the offsets
-    `band_offsets[0]`, `band_offsets[1]`, ... The `has_corners` option allows
-    generation of band matrices with corner elements, in which lower off-diagonals
-    wrap into the top right corner and upper off-diagonals wrap into the bottom left
-    corner.
+    `band_offsets[0]`, `band_offsets[1]`, ... The `has_corners` option allows generation
+    of band matrices with corner elements, in which lower off-diagonals wrap into the
+    top right corner and upper off-diagonals wrap into the bottom left corner.
 
     Parameters
     ----------
@@ -137,6 +135,7 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
 
     def get_initdata(self) -> Dict[str, Any]:
         """Returns dict appropriate for creating/initializing a new Grid1d object.
+
         Returns
         -------
         dict
@@ -152,7 +151,8 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         return (self.max_val - self.min_val) / (self.pt_count - 1)
 
     def make_linspace(self) -> ndarray:
-        """Returns a numpy array of the grid points
+        """Returns a numpy array of the grid points.
+
         Returns
         -------
         ndarray
@@ -162,8 +162,8 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
     def first_derivative_matrix(
         self, prefactor: Union[float, complex] = 1.0, periodic: bool = False
     ) -> csc_matrix:
-        """Generate sparse matrix for first derivative of the form
-        :math:`\\partial_{x_i}`. Uses STENCIL setting to construct the matrix with a
+        r"""Generate sparse matrix for first derivative of the form
+        :math:`\partial_{x_i}`. Uses STENCIL setting to construct the matrix with a
         multi-point stencil.
 
         Parameters
@@ -178,9 +178,9 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
             sparse matrix in `dia` format
         """
         if isinstance(prefactor, complex):
-            dtp = np.complex_
+            dtp = np.complex128
         else:
-            dtp = np.float_
+            dtp = np.float64
 
         delta_x = self.grid_spacing()
         matrix_diagonals = [
@@ -196,8 +196,8 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
     def second_derivative_matrix(
         self, prefactor: Union[float, complex] = 1.0, periodic: bool = False
     ) -> csc_matrix:
-        """Generate sparse matrix for second derivative of the form
-        :math:`\\partial^2_{x_i}`. Uses STENCIL setting to construct the matrix with
+        r"""Generate sparse matrix for second derivative of the form
+        :math:`\partial^2_{x_i}`. Uses STENCIL setting to construct the matrix with
         a multi-point stencil.
 
         Parameters
@@ -212,9 +212,9 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
             sparse matrix in `dia` format
         """
         if isinstance(prefactor, complex):
-            dtp = np.complex_
+            dtp = np.complex128
         else:
-            dtp = np.float_
+            dtp = np.float64
 
         delta_x = self.grid_spacing()
         matrix_diagonals = [
@@ -229,8 +229,8 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
 
 
 class GridSpec(dispatch.DispatchClient, serializers.Serializable):
-    """Class for specifying a general discretized coordinate grid
-    (arbitrary dimensions).
+    """Class for specifying a general discretized coordinate grid (arbitrary
+    dimensions).
 
     Parameters
     ----------

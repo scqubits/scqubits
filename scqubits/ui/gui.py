@@ -75,7 +75,7 @@ QUBITS_WITH_2D_WAVEFUNCTION_PLOT = (
 
 
 class GUI:
-    """Generates the GUI for scqubits, handling single-qubit properties"""
+    """Generates the GUI for scqubits, handling single-qubit properties."""
 
     fig_ax: Optional[Tuple[Figure, Axes]] = (
         None  # Handle to the most recently generated Figure, Axes tuple
@@ -89,7 +89,6 @@ class GUI:
 
     @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
     def __init__(self):
-        utils.check_matplotlib_compatibility()
 
         # scq.settings.PROGRESSBAR_DISABLED = False
         scq.settings.T1_DEFAULT_WARNING = False
@@ -132,10 +131,8 @@ class GUI:
         return ""
 
     def set_qubit_and_init_qubit_widgets(self, qubit_name: str) -> None:
-        """Sets up the chosen qubit to be the active qubit
-        and updates the active defaults and widget dictionaries
-        accordingly.
-        """
+        """Sets up the chosen qubit to be the active qubit and updates the active
+        defaults and widget dictionaries accordingly."""
         if qubit_name in gui_defaults.slow_qubits:
             scq.settings.PROGRESSBAR_DISABLED = False
         else:
@@ -171,10 +168,10 @@ class GUI:
         )
 
     def set_qubit_params(self) -> None:
-        """
-        Initializes qubit_params and qubit_scan_params.
-        Note that qubit_scan_params will be used to create the
-        scan parameter dropdown options.
+        """Initializes qubit_params and qubit_scan_params.
+
+        Note that qubit_scan_params will be used to create the scan parameter dropdown
+        options.
         """
         self.qubit_params.clear()
         self.qubit_scan_params.clear()
@@ -189,7 +186,7 @@ class GUI:
                 self.qubit_scan_params[param_name] = param_val
 
     def init_tab_widget(self) -> None:
-        """Creates each of the tabs in self.tab_widget"""
+        """Creates each of the tabs in self.tab_widget."""
 
         self.v_main_tab_container = v.Container(
             class_="d-flex d-row px-2 mx-1",
@@ -303,7 +300,8 @@ class GUI:
         self.activate_auto_plot_refresh()
 
     def unobserve_all(self):
-        """Switch off monitoring of all widgets in the GUI and stop automatic refreshing of the plot."""
+        """Switch off monitoring of all widgets in the GUI and stop automatic refreshing
+        of the plot."""
         self.deactivate_auto_plot_refresh()
         self.unobserve_coherence_widgets()
         self.unobserve_range_widgets()
@@ -311,8 +309,7 @@ class GUI:
 
     # Retrieval Methods------------------------------------------------------------------
     def get_current_values(self) -> Dict[str, Union[int, float]]:
-        """Obtains the current values from each of the qubit parameter
-        sliders.
+        """Obtains the current values from each of the qubit parameter sliders.
 
         Returns
         -------
@@ -327,7 +324,7 @@ class GUI:
         return current_values_dict
 
     def refresh_current_plot(self, change=None) -> None:
-        """Obtains the current plot option
+        """Obtains the current plot option.
 
         Returns
         -------
@@ -354,9 +351,8 @@ class GUI:
         raise Exception("Internal GUI exception:", current_plot_option)
 
     def update_params(self):
-        """Uses the current parameter values to set the parameters of the
-        active qubit.
-        """
+        """Uses the current parameter values to set the parameters of the active
+        qubit."""
         current_values = self.get_current_values()
 
         if isinstance(self.active_qubit, QUBITS_WITH_GRID_INIT):
@@ -412,7 +408,7 @@ class GUI:
         widget_name: str,
         text_widget: dict,
     ):
-        """Adjusts the values of the IntText/FloatText widgets
+        """Adjusts the values of the IntText/FloatText widgets.
 
         Parameters
         ----------
@@ -1367,8 +1363,8 @@ class GUI:
         phi_grid: Optional[Grid1d] = None,
         theta_grid: Optional[Grid1d] = None,
     ) -> None:
-        """This method will refresh the wavefunctions plot using the current
-        values of the plot options widgets as well as the qubit param widgets.
+        """This method will refresh the wavefunctions plot using the current values of
+        the plot options widgets as well as the qubit param widgets.
 
         Parameters
         ----------
@@ -1523,8 +1519,8 @@ class GUI:
         show_numbers_tf: bool,
         show3d_tf: bool,
     ):
-        """This method will refresh the matrix elements plot using the current
-        values of the plot options widgets as well as the qubit param widgets.
+        """This method will refresh the matrix elements plot using the current values of
+        the plot options widgets as well as the qubit param widgets.
 
         Parameters
         ----------

@@ -1,0 +1,73 @@
+name: Locally install scqubits with mambabuild and run pytests
+
+on: 
+  push: 
+    branches:
+      - main
+      - devel_peterg
+      - spc-main-devel
+  workflow_dispatch:
+
+jobs:
+  build-all:
+    name: scqubits testing (${{ matrix.python-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -el {0}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Python setup for the rest of the jobs
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+            miniforge-variant: Miniforge3
+            mamba-version: "*"
+            use-mamba: true
+            auto-update-conda: true
+            python-version: ${{ matrix.python-version }}
+            channels: conda-forge, defaults
+            channel-priority: true
+            auto-activate-base: true
+
+      - name: Add bin and Scripts to system path
+        run: |
+          echo $CONDA/bin >> $GITHUB_PATH
+          echo $CONDA/Scripts >> $GITHUB_PATH
+
+      - name: conda info
+        run: conda info
+
+      - name: Lint with flake8
+        run: |
+          conda install flake8
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Build with mambabuild
+        run: |
+          mamba install boa
+          conda mambabuild . --no-test
+
+      - name: Install scqubits locally and run tests
+        run: |
+          mamba install --use-local scqubits
+          mamba install pytest
+          mamba install pytest-cov
+          mamba install pathos
+          pytest -v --pyargs --cov=scqubits --cov-report=xml
+          pytest -v --pyargs scqubits --num_cpus=4
+
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true

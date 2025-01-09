@@ -3,7 +3,7 @@ scqubits: superconducting qubits in Python
 
 [![Anaconda-Server Badge](https://anaconda.org/conda-forge/scqubits/badges/downloads.svg)](https://anaconda.org/conda-forge/scqubits)
 [![CodeFactor](https://www.codefactor.io/repository/github/scqubits/scqubits/badge)](https://www.codefactor.io/repository/github/scqubits/scqubits)
-[![codecov](https://codecov.io/gh/scqubits/scqubits/branch/master/graph/badge.svg?token=PUBXSHF6HU)](https://codecov.io/gh/scqubits/scqubits)
+[![codecov](https://codecov.io/gh/scqubits/scqubits/branch/main/graph/badge.svg?token=PUBXSHF6HU)](https://codecov.io/gh/scqubits/scqubits)
 
 
 [J. Koch](https://github.com/jkochNU), [P. Groszkowski](https://github.com/petergthatsme)
@@ -44,7 +44,7 @@ appropriately acknowledged by citing:
 Download and Installation
 -------------------------
 
-For Python 3.7, 3.8, 3.9, and 3.10: installation via conda is supported. 
+For Python 3.9 - 3.12: installation via conda is supported. 
 ```
 conda install -c conda-forge scqubits
 ```

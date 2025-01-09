@@ -40,9 +40,7 @@ EVENTS = [
 
 
 class CentralDispatch:
-    """
-    Primary class managing the central dispatch system.
-    """
+    """Primary class managing the central dispatch system."""
 
     def __init__(self):
         self.clients_dict = {
@@ -56,7 +54,7 @@ class CentralDispatch:
 
     def get_clients_dict(self, event: str) -> WeakKeyDictionary:
         """For given `event`, return the dict mapping each registered client to their
-        callback routine
+        callback routine.
 
         Parameters
         ----------
@@ -72,8 +70,7 @@ class CentralDispatch:
     def register(
         self, event: str, who: "DispatchClient", callback: Optional[MethodType] = None
     ) -> None:
-        """
-        Register object `who` for event `event`. (This modifies `clients_dict`.)
+        """Register object `who` for event `event`. (This modifies `clients_dict`.)
 
         Parameters
         ----------

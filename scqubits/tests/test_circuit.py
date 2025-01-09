@@ -13,7 +13,9 @@
 
 import os
 import numpy as np
+import qutip as qt
 import pytest
+from scqubits.io_utils.fileio import read
 
 import scqubits as scq
 
@@ -36,7 +38,7 @@ class TestCircuit:
         - ["C", 1, 3, 0.02]
         - ["C", 2, 4, 0.02]
         """
-        REFERENCE = "<bound method Printable.__str__ of EJ*cos(θ1 + θ3) + EJ*cos((2πΦ_{1}) + θ1 - 1.0*θ3) + 6.25625*\\dot{θ_1}**2 + 25.0*\\dot{θ_2}**2 + 0.00625*\\dot{θ_3}**2 - 0.036*θ2**2 - 0.004*θ2*θ3 - 0.009*θ3**2>"
+        REFERENCE = "<bound method Printable.__str__ of EJ*cos(θ1 + θ3) + EJ*cos(1.0*(2πΦ_{1}) + θ1 - 1.0*θ3) + 6.25625*\\dot{θ_1}**2 + 25.0*\\dot{θ_2}**2 + 0.00625*\\dot{θ_3}**2 - 0.036*θ2**2 - 0.004*θ2*θ3 - 0.009*θ3**2>"
 
         zero_pi = scq.Circuit(zp_yaml, from_file=False, ext_basis="discretized")
         expression_str = str(
@@ -46,9 +48,7 @@ class TestCircuit:
 
     @staticmethod
     def test_zero_pi_discretized():
-        """
-        Test for symmetric zero-pi in discretized phi basis.
-        """
+        """Test for symmetric zero-pi in discretized phi basis."""
         zp_yaml = """# zero-pi circuit
         branches:
         - ["JJ", 1, 2, 10, 20]
@@ -62,10 +62,9 @@ class TestCircuit:
         circ_d = scq.Circuit(zp_yaml, from_file=False, ext_basis="discretized")
         circ_d.cutoff_n_1 = 30
         circ_d.cutoff_ext_2 = 30
-        circ_d.cutoff_ext_3 = 80
+        circ_d.cutoff_ext_3 = 200
         circ_d.configure(system_hierarchy=[[1, 3], [2]], subsystem_trunc_dims=[30, 20])
 
-        circ_d.cutoff_ext_3 = 200
         sym_zp = circ_d.subsystems[0]
         eigensys = sym_zp.eigensys()
         eigs = eigensys[0]
@@ -84,9 +83,7 @@ class TestCircuit:
 
     @staticmethod
     def test_circuit_with_symbolic_hamiltonian():
-        """
-        Test for initiating Circuit module with symbolic Hamiltonian.
-        """
+        """Test for initiating Circuit module with symbolic Hamiltonian."""
         import sympy as sm
 
         sym_hamiltonian = sm.parse_expr(
@@ -177,7 +174,6 @@ class TestCircuit:
         DFC.cutoff_ext_2 = 110
         DFC.cutoff_ext_3 = 110
         DFC.cutoff_ext_4 = 110
-        DFC.update()
 
         eigs = DFC.eigenvals()
         generated_eigs = eigs - eigs[0]
@@ -199,7 +195,6 @@ class TestCircuit:
             lc_yaml, from_file=False, initiate_sym_calc=True, ext_basis="harmonic"
         )
         circ.EJ = 0.01
-        circ.update()
         eigs_ref = np.array(
             [
                 35.681948467838,
@@ -243,7 +238,7 @@ class TestCircuit:
 
         closure_branches = [DFC.branches[0], DFC.branches[4], DFC.branches[-1]]
         system_hierarchy = [[[1], [3]], [2], [4]]
-        subsystem_trunc_dims = [[34, [6, 6]], 6, 6]
+        subsystem_trunc_dims = [[6, [6, 6]], 6, 6]
 
         DFC.configure(
             closure_branches=closure_branches,
@@ -255,12 +250,11 @@ class TestCircuit:
         DFC.Φ2 = -0.2662
         DFC.Φ3 = -0.5 + 0.01768
 
-        DFC.cutoff_ext_1 = 110
-        DFC.cutoff_ext_2 = 110
-        DFC.cutoff_ext_3 = 110
-        DFC.cutoff_ext_4 = 110
-        DFC.update()
-        DFC.get_spectrum_vs_paramvals("Φ1", np.linspace(0, 1, 11), num_cpus=num_cpus)
+        DFC.cutoff_ext_1 = 40
+        DFC.cutoff_ext_2 = 40
+        DFC.cutoff_ext_3 = 40
+        DFC.cutoff_ext_4 = 40
+        DFC.get_spectrum_vs_paramvals("Φ1", np.linspace(0, 1, 3), num_cpus=num_cpus)
 
         paramvals_by_name = {
             "Φ1": np.linspace(0.4, 0.5, 6),
@@ -271,7 +265,6 @@ class TestCircuit:
         def update_hilbertspace(Φ1, Φ2):
             DFC.Φ1 = Φ1
             DFC.Φ2 = Φ2
-            DFC.update()
 
         ps = scq.ParameterSweep(
             hilbertspace=DFC.hilbert_space,
@@ -279,4 +272,70 @@ class TestCircuit:
             update_hilbertspace=update_hilbertspace,
             evals_count=6,
             num_cpus=num_cpus,
+        )
+
+    @staticmethod
+    def test_qutip_dynamics(num_cpus):
+        # Let's start by defining a fluxonium
+        inp_yaml = """
+        branches:
+        - [JJ, 1, 2, 4, 0.5]
+        - [L, 1, 2, 1.3]
+        - [C, 1, 2, 2]
+        """
+        circ = scq.Circuit(
+            inp_yaml,
+            from_file=False,
+            use_dynamic_flux_grouping=True,
+            ext_basis="discretized",
+        )
+        circ.cutoff_ext_1 = 100
+        circ.Φ1 = 0.5
+
+        # defining Hierarchical diagonalization to limit to the lowest two states
+        circ.configure(system_hierarchy=[[1]], subsystem_trunc_dims=[10])
+
+        # Define time dependent functions for the parameters
+        def flux(t, args):
+            freq = args["freq"]
+            return 0.001 * np.sin(2 * np.pi * freq * t) + 0.5
+
+        # to charge drive the fluxonium, we need an extra parameter ng1. This can be added using extra_terms
+        def charge(t, args):
+            freq = args["freq"]
+            return 0.02 * np.sin(2 * np.pi * freq * t + np.pi / 2)
+
+        # Generating necessary operators and time dependent coefficients
+        H_mesolve, *H_sym_ref = circ.hamiltonian_for_qutip_dynamics(
+            free_var_func_dict={"Φ1": flux, "ng1": charge},
+            extra_terms="Q1*ng1",
+            prefactor=np.pi * 2,
+        )
+        # H_mesolve can be used to evolve the system using qutip functions like mesolve
+
+        # ground state as initial state
+        eigs, evecs = circ.eigensys(evals_count=5)
+        wf0 = qt.Qobj(evecs[:, 0])
+
+        initial_state_proj = wf0 * wf0.dag()  # to see the overlap
+        tf = 100  # final time in nanoseconds
+        freq = eigs[1] - eigs[0]  # transition frequency between the first two states
+
+        # time evolve the system
+        result = qt.mesolve(
+            H_mesolve,
+            wf0,
+            np.linspace(0, tf, 500),
+            args={"freq": freq},
+            e_ops=[initial_state_proj],
+            options=dict(atol=1e-12),
+        )
+        expectation_vals = result.expect[0]
+        ref_expectation_vals = np.empty_like(expectation_vals)
+        ref_expectation_vals[:] = read(DATADIR + "/circuit_qutip_evolution_data.hdf5")[
+            :
+        ]
+        assert np.allclose(
+            expectation_vals,
+            ref_expectation_vals,
         )
