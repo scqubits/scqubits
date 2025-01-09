@@ -107,7 +107,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         Returns
         -------
         time or rate
-            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in
+            decoherence time in units of :math:`2\pi` (system units), or rate in
             inverse units.
         """
         if "t1_inductive" not in self.supported_noise_channels():
@@ -263,7 +263,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         Returns
         -------
         time or rate: float
-            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
+            decoherence time in units of :math:`2\pi` (system units), or rate
              in inverse units.
         """
         if "t1_capacitive" not in self.supported_noise_channels():
@@ -408,7 +408,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         Returns
         -------
         time or rate
-            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
+            decoherence time in units of :math:`2\pi` (system units), or rate
             in inverse units.
         """
         if "t1_purcell" not in self.supported_noise_channels():
@@ -615,7 +615,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         ng:
             offset charge
         ncut:
-            cutoff in charge basis, -ncut <= n_\theta <= ncut
+            cutoff in charge basis, -ncut <= :math:`n_\theta` <= ncut
         zeta_cut:
             number of harmonic oscillator basis states for \zeta variable
         phi_cut:
@@ -685,7 +685,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         ]
 
     def _dim_phi(self) -> int:
-        r"""Returns Hilbert space dimension of :math:`\\phi` degree of freedom.
+        r"""
+        Returns Hilbert space dimension of :math:`\phi`
+        degree of freedom
 
         Parameters
         ----------
@@ -699,7 +701,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return self.phi_cut
 
     def _dim_zeta(self) -> int:
-        r"""Returns Hilbert space dimension of :math:`\\zeta` degree of freedom.
+        r"""
+        Returns Hilbert space dimension of :math:`\zeta`
+        degree of freedom
 
         Parameters
         ----------
@@ -713,7 +717,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return self.zeta_cut
 
     def _dim_theta(self) -> int:
-        r"""Returns Hilbert space dimension of :math:`\\theta` degree of freedom.
+        r"""
+        Returns Hilbert space dimension of :math:`\theta` degree of freedom
+
 
         Parameters
         ----------
@@ -769,7 +775,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return self.ECJ / (1 - self.dCJ**2)
 
     def phi_osc(self) -> float:
-        r"""Returns oscillator strength of :math:`\\phi` degree of freedom.
+        r"""
+        Returns oscillator strength of :math:`\phi` degree of freedom.
 
         Parameters
         ----------
@@ -783,7 +790,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return (2 * self._disordered_ecj() / self._disordered_el()) ** 0.25
 
     def zeta_osc(self) -> float:
-        r"""Returns oscillator strength of :math:`\\zeta` degree of freedom.
+        r"""
+        Returns oscillator strength of :math:`\zeta` degree of freedom.
 
         Parameters
         ----------
@@ -797,7 +805,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return (4 * self.EC / self._disordered_el()) ** 0.25
 
     def phi_plasma(self) -> float:
-        r"""Returns plasma oscillation frequency of :math:`\\phi` degree of freedom.
+        r"""
+        Returns plasma oscillation frequency of :math:`\phi` degree of freedom.
 
         Parameters
         ----------
@@ -811,7 +820,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return math.sqrt(8.0 * self._disordered_el() * self._disordered_ecj())
 
     def zeta_plasma(self) -> float:
-        r"""Returns plasma oscillation frequency of :math:`\\zeta` degree of freedom.
+        r"""
+        Returns plasma oscillation frequency of :math:`\zeta` degree of freedom.
 
         Parameters
         ----------
@@ -1068,7 +1078,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return sin_phi_op
 
     def _n_theta_operator(self) -> csc_matrix:
-        r"""Returns `n_theta` operator in the charge basis.
+        r"""
+        Returns :math:`n_\theta` operator in the charge basis.
 
         Parameters
         ----------
@@ -1087,7 +1098,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     def n_theta_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
-        r"""Returns the :math:`n_\theta`  operator in the charge or eigenenergy basis.
+        r"""
+        Returns the :math:`n_\theta` operator in the charge or eigenenergy basis.
 
         Parameters
         ----------
@@ -1184,7 +1196,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return sparse.kron(sparse.kron(mat1, mat2), mat3)
 
     def _identity_phi(self) -> csc_matrix:
-        r"""Returns Identity operator acting only on the :math:`\\phi` Hilbert subspace.
+        r"""
+        Returns Identity operator acting only on the :math:`\phi`
+        Hilbert subspace.
 
         Parameters
         ----------
@@ -1247,15 +1261,15 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     def hamiltonian(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> csc_matrix:
-        r"""Returns Hamiltonian in basis obtained by employing harmonic basis for
-        :math:`\\phi, \\zeta` and charge basis for :math:`\\theta` or in the eigenenerg
-        basis.
+        r"""
+        Returns Hamiltonian in basis obtained by employing harmonic basis for
+        :math:`\phi, \zeta` and charge basis for :math:`\theta` or in the eigenenerg basis.
 
         Parameters
         ----------
         energy_esys:
             If `False` (default), returns Hamiltonian in basis obtained by employing harmonic
-            basis for :math:`\\phi, \\zeta` and charge basis for :math:`\\theta`.
+            basis for :math:`\phi, \zeta` and charge basis for :math:`\theta`.
             If `True`, the energy eigenspectrum is computed, returns Hamiltonian in the
             energy eigenbasis.
             If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and
@@ -1400,7 +1414,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return evals, evecs
 
     def potential(self, phi, zeta, theta) -> float:
-        r"""Returns full potential evaluated at :math:`\\phi, \\zeta, \\theta`
+        r"""
+        Returns full potential evaluated at :math:`\phi, \zeta, \theta`
+
 
         Parameters
         ----------
@@ -1443,8 +1459,10 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     def plot_potential(
         self, phi_grid=None, theta_grid=None, contour_vals=None, **kwargs
     ) -> Tuple[Figure, Axes]:
-        r"""Draw contour plot of the potential energy in :math:`\\theta, \\phi` basis, at
-        :math:`\\zeta = 0`.
+        r"""
+        Draw contour plot of the potential energy in :math:`\theta, \phi` basis,
+        at :math:`\zeta = 0`.
+
 
         Parameters
         ----------
@@ -1479,7 +1497,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     def wavefunction(
         self, esys=None, which=0, phi_grid=None, zeta_grid=None, theta_grid=None
     ) -> WaveFunctionOnGrid:
-        r"""Return a 3D wave function in :math:`\\phi, \\zeta, \\theta` basis.
+        r"""
+        Return a 3D wave function in :math:`\phi, \zeta, \theta` basis
 
         Parameters
         ----------
@@ -1488,9 +1507,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         which: int, optional
             index of desired wave function (default value = 0)
         phi_grid: Grid1d, option
-            used for setting a custom grid for phi; if None use self._default_phi_grid
+            used for setting a custom grid for :math:`\phi`; if None use self._default_phi_grid
         zeta_grid: Grid1d, option
-            used for setting a custom grid for zeta; if None use
+            used for setting a custom grid for :math:`\zeta`; if None use
             self._default_zeta_grid
         theta_grid: Grid1d, option
             used for setting a custom grid for theta; if None use
@@ -1566,22 +1585,23 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         zero_calibrate=True,
         **kwargs,
     ) -> Tuple[Figure, Axes]:
-        r"""Plots a 2D wave function in :math:`\\theta, \\phi` basis, at :math:`\\zeta =
-        0`
+        r"""
+        Plots a 2D wave function in :math:`\theta, \phi` basis, at :math:`\zeta = 0`
+
 
         Parameters
         ----------
         esys: ndarray, ndarray
             eigenvalues, eigenvectors as obtained from `.eigensystem()`
         which: int, optional
-            index of wave function to be plotted (default value = (0)
+            index of wave function to be plotted (default value = 0)
         phi_grid: Grid1d, option
-            used for setting a custom grid for phi; if None use self._default_phi_grid
+            used for setting a custom grid for :math:`\phi`; if None use self._default_phi_grid
         theta_grid: Grid1d, option
-            used for setting a custom grid for theta; if None use
+            used for setting a custom grid for :math:`\theta`; if None use
             self._default_theta_grid
         mode: str, optional
-            choices as specified in `constants.MODE_FUNC_DICT` (default value = 'abs_sqr')
+            choices as specified in `constants.MODE_FUNC_DICT` (default value = 'abs')
         zero_calibrate: bool, optional
             if True, colors are adjusted to use zero wavefunction amplitude as the neutral
             color in the palette

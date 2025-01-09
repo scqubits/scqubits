@@ -54,8 +54,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     | [2] Dempster et al., Phys. Rev. B, 90, 094518 (2014). http://doi.org/10.1103/PhysRevB.90.094518
     | [3] Groszkowski et al., New J. Phys. 20, 043053 (2018). https://doi.org/10.1088/1367-2630/aab7cd
 
-    Zero-Pi qubit without coupling to the `zeta` mode, i.e., no disorder in :attr:`EC` and
-    :attr:`EL`, see Eq. (4) in Groszkowski et al., New J. Phys. 20, 043053 (2018),
+    Zero-Pi qubit without coupling to the :math:`\zeta` mode, i.e., no disorder in `EC` and
+    `EL`, see Eq. (4) in Groszkowski et al., New J. Phys. 20, 043053 (2018),
 
     .. math::
 
@@ -64,8 +64,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
                -2E_\text{J}\cos\theta\cos(\phi-\varphi_\text{ext}/2)+E_L\phi^2\\
           &\qquad +2E_\text{J} + E_J dE_J \sin\theta\sin(\phi-\phi_\text{ext}/2).
 
-    Formulation of the Hamiltonian matrix proceeds by discretization of the `phi`
-    variable, and using charge basis for the `theta` variable.
+    Formulation of the Hamiltonian matrix proceeds by discretization of the :math:`\phi`
+    variable, and using charge basis for the :math:`\theta` variable.
 
     Parameters
     ----------
@@ -89,7 +89,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     grid:
         specifies the range and spacing of the discretization lattice
     ncut:
-        charge number cutoff for `n_theta`,  `n_theta = -ncut, ..., ncut`
+        charge number cutoff for :math:`n_\theta`, :math:`n_\theta = -{\rm ncut}, \dots, {\rm ncut}`
     ECS:
         total charging energy including large shunting capacitances and junction
         capacitances; may be provided instead of EC
@@ -281,7 +281,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         """
         Returns
         -------
-            value of the potential energy evaluated at phi, theta
+            value of the potential energy evaluated at :math:`\phi`, :math:`\theta`
         """
         return (
             -2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0)
@@ -412,9 +412,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         r"""Calculates a derivative of the potential energy w.r.t flux, at the current
         value of flux, as stored in the object.
 
-        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0.
-        So if \frac{\partial U}{ \partial \Phi_{\rm ext}}, is needed, the expr returned
-        by this function, needs to be multiplied by 1/\Phi_0.
+        The flux is assumed to be given in the units of the ratio :math:`\Phi_{\rm ext}/\Phi_0`.
+        So if :math:`\frac{\partial U}{\partial \Phi_{\rm ext}}`, is needed, the expr returned
+        by this function, needs to be multiplied by :math:`1/\Phi_0`.
 
         Returns
         -------
@@ -525,12 +525,16 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def _identity_phi(self) -> csc_matrix:
-        r"""Identity operator acting only on the `\phi` Hilbert subspace."""
+        r"""
+        Identity operator acting only on the :math:`\phi` Hilbert subspace.
+        """
         pt_count = self.grid.pt_count
         return sparse.identity(pt_count, format="csc")
 
     def _identity_theta(self) -> csc_matrix:
-        r"""Identity operator acting only on the `\theta` Hilbert subspace."""
+        r"""
+        Identity operator acting only on the :math:`\theta` Hilbert subspace.
+        """
         dim_theta = 2 * self.ncut + 1
         return sparse.identity(dim_theta, format="csc")
 
@@ -543,7 +547,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         )
 
     def _phi_operator(self) -> dia_matrix:
-        r"""Operator :math:`\phi`, acting only on the `\phi` Hilbert subspace."""
+        r"""
+        Operator :math:`\phi`, acting only on the :math:`\phi` Hilbert subspace.
+        """
         pt_count = self.grid.pt_count
 
         phi_matrix = sparse.dia_matrix((pt_count, pt_count))
@@ -605,8 +611,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def _sin_phi_operator(self, x: float = 0) -> csc_matrix:
-        r"""Operator :math:`\sin(\phi + x)`, acting only on the `\phi` Hilbert
-        subspace.x."""
+        r"""
+        Operator :math:`\sin(\phi + x)`, acting only on the :math:`\phi` Hilbert subspace.
+        """
         pt_count = self.grid.pt_count
 
         vals = np.sin(self.grid.make_linspace() + x)
@@ -616,8 +623,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return sin_phi_matrix
 
     def _cos_phi_operator(self, x: float = 0) -> csc_matrix:
-        r"""Operator :math:`\cos(\phi + x)`, acting only on the `\phi` Hilbert
-        subspace."""
+        r"""
+        Operator :math:`\cos(\phi + x)`, acting only on the :math:`\phi` Hilbert subspace.
+        """
         pt_count = self.grid.pt_count
 
         vals = np.cos(self.grid.make_linspace() + x)
@@ -627,8 +635,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return cos_phi_matrix
 
     def _cos_theta_operator(self) -> csc_matrix:
-        r"""Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert
-        subspace."""
+        r"""
+        Operator :math:`\cos(\theta)`, acting only on the :math:`\theta` Hilbert subspace.
+        """
         dim_theta = 2 * self.ncut + 1
         cos_theta_matrix = (
             0.5
@@ -670,7 +679,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def _sin_theta_operator(self) -> csc_matrix:
-        r"""Operator :math:`\sin(\theta)`, acting only on the `\theta` Hilbert space."""
+        r"""
+        Operator :math:`\sin(\theta)`, acting only on the :math:`\theta` Hilbert space.
+        """
         dim_theta = 2 * self.ncut + 1
         sin_theta_matrix = (
             -0.5
@@ -718,12 +729,12 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         contour_vals: Union[List[float], ndarray] = None,
         **kwargs,
     ) -> Tuple[Figure, Axes]:
-        """Draw contour plot of the potential energy.
+        r"""Draw contour plot of the potential energy.
 
         Parameters
         ----------
         theta_grid:
-            used for setting a custom grid for theta; if None use self._default_grid
+            used for setting a custom grid for :math:`\theta`; if None use self._default_grid
         contour_vals:
         **kwargs:
             plotting parameters
@@ -748,7 +759,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         which: int = 0,
         theta_grid: Grid1d = None,
     ) -> WaveFunctionOnGrid:
-        """Returns a zero-pi wave function in `phi`, `theta` basis.
+        r"""Returns a zero-pi wave function in :math:`\phi,\theta` basis
 
         Parameters
         ----------
@@ -757,7 +768,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         which:
              index of desired wave function (default value = 0)
         theta_grid:
-            used for setting a custom grid for theta; if None use self._default_grid
+            used for setting a custom grid for :math:`\theta`; if None use self._default_grid
         """
         evals_count = max(which + 1, 3)
         if esys is None:
@@ -803,12 +814,12 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         esys:
             eigenvalues, eigenvectors as obtained from `.eigensystem()`
         which:
-            index of wave function to be plotted (default value = (0)
+            index of wave function to be plotted (default value = 0)
         theta_grid:
             used for setting a custom grid for theta; if None use self._default_grid
         mode:
             choices as specified in `constants.MODE_FUNC_DICT`
-            (default value = 'abs_sqr')
+            (default value = 'abs')
         zero_calibrate:
             if True, colors are adjusted to use zero wavefunction amplitude as the
             neutral color in the palette

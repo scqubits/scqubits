@@ -48,7 +48,7 @@ def creation_sparse(dimension: int) -> csc_matrix:
 
 
 def hubbard_sparse(j1: int, j2: int, dimension: int) -> csc_matrix:
-    """The Hubbard operator :math:`|j1\\rangle>\\langle j2|` is returned as a matrix of
+    r"""The Hubbard operator :math:`|j_1\rangle>\langle j_2|` is returned as a matrix of
     linear size dimension.
 
     Parameters
@@ -120,8 +120,8 @@ def number_sparse(
 def a_plus_adag_sparse(
     dimension: int, prefactor: Union[float, complex, None] = None
 ) -> csc_matrix:
-    """Operator matrix for prefactor(a+a^dag) of size dimension x dimension in sparse
-    matrix representation.
+    r"""Operator matrix for prefactor(:math:`a+a^\dagger`) of size dimension x dimension in
+    sparse matrix representation.
 
     Parameters
     ----------
@@ -133,7 +133,7 @@ def a_plus_adag_sparse(
 
     Returns
     -------
-        prefactor * (a + a^dag) as sparse operator matrix, size dimension x dimension
+        prefactor * (:math:`a+a^\dagger`) as sparse operator matrix, size dimension x dimension
     """
     prefactor = prefactor if prefactor is not None else 1.0
     return prefactor * (annihilation_sparse(dimension) + creation_sparse(dimension))
@@ -142,8 +142,8 @@ def a_plus_adag_sparse(
 def a_plus_adag(
     dimension: int, prefactor: Union[float, complex, None] = None
 ) -> ndarray:
-    """Operator matrix for prefactor(a+a^dag) of size dimension x dimension in sparse
-    matrix representation.
+    r"""Operator matrix for prefactor(:math:`a+a^\dagger`) of size dimension x dimension in
+    sparse matrix representation.
 
     Parameters
     ----------
@@ -155,7 +155,7 @@ def a_plus_adag(
 
     Returns
     -------
-        prefactor (a + a^dag) as ndarray, size dimension x dimension
+        prefactor * (:math:`a+a^\dagger`) as ndarray, size dimension x dimension
     """
     return a_plus_adag_sparse(dimension, prefactor=prefactor).toarray()
 
@@ -163,7 +163,7 @@ def a_plus_adag(
 def cos_theta_harmonic(
     dimension: int, prefactor: Union[float, complex, None] = None
 ) -> ndarray:
-    """Operator matrix for cos(prefactor(a+a^dag)) of size dimension x dimension in
+    r"""Operator matrix for cos(prefactor(:math:`a+a^\dagger`)) of size dimension x dimension in
     sparse matrix representation.
 
     Parameters
@@ -176,7 +176,7 @@ def cos_theta_harmonic(
 
     Returns
     -------
-        prefactor (a + a^dag) as ndarray, size dimension x dimension
+        prefactor * (:math:`a+a^\dagger`) as ndarray, size dimension x dimension
     """
     return sp.linalg.cosm(a_plus_adag_sparse(dimension, prefactor=prefactor).toarray())
 
@@ -184,7 +184,7 @@ def cos_theta_harmonic(
 def sin_theta_harmonic(
     dimension: int, prefactor: Union[float, complex, None] = None
 ) -> ndarray:
-    """Operator matrix for sin(prefactor(a+a^dag)) of size dimension x dimension in
+    r"""Operator matrix for sin(prefactor(:math:`a+a^\dagger`)) of size dimension x dimension in
     sparse matrix representation.
 
     Parameters
@@ -197,7 +197,7 @@ def sin_theta_harmonic(
 
     Returns
     -------
-        prefactor (a + a^dag) as ndarray, size dimension x dimension
+        prefactor * (:math:`a+a^\dagger`) as ndarray, size dimension x dimension
     """
     return sp.linalg.sinm(a_plus_adag_sparse(dimension, prefactor=prefactor).toarray())
 
@@ -205,8 +205,8 @@ def sin_theta_harmonic(
 def iadag_minus_ia_sparse(
     dimension: int, prefactor: Union[float, complex, None] = None
 ) -> csc_matrix:
-    """Operator matrix for prefactor(ia-ia^dag) of size dimension x dimension as
-    ndarray.
+    r"""Operator matrix for prefactor(:math:`ia-ia^\dagger`) of size dimension x dimension as
+    ndarray
 
     Parameters
     ----------
@@ -218,7 +218,7 @@ def iadag_minus_ia_sparse(
 
     Returns
     -------
-        prefactor  (ia - ia^dag) as sparse operator matrix, size dimension x dimension
+        prefactor * (:math:`ia-ia^\dagger`) as sparse operator matrix, size dimension x dimension
     """
     prefactor = prefactor if prefactor is not None else 1.0
     return prefactor * (
@@ -229,8 +229,8 @@ def iadag_minus_ia_sparse(
 def iadag_minus_ia(
     dimension: int, prefactor: Union[float, complex, None] = None
 ) -> ndarray:
-    """Operator matrix for prefactor(ia-ia^dag) of size dimension x dimension as
-    ndarray.
+    r"""Operator matrix for prefactor(:math:`ia-ia^\dagger`) of size dimension x dimension as
+    ndarray
 
     Parameters
     ----------
@@ -242,7 +242,7 @@ def iadag_minus_ia(
 
     Returns
     -------
-        prefactor  (ia - ia^dag) as ndarray, size dimension x dimension
+        prefactor * (:math:`ia-ia^\dagger`) as ndarray, size dimension x dimension
     """
     return iadag_minus_ia_sparse(dimension, prefactor=prefactor).toarray()
 

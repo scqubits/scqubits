@@ -977,7 +977,7 @@ class HilbertSpace(
         )
 
     def hubbard_operator(self, j: int, k: int, subsystem: QuantumSys) -> qt.Qobj:
-        """Hubbard operator :math:`|j\\rangle\\langle k|` for system `subsystem`
+        r"""Hubbard operator :math:`|j\rangle\langle k|` for system `subsystem`
 
         Parameters
         ----------

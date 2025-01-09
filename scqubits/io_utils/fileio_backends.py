@@ -321,7 +321,7 @@ class CSVReader:
         try:
             data_array = np.loadtxt(filename)
         except ValueError:
-            data_array = np.loadtxt(filename, dtype=np.complex_)
+            data_array = np.loadtxt(filename, dtype=np.complex128)
         if slices > 1:
             nrows, ncols = data_array.shape
             return data_array.reshape((slices, nrows // slices, ncols))

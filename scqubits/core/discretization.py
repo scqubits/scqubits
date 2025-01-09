@@ -162,8 +162,8 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
     def first_derivative_matrix(
         self, prefactor: Union[float, complex] = 1.0, periodic: bool = False
     ) -> csc_matrix:
-        """Generate sparse matrix for first derivative of the form
-        :math:`\\partial_{x_i}`. Uses STENCIL setting to construct the matrix with a
+        r"""Generate sparse matrix for first derivative of the form
+        :math:`\partial_{x_i}`. Uses STENCIL setting to construct the matrix with a
         multi-point stencil.
 
         Parameters
@@ -196,9 +196,9 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
     def second_derivative_matrix(
         self, prefactor: Union[float, complex] = 1.0, periodic: bool = False
     ) -> csc_matrix:
-        """Generate sparse matrix for second derivative of the form
-        :math:`\\partial^2_{x_i}`. Uses STENCIL setting to construct the matrix with a
-        multi-point stencil.
+        r"""Generate sparse matrix for second derivative of the form
+        :math:`\partial^2_{x_i}`. Uses STENCIL setting to construct the matrix with
+        a multi-point stencil.
 
         Parameters
         ----------

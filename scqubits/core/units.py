@@ -81,7 +81,7 @@ def set_units(units: str) -> str:
 
 
 def get_units_time_label(units: Optional[str] = None) -> str:
-    """Get a latex representation of 1/units."""
+    """Get a LaTeX representation of 1/units"""
     units = units or _current_units
     if units not in _supported_units:
         raise ValueError(
@@ -99,8 +99,9 @@ def show_supported_units() -> List[str]:
 
 
 def to_standard_units(value: float) -> float:
-    r"""Converts `value` (a frequency or angular frequency) from currently set system
-    units, to standard units (Hz or  2pi/s).
+    r"""
+    Converts `value` (a frequency or angular frequency) from currently set system units
+    to standard units (Hz or 2pi/s).
 
     Parameters
     ----------
@@ -122,7 +123,7 @@ def from_standard_units(value: float) -> float:
     ----------
     value:
         a frequency or angular frequency assumed to be in standard units
-        (`[Hz]` or  `2\pi / [s]`)
+        (`[Hz]` or `2\pi / [s]`)
 
     Returns
     -------

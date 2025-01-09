@@ -230,21 +230,22 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def exp_i_phi_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """Returns operator :math:`e^{i\\varphi}` in the charge or eigenenergy basis.
+        r"""
+        Returns operator :math:`e^{i\varphi}` in the charge or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator :math:`e^{i\\varphi}` in the charge basis.
-            If `True`, the energy eigenspectrum is computed, returns operator :math:`e^{i\\varphi}` in the energy eigenbasis.
+            If `False` (default), returns operator :math:`e^{i\varphi}` in the charge basis.
+            If `True`, the energy eigenspectrum is computed, returns operator :math:`e^{i\varphi}` in the energy eigenbasis.
             If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator :math:`e^{i\\varphi}` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            returns operator :math:`e^{i\varphi}` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            Operator :math:`e^{i\\varphi}` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`e^{i\\varphi}` has dimensions of truncated_dim
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`e^{i\\varphi}` has dimensions of m x m,
+            Operator :math:`e^{i\varphi}` in chosen basis as ndarray. If the eigenenergy basis is chosen,
+            unless energy_esys is specified, :math:`e^{i\varphi}` has dimensions of truncated_dim
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`e^{i\varphi}` has dimensions of m x m,
             for m given eigenvectors.
         """
         dimension = self.hilbertdim()
@@ -255,21 +256,22 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def cos_phi_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """Returns operator :math:`\\cos \\varphi` in the charge or eigenenergy basis.
+        r"""
+        Returns operator :math:`\cos \varphi` in the charge or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator :math:`\\cos \\varphi` in the charge basis.
-            If `True`, the energy eigenspectrum is computed, returns operator :math:`\\cos \\varphi` in the energy eigenbasis.
+            If `False` (default), returns operator :math:`\cos \varphi` in the charge basis.
+            If `True`, the energy eigenspectrum is computed, returns operator :math:`\cos \varphi` in the energy eigenbasis.
             If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator :math:`\\cos \\varphi` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            returns operator :math:`\cos \varphi` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            Operator :math:`\\cos \\varphi` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`\\cos \\varphi` has dimensions of truncated_dim
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\\cos \\varphi` has dimensions of m x m,
+            Operator :math:`\cos \varphi` in chosen basis as ndarray. If the eigenenergy basis is chosen,
+            unless energy_esys is specified, :math:`\cos \varphi` has dimensions of truncated_dim
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\cos \varphi` has dimensions of m x m,
             for m given eigenvectors.
         """
         cos_op = 0.5 * self.exp_i_phi_operator()
@@ -279,21 +281,22 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def sin_phi_operator(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
-        """Returns operator :math:`\\sin \\varphi` in the charge or eigenenergy basis.
+        r"""
+        Returns operator :math:`\sin \varphi` in the charge or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator :math:`\\sin \\varphi` in the charge basis.
-            If `True`, the energy eigenspectrum is computed, returns operator :math:`\\sin \\varphi` in the energy eigenbasis.
+            If `False` (default), returns operator :math:`\sin \varphi` in the charge basis.
+            If `True`, the energy eigenspectrum is computed, returns operator :math:`\sin \varphi` in the energy eigenbasis.
             If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator :math:`\\sin \\varphi` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            returns operator :math:`\sin \varphi` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            Operator :math:`\\sin \\varphi` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`\\sin \\varphi` has dimensions of truncated_dim
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\\sin \\varphi` has dimensions of m x m,
+            Operator :math:`\sin \varphi` in chosen basis as ndarray. If the eigenenergy basis is chosen,
+            unless energy_esys is specified, :math:`\sin \varphi` has dimensions of truncated_dim
+            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\sin \varphi` has dimensions of m x m,
             for m given eigenvectors.
         """
         sin_op = -1j * 0.5 * self.exp_i_phi_operator()
@@ -386,7 +389,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         return 2 * self.ncut + 1
 
     def potential(self, phi: Union[float, ndarray]) -> ndarray:
-        """Transmon phase-basis potential evaluated at `phi`.
+        r"""Transmon phase-basis potential evaluated at :math:`\phi`.
 
         Parameters
         ----------
@@ -410,11 +413,11 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         esys:
             eigenvalues, eigenvectors
         mode:
-            `'abs_sqr', 'abs', 'real', 'imag'`
+            choices as specified in `constants.MODE_FUNC_DICT` (default value = 'real')
         which:
-             index or indices of wave functions to plot (default value = 0)
+            index or indices of wave functions to plot (default value = 0)
         nrange:
-             range of `n` to be included on the x-axis (default value = (-5,6))
+            range of `n` to be included on the x-axis (default value = (-5,6))
         **kwargs:
             plotting parameters
         """
