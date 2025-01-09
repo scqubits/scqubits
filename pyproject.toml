@@ -2,9 +2,10 @@
 requires = ["setuptools", "wheel", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
 
+# Use setuptools_scm to generate version from Git tags
 [tool.setuptools_scm]
 write_to = "scqubits/version.py"
-version_scheme = "post-release"
+version_scheme = "only-version"
 local_scheme = "no-local-version"
 
 [project]
@@ -23,7 +24,7 @@ keywords = [
     "superconducting",
 ]
 classifiers = [
-    "Development Status :: 4.3 - Production/Stable",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: BSD License",
     "Operating System :: MacOS",
