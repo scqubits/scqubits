@@ -358,7 +358,6 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
-
     def d_hamiltonian_d_flux(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> ndarray:
