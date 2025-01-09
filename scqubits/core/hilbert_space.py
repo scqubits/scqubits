@@ -1109,6 +1109,7 @@ class HilbertSpace(
             phase = spec_utils.extract_phase(array)
             self._data["evecs"][0][idx] = evec * np.exp(-1j * phase)
 
+    @utils.check_lookup_exists
     def op_in_dressed_eigenbasis(
         self,
         op_callable_or_tuple: Union[
