@@ -53,8 +53,7 @@ def _extract_kwargs_options(
     plot_type: str,
     direct_plot_options: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """
-    Select options from kwargs for a given plot_type and return them in a dictionary.
+    """Select options from kwargs for a given plot_type and return them in a dictionary.
 
     Parameters
     ----------
@@ -68,7 +67,6 @@ def _extract_kwargs_options(
     Returns
     ----------
         dictionary with key/value pairs corresponding to selected options from kwargs
-
     """
     direct_plot_options = direct_plot_options or _direct_plot_options
     if plot_type not in direct_plot_options:
@@ -86,8 +84,7 @@ def _extract_kwargs_options(
 def _process_options(
     figure: Figure, axes: Axes, opts: Optional[Dict[str, Any]] = None, **kwargs
 ) -> None:
-    """
-    Processes plotting options.
+    """Processes plotting options.
 
     Parameters
     ----------
@@ -131,8 +128,7 @@ def _process_options(
 @mpl.rc_context(matplotlib_settings)
 def _process_special_option(figure: Figure, axes: Axes, key: str, value: Any) -> None:
     """Processes a single 'special' option, i.e., one internal to scqubits and not to be
-    handed further down to matplotlib.
-    """
+    handed further down to matplotlib."""
     if key == "ymax":
         ymax = value
         ymin, _ = axes.get_ylim()

@@ -9,9 +9,7 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
-"""
-Helper classes for writing data to files.
-"""
+"""Helper classes for writing data to files."""
 
 import inspect
 
@@ -45,8 +43,11 @@ class Serializable(Protocol):
     _subclasses: List[ABCMeta] = []
 
     def __new__(cls: Type[SerializableType], *args, **kwargs) -> SerializableType:
-        """Modified `__new__` to set up `cls._init_params`. The latter is used to
-        record which of the `__init__` parameters are to be stored/read in file IO."""
+        """Modified `__new__` to set up `cls._init_params`.
+
+        The latter is used to
+        record which of the `__init__` parameters are to be stored/read in file IO.
+        """
         cls._init_params = get_init_params(cls)
         return super().__new__(cls)
 
@@ -60,16 +61,12 @@ class Serializable(Protocol):
 
     @classmethod
     def deserialize(cls: Type[SerializableType], io_data: "IOData") -> SerializableType:
-        """
-        Take the given IOData and return an instance of the described class,
-        initialized with the data stored in io_data.
-        """
+        """Take the given IOData and return an instance of the described class,
+        initialized with the data stored in io_data."""
         return cls(**io_data.as_kwargs())
 
     def serialize(self) -> "IOData":
-        """
-        Convert the content of the current class instance into IOData format.
-        """
+        """Convert the content of the current class instance into IOData format."""
         initdata = {name: getattr(self, name) for name in self._init_params}
         if hasattr(self, "_id_str"):
             initdata["id_str"] = self._id_str  # type:ignore
@@ -78,8 +75,11 @@ class Serializable(Protocol):
         return iodata
 
     def filewrite(self, filename: str) -> None:
-        """Convenience method bound to the class. Simply accesses the `write`
-        function."""
+        """Convenience method bound to the class.
+
+        Simply accesses the `write`
+        function.
+        """
         import scqubits.io_utils.fileio as io
 
         io.write(self, filename)
@@ -149,10 +149,8 @@ TO_OBJECT = (Serializable,)
 
 
 def type_dispatch(entity: Serializable) -> Callable:
-    """
-    Based on the type of the object ``entity``, return the appropriate function that
-    converts the entity into the appropriate category of IOData
-    """
+    """Based on the type of the object ``entity``, return the appropriate function that
+    converts the entity into the appropriate category of IOData."""
     if isinstance(entity, TO_ATTRIBUTE):
         return _add_attribute
     if isinstance(entity, TO_OBJECT):
@@ -168,9 +166,7 @@ def type_dispatch(entity: Serializable) -> Callable:
 
 
 def Expr_serialize(expr_instance: Expr) -> "IOData":
-    """
-    Create an IODate instance for a sympy expression via string conversion
-    """
+    """Create an IODate instance for a sympy expression via string conversion."""
     import scqubits.io_utils.fileio as io
 
     attributes: Dict[str, Any] = {}
@@ -186,9 +182,7 @@ def Expr_serialize(expr_instance: Expr) -> "IOData":
 
 
 def dict_serialize(dict_instance: Dict[str, Any]) -> "IOData":
-    """
-    Create an IOData instance from dictionary data.
-    """
+    """Create an IOData instance from dictionary data."""
     import scqubits.io_utils.fileio as io
 
     dict_instance = utils.remove_nones(dict_instance)
@@ -206,9 +200,7 @@ def dict_serialize(dict_instance: Dict[str, Any]) -> "IOData":
 
 
 def OrderedDict_serialize(dict_instance: Dict[str, Any]) -> "IOData":
-    """
-    Create an IOData instance from dictionary data.
-    """
+    """Create an IOData instance from dictionary data."""
     import scqubits.io_utils.fileio as io
 
     dict_instance = utils.remove_nones(dict_instance)
@@ -228,9 +220,7 @@ def OrderedDict_serialize(dict_instance: Dict[str, Any]) -> "IOData":
 
 
 def csc_matrix_serialize(csc_matrix_instance: csc_matrix) -> "IOData":
-    """
-    Create an IOData instance from dictionary data.
-    """
+    """Create an IOData instance from dictionary data."""
     import scqubits.io_utils.fileio as io
 
     attributes: Dict[str, Any] = {}
@@ -254,9 +244,7 @@ def csc_matrix_serialize(csc_matrix_instance: csc_matrix) -> "IOData":
 
 
 def NoneType_serialize(none_instance: None) -> "IOData":
-    """
-    Create an IOData instance to write `None` to file.
-    """
+    """Create an IOData instance to write `None` to file."""
     import scqubits.io_utils.fileio as io
 
     attributes = {"None": 0}
@@ -268,9 +256,7 @@ def NoneType_serialize(none_instance: None) -> "IOData":
 
 
 def listlike_serialize(listlike_instance: Union[List, Tuple]) -> "IOData":
-    """
-    Create an IOData instance from list data.
-    """
+    """Create an IOData instance from list data."""
     import scqubits.io_utils.fileio as io
 
     attributes: Dict[str, Any] = {}
@@ -295,9 +281,7 @@ ndarray_serialize = listlike_serialize  # this is invoked for dtype=object
 
 
 def range_serialize(range_instance: range) -> "IOData":
-    """
-    Create an IOData instance from range data.
-    """
+    """Create an IOData instance from range data."""
     import scqubits.io_utils.fileio as io
 
     attributes = {
@@ -312,25 +296,25 @@ def range_serialize(range_instance: range) -> "IOData":
 
 
 def Expr_deserialize(iodata: "IOData") -> Expr:
-    """Turn IOData instance back into a dict"""
+    """Turn IOData instance back into a dict."""
     from sympy import sympify
 
     return sympify(iodata["Expr"])
 
 
 def dict_deserialize(iodata: "IOData") -> Dict[str, Any]:
-    """Turn IOData instance back into a dict"""
+    """Turn IOData instance back into a dict."""
     return dict(**iodata.as_kwargs())
 
 
 def OrderedDict_deserialize(iodata: "IOData") -> Dict[str, Any]:
-    """Turn IOData instance back into a dict"""
+    """Turn IOData instance back into a dict."""
     dict_data = iodata.as_kwargs()
     return OrderedDict([dict_data[key] for key in sorted(dict_data, key=int)])
 
 
 def csc_matrix_deserialize(iodata: "IOData") -> csc_matrix:
-    """Turn IOData instance back into a csc_matrix"""
+    """Turn IOData instance back into a csc_matrix."""
     csc_dict = dict(**iodata.as_kwargs())
     return csc_matrix(
         (csc_dict["data"], csc_dict["indices"], csc_dict["indptr"]),
@@ -339,18 +323,18 @@ def csc_matrix_deserialize(iodata: "IOData") -> csc_matrix:
 
 
 def NoneType_deserialize(iodata: "IOData") -> None:
-    """Turn IOData instance back into a csc_matrix"""
+    """Turn IOData instance back into a csc_matrix."""
     return None
 
 
 def list_deserialize(iodata: "IOData") -> List[Any]:
-    """Turn IOData instance back into a list"""
+    """Turn IOData instance back into a list."""
     dict_data = iodata.as_kwargs()
     return [dict_data[key] for key in sorted(dict_data, key=int)]
 
 
 def tuple_deserialize(iodata: "IOData") -> Tuple:
-    """Turn IOData instance back into a tuple"""
+    """Turn IOData instance back into a tuple."""
     return tuple(list_deserialize(iodata))
 
 
@@ -370,10 +354,8 @@ def range_deserialize(iodata: "IOData") -> range:
 
 
 def get_init_params(obj: Serializable) -> List[str]:
-    """
-    Returns a list of the parameters entering the `__init__` method of the given
-    object `obj`.
-    """
+    """Returns a list of the parameters entering the `__init__` method of the given
+    object `obj`."""
     init_params = list(inspect.signature(obj.__init__).parameters.keys())  # type: ignore
     if "self" in init_params:
         init_params.remove("self")

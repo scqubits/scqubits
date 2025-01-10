@@ -21,15 +21,18 @@ circ.cutoff_ext_3 = 40
 circ.configure(
     transformation_matrix=None,
     system_hierarchy=system_hierarchy,
-    subsystem_trunc_dims=[100, 30],
+    subsystem_trunc_dims=[10, 10],
 )
-circ.update()
+esys = circ.eigensys()
 
 
 class TestCircuitPlot:
     @staticmethod
     def test_plot_wf():
-        circ.plot_wavefunction(which=0, var_indices=(2, 3))
+        circ.plot_wavefunction(which=0, var_indices=(2, 3), esys=esys)
+        circ.subsystems[0].plot_wavefunction(which=0, var_indices=(1, 3), mode="abs")
+        circ.subsystems[0].plot_wavefunction(which=0, var_indices=(1, 3), mode="real")
+        circ.subsystems[0].plot_wavefunction(which=0, var_indices=(1, 3), mode="imag")
 
     @staticmethod
     def test_plot_potential():

@@ -30,9 +30,9 @@ _default_evals_count = 6
 def harm_osc_wavefunction(
     n: int, x: Union[float, ndarray], l_osc: float
 ) -> Union[float, ndarray]:
-    r"""For given quantum number n=0,1,2,... return the value of the harmonic
-    oscillator wave function :math:`\psi_n(x) = N H_n(x/l_{osc}) \exp(-x^2/2l_\text{
-    osc})`, N being the proper normalization factor.
+    r"""For given quantum number :math:`n=0,1,2,\ldots` return the value of the harmonic
+    oscillator wave function :math:`\psi_n(x) = N H_n(x/l_{\rm osc}) \exp(-x^2/2
+    l_{\rm osc})`, N being the proper normalization factor.
 
     Directly uses `scipy.special.pbdv` (implementation of the parabolic cylinder
     function) to mitigate numerical stability issues with the more commonly used
@@ -59,13 +59,13 @@ def harm_osc_wavefunction(
 
 def convert_to_E_osc(E_kin: float, E_pot: float) -> float:
     r"""Returns the oscillator energy given a harmonic Hamiltonian of the form
-    :math:`H=\frac{1}{2}E_{\text{kin}}p^2 + \frac{1}{2}E_{\text{pot}}x^2`"""
+    :math:`H=\frac{1}{2}E_{\rm kin}p^2 + \frac{1}{2}E_{\rm pot}x^2`"""
     return np.sqrt(E_kin * E_pot)
 
 
 def convert_to_l_osc(E_kin: float, E_pot: float) -> float:
     r"""Returns the oscillator length given a harmonic Hamiltonian of the form
-    :math:`H=\frac{1}{2}E_{\text{kin}}p^2 + \frac{1}{2}E_{\text{pot}}x^2`"""
+    :math:`H=\frac{1}{2}E_{\rm kin}p^2 + \frac{1}{2}E_{\rm pot}x^2`"""
     return (E_kin / E_pot) ** (1 / 4)
 
 
@@ -74,7 +74,7 @@ def convert_to_l_osc(E_kin: float, E_pot: float) -> float:
 
 class Oscillator(base.QuantumSystem, serializers.Serializable):
     r"""Class representing a harmonic oscillator/resonator governed by a Hamiltonian
-    :math:`H=E_\text{osc} a^{\dagger} a`, with :math:`a` being the annihilation
+    :math:`H=E_{\rm osc} a^\dagger a`, with :math:`a` being the annihilation
     operator.
 
     Parameters
@@ -86,7 +86,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
-        optional string by which this instance can be referred to in `HilbertSpace`
+        optional string by which this instance can be referred to in :class:`HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
 
@@ -126,7 +126,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
     def eigensys(
         self, evals_count: int = _default_evals_count
     ) -> Tuple[ndarray, ndarray]:
-        """Returns array of eigenvalues and eigenvectors
+        """Returns array of eigenvalues and eigenvectors.
 
         Parameters
         ----------
@@ -140,15 +140,15 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         return self.eigenvals(evals_count=evals_count), evecs
 
     def hilbertdim(self) -> int:
-        """Returns Hilbert space dimension"""
+        """Returns Hilbert space dimension."""
         return self.truncated_dim
 
     def creation_operator(self) -> ndarray:
-        """Returns the creation operator"""
+        """Returns the creation operator."""
         return op.creation(self.truncated_dim)
 
     def annihilation_operator(self) -> ndarray:
-        """Returns the annihilation operator"""
+        """Returns the annihilation operator."""
         return op.annihilation(self.truncated_dim)
 
     def matrixelement_table(self, *args, **kwargs) -> ndarray:
@@ -158,8 +158,8 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
 
     def phi_operator(self) -> ndarray:
         r"""Returns the phase operator defined as
-        :math:`l_\text{osc} (a + a^{\dagger})/\sqrt{2}`, with :math:`a` representing
-        an annihilation operator, and :math:`l_\text{osc}` the oscillator length.
+        :math:`l_{\rm osc} (a + a^\dagger)/\sqrt{2}`, with :math:`a` representing
+        an annihilation operator, and :math:`l_{\rm osc}` the oscillator length.
         """
         if self.l_osc is None:
             raise ValueError(
@@ -172,8 +172,8 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
 
     def n_operator(self) -> ndarray:
         r"""Returns the charge-number n operator defined as
-        :math:`i (a^{\dagger} - a)/ ( \sqrt{2} l_\text{osc})`, with :math:`a` representing
-        an annihilation operator, and :math:`l_\text{osc}` the oscillator length.
+        :math:`i (a^\dagger - a)/ ( \sqrt{2} l_{\rm osc})`, with :math:`a` representing
+        an annihilation operator, and :math:`l_{\rm osc}` the oscillator length.
         """
 
         if self.l_osc is None:
@@ -191,7 +191,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
 
 class KerrOscillator(Oscillator, serializers.Serializable):
     r"""Class representing a nonlinear Kerr oscillator/resonator governed by a Hamiltonian
-    :math:`H_\text{Kerr}=E_\text{osc} a^{\dagger} a - K a^{\dagger} a^{\dagger} a a`, with :math:`a`
+    :math:`H_{\rm Kerr}=E_{\rm osc} a^\dagger a - K a^\dagger a^\dagger a a`, with :math:`a`
     being the annihilation operator.
 
     Parameters
@@ -205,7 +205,7 @@ class KerrOscillator(Oscillator, serializers.Serializable):
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
-        optional string by which this instance can be referred to in `HilbertSpace`
+        optional string by which this instance can be referred to in :class:`HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
 

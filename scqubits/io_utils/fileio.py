@@ -9,9 +9,7 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
-"""
-Helper routines for writing data to files.
-"""
+"""Helper routines for writing data to files."""
 
 import os
 
@@ -30,9 +28,7 @@ if TYPE_CHECKING:
 
 
 class IOData:
-    """
-    Class for processing input/output data
-    """
+    """Class for processing input/output data."""
 
     def __init__(
         self,
@@ -48,14 +44,13 @@ class IOData:
 
     def as_kwargs(self) -> Dict[str, Any]:
         """Return a joint dictionary of attributes, ndarrays, and objects, as used in
-        __init__ calls"""
+        __init__ calls."""
         return {**self.attributes, **self.ndarrays, **self.objects}
 
 
 def serialize(the_object: "Serializable") -> IOData:
-    """
-    Turn the given Python object into an IOData object, needed for writing data to file.
-    """
+    """Turn the given Python object into an IOData object, needed for writing data to
+    file."""
     if hasattr(the_object, "serialize"):
         return the_object.serialize()
 
@@ -70,8 +65,8 @@ def serialize(the_object: "Serializable") -> IOData:
 
 
 def deserialize(iodata: IOData) -> Any:
-    """
-    Turn IOData back into a Python object of the appropriate kind.
+    """Turn IOData back into a Python object of the appropriate kind.
+
     An object is deemed deserializable if
     1) it is recorded in SERIALIZABLE_REGISTRY and has a `.deserialize` method
     2) there exists a function `file_io_serializers.<typename>_deserialize`
@@ -91,8 +86,7 @@ def deserialize(iodata: IOData) -> Any:
 
 
 def write(the_object: Any, filename: str, file_handle: "h5py.Group" = None) -> None:
-    """
-    Write `the_object` to a file with name `filename`. The optional `file_handle`
+    """Write `the_object` to a file with name `filename`. The optional `file_handle`
     parameter is used as a group name in case of h5 files.
 
     Parameters
@@ -110,8 +104,7 @@ def write(the_object: Any, filename: str, file_handle: "h5py.Group" = None) -> N
 
 
 def read(filename: str, file_handle: "h5py.Group" = None) -> Any:
-    """
-    Read a Serializable object from file.
+    """Read a Serializable object from file.
 
     Parameters
     ----------
@@ -130,15 +123,13 @@ def read(filename: str, file_handle: "h5py.Group" = None) -> Any:
 
 
 class FileIOFactory:
-    """Factory method for choosing reader/writer according to given format"""
+    """Factory method for choosing reader/writer according to given format."""
 
     def get_writer(
         self, file_name: str, file_handle: "h5py.Group" = None
     ) -> "IOWriter":
-        """
-        Based on the extension of the provided file name, return the appropriate
-        writer engine.
-        """
+        """Based on the extension of the provided file name, return the appropriate
+        writer engine."""
         import scqubits.io_utils.fileio_backends as io_backends
 
         _, suffix = os.path.splitext(file_name)
@@ -157,10 +148,8 @@ class FileIOFactory:
         file_handle: Optional["h5py.Group"] = None,
         get_external_reader: Optional[Callable] = None,
     ) -> Union["CSVReader", "H5Reader"]:
-        """
-        Based on the extension of the provided file name, return the appropriate
-        reader engine.
-        """
+        """Based on the extension of the provided file name, return the appropriate
+        reader engine."""
         if get_external_reader:
             return get_external_reader(file_name, file_handle=file_handle)
 
