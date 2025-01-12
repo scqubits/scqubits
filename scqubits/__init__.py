@@ -29,6 +29,7 @@ from scqubits.core.central_dispatch import CentralDispatch
 from scqubits.core.cos2phi_qubit import Cos2PhiQubit
 from scqubits.core.discretization import Grid1d
 from scqubits.core.diag import DIAG_METHODS
+from scqubits.core.dimon import Dimon, DimonHigherHarmonics
 from scqubits.core.flux_qubit import FluxQubit
 from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.generic_qubit import GenericQubit
@@ -42,7 +43,7 @@ from scqubits.core.oscillator import KerrOscillator, Oscillator
 from scqubits.core.param_sweep import ParameterSweep
 from scqubits.core.storage import DataStore, SpectrumData
 from scqubits.core.symbolic_circuit import SymbolicCircuit
-from scqubits.core.transmon import Transmon, TunableTransmon
+from scqubits.core.transmon import Transmon, TunableTransmon, TransmonHigherHarmonics
 from scqubits.core.units import (
     from_standard_units,
     get_units,
