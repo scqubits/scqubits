@@ -35,4 +35,5 @@ jobs:
     - name: asv continuous check
       run: |
         pwd
+        cd asv_test
         asv continuous --only-changed -f 1.25 -v base incoming
