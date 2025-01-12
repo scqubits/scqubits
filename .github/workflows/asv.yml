@@ -13,6 +13,9 @@ jobs:
     strategy:
       max-parallel: 8
     steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
     - uses: conda-incubator/setup-miniconda@v3
       with:
         activate-environment: "cloud_env"
