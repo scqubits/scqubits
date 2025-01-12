@@ -23,7 +23,7 @@ jobs:
     - name: pull asv data
       run: |
         git fetch origin $GITHUB_BASE_REF:base $GITHUB_REF:incoming
-        git clone https://github.com/scqubits/asv-data.git
+        git clone https://github.com/KevinzChen04/asv_test.git
         cd asv-data
     - name: Set up asv
       run: |
