@@ -23,7 +23,7 @@ jobs:
         channels: defaults, conda-forge
     - name: use version of conda with --force
       run: |
-        conda install -n base conda=24.1.2
+        conda install -n base conda=24.1.2 --no-pin
         conda --version
     - name: pull asv data
       run: |
