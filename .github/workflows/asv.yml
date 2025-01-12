@@ -23,6 +23,7 @@ jobs:
     - name: use version of conda with --force
       run: |
         conda activate cloud_env
+        conda list
         conda install -n base conda=24.1.2 --no-pin
         conda install python=3.9
         conda --version
@@ -32,7 +33,6 @@ jobs:
         git clone https://github.com/KevinzChen04/asv_test.git
     - name: Set up asv
       run: |
-        conda activate cloud_env
         conda install asv
         cd asv_test/cloud
         asv machine --machine github-cloud-machine --yes
