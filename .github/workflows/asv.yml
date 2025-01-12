@@ -23,6 +23,7 @@ jobs:
     - name: use version of conda with --force
       run: |
         conda install -n base conda=24.1.2 --no-pin
+        conda install python=3.9
         conda --version
     - name: pull asv data
       run: |
