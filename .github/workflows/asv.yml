@@ -19,7 +19,7 @@ jobs:
     - uses: conda-incubator/setup-miniconda@v3
       with:
         activate-environment: "cloud_env"
-        python-version: 3.9
+        python-version: 3.10
         channels: defaults, conda-forge
     - name: pull asv data
       run: |
@@ -27,13 +27,12 @@ jobs:
         git clone https://github.com/KevinzChen04/asv_test.git
     - name: Set up asv
       run: |
-        pwd
         conda activate cloud_env
         conda install asv
-        cd asv_test
+        cd asv_test/cloud
         asv machine --machine github-cloud-machine --yes
     - name: asv continuous check
       run: |
         pwd
-        cd asv_test
+        cd asv_test/cloud
         asv continuous --only-changed -f 1.25 -v base incoming
