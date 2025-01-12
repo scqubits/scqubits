@@ -13,9 +13,6 @@ jobs:
     strategy:
       max-parallel: 8
     steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0  # get all commits
     - uses: conda-incubator/setup-miniconda@v3
       with:
         conda-version: 24.1.2
@@ -23,11 +20,15 @@ jobs:
         python-version: 3.9
         channels: defaults,conda-forge
         show-channel-urls: true
+    - name: pull asv data
+      run: |
+        git fetch origin $GITHUB_BASE_REF:base $GITHUB_REF:incoming
+        git clone https://github.com/scqubits/asv-data.git
+        cd asv-data
     - name: Set up asv
       run: |
         conda activate cloud_env
         conda install asv
-        git fetch origin $GITHUB_BASE_REF:base $GITHUB_REF:incoming
         asv machine --machine github-cloud-machine --yes
     - name: asv continuous check
       run: asv continuous --only-changed -f 1.25 -v base incoming
