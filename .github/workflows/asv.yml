@@ -21,6 +21,10 @@ jobs:
         activate-environment: "cloud_env"
         python-version: 3.9
         channels: defaults, conda-forge
+    - name: use version of conda with --force
+      run: |
+        conda install -n base conda=24.1.2
+        conda --version
     - name: pull asv data
       run: |
         git fetch origin $GITHUB_BASE_REF:base $GITHUB_REF:incoming
