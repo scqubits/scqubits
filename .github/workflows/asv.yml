@@ -15,11 +15,9 @@ jobs:
     steps:
     - uses: conda-incubator/setup-miniconda@v3
       with:
-        conda-version: 24.1.2
         activate-environment: "cloud_env"
         python-version: 3.9
-        channels: defaults,conda-forge
-        show-channel-urls: true
+        channels: defaults, conda-forge
     - name: pull asv data
       run: |
         git fetch origin $GITHUB_BASE_REF:base $GITHUB_REF:incoming
