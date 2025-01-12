@@ -25,7 +25,8 @@ jobs:
       run: |
         git fetch origin $GITHUB_BASE_REF:base $GITHUB_REF:incoming
         git clone https://github.com/KevinzChen04/asv_test.git
-        cd asv-data
+        ls
+        cd asv_test
     - name: Set up asv
       run: |
         conda activate cloud_env
