@@ -19,11 +19,12 @@ jobs:
     - uses: conda-incubator/setup-miniconda@v3
       with:
         activate-environment: "cloud_env"
+        python-version: 3.9
         channels: defaults, conda-forge
     - name: use version of conda with --force
       run: |
+        cat ~/.condarc
         conda activate cloud_env
-        conda list
         conda install -n base conda=24.1.2 --no-pin
         conda install python=3.9
         conda --version
