@@ -19,7 +19,6 @@ jobs:
     - uses: conda-incubator/setup-miniconda@v3
       with:
         activate-environment: "cloud_env"
-        python-version: 3.9
         channels: defaults, conda-forge
     - name: use version of conda with --force
       run: |
