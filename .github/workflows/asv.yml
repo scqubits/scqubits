@@ -25,12 +25,14 @@ jobs:
       run: |
         git fetch origin $GITHUB_BASE_REF:base $GITHUB_REF:incoming
         git clone https://github.com/KevinzChen04/asv_test.git
-        ls
-        cd asv_test
     - name: Set up asv
       run: |
+        pwd
         conda activate cloud_env
         conda install asv
+        cd asv_test
         asv machine --machine github-cloud-machine --yes
     - name: asv continuous check
-      run: asv continuous --only-changed -f 1.25 -v base incoming
+      run: |
+        pwd
+        asv continuous --only-changed -f 1.25 -v base incoming
