@@ -24,7 +24,6 @@ jobs:
     - name: use version of conda with --force
       run: |
         conda config --remove-key pinned_packages
-        conda activate cloud_env
         conda install -n base conda=24.1.2 --no-pin
         conda install python=3.9
         conda --version
