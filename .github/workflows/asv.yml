@@ -23,7 +23,7 @@ jobs:
         channels: defaults, conda-forge
     - name: use version of conda with --force
       run: |
-        cat ~/.condarc
+        conda config --remove-key pinned_packages
         conda activate cloud_env
         conda install -n base conda=24.1.2 --no-pin
         conda install python=3.9
