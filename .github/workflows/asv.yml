@@ -21,7 +21,6 @@ jobs:
         fetch-depth: 0
     - uses: conda-incubator/setup-miniconda@v3
       with:
-        miniconda-version: "py312_24.1.2"
         activate-environment: "cloud_env"
         python-version: 3.9
         channels: defaults, conda-forge
