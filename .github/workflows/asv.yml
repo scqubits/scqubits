@@ -32,8 +32,11 @@ jobs:
     - name: Set up asv
       run: |
         conda activate cloud_env
+        conda list
         conda --version
         conda install asv
+        conda list
+        conda --version
         cd asv_test/cloud
         asv machine --machine github-cloud-machine --yes
     - name: asv continuous check
