@@ -23,8 +23,7 @@ jobs:
         channels: defaults, conda-forge
     - name: use version of conda with --force
       run: |
-        conda config --remove-key pinned_packages
-        conda install -n base conda=24.1.2 --no-pin
+        CONDA_OVERRIDE_PINS=1 conda install -n base conda=24.1.2 --no-pin
         conda install python=3.9
         conda --version
     - name: pull asv data
