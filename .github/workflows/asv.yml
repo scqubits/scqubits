@@ -21,11 +21,10 @@ jobs:
         activate-environment: "cloud_env"
         python-version: 3.9
         channels: defaults, conda-forge
-    - name: use version of conda with --force
-      run: |
-        conda --version
-        CONDA_OVERRIDE_PINS=1 conda install -n base conda=24.1.2 --no-pin
-        conda --version
+    # - name: use version of conda with --force
+    #   run: |
+    #     conda --version
+    #     CONDA_OVERRIDE_PINS=1 conda install -n base conda=24.1.2 --no-pin
     - name: pull asv data
       run: |
         git fetch origin $GITHUB_BASE_REF:base $GITHUB_REF:incoming
