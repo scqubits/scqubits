@@ -20,7 +20,7 @@ jobs:
       with:
         activate-environment: "cloud_env"
         python-version: 3.9
-        channels: defaults, conda-forge
+        channels: conda-forge
     # - name: use version of conda with --force
     #   run: |
     #     conda --version
@@ -31,6 +31,8 @@ jobs:
         git clone https://github.com/KevinzChen04/asv_test.git
     - name: Set up asv
       run: |
+        conda activate cloud_env
+        conda --version
         conda install asv
         cd asv_test/cloud
         asv machine --machine github-cloud-machine --yes
