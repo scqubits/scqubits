@@ -23,8 +23,8 @@ jobs:
         channels: defaults, conda-forge
     - name: use version of conda with --force
       run: |
-        CONDA_OVERRIDE_PINS=1 conda install -n base conda=24.1.2 --no-pin
         conda install python=3.9
+        CONDA_OVERRIDE_PINS=1 conda install -n base conda=24.1.2 --no-pin
         conda --version
     - name: pull asv data
       run: |
