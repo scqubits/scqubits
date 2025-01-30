@@ -1905,7 +1905,7 @@ class CircuitRoutines(ABC):
 
     def _evals_calc(self, evals_count: int) -> ndarray:
 
-        if self.is_child and self._is_diagonalization_necessary():
+        if self.is_child and not self._is_diagonalization_necessary():
             subsys_index = self.parent.subsystems.index(self)
             return self.parent.hilbert_space["bare_evals"][subsys_index][0][
                 :evals_count
