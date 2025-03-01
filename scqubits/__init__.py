@@ -30,7 +30,7 @@ from scqubits.core.cos2phi_qubit import Cos2PhiQubit
 from scqubits.core.discretization import Grid1d
 from scqubits.core.diag import DIAG_METHODS
 from scqubits.core.flux_qubit import FluxQubit
-from scqubits.core.fluxonium import Fluxonium
+from scqubits.core.fluxonium import Fluxonium, FluxoniumHiHarm
 from scqubits.core.generic_qubit import GenericQubit
 from scqubits.core.hilbert_space import (
     HilbertSpace,

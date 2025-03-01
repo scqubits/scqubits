@@ -444,3 +444,156 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             amplitudes=phi_wavefunc_amplitudes,
             energy=evals[which],
         )
+
+
+
+class FluxoniumHiHarm(Fluxonium, serializers.Serializable, NoisySystem):
+    r"""
+    Inspired from `TransmonHigherHarmonics` in `danny-higher-harmonics` branch 
+    of `scqubits`.
+    
+    Class for the fluxonium including higher-harmonic contributions. The Hamiltonian
+    is represented in dense form in the number basis,
+    :math:`H=4E_\text{C}(\hat{n}-n_g)^2-\sum_{k=1}^{k_{\rm cut}}
+    \frac{E_\text{Jk}}{2}(|n\rangle\langle n+k|+\text{h.c.})+\frac{EL}{2}\phi^2`.
+    Initialize with, for example::
+        FluxoniumHiHarm(EJ=1.0, EC=2.0, EL=0.2, flux=0.5, EJs_higher=[0.2, -0.001])
+    to include `EJ2` and `EJ3` higher harmonic contributions (in addition to the normal
+    `EJ1=EJ` contribution)
+    Parameters
+    ----------
+    EJ:
+       Josephson energy
+    EC:
+        charging energy
+    EL:
+        inductance energy
+    flux:
+        flux bias
+    cutoff:
+        number of basis states
+    EJs_higher:
+        list of energies of higher harmonic contributions to include
+    truncated_dim:
+        desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
+    esys_method:
+        method for esys diagonalization, callable or string representation
+    esys_method_options:
+        dictionary with esys diagonalization options
+    evals_method:
+        method for evals diagonalization, callable or string representation
+    evals_method_options:
+        dictionary with evals diagonalization options
+    """
+
+    EJs_higher = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+
+    def __init__(
+        self,
+        EJ: float,
+        EC: float,
+        EL: float,
+        flux: float,
+        cutoff: int,
+        EJs_higher: ndarray | List[float],
+        truncated_dim: int = 6,
+        id_str: Optional[str] = None,
+        evals_method: Union[Callable, str, None] = None,
+        evals_method_options: Union[dict, None] = None,
+        esys_method: Union[Callable, str, None] = None,
+        esys_method_options: Union[dict, None] = None,
+    ) -> None:
+        super().__init__(
+            EJ=EJ,
+            EC=EC,
+            EL=EL,
+            flux=flux,
+            cutoff=cutoff,
+            truncated_dim=truncated_dim,
+            id_str=id_str,
+            evals_method=evals_method,
+            evals_method_options=evals_method_options,
+            esys_method=esys_method,
+            esys_method_options=esys_method_options,
+        )
+        self.EJs_higher = EJs_higher
+
+    @staticmethod
+    def default_params() -> Dict[str, Any]:
+        return super().default_params() | {
+            "EJs_higher": np.array(
+                [
+                    0.0,
+                ]
+            )
+        }
+
+    def hamiltonian(
+        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+    ) -> ndarray:
+        """
+        Returns Hamiltonian in the charge or eigenenergy basis.
+        Parameters
+        ----------
+        energy_esys:
+            If `False` (default), returns Hamiltonian in the charge basis.
+            If `True`, the energy eigenspectrum is computed; returns Hamiltonian in the energy eigenbasis.
+            If `energy_esys = esys`, where `esys` is a tuple containing two ndarrays (eigenvalues and energy
+            eigenvectors); then return the Hamiltonian in the energy eigenbasis, do not recalculate eigenspectrum.
+        Returns
+        -------
+            Hamiltonian in chosen basis as ndarray. For `energy_esys=False`, the Hamiltonian has dimensions of
+            `truncated_dim` x `truncated_dim`. For `energy_sys=esys`, the Hamiltonian has dimensions of m x m,
+            for m given eigenvectors.
+        """
+        hamiltonian_mat = super().hamiltonian(energy_esys=energy_esys)
+        for idx, EJ_higher in enumerate(self.EJs_higher):
+            order = idx + 2.0
+            hamiltonian_mat += EJ_higher * self.cos_phi_operator(
+                alpha=order,
+                beta=2 * np.pi * self.flux * order,
+            )
+            
+        return self.process_hamiltonian(
+            native_hamiltonian=hamiltonian_mat, energy_esys=energy_esys
+        )
+
+    def _esys_calc(self, evals_count: int):
+        return base.QubitBaseClass1d._esys_calc(self, evals_count)
+
+    def _evals_calc(self, evals_count: int):
+        return base.QubitBaseClass1d._evals_calc(self, evals_count)
+    
+    
+    def potential(self, phi: Union[float, ndarray]) -> ndarray:
+        r"""Fluxonium potential evaluated at :math:`\phi`.
+
+        Parameters
+        ----------
+            float value of the phase variable :math:`\phi`
+
+        Returns
+        -------
+        float or ndarray
+        """
+        base_potential = super().potential(phi)
+        for idx, EJ_higher in enumerate(self.EJs_higher):
+            order = idx + 2.0
+            base_potential += EJ_higher * np.cos(
+                order * (phi + 2 * np.pi * self.flux)
+            )
+        return base_potential
+    
+    # Non-suppored methods
+    @classmethod
+    def supported_noise_channels(cls) -> List[str]:
+        return []
+    
+    def d_hamiltonian_d_EJ(self, *args, **kwargs):
+        raise NotImplementedError("d_hamiltonian_d_EJ is not supported for FluxoniumHiHarm")
+    
+    def d_hamiltonian_d_flux(self, *args, **kwargs):
+        raise NotImplementedError("d_hamiltonian_d_flux is not supported for FluxoniumHiHarm")
