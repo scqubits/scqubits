@@ -472,8 +472,8 @@ class FluxoniumHiHarm(Fluxonium, serializers.Serializable, NoisySystem):
         flux bias
     cutoff:
         number of basis states
-    EJs_higher:
-        list of energies of higher harmonic contributions to include
+    EJ2, EJ3, ...:
+        energies of higher harmonic contributions to include
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
@@ -490,6 +490,7 @@ class FluxoniumHiHarm(Fluxonium, serializers.Serializable, NoisySystem):
     """
 
     EJs_higher = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    MAX_EJ_IDX = 10
 
     def __init__(
         self,
@@ -498,13 +499,13 @@ class FluxoniumHiHarm(Fluxonium, serializers.Serializable, NoisySystem):
         EL: float,
         flux: float,
         cutoff: int,
-        EJs_higher: ndarray | List[float],
         truncated_dim: int = 6,
         id_str: Optional[str] = None,
         evals_method: Union[Callable, str, None] = None,
         evals_method_options: Union[dict, None] = None,
         esys_method: Union[Callable, str, None] = None,
         esys_method_options: Union[dict, None] = None,
+        **kwargs,
     ) -> None:
         super().__init__(
             EJ=EJ,
@@ -519,17 +520,21 @@ class FluxoniumHiHarm(Fluxonium, serializers.Serializable, NoisySystem):
             esys_method=esys_method,
             esys_method_options=esys_method_options,
         )
-        self.EJs_higher = EJs_higher
-
-    @staticmethod
-    def default_params() -> Dict[str, Any]:
-        return super().default_params() | {
-            "EJs_higher": np.array(
-                [
-                    0.0,
-                ]
-            )
-        }
+        self._set_EJx(kwargs)
+        
+    def _set_EJx(self, init_kwargs: Dict[str, Any]):
+        """
+        Find all of the EJ<idx> in the kwargs and add them as a dynamic property
+        to the class.
+        """
+        for idx in range(2, self.MAX_EJ_IDX):
+            if f"EJ{idx}" in init_kwargs:
+                EJ_idx = init_kwargs.pop(f"EJ{idx}")
+                setattr(self, f"EJ{idx}", EJ_idx)
+        
+        if len(init_kwargs) > 0:
+            raise TypeError(f"Fluxonium.__init__() got unexpected "
+                            f"keyword argument(s): {init_kwargs.keys()}")
 
     def hamiltonian(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
@@ -550,11 +555,14 @@ class FluxoniumHiHarm(Fluxonium, serializers.Serializable, NoisySystem):
             for m given eigenvectors.
         """
         hamiltonian_mat = super().hamiltonian(energy_esys=energy_esys)
-        for idx, EJ_higher in enumerate(self.EJs_higher):
-            order = idx + 2.0
-            hamiltonian_mat += EJ_higher * self.cos_phi_operator(
-                alpha=order,
-                beta=2 * np.pi * self.flux * order,
+        for idx in range(2, self.MAX_EJ_IDX):
+            try:
+                EJ_idx = getattr(self, f"EJ{idx}")
+            except AttributeError:
+                continue
+            hamiltonian_mat += EJ_idx * self.cos_phi_operator(
+                alpha=idx,
+                beta=2 * np.pi * self.flux * idx,
             )
             
         return self.process_hamiltonian(
@@ -566,7 +574,6 @@ class FluxoniumHiHarm(Fluxonium, serializers.Serializable, NoisySystem):
 
     def _evals_calc(self, evals_count: int):
         return base.QubitBaseClass1d._evals_calc(self, evals_count)
-    
     
     def potential(self, phi: Union[float, ndarray]) -> ndarray:
         r"""Fluxonium potential evaluated at :math:`\phi`.
@@ -580,11 +587,15 @@ class FluxoniumHiHarm(Fluxonium, serializers.Serializable, NoisySystem):
         float or ndarray
         """
         base_potential = super().potential(phi)
-        for idx, EJ_higher in enumerate(self.EJs_higher):
-            order = idx + 2.0
-            base_potential += EJ_higher * np.cos(
-                order * (phi + 2 * np.pi * self.flux)
+        for idx in range(2, self.MAX_EJ_IDX):
+            try:
+                EJ_idx = getattr(self, f"EJ{idx}")
+            except AttributeError:
+                continue
+            base_potential += EJ_idx * np.cos(
+                idx * (phi + 2 * np.pi * self.flux)
             )
+            
         return base_potential
     
     # Non-suppored methods
