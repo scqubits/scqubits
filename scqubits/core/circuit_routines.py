@@ -833,15 +833,10 @@ class CircuitRoutines(ABC):
         self.subsystems = []
         for index in range(len(self.system_hierarchy)):
             is_purely_harmonic = self._is_expression_purely_harmonic(systems_sym[index])
-            ext_basis = (
-                "harmonic"
-                if is_purely_harmonic
-                else (
-                    self.ext_basis
-                    if not isinstance(self.ext_basis, list)
-                    else self.ext_basis[index]
-                )
-            )
+            if isinstance(self.ext_basis, list):
+                ext_basis = self.ext_basis[index]
+            else:
+                ext_basis = "harmonic" if is_purely_harmonic else self.ext_basis
             self.subsystems.append(
                 circuit.Subsystem(
                     self,
