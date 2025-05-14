@@ -1217,7 +1217,7 @@ class ParameterSweep(  # type:ignore
                 self._parameters.paramvals_by_name,
             )
             circuit_esys[subsys_index] = (
-                bare_esys  # when param =(p0, p1, p2, ...), subsys i esys is circuit_esys[i][p0, p1, p3, ...]
+                bare_esys  # when param =(p0, p1, p2, ...), subsys i esys is circuit_esys[i][p0, p1, p2, ...]
             )
 
         return (
@@ -1334,11 +1334,24 @@ class ParameterSweep(  # type:ignore
                 subsys.set_bare_eigensys(
                     self._data["circuit_esys"][subsys_index][paramindex_tuple]
                 )
-        # if ParameterSweep is initiated with hilbert_space of Circuit module, the we need to update the Circuit module
-        if hasattr(
-            hilbertspace.subsystem_list[0], "parent"
-        ):  # update necessary interactions and attributes
-            hilbertspace.subsystem_list[0].parent.affected_subsystem_indices = []
+
+            # if the subsys has a parent Circuit/Subsystem module, then update its hilbert_space
+            if hasattr(
+                subsys, "parent"
+            ):  # update necessary interactions and attributes
+                parent_subsys_idx = subsys.parent.get_subsystem_index(
+                    subsys.dynamic_var_indices[0]
+                )
+                # update parents HilbertSpace database
+                subsys.parent.hilbert_space._data["bare_evals"][parent_subsys_idx] = (
+                    np.array([bare_esys[subsys_index][0]])
+                )
+                subsys.parent.hilbert_space._data["bare_evecs"][parent_subsys_idx] = (
+                    np.array([bare_esys[subsys_index][1]])
+                )
+                # remove the subsystem from affected_subsystem_indices
+                if parent_subsys_idx in subsys.parent.affected_subsystem_indices:
+                    subsys.parent.affected_subsystem_indices.remove(parent_subsys_idx)
 
         evals, evecs = hilbertspace.eigensys(
             evals_count=evals_count, bare_esys=bare_esys  # type:ignore
