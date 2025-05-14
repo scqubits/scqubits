@@ -10,7 +10,6 @@ source:
   # url: https://pypi.org/packages/source/{{ name[0] }}/{{ name }}/{{ name }}-{{ version }}.tar.gz
   # sha256: ac6e86777299411c1b8746c744a37f96647093b344fede137d2161d2886ae0de
   path: .
-  git_url: .
 
 build:
   number: 1
