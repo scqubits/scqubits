@@ -250,9 +250,10 @@ class Subsystem(
                 cutoff_str, getattr(self.parent, cutoff_str), "update_cutoffs"
             )
 
-    def _configure(self,
-                   subsys_dict: Optional[Dict[str, Any]] = None,
-                   ) -> None:
+    def _configure(
+        self,
+        subsys_dict: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """Function which is used to initiate the subsystem instance."""
         self._frozen = False
 
