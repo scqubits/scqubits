@@ -73,6 +73,7 @@ from scqubits.utils.spectrum_utils import (
     order_eigensystem,
 )
 import scqubits.core.circuit as circuit
+import scqubits.core.diag as diag
 from abc import ABC
 
 
@@ -1910,17 +1911,24 @@ class CircuitRoutines(ABC):
             return self._eigenvals_for_purely_harmonic(evals_count=evals_count)
 
         hamiltonian_mat = self.hamiltonian()
-        if self.type_of_matrices == "sparse":
-            evals = utils.eigsh_safe(
-                hamiltonian_mat,
-                return_eigenvectors=False,
-                k=evals_count,
-                which="SA",
-            )
-        elif self.type_of_matrices == "dense":
-            evals = sp.linalg.eigvalsh(
-                hamiltonian_mat, subset_by_index=[0, evals_count - 1]
-            )
+        if self.evals_method is None:
+            if self.type_of_matrices == "sparse":
+                evals_method = "evals_scipy_sparse"
+            elif self.type_of_matrices == "dense":
+                evals_method = "evals_scipy_dense"
+
+        evals_method = self.evals_method or evals_method
+
+        diagonalizer = (
+            diag.DIAG_METHODS[evals_method]
+            if isinstance(evals_method, str)
+            else evals_method
+        )
+        evals = diagonalizer(
+            hamiltonian_mat,
+            evals_count=evals_count,
+            **({} if self.evals_method_options is None else self.evals_method_options),
+        )
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
@@ -1935,21 +1943,26 @@ class CircuitRoutines(ABC):
             )
 
         hamiltonian_mat = self.hamiltonian()
-        if self.type_of_matrices == "sparse":
-            evals, evecs = utils.eigsh_safe(
-                hamiltonian_mat,
-                return_eigenvectors=True,
-                k=evals_count,
-                which="SA",
-            )
-        elif self.type_of_matrices == "dense":
-            evals, evecs = sp.linalg.eigh(
-                hamiltonian_mat,
-                eigvals_only=False,
-                subset_by_index=[0, evals_count - 1],
-            )
-        evals, evecs = order_eigensystem(evals, evecs, standardize_phase=True)
-        return evals, evecs
+
+        if self.esys_method is None:
+            if self.type_of_matrices == "sparse":
+                esys_method = "esys_scipy_sparse"
+            elif self.type_of_matrices == "dense":
+                esys_method = "esys_scipy_dense"
+
+        esys_method = self.esys_method or esys_method
+
+        diagonalizer = (
+            diag.DIAG_METHODS[esys_method]
+            if isinstance(esys_method, str)
+            else esys_method
+        )
+        evals, evecs = diagonalizer(
+            hamiltonian_mat,
+            evals_count=evals_count,
+            **({} if self.esys_method_options is None else self.esys_method_options),
+        )
+        return order_eigensystem(evals, evecs, standardize_phase=True)
 
     def generate_bare_eigensys(self):
         """Returns the eigensystem of the Circuit, and all the subsystems involved in the bare basis."""
