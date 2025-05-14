@@ -1,65 +1,57 @@
 {% set name = "scqubits" %}
-{% set version = "4.1.0" %}
+# {% set version = "4.3" %}
+{% set python_min = "3.9" %}
 
 package:
   name: {{ name|lower }}
-  version: {{ version }}
+  version: {{ GIT_DESCRIBE_TAG }}
 
 source:
-  # url: https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/{{ name }}-{{ version }}.tar.gz
-  # sha256: b721600b0d782c9ffea03ff7cd69f7b01ed7f72f3022ff37e943881d7b17af41
+  # url: https://pypi.org/packages/source/{{ name[0] }}/{{ name }}/{{ name }}-{{ version }}.tar.gz
+  # sha256: ac6e86777299411c1b8746c744a37f96647093b344fede137d2161d2886ae0de
   path: .
+  git_url: .
 
 build:
-  number: 0
-  skip: true  # [py<37]
-  script: "{{ PYTHON }} -m pip install . -vv"
-
-channels:
-  - conda-forge
+  number: 1
+  noarch: python
+  script: {{ PYTHON }} -m pip install . -vv
 
 requirements:
   host:
-    - python
+    - python {{ python_min }}
+    - setuptools
+    - setuptools-scm
     - pip
-    - cython >=0.29.20                
-    - numpy >=1.14.2
-  build:
-    - python                               
-    - cython >=0.29.20                  
-    - numpy >=1.14.2
-    - scipy                         
-    - {{ compiler('cxx') }}
+    - wheel
   run:
-    - python
+    - python >={{ python_min }}
     - cycler
-    - matplotlib >=3.5.1
+    - dill
+    - pathos >=0.3.0
+    - matplotlib-base >=3.5.1
     - numpy >=1.14.2
     - qutip >=4.3.1
     - scipy >=1.5
-    - dill
     - sympy
     - tqdm
     - typing_extensions
-    - h5py >=2.10
-    - pathos >=0.3.0
-    - traitlets
-    # Optional dependencies
-    - ipywidgets
+  # Optional dependencies
+    - ipywidgets >=7.5
     - ipyvuetify
+    - matplotlib-label-lines >=0.3.6
+    - h5py >=2.10
 
 test:
-  requires:
-    - pytest
-    - pytest-cov
-    - pathos
-  source_files:
-    - scqubits/
   imports:
     - scqubits
+  requires:
+    - pytest
+    - pip
+    - python {{ python_min }}
   commands:
-    - pytest -v --pyargs scqubits
-    - pytest -v --pyargs scqubits --num_cpus=4
+    - pytest --pyargs scqubits
+    - pip check
 
 about:
   home: https://github.com/scqubits/scqubits
