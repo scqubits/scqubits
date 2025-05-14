@@ -387,7 +387,7 @@ mode_dropdown_dict = {
     "Re(·)": "real",
     "Im(·)": "imag",
     "|·|": "abs",
-    "|\u00B7|\u00B2": "abs_sqr",
+    "|\u00b7|\u00b2": "abs_sqr",
 }
 
 mode_dropdown_list = list(mode_dropdown_dict.keys())
