@@ -228,7 +228,7 @@ class TestCircuit:
         assert np.allclose(coherence_times, ref)
 
     @staticmethod
-    def test_get_spectrum_vs_paramvals(num_cpus):
+    def test_circuit_parametersweep(num_cpus):
         DFC = scq.Circuit(
             DATADIR + "circuit_DFC.yaml",
             ext_basis="discretized",
@@ -273,6 +273,7 @@ class TestCircuit:
             evals_count=6,
             num_cpus=num_cpus,
         )
+        ps.run()
 
     @staticmethod
     def test_qutip_dynamics(num_cpus):

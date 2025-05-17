@@ -250,7 +250,10 @@ class Subsystem(
                 cutoff_str, getattr(self.parent, cutoff_str), "update_cutoffs"
             )
 
-    def _configure(self) -> None:
+    def _configure(
+        self,
+        subsys_dict: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """Function which is used to initiate the subsystem instance."""
         self._frozen = False
 
@@ -269,7 +272,7 @@ class Subsystem(
         if self.hierarchical_diagonalization:
             # attribute to note updated subsystem indices
             self._hamiltonian_sym_for_numerics = self.hamiltonian_symbolic.copy()
-            self._generate_subsystems()
+            self._generate_subsystems(subsys_dict=subsys_dict)
             self.ext_basis = self.get_ext_basis()
             self._update_interactions()
             self._check_truncation_indices()

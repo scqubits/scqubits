@@ -162,7 +162,7 @@ def evals_vs_paramvals(specdata: "SpectrumData", **kwargs) -> Dict[str, Any]:
 
 
 def matelem_vs_paramvals(
-    specdata: Union["SpectrumData", "DataStore"]
+    specdata: Union["SpectrumData", "DataStore"],
 ) -> Dict[str, Any]:
     """Plot defaults for plotting.matelem_vs_paramvals."""
     return {"xlabel": recast_name(specdata.param_name), "ylabel": "matrix element"}
