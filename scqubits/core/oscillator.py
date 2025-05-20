@@ -105,7 +105,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         self.l_osc: Union[None, float] = l_osc  # type:ignore
         self.E_osc = E_osc
         self._image_filename = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "qubit_img/oscillator.jpg"
+            os.path.dirname(os.path.abspath(__file__)), "qubit_img/Oscillator.jpg"
         )
 
     @staticmethod
