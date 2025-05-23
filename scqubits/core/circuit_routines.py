@@ -1257,6 +1257,7 @@ class CircuitRoutines(ABC):
             saw_argument_expr = [
                 arg.args[0] for arg in (1.0 * saw_term).args if (arg.has(saw))
             ][0]
+            skewness = float(saw_term.args[1])
 
             saw_argument_operator = self._evaluate_symbolic_expr(
                 saw_argument_expr, bare_esys
@@ -1264,7 +1265,7 @@ class CircuitRoutines(ABC):
 
             # since this operator only works for discretized phi basis
 
-            diagonal_elements = sawtooth_potential(saw_argument_operator.diag())
+            diagonal_elements = sawtooth_potential(saw_argument_operator.diag(), skewness)
             saw_potential_matrix += coefficient * qt.qdiags(
                 diagonal_elements, 0, dims=saw_potential_matrix.dims
             )

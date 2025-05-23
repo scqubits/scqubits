@@ -58,7 +58,7 @@ def _junction_order(branch_type: str) -> int:
         return 1
 
 
-def sawtooth_operator(x: Union[ndarray, csc_matrix]):
+def sawtooth_operator(x: Union[ndarray, csc_matrix], skewness: float):
     """Returns the operator evaluated using applying the sawtooth_potential function on
     the diagonal elements of the operator x.
 
@@ -67,7 +67,7 @@ def sawtooth_operator(x: Union[ndarray, csc_matrix]):
     x:
         argument of the sawtooth operator in the Hamiltonian
     """
-    diagonal_elements = sawtooth_potential(x.diagonal())
+    diagonal_elements = sawtooth_potential(x.diagonal(), skewness)
 
     operator = sp.sparse.dia_matrix(
         (diagonal_elements, 0), shape=(len(diagonal_elements), len(diagonal_elements))
@@ -84,9 +84,8 @@ def sawtooth_operator(x: Union[ndarray, csc_matrix]):
 #     return (x_rel)**2/(np.pi)**2 # normalized to have a maximum of 1
 
 
-def sawtooth_potential(phi_pts):
+def sawtooth_potential(phi_pts, skewness:float = 1):
     # definition from Andras
-    skewness = 0.99
     N = 1000
     V = np.zeros_like(phi_pts)
     for idx in range(1, N + 1):

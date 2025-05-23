@@ -451,6 +451,8 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         saw = sympy.Function("saw", real=True)
 
         for branch_idx, jj_branch in enumerate(junction_branches):
+            # get the skewness factor if defined in aux params
+            skewness = jj_branch.aux_params.get("s", 1)
             # adding external flux
             phi_ext = self.branch_flux_allocations[jj_branch.index]
 
@@ -458,11 +460,11 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
             junction_param = "EJ"
             if jj_branch.nodes[1].index == 0:
                 terms += jj_branch.parameters[junction_param] * saw(
-                    (-sympy.symbols(f"φ{jj_branch.nodes[0].index}") + phi_ext)
+                    (-sympy.symbols(f"φ{jj_branch.nodes[0].index}") + phi_ext), skewness
                 )
             elif jj_branch.nodes[0].index == 0:
                 terms += jj_branch.parameters[junction_param] * saw(
-                    (sympy.symbols(f"φ{jj_branch.nodes[1].index}") + phi_ext)
+                    (sympy.symbols(f"φ{jj_branch.nodes[1].index}") + phi_ext), skewness
                 )
             else:
                 terms += jj_branch.parameters[junction_param] * saw(
@@ -472,7 +474,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
                             - sympy.symbols(f"φ{jj_branch.nodes[0].index}")
                         )
                         + phi_ext
-                    )
+                    ), skewness
                 )
         return terms
 
