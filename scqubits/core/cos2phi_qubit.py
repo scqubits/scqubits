@@ -1966,7 +1966,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
         r"""Calculates the derivative of the Hamiltonian with respect to offset charge ng.
-        This operator corresponds to ∂H/∂ng and is crucial for calculating the 
+        This operator corresponds to ∂H/∂ng and is crucial for calculating the
         susceptibility to charge noise and related dephasing effects. The offset charge
         ng appears in the Hamiltonian in the cross-kinetic term and in the capacitive
         disorder term, affecting both the energy spectrum and qubit coherence properties.
