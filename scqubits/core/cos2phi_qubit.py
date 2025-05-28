@@ -1968,27 +1968,29 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     def d_hamiltonian_d_ng(
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
-        r"""Returns operator representing a derivative of the Hamiltonian with respect to
-        ng in the native or eigenenergy basis.
-
+        r"""Calculates the derivative of the Hamiltonian with respect to offset charge ng.
+        This operator corresponds to ∂H/∂ng and is crucial for calculating the 
+        susceptibility to charge noise and related dephasing effects. The offset charge
+        ng appears in the Hamiltonian in the cross-kinetic term and in the capacitive
+        disorder term, affecting both the energy spectrum and qubit coherence properties.
+        The derivative includes two contributions:
+        1. From the main kinetic term: -4E_CJ'(n_θ - ng - n_ζ)
+        2. From the capacitive disorder term: 4dCJ·E_CJ'·n_φ
+        
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator in the harmonic oscillator basis.
-            If `True`, the energy eigenspectrum is computed, returns operator in the
-            energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues
-            and energy eigenvectors), returns operator in the energy eigenbasis, and does not
-            have to recalculate eigenspectrum.
-
+            If `False` (default), returns operator in the native basis.
+            If `True`, returns operator in the energy eigenbasis.
+            If a tuple `(evals, evecs)`, returns operator in the basis provided by `evecs`.
+            
         Returns
         -------
-            Operator in chosen basis. If harmonic oscillator basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
-            basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
-            and is returned as an ndarray.
+        Union[ndarray, csc_matrix]
+            The charge derivative operator ∂H/∂ng in the specified basis.
+            In native basis, returned as a sparse matrix.
+            In eigenbasis, returned as a dense array with dimensions determined by
+            truncated_dim or the provided eigenvectors.
         """
         native = (
             4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator()
