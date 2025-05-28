@@ -43,12 +43,12 @@ from scqubits.core.storage import WaveFunctionOnGrid
 # - Cosine-2-phi qubit noise class ------------------------------------------
 class NoisyCos2PhiQubit(NoisySystem, ABC):
     """Abstract base class for incorporating noise in the Cos2PhiQubit.
-    
+
     This class defines the interface for noise-related operators and calculations
     specific to this qubit type. It provides methods to calculate decoherence
     times (T1) due to various noise channels like inductive dissipation,
     capacitive dissipation, and Purcell effect.
-    
+
     Subclasses must implement the required operators (phi_1, phi_2, n_1, n_2, n_zeta)
     that are used to calculate the noise effects.
     """
@@ -58,17 +58,17 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
         """Returns the operator representing the phase across inductor 1.
-        
+
         This operator corresponds to the phase difference across one of the
         effective inductors in the circuit, typically defined as φ_1 = ζ - φ.
-        
+
         Parameters
         ----------
         energy_esys:
             If `False` (default), returns operator in the native basis.
             If `True`, returns operator in the energy eigenbasis.
             If a tuple `(evals, evecs)`, returns operator in the basis provided by `evecs`.
-            
+
         Returns
         -------
             The φ_1 operator in the specified basis.
@@ -80,17 +80,17 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
         """Returns the operator representing the phase across inductor 2.
-        
+
         This operator corresponds to the phase difference across the other
         effective inductor in the circuit, typically defined as φ_2 = -ζ - φ.
-        
+
         Parameters
         ----------
         energy_esys:
             If `False` (default), returns operator in the native basis.
             If `True`, returns operator in the energy eigenbasis.
             If a tuple `(evals, evecs)`, returns operator in the basis provided by `evecs`.
-            
+
         Returns
         -------
             The φ_2 operator in the specified basis.
@@ -102,17 +102,17 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
         """Returns the operator representing the charge difference across junction 1.
-        
+
         This operator corresponds to the charge variable conjugate to the phase
         across junction 1, typically defined as n_1 = (n_φ + n_θ - n_ζ)/2.
-        
+
         Parameters
         ----------
         energy_esys:
             If `False` (default), returns operator in the native basis.
             If `True`, returns operator in the energy eigenbasis.
             If a tuple `(evals, evecs)`, returns operator in the basis provided by `evecs`.
-            
+
         Returns
         -------
             The n_1 operator in the specified basis.
@@ -124,17 +124,17 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
         """Returns the operator representing the charge difference across junction 2.
-        
+
         This operator corresponds to the charge variable conjugate to the phase
         across junction 2, typically defined as n_2 = (n_φ - n_θ + n_ζ)/2.
-        
+
         Parameters
         ----------
         energy_esys:
             If `False` (default), returns operator in the native basis.
             If `True`, returns operator in the energy eigenbasis.
             If a tuple `(evals, evecs)`, returns operator in the basis provided by `evecs`.
-            
+
         Returns
         -------
             The n_2 operator in the specified basis.
@@ -146,17 +146,17 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
         """Returns the operator representing the charge variable n_ζ.
-        
+
         This operator corresponds to the charge variable conjugate to the ζ
         degree of freedom, which is related to the shunt capacitor.
-        
+
         Parameters
         ----------
         energy_esys:
             If `False` (default), returns operator in the native basis.
             If `True`, returns operator in the energy eigenbasis.
             If a tuple `(evals, evecs)`, returns operator in the basis provided by `evecs`.
-            
+
         Returns
         -------
             The n_ζ operator in the specified basis.
@@ -174,20 +174,20 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         get_rate: bool = False,
     ) -> float:
         r"""Calculates T₁ relaxation time/rate due to inductive dissipation in superinductors.
-        
+
         This noise channel considers energy dissipation due to losses in the inductors
         L₁ and L₂ (with potential disorder dL). The quality factor Q_ind characterizes
         these losses.
-        
+
         The calculation involves two contributions, one for each inductor, using
         their respective phase operators φ₁ and φ₂.
-        
+
         If Q_ind is not provided, a default frequency-dependent quality factor
         based on Smith et al. (2020) is used.
-        
+
         References: Nguyen et al. (2019) [Phys. Rev. Applied 11, 044072],
                     Smith et al. (2020) [NPJ Quantum Inf. 6, 8]
-        
+
         Parameters
         ----------
         i: int >=0
@@ -207,12 +207,12 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         get_rate:
             If True, return the relaxation rate Γ₁ (inverse of T₁)
             If False (default), return the relaxation time T₁
-            
+
         Returns
         -------
         float
             Decoherence time T₁ in units of 2π (system units), or rate Γ₁ in inverse units
-            
+
         Raises
         ------
         RuntimeError
@@ -584,18 +584,18 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
 # -Cosine two phi qubit ----------------------------------------------------------------
 class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQubit):
     r"""Cosine Two Phi Qubit implementation with full numerical diagonalization.
-    
+
     This class implements the Cosine-2-phi qubit, a superconducting qubit design
     featuring two inductors and two Josephson junctions, with a three-dimensional
     Hilbert space. The qubit is designed to have protection against certain noise
     channels through its circuit topology.
-    
+
     The Hamiltonian, as described in Smith et al. (2020), involves three degrees of
     freedom: φ, ζ, and θ. The variables φ and ζ are treated as harmonic oscillator
     modes, while θ is represented in the charge basis.
-    
+
     The full Hamiltonian is:
-    
+
     .. math::
 
         H = & \,2 E_\text{CJ}'n_\phi^2 + 2 E_\text{CJ}' (n_\theta - n_\text{g} - n_\zeta)^2 + 4 E_\text{C} n_\zeta^2\\
@@ -606,7 +606,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
     where :math:`E_\text{CJ}' = E_\text{CJ} / (1 - dC_\text{J})^2` and
     :math:`E_\text{L}' = E_\text{L} / (1 - dL)^2`.
-    
+
     Reference: Smith et al., NPJ Quantum Inf. 6, 8 (2020)
     http://www.nature.com/articles/s41534-019-0231-2
 
@@ -712,10 +712,10 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     @staticmethod
     def default_params() -> Dict[str, Any]:
         r"""Returns a dictionary of default parameters for the Cos2PhiQubit.
-        
+
         These parameters provide a starting point for typical simulations of the
         Cos2Phi qubit with reasonable values based on experimental implementations.
-        
+
         Returns
         -------
         Dict[str, Any]
@@ -812,7 +812,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     def _dim_theta(self) -> int:
         r"""
         Returns Hilbert space dimension of :math:`\theta` degree of freedom
-
 
         Parameters
         ----------
@@ -1355,12 +1354,12 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> csc_matrix:
         r"""Constructs and returns the Hamiltonian of the Cos2PhiQubit.
-        
+
         The Hamiltonian is built term by term in the native basis (φ and ζ in
         harmonic oscillator bases, θ in charge basis). It includes kinetic terms
         for all three degrees of freedom, potential terms for the inductors,
         Josephson junction terms, and disorder terms.
-        
+
         Parameters
         ----------
         energy_esys:
@@ -1369,7 +1368,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             (diagonal matrix of eigenvalues).
             If a tuple `(evals, evecs)`, returns Hamiltonian in the basis provided
             by `evecs`.
-            
+
         Returns
         -------
         Union[ndarray, csc_matrix]
@@ -1511,16 +1510,16 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
     def potential(self, phi, zeta, theta) -> float:
         r"""Evaluates the potential energy function at given coordinate values.
-        
+
         Computes the potential energy part of the Hamiltonian:
-        
+
         .. math::
             U(\phi,\zeta,\theta) = E_L'(\phi^2 + \zeta^2) - 2E_J\cos\theta\cos(\phi+\pi\cdot\text{flux})
             + 2dE_J\cdot E_J\sin(\phi+\pi\cdot\text{flux})\sin\theta
-            
+
         Note that disorder in inductors (dL) is incorporated into E_L'. Also, the
         flux is incorporated into the arguments of the trigonometric functions.
-        
+
         Parameters
         ----------
         phi: float or ndarray
@@ -1529,7 +1528,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             Value(s) of the phase variable ζ
         theta: float or ndarray
             Value(s) of the phase variable θ
-            
+
         Returns
         -------
         Union[float, ndarray]
@@ -1567,7 +1566,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Draw contour plot of the potential energy in :math:`\theta, \phi` basis,
         at :math:`\zeta = 0`.
 
-
         Parameters
         ----------
         phi_grid: Grid1d, option
@@ -1602,12 +1600,12 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         self, esys=None, which=0, phi_grid=None, zeta_grid=None, theta_grid=None
     ) -> WaveFunctionOnGrid:
         r"""Computes the 3D wavefunction in the φ-ζ-θ coordinate space.
-        
+
         This method constructs the real-space representation of a specific eigenstate.
         It transforms the eigenvector (initially expressed in the product basis)
         into a 3D grid representation by using harmonic oscillator wavefunctions
         for φ and ζ, and plane waves for θ.
-        
+
         Parameters
         ----------
         esys: Tuple[ndarray, ndarray], optional
@@ -1620,7 +1618,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             Grid for the ζ coordinate. If None, a default grid is used.
         theta_grid: Grid1d, optional
             Grid for the θ coordinate. If None, a default grid is used.
-            
+
         Returns
         -------
         WaveFunctionOnGrid
@@ -1693,7 +1691,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     ) -> Tuple[Figure, Axes]:
         r"""
         Plots a 2D wave function in :math:`\theta, \phi` basis, at :math:`\zeta = 0`
-
 
         Parameters
         ----------
@@ -1874,20 +1871,20 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
     ) -> Union[ndarray, csc_matrix]:
         r"""Calculates the derivative of the Hamiltonian with respect to external flux.
-        
+
         This operator corresponds to ∂H/∂(flux·π) and is crucial for calculating
         the susceptibility to flux noise and related dephasing effects.
-        
+
         The flux derivative primarily affects the Josephson junction terms in the
         Hamiltonian, which depend on flux through cos(φ+π·flux) and sin(φ+π·flux).
-        
+
         Parameters
         ----------
         energy_esys:
             If `False` (default), returns operator in the native basis.
             If `True`, returns operator in the energy eigenbasis.
             If a tuple `(evals, evecs)`, returns operator in the basis provided by `evecs`.
-            
+
         Returns
         -------
         Union[ndarray, csc_matrix]
@@ -1976,14 +1973,14 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         The derivative includes two contributions:
         1. From the main kinetic term: -4E_CJ'(n_θ - ng - n_ζ)
         2. From the capacitive disorder term: 4dCJ·E_CJ'·n_φ
-        
+
         Parameters
         ----------
         energy_esys:
             If `False` (default), returns operator in the native basis.
             If `True`, returns operator in the energy eigenbasis.
             If a tuple `(evals, evecs)`, returns operator in the basis provided by `evecs`.
-            
+
         Returns
         -------
         Union[ndarray, csc_matrix]
