@@ -1797,7 +1797,6 @@ class NoisyCircuit(NoisySystem, ABC):
         the `NoisyCircuit` (or its subclass) is initialized and its symbolic
         properties are defined.
         """
-        
         self._frozen = False
         self._generate_methods_d_hamiltonian_d()
         self._generate_tphi_1_over_f_methods()
