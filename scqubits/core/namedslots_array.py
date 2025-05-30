@@ -468,6 +468,48 @@ class Parameters:
         return OrderedDict(zip(self.paramnames_list, param_mesh_nsarray))
 
 
+def extract_data_structure(named_slots_array: "NamedSlotsNdarray") -> Dict[str, Any]:
+    """
+    Extract data from NamedSlotsNdarray into a pure Python/NumPy data structure.
+    
+    This intermediate representation can be used to create xarray DataArrays or 
+    other data formats while preserving all relevant information from the 
+    NamedSlotsNdarray.
+    
+    Parameters
+    ----------
+    named_slots_array : NamedSlotsNdarray
+        The input NamedSlotsNdarray object to extract data from
+        
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary containing:
+        - 'data': numpy.ndarray - the underlying data array
+        - 'dims': List[str] - dimension names (parameter names)
+        - 'coords': Dict[str, numpy.ndarray] - coordinate arrays for each dimension
+        - 'attrs': Dict[str, Any] - metadata attributes
+        - 'counts': Tuple[int, ...] - number of values per parameter
+        - 'param_info': Dict[str, numpy.ndarray] - alias for coords for compatibility
+    """
+    return {
+        'data': named_slots_array.view(np.ndarray),  # Get underlying numpy array
+        'dims': named_slots_array._parameters.paramnames_list.copy(),
+        'coords': {
+            name: vals.copy() 
+            for name, vals in named_slots_array._parameters.paramvals_by_name.items()
+        },
+        'attrs': {
+            'source': 'NamedSlotsNdarray',
+            'slot_count': named_slots_array.slot_count,
+            'original_shape': named_slots_array.shape,
+            'original_dtype': str(named_slots_array.dtype),
+        },
+        'counts': named_slots_array._parameters.counts,
+        'param_info': named_slots_array._parameters.paramvals_by_name.copy()
+    }
+
+
 class NamedSlotsNdarray(np.ndarray, Serializable):
     """
     This class implements multi-dimensional arrays, for which the leading M dimensions
@@ -653,3 +695,118 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
 
     def toarray(self) -> ndarray:
         return self.view(ndarray)
+
+    def to_xarray(self, name: Optional[str] = None, **kwargs) -> Any:
+        """
+        Convert NamedSlotsNdarray to xarray.DataArray.
+        
+        This method creates an xarray DataArray that preserves the multidimensional
+        structure and parameter information of the NamedSlotsNdarray. The resulting
+        DataArray supports label-based indexing and integrates seamlessly with the
+        scientific Python ecosystem.
+        
+        Parameters
+        ----------
+        name : str, optional
+            Name for the resulting DataArray. If None, defaults to "data".
+        **kwargs : dict, optional
+            Additional keyword arguments passed to xarray.DataArray constructor.
+            These can include additional attributes or override default behavior.
+            
+        Returns
+        -------
+        xarray.DataArray
+            DataArray with:
+            - data: the underlying numpy array
+            - dims: parameter names as dimension labels
+            - coords: parameter values as coordinates
+            - attrs: metadata including source information
+            
+        Examples
+        --------
+        >>> import numpy as np
+        >>> values_by_name = {
+        ...     'flux': np.linspace(-1.0, 1.0, 5),
+        ...     'ng': np.linspace(-0.5, 0.5, 3)
+        ... }
+        >>> data = np.random.rand(5, 3)
+        >>> nsarray = NamedSlotsNdarray(data, values_by_name)
+        >>> da = nsarray.to_xarray(name='energy_levels')
+        >>> 
+        >>> # Label-based selection (equivalent to nsarray['flux': 0.5])
+        >>> subset = da.sel(flux=0.5, method='nearest')
+        >>> 
+        >>> # Statistical operations along dimensions
+        >>> mean_over_flux = da.mean(dim='flux')
+        
+        Notes
+        -----
+        Requires xarray to be installed. The conversion preserves all parameter
+        information and enables powerful label-based operations that are natural
+        for scientific data analysis.
+        
+        The resulting xarray.DataArray supports:
+        - Label-based indexing: da.sel(param1=value1, param2=value2)
+        - Statistical operations: da.mean(dim='param1')
+        - Broadcasting and alignment with other DataArrays
+        - Integration with matplotlib for plotting
+        - Export to various formats (NetCDF, Zarr, etc.)
+        """
+        try:
+            import xarray as xr
+        except ImportError:
+            raise ImportError(
+                "xarray is required for this functionality. "
+                "Install it with: pip install xarray"
+            )
+        
+        # Extract data structure
+        data_dict = extract_data_structure(self)
+        
+        # Set default name if not provided
+        if name is None:
+            name = "data"
+        
+        # Create coordinate dictionary compatible with xarray
+        coords = {}
+        for dim_name, coord_values in data_dict['coords'].items():
+            coords[dim_name] = coord_values
+        
+        # Merge additional attributes from kwargs
+        attrs = data_dict['attrs'].copy()
+        if 'attrs' in kwargs:
+            attrs.update(kwargs.pop('attrs'))
+        
+        # Create xarray DataArray
+        data_array = xr.DataArray(
+            data=data_dict['data'],
+            dims=data_dict['dims'],
+            coords=coords,
+            name=name,
+            attrs=attrs,
+            **kwargs
+        )
+        
+        return data_array
+    
+    def extract_data_dict(self) -> Dict[str, Any]:
+        """
+        Extract data to a pure Python/NumPy data structure.
+        
+        This method provides access to the intermediate data representation
+        that can be used to create various output formats (xarray, polars, etc.)
+        
+        Returns
+        -------
+        Dict[str, Any]
+            Dictionary containing 'data', 'dims', 'coords', 'attrs', and other
+            metadata from the NamedSlotsNdarray.
+            
+        Examples
+        --------
+        >>> nsarray = NamedSlotsNdarray(data, values_by_name)
+        >>> data_dict = nsarray.extract_data_dict()
+        >>> print(data_dict.keys())
+        dict_keys(['data', 'dims', 'coords', 'attrs', 'counts', 'param_info'])
+        """
+        return extract_data_structure(self)
