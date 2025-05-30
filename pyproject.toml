@@ -48,6 +48,7 @@ dependencies = [
     "sympy",
     "tqdm",
     "typing_extensions",
+    "xarray",
 ]
 
 [project.optional-dependencies]
