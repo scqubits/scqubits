@@ -755,12 +755,16 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
                     + phi_ext
                 )
             branch_fluxes.append(branch_flux)
-        branch_currents = inverse_inductance_mat @ np.array(branch_fluxes)
-        terms = 0
-        for idx, branch in enumerate(
-            [branch for branch in self.branches if branch.type == "L"]
-        ):
-            terms += 0.5 * 1 / (branch.parameters["EL"]) * branch_currents[idx] ** 2
+        if substitute_params:
+            terms = (branch_fluxes @ inverse_inductance_mat @ branch_fluxes) / 2
+        else:
+            terms = (
+                sympy.Matrix(branch_fluxes).T
+                @ sympy.Matrix(inverse_inductance_mat)
+                @ sympy.Matrix(branch_fluxes)
+            )[0] / 2
+        if type(terms) is sympy.Expr:
+            terms = terms.expand()
         # substitute params if necessary
         if substitute_params and terms != 0:
             for symbol in self.symbolic_params:
@@ -799,7 +803,10 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
                     for var_sym in frozen_var_expr.free_symbols
                 ]
             )
-            voltages.insert(index, round_symbolic_expr(frozen_var_expr, settings.SYM_ROUNDING_PRECISION))
+            voltages.insert(
+                index,
+                round_symbolic_expr(frozen_var_expr, settings.SYM_ROUNDING_PRECISION),
+            )
 
         node_voltages = list(transformation_matrix * sympy.Matrix(voltages))
 
@@ -876,7 +883,9 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         phi_ext = self.branch_flux_allocations[branch.index]
         for idx, var in enumerate(old_vars):
             expr_node_vars = expr_node_vars.subs(var, transformed_expr[idx])
-        return round_symbolic_expr(expr_node_vars + phi_ext, settings.SYM_ROUNDING_PRECISION)
+        return round_symbolic_expr(
+            expr_node_vars + phi_ext, settings.SYM_ROUNDING_PRECISION
+        )
 
     def generate_symbolic_lagrangian(
         self, substitute_params: bool = False
@@ -958,7 +967,9 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
             for frozen_var, frozen_expr in frozen_exprs.items():
                 potential_θ = potential_θ.replace(frozen_var, frozen_expr).expand()
             self.frozen_var_exprs = {
-                get_trailing_number(frozen_var.name): round_symbolic_expr(frozen_expr, settings.SYM_ROUNDING_PRECISION)
+                get_trailing_number(frozen_var.name): round_symbolic_expr(
+                    frozen_expr, settings.SYM_ROUNDING_PRECISION
+                )
                 for frozen_var, frozen_expr in frozen_exprs.items()
             }
 
@@ -1025,7 +1036,9 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
                 symbols(f"n{var_index}") + symbols(f"ng{var_index}"),
             )
 
-        return round_symbolic_expr(hamiltonian_symbolic.expand(), settings.SYM_ROUNDING_PRECISION)
+        return round_symbolic_expr(
+            hamiltonian_symbolic.expand(), settings.SYM_ROUNDING_PRECISION
+        )
 
     def trans_cap_matrix(
         self,

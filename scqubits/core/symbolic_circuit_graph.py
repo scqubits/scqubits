@@ -451,9 +451,7 @@ class SymbolicCircuitGraph(ABC):
             if node_set == []:
                 node_sets_for_trees.append([])
                 for node in circ_copy.nodes:
-                    if node not in flatten_list_recursive(
-                        node_sets_for_trees
-                    ):
+                    if node not in flatten_list_recursive(node_sets_for_trees):
                         tree_index += 1
                         node_sets_for_trees[tree_index].append([node])
                         node_set_index = 0

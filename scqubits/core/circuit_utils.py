@@ -84,7 +84,7 @@ def sawtooth_operator(x: Union[ndarray, csc_matrix], skewness: float):
 #     return (x_rel)**2/(np.pi)**2 # normalized to have a maximum of 1
 
 
-def sawtooth_potential(phi_pts, skewness:float = 1):
+def sawtooth_potential(phi_pts, skewness: float = 1):
     # definition from Andras
     N = 1000
     V = np.zeros_like(phi_pts)
