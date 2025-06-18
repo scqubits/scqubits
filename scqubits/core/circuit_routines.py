@@ -176,7 +176,7 @@ class CircuitRoutines(ABC):
 
         self._hamiltonian_sym_for_numerics = round_symbolic_expr(
             self._transform_hamiltonian(self.hamiltonian_symbolic, eig_vecs).expand(),
-            12,
+            settings.SYM_ROUNDING_PRECISION,
         )
         for flux in self.external_fluxes:
             self._hamiltonian_sym_for_numerics = (
@@ -1265,7 +1265,9 @@ class CircuitRoutines(ABC):
 
             # since this operator only works for discretized phi basis
 
-            diagonal_elements = sawtooth_potential(saw_argument_operator.diag(), skewness)
+            diagonal_elements = sawtooth_potential(
+                saw_argument_operator.diag(), skewness
+            )
             saw_potential_matrix += coefficient * qt.qdiags(
                 diagonal_elements, 0, dims=saw_potential_matrix.dims
             )

@@ -31,6 +31,7 @@ from scqubits.utils.misc import (
     unique_elements_in_list,
 )
 from abc import ABC
+from scqubits import settings
 
 
 class CircuitSymMethods(ABC):
@@ -325,7 +326,7 @@ class CircuitSymMethods(ABC):
         )  # removing the shift vars from the Hamiltonian
         # remove constants from Hamiltonian
         hamiltonian -= hamiltonian.as_coefficients_dict()[1]
-        return round_symbolic_expr(hamiltonian.expand(), 16)
+        return round_symbolic_expr(hamiltonian.expand(), settings.SYM_ROUNDING_PRECISION)
         # * ##########################################################################
 
     def _generate_sym_potential(self):
@@ -574,7 +575,7 @@ class CircuitSymMethods(ABC):
                     )
                 else:
                     time_dep_terms[parameter_expr] = round_symbolic_expr(
-                        operator_expr * expr_dict[term] * term_expr_dict[inner_term], 13
+                        operator_expr * expr_dict[term] * term_expr_dict[inner_term], settings.SYM_ROUNDING_PRECISION
                     )
 
         for parameter_expr in time_dep_terms:

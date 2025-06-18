@@ -474,7 +474,8 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
                             - sympy.symbols(f"φ{jj_branch.nodes[0].index}")
                         )
                         + phi_ext
-                    ), skewness
+                    ),
+                    skewness,
                 )
         return terms
 
@@ -798,7 +799,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
                     for var_sym in frozen_var_expr.free_symbols
                 ]
             )
-            voltages.insert(index, round_symbolic_expr(frozen_var_expr, 10))
+            voltages.insert(index, round_symbolic_expr(frozen_var_expr, settings.SYM_ROUNDING_PRECISION))
 
         node_voltages = list(transformation_matrix * sympy.Matrix(voltages))
 
@@ -875,7 +876,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         phi_ext = self.branch_flux_allocations[branch.index]
         for idx, var in enumerate(old_vars):
             expr_node_vars = expr_node_vars.subs(var, transformed_expr[idx])
-        return round_symbolic_expr(expr_node_vars + phi_ext, 12)
+        return round_symbolic_expr(expr_node_vars + phi_ext, settings.SYM_ROUNDING_PRECISION)
 
     def generate_symbolic_lagrangian(
         self, substitute_params: bool = False
@@ -957,7 +958,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
             for frozen_var, frozen_expr in frozen_exprs.items():
                 potential_θ = potential_θ.replace(frozen_var, frozen_expr).expand()
             self.frozen_var_exprs = {
-                get_trailing_number(frozen_var.name): frozen_expr
+                get_trailing_number(frozen_var.name): round_symbolic_expr(frozen_expr, settings.SYM_ROUNDING_PRECISION)
                 for frozen_var, frozen_expr in frozen_exprs.items()
             }
 
@@ -1024,7 +1025,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
                 symbols(f"n{var_index}") + symbols(f"ng{var_index}"),
             )
 
-        return round_symbolic_expr(hamiltonian_symbolic.expand(), 12)
+        return round_symbolic_expr(hamiltonian_symbolic.expand(), settings.SYM_ROUNDING_PRECISION)
 
     def trans_cap_matrix(
         self,
