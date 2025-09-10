@@ -122,5 +122,5 @@ def _equality_check(val1, val2):
         if hasattr(result, '__iter__') and not isinstance(result, (str, bytes)):
             return np.all(result)
         return bool(result)
-    except:
+    except (TypeError, ValueError, AttributeError, NotImplementedError):
         return False
