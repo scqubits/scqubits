@@ -15,6 +15,7 @@
 from typing import Any, Generic, Optional, Type, TypeVar
 
 from scqubits.core.central_dispatch import DispatchClient
+import numpy as np
 
 TargetType = TypeVar("TargetType")
 
@@ -96,18 +97,30 @@ class WatchedProperty(Generic[TargetType]):
             # Rely on inner_instance.attr_name to do the broadcasting.
         else:
             assert self.attr_name
-            if (
-                self.attr_name not in instance.__dict__
-                and f"_{self.attr_name}" not in instance.__dict__
-            ):
+            if not _equality_check(value, instance.__dict__.get(self.attr_name, None)):
                 if self.setter is None:
                     instance.__dict__[self.attr_name] = value
                 else:
                     self.setter(instance, value, name=self.attr_name)
-                # Rely on inner_instance.attr_name to do the broadcasting.
-            else:
-                if self.setter is None:
-                    instance.__dict__[self.attr_name] = value
-                else:
-                    self.setter(instance, value, name=self.attr_name)
-                instance.broadcast(self.event)
+                if (
+                    self.attr_name in instance.__dict__
+                    or f"_{self.attr_name}" not in instance.__dict__
+                ):  
+                    # Rely on inner_instance.attr_name to do the broadcasting.
+                    instance.broadcast(self.event)
+
+def _equality_check(val1, val2):
+    """
+    Check if two values are equal, handling numpy arrays and other objects.
+    """
+    if val1 is val2:  # Same object reference
+        return True
+    try:
+        # Try standard equality first
+        result = val1 == val2
+        # Handle numpy arrays and other array-like objects
+        if hasattr(result, '__iter__') and not isinstance(result, (str, bytes)):
+            return np.all(result)
+        return bool(result)
+    except:
+        return False
