@@ -278,7 +278,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return self.grid.pt_count * (2 * self.ncut + 1)
 
     def potential(self, phi: ndarray, theta: ndarray) -> ndarray:
-        """
+        r"""
         Returns
         -------
             value of the potential energy evaluated at :math:`\phi`, :math:`\theta`
