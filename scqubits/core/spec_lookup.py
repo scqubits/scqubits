@@ -10,6 +10,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import functools
 import itertools
 import numbers
 from copy import copy
@@ -25,12 +26,18 @@ from qutip import Qobj
 from typing_extensions import Protocol
 
 import scqubits.settings as settings
+import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
 
 from scqubits.core.namedslots_array import NamedSlotsNdarray, convert_to_std_npindex
 from scqubits.utils.typedefs import NpIndexTuple, NpIndices
 from scqubits.utils.spectrum_utils import identity_wrap
+
+if settings.IN_IPYTHON:
+    from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
 
 if TYPE_CHECKING:
     from typing_extensions import Protocol
@@ -1038,28 +1045,49 @@ class SpectrumLookupMixin(MixinCompatible):
         """
         dressed_indices = np.empty(shape=self._parameters.counts, dtype=object)
 
-        param_indices = itertools.product(*map(range, self._parameters.counts))
+        param_indices = list(itertools.product(*map(range, self._parameters.counts)))
+        total_count = len(param_indices)
 
-        for index in param_indices:
-            if ordering == "LX":
-                if BEs_count is not None:
-                    warn(
-                        "BEs_count is not supported for lexical ordering, "
-                        "it will be ignored."
-                    )
-                dressed_indices[index] = self._branch_analysis_LX(
-                    index,
-                    subsys_priority,
-                    transpose,
+        if ordering == "LX":
+            if BEs_count is not None:
+                warn(
+                    "BEs_count is not supported for lexical ordering, "
+                    "it will be ignored."
                 )
-            elif ordering == "BE":
-                dressed_indices[index] = self._branch_analysis_BE(
-                    index,
-                    subsys_priority,
-                    BEs_count,
+            analyze_fn = functools.partial(
+                self._branch_analysis_LX,
+                subsys_priority=subsys_priority,
+                transpose=transpose,
+            )
+        elif ordering == "BE":
+            analyze_fn = functools.partial(
+                self._branch_analysis_BE,
+                subsys_priority=subsys_priority,
+                BEs_count=BEs_count,
+            )
+        else:
+            raise ValueError(f"Ordering {ordering} is not supported.")
+
+        num_cpus = getattr(self, "_num_cpus", 1)
+        tqdm_disabled = getattr(self, "tqdm_disabled", settings.PROGRESSBAR_DISABLED)
+        target_map = cpu_switch.get_map_method(num_cpus)
+
+        with utils.InfoBar(
+            "Parallel branch analysis [num_cpus={}]".format(num_cpus),
+            num_cpus,
+        ):
+            results = list(
+                tqdm(
+                    target_map(analyze_fn, param_indices),
+                    total=total_count,
+                    desc="Branch analysis",
+                    leave=False,
+                    disable=tqdm_disabled,
                 )
-            else:
-                raise ValueError(f"Ordering {ordering} is not supported.")
+            )
+
+        for index, result in zip(param_indices, results):
+            dressed_indices[index] = result
 
         dressed_indices = np.asarray(dressed_indices[:].tolist())
 
