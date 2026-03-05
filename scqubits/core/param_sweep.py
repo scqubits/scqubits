@@ -1504,22 +1504,22 @@ class ParameterSweep(  # type:ignore
 
         def desired_func(parametersweep, paramindex_tuple, paramvals_tuple, **kwargs):
             if update_hilbertspace:
-                self._update_hilbertspace(self, *paramvals_tuple)
-                sweep_data_to_hilbertspace(self, paramindex_tuple)
+                parametersweep._update_hilbertspace(parametersweep, *paramvals_tuple)
+                sweep_data_to_hilbertspace(parametersweep, paramindex_tuple)
                 
-                # Circuit module updates, similar to self._update_and_compute_dressed_esys
-                for subsys_index, subsys in enumerate(self.hilbertspace.subsystem_list):
+                # Circuit module updates, similar to parametersweep._update_and_compute_dressed_esys
+                for subsys_index, subsys in enumerate(parametersweep.hilbertspace.subsystem_list):
                     if (
                         hasattr(subsys, "hierarchical_diagonalization")
                         and subsys.hierarchical_diagonalization
                     ):
                         subsys.set_bare_eigensys(
-                            self._data["circuit_esys"][subsys_index][paramindex_tuple]
+                            parametersweep._data["circuit_esys"][subsys_index][paramindex_tuple]
                         )
                 if hasattr(
-                    self.hilbertspace.subsystem_list[0], "parent"
+                    parametersweep.hilbertspace.subsystem_list[0], "parent"
                 ):  # update necessary interactions and attributes
-                    self.hilbertspace.subsystem_list[0].parent.update(calculate_bare_esys=False)
+                    parametersweep.hilbertspace.subsystem_list[0].parent.update(calculate_bare_esys=False)
 
             kwargs_to_pass = {}
             if "paramindex_tuple" in arguement_name:
@@ -1828,10 +1828,27 @@ def generator(sweep: "ParameterSweepBase", func: Callable, **kwargs) -> np.ndarr
     )
     total_count = np.prod(reduced_parameters.counts)
 
+    # Ray optimization: put sweep object in shared memory
+    sweep_ref = None
+    if settings.MULTIPROC == "ray" and sweep._num_cpus > 1:
+        try:
+            import ray
+            if ray.is_initialized():
+                sweep_ref = ray.put(sweep)
+        except ImportError:
+            pass
+
     def func_effective(paramindex_tuple: Tuple[int], params, **kw) -> Any:
         paramvals_tuple = params[paramindex_tuple]
+        
+        # Ray optimization: retrieve sweep from shared memory if available
+        sweep_arg = sweep
+        if sweep_ref is not None:
+            import ray
+            sweep_arg = ray.get(sweep_ref)
+
         return func(
-            sweep,
+            sweep_arg,
             paramindex_tuple=paramindex_tuple,
             paramvals_tuple=paramvals_tuple,
             **kw,
