@@ -84,11 +84,16 @@ def get_map_method(num_nodes: int, cpu_per_node: Optional[int] = None) -> Callab
                 ray.init(num_cpus=num_nodes * cpu_per_node)
             
             def ray_map(func, iterable):
-                @ray.remote(num_cpus=cpu_per_node)
-                def remote_func(x):
-                    return func(x)
+                # Store func in the Ray object store to avoid serializing large
+                # captured arrays into the remote function definition itself.
+                # Ray automatically dereferences ObjectRef arguments before calling.
+                func_ref = ray.put(func)
 
-                result_refs = [remote_func.remote(x) for x in iterable]
+                @ray.remote(num_cpus=cpu_per_node)
+                def remote_func(func_ref, x):
+                    return func_ref(x)
+
+                result_refs = [remote_func.remote(func_ref, x) for x in iterable]
                 return ray.get(result_refs)
 
             return ray_map
