@@ -344,8 +344,7 @@ def convert_operator_to_qobj(
     evecs: Optional[np.ndarray],
 ) -> qt.Qobj:
     if isinstance(operator, qt.Qobj):
-        operator = Qobj_to_scipy_csc_matrix(operator)
-        # return operator
+        return operator
     if isinstance(operator, str):
         return convert_opstring_to_qobj(operator, subsystem, evecs)
     elif isinstance(operator, (np.ndarray, csc_matrix, csr_matrix, dia_matrix)):
@@ -409,7 +408,8 @@ def identity_wrap(
     subsys_list: List["QuantumSys"],
     op_in_eigenbasis: bool = False,
     evecs: Optional[ndarray] = None,
-    is_dia: bool = False
+    is_dia: bool = False,
+    use_cuquantum: bool = False
 ) -> Qobj:
     """Takes the `operator` belonging to `subsystem` and "wraps" it in identities. The
     full Hilbert space is taken to consist of all subsystems given as `subsys_list`.
@@ -445,11 +445,27 @@ def identity_wrap(
     subsys_operator = convert_operator_to_qobj(
         operator, subsystem, op_in_eigenbasis, evecs  # type:ignore
     )
-    if(is_dia):
-        subsys_operator = subsys_operator.to('dia')
+
+    if use_cuquantum:
+        #subsys_operator = qobj_datalayer_convert(subsys_operator)
+        pass
+
+    if is_dia:
+        subsys_operator = subsys_operator.to("dia")
+
     operator_identitywrap_list = [
         qt.operators.qeye(the_subsys.truncated_dim) for the_subsys in subsys_list
     ]
     subsystem_index = subsys_list.index(subsystem)
     operator_identitywrap_list[subsystem_index] = subsys_operator
     return qt.tensor(operator_identitywrap_list)
+
+    def qobj_datalayer_convert(qobj: Qobj) -> Qobj:
+        try: 
+            import qutip_cuquantum as qcu
+        except:
+            raise ImportError("Package qutip-cuquantum is not installed.")
+        if isinstance(qobj.data, qcu.CuOperator):
+            return Qobj
+        else:
+            return qobj.to("csc")
