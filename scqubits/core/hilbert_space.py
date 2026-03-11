@@ -850,11 +850,11 @@ class HilbertSpace(
         elif self.esys_method == "esys_cuquantum":
             print("backend deactivated, import cuQuantum and activate backend")
             try:
-                import qutip_cuquantum, cuquantum.densitymat
+                import qutip_cuquantum as qcu
             except:
                 raise ImportError("Package cuquantum or qutip-cuquantum is not installed.")
-            ctx = cuquantum.densitymat.WorkStream()
-            with qutip_cuquantum.CuQuantumBackend(ctx):
+            ctx = settings.cuDM_WORKSTREAM
+            with qcu.CuQuantumBackend(ctx):
                 hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
         else:
             print("backend deactivated, use default backend")
