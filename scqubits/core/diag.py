@@ -732,7 +732,7 @@ def esys_cuquantum(
     # motivation: returning eigenvectors as Qobjs with CuState data type can help solve the matrix-vector multiplication bug in generate_lookup.
     with qcu.CuQuantumBackend(ctx):
         for i, evec in enumerate(result.evecs):
-            evecs[i] = Qobj(qcu.state.CuState(evec),dims=[hilbert_space_dims,[1]])  # each eigenvector is a Qobj with custate data type
+            evecs[i] = Qobj(qcu.state.CuState(evec).to_array(),dims=[hilbert_space_dims,[1]])  # each eigenvector is a Qobj with custate data type
 
     # Replace the above with the following to return eigenvectors as Qobjs with Dense data type, which will cause the matrix-vector multiplication bug in generate_lookup.
     # In other scqubits eigensolvers, we ofter return eigenvectors as Qobjs with Dense data type.
