@@ -677,14 +677,14 @@ class HilbertSpace(
         else:
             num_evals = BEs_count
 
-        # if qt.settings.core["default_dtype"] == "cuDensity":
-        #     raise ValueError("Cuquantum backend is activated. CuOperator does not support rectangular matices which are required for branch analysis. Please deactivate cuquantum backend and use default backend.")
-        # if self.esys_method == "esys_cuquantum", we raise an error and ask user to use BE and set BEs_count below #value#
-        if (self.esys_method == "esys_cuquantum" or qt.settings.core["default_dtype"] == "cuDensity") and (ordering == "DE" or ordering == "LX"):
+        if qt.settings.core["default_dtype"] == "cuDensity":
+            raise ValueError("cuQuantum backend is not supported. Please deactivate cuQuantum backend and use default backend.")
+        elif self.esys_method == "esys_cuquantum" and (ordering == "DE" or ordering == "LX"):
             krylov_block_size = settings.CUQUANTUM_MIN_KRYLOV_BLOCK_SIZE
             max_buffer_ratio = settings.CUQUANTUM_MAX_BUFFER_RATIO
             allowed_num_eigvals = int(np.ceil(self.dimension/2 / (krylov_block_size*max_buffer_ratio)) - 1) 
             raise ValueError(f"Cannot use cuQuantum eigensolver with DE or LX ordering. Please use Bare Energy ordering and set BEs_count below the allowed value: {allowed_num_eigvals}.")
+
         evals, evecs = self.eigensys(evals_count=num_evals, bare_esys=bare_esys_dict)
 
 
