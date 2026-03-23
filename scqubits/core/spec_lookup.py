@@ -1085,7 +1085,7 @@ class SpectrumLookupMixin(MixinCompatible):
         for each eigenstates, and organize them by bare labels. Before it is called,
         eigenstate labeling by branch analysis should be performed, either by
         `HilbertSpace.generate_lookup(ordering='LX')` or
-        `ParameterSweep(labeling_scheme='LX')`.
+        `ParameterSweep(..., labeling_scheme='LX')`.
 
         The observables computed will be the energy / occupation number / energy
         modulo the energy of the resonator mode (we refer to it as the primary mode).
@@ -1096,8 +1096,8 @@ class SpectrumLookupMixin(MixinCompatible):
             The primary mode, whose excited states form the branches.
             Typically the resonator mode.
         x_observable:
-            The observable expectation value to be computed for the x axis.
-            "N" for total occupation number of the primary mode, "I" for
+            The observable expectation values to be computed on the x axis.
+            "N" for occupation number of the primary mode, "I" for
             its bare state index.
         y_observable:
             The observable expectation value to be computed for the y axis.
@@ -1111,7 +1111,8 @@ class SpectrumLookupMixin(MixinCompatible):
         -------
         x_val, y_val:
             The expectation values of the observables organized by the
-            dressed indices.
+            bare state indices, both with shape (D0, D1, ..., Dn), where 
+            D0, D1, ..., Dn are the dimensions of the subsystems.
         """
         if not self.all_params_fixed(param_npindices):
             raise ValueError("Not all parameters are fixed.")
@@ -1210,7 +1211,8 @@ class SpectrumLookupMixin(MixinCompatible):
             The N matrix of the branch analysis.
         branch:
             The branch index as the non-primary mode's indices (or a tuple
-            of indices).
+            of indices). If a list of branches is provided, the smallest
+            critical photon number of all branches is returned.
         primary_mode_idx:
             The index of the primary mode.
 
@@ -1311,17 +1313,21 @@ class SpectrumLookupMixin(MixinCompatible):
         **kwargs,
     ) -> Tuple[Figure, Axes]:
         """
-        Plot the branch analysis results.
+        Plot the branch analysis results, i.e. the expectation values of the observables
+        organized by the bare state indices.
 
         Parameters
         ----------
         primary_mode:
-            The primary mode (the mode whose eigenstates form the
-            branches, e.g. the resonator mode).
+            The primary mode, whose excited states form the branches.
+            Typically the resonator mode.
         x_observable:
-            The observable to be plotted on the x axis.
+            The observable to be plotted on the x axis. "N" for occupation number 
+            of the primary mode, "I" for its bare state index.
         y_observable:
-            The observable to be plotted on the y axis.
+            The observable to be plotted on the y axis. "E" for eigenenergy, "N" for
+            total occupation number excluding the primary mode, "EM" for eigenenergy
+            modulo the bare energy of the primary mode. 
         param_npindices:
             Indices of the parameter sweep to be analyzed.
         **kwargs:
