@@ -1308,7 +1308,7 @@ class SpectrumLookupMixin(MixinCompatible):
         self,
         primary_mode: "Union[int, QuantumSys]",
         x_observable: Literal["N", "I"] = "N",
-        y_observable: Literal["E", "N", "EM"] = "E",
+        y_observable: Literal["E", "N", "EM"] = "N",
         param_npindices: Union[int, slice, Tuple[int, ...], Tuple[slice, ...]] = 0,
         **kwargs,
     ) -> Tuple[Figure, Axes]:
