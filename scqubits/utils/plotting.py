@@ -448,7 +448,7 @@ def matrix2d(
 def data_vs_paramvals(
     xdata: np.ndarray,
     ydata: np.ndarray,
-    label_list: Union[List[str], List[int]] = None,
+    label_list: Union[List[str], List[int], None] = None,
     **kwargs,
 ) -> Tuple[Figure, Axes]:
     """Plot of a set of ydata vs xdata. The individual points correspond to the a
@@ -469,14 +469,30 @@ def data_vs_paramvals(
     """
     fig, axes = kwargs.get("fig_ax") or plt.subplots()
 
+    xdata = np.asarray(xdata)
+    ydata = np.asarray(ydata)
+
+    # Normalise to 2-dim column arrays so the loop below is uniform.
+    # A 1-dim array is treated as a single dataset (one column).
+    x_cols = xdata.T if xdata.ndim == 2 else [xdata]
+    y_cols = ydata.T if ydata.ndim == 2 else [ydata]
+
+    # Broadcast: if one side has a single column, reuse it for every column of the other.
+    n_curves = max(len(x_cols), len(y_cols))
+    if len(x_cols) == 1:
+        x_cols = x_cols * n_curves
+    if len(y_cols) == 1:
+        y_cols = y_cols * n_curves
+
     if label_list is None:
-        axes.plot(xdata, ydata, **_extract_kwargs_options(kwargs, "plot"))
+        for xdataset, ydataset in zip(x_cols, y_cols):
+            axes.plot(xdataset, ydataset, **_extract_kwargs_options(kwargs, "plot"))
         _process_options(fig, axes, **kwargs)
         return fig, axes
 
-    for idx, ydataset in enumerate(ydata.T):
+    for idx, (xdataset, ydataset) in enumerate(zip(x_cols, y_cols)):
         axes.plot(
-            xdata,
+            xdataset,
             ydataset,
             label=label_list[idx],
             **_extract_kwargs_options(kwargs, "plot"),
@@ -495,9 +511,10 @@ def data_vs_paramvals(
         )
     _process_options(fig, axes, **kwargs)
 
-    # The following ensures that np.nan entries (as present in transition energy plots)
+    # Ensures that np.nan entries (as present in transition energy plots)
     # cannot reduce the intended x range
-    axes.update_datalim(np.c_[xdata, [0] * len(xdata)], updatey=False)
+    x_ref = xdata[:, 0] if xdata.ndim == 2 else xdata
+    axes.update_datalim(np.c_[x_ref, [0] * len(x_ref)], updatey=False)
     axes.autoscale()
 
     return fig, axes
