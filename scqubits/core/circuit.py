@@ -755,6 +755,7 @@ class Circuit(
         offset_charges = []
         free_charges = []
         var_categories = {"periodic": [], "extended": [], "free": [], "frozen": []}
+        phase_indices = set()
         for var_sym in free_symbols:
             if re.match(r"^ng\d+$", var_sym.name):
                 offset_charges.append(var_sym)
@@ -767,6 +768,28 @@ class Circuit(
                 var_categories["periodic"].append(var_index)
             elif re.match(r"^Q\d+$", var_sym.name):
                 var_index = get_trailing_number(var_sym.name)
+                var_categories["extended"].append(var_index)
+            elif re.match(r"^θ\d+$", var_sym.name):
+                phase_indices.add(get_trailing_number(var_sym.name))
+
+        saw_atoms = [
+            atom
+            for atom in symbolic_hamiltonian.atoms(sm.Function)
+            if getattr(atom.func, "__name__", "") == "saw"
+        ]
+        trig_phase_indices = {
+            get_trailing_number(symbol.name)
+            for trig_atom in list(symbolic_hamiltonian.atoms(sm.cos, sm.sin)) + saw_atoms
+            for symbol in trig_atom.free_symbols
+            if re.match(r"^θ\d+$", symbol.name)
+        }
+
+        for var_index in sorted(phase_indices):
+            if var_index in var_categories["periodic"] or var_index in var_categories["extended"]:
+                continue
+            if var_index in trig_phase_indices:
+                var_categories["periodic"].append(var_index)
+            else:
                 var_categories["extended"].append(var_index)
         var_categories = {
             category: sorted(var_categories[category]) for category in var_categories

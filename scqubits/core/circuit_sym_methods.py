@@ -20,6 +20,7 @@ else:
     _HAS_IPYTHON = True
 
 from scqubits.core.circuit_utils import (
+    _junction_order,
     is_potential_term,
     get_trailing_number,
     round_symbolic_expr,
@@ -34,6 +35,641 @@ from abc import ABC
 
 
 class CircuitSymMethods(ABC):
+    @staticmethod
+    def _zero_symbolic_expr() -> sm.Expr:
+        return 0 * sm.symbols("x")
+
+    @staticmethod
+    def _expr_has_any_symbol(expr: sm.Expr, symbols: List[sm.Symbol]) -> bool:
+        return any(symbol in expr.free_symbols for symbol in symbols)
+
+    @staticmethod
+    def _numeric_term_magnitude(term: sm.Expr) -> Optional[float]:
+        coeff, remainder = term.as_coeff_Mul(rational=False)
+        if remainder == 1 and coeff.is_number:
+            return abs(float(coeff))
+        if coeff.is_number and coeff.free_symbols == set():
+            return abs(float(coeff))
+        return None
+
+    @classmethod
+    def _drop_small_terms(cls, expr: sm.Expr, tol: Optional[float]) -> sm.Expr:
+        if tol is None or expr == 0:
+            return expr
+        cleaned_expr = cls._zero_symbolic_expr()
+        for term in sm.expand(expr).as_ordered_terms():
+            magnitude = cls._numeric_term_magnitude(term)
+            if magnitude is not None and magnitude < tol:
+                continue
+            cleaned_expr += term
+        return sm.expand(cleaned_expr)
+
+    def _analysis_symbols_for_collect(self) -> List[sm.Symbol]:
+        symbols_to_collect = []
+        for var_index in self.var_categories.get("periodic", []):
+            symbols_to_collect.extend(
+                [sm.symbols(f"n{var_index}"), sm.symbols(f"ng{var_index}")]
+            )
+        for var_index in self.var_categories.get("extended", []):
+            symbols_to_collect.extend(
+                [sm.symbols(f"Q{var_index}"), sm.symbols(f"θ{var_index}")]
+            )
+        symbols_to_collect.extend(self.external_fluxes)
+        symbols_to_collect.extend(self.free_charges)
+        return [symbol for symbol in symbols_to_collect if symbol in self.hamiltonian_symbolic.free_symbols]
+
+    def _analysis_charge_symbols(self) -> List[sm.Symbol]:
+        charge_symbols: List[sm.Symbol] = []
+        for var_index in self.var_categories.get("periodic", []):
+            charge_symbols.append(sm.symbols(f"n{var_index}"))
+        for var_index in self.var_categories.get("extended", []):
+            charge_symbols.append(sm.symbols(f"Q{var_index}"))
+        charge_symbols.extend(self.free_charges)
+        return charge_symbols
+
+    def _format_analysis_expr(
+        self,
+        expr: sm.Expr,
+        tol: Optional[float] = None,
+        grouped: bool = True,
+        symbolic: bool = True,
+    ) -> sm.Expr:
+        if expr == 0:
+            return self._zero_symbolic_expr()
+        expr_formatted = sm.expand(expr)
+        if not symbolic:
+            expr_formatted = self._substitute_parameters(expr_formatted)
+        expr_formatted = self._drop_small_terms(expr_formatted, tol=tol)
+        if grouped and expr_formatted != 0:
+            collect_symbols = self._analysis_symbols_for_collect()
+            if collect_symbols:
+                expr_formatted = sm.collect(expr_formatted, collect_symbols, evaluate=False)
+                if isinstance(expr_formatted, dict):
+                    expr_formatted = sm.Add(
+                        *[key * value for key, value in expr_formatted.items()],
+                        evaluate=False,
+                    )
+        return expr_formatted
+
+    def _transform_metadata(self) -> Tuple[Optional[Dict[str, Any]], List[str]]:
+        notes: List[str] = []
+        if not hasattr(self, "symbolic_circuit"):
+            notes.append(
+                "Transformation and branch provenance metadata are unavailable for circuits initialized from a bare symbolic Hamiltonian."
+            )
+            return None, notes
+
+        num_vars = len(self.symbolic_circuit.nodes) - self.is_grounded
+        new_vars = [
+            (
+                sm.symbols(f"θ{index}")
+                if index not in self.var_categories["frozen"]
+                else self.symbolic_circuit.frozen_var_exprs[index]
+            )
+            for index in range(1, 1 + num_vars)
+        ]
+        old_vars = [sm.symbols(f"φ{index}") for index in range(1, 1 + num_vars)]
+        transformed_exprs = self.transformation_matrix.dot(new_vars)
+        node_flux_relations = {
+            old_vars[idx]: round_symbolic_expr(transformed_exprs[idx], 12)
+            for idx in range(len(old_vars))
+        }
+        transform_metadata = {
+            "matrix": self.transformation_matrix.tolist()
+            if hasattr(self.transformation_matrix, "tolist")
+            else self.transformation_matrix,
+            "node_flux_relations": node_flux_relations,
+            "categories": {
+                category: list(indices)
+                for category, indices in self.var_categories.items()
+            },
+        }
+        return transform_metadata, notes
+
+    def _branch_metadata(self) -> Tuple[List[Dict[str, Any]], List[str]]:
+        notes: List[str] = []
+        if not hasattr(self, "symbolic_circuit"):
+            return [], notes
+
+        branch_records: List[Dict[str, Any]] = []
+        for branch in self.symbolic_circuit.branches:
+            record: Dict[str, Any] = {
+                "branch_index": branch.index,
+                "branch_type": branch.type,
+                "branch_nodes": branch.node_ids(),
+                "parameters": dict(branch.parameters),
+            }
+            try:
+                record["flux_expression"] = self.symbolic_circuit._branch_flux_expr(branch)
+            except Exception:
+                record["flux_expression"] = None
+            if branch.type == "C" or "JJ" in branch.type:
+                try:
+                    record["charge_expression"] = self.symbolic_circuit._branch_charge_expr(
+                        branch, substitute_params=False
+                    )
+                except Exception:
+                    record["charge_expression"] = None
+            branch_records.append(record)
+
+        inductive_couplers = getattr(self.symbolic_circuit, "couplers", [])
+        if inductive_couplers:
+            notes.append(
+                "Inductive branch provenance is reported via branch flux expressions; mutually coupled inductors may prevent a one-term-per-branch decomposition of the quadratic inductive energy."
+            )
+        return branch_records, notes
+
+    def _josephson_term_records(
+        self, symbolic: bool = True, grouped: bool = True, tol: Optional[float] = None
+    ) -> Tuple[List[Dict[str, Any]], List[str]]:
+        notes: List[str] = []
+        records: List[Dict[str, Any]] = []
+
+        provenance_slots: List[Dict[str, Any]] = []
+        if hasattr(self, "symbolic_circuit"):
+            for branch in self.symbolic_circuit.branches:
+                if "JJ" not in branch.type:
+                    continue
+                branch_argument = self.symbolic_circuit._branch_flux_expr(branch)
+                if "JJs" in branch.type:
+                    provenance_slots.append(
+                        {
+                            "branch_index": branch.index,
+                            "branch_type": branch.type,
+                            "branch_nodes": branch.node_ids(),
+                            "EJ": branch.parameters["EJ"],
+                            "parameter": "EJ",
+                            "order": 1,
+                            "branch_argument": branch_argument,
+                        }
+                    )
+                    continue
+                for order in range(1, _junction_order(branch.type) + 1):
+                    junction_param = "EJ" if order == 1 else f"EJ{order}"
+                    provenance_slots.append(
+                        {
+                            "branch_index": branch.index,
+                            "branch_type": branch.type,
+                            "branch_nodes": branch.node_ids(),
+                            "EJ": branch.parameters[junction_param],
+                            "parameter": junction_param,
+                            "order": order,
+                            "branch_argument": order * branch_argument,
+                            "expected_coefficient": -branch.parameters[junction_param],
+                            "trig_func_name": "cos",
+                        }
+                    )
+            for provenance in provenance_slots:
+                if provenance["branch_type"] == "JJs":
+                    provenance["expected_coefficient"] = provenance["EJ"]
+                    provenance["trig_func_name"] = "saw"
+
+        actual_terms: List[Dict[str, Any]] = []
+        for term in self.potential_symbolic.expand().as_ordered_terms():
+            cos_atoms = list(term.atoms(sm.cos))
+            saw_atoms = [
+                atom
+                for atom in term.atoms(sm.Function)
+                if getattr(atom.func, "__name__", "") == "saw"
+            ]
+            if cos_atoms:
+                trig_atom = cos_atoms[0]
+            elif saw_atoms:
+                trig_atom = saw_atoms[0]
+            else:
+                continue
+            coefficient = sm.simplify(term / trig_atom)
+            actual_terms.append(
+                {
+                    "raw_expression": term,
+                    "expression": self._format_analysis_expr(
+                        term, tol=tol, grouped=grouped, symbolic=symbolic
+                    ),
+                    "coefficient": coefficient,
+                    "argument": self._format_analysis_expr(
+                        trig_atom.args[0], tol=tol, grouped=grouped, symbolic=symbolic
+                    ),
+                    "trig_atom": trig_atom,
+                    "trig_func_name": "cos" if cos_atoms else "saw",
+                }
+            )
+
+        if provenance_slots and len(provenance_slots) != len(actual_terms):
+            notes.append(
+                "Josephson terms were recovered from the public symbolic Hamiltonian, but branch provenance could not be matched one-to-one."
+            )
+            provenance_slots = []
+
+        def _args_match(actual_argument: sm.Expr, branch_argument: sm.Expr, trig_func_name: str) -> bool:
+            if sm.simplify(sm.expand(actual_argument - branch_argument)) == 0:
+                return True
+            if trig_func_name == "cos":
+                return sm.simplify(sm.expand(actual_argument + branch_argument)) == 0
+            return False
+
+        def _slot_matches_term(slot: Dict[str, Any], actual_term: Dict[str, Any]) -> bool:
+            if slot["trig_func_name"] != actual_term["trig_func_name"]:
+                return False
+            return sm.simplify(
+                actual_term["coefficient"] - slot["expected_coefficient"]
+            ) == 0
+
+        provenance_by_term_index: Dict[int, Dict[str, Any]] = {}
+        if provenance_slots:
+            unmatched_slots = provenance_slots.copy()
+
+            for index, actual_term in enumerate(actual_terms):
+                candidates = [
+                    slot for slot in unmatched_slots if _slot_matches_term(slot, actual_term)
+                ]
+                if len(candidates) == 1:
+                    provenance_by_term_index[index] = candidates[0]
+                    unmatched_slots.remove(candidates[0])
+
+            for index, actual_term in enumerate(actual_terms):
+                if index in provenance_by_term_index:
+                    continue
+                candidates = [
+                    slot for slot in unmatched_slots if _slot_matches_term(slot, actual_term)
+                ]
+                if len(candidates) == 1:
+                    provenance_by_term_index[index] = candidates[0]
+                    unmatched_slots.remove(candidates[0])
+                elif len(candidates) > 1:
+                    argument_matched_candidates = [
+                        slot
+                        for slot in candidates
+                        if _args_match(
+                            actual_term["trig_atom"].args[0],
+                            slot["branch_argument"],
+                            actual_term["trig_func_name"],
+                        )
+                    ]
+                    if len(argument_matched_candidates) == 1:
+                        provenance_by_term_index[index] = argument_matched_candidates[0]
+                        unmatched_slots.remove(argument_matched_candidates[0])
+
+            if unmatched_slots:
+                notes.append(
+                    "Josephson terms were recovered from the public symbolic Hamiltonian, but branch provenance could not be matched one-to-one."
+                )
+
+        shift_note_added = False
+        for index, actual_term in enumerate(actual_terms):
+            provenance = provenance_by_term_index.get(index, {})
+            coefficient_value = actual_term["coefficient"]
+            if actual_term["trig_func_name"] == "cos":
+                fallback_ej = self._format_analysis_expr(
+                    sm.simplify(-coefficient_value),
+                    tol=tol,
+                    grouped=grouped,
+                    symbolic=symbolic,
+                )
+            else:
+                fallback_ej = self._format_analysis_expr(
+                    sm.simplify(coefficient_value),
+                    tol=tol,
+                    grouped=grouped,
+                    symbolic=symbolic,
+                )
+            record = {
+                "branch_index": provenance.get("branch_index"),
+                "branch_type": provenance.get("branch_type"),
+                "branch_nodes": provenance.get("branch_nodes"),
+                "EJ": provenance.get(
+                    "EJ", fallback_ej
+                ),
+                "parameter": provenance.get("parameter"),
+                "order": provenance.get("order"),
+                "argument": actual_term["argument"],
+                "raw_expression": actual_term["raw_expression"],
+                "expression": actual_term["expression"],
+            }
+            records.append(record)
+
+            if provenance and not shift_note_added:
+                actual_argument = actual_term["trig_atom"].args[0]
+                branch_argument = provenance["branch_argument"]
+                arguments_match = sm.simplify(sm.expand(actual_argument - branch_argument)) == 0
+                if actual_term["trig_atom"].func == sm.cos:
+                    arguments_match = arguments_match or (
+                        sm.simplify(sm.expand(actual_argument + branch_argument)) == 0
+                    )
+                if not arguments_match:
+                    notes.append(
+                        "Josephson arguments are reported from the public Hamiltonian; they can differ from raw branch flux expressions when coordinate shifts are applied."
+                    )
+                    shift_note_added = True
+
+        if records and not provenance_by_term_index:
+            notes.append(
+                "Josephson terms were recovered from the public symbolic Hamiltonian; branch provenance is unavailable for this circuit instance."
+            )
+        return records, notes
+
+    def _split_nonlinear_potential_terms(
+        self, expr: sm.Expr
+    ) -> Tuple[sm.Expr, sm.Expr]:
+        phase_symbols = [
+            sm.symbols(f"θ{index}")
+            for index in self.var_categories.get("periodic", [])
+            + self.var_categories.get("extended", [])
+        ]
+        potential_symbols = phase_symbols + list(self.external_fluxes)
+        inductive_expr = self._zero_symbolic_expr()
+        other_potential_expr = self._zero_symbolic_expr()
+
+        if not potential_symbols:
+            return inductive_expr, sm.expand(expr)
+
+        for term in sm.expand(expr).as_ordered_terms():
+            if any(term.has(trig_func) for trig_func in [sm.cos, sm.sin]):
+                other_potential_expr += term
+                continue
+            saw_atoms = [
+                atom
+                for atom in term.atoms(sm.Function)
+                if getattr(atom.func, "__name__", "") == "saw"
+            ]
+            if saw_atoms:
+                other_potential_expr += term
+                continue
+            relevant_symbols = [
+                symbol for symbol in potential_symbols if symbol in term.free_symbols
+            ]
+            if not relevant_symbols:
+                inductive_expr += term
+                continue
+            try:
+                poly = sm.Poly(term, *relevant_symbols)
+            except sm.PolynomialError:
+                other_potential_expr += term
+                continue
+            if poly.total_degree() <= 2:
+                inductive_expr += term
+            else:
+                other_potential_expr += term
+
+        return sm.expand(inductive_expr), sm.expand(other_potential_expr)
+
+    def _decompose_hamiltonian_symbolic(
+        self,
+        tol: Optional[float] = 1e-12,
+        symbolic: bool = True,
+        grouped: bool = True,
+        include_transform: bool = True,
+        include_branch_info: bool = True,
+    ) -> Dict[str, Any]:
+        hamiltonian = self.hamiltonian_symbolic.expand()
+        charge_expr = self._zero_symbolic_expr()
+        offset_charge_expr = self._zero_symbolic_expr()
+        constant_expr = self._zero_symbolic_expr()
+        external_flux_expr = self._zero_symbolic_expr()
+        charge_symbols = self._analysis_charge_symbols()
+
+        for term in hamiltonian.as_ordered_terms():
+            if not is_potential_term(term):
+                if self._expr_has_any_symbol(term, self.offset_charges):
+                    offset_charge_expr += term
+                elif self._expr_has_any_symbol(term, charge_symbols):
+                    charge_expr += term
+                else:
+                    constant_expr += term
+            if self._expr_has_any_symbol(term, self.external_fluxes):
+                external_flux_expr += term
+
+        josephson_records, jj_notes = self._josephson_term_records(
+            symbolic=symbolic, grouped=grouped, tol=tol
+        )
+        josephson_raw_expr = self._zero_symbolic_expr()
+        for record in josephson_records:
+            josephson_raw_expr += record["raw_expression"]
+
+        potential_expr = self.potential_symbolic.expand()
+        non_josephson_potential = sm.expand(
+            potential_expr
+            - sum(
+                [record["raw_expression"] for record in josephson_records],
+                self._zero_symbolic_expr(),
+            )
+        )
+        inductive_expr, other_potential_expr = self._split_nonlinear_potential_terms(
+            non_josephson_potential
+        )
+
+        transform_metadata = None
+        transform_notes: List[str] = []
+        if include_transform:
+            transform_metadata, transform_notes = self._transform_metadata()
+
+        branch_terms: List[Dict[str, Any]] = []
+        branch_notes: List[str] = []
+        if include_branch_info:
+            branch_terms, branch_notes = self._branch_metadata()
+
+        notes = jj_notes + transform_notes + branch_notes
+        if self.external_fluxes and external_flux_expr != 0:
+            notes.append(
+                "external_flux_expression reports the flux-dependent slice of the Hamiltonian and can overlap with inductive or Josephson terms."
+            )
+        if other_potential_expr != 0:
+            notes.append(
+                "other_potential_expression contains non-Josephson potential terms that are not quadratic inductive energy."
+            )
+
+        return {
+            "full_expression": self._format_analysis_expr(
+                hamiltonian, tol=tol, grouped=grouped, symbolic=symbolic
+            ),
+            "charge_expression": self._format_analysis_expr(
+                charge_expr, tol=tol, grouped=grouped, symbolic=symbolic
+            ),
+            "constant_expression": self._format_analysis_expr(
+                constant_expr, tol=tol, grouped=grouped, symbolic=symbolic
+            ),
+            "inductive_expression": self._format_analysis_expr(
+                inductive_expr, tol=tol, grouped=grouped, symbolic=symbolic
+            ),
+            "other_potential_expression": self._format_analysis_expr(
+                other_potential_expr, tol=tol, grouped=grouped, symbolic=symbolic
+            ),
+            "josephson_expression": self._format_analysis_expr(
+                josephson_raw_expr, tol=tol, grouped=grouped, symbolic=symbolic
+            ),
+            "josephson_terms": josephson_records,
+            "offset_charge_expression": self._format_analysis_expr(
+                offset_charge_expr, tol=tol, grouped=grouped, symbolic=symbolic
+            ),
+            "external_flux_expression": self._format_analysis_expr(
+                external_flux_expr, tol=tol, grouped=grouped, symbolic=symbolic
+            ),
+            "periodic_vars": [
+                {
+                    "index": index,
+                    "charge": sm.symbols(f"n{index}"),
+                    "offset_charge": sm.symbols(f"ng{index}"),
+                    "phase": sm.symbols(f"θ{index}"),
+                }
+                for index in self.var_categories["periodic"]
+            ],
+            "extended_vars": [
+                {
+                    "index": index,
+                    "charge": sm.symbols(f"Q{index}"),
+                    "phase": sm.symbols(f"θ{index}"),
+                }
+                for index in self.var_categories["extended"]
+            ],
+            "free_vars": [
+                {"index": index, "charge": sm.symbols(f"Qf{index}")}
+                for index in self.var_categories.get("free", [])
+            ],
+            "transform_matrix": None
+            if transform_metadata is None
+            else transform_metadata["matrix"],
+            "transform_metadata": transform_metadata,
+            "branch_terms": branch_terms,
+            "notes": notes,
+        }
+
+    def _hamiltonian_tree_from_decomposition(
+        self, decomposition: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        return {
+            "hamiltonian": {
+                "expression": decomposition["full_expression"],
+                "constant_expression": decomposition["constant_expression"],
+            },
+            "charge": {
+                "expression": decomposition["charge_expression"],
+                "offset_charge_expression": decomposition["offset_charge_expression"],
+            },
+            "potential": {
+                "inductive": {"expression": decomposition["inductive_expression"]},
+                "other": {"expression": decomposition["other_potential_expression"]},
+                "josephson": decomposition["josephson_terms"],
+                "external_flux_expression": decomposition["external_flux_expression"],
+            },
+            "variables": {
+                "periodic": decomposition["periodic_vars"],
+                "extended": decomposition["extended_vars"],
+                "free": decomposition["free_vars"],
+            },
+            "transform": decomposition["transform_metadata"],
+            "branches": decomposition["branch_terms"],
+            "notes": decomposition["notes"],
+        }
+
+    @check_sync_status_circuit
+    def hamiltonian_decomposed(
+        self,
+        tol: Optional[float] = 1e-12,
+        symbolic: bool = True,
+        grouped: bool = True,
+        include_transform: bool = True,
+        include_branch_info: bool = True,
+        return_format: str = "dict",
+    ) -> Dict[str, Any]:
+        """Return a structured analysis-oriented decomposition of the symbolic Hamiltonian."""
+        decomposition = self._decompose_hamiltonian_symbolic(
+            tol=tol,
+            symbolic=symbolic,
+            grouped=grouped,
+            include_transform=include_transform,
+            include_branch_info=include_branch_info,
+        )
+        if return_format == "dict":
+            return decomposition
+        if return_format == "tree":
+            return self._hamiltonian_tree_from_decomposition(decomposition)
+        raise ValueError("return_format must be 'dict' or 'tree'.")
+
+    @check_sync_status_circuit
+    def hamiltonian_tree(
+        self,
+        tol: Optional[float] = 1e-12,
+        symbolic: bool = True,
+        grouped: bool = True,
+        include_transform: bool = True,
+        include_branch_info: bool = True,
+    ) -> Dict[str, Any]:
+        """Return a nested tree representation of the symbolic Hamiltonian."""
+        decomposition = self._decompose_hamiltonian_symbolic(
+            tol=tol,
+            symbolic=symbolic,
+            grouped=grouped,
+            include_transform=include_transform,
+            include_branch_info=include_branch_info,
+        )
+        return self._hamiltonian_tree_from_decomposition(decomposition)
+
+    @check_sync_status_circuit
+    def hamiltonian_pretty(
+        self,
+        tol: Optional[float] = 1e-12,
+        symbolic: bool = True,
+        grouped: bool = True,
+        include_transform: bool = True,
+        include_branch_info: bool = True,
+        return_format: str = "dict",
+    ) -> Union[str, Dict[str, Any]]:
+        """Return a human-readable Hamiltonian report for analysis."""
+        decomposition = self._decompose_hamiltonian_symbolic(
+            tol=tol,
+            symbolic=symbolic,
+            grouped=grouped,
+            include_transform=include_transform,
+            include_branch_info=include_branch_info,
+        )
+
+        sections = [
+            ("H_charge", decomposition["charge_expression"]),
+            ("H_constant", decomposition["constant_expression"]),
+            ("H_inductive", decomposition["inductive_expression"]),
+            ("H_other_potential", decomposition["other_potential_expression"]),
+            ("H_JJ", decomposition["josephson_expression"]),
+            ("H_offset", decomposition["offset_charge_expression"]),
+        ]
+        nonzero_sections = [
+            (label, expr) for label, expr in sections if expr != self._zero_symbolic_expr()
+        ]
+        header = "H = " + " + ".join([label for label, _ in nonzero_sections])
+        pretty_lines = [header] if nonzero_sections else ["H = 0"]
+        pretty_lines.extend([f"{label} = {expr}" for label, expr in nonzero_sections])
+        if decomposition["external_flux_expression"] != self._zero_symbolic_expr():
+            pretty_lines.append(
+                f"H_flux_dependent = {decomposition['external_flux_expression']}"
+            )
+
+        if decomposition["josephson_terms"]:
+            pretty_lines.append("Josephson terms:")
+            for term in decomposition["josephson_terms"]:
+                branch_label = (
+                    f"branch {term['branch_index']}"
+                    if term["branch_index"] is not None
+                    else "branch unavailable"
+                )
+                pretty_lines.append(
+                    f"  {branch_label}: {term['expression']}"
+                )
+
+        if decomposition["notes"]:
+            pretty_lines.append("Notes:")
+            for note in decomposition["notes"]:
+                pretty_lines.append(f"  - {note}")
+
+        pretty_output = "\n".join(pretty_lines)
+        if return_format == "string":
+            return pretty_output
+        if return_format != "dict":
+            raise ValueError("return_format must be 'dict' or 'string'.")
+        return {
+            "expression": decomposition["full_expression"],
+            "pretty": pretty_output,
+            "sections": {label: expr for label, expr in nonzero_sections},
+            "josephson_terms": decomposition["josephson_terms"],
+            "notes": decomposition["notes"],
+        }
 
     @staticmethod
     def _contains_trigonometric_terms(hamiltonian):

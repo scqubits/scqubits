@@ -15,6 +15,7 @@ import os
 import numpy as np
 import qutip as qt
 import pytest
+import sympy as sm
 from scqubits.io_utils.fileio import read
 
 import scqubits as scq
@@ -26,6 +27,231 @@ DATADIR = os.path.join(TESTDIR, "data", "")
 
 @pytest.mark.usefixtures("num_cpus")
 class TestCircuit:
+    @staticmethod
+    def test_hamiltonian_reporting_transmon():
+        circ = scq.Circuit(
+            """
+            branches:
+            - [JJ, 0, 1, 10, 20]
+            """,
+            from_file=False,
+            ext_basis="discretized",
+        )
+
+        decomposition = circ.hamiltonian_decomposed()
+        n1, ng1, θ1 = sm.symbols("n1 ng1 θ1")
+
+        assert sm.simplify(decomposition["charge_expression"] - 80.0 * n1**2) == 0
+        assert (
+            sm.simplify(
+                decomposition["offset_charge_expression"]
+                - (160.0 * n1 * ng1 + 80.0 * ng1**2)
+            )
+            == 0
+        )
+        assert len(decomposition["josephson_terms"]) == 1
+        josephson_term = decomposition["josephson_terms"][0]
+        assert josephson_term["branch_index"] == 0
+        assert josephson_term["branch_nodes"] == (0, 1)
+        assert sm.simplify(josephson_term["argument"] - θ1) == 0
+        assert decomposition["transform_matrix"] == [[1]]
+        assert decomposition["periodic_vars"][0]["index"] == 1
+
+    @staticmethod
+    def test_hamiltonian_reporting_multibranch_tree():
+        zp_yaml = """
+        branches:
+        - ["JJ", 1, 2, 10, 20]
+        - ["JJ", 3, 4, 10, 20]
+        - ["L", 2, 3, 0.008]
+        - ["L", 4, 1, 0.008]
+        - ["C", 1, 3, 0.02]
+        - ["C", 2, 4, 0.02]
+        """
+        circ = scq.Circuit(zp_yaml, from_file=False, ext_basis="discretized")
+
+        tree = circ.hamiltonian_tree()
+        θ2, θ3 = sm.symbols("θ2 θ3")
+
+        assert "potential" in tree
+        assert len(tree["potential"]["josephson"]) == 2
+        assert tree["transform"]["matrix"] == circ.transformation_matrix.tolist()
+        inductive_poly = sm.Poly(
+            sm.expand(
+                tree["potential"]["inductive"]["expression"]
+                - (0.032 * θ2**2 + 0.008 * θ3**2)
+            ),
+            θ2,
+            θ3,
+        )
+        assert all(abs(complex(coeff)) < 1e-14 for coeff in inductive_poly.coeffs())
+        assert [term["branch_index"] for term in tree["potential"]["josephson"]] == [
+            0,
+            1,
+        ]
+        assert any(
+            "external_flux_expression reports the flux-dependent slice"
+            in note
+            for note in tree["notes"]
+        )
+
+    @staticmethod
+    def test_hamiltonian_reporting_pretty_tolerance_is_presentation_only():
+        n1, ng1, θ1 = sm.symbols("n1 ng1 θ1")
+        expr = 2 * n1**2 + n1 * ng1 + sm.Float("1e-14") * n1 - sm.cos(θ1)
+        circ = scq.Circuit(
+            input_string=None,
+            symbolic_hamiltonian=expr,
+            symbolic_param_dict={"ng1": 0.0},
+            ext_basis="discretized",
+        )
+
+        hamiltonian_symbolic_before = circ.hamiltonian_symbolic
+        pretty = circ.hamiltonian_pretty(tol=1e-12, return_format="dict")
+        decomposition = circ.hamiltonian_decomposed(tol=1e-12)
+
+        assert "1.0e-14" not in pretty["pretty"]
+        assert "1e-14" not in pretty["pretty"]
+        assert "1.0e-14" not in str(decomposition["full_expression"])
+        assert sm.simplify(circ.hamiltonian_symbolic - hamiltonian_symbolic_before) == 0
+        assert any(
+            "Transformation and branch provenance metadata are unavailable"
+            in note
+            for note in decomposition["notes"]
+        )
+        assert decomposition["josephson_terms"][0]["EJ"] == 1
+
+    @staticmethod
+    def test_hamiltonian_reporting_infers_phase_only_symbolic_variables():
+        θ1, θ2 = sm.symbols("θ1 θ2")
+        circ = scq.Circuit(
+            input_string=None,
+            symbolic_hamiltonian=θ2**2 / 2 - sm.cos(θ1),
+            ext_basis="discretized",
+        )
+
+        decomposition = circ.hamiltonian_decomposed()
+
+        assert [var["index"] for var in decomposition["periodic_vars"]] == [1]
+        assert [var["index"] for var in decomposition["extended_vars"]] == [2]
+        assert sm.simplify(decomposition["inductive_expression"] - θ2**2 / 2) == 0
+
+    @staticmethod
+    def test_hamiltonian_reporting_separates_other_nonlinear_potential():
+        θ1 = sm.symbols("θ1")
+        circ = scq.Circuit(
+            input_string=None,
+            symbolic_hamiltonian=θ1**4 / 24 - sm.cos(θ1),
+            ext_basis="discretized",
+        )
+
+        decomposition = circ.hamiltonian_decomposed()
+        pretty = circ.hamiltonian_pretty(return_format="dict")
+        tree = circ.hamiltonian_tree()
+
+        assert decomposition["inductive_expression"] == 0
+        assert sm.simplify(decomposition["other_potential_expression"] - θ1**4 / 24) == 0
+        assert pretty["sections"]["H_other_potential"] == θ1**4 / 24
+        assert tree["potential"]["other"]["expression"] == θ1**4 / 24
+        assert any(
+            "other_potential_expression contains non-Josephson potential terms"
+            in note
+            for note in decomposition["notes"]
+        )
+
+    @staticmethod
+    def test_hamiltonian_reporting_symbolic_false_uses_raw_josephson_terms():
+        EJ, EL, θ1 = sm.symbols("EJ EL θ1")
+        circ = scq.Circuit(
+            input_string=None,
+            symbolic_hamiltonian=EL * θ1**2 / 2 - EJ * sm.cos(θ1),
+            symbolic_param_dict={"EJ": np.pi, "EL": 0.2},
+            ext_basis="discretized",
+        )
+
+        decomposition = circ.hamiltonian_decomposed(symbolic=False, tol=None)
+
+        assert decomposition["inductive_expression"] == 0.1 * θ1**2
+        assert decomposition["josephson_expression"] == -1.0 * np.pi * sm.cos(θ1)
+
+    @staticmethod
+    def test_hamiltonian_reporting_harmonic_tracks_public_josephson_argument():
+        circ = scq.Circuit(
+            """
+            branches:
+            - [JJ, 0, 1, 8, 1]
+            - [L, 0, 1, 0.4]
+            - [C, 0, 1, 0.2]
+            """,
+            from_file=False,
+            ext_basis="harmonic",
+        )
+
+        decomposition = circ.hamiltonian_decomposed()
+        josephson_term = decomposition["josephson_terms"][0]
+        Φ1, θ1 = sm.symbols("Φ1 θ1")
+
+        assert sm.simplify(josephson_term["argument"] - (Φ1 - θ1)) == 0
+        assert abs(
+            float(
+                sm.N(
+                    (
+                        josephson_term["expression"] - (-8.0 * sm.cos(Φ1 - θ1))
+                    ).subs({Φ1: 0.2, θ1: -0.3})
+                )
+            )
+        ) < 1e-12
+        assert any(
+            "Josephson arguments are reported from the public Hamiltonian"
+            in note
+            for note in decomposition["notes"]
+        )
+
+    @staticmethod
+    def test_hamiltonian_reporting_high_order_jj_metadata_tracks_actual_terms():
+        circ = scq.Circuit(
+            """
+            branches:
+            - [JJ2, 0, 1, 4.0, 1.5, 20]
+            """,
+            from_file=False,
+            ext_basis="discretized",
+        )
+
+        decomposition = circ.hamiltonian_decomposed()
+        θ1 = sm.symbols("θ1")
+
+        assert len(decomposition["josephson_terms"]) == 2
+        term_by_order = {
+            josephson_term["order"]: josephson_term
+            for josephson_term in decomposition["josephson_terms"]
+        }
+        assert term_by_order[1]["branch_index"] == 0
+        assert term_by_order[1]["EJ"] == 4.0
+        assert sm.simplify(term_by_order[1]["argument"] - θ1) == 0
+        assert abs(
+            float(
+                sm.N(
+                    (term_by_order[1]["expression"] + 4.0 * sm.cos(θ1)).subs(
+                        {θ1: 0.3}
+                    )
+                )
+            )
+        ) < 1e-12
+
+        assert term_by_order[2]["branch_index"] == 0
+        assert term_by_order[2]["EJ"] == 1.5
+        assert sm.simplify(term_by_order[2]["argument"] - 2 * θ1) == 0
+        assert abs(
+            float(
+                sm.N(
+                    (term_by_order[2]["expression"] + 1.5 * sm.cos(2 * θ1)).subs(
+                        {θ1: 0.3}
+                    )
+                )
+            )
+        ) < 1e-12
+
     @staticmethod
     def test_sym_lagrangian():
         zp_yaml = """
