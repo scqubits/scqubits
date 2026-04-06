@@ -672,21 +672,16 @@ def esys_jax_dense(
     )
     return evals, evecs
 
-# def cuquantum_converter(matrix):
-#     if type(matrix) != qutip.core.qobj.Qobj:
-#         matrix = Qobj(matrix)
-#     return qutip_cuquantum.CuQobjEvo(QobjEvo(matrix)).operator 
-
 def esys_cuquantum(
     matrix: Qobj, evals_count: int, **kwargs
 ) -> Tuple[ndarray, QutipEigenstates]:
     try:
         import qutip_cuquantum as qcu
-        import cuquantum.densitymat as cuDM
-        import cupy as cp
+        import cuquantum.densitymat as cuDM # lookup pep8 convention 1. single variable name is disallowed
+        import cupy as cp # no need for cp 
     except:
         raise ImportError("Package cuquantum or qutip-cuquantum is not installed.")
-    ctx = settings.cuDM_WORKSTREAM
+    ctx = settings.cuDM_WORKSTREAM 
     if ctx is None:
         raise ValueError("cuDM_WORKSTREAM is not set. Please set it in settings.py.")
     m = qcu.CuQobjEvo(q.QobjEvo(matrix)).operator
