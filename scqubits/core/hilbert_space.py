@@ -38,6 +38,7 @@ from numpy import ndarray
 from scipy.sparse import csc_matrix, dia_matrix
 
 import scqubits.core.central_dispatch as dispatch
+from scqubits.utils.cuquantum_runtime import get_cuquantum_workstream
 import scqubits.core.descriptors as descriptors
 import scqubits.core.diag as diag
 import scqubits.core.oscillator as osc
@@ -763,20 +764,24 @@ class HilbertSpace(
             optionally, the bare eigensystems for each subsystem can be provided to
             speed up computation; these are provided in dict form via <subsys>: esys
         """
-        
+
         if qt.settings.core["default_dtype"] == "cuDensity":
             hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
             if self.evals_method != "evals_cuquantum":
                 self.evals_method = "evals_cuquantum"
-                warnings.warn("Detected qutip-cuquantum backend activated. Setting evals_method to evals_cuquantum.", UserWarning)
+                warnings.warn(
+                    "Detected qutip-cuquantum backend activated. "
+                    "Setting evals_method to evals_cuquantum.",
+                    UserWarning,
+                )
         elif self.evals_method == "evals_cuquantum":
             try:
                 import qutip_cuquantum as qcu
-            except:
-                raise ImportError("Package qutip-cuquantum is not installed.")
-            ctx = settings.cuDM_WORKSTREAM
-            if ctx is None:
-                raise ValueError("cuDM_WORKSTREAM is not set. Please set it in settings.py.")
+            except ImportError:
+                raise ImportError(
+                    "Package qutip-cuquantum is not installed."
+                )
+            ctx = get_cuquantum_workstream()
             with qcu.CuQuantumBackend(ctx):
                 hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
         else:
@@ -827,15 +832,19 @@ class HilbertSpace(
             hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
             if self.evals_method != "evals_cuquantum":
                 self.evals_method = "evals_cuquantum"
-                warnings.warn("Detected qutip-cuquantum backend activated. Setting evals_method to evals_cuquantum.", UserWarning)
+                warnings.warn(
+                    "Detected qutip-cuquantum backend activated. "
+                    "Setting evals_method to evals_cuquantum.",
+                    UserWarning,
+                )
         elif self.evals_method == "evals_cuquantum":
             try:
                 import qutip_cuquantum as qcu
-            except:
-                raise ImportError("Package qutip-cuquantum is not installed.")
-            ctx = settings.cuDM_WORKSTREAM
-            if ctx is None:
-                raise ValueError("cuDM_WORKSTREAM is not set. Please set it in settings.py.")
+            except ImportError:
+                raise ImportError(
+                    "Package qutip-cuquantum is not installed."
+                )
+            ctx = get_cuquantum_workstream()
             with qcu.CuQuantumBackend(ctx):
                 hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
         else:

@@ -14,6 +14,7 @@ from numpy import ndarray
 from typing import Any, Dict, List, Optional, Tuple, Union
 from qutip import Qobj
 from scipy.sparse import csc_matrix
+from scqubits.utils.cuquantum_runtime import get_cuquantum_workstream
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
 from scqubits.utils.spectrum_utils import order_eigensystem, has_degeneracy
 
@@ -672,65 +673,99 @@ def esys_jax_dense(
     )
     return evals, evecs
 
-# def cuquantum_converter(matrix):
-#     if type(matrix) != qutip.core.qobj.Qobj:
-#         matrix = Qobj(matrix)
-#     return qutip_cuquantum.CuQobjEvo(QobjEvo(matrix)).operator 
 
 def esys_cuquantum(
     matrix: Qobj, evals_count: int, **kwargs
 ) -> Tuple[ndarray, QutipEigenstates]:
+    """Diagonalization via cuQuantum density-matrix OperatorSpectrumSolver (Krylov).
+
+    Requires qutip-cuquantum, cuQuantum, and cupy. Uses the shared workstream from
+    :func:`~scqubits.utils.cuquantum_runtime.get_cuquantum_workstream` and
+    CUQUANTUM_* Krylov parameters from ``settings``.
+
+    Parameters
+    ----------
+    matrix:
+        qutip.Qobj to be diagonalized. 
+    evals_count:
+        how many eigenvalues/vectors should be returned
+    kwargs:
+        optional settings that are passed onto the diagonalization routine
+
+    Returns
+    -------
+    tuple of ndarray (eigenvalues) and QutipEigenstates (eigenvectors as Qobj)
+    """
     try:
+        import cupy
         import qutip_cuquantum as qcu
         import cuquantum.densitymat as cuDM
-        import cupy as cp
-    except:
-        raise ImportError("Package cuquantum or qutip-cuquantum is not installed.")
-    ctx = settings.cuDM_WORKSTREAM
-    if ctx is None:
-        raise ValueError("cuDM_WORKSTREAM is not set. Please set it in settings.py.")
-    m = qcu.CuQobjEvo(q.QobjEvo(matrix)).operator
-    hilbert_space_dims = matrix.dims[0]
+    except ImportError:
+        raise ImportError(
+            "Package cuquantum or qutip-cuquantum is not installed."
+        )
 
-    batch_size = 1
-    max_num_eigvals = evals_count
-    hilbert_vol = np.prod(hilbert_space_dims)
+    ctx = get_cuquantum_workstream()
 
-    init_states = []
-    for i in range(max_num_eigvals):
-        init_state = cuDM.DensePureState(ctx, hilbert_space_dims, batch_size, "complex128")
-        init_state.allocate_storage()
-        init_state.storage[:] = cp.random.randn(hilbert_vol * batch_size)
-        norm = init_state.norm()
-        init_state.inplace_scale(1.0 / cp.sqrt(norm))
-        init_states.append(init_state)
+    hspace_dims = matrix.dims[0]
+    total_dims = matrix.shape[0]
 
-    min_krylov_block_size = settings.CUQUANTUM_MIN_KRYLOV_BLOCK_SIZE    
+    min_krylov_block_size = settings.CUQUANTUM_MIN_KRYLOV_BLOCK_SIZE
     max_buffer_ratio = settings.CUQUANTUM_MAX_BUFFER_RATIO
     max_restarts = settings.CUQUANTUM_MAX_RESTARTS
 
     config = cuDM.OperatorSpectrumConfig(
         min_krylov_block_size=min_krylov_block_size,
         max_buffer_ratio=max_buffer_ratio,
-        max_restarts=max_restarts
+        max_restarts=max_restarts,
     )
 
-    if min_krylov_block_size*max_buffer_ratio*max_num_eigvals > hilbert_vol/2:
-        allowed_num_eigvals = int(np.ceil(hilbert_vol/2 / (min_krylov_block_size*max_buffer_ratio)) - 1) 
-        raise ValueError(f"Too many eigenvalues requested. Maximum number of eigenvalues allowed is {allowed_num_eigvals}. Reduce min_krylov_block_size, max_buffer_ratio, or increase hilbert_vol.")
+    if (
+        min_krylov_block_size * max_buffer_ratio * evals_count
+        > total_dims / 2
+    ):
+        allowed_num_eigvals = int(
+            np.ceil(
+                total_dims / 2 / (min_krylov_block_size * max_buffer_ratio)
+            )
+            - 1
+        )
+        raise ValueError(
+            f"Too many eigenvalues requested. Maximum number of eigenvalues "
+            f"allowed is {allowed_num_eigvals}. Reduce min_krylov_block_size, "
+            f"max_buffer_ratio, or increase the Hilbert space dimension."
+        )
 
-    spectrum = cuDM.OperatorSpectrumSolver(m, "SA", True, config)
-    spectrum.prepare(ctx, init_states[0], max_num_eigvals=max_num_eigvals)
+    batch_size = 1
+
+    init_states = []
+    for _ in range(evals_count):
+        init_state = cuDM.DensePureState(
+            ctx, hspace_dims, batch_size, "complex128"
+        )
+        init_state.allocate_storage()
+        init_state.storage[:] = cupy.random.randn(total_dims * batch_size)
+        norm = init_state.norm()
+        init_state.inplace_scale(1.0 / cupy.sqrt(norm))
+        init_states.append(init_state)
+
+    matrix_cudm = qcu.CuQobjEvo(q.QobjEvo(matrix)).operator
+    spectrum = cuDM.OperatorSpectrumSolver(matrix_cudm, "SA", True, config)
+    spectrum.prepare(ctx, init_states[0], max_num_eigvals=evals_count)
     result = spectrum.compute(0.0, None, init_states, 1e-10)
 
-    evals = result.evals[:,0].get()
-    evecs = np.empty((max_num_eigvals,), dtype=object)
+    evals = result.evals[:, 0].get()
+    evecs = np.empty((evals_count,), dtype=object)
 
     with qcu.CuQuantumBackend(ctx):
         for i, evec in enumerate(result.evecs):
-            evecs[i] = Qobj(qcu.state.CuState(evec).to_array(),dims=[hilbert_space_dims,[1]]) 
+            evecs[i] = Qobj(
+                qcu.state.CuState(evec).to_array(),
+                dims=[hspace_dims, [1]],
+            )
 
     return evals, evecs.view(QutipEigenstates)
+
 
 def evals_cuquantum(
     matrix: Union[Qobj], evals_count: int, **kwargs

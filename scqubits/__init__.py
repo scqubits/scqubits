@@ -28,6 +28,7 @@ from scqubits import settings
 from scqubits.core.central_dispatch import CentralDispatch
 from scqubits.core.cos2phi_qubit import Cos2PhiQubit
 from scqubits.core.discretization import Grid1d
+from scqubits.utils.cuquantum_runtime import get_cuquantum_workstream
 from scqubits.core.diag import DIAG_METHODS
 from scqubits.core.flux_qubit import FluxQubit
 from scqubits.core.fluxonium import Fluxonium
@@ -59,9 +60,6 @@ from scqubits.io_utils.fileio import read, write
 
 # diagonalization
 import scqubits.core.diag as diag
-from scqubits.core.diag import (
-    DIAG_METHODS,
-)
 
 # Import of custom-circuit modules needs to take place after other imports to
 # avoid circular import issues
