@@ -46,6 +46,7 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_qutip
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
+from scqubits.utils.cuquantum_runtime import get_cuquantum_workstream
 import scqubits.ui.hspace_widget
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
@@ -774,7 +775,7 @@ class HilbertSpace(
             optionally, the bare eigensystems for each subsystem can be provided to
             speed up computation; these are provided in dict form via <subsys>: esys
         """
-        
+
         if qt.settings.core["default_dtype"] == "cuDensity":
             #### grab context from the user's environment
             print("backend activated, use cuQuantum")
@@ -782,19 +783,23 @@ class HilbertSpace(
             if self.evals_method != "evals_cuquantum":
                 self.evals_method = "evals_cuquantum"
 
-                warnings.warn("Detected qutip-cuquantum backend activated. Setting evals_method to evals_cuquantum.", UserWarning)
+                warnings.warn(
+                    "Detected qutip-cuquantum backend activated. "
+                    "Setting evals_method to evals_cuquantum.",
+                    UserWarning,
+                )
                 ##### Should we provide user options to use non-cuquantum methods when backend is activated?
                 ##### Should we convert evals_method back to original after diagonalization is done?
         elif self.evals_method == "evals_cuquantum":
             print("backend deactivated, import cuQuantum and activate backend")
             try:
                 import qutip_cuquantum as qcu
-                import cuquantum.densitymat as cuDM
-            except:
-                raise ImportError("Package qutip-cuquantum is not installed.")
-            if settings.cuDM_WORKSTREAM is None:
-                raise ValueError("cuDM_WORKSTREAM is not set. Please set it in settings.py.")
-            with qcu.CuQuantumBackend(settings.cuDM_WORKSTREAM):
+            except ImportError:
+                raise ImportError(
+                    "Package qutip-cuquantum is not installed."
+                )
+            ctx = get_cuquantum_workstream()
+            with qcu.CuQuantumBackend(ctx):
                 hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
         else:
             print("backend deactivated, use default backend")
@@ -846,14 +851,20 @@ class HilbertSpace(
             hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
             if self.esys_method != "esys_cuquantum":
                 self.esys_method = "esys_cuquantum"
-                warnings.warn("Detected qutip-cuquantum backend activated. Setting esys_method to esys_cuquantum.", UserWarning)
+                warnings.warn(
+                    "Detected qutip-cuquantum backend activated. "
+                    "Setting esys_method to esys_cuquantum.",
+                    UserWarning,
+                )
         elif self.esys_method == "esys_cuquantum":
             print("backend deactivated, import cuQuantum and activate backend")
             try:
                 import qutip_cuquantum as qcu
-            except:
-                raise ImportError("Package cuquantum or qutip-cuquantum is not installed.")
-            ctx = settings.cuDM_WORKSTREAM
+            except ImportError:
+                raise ImportError(
+                    "Package cuquantum or qutip-cuquantum is not installed."
+                )
+            ctx = get_cuquantum_workstream()
             with qcu.CuQuantumBackend(ctx):
                 hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
         else:

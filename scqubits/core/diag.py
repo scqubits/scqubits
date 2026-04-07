@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from qutip import Qobj, QobjEvo
 from scipy.sparse import csc_matrix
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
+from scqubits.utils.cuquantum_runtime import get_cuquantum_workstream
 from scqubits.utils.spectrum_utils import order_eigensystem, has_degeneracy
 
 import copy
@@ -687,9 +688,7 @@ def esys_cuquantum(
         import cupy as cp
     except:
         raise ImportError("Package cuquantum or qutip-cuquantum is not installed.")
-    ctx = settings.cuDM_WORKSTREAM
-    if ctx is None:
-        raise ValueError("cuDM_WORKSTREAM is not set. Please set it in settings.py.")
+    ctx = get_cuquantum_workstream()
     m = qcu.CuQobjEvo(QobjEvo(matrix)).operator
     hilbert_space_dims = matrix.dims[0]
 
