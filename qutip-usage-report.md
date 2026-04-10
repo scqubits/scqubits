@@ -52,7 +52,7 @@ Representative **diag** entry points: `_cast_matrix`, `_convert_evecs_to_qobjs`,
 |------|--------------|---------------------------|
 | `spectrum_utils.py` | `import qutip as qt`, `from qutip import Qobj` | Matrix elements and `identity_wrap`-style helpers using `qt.Qobj`; `convert_evecs_to_ndarray`; overlap / dispatch utilities; `qt.operators.qeye` in composite identity construction |
 | `misc.py` | `import qutip as qt` | `qt_ket_to_ndarray`, `Qobj_to_scipy_csc_matrix` (QuTiP version branches); `about` output includes `qt.__version__` |
-| `cuquantum_runtime.py` | (no `import qutip`) | Docstring only: “qutip-cuquantum” (no direct QuTiP import) |
+| `cuquantum_utils.py` | (no `import qutip`) | Docstring only: “qutip-cuquantum” (no direct QuTiP import) |
 
 ---
 
