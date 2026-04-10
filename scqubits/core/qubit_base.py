@@ -401,6 +401,13 @@ class QubitBaseClass(QuantumSystem, ABC):
                 raise ValueError(
                     f"Invalid {self.evals_method} `evals_method`, does not exist in available custom diagonalization methods."
                 )
+            if diagonalizer in (diag.evals_cuquantum, diag.esys_cuquantum) or (
+                isinstance(self.evals_method, str)
+                and self.evals_method in ("evals_cuquantum", "esys_cuquantum")
+            ):
+                raise NotImplementedError(
+                    "cuQuantum diagonalizers are not supported for qubit eigenvals."
+                )
             options = (
                 {} if self.esys_method_options is None else self.esys_method_options
             )
@@ -465,6 +472,13 @@ class QubitBaseClass(QuantumSystem, ABC):
             if diagonalizer is None:
                 raise ValueError(
                     f"Invalid {self.esys_method} `esys_method`, does not exist in available custom diagonalization methods."
+                )
+            if diagonalizer in (diag.evals_cuquantum, diag.esys_cuquantum) or (
+                isinstance(self.esys_method, str)
+                and self.esys_method in ("evals_cuquantum", "esys_cuquantum")
+            ):
+                raise NotImplementedError(
+                    "cuQuantum diagonalizers are not supported for qubit eigensys."
                 )
             options = (
                 {} if self.esys_method_options is None else self.esys_method_options

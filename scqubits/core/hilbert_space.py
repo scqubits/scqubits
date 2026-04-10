@@ -38,6 +38,7 @@ from numpy import ndarray
 from scipy.sparse import csc_matrix, dia_matrix
 
 import scqubits.core.central_dispatch as dispatch
+from scqubits.utils.cuquantum_utils import get_cuquantum_workstream
 import scqubits.core.descriptors as descriptors
 import scqubits.core.diag as diag
 import scqubits.core.oscillator as osc
@@ -46,16 +47,15 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_qutip
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
-from scqubits.utils.cuquantum_runtime import get_cuquantum_workstream
 import scqubits.ui.hspace_widget
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
+import warnings
 
 from scqubits.core.namedslots_array import NamedSlotsNdarray, Parameters
 from scqubits.core.storage import SpectrumData
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
-import warnings
 
 
 if settings.IN_IPYTHON:
@@ -679,16 +679,29 @@ class HilbertSpace(
             num_evals = BEs_count
 
         if qt.settings.core["default_dtype"] == "cuDensity":
-            raise ValueError("cuQuantum backend is not supported. Please deactivate cuQuantum backend and use default backend.")
-        elif self.esys_method == "esys_cuquantum" and (ordering == "DE" or ordering == "LX"):
+            raise ValueError(
+                "cuQuantum backend is not supported. Please deactivate "
+                "cuQuantum backend and use default backend."
+            )
+        elif (
+            self.esys_method == "esys_cuquantum"
+            and (ordering == "DE" or ordering == "LX")
+        ):
             krylov_block_size = settings.CUQUANTUM_MIN_KRYLOV_BLOCK_SIZE
             max_buffer_ratio = settings.CUQUANTUM_MAX_BUFFER_RATIO
-            allowed_num_eigvals = int(np.ceil(self.dimension/2 / (krylov_block_size*max_buffer_ratio)) - 1) 
-            raise ValueError(f"Cannot use cuQuantum eigensolver with DE or LX ordering. Please use Bare Energy ordering and set BEs_count below the allowed value: {allowed_num_eigvals}.")
+            allowed_num_eigvals = int(
+                np.ceil(
+                    self.dimension / (2 *krylov_block_size * max_buffer_ratio)
+                )
+                - 1
+            )
+            raise ValueError(
+                "Cannot use cuQuantum eigensolver with DE or LX ordering. "
+                "Please use Bare Energy ordering and set BEs_count below "
+                f"the allowed value: {allowed_num_eigvals}."
+            )
 
         evals, evecs = self.eigensys(evals_count=num_evals, bare_esys=bare_esys_dict)
-
-
         # The following workaround ensures that eigenvectors maintain QutipEigenstates
         # view when getting placed inside an outer array
         evecs_wrapped = np.empty(shape=1, dtype=object)
@@ -753,11 +766,6 @@ class HilbertSpace(
     ###################################################################################
     # HilbertSpace: energy spectrum
     ##################################################################################
-    # def cuoperator_to_array(cuoperator):
-    #     array = cuoperator.full()
-    #     # array = cuoperator.data.to_array()
-    #     return array
-
     def eigenvals(
         self,
         evals_count: int = 6,
@@ -777,21 +785,15 @@ class HilbertSpace(
         """
 
         if qt.settings.core["default_dtype"] == "cuDensity":
-            #### grab context from the user's environment
-            print("backend activated, use cuQuantum")
             hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
             if self.evals_method != "evals_cuquantum":
                 self.evals_method = "evals_cuquantum"
-
                 warnings.warn(
                     "Detected qutip-cuquantum backend activated. "
                     "Setting evals_method to evals_cuquantum.",
                     UserWarning,
                 )
-                ##### Should we provide user options to use non-cuquantum methods when backend is activated?
-                ##### Should we convert evals_method back to original after diagonalization is done?
         elif self.evals_method == "evals_cuquantum":
-            print("backend deactivated, import cuQuantum and activate backend")
             try:
                 import qutip_cuquantum as qcu
             except ImportError:
@@ -802,7 +804,6 @@ class HilbertSpace(
             with qcu.CuQuantumBackend(ctx):
                 hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
         else:
-            print("backend deactivated, use default backend")
             hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
 
         if not hasattr(self, "evals_method") or self.evals_method is None:
@@ -847,7 +848,6 @@ class HilbertSpace(
         """
 
         if qt.settings.core["default_dtype"] == "cuDensity":
-            print("backend activated, use cuQuantum")
             hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
             if self.esys_method != "esys_cuquantum":
                 self.esys_method = "esys_cuquantum"
@@ -857,18 +857,16 @@ class HilbertSpace(
                     UserWarning,
                 )
         elif self.esys_method == "esys_cuquantum":
-            print("backend deactivated, import cuQuantum and activate backend")
             try:
                 import qutip_cuquantum as qcu
             except ImportError:
                 raise ImportError(
-                    "Package cuquantum or qutip-cuquantum is not installed."
+                    "Package qutip-cuquantum is not installed."
                 )
             ctx = get_cuquantum_workstream()
             with qcu.CuQuantumBackend(ctx):
                 hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
         else:
-            print("backend deactivated, use default backend")
             hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
 
         if not hasattr(self, "esys_method") or self.esys_method is None:

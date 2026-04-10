@@ -641,7 +641,7 @@ class SpectrumLookupMixin(MixinCompatible):
             mode_idx = hilbertspace.subsystem_list.index(mode)
 
         if mode in hilbertspace.osc_subsys_list:
-            # creation operator
+            # annhilation operator
             return hilbertspace.annihilate(mode).dag()
         else:
             # sum_j |j+1><j|
