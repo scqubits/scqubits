@@ -14,7 +14,7 @@ from numpy import ndarray
 from typing import Any, Dict, List, Optional, Tuple, Union
 from qutip import Qobj
 from scipy.sparse import csc_matrix
-from scqubits.utils.cuquantum_runtime import get_cuquantum_workstream
+from scqubits.utils.cuquantum_utils import get_cuquantum_workstream
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
 from scqubits.utils.spectrum_utils import order_eigensystem, has_degeneracy
 
@@ -680,7 +680,7 @@ def esys_cuquantum(
     """Diagonalization via cuQuantum density-matrix OperatorSpectrumSolver (Krylov).
 
     Requires qutip-cuquantum, cuQuantum, and cupy. Uses the shared workstream from
-    :func:`~scqubits.utils.cuquantum_runtime.get_cuquantum_workstream` and
+    :func:`~scqubits.utils.cuquantum_utils.get_cuquantum_workstream` and
     CUQUANTUM_* Krylov parameters from ``settings``.
 
     Parameters
@@ -726,7 +726,7 @@ def esys_cuquantum(
     ):
         allowed_num_eigvals = int(
             np.ceil(
-                total_dims / 2 / (min_krylov_block_size * max_buffer_ratio)
+                total_dims / (2 *min_krylov_block_size * max_buffer_ratio)
             )
             - 1
         )
