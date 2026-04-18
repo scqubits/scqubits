@@ -33,6 +33,8 @@ from abc import ABC
 
 
 class CircuitPlot(ABC):
+    """Mixin providing wave-function and potential plotting for circuit subsystems."""
+
     # The following attributes and methods are provided by sibling mixins
     # (CircuitRoutines, CircuitSymMethods) when composed into Subsystem/Circuit.
     # They are declared here under TYPE_CHECKING so that mypy understands the
@@ -48,29 +50,48 @@ class CircuitPlot(ABC):
         symbolic_params: dict[sm.Symbol, float]
         potential_symbolic: sm.Expr
 
-        def get_osc_param(self, var_index: int, which_param: str = ...) -> float: ...
-        def get_subsystem_index(self, var_index: int) -> int: ...
-        def cutoffs_dict(self) -> dict[int, int]: ...
+        def get_osc_param(self, var_index: int, which_param: str = ...) -> float:
+            """Stub: oscillator parameter for ``var_index`` provided by sibling mixin."""
+            ...
+
+        def get_subsystem_index(self, var_index: int) -> int:
+            """Stub: subsystem index for ``var_index`` provided by sibling mixin."""
+            ...
+
+        def cutoffs_dict(self) -> dict[int, int]:
+            """Stub: cutoff dictionary provided by sibling mixin."""
+            ...
+
         def discretized_grids_dict_for_vars(
             self,
-        ) -> dict[int, discretization.Grid1d]: ...
-        def eigensys(self, evals_count: int = ...) -> tuple[ndarray, ndarray]: ...
+        ) -> dict[int, discretization.Grid1d]:
+            """Stub: discretized grids dictionary provided by sibling mixin."""
+            ...
+
+        def eigensys(self, evals_count: int = ...) -> tuple[ndarray, ndarray]:
+            """Stub: eigensystem accessor provided by sibling mixin."""
+            ...
 
     # ****************************************************************
     # ************* Functions for plotting wave function *************
     # ****************************************************************
     def _recursive_basis_change(
-        self, wf_reshaped, wf_dim, subsystem, relevant_indices=None
+        self, wf_reshaped, wf_dim: int, subsystem, relevant_indices=None
     ):
-        """Method to change the basis recursively, to reverse hierarchical
-        diagonalization and get to the basis in which the variables were initially
-        defined.
+        """Change the basis recursively, reversing hierarchical diagonalization.
 
         Parameters
         ----------
+        wf_reshaped:
+            Wave function array reshaped to expose subsystem dimensions.
         wf_dim:
-            The dimension of the wave function which needs to be rewritten in terms of
-            the initial basis
+            The dimension of the wave function which needs to be rewritten in
+            terms of the initial basis.
+        subsystem:
+            Subsystem whose eigenbasis is being undone along ``wf_dim``.
+        relevant_indices:
+            Variable indices that should still be resolved in their original
+            basis after the recursion.
         """
         U_subsys = subsystem.eigensys(evals_count=subsystem.truncated_dim)[
             1
@@ -113,7 +134,20 @@ class CircuitPlot(ABC):
     def _basis_change_harm_osc_to_n(
         self, wf_original_basis, wf_dim, var_index, grid_n: discretization.Grid1d
     ):
-        """Method to change the basis from harmonic oscillator to n basis."""
+        """Change the basis from harmonic oscillator to charge (``n``) basis.
+
+        Parameters
+        ----------
+        wf_original_basis:
+            Wave function array in the harmonic-oscillator basis.
+        wf_dim:
+            Dimension of ``wf_original_basis`` along which the change of basis
+            is applied.
+        var_index:
+            Index of the circuit variable being transformed.
+        grid_n:
+            Grid used for the target charge basis.
+        """
         U_ho_n = np.array(
             [
                 osc.harm_osc_wavefunction(
@@ -136,7 +170,20 @@ class CircuitPlot(ABC):
     def _basis_change_harm_osc_to_phi(
         self, wf_original_basis, wf_dim, var_index, grid_phi: discretization.Grid1d
     ):
-        """Method to change the basis from harmonic oscillator to phi basis."""
+        """Change the basis from harmonic oscillator to discretized phi basis.
+
+        Parameters
+        ----------
+        wf_original_basis:
+            Wave function array in the harmonic-oscillator basis.
+        wf_dim:
+            Dimension of ``wf_original_basis`` along which the change of basis
+            is applied.
+        var_index:
+            Index of the circuit variable being transformed.
+        grid_phi:
+            Grid used for the target discretized phi basis.
+        """
         U_ho_phi = np.array(
             [
                 osc.harm_osc_wavefunction(
@@ -159,7 +206,20 @@ class CircuitPlot(ABC):
     def _basis_change_n_to_phi(
         self, wf_original_basis, wf_dim, var_index, grid_phi: discretization.Grid1d
     ):
-        """Method to change the basis from harmonic oscillator to phi basis."""
+        """Change the basis from charge (``n``) to discretized phi basis.
+
+        Parameters
+        ----------
+        wf_original_basis:
+            Wave function array in the charge basis.
+        wf_dim:
+            Dimension of ``wf_original_basis`` along which the change of basis
+            is applied.
+        var_index:
+            Index of the circuit variable being transformed.
+        grid_phi:
+            Grid used for the target discretized phi basis.
+        """
         U_n_phi = np.array(
             [
                 np.exp(n * grid_phi.make_linspace() * 1j)
@@ -179,6 +239,15 @@ class CircuitPlot(ABC):
         return wf_ext_basis
 
     def _get_var_dim_for_reshaped_wf(self, wf_var_indices, var_index):
+        """Return the axis of the reshaped wave function corresponding to ``var_index``.
+
+        Parameters
+        ----------
+        wf_var_indices:
+            Variable indices kept as separate axes in the reshaped wave function.
+        var_index:
+            Variable index whose axis position is requested.
+        """
         wf_dim = 0
         if not self.hierarchical_diagonalization:
             return self.dynamic_var_indices.index(var_index)
@@ -204,6 +273,15 @@ class CircuitPlot(ABC):
         return wf_dim
 
     def _dims_to_be_summed(self, var_indices: tuple[int], num_wf_dims) -> list[int]:
+        """Return the wave-function axes to sum over for a marginal in ``var_indices``.
+
+        Parameters
+        ----------
+        var_indices:
+            Variable indices that should be retained as plotting axes.
+        num_wf_dims:
+            Total number of dimensions of the reshaped wave function.
+        """
         all_var_indices = self.dynamic_var_indices
         non_summed_dims = []
         for var_index in all_var_indices:
@@ -216,11 +294,19 @@ class CircuitPlot(ABC):
     def _reshape_and_change_to_variable_basis(
         self, wf: ndarray, var_indices: tuple[int]
     ) -> ndarray:
-        """This method changes the basis of the wavefunction when hierarchical
-        diagonalization is used.
+        """Reshape the wave function and change to the variable basis.
 
-        Then reshapes the wavefunction to represent each of the variable indices as a
-        separate dimension.
+        When hierarchical diagonalization is used, the wave function is first
+        rotated back to the basis in which the variables were originally
+        defined. The result is then reshaped so that each variable index is
+        represented as a separate dimension.
+
+        Parameters
+        ----------
+        wf:
+            Wave function vector to be reshaped.
+        var_indices:
+            Variable indices to be exposed as separate axes.
         """
         if self.hierarchical_diagonalization:
             subsys_index_for_var_index = unique_elements_in_list(
@@ -261,8 +347,13 @@ class CircuitPlot(ABC):
         return wf_original_basis
 
     def _basis_for_var_index(self, var_index: int) -> str:
-        """Returns the ext_basis of the subsystem with no further subsystems to which
-        the var_index belongs."""
+        """Return the ``ext_basis`` of the leaf subsystem owning ``var_index``.
+
+        Parameters
+        ----------
+        var_index:
+            Variable index whose owning leaf subsystem's basis is queried.
+        """
         if self.hierarchical_diagonalization:
             subsys = self.subsystems[self.get_subsystem_index(var_index)]
             return subsys._basis_for_var_index(var_index)
@@ -279,8 +370,22 @@ class CircuitPlot(ABC):
         grids_dict: dict[int, discretization.Grid1d | ndarray],
         change_discrete_charge_to_phi: bool,
     ):
-        """Changes the basis of the varaible indices to discretized phi basis which is
-        amenable to plotting."""
+        """Change the basis of the variable indices to the discretized phi basis.
+
+        Parameters
+        ----------
+        wf_original_basis:
+            Wave function in the basis in which the variables were originally
+            defined.
+        var_indices:
+            Variable indices whose axes are converted to the phi basis.
+        grids_dict:
+            Mapping from variable index to the grid used for the target basis.
+        change_discrete_charge_to_phi:
+            If True, periodic (charge-basis) variables are also converted to
+            the discretized phi basis; otherwise they are left in the charge
+            basis.
+        """
         wf_ext_basis = wf_original_basis
         for var_index in var_indices:
             # finding the dimension corresponding to the var_index
@@ -316,8 +421,7 @@ class CircuitPlot(ABC):
         change_discrete_charge_to_phi: bool = True,
         grids_dict: dict[int, discretization.Grid1d] | None = None,
     ):
-        """Returns treated wave function of the current Circuit instance for the
-        specified variables.
+        """Return the processed wave function for the specified variables.
 
         Parameters
         ----------
@@ -332,15 +436,18 @@ class CircuitPlot(ABC):
         eigensys:
             eigenvalues and eigenstates of the Circuit instance; if not provided,
             calling this method will perform a diagonalization to obtain these.
-        extended_variable_basis: str
-            The basis in which the extended variables are plotted. Can be either
-            "phi" or "charge".
-        periodic_variable_basis: str
-            The basis in which the periodic variables are plotted. Can be either
-            "phi" or "charge".
+        change_discrete_charge_to_phi:
+            If True, periodic (charge-basis) variables are converted to the
+            discretized phi basis before processing; otherwise they remain in
+            the charge basis.
         grids_dict:
             A dictionary which pairs var indices with the requested grids used to create
             the plot.
+
+        Notes
+        -----
+        For ``mode="real"`` and ``mode="imag"`` the imaginary or real part of
+        the wave function is dropped via :func:`numpy.real`/:func:`numpy.imag`.
         """
         # checking to see if eigensys needs to be generated
         if eigensys is None:

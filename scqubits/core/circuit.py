@@ -52,6 +52,8 @@ from scqubits.core.circuit_noise import NoisyCircuit
 
 
 class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot):
+    """Abstract base aggregating circuit routines, symbolic methods, and plotting."""
+
     pass
 
 
@@ -62,8 +64,7 @@ class Subsystem(  # type: ignore[misc]
     dispatch.DispatchClient,
     NoisyCircuit,
 ):
-    """Defines a subsystem for a circuit, which can further be used recursively to
-    define subsystems within subsystem.
+    """Defines a subsystem of a circuit, usable recursively to define nested subsystems.
 
     Parameters
     ----------
@@ -71,7 +72,7 @@ class Subsystem(  # type: ignore[misc]
         the instance under which the new subsystem is defined.
     ext_basis:
         The basis that should be used for extended variables
-    hamiltonian_symbolic: sm.Expr
+    hamiltonian_symbolic:
         The symbolic expression which defines the Hamiltonian for the new subsystem
     system_hierarchy:
         Defines the hierarchy of the new subsystem, is set to None when hierarchical
@@ -82,6 +83,14 @@ class Subsystem(  # type: ignore[misc]
         by default `None`
     truncated_dim:
         sets the truncated dimension for the current subsystem, set to 10 by default.
+    evals_method:
+        optional override for the eigenvalue solver routine, by default `None`
+    evals_method_options:
+        keyword options forwarded to ``evals_method``, by default `None`
+    esys_method:
+        optional override for the eigensystem solver routine, by default `None`
+    esys_method_options:
+        keyword options forwarded to ``esys_method``, by default `None`
 
     Attributes
     ----------
@@ -104,9 +113,10 @@ class Subsystem(  # type: ignore[misc]
         dictionary with keys as the indices of the extended variables and values as
         the range of discretized phi variables
     type_of_matrices: str
-        type of matrices used to construct the operators "dense" or "sparse", by default "sparse"
+        type of matrices used to construct the operators "dense" or "sparse",
+        by default "sparse"
     system_hierarchy: list
-        list of lists containing variable indices which is provided by the user to define subsystems
+        nested list of variable indices provided by the user to define subsystems
     subsystem_trunc_dims: list
         list of truncated dimensions for the subsystems inside the current subsystem
     hilbert_space: HilbertSpace
@@ -208,10 +218,11 @@ class Subsystem(  # type: ignore[misc]
         self._frozen = True
 
     def _find_and_set_sym_attrs(self):
-        """Finds the symbolic and other circuit params from the symbolic Hamiltonian,
-        and sets the attribs external_fluxes, offset_charges and symbolic_params.
+        """Find symbolic and other circuit params from the symbolic Hamiltonian.
 
-        Only works when _frozen is set to False, or the above attribs are already set.
+        Sets the attributes ``external_fluxes``, ``offset_charges`` and
+        ``symbolic_params``. Only works when ``_frozen`` is set to ``False``, or the
+        above attributes are already set.
         """
         self.external_fluxes = [
             var
@@ -260,7 +271,15 @@ class Subsystem(  # type: ignore[misc]
         self,
         subsys_dict: dict[str, Any] | None = None,
     ) -> None:
-        """Function which is used to initiate the subsystem instance."""
+        """Initiate the subsystem instance.
+
+        Parameters
+        ----------
+        subsys_dict:
+            optional dictionary with keys ``"systems_sym"`` and ``"interaction_sym"``
+            defining the symbolic Hamiltonians and interactions for the subsystems;
+            by default ``None``, in which case it is generated internally.
+        """
         self._frozen = False
 
         self._find_and_set_sym_attrs()
@@ -335,11 +354,29 @@ class Circuit(  # type: ignore[misc]
         set to False by default. Indicates if the flux allocation is done by assuming
         that flux is time dependent. When set to True, it disables the option to change
         the closure branches.
+    generate_noise_methods:
+        when ``True``, generate per-channel noise methods on the instance after
+        construction; by default ``False``.
     initiate_sym_calc:
         parameter to initiate Circuit instance, by default `True`
     truncated_dim:
         truncated dimension if the user wants to use this circuit instance in
         HilbertSpace, by default `None`
+    symbolic_param_dict:
+        mapping from symbolic-parameter name (string) to numerical value, used when
+        the instance is initialized from a ``symbolic_hamiltonian`` rather than a
+        YAML input string; by default ``{}``.
+    symbolic_hamiltonian:
+        optional pre-built symbolic Hamiltonian. If provided, ``input_string`` must
+        be ``None``; by default ``None``.
+    evals_method:
+        optional override for the eigenvalue solver routine, by default `None`
+    evals_method_options:
+        keyword options forwarded to ``evals_method``, by default `None`
+    esys_method:
+        optional override for the eigensystem solver routine, by default `None`
+    esys_method_options:
+        keyword options forwarded to ``esys_method``, by default `None`
 
     Attributes
     ----------
@@ -362,7 +399,8 @@ class Circuit(  # type: ignore[misc]
         dictionary with keys as the indices of the extended variables and values as
         the range of discretized phi variables
     type_of_matrices: str
-        type of matrices used to construct the operators "dense" or "sparse", by default "sparse"
+        type of matrices used to construct the operators "dense" or "sparse",
+        by default "sparse"
     truncated_dim: int
         truncated dimension for the current instance
     is_purely_harmonic: bool
@@ -372,7 +410,7 @@ class Circuit(  # type: ignore[misc]
     hilbert_space: HilbertSpace
         HilbertSpace instance for the instance, when hierarchical diagonalization is used
     system_hierarchy: list
-        list of lists containing variable indices which is provided by the user to define subsystems
+        nested list of variable indices provided by the user to define subsystems
     subsystem_trunc_dims: list
         list of truncated dimensions for the subsystems inside the current subsystem
     """
@@ -445,6 +483,24 @@ class Circuit(  # type: ignore[misc]
         truncated_dim: int,
         ext_basis: str,
     ):
+        """Initialize the :class:`Circuit` instance from a symbolic Hamiltonian.
+
+        Parameters
+        ----------
+        symbolic_hamiltonian:
+            the symbolic Hamiltonian expression that defines the circuit.
+        symbolic_param_dict:
+            mapping from symbolic-parameter names to numerical default values.
+            Entries whose name contains ``"ng"`` or ``"Φ"`` are skipped (these are
+            treated as offset charges or external fluxes, respectively).
+        initiate_sym_calc:
+            if ``True``, run :meth:`configure` after the attributes are set.
+        truncated_dim:
+            truncated dimension for the resulting Circuit instance.
+        ext_basis:
+            ``"discretized"`` or ``"harmonic"``; the basis used for extended
+            variables.
+        """
         self.hamiltonian_symbolic = symbolic_hamiltonian
 
         self.symbolic_params = {}
@@ -486,15 +542,16 @@ class Circuit(  # type: ignore[misc]
         self,
         input_string: str,
         from_file: bool = True,
-        basis_completion="heuristic",
+        basis_completion: str = "heuristic",
         ext_basis: str = "discretized",
         use_dynamic_flux_grouping: bool = False,
         generate_noise_methods: bool = False,
         initiate_sym_calc: bool = True,
         truncated_dim: int = 10,
     ):
-        """Wrapper to Circuit __init__ to create a class instance. This is deprecated
-        and will not be supported in future releases.
+        """Wrapper to :meth:`Circuit.__init__` to create a class instance.
+
+        This method is deprecated and will not be supported in future releases.
 
         Parameters
         ----------
@@ -520,8 +577,12 @@ class Circuit(  # type: ignore[misc]
             truncated dimension if the user wants to use this circuit instance in
             HilbertSpace, by default `None`
         use_dynamic_flux_grouping:
-            set to False by default. Indicates if the flux allocation is done by assuming that flux is time dependent. When set to True, it disables the
+            set to False by default. Indicates if the flux allocation is done by
+            assuming that flux is time dependent. When set to True, it disables the
             option to change the closure branches.
+        generate_noise_methods:
+            when ``True``, generate per-channel noise methods on the instance after
+            initialization; by default ``False``.
         """
         if basis_completion not in ["heuristic", "canonical"]:
             raise Exception(
@@ -593,6 +654,24 @@ class Circuit(  # type: ignore[misc]
     def _find_branch(
         self, node_id_1: int, node_id_2: int, branch_type: str, branch_params: dict
     ):
+        """Locate a branch in :attr:`symbolic_circuit` matching the given description.
+
+        Parameters
+        ----------
+        node_id_1:
+            integer index of the first endpoint node of the sought branch.
+        node_id_2:
+            integer index of the second endpoint node of the sought branch.
+        branch_type:
+            branch type identifier (e.g. ``"L"``, ``"C"``, ``"JJ"``).
+        branch_params:
+            dictionary of branch parameters; symbolic parameters are compared by
+            their symbol name.
+
+        Returns
+        -------
+        The matching :class:`Branch` instance, or ``None`` if no branch matches.
+        """
         for branch in self.symbolic_circuit.branches:
             branch_node_ids = [node.index for node in branch.nodes]
             branch_params_circ = branch.parameters.copy()
