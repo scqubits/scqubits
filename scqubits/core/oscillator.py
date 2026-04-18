@@ -49,7 +49,7 @@ def harm_osc_wavefunction(n: int, x: float | ndarray, l_osc: float) -> float | n
 
     Returns
     -------
-        value of harmonic oscillator wave function
+    value of harmonic oscillator wave function
     """
     result = pbdv(n, np.sqrt(2.0) * x / l_osc) / np.sqrt(
         l_osc * np.sqrt(np.pi) * factorial(n)
@@ -87,7 +87,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
         optional string by which this instance can be referred to in :class:`HilbertSpace`
-        and `ParameterSweep`. If not provided, an id is auto-generated.
+        and :class:`ParameterSweep`. If not provided, an id is auto-generated.
     """
 
     E_osc = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
@@ -118,7 +118,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         Parameters
         ----------
         evals_count:
-            number of desired eigenvalues (default value = 6)
+            number of desired eigenvalues (default: 6)
         """
         evals = [self.E_osc * n for n in range(evals_count)]
         return np.asarray(evals)
@@ -131,7 +131,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         Parameters
         ----------
         evals_count:
-            number of desired eigenvalues (default value = 6)
+            number of desired eigenvalues (default: 6)
         """
         evals_count = evals_count or _default_evals_count
         evecs = np.zeros(shape=(self.truncated_dim, evals_count), dtype=np.float64)
@@ -206,7 +206,7 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
         optional string by which this instance can be referred to in :class:`HilbertSpace`
-        and `ParameterSweep`. If not provided, an id is auto-generated.
+        and :class:`ParameterSweep`. If not provided, an id is auto-generated.
     """
 
     K = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
@@ -247,7 +247,7 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         Parameters
         ----------
         evals_count:
-            number of desired eigenvalues (default value = 6)
+            number of desired eigenvalues (default: 6)
         """
         evals = [(self.E_osc + self.K) * n - self.K * n**2 for n in range(evals_count)]
         return np.asarray(evals)

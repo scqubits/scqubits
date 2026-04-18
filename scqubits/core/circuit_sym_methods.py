@@ -137,7 +137,7 @@ class CircuitSymMethods(ABC):
 
         Returns
         -------
-            expression of constants belonging to the subsystem
+        expression of constants belonging to the subsystem
         """
         constants_subsys_list = []
         subsys_free_symbols = set(H_sys.free_symbols)
@@ -748,7 +748,7 @@ class CircuitSymMethods(ABC):
 
         Returns
         -------
-            Sympy expression which is simplified to make it human readable.
+        Sympy expression which is simplified to make it human readable.
         """
         expr_modified = expr
         # rounding the decimals in the coefficients

@@ -66,7 +66,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         C       1,2     1
         JJ      1,2     1       10
 
-    The `Circuit` object can be initiated using::
+    The :class:`Circuit` object can be initiated using::
         `Circuit.from_input_file("transmon_num.inp")`
 
     Parameters

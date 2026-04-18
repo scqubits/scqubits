@@ -137,7 +137,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
 
         Returns
         -------
-            Hamiltonian in `qutip.Qobj` format
+        Hamiltonian in `qutip.Qobj` format
         """
         hamiltonian = cast(qt.Qobj, self.g_strength)
         id_wrapped_ops = self.id_wrap_all_ops(
@@ -171,7 +171,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
 
         Returns
         -------
-            list of identity-wrapped operators
+        list of identity-wrapped operators
         """
         id_wrapped_operators = []
         for subsys_index, operator in operator_list:
@@ -786,7 +786,7 @@ class HilbertSpace(
 
         Returns
         -------
-            eigenvalues and eigenvectors
+        eigenvalues and eigenvectors
         """
 
         hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)  # type: ignore[arg-type]
@@ -848,8 +848,8 @@ class HilbertSpace(
 
         Returns
         -------
-            Hamiltonian of the composite system, including the interaction between
-            components
+        Hamiltonian of the composite system, including the interaction between
+        components
         """
         hamiltonian = self.bare_hamiltonian(bare_esys=bare_esys)
         hamiltonian += self.interaction_hamiltonian(bare_esys=bare_esys)
@@ -865,8 +865,8 @@ class HilbertSpace(
 
         Returns
         -------
-            composite Hamiltonian composed of bare Hamiltonians of subsystems
-            independent of the external parameter
+        composite Hamiltonian composed of bare Hamiltonians of subsystems
+        independent of the external parameter
         """
         # We create a dimension [1] system if no subsystems have been given
         bare_hamiltonian = qt.qzero(
@@ -895,7 +895,7 @@ class HilbertSpace(
 
         Returns
         -------
-            interaction Hamiltonian
+        interaction Hamiltonian
         """
         if not self.interaction_list:
             # We return a dimension [1] system if no subsystems have been given
@@ -1021,16 +1021,16 @@ class HilbertSpace(
             update_hilbertspace(param_val) specifies how a change in the external
             parameter affects the Hilbert space components
         evals_count:
-            number of desired energy levels (default value = 10)
+            number of desired energy levels (default: 10)
         get_eigenstates:
             set to true if eigenstates should be returned as well
-            (default value = False)
+            (default: False)
         param_name:
             name for the parameter that is varied in `param_vals`
-            (default value = "external_parameter")
+            (default: "external_parameter")
         num_cpus:
             number of cores to be used for computation
-            (default value: settings.NUM_CPUS)
+            (default: settings.NUM_CPUS)
         """
         num_cpus = num_cpus or settings.NUM_CPUS
         target_map = cpu_switch.get_map_method(num_cpus)

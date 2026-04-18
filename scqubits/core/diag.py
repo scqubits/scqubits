@@ -41,18 +41,18 @@ def _dict_merge(
 
     Parameters
     ----------
-    d: dict
+    d:
         dictionary
     d_other:
         second dictionary to be merged with the first
-    exclude: dict
+    exclude:
         list of potential keys in d_other to be excluded from being added to resulting merge
     overwrite: bool
         determines if keys already in d should be overwritten by those in d_other
 
     Returns
     ----------
-        merged dictionary
+    merged dictionary
     """
     exclude = [] if exclude is None else exclude
 
@@ -87,15 +87,15 @@ def _cast_matrix(
     ----------
     matrix: `Qobj`, `ndarray` or scipy's sparse matrix format
         matrix given as an ndarray, Qobj, or scipy's sparse matrix format
-    cast_to: str
+    cast_to:
         string representing the format that matrix should be cast into: 'sparse' or 'dense'
-    force_cast: bool
+    force_cast:
         determines if explicit casting to dense or sparse format should be always
         performed
 
     Returns
     ----------
-        matrix in the sparse or dense form
+    matrix in the sparse or dense form
     """
     if cast_to not in ["sparse", "dense"]:
         raise ValueError("Can only cast matrix to 'sparse' or 'dense' forms.")
@@ -145,7 +145,7 @@ def _convert_evecs_to_qobjs(evecs: ndarray, matrix_qobj, wrap: bool = False) -> 
 
     Returns
     ----------
-        eigenvectors represented in terms of Qobjs
+    eigenvectors represented in terms of Qobjs
     """
     evecs_count = evecs.shape[1]
     evec_dims = [matrix_qobj.dims[0], [1] * len(matrix_qobj.dims[0])]
@@ -182,7 +182,7 @@ def evals_scipy_dense(
 
     Returns
     ----------
-        eigenvalues of matrix
+    eigenvalues of matrix
     """
     m = _cast_matrix(matrix, "dense")
 
@@ -217,7 +217,7 @@ def esys_scipy_dense(
 
     Returns
     ----------
-        a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if matrix is a Qobj instance
+    a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if matrix is a Qobj instance
     """
     m = _cast_matrix(matrix, "dense")
 
@@ -252,7 +252,7 @@ def evals_scipy_sparse(
 
     Returns
     ----------
-        eigenvalues of matrix
+    eigenvalues of matrix
     """
     m = _cast_matrix(matrix, "sparse")
 
@@ -302,7 +302,7 @@ def esys_scipy_sparse(
 
     Returns
     ----------
-        a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if matrix is a Qobj instance
+    a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if matrix is a Qobj instance
     """
     m = _cast_matrix(matrix, "sparse")
 
@@ -349,7 +349,7 @@ def evals_primme_sparse(
 
     Returns
     ----------
-        eigenvalues of matrix
+    eigenvalues of matrix
     """
     try:
         import primme
@@ -391,7 +391,7 @@ def esys_primme_sparse(
 
     Returns
     ----------
-        a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if matrix is a Qobj instance
+    a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if matrix is a Qobj instance
     """
     try:
         import primme
@@ -440,7 +440,7 @@ def evals_cupy_dense(
 
     Returns
     ----------
-        eigenvalues of matrix
+    eigenvalues of matrix
     """
     try:
         import cupy as cp
@@ -474,7 +474,7 @@ def esys_cupy_dense(
 
     Returns
     ----------
-        a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if matrix is a Qobj instance
+    a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if matrix is a Qobj instance
     """
     try:
         import cupy as cp
@@ -514,7 +514,7 @@ def evals_cupy_sparse(
 
     Returns
     ----------
-        eigenvalues of matrix
+    eigenvalues of matrix
     """
     try:
         import cupy as cp
@@ -558,7 +558,7 @@ def esys_cupy_sparse(
 
     Returns
     ----------
-        a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if matrix is a Qobj instance
+    a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if matrix is a Qobj instance
     """
     try:
         import cupy as cp
@@ -613,7 +613,7 @@ def evals_jax_dense(matrix, evals_count, **kwargs) -> ndarray:
 
     Returns
     ----------
-        eigenvalues of matrix
+    eigenvalues of matrix
     """
     try:
         import jax
@@ -658,7 +658,7 @@ def esys_jax_dense(
 
     Returns
     ----------
-        a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if matrix is a Qobj instance
+    a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if matrix is a Qobj instance
     """
     try:
         import jax

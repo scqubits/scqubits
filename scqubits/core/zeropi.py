@@ -100,7 +100,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
         optional string by which this instance can be referred to in :class:`HilbertSpace`
-        and `ParameterSweep`. If not provided, an id is auto-generated.
+        and :class:`ParameterSweep`. If not provided, an id is auto-generated.
     esys_method:
         method for esys diagonalization, callable or string representation
     esys_method_options:
@@ -284,7 +284,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         """
         Returns
         -------
-            value of the potential energy evaluated at :math:`\phi`, :math:`\theta`
+        value of the potential energy evaluated at :math:`\phi`, :math:`\theta`
         """
         return (
             -2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0)
@@ -301,7 +301,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
         Returns
         -------
-            matrix representing the kinetic energy operator
+        matrix representing the kinetic energy operator
         """
         pt_count = self.grid.pt_count
         dim_theta = 2 * self.ncut + 1
@@ -337,7 +337,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
         Returns
         -------
-            matrix representing the potential energy operator
+        matrix representing the potential energy operator
         """
         pt_count = self.grid.pt_count
         grid_linspace = self.grid.make_linspace()
@@ -401,10 +401,10 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
         Returns
         -------
-            Hamiltonian in chosen basis as csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, the Hamiltonian has dimensions of :attr:`truncated_dim`
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, Hamiltonian has dimensions of m x m,
-            for m given eigenvectors.
+        Hamiltonian in chosen basis as csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, the Hamiltonian has dimensions of :attr:`truncated_dim`
+        x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, Hamiltonian has dimensions of m x m,
+        for m given eigenvectors.
         """
         hamiltonian_mat = self.sparse_kinetic_mat() + self.sparse_potential_mat()
         return self.process_hamiltonian(
@@ -421,7 +421,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
         Returns
         -------
-            matrix representing the derivative of the potential energy
+        matrix representing the derivative of the potential energy
         """
         op_1 = sparse.kron(
             self._sin_phi_operator(x=-2.0 * np.pi * self.flux / 2.0),
@@ -453,11 +453,11 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
         Returns
         -------
-            Operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
-            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        Operator in chosen basis. If native basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+        x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
+        operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
         native = self.sparse_d_potential_d_flux_mat()
         return self.process_op(native_op=native, energy_esys=energy_esys)
@@ -467,7 +467,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
         Returns
         -------
-            matrix representing the derivative of the potential energy
+        matrix representing the derivative of the potential energy
         """
         return -2.0 * sparse.kron(
             self._cos_phi_operator(x=-2.0 * np.pi * self.flux / 2.0),
@@ -492,11 +492,11 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
         Returns
         -------
-            Operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
-            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        Operator in chosen basis. If native basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+        x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
+        operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
         native = self.sparse_d_potential_d_EJ_mat()
         return self.process_op(native_op=native, energy_esys=energy_esys)
@@ -518,11 +518,11 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
         Returns
         -------
-            Operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
-            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        Operator in chosen basis. If native basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+        x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
+        operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
         native = -8 * self.EC * self.n_theta_operator()
         return self.process_op(native_op=native, energy_esys=energy_esys)
@@ -575,11 +575,11 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
         Returns
         -------
-            Operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
-            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        Operator in chosen basis. If native basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+        x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
+        operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
         native = sparse.kron(self._phi_operator(), self._identity_theta(), format="csc")
         return self.process_op(native_op=native, energy_esys=energy_esys)
@@ -599,11 +599,11 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
         Returns
         -------
-            Operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
-            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        Operator in chosen basis. If native basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+        x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
+        operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
         dim_theta = 2 * self.ncut + 1
         diag_elements = np.arange(-self.ncut, self.ncut + 1)
@@ -670,11 +670,11 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
         Returns
         -------
-            Operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
-            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        Operator in chosen basis. If native basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+        x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
+        operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
         native = sparse.kron(
             self._identity_phi(), self._cos_theta_operator(), format="csc"
@@ -715,11 +715,11 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
         Returns
         -------
-            Operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
-            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        Operator in chosen basis. If native basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+        x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
+        operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
         """
         native = sparse.kron(
             self._identity_phi(), self._sin_theta_operator(), format="csc"
@@ -769,7 +769,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         esys:
             eigenvalues, eigenvectors
         which:
-             index of desired wave function (default value = 0)
+             index of desired wave function (default: 0)
         theta_grid:
             used for setting a custom grid for :math:`\theta`; if None use self._default_grid
         """
@@ -817,12 +817,12 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         esys:
             eigenvalues, eigenvectors as obtained from `.eigensystem()`
         which:
-            index of wave function to be plotted (default value = 0)
+            index of wave function to be plotted (default: 0)
         theta_grid:
             used for setting a custom grid for theta; if None use self._default_grid
         mode:
             choices as specified in `constants.MODE_FUNC_DICT`
-            (default value = 'abs')
+            (default: 'abs')
         zero_calibrate:
             if True, colors are adjusted to use zero wavefunction amplitude as the
             neutral color in the palette

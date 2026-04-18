@@ -41,7 +41,7 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
        qubit energy splitting
     id_str:
         optional string by which this instance can be referred to in :class:`HilbertSpace`
-        and `ParameterSweep`. If not provided, an id is auto-generated.
+        and :class:`ParameterSweep`. If not provided, an id is auto-generated.
     """
 
     truncated_dim = 2

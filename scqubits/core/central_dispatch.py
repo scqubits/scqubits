@@ -58,7 +58,7 @@ class CentralDispatch:
 
         Parameters
         ----------
-        event: str
+        event:
             event name from EVENTS
 
         Returns
@@ -74,9 +74,9 @@ class CentralDispatch:
 
         Parameters
         ----------
-        event: str
+        event:
             event name from EVENTS
-        who: DispatchClient
+        who:
             object to be registered
         callback: method, optional
             custom callback method other than `.receive()`
@@ -104,9 +104,9 @@ class CentralDispatch:
 
         Parameters
         ----------
-        event: str
+        event:
             event name from EVENTS
-        who: DispatchClient
+        who:
             object to be unregistered
         """
         del self.get_clients_dict(event)[who]
@@ -116,7 +116,7 @@ class CentralDispatch:
 
         Parameters
         ----------
-        who: DispatchClient
+        who:
             object to be unregistered
         """
         for event in self.clients_dict:
@@ -127,9 +127,9 @@ class CentralDispatch:
 
         Parameters
         ----------
-        event: str
+        event:
             event name from EVENTS
-        sender: DispatchClient
+        sender:
             object requesting the dispatch
         **kwargs
         """
@@ -152,9 +152,9 @@ class CentralDispatch:
 
         Parameters
         ----------
-        caller: DispatchClient
+        caller:
             object requesting the dispatch
-        event:  str
+        event:
             event name from EVENTS
         **kwargs
         """

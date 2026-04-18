@@ -433,7 +433,7 @@ class CircuitPlot(ABC):
             If True, the wave function is plotted in the phi basis for the periodic
             variables. If False, the wave function is plotted in the charge basis
             for the periodic variables.
-        zero_calibrate: bool, optional
+        zero_calibrate:
             if True, colors are adjusted to use zero wavefunction amplitude as the
             neutral color in the palette
         grids_dict:
@@ -456,7 +456,7 @@ class CircuitPlot(ABC):
 
         Returns
         -------
-            Returns a axes and figure for further editing.
+        Returns a axes and figure for further editing.
         """
         if len(var_indices) > 2:
             raise AttributeError(
@@ -719,7 +719,7 @@ class CircuitPlot(ABC):
 
         Returns
         -------
-            Returns a axes and figure for further editing.
+        Returns a axes and figure for further editing.
         """
 
         periodic_indices = self.var_categories["periodic"]

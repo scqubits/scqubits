@@ -83,7 +83,7 @@ class WaveFunction:
 
         Returns
         -------
-            scale factor
+        scale factor
         """
         FILL_FACTOR = 0.1
         energy_range = np.max(potential_vals) - np.min(potential_vals)
@@ -102,7 +102,7 @@ class WaveFunctionOnGrid:
 
     Parameters
     ----------
-    gridspec: GridSpec
+    gridspec:
         grid specifications for the stored wave function
     amplitudes:
         wave function amplitudes on each grid point
@@ -197,7 +197,7 @@ class SpectrumData(DataStore):
         name of parameter being varied
     param_vals:
         parameter values for which spectrum data are stored
-    state_table: list[QutipEigenstates] | np.ndarray | list[np.ndarray]
+    state_table:
         eigenstate data stored for each `param_vals` point, either as pure np.ndarray or
         list of qutip.qobj
     matrixelem_table:
@@ -263,7 +263,7 @@ class SpectrumData(DataStore):
 
         Returns
         -------
-            Figure and Axes objects for further processing
+        Figure and Axes objects for further processing
         """
         return plot.evals_vs_paramvals(
             self,

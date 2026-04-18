@@ -147,7 +147,7 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         """
         Returns
         -------
-            spacing between neighboring grid points
+        spacing between neighboring grid points
         """
         return (self.max_val - self.min_val) / (self.pt_count - 1)
 
@@ -170,13 +170,13 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         Parameters
         ----------
         prefactor:
-            prefactor of the derivative matrix (default value: 1.0)
+            prefactor of the derivative matrix (default: 1.0)
         periodic:
             set to True if variable is a periodic variable
 
         Returns
         -------
-            sparse matrix in `dia` format
+        sparse matrix in `dia` format
         """
         dtp: type[np.complexfloating] | type[np.floating]
         if isinstance(prefactor, complex):
@@ -205,13 +205,13 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         Parameters
         ----------
         prefactor:
-            optional prefactor of the derivative matrix (default value = 1.0)
+            optional prefactor of the derivative matrix (default: 1.0)
         periodic:
-            set to True if variable is a periodic variable (default value = False)
+            set to True if variable is a periodic variable (default: False)
 
         Returns
         -------
-            sparse matrix in `dia` format
+        sparse matrix in `dia` format
         """
         dtp: type[np.complexfloating] | type[np.floating]
         if isinstance(prefactor, complex):

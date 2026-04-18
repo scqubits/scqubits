@@ -37,7 +37,7 @@ def bare_matrixelement(
     Parameters
     ----------
     sweep:
-        `ParameterSweep` object to be used for the computation
+        :class:`ParameterSweep` object to be used for the computation
     paramindex_tuple:
         a complete set of parameter indices (i.e. a single point in the multi-dim
         parameter space)
@@ -51,8 +51,8 @@ def bare_matrixelement(
 
     Returns
     -------
-        ndarray of matrix elements, in general complex-valued; shape: square array of
-        size set by the truncated_dim of the subsystem
+    ndarray of matrix elements, in general complex-valued; shape: square array of
+    size set by the truncated_dim of the subsystem
     """
     subsys_index = sweep.get_subsys_index(subsystem)
     bare_evecs = sweep["bare_evecs"][subsys_index][paramindex_tuple]
@@ -75,7 +75,7 @@ def dressed_matrixelement(
     Parameters
     ----------
     sweep:
-        `ParameterSweep` object to be used for the computation
+        :class:`ParameterSweep` object to be used for the computation
     paramindex_tuple:
         a complete set of parameter indices (i.e. a single point in the multi-dim
         parameter space)
@@ -86,8 +86,8 @@ def dressed_matrixelement(
 
     Returns
     -------
-        ndarray of matrix elements, in general complex-valued; shape: square array of
-        size set by the truncated_dim of the subsystem
+    ndarray of matrix elements, in general complex-valued; shape: square array of
+    size set by the truncated_dim of the subsystem
     """
     evecs = sweep["evecs"][paramindex_tuple]
     return np.asarray(

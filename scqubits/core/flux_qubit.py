@@ -88,8 +88,8 @@ class NoisyFluxQubit(NoisySystem, ABC):
 
         Returns
         -------
-            decoherence time in units of :math:`2\pi` (system units),
-             or rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units),
+         or rate in inverse units.
         """
         if "tphi_1_over_f_cc1" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -134,8 +134,8 @@ class NoisyFluxQubit(NoisySystem, ABC):
 
         Returns
         -------
-            :math:`T_{\phi}` time or rate:
-            decoherence time in units of :math:`2\pi` (system units), or rate in inverse units.
+        :math:`T_{\phi}` time or rate:
+        decoherence time in units of :math:`2\pi` (system units), or rate in inverse units.
         """
         if "tphi_1_over_f_cc2" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -180,7 +180,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
 
         Returns
         -------
-            decoherence time in units of :math:`2\pi` (system units), or rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or rate in inverse units.
         """
         if "tphi_1_over_f_cc3" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -227,8 +227,8 @@ class NoisyFluxQubit(NoisySystem, ABC):
 
         Returns
         -------
-            decoherence time in units of :math:`2\pi` (system units),
-            or rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units),
+        or rate in inverse units.
         """
         if "tphi_1_over_f_cc" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -294,15 +294,15 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         two islands
     ng1, ng2: float
         offset charge associated with island i
-    flux: float
+    flux:
         magnetic flux through the circuit loop, measured in units of the flux quantum
-    ncut: int
+    ncut:
         charge number cutoff for the charge on both islands `n`,  `n = -ncut, ..., ncut`
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
         optional string by which this instance can be referred to in :class:`HilbertSpace`
-        and `ParameterSweep`. If not provided, an id is auto-generated.
+        and :class:`ParameterSweep`. If not provided, an id is auto-generated.
     esys_method:
         method for esys diagonalization, callable or string representation
     esys_method_options:
@@ -542,10 +542,10 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
         Returns
         -------
-            Hamiltonian in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, the Hamiltonian has dimensions of :attr:`truncated_dim`
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, Hamiltonian has dimensions of m x m,
-            for m given eigenvectors.
+        Hamiltonian in chosen basis as ndarray. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, the Hamiltonian has dimensions of :attr:`truncated_dim`
+        x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, Hamiltonian has dimensions of m x m,
+        for m given eigenvectors.
         """
         hamiltonian_mat = self.kineticmat() + self.potentialmat()
         return self.process_hamiltonian(
@@ -568,10 +568,10 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
         Returns
         -------
-            Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
-            for m given eigenvectors.
+        Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+        x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
+        for m given eigenvectors.
         """
         native = -0.5 * np.kron(
             self._exp_i_phi_operator() + self._exp_i_phi_operator().T, self._identity()
@@ -594,10 +594,10 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
         Returns
         -------
-            Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
-            for m given eigenvectors.
+        Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+        x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
+        for m given eigenvectors.
         """
         native = -0.5 * np.kron(
             self._identity(), self._exp_i_phi_operator() + self._exp_i_phi_operator().T
@@ -620,10 +620,10 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
         Returns
         -------
-            Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
-            for m given eigenvectors.
+        Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+        x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
+        for m given eigenvectors.
         """
         native = (
             -0.5
@@ -656,10 +656,10 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
         Returns
         -------
-            Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
-            for m given eigenvectors.
+        Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+        x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
+        for m given eigenvectors.
         """
         native = (
             2j
@@ -711,9 +711,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
         Returns
         -------
-            Charge number operator conjugate to :math:`\phi_1` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m, for m given eigenvectors.
+        Charge number operator conjugate to :math:`\phi_1` in chosen basis as ndarray. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+        x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m, for m given eigenvectors.
         """
         native = np.kron(self._n_operator(), self._identity())
         return self.process_op(native_op=native, energy_esys=energy_esys)
@@ -734,9 +734,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
         Returns
         -------
-            Charge number operator conjugate to :math:`\phi_2` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m, for m given eigenvectors.
+        Charge number operator conjugate to :math:`\phi_2` in chosen basis as ndarray. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+        x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m, for m given eigenvectors.
         """
         native = np.kron(self._identity(), self._n_operator())
         return self.process_op(native_op=native, energy_esys=energy_esys)
@@ -756,10 +756,10 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
         Returns
         -------
-            Operator :math:`e^{i\phi_1}` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`e^{i\phi_1}` has dimensions of truncated_dim
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`e^{i\phi_1}` has dimensions of m x m,
-            for m given eigenvectors.
+        Operator :math:`e^{i\phi_1}` in chosen basis as ndarray. If the eigenenergy basis is chosen,
+        unless energy_esys is specified, :math:`e^{i\phi_1}` has dimensions of truncated_dim
+        x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`e^{i\phi_1}` has dimensions of m x m,
+        for m given eigenvectors.
         """
         native = np.kron(self._exp_i_phi_operator(), self._identity())
         return self.process_op(native_op=native, energy_esys=energy_esys)
@@ -779,10 +779,10 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
         Returns
         -------
-            Operator :math:`e^{i\phi_2}` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`e^{i\phi_2}` has dimensions of truncated_dim
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`e^{i\phi_2}` has dimensions of m x m,
-            for m given eigenvectors.
+        Operator :math:`e^{i\phi_2}` in chosen basis as ndarray. If the eigenenergy basis is chosen,
+        unless energy_esys is specified, :math:`e^{i\phi_2}` has dimensions of truncated_dim
+        x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`e^{i\phi_2}` has dimensions of m x m,
+        for m given eigenvectors.
         """
         native = np.kron(self._identity(), self._exp_i_phi_operator())
         return self.process_op(native_op=native, energy_esys=energy_esys)
@@ -803,10 +803,10 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
         Returns
         -------
-            Operator :math:`\cos \phi_1` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`\cos \phi_1` has dimensions of truncated_dim
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\cos \phi_1` has dimensions of m x m,
-            for m given eigenvectors.
+        Operator :math:`\cos \phi_1` in chosen basis as ndarray. If the eigenenergy basis is chosen,
+        unless energy_esys is specified, :math:`\cos \phi_1` has dimensions of truncated_dim
+        x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\cos \phi_1` has dimensions of m x m,
+        for m given eigenvectors.
         """
         cos_op = 0.5 * np.asarray(self.exp_i_phi_1_operator())
         cos_op += cos_op.T
@@ -829,10 +829,10 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
         Returns
         -------
-            Operator :math:`\cos \phi_2` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`\cos \phi_2` has dimensions of truncated_dim
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\cos \phi_2` has dimensions of m x m,
-            for m given eigenvectors.
+        Operator :math:`\cos \phi_2` in chosen basis as ndarray. If the eigenenergy basis is chosen,
+        unless energy_esys is specified, :math:`\cos \phi_2` has dimensions of truncated_dim
+        x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\cos \phi_2` has dimensions of m x m,
+        for m given eigenvectors.
         """
         cos_op = 0.5 * np.asarray(self.exp_i_phi_2_operator())
         cos_op += cos_op.T
@@ -855,10 +855,10 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
         Returns
         -------
-            Operator :math:`\sin \phi_1` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`\sin \phi_1` has dimensions of truncated_dim
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\sin \phi_1` has dimensions of m x m,
-            for m given eigenvectors.
+        Operator :math:`\sin \phi_1` in chosen basis as ndarray. If the eigenenergy basis is chosen,
+        unless energy_esys is specified, :math:`\sin \phi_1` has dimensions of truncated_dim
+        x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\sin \phi_1` has dimensions of m x m,
+        for m given eigenvectors.
         """
         sin_op = -1j * 0.5 * np.asarray(self.exp_i_phi_1_operator())
         sin_op += sin_op.conj().T
@@ -881,10 +881,10 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
         Returns
         -------
-            Operator :math:`\sin \phi_2` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`\sin \phi_2` has dimensions of truncated_dim
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\sin \phi_2` has dimensions of m x m,
-            for m given eigenvectors.
+        Operator :math:`\sin \phi_2` in chosen basis as ndarray. If the eigenenergy basis is chosen,
+        unless energy_esys is specified, :math:`\sin \phi_2` has dimensions of truncated_dim
+        x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\sin \phi_2` has dimensions of m x m,
+        for m given eigenvectors.
         """
         sin_op = -1j * 0.5 * np.asarray(self.exp_i_phi_2_operator())
         sin_op += sin_op.conj().T
@@ -931,7 +931,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         esys:
             eigenvalues, eigenvectors
         which:
-            index of desired wave function (default value = 0)
+            index of desired wave function (default: 0)
         phi_grid:
             used for setting a custom grid for :math:`\phi`; if None use self._default_grid
         """
@@ -979,12 +979,12 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         esys:
             eigenvalues, eigenvectors as obtained from `.eigensystem()`
         which:
-            index of wave function to be plotted (default value = 0)
+            index of wave function to be plotted (default: 0)
         phi_grid:
             used for setting a custom grid for :math:`\phi`; if None use self._default_grid
         mode:
             choices as specified in `constants.MODE_FUNC_DICT`
-            (default value = 'abs')
+            (default: 'abs')
         zero_calibrate:
             if True, colors are adjusted to use zero wavefunction amplitude as the
             neutral color in the palette

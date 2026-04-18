@@ -341,7 +341,7 @@ class CircuitRoutines(ABC):
 
         Returns
         -------
-            Cutoffs dictionary; {var_index: cutoff}
+        Cutoffs dictionary; {var_index: cutoff}
         """
         cutoffs_dict = {}
 
@@ -767,7 +767,7 @@ class CircuitRoutines(ABC):
 
         Returns
         -------
-            self
+        self
         """
         setattr(self, attr_name, value)
         return self
@@ -930,8 +930,8 @@ class CircuitRoutines(ABC):
 
         Returns
         -------
-            subsystem index which can be used to identify the subsystem index in the
-            list self.subsystems.
+        subsystem index which can be used to identify the subsystem index in the
+        list self.subsystems.
         """
         for index, system_hierarchy in enumerate(self.system_hierarchy):
             if var_index in flatten_list_recursive(system_hierarchy):
@@ -1150,7 +1150,7 @@ class CircuitRoutines(ABC):
 
         Returns
         -------
-            Returns the operator which is identity wrapped for the current subsystem.
+        Returns the operator which is identity wrapped for the current subsystem.
         """
         dynamic_var_indices = self.dynamic_var_indices.copy()
         var_index_pos = dynamic_var_indices.index(var_index)
@@ -1202,8 +1202,8 @@ class CircuitRoutines(ABC):
 
         Returns
         -------
-            Returns the matrix in sparse or dense version depending on the type of
-            matrices used.
+        Returns the matrix in sparse or dense version depending on the type of
+        matrices used.
         """
         #  all of this can be simplified.
         if sparse.issparse(matrix):
@@ -1492,7 +1492,7 @@ class CircuitRoutines(ABC):
 
     def _generate_operator_methods(self) -> dict[str, Callable]:
         """Returns the set of operator functions to be turned into methods of the
-        `Circuit` class."""
+        :class:`Circuit` class."""
         periodic_vars = self.vars["periodic"]
         extended_vars = self.vars["extended"]
 
@@ -1647,7 +1647,7 @@ class CircuitRoutines(ABC):
 
         Returns
         -------
-            identity wrapped operator.
+        identity wrapped operator.
         """
         if not self.hierarchical_diagonalization:
             return qt.Qobj(operator)
@@ -1704,7 +1704,7 @@ class CircuitRoutines(ABC):
 
         Returns
         -------
-            operator identified by `operator_name`
+        operator identified by `operator_name`
         """
         if not self.hierarchical_diagonalization:
             # if the operator_name is a Qsn operator (which is possible when self is a
@@ -2080,9 +2080,9 @@ class CircuitRoutines(ABC):
 
         Returns
         -------
-            returns the float value which is the oscillator length or the frequency of
-            the oscillator corresponding to var_index depending on the string
-            `which_param`.
+        returns the float value which is the oscillator length or the frequency of
+        the oscillator corresponding to var_index depending on the string
+        `which_param`.
         """
         if not self.hierarchical_diagonalization:
             return eval("self.osc_" + which_param + "s[" + str(var_index) + "]")

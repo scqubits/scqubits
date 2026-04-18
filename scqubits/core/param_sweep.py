@@ -225,7 +225,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
 
         Returns
         -------
-            List of :class:`SpectrumData` objects with bare eigensystem data, one per subsystem
+        List of :class:`SpectrumData` objects with bare eigensystem data, one per subsystem
         """
         multi_index = self._current_param_indices
         sweep_param_indices = self.get_sweep_indices(multi_index)  # type: ignore[arg-type]
@@ -257,7 +257,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
 
         Returns
         -------
-            :class:`SpectrumData` object with bare eigensystem data
+        :class:`SpectrumData` object with bare eigensystem data
         """
         multi_index = self._current_param_indices
         sweep_param_indices = self.get_sweep_indices(multi_index)  # type: ignore[arg-type]
@@ -555,11 +555,11 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
 
         Returns
         -------
-            A tuple consisting of a list of all the transitions and a corresponding
-            list of difference energies, e.g.
-            ((0,0,0), (0,0,1)),    <energy array for transition 0,0,0 -> 0,0,1>.
-            If `as_specdata` is set to True, a SpectrumData object is returned instead,
-            saving transition label info in an attribute named `labels`.
+        A tuple consisting of a list of all the transitions and a corresponding
+        list of difference energies, e.g.
+        ((0,0,0), (0,0,1)),    <energy array for transition 0,0,0 -> 0,0,1>.
+        If `as_specdata` is set to True, a SpectrumData object is returned instead,
+        saving transition label info in an attribute named `labels`.
         """
         subsys_list = self._process_subsystems_option(subsystems)
         initial_states = initial if isinstance(initial, list) else [initial]  # type: ignore[list-item]
@@ -644,11 +644,11 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
 
         Parameters
         ----------
-        initial : StateLabel | list[tuple[int, ...]] | None
+        initial:
             The initial state(s) to be validated. It can be a single state or a list of states. Each state
             is either a `StateLabel` or a tuple representing the quantum state in terms of subsystem
             excitation numbers.
-        final : StateLabel | list[tuple[int, ...]] | None
+        final:
             The final state(s) to be validated, structured similarly to the `initial` parameter.
 
         Raises
@@ -748,7 +748,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
 
         Returns
         -------
-            Plot Figure and Axes objects
+        Plot Figure and Axes objects
         """
         self._validate_states(initial, final)
 
@@ -826,7 +826,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
 
         Returns
         -------
-            None
+        None
         """
         if callable(sweep_function):
             if not hasattr(sweep_function, "__name__") and not sweep_name:
@@ -863,7 +863,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
 
         Returns
         -------
-            None; results are saved as <ParameterSweep>[<sweep_name>]
+        None; results are saved as <ParameterSweep>[<sweep_name>]
         """
         if isinstance(operator, str):
             operator_func = functools.partial(
@@ -908,7 +908,7 @@ class ParameterSweep(
         `update_hilbertspace(paramval1, paramval2, ...)`
         or
         `update_hilbertspace(self, paramval1, paramval2, ...)`
-        where `self` makes the `ParameterSweep` instance available, and thereby
+        where `self` makes the :class:`ParameterSweep` instance available, and thereby
         dict-like access to subsystems and interaction terms
     evals_count:
         number of dressed eigenvalues/eigenstates to keep. (The number of bare
@@ -973,7 +973,7 @@ class ParameterSweep(
 
     Notes
     -----
-    `ParameterSweep` supports array-like access ("pre-slicing") and dict-like access.
+    :class:`ParameterSweep` supports array-like access ("pre-slicing") and dict-like access.
     With dict-like access via string-keywords `<ParameterSweep>[<str>]`,
     the following data is returned:
 
@@ -1176,9 +1176,9 @@ class ParameterSweep(
 
         Returns
         -------
-            NamedSlotsNdarray[<paramname1>, <paramname2>, ..., "subsys"] for evals,
-            likewise for evecs;
-            here, "subsys": 0, 1, ... enumerates subsystems and
+        NamedSlotsNdarray[<paramname1>, <paramname2>, ..., "subsys"] for evals,
+        likewise for evecs;
+        here, "subsys": 0, 1, ... enumerates subsystems and
         """
         bare_evals = np.empty((self.subsystem_count,), dtype=object)
         bare_evecs = np.empty((self.subsystem_count,), dtype=object)
@@ -1256,8 +1256,8 @@ class ParameterSweep(
 
         Returns
         -------
-            multidimensional array of the format
-            array[p1, p2, p3, ..., pN] = np.asarray[[evals, evecs]]
+        multidimensional array of the format
+        array[p1, p2, p3, ..., pN] = np.asarray[[evals, evecs]]
         """
         fixed_paramnames = self._paramnames_no_subsys_update(subsystem)
         reduced_parameters = self._parameters.create_reduced(fixed_paramnames)
@@ -1361,8 +1361,8 @@ class ParameterSweep(
 
         Returns
         -------
-            NamedSlotsNdarray[<paramname1>, <paramname2>, ...] of eigenvalues,
-            likewise for eigenvectors
+        NamedSlotsNdarray[<paramname1>, <paramname2>, ...] of eigenvalues,
+        likewise for eigenvectors
         """
         target_map = cpu_switch.get_map_method(self._num_cpus)
         total_count = int(np.prod(self._parameters.counts))
@@ -1542,7 +1542,7 @@ class StoredSweep(
 
         Parameters
         ----------
-        iodata: IOData
+        iodata:
 
         Returns
         -------
@@ -1593,7 +1593,7 @@ def generator(sweep: "ParameterSweepBase", func: Callable, **kwargs) -> np.ndarr
 
     Returns
     -------
-        array of custom data
+    array of custom data
     """
     # obtain reduced parameters from pre-slicing info
     reduced_parameters = sweep._parameters.create_sliced(

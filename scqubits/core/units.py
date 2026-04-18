@@ -34,7 +34,7 @@ def get_units() -> str:
 
     Returns
     -------
-        The current units as a string
+    The current units as a string
     """
     return _current_units
 
@@ -51,7 +51,7 @@ def set_units(units: str) -> str:
 
     Returns
     -------
-        The units that were set
+    The units that were set
     """
     # Importing here avoids a cyclic import problem.
     from scqubits.core.qubit_base import QuantumSystem
@@ -109,7 +109,7 @@ def to_standard_units(value: float) -> float:
 
     Returns
     -------
-        frequency or angular frequency converted to Hz or 2pi/s
+    frequency or angular frequency converted to Hz or 2pi/s
     """
     return value * _units_factor[_current_units]
 
@@ -126,7 +126,7 @@ def from_standard_units(value: float) -> float:
 
     Returns
     -------
-        frequency or angular frequency converted to system units
+    frequency or angular frequency converted to system units
     """
     return value / _units_factor[_current_units]
 
@@ -144,7 +144,7 @@ def units_scale_factor(units: str | None = None) -> float:
 
     Returns
     -------
-        A numerical scaling factor that converts from Hz to `units` or `_current_units`.
+    A numerical scaling factor that converts from Hz to `units` or `_current_units`.
     """
     units = _current_units if units is None else units
 

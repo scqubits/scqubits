@@ -67,20 +67,20 @@ class Subsystem(  # type: ignore[misc]
 
     Parameters
     ----------
-    parent: Subsystem
+    parent:
         the instance under which the new subsystem is defined.
-    ext_basis: str
+    ext_basis:
         The basis that should be used for extended variables
     hamiltonian_symbolic: sm.Expr
         The symbolic expression which defines the Hamiltonian for the new subsystem
-    system_hierarchy: list | None, optional
+    system_hierarchy:
         Defines the hierarchy of the new subsystem, is set to None when hierarchical
         diagonalization is not required. by default None
-    subsystem_trunc_dims: list | None, optional
+    subsystem_trunc_dims:
         Defines the truncated dimensions for the subsystems inside the current
         subsystem, is set to None when hierarchical diagonalization is not required,
         by default `None`
-    truncated_dim: int | None, optional
+    truncated_dim:
         sets the truncated dimension for the current subsystem, set to 10 by default.
 
     Attributes
@@ -519,7 +519,7 @@ class Circuit(  # type: ignore[misc]
         truncated_dim:
             truncated dimension if the user wants to use this circuit instance in
             HilbertSpace, by default `None`
-        use_dynamic_flux_grouping: bool
+        use_dynamic_flux_grouping:
             set to False by default. Indicates if the flux allocation is done by assuming that flux is time dependent. When set to True, it disables the
             option to change the closure branches.
         """
@@ -1291,8 +1291,8 @@ class Circuit(  # type: ignore[misc]
 
         Returns
         -------
-            A dictionary of Human readable external fluxes with their associated
-            branches and loops
+        A dictionary of Human readable external fluxes with their associated
+        branches and loops
         """
         if not self.closure_branches:
             return {}

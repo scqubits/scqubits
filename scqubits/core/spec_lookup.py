@@ -79,11 +79,11 @@ class MixinCompatible(Protocol):
 
 
 class SpectrumLookupMixin(MixinCompatible):
-    """SpectrumLookupMixin is used as a mix-in class by `ParameterSweep`.
+    """SpectrumLookupMixin is used as a mix-in class by :class:`ParameterSweep`.
 
     It makes various
     spectrum and spectrum lookup related methods directly available at the
-    `ParameterSweep` level.
+    :class:`ParameterSweep` level.
     """
 
     _inside_hilbertspace = False
@@ -377,8 +377,8 @@ class SpectrumLookupMixin(MixinCompatible):
 
         Returns
         -------
-            dressed eigensystem for the external parameter fixed to the value indicated
-            by the provided index
+        dressed eigensystem for the external parameter fixed to the value indicated
+        by the provided index
         """
         param_index_tuple = self.set_npindextuple(param_indices)
         return self._data["evecs"][param_index_tuple]
@@ -580,7 +580,7 @@ class SpectrumLookupMixin(MixinCompatible):
 
         Returns
         -------
-            True if all parameters are being fixed by `param_indices`.
+        True if all parameters are being fixed by `param_indices`.
         """
         param_indices_std = convert_to_std_npindex(
             np.index_exp[param_indices], self._parameters

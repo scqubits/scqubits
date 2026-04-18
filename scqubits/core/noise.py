@@ -82,7 +82,7 @@ def convert_eV_to_Hz(val: float) -> float:
 
     Returns
     -------
-        number in Hz
+    number in Hz
     """
     return val * sp.constants.e / sp.constants.h
 
@@ -162,7 +162,7 @@ class NoisySystem(ABC):
             common options used when calculating coherence times
         spectrum_data:
             spectral data used during noise calculations
-        scale: float
+        scale:
             a number that all data is multiplied by before being plotted
         num_cpus:
             number of cores to be used for computation
@@ -663,7 +663,7 @@ class NoisySystem(ABC):
 
         Returns
         -------
-            coherence rate
+        coherence rate
         """
         rate = 0.0
 
@@ -763,8 +763,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-            decoherence time in units of :math:`2\pi` (system units), or rate
-             in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or rate
+         in inverse units.
         """
         common_noise_options = (
             {} if common_noise_options is None else common_noise_options
@@ -855,11 +855,11 @@ class NoisySystem(ABC):
         noise_channels: None or str or list(str) or list(tuple(str, dict))
             channels to be plotted, if None then noise channels given by
             `supported_noise_channels` are used
-        common_noise_options: dict
+        common_noise_options:
             common options used when calculating coherence times
         esys: tuple(evals, evecs)
             spectral data used during noise calculations
-        get_rate: bool
+        get_rate:
             get rate or time
 
         Returns
@@ -953,9 +953,9 @@ class NoisySystem(ABC):
         ----------
         A_noise:
             noise strength
-        i: int >=0
+        i:
             state index that along with j defines a qubit
-        j: int >=0
+        j:
             state index that along with i defines a qubit
         noise_op:
             noise operator, typically Hamiltonian derivative w.r.t. noisy parameter
@@ -1031,9 +1031,9 @@ class NoisySystem(ABC):
         ----------
         A_noise:
             noise strength
-        i: int >=0
+        i:
             state index that along with j defines a qubit
-        j: int >=0
+        j:
             state index that along with i defines a qubit
         esys:
             evals, evecs tuple
@@ -1078,9 +1078,9 @@ class NoisySystem(ABC):
         ----------
         A_noise:
             noise strength
-        i: int >=0
+        i:
             state index that along with j defines a qubit
-        j: int >=0
+        j:
             state index that along with i defines a qubit
         esys:
             evals, evecs tuple
@@ -1125,9 +1125,9 @@ class NoisySystem(ABC):
         ----------
         A_noise:
             noise strength
-        i: int >=0
+        i:
             state index that along with j defines a qubit
-        j: int >=0
+        j:
             state index that along with i defines a qubit
         esys:
             evals, evecs tuple
@@ -1184,9 +1184,9 @@ class NoisySystem(ABC):
 
         Parameters
         ----------
-        i: int >=0
+        i:
             state index that along with j defines a transition (i->j)
-        j: int >=0
+        j:
             state index that along with i defines a transition (i->j)
         noise_op:
             noise operator
@@ -1276,9 +1276,9 @@ class NoisySystem(ABC):
 
         Parameters
         ----------
-        i: int >=0
+        i:
             state index that along with j defines a transition (i->j)
-        j: int >=0
+        j:
             state index that along with i defines a transition (i->j)
         Q_cap
             capacitive quality factor; a fixed value or function of `omega`
@@ -1369,9 +1369,9 @@ class NoisySystem(ABC):
 
         Parameters
         ----------
-        i: int >=0
+        i:
             state index that along with j defines a transition (i->j)
-        j: int >=0
+        j:
             state index that along with i defines a transition (i->j)
         Z:
             impedance; a fixed value or function of `omega`
@@ -1448,9 +1448,9 @@ class NoisySystem(ABC):
 
         Parameters
         ----------
-        i: int >=0
+        i:
             state index that along with j defines a transition (i->j)
-        j: int >=0
+        j:
             state index that along with i defines a transition (i->j)
         M:
             Inductance in units of \Phi_0 / Ampere
@@ -1530,9 +1530,9 @@ class NoisySystem(ABC):
 
         Parameters
         ----------
-        i: int >=0
+        i:
             state index that along with j defines a transition (i->j)
-        j: int >=0
+        j:
             state index that along with i defines a transition (i->j)
         Q_ind:
             inductive quality factor; a fixed value or function of `omega`
@@ -1638,9 +1638,9 @@ class NoisySystem(ABC):
 
         Parameters
         ----------
-        i: int >=0
+        i:
             state index that along with j defines a transition (i->j)
-        j: int >=0
+        j:
             state index that along with i defines a transition (i->j)
         Y_qp:
             complex admittance; a fixed value or function of `omega`

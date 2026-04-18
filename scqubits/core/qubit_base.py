@@ -211,7 +211,7 @@ class QuantumSystem(DispatchClient, ABC):
 
         Returns
         -------
-            list of operator names
+        list of operator names
         """
         operator_list = []
         for name, val in inspect.getmembers(cls):
@@ -372,17 +372,17 @@ class QubitBaseClass(QuantumSystem, ABC):
         Parameters
         ----------
         evals_count:
-            number of desired eigenvalues/eigenstates (default value = 6)
+            number of desired eigenvalues/eigenstates (default: 6)
         filename:
             path and filename without suffix, if file output desired
-            (default value = None)
+            (default: None)
         return_spectrumdata:
             if set to true, the returned data is provided as a SpectrumData object
-            (default value = False)
+            (default: False)
 
         Returns
         -------
-            eigenvalues as ndarray or in form of a SpectrumData object
+        eigenvalues as ndarray or in form of a SpectrumData object
         """
         if not hasattr(self, "evals_method") or self.evals_method is None:
             evals = self._evals_calc(evals_count)
@@ -439,16 +439,16 @@ class QubitBaseClass(QuantumSystem, ABC):
         Parameters
         ----------
         evals_count:
-            number of desired eigenvalues/eigenstates (default value = 6)
+            number of desired eigenvalues/eigenstates (default: 6)
         filename:
             path and filename without suffix, if file output desired
-            (default value = None)
+            (default: None)
         return_spectrumdata: if set to true, the returned data is provided as a SpectrumData object
-            (default value = False)
+            (default: False)
 
         Returns
         -------
-            eigenvalues, eigenvectors as numpy arrays or in form of a SpectrumData object
+        eigenvalues, eigenvectors as numpy arrays or in form of a SpectrumData object
         """
         if not hasattr(self, "esys_method") or self.esys_method is None:
             evals, evecs = self._esys_calc(evals_count)
@@ -498,7 +498,7 @@ class QubitBaseClass(QuantumSystem, ABC):
 
         Returns
         -------
-            `native_op` either unchanged or transformed into eigenenergy basis
+        `native_op` either unchanged or transformed into eigenenergy basis
         """
         if isinstance(energy_esys, bool):
             if not energy_esys:
@@ -530,7 +530,7 @@ class QubitBaseClass(QuantumSystem, ABC):
 
         Returns
         -------
-            Hamiltonian, either unchanged in native basis, or transformed into eigenenergy basis
+        Hamiltonian, either unchanged in native basis, or transformed into eigenenergy basis
         """
         if isinstance(energy_esys, bool):
             if not energy_esys:
@@ -597,12 +597,12 @@ class QubitBaseClass(QuantumSystem, ABC):
             if not provided, then the necessary eigenstates are calculated on the fly
         evals_count:
             number of desired matrix elements, starting with ground state
-            (default value = 6)
+            (default: 6)
         filename:
             output file name
         return_datastore:
             if set to true, the returned data is provided as a DataStore object
-            (default value = False)
+            (default: False)
         """
         if evecs is None:
             _, evecs = self.eigensys(evals_count=evals_count)
@@ -654,17 +654,17 @@ class QubitBaseClass(QuantumSystem, ABC):
             parameter values to be plugged in
         evals_count:
             number of desired eigenvalues (sorted from smallest to largest)
-            (default value = 6)
+            (default: 6)
         subtract_ground:
             if True, eigenvalues are returned relative to the ground state eigenvalue
-            (default value = False)
+            (default: False)
         get_eigenstates:
-            return eigenstates along with eigenvalues (default value = False)
+            return eigenstates along with eigenvalues (default: False)
         filename:
             file name if direct output to disk is wanted
         num_cpus:
             number of cores to be used for computation
-            (default value: settings.NUM_CPUS)
+            (default: settings.NUM_CPUS)
         """
         num_cpus = num_cpus or settings.NUM_CPUS
         previous_paramval = getattr(self, param_name)
@@ -831,7 +831,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             and max values of transition energies (default: 50)
         num_cpus:
             number of cores to be used for computation
-            (default value: settings.NUM_CPUS)
+            (default: settings.NUM_CPUS)
         """
         if levels is not None:
             if isinstance(levels, int):
@@ -909,10 +909,10 @@ class QubitBaseClass(QuantumSystem, ABC):
             parameter values to be plugged in
         evals_count:
             number of desired eigenvalues (sorted from smallest to largest)
-            (default value = 6)
+            (default: 6)
         num_cpus:
             number of cores to be used for computation
-            (default value: settings.NUM_CPUS)
+            (default: settings.NUM_CPUS)
         """
         num_cpus = num_cpus or settings.NUM_CPUS
         spectrumdata = self.get_spectrum_vs_paramvals(
@@ -962,13 +962,13 @@ class QubitBaseClass(QuantumSystem, ABC):
             parameter values to be plugged in
         evals_count:
             number of desired eigenvalues (sorted from smallest to largest)
-            (default value = 6)
+            (default: 6)
         subtract_ground:
             whether to subtract ground state energy from all eigenvalues
-            (default value = False)
+            (default: False)
         num_cpus:
             number of cores to be used for computation
-            (default value: settings.NUM_CPUS)
+            (default: settings.NUM_CPUS)
         **kwargs:
             standard plotting option (see separate documentation)
         """
@@ -1023,7 +1023,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             and max values of transition energies (default: 50)
         num_cpus:
             number of cores to be used for computation
-            (default value: settings.NUM_CPUS)
+            (default: settings.NUM_CPUS)
         **kwargs:
             standard plotting option (see separate documentation)
         """
@@ -1081,10 +1081,10 @@ class QubitBaseClass(QuantumSystem, ABC):
             name of class method in string form, returning operator matrix
         evecs:
             eigensystem data of evals, evecs; eigensystem will be calculated if set to
-            None (default value = None)
+            None (default: None)
         evals_count:
             number of desired matrix elements, starting with ground state
-            (default value = 6)
+            (default: 6)
         mode:
             idx_entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value (default)
         show_numbers:
@@ -1138,13 +1138,13 @@ class QubitBaseClass(QuantumSystem, ABC):
         select_elems:
             either maximum index of desired matrix elements, or
             list [(i1, i2), (i3, i4), ...] of index tuples
-            for specific desired matrix elements (default value = 4)
+            for specific desired matrix elements (default: 4)
         mode:
             idx_entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value
-            (default value = 'abs')
+            (default: 'abs')
         num_cpus:
             number of cores to be used for computation
-            (default value: settings.NUM_CPUS)
+            (default: settings.NUM_CPUS)
         **kwargs:
             standard plotting option (see separate documentation)
         """
@@ -1183,7 +1183,7 @@ class QubitBaseClass(QuantumSystem, ABC):
 
         Returns
         -------
-            self
+        self
         """
         setattr(self, attr_name, value)
         return self
@@ -1256,7 +1256,7 @@ class QubitBaseClass1d(QubitBaseClass):
             If which is -1, all wavefunctions up to the truncation limit are plotted.
         mode:
             choices as specified in `constants.MODE_FUNC_DICT`
-            (default value = 'real')
+            (default: 'real')
         esys:
             eigenvalues, eigenvectors
         phi_grid:

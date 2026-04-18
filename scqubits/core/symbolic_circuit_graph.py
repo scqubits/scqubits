@@ -926,7 +926,7 @@ class SymbolicCircuitGraph(ABC):
 
         Returns
         -------
-            A list of branches that corresponds to the loop closed by the closure branch
+        A list of branches that corresponds to the loop closed by the closure branch
         """
         # find out ancestor nodes, path to root and generation number for each node in the
         # closure branch

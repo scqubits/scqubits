@@ -59,7 +59,7 @@ def hubbard_sparse(j1: int, j2: int, dimension: int) -> csc_matrix:
 
     Returns
     -------
-        sparse number operator matrix, size dimension x dimension
+    sparse number operator matrix, size dimension x dimension
     """
     hubbardmat = sp.sparse.dok_matrix(
         (dimension, dimension), dtype=np.float64  # type: ignore[arg-type]
@@ -83,7 +83,7 @@ def number(dimension: int, prefactor: float | complex | None = None) -> ndarray:
 
     Returns
     -------
-        number operator matrix, size dimension x dimension
+    number operator matrix, size dimension x dimension
     """
     diag_elements = np.arange(dimension, dtype=np.float64)
     if prefactor:
@@ -107,7 +107,7 @@ def number_sparse(
 
     Returns
     -------
-        sparse number operator matrix, size dimension x dimension
+    sparse number operator matrix, size dimension x dimension
     """
     diag_elements = np.arange(dimension, dtype=np.float64)
     if prefactor:
@@ -133,7 +133,7 @@ def a_plus_adag_sparse(
 
     Returns
     -------
-        prefactor * (:math:`a+a^\dagger`) as sparse operator matrix, size dimension x dimension
+    prefactor * (:math:`a+a^\dagger`) as sparse operator matrix, size dimension x dimension
     """
     prefactor = prefactor if prefactor is not None else 1.0
     return prefactor * (annihilation_sparse(dimension) + creation_sparse(dimension))
@@ -153,7 +153,7 @@ def a_plus_adag(dimension: int, prefactor: float | complex | None = None) -> nda
 
     Returns
     -------
-        prefactor * (:math:`a+a^\dagger`) as ndarray, size dimension x dimension
+    prefactor * (:math:`a+a^\dagger`) as ndarray, size dimension x dimension
     """
     return a_plus_adag_sparse(dimension, prefactor=prefactor).toarray()
 
@@ -174,7 +174,7 @@ def cos_theta_harmonic(
 
     Returns
     -------
-        prefactor * (:math:`a+a^\dagger`) as ndarray, size dimension x dimension
+    prefactor * (:math:`a+a^\dagger`) as ndarray, size dimension x dimension
     """
     return sp.linalg.cosm(a_plus_adag_sparse(dimension, prefactor=prefactor).toarray())
 
@@ -195,7 +195,7 @@ def sin_theta_harmonic(
 
     Returns
     -------
-        prefactor * (:math:`a+a^\dagger`) as ndarray, size dimension x dimension
+    prefactor * (:math:`a+a^\dagger`) as ndarray, size dimension x dimension
     """
     return sp.linalg.sinm(a_plus_adag_sparse(dimension, prefactor=prefactor).toarray())
 
@@ -216,7 +216,7 @@ def iadag_minus_ia_sparse(
 
     Returns
     -------
-        prefactor * (:math:`ia-ia^\dagger`) as sparse operator matrix, size dimension x dimension
+    prefactor * (:math:`ia-ia^\dagger`) as sparse operator matrix, size dimension x dimension
     """
     prefactor = prefactor if prefactor is not None else 1.0
     return prefactor * (
@@ -238,7 +238,7 @@ def iadag_minus_ia(dimension: int, prefactor: float | complex | None = None) -> 
 
     Returns
     -------
-        prefactor * (:math:`ia-ia^\dagger`) as ndarray, size dimension x dimension
+    prefactor * (:math:`ia-ia^\dagger`) as ndarray, size dimension x dimension
     """
     return iadag_minus_ia_sparse(dimension, prefactor=prefactor).toarray()
 

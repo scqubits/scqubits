@@ -74,7 +74,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
         Returns
         --------
-            float or function: The quality factor as a float, or a function that calculates the quality factor given frequency and temperature. If the branch does not have a quality factor, None is returned.
+        float or function: The quality factor as a float, or a function that calculates the quality factor given frequency and temperature. If the branch does not have a quality factor, None is returned.
 
         Raises
         ------
@@ -253,7 +253,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
         Returns
         -------
-            float: The evaluated quantity. This is a numerical value that represents the calculated quantity related to the junction.
+        float: The evaluated quantity. This is a numerical value that represents the calculated quantity related to the junction.
 
         Raises
         ------
@@ -507,9 +507,6 @@ class NoisyCircuit(NoisySystem, ABC):
 
         Parameters
         ----------
-        self : object
-            The instance of the class where this method is being added.
-
         Steps
         -----
         1. Checks if there are any existing methods for calculating Tphi due to 1/f flux noise. This is done by searching the methods of the current instance for method names that match the pattern "tphi_1_over_f_flux\\d+$". If such methods exist, the function returns None and does not generate a new method.
@@ -596,9 +593,6 @@ class NoisyCircuit(NoisySystem, ABC):
 
         Parameters
         ----------
-        self : object
-            The instance of the class where this method is being added.
-
         Steps
         -----
         1. Checks if there are any existing methods for calculating Tphi due to 1/f flux noise. This is done by searching the methods of the current instance for method names that match the pattern "tphi_1_over_f_flux\\d+$". If such methods exist, the function returns None and does not generate a new method.
@@ -742,9 +736,6 @@ class NoisyCircuit(NoisySystem, ABC):
 
         Parameters
         ----------
-        self : object
-            The instance of the class where this method is being added.
-
         Returns
         -------
         None
@@ -761,7 +752,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
         5. Defines a new method `flux_bias_noise` for calculating the T1 time due to flux bias line noise for the current flux. This method performs the following steps:
 
-            a. Calls the `t1_flux_bias_line` method of the `NoisySystem` class with the current instance, the state indices `i` and `j`, the noise parameters `M`, `Z`, and `T`, the `total` flag, the system eigenvalues and eigenvectors `esys`, the `get_rate` flag, and the noise operator method as arguments.
+            a. Calls the `t1_flux_bias_line` method of the :class:`NoisySystem` class with the current instance, the state indices `i` and `j`, the noise parameters `M`, `Z`, and `T`, the `total` flag, the system eigenvalues and eigenvectors `esys`, the `get_rate` flag, and the noise operator method as arguments.
 
             b. Returns the calculated T1 time.
 
@@ -794,9 +785,6 @@ class NoisyCircuit(NoisySystem, ABC):
 
         Parameters
         ----------
-        self : object
-            The instance of the class where this method is being added.
-
         Returns
         -------
         None
@@ -1004,9 +992,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
         Parameters
         ----------
-        self : object
-            The instance of the class where this method is being added.
-        branch : Branch
+        branch:
             The branch of the circuit for which to calculate the T1 time.
 
         Returns
@@ -1281,9 +1267,6 @@ class NoisyCircuit(NoisySystem, ABC):
 
         Parameters
         ----------
-        self : object
-            The instance of the class where this method is being added.
-
         Returns
         -------
         None
@@ -1376,9 +1359,6 @@ class NoisyCircuit(NoisySystem, ABC):
 
         Parameters
         ----------
-        self : object
-            The instance of the class where this method is being added.
-
         Returns
         -------
         None
@@ -1466,9 +1446,6 @@ class NoisyCircuit(NoisySystem, ABC):
 
         Parameters
         ----------
-        self : object
-            The instance of the class where this method is being added.
-
         Returns
         -------
         None
@@ -1555,9 +1532,6 @@ class NoisyCircuit(NoisySystem, ABC):
 
         Parameters
         ----------
-        self : object
-            The instance of the class where this method is being added.
-
         Returns
         -------
         None
@@ -1651,12 +1625,9 @@ class NoisyCircuit(NoisySystem, ABC):
 
         Parameters
         ----------
-        self : object
-            The instance of the class where this method is being added.
-
         Returns
         -------
-            None
+        None
 
         Notes
         -----

@@ -91,9 +91,9 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
 
         Parameters
         ----------
-        i: int >=0
+        i:
             state index that along with j defines a transition (i->j)
-        j: int >=0
+        j:
             state index that along with i defines a transition (i->j)
         Q_ind:
             inductive quality factor; a fixed value or function of `omega`
@@ -247,9 +247,9 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
 
         Parameters
         ----------
-        i: int >=0
+        i:
             state index that along with j defines a transition (i->j)
-        j: int >=0
+        j:
             state index that along with i defines a transition (i->j)
         Q_cap
             capacitive quality factor; a fixed value or function of `omega`
@@ -392,9 +392,9 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
 
         Parameters
         ----------
-        i: int >=0
+        i:
             state index that along with j defines a transition (i->j)
-        j: int >=0
+        j:
             state index that along with i defines a transition (i->j)
         Q_cap
             capacitive quality factor; a fixed value or function of `omega`
@@ -524,7 +524,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
         optional string by which this instance can be referred to in :class:`HilbertSpace`
-        and `ParameterSweep`. If not provided, an id is auto-generated.
+        and :class:`ParameterSweep`. If not provided, an id is auto-generated.
     esys_method:
         method for esys diagonalization, callable or string representation
     esys_method_options:
@@ -653,9 +653,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        cls:
-            Class type of Cos2PhiQubit
-
         Returns
         -------
         Cos Two Phi Qubit
@@ -671,9 +668,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        cls:
-            Class Method Instance
-
         Returns
         -------
         List of strings
@@ -694,9 +688,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Integer
@@ -710,9 +701,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Integer
@@ -725,9 +713,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Integer
@@ -739,9 +724,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Integer
@@ -753,9 +735,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Float
@@ -767,9 +746,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Float
@@ -782,9 +758,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Float
@@ -797,9 +770,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Float
@@ -812,9 +782,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Float
@@ -827,9 +794,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Float
@@ -841,9 +805,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Compressed Sparse Column Matrix
@@ -872,12 +833,12 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Returns
         -------
-            :math:`\phi` operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`\phi` operator has dimensions of truncated_dim
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is
-            chosen, :math:`\phi` operator has dimensions of m x m, for m given eigenvectors,
-            and is returned as an ndarray.
+        :math:`\phi` operator in chosen basis. If native basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless energy_esys is specified, :math:`\phi` operator has dimensions of truncated_dim
+        x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is
+        chosen, :math:`\phi` operator has dimensions of m x m, for m given eigenvectors,
+        and is returned as an ndarray.
         """
         native = self._kron3(
             self._phi_operator(), self._identity_zeta(), self._identity_theta()
@@ -889,9 +850,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Compressed Sparse Column Matrix
@@ -921,12 +879,12 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Returns
         -------
-            :math:`n_\phi` operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`n_\phi` operator has dimensions of truncated_dim
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is
-            chosen, :math:`n_\phi` operator has dimensions of m x m, for m given eigenvectors,
-            and is returned as an ndarray :math:`\zeta`.
+        :math:`n_\phi` operator in chosen basis. If native basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless energy_esys is specified, :math:`n_\phi` operator has dimensions of truncated_dim
+        x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is
+        chosen, :math:`n_\phi` operator has dimensions of m x m, for m given eigenvectors,
+        and is returned as an ndarray :math:`\zeta`.
         """
         native = self._kron3(
             self._n_phi_operator(), self._identity_zeta(), self._identity_theta()
@@ -938,9 +896,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Compressed Sparse Column Matrix
@@ -970,12 +925,12 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Returns
         -------
-            :math:`\zeta`  operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`\zeta`  operator has dimensions of truncated_dim
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is
-            chosen, :math:`\zeta` operator has dimensions of m x m, for m given eigenvectors,
-            and is returned as an ndarray.
+        :math:`\zeta`  operator in chosen basis. If native basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless energy_esys is specified, :math:`\zeta`  operator has dimensions of truncated_dim
+        x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is
+        chosen, :math:`\zeta` operator has dimensions of m x m, for m given eigenvectors,
+        and is returned as an ndarray.
         """
         native = self._kron3(
             self._identity_phi(), self._zeta_operator(), self._identity_theta()
@@ -987,9 +942,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Compressed Sparse Column Matrix
@@ -1019,12 +971,12 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Returns
         -------
-            :math:`n_\zeta`  operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`n_\zeta`  operator has dimensions of
-            truncated_dim x truncated_dim, and is returned as an ndarray. Otherwise, if
-            eigenenergy basis is chosen, :math:`n_\zeta` operator has dimensions of m x m,
-            for m given eigenvectors, and is returned as an ndarray.
+        :math:`n_\zeta`  operator in chosen basis. If native basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless energy_esys is specified, :math:`n_\zeta`  operator has dimensions of
+        truncated_dim x truncated_dim, and is returned as an ndarray. Otherwise, if
+        eigenenergy basis is chosen, :math:`n_\zeta` operator has dimensions of m x m,
+        for m given eigenvectors, and is returned as an ndarray.
         """
         native = self._kron3(
             self._identity_phi(), self._n_zeta_operator(), self._identity_theta()
@@ -1036,9 +988,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Compressed Sparse Column Matrix
@@ -1051,9 +1000,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Compressed Sparse Column Matrix
@@ -1067,9 +1013,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Compressed Sparse Column Matrix
@@ -1084,9 +1027,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Compressed Sparse Column Matrix
@@ -1114,12 +1054,12 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Returns
         -------
-            :math:`n_\theta`  operator in chosen basis. If charge basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`n_\theta`  operator has dimensions of
-            truncated_dim x truncated_dim, and is returned as an ndarray. Otherwise, if
-            eigenenergy basis is chosen, :math:`n_\theta` operator has dimensions of m x m,
-            for m given eigenvectors, and is returned as an ndarray.
+        :math:`n_\theta`  operator in chosen basis. If charge basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless energy_esys is specified, :math:`n_\theta`  operator has dimensions of
+        truncated_dim x truncated_dim, and is returned as an ndarray. Otherwise, if
+        eigenenergy basis is chosen, :math:`n_\theta` operator has dimensions of m x m,
+        for m given eigenvectors, and is returned as an ndarray.
         """
         native = self._kron3(
             self._identity_phi(), self._identity_zeta(), self._n_theta_operator()
@@ -1131,9 +1071,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Compressed Sparse Column Matrix
@@ -1159,9 +1096,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Compressed Sparse Column Matrix
@@ -1187,9 +1121,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Compressed Sparse Column Matrix
@@ -1203,9 +1134,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Compressed Sparse Column Matrix
@@ -1218,9 +1146,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Compressed Sparse Column Matrix
@@ -1233,9 +1158,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Compressed Sparse Column Matrix
@@ -1248,9 +1170,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
-
         Returns
         -------
         Compressed Sparse Column Matrix
@@ -1279,10 +1198,10 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Returns
         -------
-            Hamiltonian in chosen basis as csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, the Hamiltonian has dimensions of :attr:`truncated_dim`
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, Hamiltonian has
-            dimensions of m x m, for m given eigenvectors.
+        Hamiltonian in chosen basis as csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, the Hamiltonian has dimensions of :attr:`truncated_dim`
+        x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, Hamiltonian has
+        dimensions of m x m, for m given eigenvectors.
         """
         phi_osc_mat = self._kron3(
             op.number_sparse(self._dim_phi(), self.phi_plasma()),
@@ -1370,8 +1289,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
         evals_count:
             number of eigenvalues
 
@@ -1394,8 +1311,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
         evals_count:
             number of eigenvalues
 
@@ -1443,8 +1358,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Parameters
         ----------
-        self:
-            Method Instance
         phi: float or ndarray
             float value of variable `phi`
         theta: float or ndarray
@@ -1504,7 +1417,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         esys: ndarray, ndarray
             eigenvalues, eigenvectors
         which: int, optional
-            index of desired wave function (default value = 0)
+            index of desired wave function (default: 0)
         phi_grid: Grid1d, option
             used for setting a custom grid for :math:`\phi`; if None use self._default_phi_grid
         zeta_grid: Grid1d, option
@@ -1592,14 +1505,14 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         esys: ndarray, ndarray
             eigenvalues, eigenvectors as obtained from `.eigensystem()`
         which: int, optional
-            index of wave function to be plotted (default value = 0)
+            index of wave function to be plotted (default: 0)
         phi_grid: Grid1d, option
             used for setting a custom grid for :math:`\phi`; if None use self._default_phi_grid
         theta_grid: Grid1d, option
             used for setting a custom grid for :math:`\theta`; if None use
             self._default_theta_grid
         mode: str, optional
-            choices as specified in `constants.MODE_FUNC_DICT` (default value = 'abs')
+            choices as specified in `constants.MODE_FUNC_DICT` (default: 'abs')
         zero_calibrate: bool, optional
             if True, colors are adjusted to use zero wavefunction amplitude as the neutral
             color in the palette
@@ -1664,12 +1577,12 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Returns
         -------
-            Operator in chosen basis. If harmonic oscillator basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
-            basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
-            and is returned as an ndarray.
+        Operator in chosen basis. If harmonic oscillator basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+        x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
+        basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
+        and is returned as an ndarray.
         """
         native = self.zeta_operator() - self.phi_operator()
         return self.process_op(native_op=native, energy_esys=energy_esys)  # type: ignore[arg-type]
@@ -1692,12 +1605,12 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Returns
         -------
-            Operator in chosen basis. If harmonic oscillator basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
-            basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
-            and is returned as an ndarray.
+        Operator in chosen basis. If harmonic oscillator basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+        x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
+        basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
+        and is returned as an ndarray.
         """
         native = -self.zeta_operator() - self.phi_operator()
         return self.process_op(native_op=native, energy_esys=energy_esys)  # type: ignore[arg-type]
@@ -1720,12 +1633,12 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Returns
         -------
-            Operator in chosen basis. If harmonic oscillator basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
-            basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
-            and is returned as an ndarray.
+        Operator in chosen basis. If harmonic oscillator basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+        x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
+        basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
+        and is returned as an ndarray.
         """
         native = 0.5 * self.n_phi_operator() + 0.5 * (
             self.n_theta_operator() - self.n_zeta_operator()
@@ -1750,12 +1663,12 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Returns
         -------
-            Operator in chosen basis. If harmonic oscillator basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
-            basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
-            and is returned as an ndarray.
+        Operator in chosen basis. If harmonic oscillator basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+        x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
+        basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
+        and is returned as an ndarray.
         """
         native = 0.5 * self.n_phi_operator() - 0.5 * (
             self.n_theta_operator() - self.n_zeta_operator()
@@ -1780,12 +1693,12 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Returns
         -------
-            Operator in chosen basis. If harmonic oscillator basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
-            basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
-            and is returned as an ndarray.
+        Operator in chosen basis. If harmonic oscillator basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+        x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
+        basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
+        and is returned as an ndarray.
         """
         phi_flux_term = self._sin_phi_operator() * np.cos(
             self.flux * np.pi
@@ -1832,12 +1745,12 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Returns
         -------
-            Operator in chosen basis. If harmonic oscillator basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
-            basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
-            and is returned as an ndarray.
+        Operator in chosen basis. If harmonic oscillator basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+        x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
+        basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
+        and is returned as an ndarray.
         """
         phi_flux_term = self._cos_phi_operator() * np.cos(
             self.flux * np.pi
@@ -1877,12 +1790,12 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
         Returns
         -------
-            Operator in chosen basis. If harmonic oscillator basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
-            basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
-            and is returned as an ndarray.
+        Operator in chosen basis. If harmonic oscillator basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
+        x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy
+        basis is chosen, operator has dimensions of m x m, for m given eigenvectors,
+        and is returned as an ndarray.
         """
         native = (
             4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator()

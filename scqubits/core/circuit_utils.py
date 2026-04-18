@@ -126,8 +126,8 @@ def truncation_template(
 
     Returns
     -------
-        The template for setting the truncated dims for the Circuit instance when
-        hierarchical diagonalization is used.
+    The template for setting the truncated dims for the Circuit instance when
+    hierarchical diagonalization is used.
     """
     trunc_dims: list[int | list] = []
     for subsystem_hierarchy in system_hierarchy:
@@ -152,7 +152,7 @@ def get_trailing_number(input_str: str) -> int:
 
     Returns
     -------
-        trailing integer
+    trailing integer
     """
     match = re.search(r"\d+$", input_str)
     if match is None:
@@ -170,7 +170,7 @@ def _identity_phi(grid: discretization.Grid1d) -> csc_matrix:
 
     Returns
     -------
-        identity operator in the discretized phi basis
+    identity operator in the discretized phi basis
     """
     pt_count = grid.pt_count
     return sparse.identity(pt_count, format="csc")  # type: ignore[return-value]
@@ -186,7 +186,7 @@ def _phi_operator(grid: discretization.Grid1d) -> csc_matrix:
 
     Returns
     -------
-        phi operator in the discretized phi basis
+    phi operator in the discretized phi basis
     """
     pt_count = grid.pt_count
 
@@ -206,7 +206,7 @@ def _i_d_dphi_operator(grid: discretization.Grid1d) -> csc_matrix:
 
     Returns
     -------
-        i*d/dphi operator in the discretized phi basis
+    i*d/dphi operator in the discretized phi basis
     """
     return grid.first_derivative_matrix(prefactor=-1j)
 
@@ -221,7 +221,7 @@ def _i_d2_dphi2_operator(grid: discretization.Grid1d) -> csc_matrix:
 
     Returns
     -------
-        i*d2/dphi2 operator in the discretized phi basis
+    i*d2/dphi2 operator in the discretized phi basis
     """
     return grid.second_derivative_matrix(prefactor=-1.0)
 
@@ -236,7 +236,7 @@ def _cos_phi(grid: discretization.Grid1d) -> csc_matrix:
 
     Returns
     -------
-        cos operator in the discretized phi basis
+    cos operator in the discretized phi basis
     """
     pt_count = grid.pt_count
 
@@ -256,7 +256,7 @@ def _sin_phi(grid: discretization.Grid1d) -> csc_matrix:
 
     Returns
     -------
-        sin operator in the discretized phi basis
+    sin operator in the discretized phi basis
     """
     pt_count = grid.pt_count
 
@@ -623,9 +623,9 @@ def assemble_circuit(
 
     Returns
     -------
-        A yaml string for the composite circuit, which can be used as the input for the custom
-        circuit module, and a list of dictionaries which provides the mapping between the
-        node indices of the sub-circuits (keys) and those of the composite circuit (values).
+    A yaml string for the composite circuit, which can be used as the input for the custom
+    circuit module, and a list of dictionaries which provides the mapping between the
+    node indices of the sub-circuits (keys) and those of the composite circuit (values).
     """
     # identify numbers of subcircuits
     subcircuit_number = len(circuit_list)
@@ -826,7 +826,7 @@ def assemble_transformation_matrix(
 
     Returns
     -------
-        A numpy ndarray for the composite circuit.
+    A numpy ndarray for the composite circuit.
     """
 
     return sp.linalg.block_diag(*transformation_matrix_list)
