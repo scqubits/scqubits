@@ -47,8 +47,9 @@ TransitionsTuple = tuple[Transition, ...]
 
 
 class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
-    r"""Class for the Cooper-pair-box and transmon qubit. The Hamiltonian is
-    represented in dense form in the number basis,
+    r"""Class for the Cooper-pair-box and transmon qubit.
+
+    The Hamiltonian is represented in dense form in the number basis,
     :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2-\frac{E_\text{J}}{2}(
     |n\rangle\langle n+1|+\text{h.c.})`.
     Initialize with, for example::
@@ -116,6 +117,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
     @staticmethod
     def default_params() -> dict[str, Any]:
+        """Return a default-parameter dict suitable for instantiating the class."""
         return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
 
     @classmethod
@@ -130,21 +132,32 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
     @classmethod
     def effective_noise_channels(cls) -> list[str]:
-        """Return a default list of channels used when calculating effective t1 and t2
-        noise."""
+        """Return a default list of channels used for effective t1 and t2 noise."""
         noise_channels = cls.supported_noise_channels()
         noise_channels.remove("t1_charge_impedance")
         return noise_channels
 
     def _hamiltonian_diagonal(self) -> npt.NDArray[np.float64]:
+        """Return the diagonal of the Hamiltonian in the charge basis."""
         dimension = self.hilbertdim()
         return 4.0 * self.EC * (np.arange(dimension) - self.ncut - self.ng) ** 2
 
     def _hamiltonian_offdiagonal(self) -> npt.NDArray[np.float64]:
+        """Return the constant off-diagonal of the Hamiltonian in the charge basis."""
         dimension = self.hilbertdim()
         return np.full(shape=(dimension - 1,), fill_value=-self.EJ / 2.0)
 
     def _evals_calc(self, evals_count: int) -> ndarray:
+        """Return the lowest ``evals_count`` eigenvalues.
+
+        Uses :func:`scipy.linalg.eigvalsh_tridiagonal` (Hermitian; ascending
+        real eigenvalues).
+
+        Parameters
+        ----------
+        evals_count:
+            number of desired eigenvalues
+        """
         diagonal = self._hamiltonian_diagonal()
         off_diagonal = self._hamiltonian_offdiagonal()
 
@@ -158,6 +171,16 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         return evals
 
     def _esys_calc(self, evals_count: int) -> tuple[ndarray, ndarray]:
+        """Return the lowest ``evals_count`` eigenvalues and corresponding eigenvectors.
+
+        Uses :func:`scipy.linalg.eigh_tridiagonal` (Hermitian; ascending real
+        eigenvalues).
+
+        Parameters
+        ----------
+        evals_count:
+            number of desired eigenvalues
+        """
         diagonal = self._hamiltonian_diagonal()
         off_diagonal = self._hamiltonian_offdiagonal()
 
@@ -210,23 +233,24 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def n_operator(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
     ) -> ndarray | csc_matrix:
-        """Returns charge operator n in the charge or eigenenergy basis.
+        """Return the charge operator :math:`\\hat n` in the charge or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns charge operator n in the charge basis.
-            If `True`, energy eigenspectrum is computed, returns charge operator n in the energy eigenbasis.
-            If `energy_esys = esys`, where `esys` is a tuple containing two ndarrays (eigenvalues and energy
-            eigenvectors), returns charge operator n in the energy eigenbasis, and does not have to recalculate the
-            eigenspectrum.
+            If ``False`` (default), returns :math:`\\hat n` in the charge basis.
+            If ``True``, the energy eigenspectrum is computed and :math:`\\hat n`
+            is returned in the energy eigenbasis. If ``energy_esys = esys``, where
+            ``esys`` is a tuple ``(evals, evecs)`` of eigenvalues and eigenvectors,
+            :math:`\\hat n` is expressed in that eigenbasis without recomputing
+            the spectrum.
 
         Returns
         -------
-        Charge operator n in chosen basis as ndarray.
-        For `energy_esys=True`, n has dimensions of :attr:`truncated_dim` x :attr:`truncated_dim`.
-        If an actual eigensystem is handed to `energy_sys`, then `n` has dimensions of m x m,
-        where m is the number of given eigenvectors.
+        Charge operator :math:`\\hat n` in the chosen basis as ndarray. For
+        ``energy_esys=True`` the shape is ``truncated_dim x truncated_dim``; if
+        an explicit eigensystem of ``m`` eigenvectors is passed, the shape is
+        ``m x m``.
         """
         diag_elements = np.arange(-self.ncut, self.ncut + 1, 1)
         native = np.diag(diag_elements)
@@ -235,23 +259,24 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def exp_i_phi_operator(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
     ) -> ndarray | csc_matrix:
-        r"""
-        Returns operator :math:`e^{i\varphi}` in the charge or eigenenergy basis.
+        r"""Return operator :math:`e^{i\varphi}` in the charge or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator :math:`e^{i\varphi}` in the charge basis.
-            If `True`, the energy eigenspectrum is computed, returns operator :math:`e^{i\varphi}` in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator :math:`e^{i\varphi}` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns :math:`e^{i\varphi}` in the charge
+            basis. If ``True``, the energy eigenspectrum is computed and
+            :math:`e^{i\varphi}` is returned in the energy eigenbasis. If
+            ``energy_esys = esys``, where ``esys`` is a tuple ``(evals, evecs)``
+            of eigenvalues and eigenvectors, :math:`e^{i\varphi}` is expressed
+            in that eigenbasis without recomputing the spectrum.
 
         Returns
         -------
-        Operator :math:`e^{i\varphi}` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-        unless energy_esys is specified, :math:`e^{i\varphi}` has dimensions of truncated_dim
-        x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`e^{i\varphi}` has dimensions of m x m,
-        for m given eigenvectors.
+        Operator :math:`e^{i\varphi}` in the chosen basis as ndarray. In the
+        eigenenergy basis the shape is ``truncated_dim x truncated_dim``; if an
+        explicit eigensystem of ``m`` eigenvectors is passed, the shape is
+        ``m x m``.
         """
         dimension = self.hilbertdim()
         entries = np.repeat(1.0, dimension - 1)
@@ -261,23 +286,24 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def cos_phi_operator(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
     ) -> ndarray | csc_matrix:
-        r"""
-        Returns operator :math:`\cos \varphi` in the charge or eigenenergy basis.
+        r"""Return operator :math:`\cos\varphi` in the charge or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator :math:`\cos \varphi` in the charge basis.
-            If `True`, the energy eigenspectrum is computed, returns operator :math:`\cos \varphi` in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator :math:`\cos \varphi` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns :math:`\cos\varphi` in the charge
+            basis. If ``True``, the energy eigenspectrum is computed and
+            :math:`\cos\varphi` is returned in the energy eigenbasis. If
+            ``energy_esys = esys``, where ``esys`` is a tuple ``(evals, evecs)``
+            of eigenvalues and eigenvectors, :math:`\cos\varphi` is expressed
+            in that eigenbasis without recomputing the spectrum.
 
         Returns
         -------
-        Operator :math:`\cos \varphi` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-        unless energy_esys is specified, :math:`\cos \varphi` has dimensions of truncated_dim
-        x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\cos \varphi` has dimensions of m x m,
-        for m given eigenvectors.
+        Operator :math:`\cos\varphi` in the chosen basis as ndarray. In the
+        eigenenergy basis the shape is ``truncated_dim x truncated_dim``; if an
+        explicit eigensystem of ``m`` eigenvectors is passed, the shape is
+        ``m x m``.
         """
         cos_op = 0.5 * np.asarray(self.exp_i_phi_operator())
         cos_op += cos_op.T
@@ -286,23 +312,24 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def sin_phi_operator(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
     ) -> ndarray | csc_matrix:
-        r"""
-        Returns operator :math:`\sin \varphi` in the charge or eigenenergy basis.
+        r"""Return operator :math:`\sin\varphi` in the charge or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator :math:`\sin \varphi` in the charge basis.
-            If `True`, the energy eigenspectrum is computed, returns operator :math:`\sin \varphi` in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator :math:`\sin \varphi` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns :math:`\sin\varphi` in the charge
+            basis. If ``True``, the energy eigenspectrum is computed and
+            :math:`\sin\varphi` is returned in the energy eigenbasis. If
+            ``energy_esys = esys``, where ``esys`` is a tuple ``(evals, evecs)``
+            of eigenvalues and eigenvectors, :math:`\sin\varphi` is expressed
+            in that eigenbasis without recomputing the spectrum.
 
         Returns
         -------
-        Operator :math:`\sin \varphi` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-        unless energy_esys is specified, :math:`\sin \varphi` has dimensions of truncated_dim
-        x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\sin \varphi` has dimensions of m x m,
-        for m given eigenvectors.
+        Operator :math:`\sin\varphi` in the chosen basis as ndarray. In the
+        eigenenergy basis the shape is ``truncated_dim x truncated_dim``; if an
+        explicit eigensystem of ``m`` eigenvectors is passed, the shape is
+        ``m x m``.
         """
         sin_op = -1j * 0.5 * np.asarray(self.exp_i_phi_operator())
         sin_op += sin_op.conjugate().T
@@ -311,21 +338,23 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def hamiltonian(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
     ) -> ndarray | csc_matrix:
-        """Returns Hamiltonian in the charge or eigenenergy basis.
+        """Return the Hamiltonian in the charge or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns Hamiltonian in the charge basis.
-            If `True`, the energy eigenspectrum is computed; returns Hamiltonian in the energy eigenbasis.
-            If `energy_esys = esys`, where `esys` is a tuple containing two ndarrays (eigenvalues and energy
-            eigenvectors); then return the Hamiltonian in the energy eigenbasis, do not recalculate eigenspectrum.
+            If ``False`` (default), returns the Hamiltonian in the charge basis.
+            If ``True``, the energy eigenspectrum is computed and the
+            Hamiltonian is returned in the energy eigenbasis. If
+            ``energy_esys = esys``, where ``esys`` is a tuple ``(evals, evecs)``
+            of eigenvalues and eigenvectors, the Hamiltonian is expressed in
+            that eigenbasis without recomputing the spectrum.
 
         Returns
         -------
-        Hamiltonian in chosen basis as ndarray. For `energy_esys=False`, the Hamiltonian has dimensions of
-        :attr:`truncated_dim` x :attr:`truncated_dim`. For `energy_sys=esys`, the Hamiltonian has dimensions of m x m,
-        for m given eigenvectors.
+        Hamiltonian in the chosen basis as ndarray. In the eigenenergy basis
+        the shape is ``truncated_dim x truncated_dim``; if an explicit
+        eigensystem of ``m`` eigenvectors is passed, the shape is ``m x m``.
         """
         dimension = self.hilbertdim()
         hamiltonian_mat = np.diag(
@@ -344,23 +373,23 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def d_hamiltonian_d_ng(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
     ) -> ndarray | csc_matrix:
-        """Returns operator representing a derivative of the Hamiltonian with respect to
-        charge offset :attr:`ng` in the charge or eigenenergy basis.
+        """Return the derivative of the Hamiltonian with respect to :attr:`ng`.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator in the charge basis.
-            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If `energy_esys = esys`, where `esys` is a tuple containing two ndarrays (eigenvalues and energy
-            eigenvectors), returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns the operator in the charge basis.
+            If ``True``, the energy eigenspectrum is computed and the operator
+            is returned in the energy eigenbasis. If ``energy_esys = esys``,
+            where ``esys`` is a tuple ``(evals, evecs)`` of eigenvalues and
+            eigenvectors, the operator is expressed in that eigenbasis without
+            recomputing the spectrum.
 
         Returns
         -------
-        Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
-        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-        x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
-        for m given eigenvectors.
+        Operator in the chosen basis as ndarray. In the eigenenergy basis the
+        shape is ``truncated_dim x truncated_dim``; if an explicit eigensystem
+        of ``m`` eigenvectors is passed, the shape is ``m x m``.
         """
         native = -8 * self.EC * self.n_operator(energy_esys=energy_esys)
         return self.process_op(native_op=native, energy_esys=energy_esys)
@@ -368,23 +397,23 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def d_hamiltonian_d_EJ(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
     ) -> ndarray | csc_matrix:
-        """Returns operator representing a derivative of the Hamiltonian with respect to
-        EJ in the charge or eigenenergy basis.
+        """Return the derivative of the Hamiltonian with respect to :attr:`EJ`.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator in the charge basis.
-            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If `energy_esys = esys`, where `esys` is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns the operator in the charge basis.
+            If ``True``, the energy eigenspectrum is computed and the operator
+            is returned in the energy eigenbasis. If ``energy_esys = esys``,
+            where ``esys`` is a tuple ``(evals, evecs)`` of eigenvalues and
+            eigenvectors, the operator is expressed in that eigenbasis without
+            recomputing the spectrum.
 
         Returns
         -------
-        Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
-        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-        x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
-        for m given eigenvectors.
+        Operator in the chosen basis as ndarray. In the eigenenergy basis the
+        shape is ``truncated_dim x truncated_dim``; if an explicit eigensystem
+        of ``m`` eigenvectors is passed, the shape is ``m x m``.
         """
         native = -self.cos_phi_operator()
         return self.process_op(native_op=native, energy_esys=energy_esys)
@@ -446,7 +475,25 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         scaling: float | None = None,
         **kwargs,
     ) -> tuple[Figure, Axes]:
-        """Alias for plot_wavefunction."""
+        """Alias for :meth:`plot_wavefunction`.
+
+        Parameters
+        ----------
+        esys:
+            eigenvalues, eigenvectors
+        which:
+            index or indices of wave functions to plot (default: 0)
+        phi_grid:
+            used for setting a custom grid for ``phi``; if ``None``, uses
+            ``self._default_grid``
+        mode:
+            choices as specified in ``constants.MODE_FUNC_DICT``
+            (default: ``'abs_sqr'``)
+        scaling:
+            custom scaling of wave function amplitude/modulus
+        **kwargs:
+            plotting parameters
+        """
         return self.plot_wavefunction(
             esys=esys,
             which=which,
@@ -459,15 +506,14 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def numberbasis_wavefunction(
         self, esys: tuple[ndarray, ndarray] | None = None, which: int = 0
     ) -> WaveFunction:
-        """Return the transmon wave function in number basis. The specific index of the
-        wave function to be returned is `which`.
+        """Return the transmon wave function with index ``which`` in the number basis.
 
         Parameters
         ----------
         esys:
-            if `None`, the eigensystem is calculated on the fly; otherwise, the provided
-            eigenvalue, eigenvector arrays as obtained from `.eigensystem()`,
-            are used (default: None)
+            if ``None``, the eigensystem is calculated on the fly; otherwise,
+            the provided eigenvalue, eigenvector arrays as obtained from
+            :meth:`eigensystem` are used (default: None)
         which:
             eigenfunction index (default: 0)
         """
@@ -485,19 +531,19 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         which: int = 0,
         phi_grid: Grid1d | None = None,
     ) -> WaveFunction:
-        """Return the transmon wave function in phase basis. The specific index of the
-        wavefunction is `which`. `esys` can be provided, but if set to `None` then it is
-        calculated on the fly.
+        """Return the transmon wave function with index ``which`` in the phase basis.
 
         Parameters
         ----------
         esys:
-            if None, the eigensystem is calculated on the fly; otherwise, the provided
-            eigenvalue, eigenvector arrays as obtained from `.eigensystem()` are used
+            if ``None``, the eigensystem is calculated on the fly; otherwise,
+            the provided eigenvalue, eigenvector arrays as obtained from
+            :meth:`eigensystem` are used
         which:
             eigenfunction index (default: 0)
         phi_grid:
-            used for setting a custom grid for phi; if None use self._default_grid
+            used for setting a custom grid for ``phi``; if ``None`` uses
+            ``self._default_grid``
         """
         if esys is None:
             evals_count = max(which + 1, 3)
@@ -531,6 +577,41 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         point_count: int = 50,
         num_cpus: int | None = None,
     ) -> tuple[ndarray, ndarray]:
+        """Compute energies and charge-noise dispersion for the requested transitions.
+
+        For ``dispersion_name == "ng"`` the dispersion is evaluated as the
+        difference between :attr:`ng` = 0 and :attr:`ng` = 0.5; for any other
+        ``dispersion_name`` the implementation falls back to
+        :meth:`QubitBaseClass._compute_dispersion`. The instance attribute
+        :attr:`ng` is temporarily mutated and then restored to its prior value.
+
+        Parameters
+        ----------
+        dispersion_name:
+            name of parameter inducing the dispersion (typically ``'ng'``)
+        param_name:
+            name of parameter to be varied
+        param_vals:
+            parameter values at which to evaluate the spectrum
+        transitions_tuple:
+            tuple of ``(i, j)`` index pairs identifying transitions
+            (default: ``((0, 1),)``)
+        levels_tuple:
+            optional tuple of level indices; if provided, dispersion is
+            computed level-wise rather than for transitions
+        point_count:
+            number of sweep points (forwarded to the parent implementation)
+            (default: 50)
+        num_cpus:
+            number of cores to use for the sweep; ``None`` uses the library
+            default
+
+        Returns
+        -------
+        Tuple ``(energy_table, dispersion)`` of arrays. ``energy_table`` is
+        the eigenenergy table at :attr:`ng` = 0; ``dispersion`` contains the
+        per-transition (or per-level) charge dispersion.
+        """
         if dispersion_name != "ng":
             return super()._compute_dispersion(
                 dispersion_name,
@@ -599,12 +680,14 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
 
 class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
-    r"""Class for the flux-tunable transmon qubit. The Hamiltonian is represented in
-    dense form in the number basis, :math:`H_\text{CPB}=4E_\text{C}(\hat{
-    n}-n_g)^2-\frac{\mathcal{E}_\text{J}(\Phi)}{2}(|n\rangle\langle n+1|+\text{ h.c.})`,
-    Here, the effective Josephson energy is flux-tunable: :math:`\mathcal{ E}_J(\Phi) =
-    E_{J,\text{max}} \sqrt{\cos^2(\pi\Phi/\Phi_0) + d^2 \sin^2( \pi\Phi/\Phi_0)}` and
-    :math:`d=(E_{J2}-E_{J1})(E_{J1}+E_{J2})` parametrizes the junction asymmetry.
+    r"""Class for the flux-tunable transmon qubit.
+
+    The Hamiltonian is represented in dense form in the number basis,
+    :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2
+    -\frac{\mathcal{E}_\text{J}(\Phi)}{2}(|n\rangle\langle n+1|+\text{h.c.})`.
+    Here, the effective Josephson energy is flux-tunable: :math:`\mathcal{E}_J(\Phi) =
+    E_{J,\text{max}} \sqrt{\cos^2(\pi\Phi/\Phi_0) + d^2 \sin^2(\pi\Phi/\Phi_0)}` and
+    :math:`d=(E_{J2}-E_{J1})/(E_{J1}+E_{J2})` parametrizes the junction asymmetry.
 
     Initialize with, for example::
 
@@ -679,14 +762,14 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
 
     @property
     def EJ(self) -> float:  # type: ignore[override]
-        """This is the effective, flux dependent Josephson energy, playing the role of
-        EJ in the parent class :class:`Transmon`"""
+        """Effective, flux-dependent Josephson energy (parent-class :attr:`Transmon.EJ`)."""
         return self.EJmax * np.sqrt(
             np.cos(np.pi * self.flux) ** 2 + self.d**2 * np.sin(np.pi * self.flux) ** 2
         )
 
     @staticmethod
     def default_params() -> dict[str, Any]:
+        """Return a default-parameter dict suitable for instantiating the class."""
         return {
             "EJmax": 20.0,
             "EC": 0.3,
@@ -712,29 +795,30 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
     def d_hamiltonian_d_flux(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
     ) -> ndarray | csc_matrix:
-        r"""Returns operator representing a derivative of the Hamiltonian with respect to
-        :attr:`flux` in the charge or eigenenergy basis.
+        r"""Return the derivative of the Hamiltonian with respect to :attr:`flux`.
 
-        Here, the derivative is taken with respect to flux before the qubit's :math:`\phi` degree of
-        freedom in the Hamiltonian is shifted by a flux-dependent quantity :math:`\varphi_{0}`
-        (see Eq. 2.17 and surrounding text in PRA 76, 042319 (2007)). Then only after the flux
-        derivative is taken, both the Hamiltonian as well as its flux derivative are assumed to
-        be shifted by :math:`\varphi_{0}`.
+        Here, the derivative is taken with respect to flux before the qubit's
+        :math:`\phi` degree of freedom in the Hamiltonian is shifted by a
+        flux-dependent quantity :math:`\varphi_{0}` (see Eq. 2.17 and
+        surrounding text in PRA 76, 042319 (2007)). Then only after the flux
+        derivative is taken, both the Hamiltonian as well as its flux
+        derivative are assumed to be shifted by :math:`\varphi_{0}`.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator in the charge basis.
-            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns the operator in the charge basis.
+            If ``True``, the energy eigenspectrum is computed and the operator
+            is returned in the energy eigenbasis. If ``energy_esys = esys``,
+            where ``esys`` is a tuple ``(evals, evecs)`` of eigenvalues and
+            eigenvectors, the operator is expressed in that eigenbasis without
+            recomputing the spectrum.
 
         Returns
         -------
-        Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
-        unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-        x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
-        for m given eigenvectors.
+        Operator in the chosen basis as ndarray. In the eigenenergy basis the
+        shape is ``truncated_dim x truncated_dim``; if an explicit eigensystem
+        of ``m`` eigenvectors is passed, the shape is ``m x m``.
         """
         native = (
             np.pi
@@ -768,6 +852,42 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         point_count: int = 50,
         num_cpus: int | None = None,
     ) -> tuple[ndarray, ndarray]:
+        """Compute energies and flux-noise dispersion for the requested transitions.
+
+        For ``dispersion_name == "flux"`` the dispersion is evaluated as the
+        difference between :attr:`flux` = 0 and :attr:`flux` = 0.5; for any
+        other ``dispersion_name`` the implementation falls back to
+        :meth:`Transmon._compute_dispersion`. The instance attribute
+        :attr:`flux` is temporarily mutated and then restored to its prior
+        value.
+
+        Parameters
+        ----------
+        dispersion_name:
+            name of parameter inducing the dispersion (typically ``'flux'``)
+        param_name:
+            name of parameter to be varied
+        param_vals:
+            parameter values at which to evaluate the spectrum
+        transitions_tuple:
+            tuple of ``(i, j)`` index pairs identifying transitions
+            (default: ``((0, 1),)``)
+        levels_tuple:
+            optional tuple of level indices; if provided, dispersion is
+            computed level-wise rather than for transitions
+        point_count:
+            number of sweep points (forwarded to the parent implementation)
+            (default: 50)
+        num_cpus:
+            number of cores to use for the sweep; ``None`` uses the library
+            default
+
+        Returns
+        -------
+        Tuple ``(energy_table, dispersion)`` of arrays. ``energy_table`` is
+        the eigenenergy table at :attr:`flux` = 0; ``dispersion`` contains the
+        per-transition (or per-level) flux dispersion.
+        """
         if dispersion_name != "flux":
             return super()._compute_dispersion(
                 dispersion_name,
