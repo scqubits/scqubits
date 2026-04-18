@@ -30,8 +30,9 @@ from scqubits.utils.spectrum_utils import get_matrixelement_table, order_eigensy
 
 
 class GenericQubit(base.QuantumSystem, serializers.Serializable):
-    """Class for a generic qubit (genuine two-level system). Create a class instance
-    via::
+    """Class for a generic qubit (genuine two-level system).
+
+    Create a class instance via::
 
         GenericQubit(E=4.3)
 
@@ -56,9 +57,11 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
 
     @staticmethod
     def default_params() -> dict[str, Any]:
+        """Return a default-parameter dict suitable for instantiating the class."""
         return {"E": 5.0}
 
     def hamiltonian(self):
+        r"""Return the qubit Hamiltonian :math:`H = \tfrac{1}{2} E\,\sigma_z`."""
         return 0.5 * self.E * self.sz_operator()
 
     def hilbertdim(self) -> int:
@@ -66,20 +69,40 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
         return 2
 
     def eigenvals(self, evals_count: int = 2) -> ndarray:
+        """Return array of eigenvalues, sorted in ascending order.
+
+        Uses :func:`scipy.linalg.eigh` (Hermitian; ascending real eigenvalues),
+        then applies :func:`numpy.sort` to ensure ascending order.
+
+        Parameters
+        ----------
+        evals_count:
+            number of desired eigenvalues (default: 2)
+        """
         hamiltonian_mat = self.hamiltonian()
         evals = sp.linalg.eigh(hamiltonian_mat, eigvals_only=True)
         return np.sort(evals)
 
     def eigensys(self, evals_count: int = 2) -> tuple[ndarray, ndarray]:
+        """Return arrays of eigenvalues and eigenvectors.
+
+        Uses :func:`scipy.linalg.eigh` (Hermitian; ascending real eigenvalues).
+
+        Parameters
+        ----------
+        evals_count:
+            number of desired eigenvalues (default: 2)
+        """
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = sp.linalg.eigh(hamiltonian_mat, eigvals_only=False)
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
 
     def matrixelement_table(self, operator: str) -> ndarray:
-        """Returns table of matrix elements for `operator` with respect to the
-        eigenstates of the qubit. The operator is given as a string matching a class
-        method returning an operator matrix.
+        """Return table of matrix elements for ``operator`` with respect to qubit eigenstates.
+
+        The operator is given as a string matching a class method returning an
+        operator matrix.
 
         Parameters
         ----------
@@ -94,24 +117,37 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
 
     @classmethod
     def create(cls) -> base.QuantumSystem:
+        """Not implemented for :class:`GenericQubit`; always raises :exc:`NotImplementedError`."""
         raise NotImplementedError
 
     def widget(self, params: dict[str, Any] | None = None):
+        """Not implemented for :class:`GenericQubit`; always raises :exc:`NotImplementedError`.
+
+        Parameters
+        ----------
+        params:
+            unused; kept for API compatibility with :meth:`QuantumSystem.widget`
+        """
         raise NotImplementedError(
             "GenericQubit does not support widget-based " "creation."
         )
 
     def sx_operator(self):
+        r"""Return the Pauli :math:`\sigma_x` operator."""
         return operators.sigma_x()
 
     def sy_operator(self):
+        r"""Return the Pauli :math:`\sigma_y` operator."""
         return operators.sigma_y()
 
     def sz_operator(self):
+        r"""Return the Pauli :math:`\sigma_z` operator."""
         return operators.sigma_z()
 
     def sp_operator(self):
+        r"""Return the raising operator :math:`\sigma_+ = (\sigma_x + i\sigma_y)/2`."""
         return operators.sigma_plus()
 
     def sm_operator(self):
+        r"""Return the lowering operator :math:`\sigma_- = (\sigma_x - i\sigma_y)/2`."""
         return operators.sigma_minus()
