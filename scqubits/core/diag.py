@@ -581,7 +581,7 @@ def esys_cupy_sparse(
 
 def evals_jax_dense(
     matrix, evals_count, **kwargs
-) -> Union[Tuple[ndarray, ndarray], Tuple[ndarray, QutipEigenstates]]:
+) -> ndarray:
     """Diagonalization based on jax's (dense) jax.scipy.linalg.eigh function. Only
     eigenvalues are returned.
 

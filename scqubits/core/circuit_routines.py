@@ -1898,6 +1898,9 @@ class CircuitRoutines(ABC):
                 return hamiltonian.full()
             if self.type_of_matrices == "sparse":
                 return Qobj_to_scipy_csc_matrix(hamiltonian)
+            raise ValueError(
+                f"Unexpected type_of_matrices: {self.type_of_matrices!r}"
+            )
 
     def _evals_calc(self, evals_count: int) -> ndarray:
 
@@ -2039,3 +2042,7 @@ class CircuitRoutines(ABC):
         for cutoff_name in self.parent.cutoff_names:
             if str(var_index) in cutoff_name:
                 return getattr(self.parent, cutoff_name)
+        raise ValueError(
+            f"No cutoff found for var_index={var_index}; "
+            f"available cutoff_names: {self.parent.cutoff_names!r}"
+        )

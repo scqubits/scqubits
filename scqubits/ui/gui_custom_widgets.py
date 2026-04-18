@@ -448,6 +448,8 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
 
         def settings_dialog(self, settings_btn: LinkedButton, *args, **kwargs):
             """Bring up plot panel settings dialog."""
+            if self.plot_settings_dialog is None:
+                return
             self.plot_settings_dialog(settings_btn.ref)
 
         def resize_all(self, width=None, height=None):

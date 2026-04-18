@@ -783,12 +783,15 @@ class CircuitSymMethods(ABC):
                 ),
             )
 
+        if return_expr:
+            return potential
         if print_latex:
             print(latex(potential))
         if _HAS_IPYTHON:
             self.print_expr_in_latex(potential)
         else:
             print(potential)
+        return None
 
     def sym_hamiltonian(
         self,
@@ -922,6 +925,7 @@ class CircuitSymMethods(ABC):
             self.print_expr_in_latex(sym_hamiltonian)
         else:
             print(sym_hamiltonian)
+        return None
 
     def sym_interaction(
         self,
@@ -988,6 +992,7 @@ class CircuitSymMethods(ABC):
             self.print_expr_in_latex(interaction)
         else:
             print(interaction)
+        return None
 
     def operator_names_in_hamiltonian_symbolic(self) -> List[str]:
         """Returns a list of the names (strings) of all operators occurring in the

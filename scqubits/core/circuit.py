@@ -119,8 +119,8 @@ class Subsystem(
         parent: "Subsystem",
         hamiltonian_symbolic: sm.Expr,
         ext_basis: Union[str, List],
-        system_hierarchy: list = [],
-        subsystem_trunc_dims: list = [],
+        system_hierarchy: Union[list, None] = None,
+        subsystem_trunc_dims: Union[list, None] = None,
         truncated_dim: int = 10,
         evals_method: Union[Callable, str, None] = None,
         evals_method_options: Union[dict, None] = None,
@@ -139,9 +139,11 @@ class Subsystem(
             esys_method_options=esys_method_options,
         )
 
-        self.system_hierarchy = system_hierarchy
+        self.system_hierarchy = system_hierarchy if system_hierarchy is not None else []
         self.truncated_dim: int = truncated_dim
-        self.subsystem_trunc_dims = subsystem_trunc_dims
+        self.subsystem_trunc_dims = (
+            subsystem_trunc_dims if subsystem_trunc_dims is not None else []
+        )
 
         self.is_child: bool = True
         self.parent = parent
@@ -184,7 +186,8 @@ class Subsystem(
         self.potential_symbolic = self._generate_sym_potential()
 
         self.hierarchical_diagonalization: bool = (
-            system_hierarchy != [] and number_of_lists_in_list(system_hierarchy) > 0
+            self.system_hierarchy != []
+            and number_of_lists_in_list(self.system_hierarchy) > 0
         )
 
         if len(self.dynamic_var_indices) == 1:
@@ -1274,6 +1277,7 @@ class Circuit(
             self.print_expr_in_latex(lagrangian)
         else:
             print(lagrangian)
+        return None
 
     def sym_external_fluxes(self) -> Dict[sm.Expr, Tuple["Branch", List["Branch"]]]:
         """Method returns a dictionary of Human readable external fluxes with associated

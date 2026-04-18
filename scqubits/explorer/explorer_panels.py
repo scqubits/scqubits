@@ -263,7 +263,7 @@ def display_cross_kerr(
         kerr_datasets = [kerr_data[..., level]]
     elif type_list.count(Oscillator) == 2:
         title = r"Cross-Kerr: {} - {}".format(subsys1.id_str, subsys2.id_str)
-        ylabel = r"Kerr Coefficient $K_{{},{}}$".format(subsys1_index, subsys2_index)
+        ylabel = r"Kerr Coefficient $K_{{{},{}}}$".format(subsys1_index, subsys2_index)
         level_pairs = [(1, 1)]
         kerr_data = sweep["kerr"][subsys1_index, subsys2_index]
         if param_slice.fixed != tuple():

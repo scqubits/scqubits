@@ -1047,7 +1047,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         ]
 
         # Generate the transformed capacitance matrix
-        if self.is_any_branch_parameter_symbolic() and not substitute_params:
+        if self._is_any_branch_parameter_symbolic() and not substitute_params:
             C_mat_theta = (
                 self.transformation_matrix.T
                 * self._capacitance_matrix()
@@ -1080,7 +1080,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
 
         # remove free indices
         free_indices = [i - 1 for i in self.var_categories["free"]]
-        if self.is_any_branch_parameter_symbolic() and not substitute_params:
+        if self._is_any_branch_parameter_symbolic() and not substitute_params:
             inv_C_mat_theta = C_mat_theta.inv()
 
             relevant_indices = [

@@ -137,21 +137,26 @@ def truncation_template(
     return trunc_dims
 
 
-def get_trailing_number(input_str: str) -> Union[int, None]:
-    """Returns the number trailing a string given as input. Example: $
-    get_trailing_number("a23") $ 23.
+def get_trailing_number(input_str: str) -> int:
+    """Returns the number trailing a string given as input. Example::
+
+        get_trailing_number("a23")  # returns 23
 
     Parameters
     ----------
     input_str:
-        String which ends with a number
+        String which ends with a number. Raises ValueError if no trailing digits.
 
     Returns
     -------
-        returns the trailing integer as int, else returns None
+        trailing integer
     """
     match = re.search(r"\d+$", input_str)
-    return int(match.group()) if match else None
+    if match is None:
+        raise ValueError(
+            f"get_trailing_number: {input_str!r} has no trailing digits"
+        )
+    return int(match.group())
 
 
 def _identity_phi(grid: discretization.Grid1d) -> csc_matrix:
