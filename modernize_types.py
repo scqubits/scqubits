@@ -119,9 +119,7 @@ def modernize_type_str(s: str) -> str:
 # ---------------------------------------------------------------------------
 
 _CONSTRUCTS = ["Optional", "Union", "Tuple", "List", "Dict", "Set", "FrozenSet"]
-_CONSTRUCT_PATTERN = re.compile(
-    r"\b(" + "|".join(_CONSTRUCTS) + r")\["
-)
+_CONSTRUCT_PATTERN = re.compile(r"\b(" + "|".join(_CONSTRUCTS) + r")\[")
 
 # Bare generics (no subscript): Dict -> dict, List -> list, etc.
 # Only in annotation positions: after `:`, `->`, `[`, `,` (heuristic via lookbehind context).
@@ -167,9 +165,7 @@ def _replace_constructs(text: str) -> tuple[str, int]:
     for old_name, new_name in _BARE_GENERIC_MAP.items():
         # Also match after `(` (e.g., cast(List, x)) — runtime-safe since the
         # builtin `list` is a valid type argument.
-        pattern = re.compile(
-            r"(:|->|\[|,|\||=|\()(\s*)\b" + old_name + r"\b(?!\[|\w)"
-        )
+        pattern = re.compile(r"(:|->|\[|,|\||=|\()(\s*)\b" + old_name + r"\b(?!\[|\w)")
         new_text, n = pattern.subn(r"\1\2" + new_name, text)
         if n:
             changes += n
@@ -183,16 +179,36 @@ def _replace_constructs(text: str) -> tuple[str, int]:
 # ---------------------------------------------------------------------------
 
 _OBSOLETE_IMPORTS = {
-    "Optional", "Union", "Tuple", "List", "Dict", "Set", "FrozenSet",
+    "Optional",
+    "Union",
+    "Tuple",
+    "List",
+    "Dict",
+    "Set",
+    "FrozenSet",
 }
 
 # These types are also in `typing` but should come from `collections.abc`
 # (project convention, Python 3.10+ idiom).
 _ABC_IMPORTS = {
-    "Callable", "Iterable", "Iterator", "Mapping", "MutableMapping",
-    "Sequence", "MutableSequence", "Collection", "Container", "Generator",
-    "Awaitable", "Coroutine", "AsyncIterable", "AsyncIterator",
-    "AsyncGenerator", "Hashable", "Sized", "Reversible",
+    "Callable",
+    "Iterable",
+    "Iterator",
+    "Mapping",
+    "MutableMapping",
+    "Sequence",
+    "MutableSequence",
+    "Collection",
+    "Container",
+    "Generator",
+    "Awaitable",
+    "Coroutine",
+    "AsyncIterable",
+    "AsyncIterator",
+    "AsyncGenerator",
+    "Hashable",
+    "Sized",
+    "Reversible",
 }
 
 
@@ -206,8 +222,12 @@ def _clean_typing_imports(text: str) -> tuple[str, list[str], list[str]]:
 
     def _remove_from_import(m: re.Match) -> str:
         names_raw = m.group(1)
-        names = [n.strip().rstrip(",") for n in re.split(r",\s*", names_raw) if n.strip()]
-        kept = [n for n in names if n not in _OBSOLETE_IMPORTS and n not in _ABC_IMPORTS]
+        names = [
+            n.strip().rstrip(",") for n in re.split(r",\s*", names_raw) if n.strip()
+        ]
+        kept = [
+            n for n in names if n not in _OBSOLETE_IMPORTS and n not in _ABC_IMPORTS
+        ]
         dropped = [n for n in names if n in _OBSOLETE_IMPORTS]
         abc_bound = [n for n in names if n in _ABC_IMPORTS]
         if not dropped and not abc_bound:
@@ -242,10 +262,14 @@ def _clean_typing_imports(text: str) -> tuple[str, list[str], list[str]]:
         abc_set = set(moved_to_abc)
         existing_match = re.search(r"from collections\.abc import ([^\n]+)", text)
         if existing_match:
-            existing_names = {n.strip() for n in existing_match.group(1).split(",") if n.strip()}
+            existing_names = {
+                n.strip() for n in existing_match.group(1).split(",") if n.strip()
+            }
             abc_set |= existing_names
             new_line = f"from collections.abc import {', '.join(sorted(abc_set))}"
-            text = text[:existing_match.start()] + new_line + text[existing_match.end():]
+            text = (
+                text[: existing_match.start()] + new_line + text[existing_match.end() :]
+            )
         else:
             # Insert after `from __future__ import annotations` if present,
             # otherwise before the first `from typing` (now possibly removed) or first import.
@@ -261,7 +285,9 @@ def _clean_typing_imports(text: str) -> tuple[str, list[str], list[str]]:
                 # Fall back: insert before the first import statement
                 first_imp = re.search(r"^(?:import |from )", text, re.MULTILINE)
                 if first_imp:
-                    text = text[:first_imp.start()] + new_line + text[first_imp.start():]
+                    text = (
+                        text[: first_imp.start()] + new_line + text[first_imp.start() :]
+                    )
 
     if removed or moved_to_abc:
         text = re.sub(r"\n\n\n+", "\n\n", text)
@@ -283,7 +309,11 @@ def _ensure_future_annotations(text: str) -> tuple[str, bool]:
         q = stripped[:3]
         end = stripped.find(q, 3)
         if end != -1:
-            docstring_end = text.index(stripped[end + 3 : end + 4], 3) + 1 if end + 3 < len(stripped) else 0
+            docstring_end = (
+                text.index(stripped[end + 3 : end + 4], 3) + 1
+                if end + 3 < len(stripped)
+                else 0
+            )
     # Find first real import line
     insert_at = None
     for m in re.finditer(r"^(?:import |from )", text, re.MULTILINE):
@@ -291,7 +321,10 @@ def _ensure_future_annotations(text: str) -> tuple[str, bool]:
         break
     if insert_at is None:
         return "from __future__ import annotations\n\n" + text, True
-    return text[:insert_at] + "from __future__ import annotations\n\n" + text[insert_at:], True
+    return (
+        text[:insert_at] + "from __future__ import annotations\n\n" + text[insert_at:],
+        True,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -345,7 +378,9 @@ def modernize_file(
 
     text, ignore_fixes = _fix_invalid_type_ignores(text)
     if ignore_fixes:
-        print(f"  [~] Fixed {ignore_fixes} invalid `# type:ignore` comment(s) -> [FIXME]")
+        print(
+            f"  [~] Fixed {ignore_fixes} invalid `# type:ignore` comment(s) -> [FIXME]"
+        )
 
     text, construct_changes = _replace_constructs(text)
     if construct_changes:
@@ -493,7 +528,11 @@ def fix_implicit_optional(target_dir: Path = Path("scqubits")) -> None:
             # Pattern: <param>: <type> = None  ->  <param>: <type> | None = None
             # Be careful: type_str may contain generics, unions, etc.
             pat = re.compile(
-                r"(\b" + re.escape(param_name) + r"\s*:\s*)(" + re.escape(type_str) + r")(\s*=\s*None\b)"
+                r"(\b"
+                + re.escape(param_name)
+                + r"\s*:\s*)("
+                + re.escape(type_str)
+                + r")(\s*=\s*None\b)"
             )
             new_line, n = pat.subn(r"\1\2 | None\3", old_line)
             if n:
@@ -503,7 +542,9 @@ def fix_implicit_optional(target_dir: Path = Path("scqubits")) -> None:
         if new_text != text:
             p.write_text(new_text, encoding="utf-8")
             files_changed += 1
-            print(f"  [~] Fixed {sum(1 for fx in fixes if True)} implicit Optional(s) in {p}")
+            print(
+                f"  [~] Fixed {sum(1 for fx in fixes if True)} implicit Optional(s) in {p}"
+            )
 
     print(f"\nTotal fixes: {total_fixed} across {files_changed} files")
 
@@ -577,24 +618,34 @@ def resolve_fixmes(target_dir: Path = Path("scqubits")) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("file", type=Path, nargs="?", help="Python source file to modernize")
-    parser.add_argument("--dry-run", action="store_true", help="Print output without writing")
-    parser.add_argument("--mypy", action="store_true", help="Run mypy before/after and report delta")
     parser.add_argument(
-        "--fix-fixmes", action="store_true",
-        help="Replace `[FIXME]` ignore markers across scqubits/ with real mypy error codes"
+        "file", type=Path, nargs="?", help="Python source file to modernize"
     )
     parser.add_argument(
-        "--fix-implicit-optional", action="store_true",
-        help="Fix implicit Optional params using mypy error locations"
+        "--dry-run", action="store_true", help="Print output without writing"
     )
     parser.add_argument(
-        "--fix-plt-cm", action="store_true",
-        help="Replace deprecated `plt.cm.<name>` with `plt.get_cmap(\"<name>\")`"
+        "--mypy", action="store_true", help="Run mypy before/after and report delta"
     )
     parser.add_argument(
-        "--strip-unused-ignores", action="store_true",
-        help="Remove `# type: ignore[...]` comments mypy reports as unused"
+        "--fix-fixmes",
+        action="store_true",
+        help="Replace `[FIXME]` ignore markers across scqubits/ with real mypy error codes",
+    )
+    parser.add_argument(
+        "--fix-implicit-optional",
+        action="store_true",
+        help="Fix implicit Optional params using mypy error locations",
+    )
+    parser.add_argument(
+        "--fix-plt-cm",
+        action="store_true",
+        help='Replace deprecated `plt.cm.<name>` with `plt.get_cmap("<name>")`',
+    )
+    parser.add_argument(
+        "--strip-unused-ignores",
+        action="store_true",
+        help="Remove `# type: ignore[...]` comments mypy reports as unused",
     )
     args = parser.parse_args()
 

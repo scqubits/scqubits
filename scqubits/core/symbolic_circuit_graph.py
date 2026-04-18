@@ -37,6 +37,7 @@ from scqubits.core.circuit_input import (
 
 from abc import ABC
 
+
 class Node:
     """Class representing a circuit node, and handled by `Circuit`. The attribute
     `branches` is a list of `Branch` objects containing all branches connected to the
@@ -92,6 +93,7 @@ class Node:
         for k, v in self.__dict__.items():
             setattr(result, k, copy.deepcopy(v, memo))
         return result
+
 
 class Branch:
     """Class describing a circuit branch, used in the Circuit class.
@@ -188,6 +190,7 @@ class Branch:
             setattr(result, k, copy.deepcopy(v, memo))
         return result
 
+
 class Coupler:
     """Coupler class is used to define elements which couple two existing branches in
     the Circuit class.
@@ -238,6 +241,7 @@ class Coupler:
             setattr(result, k, copy.deepcopy(v, memo))
         return result
 
+
 def make_coupler(
     branches_list: list[Branch],
     coupler_type: str,
@@ -272,6 +276,7 @@ def make_coupler(
         ),
         sym_params_dict,
     )
+
 
 def make_branch(
     nodes_list: list[Node],
@@ -317,6 +322,7 @@ def make_branch(
         ),
         sym_params_dict,
     )
+
 
 class SymbolicCircuitGraph(ABC):
 
@@ -418,7 +424,9 @@ class SymbolicCircuitGraph(ABC):
         # *****************************************************************************
 
         # **************** Constructing the node_sets ***************
-        node_sets_for_trees: list[list[list[Node]]] = []  # seperate node sets for separate trees
+        node_sets_for_trees: list[list[list[Node]]] = (
+            []
+        )  # seperate node sets for separate trees
         if circ_copy.is_grounded:
             node_sets = [[circ_copy.ground_node]]
         else:

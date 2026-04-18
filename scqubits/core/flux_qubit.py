@@ -35,6 +35,7 @@ import scqubits.utils.spectrum_utils as spec_utils
 
 from scqubits.core.noise import NOISE_PARAMS, NoisySystem
 
+
 # -Flux qubit noise class
 class NoisyFluxQubit(NoisySystem, ABC):
     @abstractmethod
@@ -249,7 +250,9 @@ class NoisyFluxQubit(NoisySystem, ABC):
         else:
             return 1 / rate if rate != 0 else np.inf
 
+
 # -Flux qubit, both degrees of freedom in charge basis---------------------------------
+
 
 class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     r"""Flux Qubit.

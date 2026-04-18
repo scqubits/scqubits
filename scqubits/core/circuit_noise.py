@@ -31,6 +31,7 @@ import sympy as sm
 
 from scqubits.core.symbolic_circuit import Branch
 
+
 class NoisyCircuit(NoisySystem, ABC):
     """This class represents a noisy quantum circuit, extending the :class:`NoisySystem` class.
     It provides a suite of methods for generating and evaluating expressions related to
@@ -94,9 +95,7 @@ class NoisyCircuit(NoisySystem, ABC):
         return None
 
     def _d_hamiltonian_d_function_factory(self, param_sym: sm.Symbol) -> Callable:
-        def param_derivative(
-            self, energy_esys: bool | tuple[ndarray, ndarray] = False
-        ):
+        def param_derivative(self, energy_esys: bool | tuple[ndarray, ndarray] = False):
             parent_instance = self.return_parent_circuit()
             hamiltonian = parent_instance._hamiltonian_sym_for_numerics
             hamiltonian = hamiltonian.subs("I", 1)

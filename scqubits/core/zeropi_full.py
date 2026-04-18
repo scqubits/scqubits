@@ -36,8 +36,10 @@ from scqubits.core.noise import NoisySystem
 
 # - ZeroPi noise class
 
+
 class NoisyFullZeroPi(NoisySystem):
     pass
+
 
 class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi):
     r"""Zero-Pi qubit [Brooks2013]_ [Dempster2014]_ including coupling to the :math:`\zeta` mode.
@@ -338,11 +340,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         self,
         return_parts: bool = False,
         energy_esys: bool | tuple[ndarray, ndarray] = False,
-    ) -> (
-        ndarray
-        | csc_matrix
-        | tuple[ndarray | csc_matrix, ndarray, ndarray, ndarray]
-    ):
+    ) -> ndarray | csc_matrix | tuple[ndarray | csc_matrix, ndarray, ndarray, ndarray]:
         r"""Returns Hamiltonian in basis obtained by discretizing :math:`\phi`, employing
         charge basis for :math:`\theta`, and Fock basis for :math:`\zeta`, or in the
         eigenenergy basis.

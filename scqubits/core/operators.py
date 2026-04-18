@@ -68,9 +68,7 @@ def hubbard_sparse(j1: int, j2: int, dimension: int) -> csc_matrix:
     return hubbardmat.asformat("csc")
 
 
-def number(
-    dimension: int, prefactor: float | complex | None = None
-) -> ndarray:
+def number(dimension: int, prefactor: float | complex | None = None) -> ndarray:
     """Number operator matrix of size dimension x dimension in sparse matrix
     representation. An additional prefactor can be directly included in the generation
     of the matrix by supplying 'prefactor'.
@@ -141,9 +139,7 @@ def a_plus_adag_sparse(
     return prefactor * (annihilation_sparse(dimension) + creation_sparse(dimension))
 
 
-def a_plus_adag(
-    dimension: int, prefactor: float | complex | None = None
-) -> ndarray:
+def a_plus_adag(dimension: int, prefactor: float | complex | None = None) -> ndarray:
     r"""Operator matrix for prefactor(:math:`a+a^\dagger`) of size dimension x dimension in
     sparse matrix representation.
 
@@ -228,9 +224,7 @@ def iadag_minus_ia_sparse(
     )
 
 
-def iadag_minus_ia(
-    dimension: int, prefactor: float | complex | None = None
-) -> ndarray:
+def iadag_minus_ia(dimension: int, prefactor: float | complex | None = None) -> ndarray:
     r"""Operator matrix for prefactor(:math:`ia-ia^\dagger`) of size dimension x dimension as
     ndarray
 

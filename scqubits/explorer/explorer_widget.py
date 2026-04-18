@@ -60,6 +60,7 @@ except ImportError:
 else:
     _HAS_IPYVUETIFY = True
 
+
 class PlotID:
     """Class for storing plot identifiers.
 
@@ -92,6 +93,7 @@ class PlotID:
             return self.plot_type in default_panels["Composite"]
         subsys_type_str = type(self.subsystems[0]).__name__
         return self.plot_type in default_panels[subsys_type_str]
+
 
 class Explorer:
     """Generates the UI for exploring `ParameterSweep` objects.
@@ -135,7 +137,9 @@ class Explorer:
         self.sweep = sweep
         self.ncols = ncols  # number of columns used for axes in the figure display
 
-        self.subsystems: list[QuantumSystem] = list(self.sweep.hilbertspace.subsystem_list)
+        self.subsystems: list[QuantumSystem] = list(
+            self.sweep.hilbertspace.subsystem_list
+        )
         self.subsys_names: list[str] = [subsys.id_str for subsys in self.subsystems]
 
         # == GUI elements =========================================================

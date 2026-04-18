@@ -34,6 +34,7 @@ except ImportError:
 else:
     _HAS_IPYTHON = True
 
+
 @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def create_widget(
     callback_func: Callable,

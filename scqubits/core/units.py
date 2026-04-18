@@ -28,6 +28,7 @@ _units_factor = {"GHz": 1e9, "MHz": 1e6, "kHz": 1e3, "Hz": 1.0}
 # labels for time units obtained from 1/frequency units
 _units_time_labels = {"GHz": r"$ns$", "MHz": r"$\mu s$", "kHz": r"$ms$", "Hz": r"$s$"}
 
+
 def get_units() -> str:
     """The get_units function returns the current units of the system.
 
@@ -36,6 +37,7 @@ def get_units() -> str:
         The current units as a string
     """
     return _current_units
+
 
 def set_units(units: str) -> str:
     """The set_units function is used to set the system units for all qubit instances.
@@ -76,6 +78,7 @@ def set_units(units: str) -> str:
     _current_units = units
     return units
 
+
 def get_units_time_label(units: str | None = None) -> str:
     """Get a LaTeX representation of 1/units"""
     units = units or _current_units
@@ -88,9 +91,11 @@ def get_units_time_label(units: str | None = None) -> str:
 
     return _units_time_labels[units]
 
+
 def show_supported_units() -> list[str]:
     """Returns a list of supported system units."""
     return _supported_units
+
 
 def to_standard_units(value: float) -> float:
     r"""
@@ -108,6 +113,7 @@ def to_standard_units(value: float) -> float:
     """
     return value * _units_factor[_current_units]
 
+
 def from_standard_units(value: float) -> float:
     r"""Converts `value` (a frequency or angular frequency) from standard units (`[Hz]`
     or  `2\pi / [s]`) to currently set system units.
@@ -123,6 +129,7 @@ def from_standard_units(value: float) -> float:
         frequency or angular frequency converted to system units
     """
     return value / _units_factor[_current_units]
+
 
 def units_scale_factor(units: str | None = None) -> float:
     """The units_scale_factor function returns a numerical scaling factor that converts

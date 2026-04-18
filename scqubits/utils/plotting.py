@@ -49,6 +49,7 @@ try:
 except ImportError:
     _LABELLINES_ENABLED = False
 
+
 @mpl.rc_context(matplotlib_settings)
 def wavefunction1d(
     wavefuncs: "WaveFunction" | "list[WaveFunction]",
@@ -92,6 +93,7 @@ def wavefunction1d(
     _process_options(fig, axes, **kwargs)
     return fig, axes
 
+
 @mpl.rc_context(matplotlib_settings)
 def wavefunction1d_nopotential(
     wavefuncs: "WaveFunction" | "list[WaveFunction]",
@@ -129,6 +131,7 @@ def wavefunction1d_nopotential(
     _process_options(fig, axes, **kwargs)
     return fig, axes
 
+
 @mpl.rc_context(matplotlib_settings)
 def wavefunction1d_discrete(wavefunc: "WaveFunction", **kwargs) -> tuple[Figure, Axes]:
     """Plots the amplitude of a real-valued 1d wave function in a discrete basis.
@@ -156,6 +159,7 @@ def wavefunction1d_discrete(wavefunc: "WaveFunction", **kwargs) -> tuple[Figure,
     _process_options(fig, axes, defaults.wavefunction1d_discrete(), **kwargs)
 
     return fig, axes
+
 
 @mpl.rc_context(matplotlib_settings)
 def wavefunction2d(
@@ -209,6 +213,7 @@ def wavefunction2d(
     _process_options(fig, axes, defaults.wavefunction2d(), **kwargs)
     return fig, axes
 
+
 @mpl.rc_context(matplotlib_settings)
 def contours(
     x_vals: list[float] | np.ndarray,
@@ -261,6 +266,7 @@ def contours(
     _process_options(fig, axes, opts=defaults.contours(x_vals, y_vals), **kwargs)
     return fig, axes
 
+
 @mpl.rc_context(matplotlib_settings)
 def matrix(
     data_matrix: np.ndarray, mode: str = "abs", show_numbers: bool = False, **kwargs
@@ -297,6 +303,7 @@ def matrix(
     )
     fig, ax1 = matrix_skyscraper(data_matrix, mode=mode, fig_ax=(fig, ax1), **kwargs)
     return fig, (ax1, ax2)
+
 
 @mpl.rc_context(matplotlib_settings)
 def matrix_skyscraper(
@@ -365,6 +372,7 @@ def matrix_skyscraper(
     _process_options(fig, axes, opts=defaults.matrix(), **kwargs)
 
     return fig, axes
+
 
 @mpl.rc_context(matplotlib_settings)
 def matrix2d(
@@ -442,6 +450,7 @@ def matrix2d(
 
     return fig, axes
 
+
 @mpl.rc_context(matplotlib_settings)
 def data_vs_paramvals(
     xdata: np.ndarray,
@@ -500,6 +509,7 @@ def data_vs_paramvals(
 
     return fig, axes
 
+
 @mpl.rc_context(matplotlib_settings)
 def evals_vs_paramvals(
     specdata: "SpectrumData",
@@ -545,6 +555,7 @@ def evals_vs_paramvals(
         label_list=label_list,
         **defaults.evals_vs_paramvals(specdata, **kwargs),
     )
+
 
 @mpl.rc_context(matplotlib_settings)
 def matelem_vs_paramvals(

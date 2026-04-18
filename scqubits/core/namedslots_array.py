@@ -39,7 +39,15 @@ EllipsisType = Any  # unfortunate workaround (see ongoing discussion)
 # Standard numpy types valid as a single slot index; with and without Ellipsis
 # ExtIndex is a single-slot index that enables custom slicing options, including
 # value-based indexing
-NpIndexNoEllipsis = int | np.integer | slice | tuple[int] | list[int] | tuple[int, np.integer] | list[np.integer]
+NpIndexNoEllipsis = (
+    int
+    | np.integer
+    | slice
+    | tuple[int]
+    | list[int]
+    | tuple[int, np.integer]
+    | list[np.integer]
+)
 NpIndex = NpIndexNoEllipsis | EllipsisType
 ExtIndex = NpIndex | float | complex
 
@@ -57,6 +65,7 @@ ExtIndices = ExtIndex | ExtIndexTuple
 # Numpy: valid slice(a, b, c) entry types
 NpSliceEntry = int | np.integer | None
 ExtSliceEntry = NpSliceEntry | float | complex | str
+
 
 def idx_for_value(value: int | float | complex, param_vals: ndarray) -> int:
     location = int(np.abs(param_vals - value).argmin())
@@ -81,6 +90,7 @@ def idx_for_value(value: int | float | complex, param_vals: ndarray) -> int:
         )
     return location
 
+
 def convert_to_std_npindex(
     index_tuple: ExtIndexTuple, parameters: "Parameters"
 ) -> NpIndexTuple:
@@ -103,6 +113,7 @@ def convert_to_std_npindex(
     )
     np_indices = ExtIndexTupleObject(extindex_obj_tuple).convert_to_np_index_exp()
     return np_indices
+
 
 def process_ellipsis(
     array: "Parameters" | np.ndarray, multi_idx: NpIndexTuple
@@ -136,6 +147,7 @@ def process_ellipsis(
         new_multi_idx[slot] = multi_idx[slot]
         slot -= 1
     return tuple(new_multi_idx)
+
 
 class ExtIndexObject:
     """Object used for enabling enhanced indexing in NamedSlotsNdarray.
@@ -213,6 +225,7 @@ class ExtIndexObject:
 
         raise TypeError("Invalid index: {}".format(idx_entry))
 
+
 class ExtIndexTupleObject:
     def __init__(self, extindex_tuple: tuple[ExtIndexObject, ...]):
         self._parameters = extindex_tuple[0]._parameters
@@ -231,9 +244,7 @@ class ExtIndexTupleObject:
             assert (
                 extindex_object.name is not None
             ), "Internal error in NamedSlotsNdarray: index missing `name` attribute!"
-            slot_index = self._parameters.index_by_name[
-                extindex_object.name
-            ]
+            slot_index = self._parameters.index_by_name[extindex_object.name]
             assert isinstance(slot_index, int), "Internal NamedSlotsNdarray error"
             converted_multi_index[slot_index] = extindex_object.std_idx_entry
         return tuple(converted_multi_index)
@@ -248,6 +259,7 @@ class ExtIndexTupleObject:
             return self._name_based_to_np_index_exp()
 
         return tuple(extindex.std_idx_entry for extindex in self.extindex_tuple)
+
 
 class Parameters:
     """Convenience class for maintaining multiple parameter sets: names and values of
@@ -455,6 +467,7 @@ class Parameters:
         ]
 
         return OrderedDict(zip(self.paramnames_list, param_mesh_nsarray))
+
 
 class NamedSlotsNdarray(np.ndarray, Serializable):
     """

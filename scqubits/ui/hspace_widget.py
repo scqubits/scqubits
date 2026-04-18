@@ -49,6 +49,7 @@ from scqubits.utils import misc as utils
 
 QuantumSys = QubitBaseClass | Oscillator
 
+
 class HilbertSpaceUi:
     """Class for setup and display of the widget used for creation of a HilbertSpace
     object."""
@@ -579,6 +580,7 @@ class HilbertSpaceUi:
                     )
                 )
         return interaction_list
+
 
 @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def create_hilbertspace_widget(callback_func):

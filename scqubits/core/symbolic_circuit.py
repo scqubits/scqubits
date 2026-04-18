@@ -52,6 +52,7 @@ from scqubits.core.symbolic_circuit_graph import (
     Coupler,
 )
 
+
 class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
     r"""Describes a circuit consisting of nodes and branches.
 

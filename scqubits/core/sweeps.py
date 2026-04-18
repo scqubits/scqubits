@@ -23,6 +23,7 @@ from scqubits.core.qubit_base import QubitBaseClass
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep
 
+
 def bare_matrixelement(
     sweep: "ParameterSweep",
     paramindex_tuple: tuple[int, ...],
@@ -60,6 +61,7 @@ def bare_matrixelement(
         evecs=bare_evecs,
         evals_count=subsystem.truncated_dim,
     )
+
 
 def dressed_matrixelement(
     sweep: "ParameterSweep",

@@ -68,6 +68,7 @@ StateLabel = DressedLabel | BareLabel
 
 _faulty_interactionterm_warning_issued = False  # flag to ensure single-time warning
 
+
 class ParameterSlice:
     """Stores information about a 1d slice of a (possibly) multi-dimensional parameter
     sweep.
@@ -101,6 +102,7 @@ class ParameterSlice:
         )
         self.all = tuple(slice(name, value) for name, value in self.all_dict.items())
         self.all_values = [self.all_dict[name] for name in params_ordered]
+
 
 class ParameterSweepBase(ABC, SpectrumLookupMixin):
     """The_ParameterSweepBase class is an abstract base class for ParameterSweep and
@@ -501,7 +503,10 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         photon_number: int = 1,
         make_positive: bool = False,
         param_indices: NpIndices | None = None,
-    ) -> tuple[list[tuple[StateLabel, StateLabel]], list[NamedSlotsNdarray]] | SpectrumData:
+    ) -> (
+        tuple[list[tuple[StateLabel, StateLabel]], list[NamedSlotsNdarray]]
+        | SpectrumData
+    ):
         """Use dressed eigenenergy data and lookup based on bare product state labels to
         extract transition energy data. Usage is based on preslicing to select all or a
         subset of parameters to be involved in the sweep, e.g.,
@@ -883,6 +888,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         )
         self._data[sweep_name] = matrix_element_data
 
+
 class ParameterSweep(
     ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable
 ):
@@ -1255,7 +1261,9 @@ class ParameterSweep(
         """
         fixed_paramnames = self._paramnames_no_subsys_update(subsystem)
         reduced_parameters = self._parameters.create_reduced(fixed_paramnames)
-        total_count = int(np.prod([len(param_vals) for param_vals in reduced_parameters]))
+        total_count = int(
+            np.prod([len(param_vals) for param_vals in reduced_parameters])
+        )
 
         target_map = cpu_switch.get_map_method(self._num_cpus)
 
@@ -1502,6 +1510,7 @@ class ParameterSweep(
 
         return lamb_data, chi_data, kerr_data
 
+
 class StoredSweep(
     ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable
 ):
@@ -1565,6 +1574,7 @@ class StoredSweep(
             autorun=autorun,
             num_cpus=num_cpus,
         )
+
 
 def generator(sweep: "ParameterSweepBase", func: Callable, **kwargs) -> np.ndarray:
     """Method for computing custom data as a function of the external parameter,

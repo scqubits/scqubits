@@ -45,6 +45,7 @@ from scqubits.settings import matplotlib_settings
 # filtering does not seem to work in jupyter.
 _t1_default_warning_given_flag = False
 
+
 def calc_therm_ratio(
     omega: float, T: float, omega_in_standard_units: bool = False
 ) -> float:
@@ -70,6 +71,7 @@ def calc_therm_ratio(
     omega = units.to_standard_units(omega) if not omega_in_standard_units else omega
     return (sp.constants.hbar * omega) / (sp.constants.k * T)
 
+
 def convert_eV_to_Hz(val: float) -> float:
     r"""Convert a value in electron volts to Hz.
 
@@ -83,6 +85,7 @@ def convert_eV_to_Hz(val: float) -> float:
         number in Hz
     """
     return val * sp.constants.e / sp.constants.h
+
 
 # Default values of various noise constants and parameters.
 NOISE_PARAMS = {
@@ -104,6 +107,7 @@ CONSTANTS = {
     "R_k": sp.constants.h
     / sp.constants.e**2.0,  # Normal quantum resistance, aka Klitzing constant.
 }
+
 
 class NoisySystem(ABC):
     @classmethod

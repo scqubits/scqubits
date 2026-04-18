@@ -40,6 +40,7 @@ except ImportError:
 else:
     _HAS_IPYTHON = True
 
+
 @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def init_save_btn():
     return v.Btn(
@@ -50,6 +51,7 @@ def init_save_btn():
         children=[v.Icon(children=["mdi-download"])],
     )
 
+
 @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def init_filename_textfield():
     return v.TextField(
@@ -58,6 +60,7 @@ def init_filename_textfield():
         v_model=str(Path.cwd().joinpath("plot.pdf")),
         label="Save As",
     )
+
 
 @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def init_noise_param_floattextfield(noise_param: str) -> ui.ValidatedNumberField:
@@ -83,6 +86,7 @@ def init_noise_param_floattextfield(noise_param: str) -> ui.ValidatedNumberField
         step=0.001,
         style_="max-width: 180px",
     )
+
 
 @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def init_dict_v_plot_options(
@@ -198,6 +202,7 @@ def init_dict_v_plot_options(
 
     return dict_v_plot_options
 
+
 @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def init_dict_v_noise_params(active_qubit) -> dict[str, v.VuetifyWidget]:
     """Creates all the widgets associated with coherence times plots."""
@@ -223,6 +228,7 @@ def init_dict_v_noise_params(active_qubit) -> dict[str, v.VuetifyWidget]:
         dict_v_noise_params[noise_param] = init_noise_param_floattextfield(noise_param)
 
     return dict_v_noise_params
+
 
 @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def init_qubit_params_widgets_dict(
@@ -283,6 +289,7 @@ def init_qubit_params_widgets_dict(
             label="Grid range",
         )
     return dict_v_qubit_params
+
 
 @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def init_ranges_widgets_dict(

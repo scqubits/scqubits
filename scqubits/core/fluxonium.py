@@ -271,7 +271,9 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             unless energy_esys is specified, :math:`\cos (\alpha \phi + \beta)` has dimensions of truncated_dim
             x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\cos (\alpha \phi + \beta)` has dimensions of m x m, for m given eigenvectors.
         """
-        argument = alpha * np.asarray(self.phi_operator()) + beta * np.eye(self.hilbertdim())
+        argument = alpha * np.asarray(self.phi_operator()) + beta * np.eye(
+            self.hilbertdim()
+        )
         native = sp.linalg.cosm(argument)
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
@@ -299,7 +301,9 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             unless energy_esys is specified, :math:`\sin (\alpha \phi + \beta)` has dimensions of truncated_dim
             x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\sin (\alpha \phi + \beta)` has dimensions of m x m, for m given eigenvectors.
         """
-        argument = alpha * np.asarray(self.phi_operator()) + beta * np.eye(self.hilbertdim())
+        argument = alpha * np.asarray(self.phi_operator()) + beta * np.eye(
+            self.hilbertdim()
+        )
         native = sp.linalg.sinm(argument)
         return self.process_op(native_op=native, energy_esys=energy_esys)
 

@@ -38,6 +38,7 @@ else:
 if TYPE_CHECKING:
     from h5py import File, Group
 
+
 class IOWriter(ABC):
     """ABC for writing class instance data to file.
 
@@ -67,6 +68,7 @@ class IOWriter(ABC):
     @abstractmethod
     def write_objects(self, *args, **kwargs):
         pass
+
 
 @utils.Required(h5py=_HAS_H5PY)
 class H5Writer(IOWriter):
@@ -124,7 +126,9 @@ class H5Writer(IOWriter):
                 self.io_data.objects[obj_name], self.filename, file_handle=new_h5group
             )
 
-    def to_file(self, io_data: io.IOData, file_handle: "Group | None" = None, **kwargs) -> None:
+    def to_file(
+        self, io_data: io.IOData, file_handle: "Group | None" = None, **kwargs
+    ) -> None:
         """Takes the serialized IOData and writes it either to a new h5 file with file
         name given by `self.filename` to to the given h5py.Group of an open h5 file."""
         self.io_data = io_data
@@ -141,6 +145,7 @@ class H5Writer(IOWriter):
         self.write_objects(h5file_group)
         if close_when_done:
             h5file_group.close()
+
 
 @utils.Required(h5py=_HAS_H5PY)
 class H5Reader:
@@ -202,9 +207,7 @@ class H5Reader:
         }
         return ndarrays
 
-    def read_objects(
-        self, h5file_group: "Group" | "File"
-    ) -> dict[str, io.IOData]:
+    def read_objects(self, h5file_group: "Group" | "File") -> dict[str, io.IOData]:
         """Read data from the given h5 file group that represents a Python object other
         than an ndarray, list, or dict."""
         inner_objects = {}
@@ -232,6 +235,7 @@ class H5Reader:
         ndarrays = self.read_ndarrays(h5file_group)
         inner_objects = self.read_objects(h5file_group)
         return io.IOData(typename, attributes, ndarrays, inner_objects)
+
 
 class CSVWriter(IOWriter):
     """Given `filename="somename.csv"`, write initdata into somename.csv Then,
@@ -283,6 +287,7 @@ class CSVWriter(IOWriter):
         self.write_attributes(self.filename)
         self.write_ndarrays(self.filename)
         # no support for write_objects in CSV format
+
 
 class CSVReader:
     @staticmethod
@@ -344,6 +349,7 @@ class CSVReader:
             ndarrays[dataname] = self.read_data(data_filename, slices)
 
         return io.IOData(typename, attributes, ndarrays, objects=None)
+
 
 def np_savetxt_3d(array3d: ndarray, filename: str):
     """Helper function that splits a 3d numpy array into 2d slices for writing as csv

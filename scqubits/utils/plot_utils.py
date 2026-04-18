@@ -48,6 +48,7 @@ _direct_plot_options = {
     "contourf": tuple(),  # empty for now
 }
 
+
 @mpl.rc_context(matplotlib_settings)
 def _extract_kwargs_options(
     kwargs: dict[str, Any],
@@ -79,6 +80,7 @@ def _extract_kwargs_options(
         if key in direct_plot_options[plot_type]:
             selected_options[key] = kwargs[key]
     return selected_options
+
 
 @mpl.rc_context(matplotlib_settings)
 def _process_options(
@@ -124,6 +126,7 @@ def _process_options(
     if settings.DESPINE and not axes.name == "3d":
         despine_axes(axes)
 
+
 @mpl.rc_context(matplotlib_settings)
 def _process_special_option(figure: Figure, axes: Axes, key: str, value: Any) -> None:
     """Processes a single 'special' option, i.e., one internal to scqubits and not to be
@@ -141,6 +144,7 @@ def _process_special_option(figure: Figure, axes: Axes, key: str, value: Any) ->
         else:
             axes.grid(value)
 
+
 @mpl.rc_context(matplotlib_settings)
 def despine_axes(axes: Axes) -> None:
     # Hide the right and top spines
@@ -150,6 +154,7 @@ def despine_axes(axes: Axes) -> None:
     # Only show ticks on the left and bottom spines
     axes.yaxis.set_ticks_position("left")
     axes.xaxis.set_ticks_position("bottom")
+
 
 @mpl.rc_context(matplotlib_settings)
 def scale_wavefunctions(
@@ -169,6 +174,7 @@ def scale_wavefunctions(
         wavefunc.rescale(adaptive_scalefactor)
     return wavefunc_list
 
+
 @mpl.rc_context(matplotlib_settings)
 def plot_wavefunction_to_axes(
     axes: Axes, wavefunction: "WaveFunction", energy_offset: float, **kwargs
@@ -181,6 +187,7 @@ def plot_wavefunction_to_axes(
     axes.fill_between(
         x_vals, y_vals, offset_vals, where=(y_vals != offset_vals), interpolate=True
     )
+
 
 @mpl.rc_context(matplotlib_settings)
 def plot_potential_to_axes(
@@ -202,6 +209,7 @@ def plot_potential_to_axes(
         x_vals, potential_vals, color="gray", **_extract_kwargs_options(kwargs, "plot")
     )
 
+
 @mpl.rc_context(matplotlib_settings)
 def add_numbers_to_axes(
     axes: Axes, matrix: ndarray, modefunc: Callable, fontsize: int = 8
@@ -218,6 +226,7 @@ def add_numbers_to_axes(
                 rotation=45,
                 color="white",
             )
+
 
 @mpl.rc_context(matplotlib_settings)
 def color_normalize(vals, mode: str) -> tuple[float, float, mpl.colors.Normalize]:

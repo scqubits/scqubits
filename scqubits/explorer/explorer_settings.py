@@ -42,6 +42,7 @@ except ImportError:
 else:
     _HAS_IPYVUETIFY = True
 
+
 class ExplorerSettings:
     """Generates the UI for Explorer settings.
 

@@ -40,6 +40,7 @@ SECOND_STENCIL_COEFFS: dict[int, list[float]] = {
     9: [-1 / 560, 8 / 315, -1 / 5, 8 / 5, -205 / 72, 8 / 5, -1 / 5, 8 / 315, -1 / 560],
 }
 
+
 def band_matrix(
     band_coeffs: list[float] | list[complex] | ndarray,
     band_offsets: list[int] | ndarray,
@@ -87,6 +88,7 @@ def band_matrix(
             continue
         matrix.setdiag(corner_band, k=corner_offset)
     return matrix.tocsc()
+
 
 class Grid1d(dispatch.DispatchClient, serializers.Serializable):
     """Data structure and methods for setting up discretized 1d coordinate grid,
@@ -227,6 +229,7 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
             matrix_diagonals, offset, self.pt_count, dtype=dtp, has_corners=periodic
         )
         return derivative_matrix.tocsc()
+
 
 class GridSpec(dispatch.DispatchClient, serializers.Serializable):
     """Class for specifying a general discretized coordinate grid (arbitrary

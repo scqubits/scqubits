@@ -296,7 +296,9 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             self.content_row.children = content_list
 
     class ClosablePanel(PanelBase):
-        def __init__(self, panel_id: "PlotID | None" = None, content_list=None, width="49.5%"):
+        def __init__(
+            self, panel_id: "PlotID | None" = None, content_list=None, width="49.5%"
+        ):
             super().__init__(panel_id=panel_id, content_list=content_list, width=width)
 
             self.btn = v.Btn(

@@ -42,6 +42,7 @@ import scqubits.utils.spectrum_utils as utils
 from scqubits.core.noise import NOISE_PARAMS, NoisySystem, calc_therm_ratio
 from scqubits.core.storage import WaveFunctionOnGrid
 
+
 # - Cosine-2-phi qubit noise class ------------------------------------------
 class NoisyCos2PhiQubit(NoisySystem, ABC):
     @abstractmethod
@@ -473,6 +474,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             esys=esys,
             get_rate=get_rate,
         )
+
 
 # -Cosine two phi qubit ----------------------------------------------------------------
 class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQubit):
@@ -1886,6 +1888,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator()
             - 4
             * self._disordered_ecj()
-            * (self.n_theta_operator() - self.ng - self.n_zeta_operator())  # type: ignore[operator]
-        )
+            * (self.n_theta_operator() - self.ng - self.n_zeta_operator())
+        )  # type: ignore[operator]
         return self.process_op(native_op=native, energy_esys=energy_esys)

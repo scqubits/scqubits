@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSlice, ParameterSweep
     from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass
 
+
 @rc_context(matplotlib_settings)
 def display_bare_spectrum(
     sweep: "ParameterSweep",
@@ -63,6 +64,7 @@ def display_bare_spectrum(
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
     return fig, axes
 
+
 @rc_context(matplotlib_settings)
 def display_anharmonicity(
     sweep: "ParameterSweep",
@@ -83,6 +85,7 @@ def display_anharmonicity(
     )
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
     return fig, axes
+
 
 @rc_context(matplotlib_settings)
 def display_matrixelements(
@@ -123,6 +126,7 @@ def display_matrixelements(
         transform=axes.transAxes,
     )
     return fig, axes
+
 
 @rc_context(matplotlib_settings)
 def display_matrixelement_sweep(
@@ -171,6 +175,7 @@ def display_matrixelement_sweep(
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
     return fig, axes
 
+
 @rc_context(matplotlib_settings)
 def display_bare_wavefunctions(
     sweep: "ParameterSweep",
@@ -193,6 +198,7 @@ def display_bare_wavefunctions(
     return subsys.plot_wavefunction(  # type: ignore[attr-defined]
         which=which, esys=(evals, evecs), mode=mode, title=title, fig_ax=fig_ax
     )
+
 
 @rc_context(matplotlib_settings)
 def display_transitions(
@@ -235,6 +241,7 @@ def display_transitions(
     )
 
     return fig, axes
+
 
 @rc_context(matplotlib_settings)
 def display_cross_kerr(
@@ -294,6 +301,7 @@ def display_cross_kerr(
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
     return fig, axes
 
+
 @rc_context(matplotlib_settings)
 def display_qubit_self_kerr(
     sweep: "ParameterSweep",
@@ -331,6 +339,7 @@ def display_qubit_self_kerr(
     )
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
     return fig, axes
+
 
 @rc_context(matplotlib_settings)
 def display_self_kerr(

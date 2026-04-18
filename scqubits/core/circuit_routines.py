@@ -78,6 +78,7 @@ import scqubits.core.circuit as circuit
 import scqubits.core.diag as diag
 from abc import ABC
 
+
 class CircuitRoutines(ABC):
     # Attributes set by concrete subclasses (Circuit, Subsystem) in their __init__.
     # Declared here so mypy can resolve cross-subclass access patterns in shared
@@ -1191,9 +1192,7 @@ class CircuitRoutines(ABC):
         else:
             return self._sparsity_adaptive(operator)
 
-    def _sparsity_adaptive(
-        self, matrix: csc_matrix | ndarray
-    ) -> csc_matrix | ndarray:
+    def _sparsity_adaptive(self, matrix: csc_matrix | ndarray) -> csc_matrix | ndarray:
         """Changes the type of matrix depending on the attribute :attr:`type_of_matrices`.
 
         Parameters
@@ -1955,9 +1954,7 @@ class CircuitRoutines(ABC):
                 return hamiltonian.full()
             if self.type_of_matrices == "sparse":
                 return Qobj_to_scipy_csc_matrix(hamiltonian)
-            raise ValueError(
-                f"Unexpected type_of_matrices: {self.type_of_matrices!r}"
-            )
+            raise ValueError(f"Unexpected type_of_matrices: {self.type_of_matrices!r}")
 
     def _evals_calc(self, evals_count: int) -> ndarray:
 

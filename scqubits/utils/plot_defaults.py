@@ -35,10 +35,12 @@ NAME_REPLACEMENTS = {
     "flux": r"$\Phi_{ext}/\Phi_0$",
 }
 
+
 def recast_name(raw_name: str | None) -> str:
     if raw_name in NAME_REPLACEMENTS:
         return NAME_REPLACEMENTS[raw_name]
     return raw_name or ""
+
 
 def set_wavefunction_scaling(
     wavefunctions: "list[WaveFunction]",
@@ -118,6 +120,7 @@ def set_wavefunction_scaling(
                     )
         return scale_factor
 
+
 def wavefunction1d_discrete(mode: str | None = None) -> dict[str, Any]:
     """Plot defaults for plotting.wavefunction1d_discrete.
 
@@ -131,9 +134,11 @@ def wavefunction1d_discrete(mode: str | None = None) -> dict[str, Any]:
         ylabel = constants.MODE_STR_DICT[mode](ylabel)
     return {"xlabel": "n", "ylabel": ylabel}
 
+
 def wavefunction2d() -> dict[str, Any]:
     """Plot defaults for plotting.wavefunction2d."""
     return {"figsize": (8, 3)}
+
 
 def contours(
     x_vals: list[float] | np.ndarray, y_vals: list[float] | np.ndarray
@@ -143,9 +148,11 @@ def contours(
     figsize = (8, 8 * aspect_ratio)
     return {"figsize": figsize}
 
+
 def matrix() -> dict[str, Any]:
     """Plot defaults for plotting.matrix."""
     return {"figsize": (10, 5)}
+
 
 def evals_vs_paramvals(specdata: "SpectrumData", **kwargs) -> dict[str, Any]:
     """Plot defaults for plotting.evals_vs_paramvals."""
@@ -153,11 +160,13 @@ def evals_vs_paramvals(specdata: "SpectrumData", **kwargs) -> dict[str, Any]:
     kwargs["ylabel"] = kwargs.get("ylabel") or "energy [{}]".format(units.get_units())
     return kwargs
 
+
 def matelem_vs_paramvals(
     specdata: "SpectrumData" | "DataStore",
 ) -> dict[str, Any]:
     """Plot defaults for plotting.matelem_vs_paramvals."""
     return {"xlabel": recast_name(specdata.param_name), "ylabel": "matrix element"}
+
 
 def chi(param_name: str | None, **kwargs) -> dict[str, Any]:
     """Plot defaults for sweep_plotting.chi."""
@@ -166,6 +175,7 @@ def chi(param_name: str | None, **kwargs) -> dict[str, Any]:
         units.get_units()
     )
     return kwargs
+
 
 def chi01(param_name: str | None, yval: float, **kwargs) -> dict[str, Any]:
     """Plot defaults for sweep_plotting.chi01."""
@@ -178,11 +188,13 @@ def chi01(param_name: str | None, yval: float, **kwargs) -> dict[str, Any]:
     )
     return kwargs
 
+
 def charge_matrixelem(param_name: str, **kwargs) -> dict[str, Any]:
     """Plot defaults for sweep_plotting.charge_matrixelem."""
     kwargs["xlabel"] = kwargs.get("xlabel") or recast_name(param_name)
     kwargs["ylabel"] = kwargs.get("ylabel") or r"$|\langle i |n| j \rangle|$"
     return kwargs
+
 
 # supported keyword arguments for plotting and sweep_plotting functions
 SPECIAL_PLOT_OPTIONS = [

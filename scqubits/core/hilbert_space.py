@@ -54,10 +54,12 @@ if TYPE_CHECKING:
 from scqubits.utils.typedefs import OscillatorList, QuantumSys, QubitList
 from scqubits.core.qubit_base import QubitBaseClass
 
+
 def has_duplicate_id_str(subsystem_list: list[QuantumSys]):
     id_str_list = [obj.id_str for obj in subsystem_list]
     id_str_set = set(obj.id_str for obj in subsystem_list)
     return len(id_str_set) != len(id_str_list)
+
 
 class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     """
@@ -199,6 +201,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
                 )
             )
         return id_wrapped_operators
+
 
 class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
     """
@@ -342,6 +345,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
             return hamiltonian
         else:
             return hamiltonian + hamiltonian.dag()
+
 
 class HilbertSpace(
     spec_lookup.SpectrumLookupMixin, dispatch.DispatchClient, serializers.Serializable
@@ -673,7 +677,9 @@ class HilbertSpace(
     def lookup_exists(self) -> bool:
         return self._lookup_exists
 
-    def generate_bare_esys(self, update_subsystem_indices: list[int] | None = None) -> dict:
+    def generate_bare_esys(
+        self, update_subsystem_indices: list[int] | None = None
+    ) -> dict:
         # update all the subsystems when update_subsystem_indices is set to None
         if update_subsystem_indices is None:
             update_subsystem_indices = list(range(self.subsystem_count))
@@ -849,9 +855,7 @@ class HilbertSpace(
         hamiltonian += self.interaction_hamiltonian(bare_esys=bare_esys)
         return hamiltonian
 
-    def bare_hamiltonian(
-        self, bare_esys: dict[int, ndarray] | None = None
-    ) -> qt.Qobj:
+    def bare_hamiltonian(self, bare_esys: dict[int, ndarray] | None = None) -> qt.Qobj:
         """
         Parameters
         ----------
@@ -915,7 +919,9 @@ class HilbertSpace(
         hamiltonian = sum(operator_list)
         return hamiltonian
 
-    def diag_hamiltonian(self, subsystem: QuantumSys, evals: ndarray | None = None) -> qt.Qobj:
+    def diag_hamiltonian(
+        self, subsystem: QuantumSys, evals: ndarray | None = None
+    ) -> qt.Qobj:
         """Returns a `qutip.Qobj` which has the eigenenergies of the object `subsystem`
         on the diagonal.
 

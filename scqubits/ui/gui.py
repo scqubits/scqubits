@@ -75,6 +75,7 @@ QUBITS_WITH_2D_WAVEFUNCTION_PLOT = (
     # scq.Bifluxon,
 )
 
+
 class GUI:
     """Generates the GUI for scqubits, handling single-qubit properties."""
 
@@ -688,7 +689,9 @@ class GUI:
         if current_dropdown_value != "User specified":
             for param_name, param_val in gui_defaults.paramvals_from_papers[
                 current_qubit
-            ][current_dropdown_value]["params"].items():  # type: ignore[attr-defined]
+            ][current_dropdown_value][
+                "params"
+            ].items():  # type: ignore[attr-defined]
                 if self.dict_v_qubit_params[param_name].num_value != param_val:
                     self.dict_v_plot_options["literature_params"].v_model = (
                         "User specified"
@@ -740,7 +743,9 @@ class GUI:
 
         if wavefunction_state_slider_text["max"].num_value >= hilbertdim - 1:
             new_max = max(hilbertdim - 2, 0)
-            new_min = cast("int | float", wavefunction_state_slider_text["min"].num_value)
+            new_min = cast(
+                "int | float", wavefunction_state_slider_text["min"].num_value
+            )
             new_min, new_max = self.check_ranges(
                 new_min,
                 new_max,
@@ -757,7 +762,9 @@ class GUI:
         ):
             multi_state_selector_text = self.dict_v_ranges["multi_state_selector"]
             if multi_state_selector_text["max"].num_value >= hilbertdim - 2:
-                new_min = cast("int | float", multi_state_selector_text["min"].num_value)
+                new_min = cast(
+                    "int | float", multi_state_selector_text["min"].num_value
+                )
                 new_max = hilbertdim - 3
                 new_min, new_max = self.check_ranges(
                     new_min,
@@ -775,7 +782,9 @@ class GUI:
             ]
 
             if wavefunction_state_slider_text["max"].num_value >= hilbertdim - 2:
-                new_min = cast("int | float", wavefunction_state_slider_text["min"].num_value)
+                new_min = cast(
+                    "int | float", wavefunction_state_slider_text["min"].num_value
+                )
                 new_max = hilbertdim - 3
                 new_min, new_max = self.check_ranges(
                     new_min,

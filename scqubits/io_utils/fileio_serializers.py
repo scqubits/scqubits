@@ -38,6 +38,7 @@ SERIALIZABLE_REGISTRY = {}
 # annotate the types will inherit from Serializable
 SerializableType = TypeVar("SerializableType", bound="Serializable")
 
+
 @runtime_checkable
 class Serializable(Protocol):
     """Mix-in class that makes descendant classes serializable."""
@@ -101,6 +102,7 @@ class Serializable(Protocol):
 
         return io.read(filename)
 
+
 def _add_object(
     name: str,
     obj: object,
@@ -110,6 +112,7 @@ def _add_object(
 ) -> tuple[dict, dict, dict]:
     objects[name] = obj
     return attributes, ndarrays, objects
+
 
 def _add_ndarray(
     name: str,
@@ -121,6 +124,7 @@ def _add_ndarray(
     ndarrays[name] = obj
     return attributes, ndarrays, objects
 
+
 def _add_attribute(
     name: str,
     obj: Any,
@@ -130,6 +134,7 @@ def _add_attribute(
 ) -> tuple[dict, dict, dict]:
     attributes[name] = obj
     return attributes, ndarrays, objects
+
 
 def _add_boundmethod_attribute(
     name: str,
@@ -141,9 +146,11 @@ def _add_boundmethod_attribute(
     attributes[name] = obj()
     return attributes, ndarrays, objects
 
+
 TO_ATTRIBUTE = (Expr, str, Number, dict, OrderedDict, list, tuple, bool, np.bool_)
 TO_NDARRAY = (np.ndarray,)
 TO_OBJECT = (Serializable,)
+
 
 def type_dispatch(entity: Serializable) -> Callable:
     """Based on the type of the object ``entity``, return the appropriate function that
@@ -161,6 +168,7 @@ def type_dispatch(entity: Serializable) -> Callable:
     # no match, try treating as object, though this may fail
     return _add_object
 
+
 def Expr_serialize(expr_instance: Expr) -> "IOData":
     """Create an IODate instance for a sympy expression via string conversion."""
     import scqubits.io_utils.fileio as io
@@ -175,6 +183,7 @@ def Expr_serialize(expr_instance: Expr) -> "IOData":
         "Expr", item, attributes, ndarrays, objects
     )
     return io.IOData(typename, attributes, ndarrays, objects)
+
 
 def dict_serialize(dict_instance: dict[str, Any]) -> "IOData":
     """Create an IOData instance from dictionary data."""
@@ -192,6 +201,7 @@ def dict_serialize(dict_instance: dict[str, Any]) -> "IOData":
             name, content, attributes, ndarrays, objects
         )
     return io.IOData(typename, attributes, ndarrays, objects)
+
 
 def OrderedDict_serialize(dict_instance: dict[str, Any]) -> "IOData":
     """Create an IOData instance from dictionary data."""
@@ -211,6 +221,7 @@ def OrderedDict_serialize(dict_instance: dict[str, Any]) -> "IOData":
             str(index), item, attributes, ndarrays, objects
         )
     return io.IOData(typename, attributes, ndarrays, objects)
+
 
 def csc_matrix_serialize(csc_matrix_instance: csc_matrix) -> "IOData":
     """Create an IOData instance from dictionary data."""
@@ -235,6 +246,7 @@ def csc_matrix_serialize(csc_matrix_instance: csc_matrix) -> "IOData":
         )
     return io.IOData(typename, attributes, ndarrays, objects)
 
+
 def NoneType_serialize(none_instance: None) -> "IOData":
     """Create an IOData instance to write `None` to file."""
     import scqubits.io_utils.fileio as io
@@ -245,6 +257,7 @@ def NoneType_serialize(none_instance: None) -> "IOData":
     typename = "NoneType"
 
     return io.IOData(typename, attributes, ndarrays, objects)
+
 
 def listlike_serialize(listlike_instance: list | tuple) -> "IOData":
     """Create an IOData instance from list data."""
@@ -261,11 +274,13 @@ def listlike_serialize(listlike_instance: list | tuple) -> "IOData":
         )
     return io.IOData(typename, attributes, ndarrays, objects)
 
+
 list_serialize = listlike_serialize
 
 tuple_serialize = listlike_serialize
 
 ndarray_serialize = listlike_serialize  # this is invoked for dtype=object
+
 
 def range_serialize(range_instance: range) -> "IOData":
     """Create an IOData instance from range data."""
@@ -281,20 +296,24 @@ def range_serialize(range_instance: range) -> "IOData":
     typename = type(range_instance).__name__
     return io.IOData(typename, attributes, ndarrays, objects)
 
+
 def Expr_deserialize(iodata: "IOData") -> Expr:
     """Turn IOData instance back into a dict."""
     from sympy import sympify
 
     return sympify(iodata["Expr"])  # type: ignore[index]
 
+
 def dict_deserialize(iodata: "IOData") -> dict[str, Any]:
     """Turn IOData instance back into a dict."""
     return dict(**iodata.as_kwargs())
+
 
 def OrderedDict_deserialize(iodata: "IOData") -> dict[str, Any]:
     """Turn IOData instance back into a dict."""
     dict_data = iodata.as_kwargs()
     return OrderedDict([dict_data[key] for key in sorted(dict_data, key=int)])
+
 
 def csc_matrix_deserialize(iodata: "IOData") -> csc_matrix:
     """Turn IOData instance back into a csc_matrix."""
@@ -304,18 +323,22 @@ def csc_matrix_deserialize(iodata: "IOData") -> csc_matrix:
         shape=csc_dict["shape"],
     )
 
+
 def NoneType_deserialize(iodata: "IOData") -> None:
     """Turn IOData instance back into a csc_matrix."""
     return None
+
 
 def list_deserialize(iodata: "IOData") -> list[Any]:
     """Turn IOData instance back into a list."""
     dict_data = iodata.as_kwargs()
     return [dict_data[key] for key in sorted(dict_data, key=int)]
 
+
 def tuple_deserialize(iodata: "IOData") -> tuple:
     """Turn IOData instance back into a tuple."""
     return tuple(list_deserialize(iodata))
+
 
 # this is invoked for ndarrays with dtype=object
 def ndarray_deserialize(iodata: "IOData") -> ndarray:
@@ -326,9 +349,11 @@ def ndarray_deserialize(iodata: "IOData") -> ndarray:
         data_array[idx] = arr
     return data_array
 
+
 def range_deserialize(iodata: "IOData") -> range:
     arguments = iodata.as_kwargs()
     return range(arguments["start"], arguments["stop"], arguments["step"])
+
 
 def get_init_params(obj: Serializable) -> list[str]:
     """Returns a list of the parameters entering the `__init__` method of the given

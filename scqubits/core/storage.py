@@ -47,7 +47,10 @@ class WaveFunction:
     """
 
     def __init__(
-        self, basis_labels: np.ndarray, amplitudes: np.ndarray, energy: float | None = None
+        self,
+        basis_labels: np.ndarray,
+        amplitudes: np.ndarray,
+        energy: float | None = None,
     ) -> None:
         self.basis_labels = basis_labels
         self.amplitudes = amplitudes
@@ -208,7 +211,9 @@ class SpectrumData(DataStore):
         system_params: dict[str, Any],
         param_name: str | None = None,
         param_vals: np.ndarray | None = None,
-        state_table: list[QutipEigenstates] | np.ndarray | list[np.ndarray] | None = None,
+        state_table: (
+            list[QutipEigenstates] | np.ndarray | list[np.ndarray] | None
+        ) = None,
         matrixelem_table: np.ndarray | None = None,
         **kwargs,
     ) -> None:

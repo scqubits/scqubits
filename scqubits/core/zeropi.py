@@ -42,10 +42,13 @@ from scqubits.core.storage import WaveFunctionOnGrid
 
 # - ZeroPi noise class
 
+
 class NoisyZeroPi(NoisySystem):
     pass
 
+
 # -Symmetric 0-pi qubit, phi discretized, theta in charge basis
+
 
 class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     r"""Zero-Pi Qubit.

@@ -29,9 +29,7 @@ import scqubits.io_utils.fileio_serializers as serializers
 _default_evals_count = 6
 
 
-def harm_osc_wavefunction(
-    n: int, x: float | ndarray, l_osc: float
-) -> float | ndarray:
+def harm_osc_wavefunction(n: int, x: float | ndarray, l_osc: float) -> float | ndarray:
     r"""For given quantum number :math:`n=0,1,2,\ldots` return the value of the harmonic
     oscillator wave function :math:`\psi_n(x) = N H_n(x/l_{\rm osc}) \exp(-x^2/2
     l_{\rm osc})`, N being the proper normalization factor.

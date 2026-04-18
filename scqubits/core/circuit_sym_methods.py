@@ -35,6 +35,7 @@ from scqubits.utils.misc import (
 )
 from abc import ABC
 
+
 class CircuitSymMethods(ABC):
     # Attributes set by concrete subclasses (Circuit, Subsystem). Declared here so
     # mypy can resolve cross-subclass attribute access in shared methods.
@@ -527,7 +528,9 @@ class CircuitSymMethods(ABC):
         free_var_func_dict: dict[str, Callable],
         prefactor: float = 1.0,
         extra_terms: str | None = None,
-    ) -> tuple[list[qt.Qobj | tuple[qt.Qobj, Callable]], sm.Expr, dict[qt.Qobj, sm.Expr]]:
+    ) -> tuple[
+        list[qt.Qobj | tuple[qt.Qobj, Callable]], sm.Expr, dict[qt.Qobj, sm.Expr]
+    ]:
         """
         Returns the Hamiltonian in a format amenable to be forwarded to mesolve in Qutip. Also returns the symbolic expressions of time independent and time dependent terms of the Hamiltonian, which can be used for reference. `free_var_func_dict` is a dictionary with key-value pair `{"var": f}`, where `f` is a function returning the value of the variable `var` at time `t`. If one has extra terms to be added to the Hamiltonian (for instance, charge driving a fluxonium where there is no offset charge) they can be passed as a string in `extra_terms`.
         For example, to get the Hamiltonian for a circuit where Φ1 is the time varying parameter, this method can be called in the following way::

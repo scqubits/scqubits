@@ -38,6 +38,7 @@ EVENTS = [
     "CIRCUIT_UPDATE",
 ]
 
+
 class CentralDispatch:
     """Primary class managing the central dispatch system."""
 
@@ -160,8 +161,10 @@ class CentralDispatch:
         if settings.DISPATCH_ENABLED:
             self._dispatch(event, sender=caller, **kwargs)
 
+
 # Start global instance of CentralDispatch()
 CENTRAL_DISPATCH = CentralDispatch()
+
 
 class DispatchClient:
     """Base class inherited by objects participating in central dispatch."""

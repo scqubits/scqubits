@@ -31,6 +31,7 @@ from scqubits.utils.misc import (
 from scqubits.utils.plot_utils import _process_options
 from abc import ABC
 
+
 class CircuitPlot(ABC):
     # The following attributes and methods are provided by sibling mixins
     # (CircuitRoutines, CircuitSymMethods) when composed into Subsystem/Circuit.
@@ -47,17 +48,13 @@ class CircuitPlot(ABC):
         symbolic_params: dict[sm.Symbol, float]
         potential_symbolic: sm.Expr
 
-        def get_osc_param(
-            self, var_index: int, which_param: str = ...
-        ) -> float: ...
+        def get_osc_param(self, var_index: int, which_param: str = ...) -> float: ...
         def get_subsystem_index(self, var_index: int) -> int: ...
         def cutoffs_dict(self) -> dict[int, int]: ...
         def discretized_grids_dict_for_vars(
             self,
         ) -> dict[int, discretization.Grid1d]: ...
-        def eigensys(
-            self, evals_count: int = ...
-        ) -> tuple[ndarray, ndarray]: ...
+        def eigensys(self, evals_count: int = ...) -> tuple[ndarray, ndarray]: ...
 
     # ****************************************************************
     # ************* Functions for plotting wave function *************
@@ -361,9 +358,7 @@ class CircuitPlot(ABC):
         wf_ext_basis = self._change_to_phi_basis(
             wf_original_basis,
             var_indices=var_indices,
-            grids_dict=cast(
-                "dict[int, discretization.Grid1d | ndarray]", grids_dict
-            ),
+            grids_dict=cast("dict[int, discretization.Grid1d | ndarray]", grids_dict),
             change_discrete_charge_to_phi=change_discrete_charge_to_phi,
         )
 

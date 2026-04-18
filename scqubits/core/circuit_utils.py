@@ -156,9 +156,7 @@ def get_trailing_number(input_str: str) -> int:
     """
     match = re.search(r"\d+$", input_str)
     if match is None:
-        raise ValueError(
-            f"get_trailing_number: {input_str!r} has no trailing digits"
-        )
+        raise ValueError(f"get_trailing_number: {input_str!r} has no trailing digits")
     return int(match.group())
 
 

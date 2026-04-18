@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     from scqubits.core.param_sweep import Parameters
     from scqubits.utils.typedefs import QuantumSys
 
+
 class MixinCompatible(Protocol):
     # WatchedProperty is a descriptor; at access time the underlying value type is
     # what subclasses see. Annotate as the underlying type so attribute access
@@ -57,6 +58,7 @@ class MixinCompatible(Protocol):
 
     @property
     def hilbertspace(self) -> "HilbertSpace": ...
+
 
 class SpectrumLookupMixin(MixinCompatible):
     """SpectrumLookupMixin is used as a mix-in class by `ParameterSweep`.
@@ -237,9 +239,7 @@ class SpectrumLookupMixin(MixinCompatible):
 
         return np.asarray(dressed_indices)
 
-    def set_npindextuple(
-        self, param_indices: NpIndices | None = None
-    ) -> NpIndexTuple:
+    def set_npindextuple(self, param_indices: NpIndices | None = None) -> NpIndexTuple:
         """Convert the NpIndices parameter indices to a tuple of NpIndices."""
         param_indices = param_indices or self._current_param_indices
         if not isinstance(param_indices, tuple):

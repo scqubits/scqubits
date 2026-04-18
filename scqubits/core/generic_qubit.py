@@ -28,6 +28,7 @@ from scqubits.utils.spectrum_utils import get_matrixelement_table, order_eigensy
 
 # -generic qubit (two-level system)----------------------------------------------
 
+
 class GenericQubit(base.QuantumSystem, serializers.Serializable):
     """Class for a generic qubit (genuine two-level system). Create a class instance
     via::

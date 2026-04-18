@@ -50,8 +50,10 @@ from scqubits.core.circuit_plotting import CircuitPlot
 from scqubits.core.circuit_sym_methods import CircuitSymMethods
 from scqubits.core.circuit_noise import NoisyCircuit
 
+
 class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot):
     pass
+
 
 class Subsystem(  # type: ignore[misc]
     CircuitABC,
@@ -302,6 +304,7 @@ class Subsystem(  # type: ignore[misc]
             return True
         return False
 
+
 class Circuit(  # type: ignore[misc]
     CircuitABC,
     base.QubitBaseClass,
@@ -548,9 +551,7 @@ class Circuit(  # type: ignore[misc]
         self.cutoff_names = []
 
         # setting default grids for plotting
-        self._default_grid_phi = discretization.Grid1d(
-            -6 * np.pi, 6 * np.pi, 200
-        )
+        self._default_grid_phi = discretization.Grid1d(-6 * np.pi, 6 * np.pi, 200)
 
         self.type_of_matrices = (
             "sparse"  # type of matrices used to construct the operators
@@ -757,7 +758,12 @@ class Circuit(  # type: ignore[misc]
         external_fluxes = []
         offset_charges = []
         free_charges = []
-        var_categories: dict[str, list[int]] = {"periodic": [], "extended": [], "free": [], "frozen": []}
+        var_categories: dict[str, list[int]] = {
+            "periodic": [],
+            "extended": [],
+            "free": [],
+            "frozen": [],
+        }
         for var_sym in free_symbols:
             if re.match(r"^ng\d+$", var_sym.name):
                 offset_charges.append(var_sym)

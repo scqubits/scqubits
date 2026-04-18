@@ -35,6 +35,7 @@ if TYPE_CHECKING:
 from scqubits.utils.typedefs import QuantumSys
 from scqubits.utils.misc import Qobj_to_scipy_csc_matrix
 
+
 def eigsh_safe(*args, **kwargs):
     """Wrapper method for `scipy.sparse.linalg.eigsh` which ensures the following.
 
@@ -53,11 +54,13 @@ def eigsh_safe(*args, **kwargs):
         return evals, evecs
     return sp.sparse.linalg.eigsh(*args, **kwargs)
 
+
 def has_degeneracy(evals: ndarray) -> bool:
     evals_rightpad = np.pad(evals, (0, 1))
     evals_leftpad = np.pad(evals, (1, 0))
     evals_neighbor_diffs = evals_leftpad - evals_rightpad
     return np.isclose(np.min(np.abs(evals_neighbor_diffs)), 0)
+
 
 def order_eigensystem(
     evals: np.ndarray, evecs: np.ndarray, standardize_phase: bool = False
@@ -83,6 +86,7 @@ def order_eigensystem(
             evecs[:, j] = standardize_phases(evecs[:, j])
     return evals, evecs
 
+
 def extract_phase(
     complex_array: np.ndarray, position: tuple[int, ...] | None = None
 ) -> float:
@@ -106,6 +110,7 @@ def extract_phase(
         position = np.unravel_index(flattened_position, complex_array.shape)  # type: ignore[assignment]
     return cmath.phase(complex_array[position])
 
+
 def standardize_phases(complex_array: np.ndarray) -> np.ndarray:
     """Uses `extract_phase` to obtain global phase from `array` and returns standardized
     array with global phase factor standardized.
@@ -119,6 +124,7 @@ def standardize_phases(complex_array: np.ndarray) -> np.ndarray:
     std_array = complex_array * np.exp(-1j * phase)
     return std_array
 
+
 def standardize_sign(real_array: np.ndarray) -> np.ndarray:
     """Standardizes the sign of a real-valued wavefunction by calculating the sign of
     the sum of all amplitudes up to the wavefunctions mid-position and making it
@@ -131,7 +137,9 @@ def standardize_sign(real_array: np.ndarray) -> np.ndarray:
     halfway_position = len(real_array) // 2
     return np.sign(np.sum(real_array[:halfway_position])) * real_array
 
+
 # -Matrix elements and operators (outside qutip) --------------------------------------
+
 
 def matrix_element(
     state1: np.ndarray | qt.Qobj,
@@ -170,6 +178,7 @@ def matrix_element(
 
     return vec1.conj().T @ op_matrix @ vec2
 
+
 def get_matrixelement_table(
     operator: np.ndarray | csc_matrix | dia_matrix | qt.Qobj,
     state_table: np.ndarray | qt.Qobj,
@@ -193,6 +202,7 @@ def get_matrixelement_table(
     mtable = state_table.conj().T @ operator @ state_table
     return mtable
 
+
 def closest_dressed_energy(
     bare_energy: float, dressed_energy_vals: np.ndarray
 ) -> float:
@@ -212,6 +222,7 @@ def closest_dressed_energy(
     """
     index = (np.abs(dressed_energy_vals - bare_energy)).argmin()
     return dressed_energy_vals[index]
+
 
 def get_eigenstate_index_maxoverlap(
     eigenstates_qobj: "QutipEigenstates",
@@ -251,6 +262,7 @@ def get_eigenstate_index_maxoverlap(
         return index, np.abs(overlaps[index])
     return index
 
+
 def absorption_spectrum(spectrum_data: "SpectrumData") -> "SpectrumData":
     """Takes spectral data of energy eigenvalues and returns the absorption spectrum
     relative to a state of given index.
@@ -262,6 +274,7 @@ def absorption_spectrum(spectrum_data: "SpectrumData") -> "SpectrumData":
     assert isinstance(spectrum_data.energy_table, ndarray)
     spectrum_data.energy_table = spectrum_data.energy_table.clip(min=0.0)
     return spectrum_data
+
 
 def emission_spectrum(spectrum_data: "SpectrumData") -> "SpectrumData":
     """Takes spectral data of energy eigenvalues and returns the emission spectrum
@@ -275,6 +288,7 @@ def emission_spectrum(spectrum_data: "SpectrumData") -> "SpectrumData":
     spectrum_data.energy_table *= -1.0
     spectrum_data.energy_table = spectrum_data.energy_table.clip(min=0.0)
     return spectrum_data
+
 
 def convert_evecs_to_ndarray(evecs_qutip: ndarray) -> np.ndarray:
     """Takes a qutip eigenstates array, as obtained with .eigenstates(), and converts it
@@ -296,6 +310,7 @@ def convert_evecs_to_ndarray(evecs_qutip: ndarray) -> np.ndarray:
         evecs_ndarray[index] = eigenstate.full()[:, 0]
     return evecs_ndarray
 
+
 def convert_matrix_to_qobj(
     operator: np.ndarray | csc_matrix | dia_matrix,
     subsystem: "QubitBaseClass" | "Oscillator",
@@ -311,6 +326,7 @@ def convert_matrix_to_qobj(
         return qt.Qobj(operator_matrixelements)
     return qt.Qobj(operator[:dim, :dim])  # type: ignore[index]
 
+
 def convert_opstring_to_qobj(
     operator: str,
     subsystem: "QubitBaseClass" | "Oscillator",
@@ -322,6 +338,7 @@ def convert_opstring_to_qobj(
         _, evecs = subsystem.eigensys(evals_count=dim)
     operator_matrixelements = subsystem.matrixelement_table(operator, evecs=evecs)
     return qt.Qobj(operator_matrixelements)
+
 
 def convert_operator_to_qobj(
     operator: np.ndarray | csc_matrix | dia_matrix | qt.Qobj | str,
@@ -337,6 +354,7 @@ def convert_operator_to_qobj(
         return convert_matrix_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)  # type: ignore[arg-type]
     else:
         raise TypeError("Unsupported operator type: ", type(operator))
+
 
 def generate_target_states_list(
     sweep: "ParameterSweep", initial_state_labels: tuple[int, ...]
@@ -368,6 +386,7 @@ def generate_target_states_list(
             target_states_list.append(tuple(target_labels))
     return target_states_list
 
+
 def recast_esys_mapdata(
     esys_mapdata: list[tuple[np.ndarray, np.ndarray]],
 ) -> tuple[np.ndarray, list[np.ndarray]]:
@@ -384,6 +403,7 @@ def recast_esys_mapdata(
     )
     eigenstate_table = [esys_mapdata[index][1] for index in range(paramvals_count)]
     return eigenenergy_table, eigenstate_table
+
 
 def identity_wrap(
     operator: str | ndarray | Qobj | Callable,

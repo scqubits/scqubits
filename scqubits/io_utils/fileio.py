@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from scqubits.io_utils.fileio_backends import CSVReader, H5Reader, IOWriter
     from scqubits.io_utils.fileio_serializers import Serializable
 
+
 class IOData:
     """Class for processing input/output data."""
 
@@ -49,6 +50,7 @@ class IOData:
         __init__ calls."""
         return {**self.attributes, **self.ndarrays, **self.objects}
 
+
 def serialize(the_object: "Serializable") -> IOData:
     """Turn the given Python object into an IOData object, needed for writing data to
     file."""
@@ -63,6 +65,7 @@ def serialize(the_object: "Serializable") -> IOData:
     raise NotImplementedError(
         "No implementation for writing {} to file".format(typename)
     )
+
 
 def deserialize(iodata: IOData) -> Any:
     """Turn IOData back into a Python object of the appropriate kind.
@@ -84,7 +87,10 @@ def deserialize(iodata: IOData) -> Any:
         "No implementation for converting {} data to Python object.".format(typename)
     )
 
-def write(the_object: Any, filename: str, file_handle: h5py.Group | None = None) -> None:
+
+def write(
+    the_object: Any, filename: str, file_handle: h5py.Group | None = None
+) -> None:
     """Write `the_object` to a file with name `filename`. The optional `file_handle`
     parameter is used as a group name in case of h5 files.
 
@@ -100,6 +106,7 @@ def write(the_object: Any, filename: str, file_handle: h5py.Group | None = None)
     iodata = serialize(the_object)
     writer = IO.get_writer(filename, file_handle=file_handle)
     writer.to_file(iodata, file_handle=file_handle)
+
 
 def read(filename: str, file_handle: h5py.Group | None = None) -> Any:
     """Read a Serializable object from file.
@@ -118,6 +125,7 @@ def read(filename: str, file_handle: h5py.Group | None = None) -> Any:
     reader = IO.get_reader(filename, file_handle=file_handle)
     iodata = reader.from_file(filename, file_handle=file_handle)
     return deserialize(iodata)
+
 
 class FileIOFactory:
     """Factory method for choosing reader/writer according to given format."""
@@ -161,5 +169,6 @@ class FileIOFactory:
             "Extension '{}' of given file name '{}' does not match any supported "
             "file type: {}".format(suffix, file_name, const.FILE_TYPES)
         )
+
 
 IO = FileIOFactory()
