@@ -27,6 +27,8 @@ from scqubits.utils.misc import (
     flatten_list_recursive,
     unique_elements_in_list,
 )
+import pyparsing as pp
+
 from scqubits.core.circuit_input import (
     remove_comments,
     remove_branchline,
@@ -39,17 +41,18 @@ from abc import ABC
 
 
 class Node:
-    """Class representing a circuit node, and handled by `Circuit`. The attribute
-    `branches` is a list of `Branch` objects containing all branches connected to the
-    node.
+    """Circuit node handled by :class:`SymbolicCircuit`.
+
+    The attribute :attr:`branches` is a list of :class:`Branch` objects
+    containing all branches connected to the node.
 
     Parameters
     ----------
-    id: int
+    index:
         integer identifier of the node
-    marker: int
-        An internal attribute used to group nodes and identify sub-circuits in the
-        method independent_modes.
+    marker:
+        internal attribute used to group nodes and identify sub-circuits in
+        :meth:`SymbolicCircuitGraph._independent_modes`
     """
 
     def __init__(self, index: int, marker: int = 0):
@@ -59,14 +62,22 @@ class Node:
         self.branches: list[Branch] = []
 
     def __str__(self) -> str:
+        """Return a human-readable label of the form ``"Node <index>"``."""
         return "Node {}".format(self.index)
 
     def __repr__(self) -> str:
+        """Return a developer-readable representation of the node."""
         return "Node({})".format(self.index)
 
     def connected_nodes(self, branch_type: str) -> list["Node"]:
-        """Returns a list of all nodes directly connected by branches to the current
-        node, either considering all branches or a specified `branch_type` - ("C", "L", "JJ", "all") for capacitive, inductive, Josephson junction, or all types of branches.
+        """Return all nodes directly connected to this node by branches.
+
+        Parameters
+        ----------
+        branch_type:
+            type of branch used to filter neighbors; one of ``"C"``,
+            ``"L"``, ``"JJ"``, or ``"all"`` for capacitive, inductive,
+            Josephson, or all branch types
         """
         result = []
         if branch_type == "all":
@@ -86,7 +97,14 @@ class Node:
         """Returns a bool if the node is a ground node (Node with index set to 0)."""
         return True if self.index == 0 else False
 
-    def __deepcopy__(self, memo):
+    def __deepcopy__(self, memo: dict[int, Any]) -> "Node":
+        """Return a deep copy of the node, recursing into all instance attributes.
+
+        Parameters
+        ----------
+        memo:
+            standard ``copy.deepcopy`` memoization dictionary
+        """
         cls = self.__class__
         result = cls.__new__(cls)
         memo[id(self)] = result
@@ -101,22 +119,27 @@ class Branch:
     Parameters
     ----------
     n_i:
-        initial `Node` of the branch
+        initial :class:`Node` of the branch
     n_f:
-        final `Node` of the branch
+        final :class:`Node` of the branch
     branch_type:
-        is the type of this Branch, example `"C"`, `"JJ"` or `"L"`
+        type of this branch, e.g. ``"C"``, ``"JJ"``, or ``"L"``
     parameters:
         list of parameters for the branch, namely for
-        capacitance: `[EC]`;
-        for inductance: `[10]`;
-        for Josephson Junction: `[EJ, 1]`
+        capacitance: ``[EC]``;
+        for inductance: ``[EL]``;
+        for Josephson Junction: ``[EJ, ECJ]``
+    index:
+        optional integer label identifying the branch within its parent
+        circuit (default: ``None``)
     aux_params:
-        Dictionary of auxiliary parameters which map a symbol from the input file a numeric parameter.
+        dictionary of auxiliary parameters mapping a symbol from the input
+        file to a numeric parameter
 
     Examples
     --------
-    `Branch("C", Node(1, 0), Node(2, 0))` is a capacitive branch connecting the nodes with indices 0 and 1.
+    ``Branch("C", Node(1, 0), Node(2, 0))`` is a capacitive branch connecting
+    the nodes with indices 0 and 1.
     """
 
     def __init__(
@@ -139,6 +162,7 @@ class Branch:
         self.nodes[1].branches.append(self)
 
     def __str__(self) -> str:
+        """Return a human-readable label of the branch."""
         return (
             "Branch "
             + self.type
@@ -151,9 +175,24 @@ class Branch:
         )
 
     def __repr__(self) -> str:
+        """Return a developer-readable representation of the branch."""
         return f"Branch({self.type}, {self.nodes[0].index}, {self.nodes[1].index}, index: {self.index})"
 
-    def _set_parameters(self, parameters) -> None:
+    def _set_parameters(self, parameters: list[float | Symbol | int]) -> None:
+        """Populate :attr:`parameters` from the given raw parameter list.
+
+        For capacitive (``"C"``) and inductive (``"L"``) branches the first
+        element is stored under the key ``"EC"`` or ``"EL"``. For Josephson
+        branches (``"JJ"``, ``"JJ2"``, ...), one ``"EJ"``, ``"EJ2"``, ...
+        entry is stored per junction order, and the trailing element is stored
+        under ``"ECJ"``.
+
+        Parameters
+        ----------
+        parameters:
+            list of branch parameters whose layout depends on
+            :attr:`type`
+        """
         if self.type in ["C", "L"]:
             self.parameters = {f"E{self.type}": parameters[0]}
         elif "JJ" in self.type:
@@ -170,19 +209,37 @@ class Branch:
         """Returns the indices of the nodes connected by the branch."""
         return self.nodes[0].index, self.nodes[1].index
 
-    def is_connected(self, branch) -> bool:
-        """Returns a boolean indicating whether the current branch is connected to the
-        given `branch`"""
+    def is_connected(self, branch: "Branch") -> bool:
+        """Return whether the current branch shares any node with `branch`.
+
+        Parameters
+        ----------
+        branch:
+            other branch to test for shared nodes
+        """
         distinct_node_count = len(set(self.nodes + branch.nodes))
         if distinct_node_count < 4:
             return True
         return False
 
-    def common_node(self, branch) -> set[Node]:
-        """Returns the common nodes between self and the `branch` given as input."""
+    def common_node(self, branch: "Branch") -> set[Node]:
+        """Return the set of nodes shared with the given `branch`.
+
+        Parameters
+        ----------
+        branch:
+            other branch with which to take the intersection of nodes
+        """
         return set(self.nodes) & set(branch.nodes)
 
-    def __deepcopy__(self, memo):
+    def __deepcopy__(self, memo: dict[int, Any]) -> "Branch":
+        """Return a deep copy of the branch, recursing into all instance attributes.
+
+        Parameters
+        ----------
+        memo:
+            standard ``copy.deepcopy`` memoization dictionary
+        """
         cls = self.__class__
         result = cls.__new__(cls)
         memo[id(self)] = result
@@ -192,23 +249,30 @@ class Branch:
 
 
 class Coupler:
-    """Coupler class is used to define elements which couple two existing branches in
-    the Circuit class.
+    """Class describing an element coupling two existing branches in a circuit.
 
     Parameters
     ----------
-    branch1, branch2:
-        Branch objects which are being coupled.
+    branch1:
+        first :class:`Branch` being coupled
+    branch2:
+        second :class:`Branch` being coupled
     coupling_type:
-        The type of coupling between the branches - allowed is mutual inductance - "ML"
+        type of coupling between the branches; mutual inductance ``"ML"`` is
+        currently the only supported value
     parameters:
-        List of parameters for the coupling, namely for mutual inductance: {"EM": <value>}
+        list of parameters for the coupling, e.g. for mutual inductance the
+        value ``EML`` is expected at index ``0``
+    index:
+        optional integer label identifying the coupler within its parent
+        circuit (default: ``None``)
     aux_params:
-        Dictionary of auxiliary parameters which map a symbol from the input file a numeric parameter.
+        dictionary of auxiliary parameters mapping a symbol from the input
+        file to a numeric parameter
 
     Examples
     --------
-    `Coupler("ML", branch1, branch2, "ML", 1e2)`
+    ``Coupler(branch1, branch2, "ML", [1e2])``
     """
 
     def __init__(
@@ -226,14 +290,32 @@ class Coupler:
         self.aux_params = aux_params
         self.index = index
 
-    def _set_parameters(self, parameters) -> None:
+    def _set_parameters(self, parameters: list[float | Symbol | int]) -> None:
+        """Populate :attr:`parameters` from the given raw parameter list.
+
+        For mutual-inductance couplings the first element is stored under the
+        key ``"EML"``.
+
+        Parameters
+        ----------
+        parameters:
+            list of coupler parameters whose layout depends on :attr:`type`
+        """
         if self.type in ["ML"]:
             self.parameters = {f"E{self.type}": parameters[0]}
 
     def __repr__(self) -> str:
+        """Return a developer-readable representation of the coupler."""
         return f"Coupler({self.type}, ({self.branches[0].type}, {self.branches[0].node_ids()}), ({self.branches[1].type}, {self.branches[1].node_ids()}), index: {self.index})"
 
-    def __deepcopy__(self, memo):
+    def __deepcopy__(self, memo: dict[int, Any]) -> "Coupler":
+        """Return a deep copy of the coupler, recursing into all instance attributes.
+
+        Parameters
+        ----------
+        memo:
+            standard ``copy.deepcopy`` memoization dictionary
+        """
         cls = self.__class__
         result = cls.__new__(cls)
         memo[id(self)] = result
@@ -247,10 +329,36 @@ def make_coupler(
     coupler_type: str,
     idx1: int,
     idx2: int,
-    params,
-    aux_params,
+    params: list,
+    aux_params: pp.ParseResults,
     _branch_count: int,
-):
+) -> tuple[Coupler, dict[Symbol, float]]:
+    """Build a :class:`Coupler` from parsed pyparsing results.
+
+    Parameters
+    ----------
+    branches_list:
+        list of branches already constructed for the circuit; the coupler is
+        attached to ``branches_list[idx1]`` and ``branches_list[idx2]``
+    coupler_type:
+        type of coupling (currently only ``"ML"`` for mutual inductance)
+    idx1:
+        index of the first branch in `branches_list`
+    idx2:
+        index of the second branch in `branches_list`
+    params:
+        list of pyparsing parse results for the coupler parameters
+    aux_params:
+        pyparsing parse results for the auxiliary-parameter block
+    _branch_count:
+        running branch count used as the coupler's :attr:`Coupler.index`
+
+    Returns
+    -------
+    Tuple ``(coupler, sym_params_dict)`` where ``coupler`` is the constructed
+    :class:`Coupler` and ``sym_params_dict`` maps any newly seen symbolic
+    parameters to their default numeric values.
+    """
     params_dict = {}
     params = [process_param(param) for param in params]
     if coupler_type == "ML":
@@ -283,10 +391,37 @@ def make_branch(
     branch_type: str,
     idx1: int,
     idx2: int,
-    params,
-    aux_params,
+    params: list,
+    aux_params: pp.ParseResults,
     _branch_count: int,
-):
+) -> tuple[Branch, dict[Symbol, float]]:
+    """Build a :class:`Branch` from parsed pyparsing results.
+
+    Parameters
+    ----------
+    nodes_list:
+        list of all :class:`Node` objects already constructed for the circuit
+    branch_type:
+        type of branch, e.g. ``"C"``, ``"L"``, or a Josephson type such as
+        ``"JJ"``
+    idx1:
+        index identifying the first endpoint node within `nodes_list`
+        (interpreted with or without the ground-node offset)
+    idx2:
+        index identifying the second endpoint node within `nodes_list`
+    params:
+        list of pyparsing parse results for the branch parameters
+    aux_params:
+        pyparsing parse results for the auxiliary-parameter block
+    _branch_count:
+        running branch count used as the branch's :attr:`Branch.index`
+
+    Returns
+    -------
+    Tuple ``(branch, sym_params_dict)`` where ``branch`` is the constructed
+    :class:`Branch` and ``sym_params_dict`` maps any newly seen symbolic
+    parameters to their default numeric values.
+    """
     params_dict = {}
     params = [process_param(param) for param in params]
 
@@ -325,6 +460,14 @@ def make_branch(
 
 
 class SymbolicCircuitGraph(ABC):
+    """Mixin providing graph-theoretic helpers for :class:`SymbolicCircuit`.
+
+    Encapsulates spanning-tree construction, closure-branch detection,
+    loop discovery, mode classification, and the node-variable-to-new-variable
+    transformation matrix. The concrete circuit data (nodes, branches,
+    grounding, etc.) is provided by the subclass and declared below as
+    class-level type annotations.
+    """
 
     # class-level annotations for attributes provided by subclass SymbolicCircuit
     nodes: list[Node]
@@ -339,30 +482,50 @@ class SymbolicCircuitGraph(ABC):
     external_fluxes: list[Symbol]
 
     def _spanning_tree(
-        self, consider_capacitive_loops: bool = False, use_closure_branches: bool = True
-    ):
-        r"""Returns a spanning tree (as a list of branches) for the given instance.
-        Notice that if the circuit contains multiple capacitive islands, the returned
-        spanning tree will not include the capacitive twig between two capacitive
-        islands. Option `use_closure_branches` can be set to `False` if one does not
-        want to use the internally set closure_branches.
+        self,
+        consider_capacitive_loops: bool = False,
+        use_closure_branches: bool = True,
+    ) -> dict[str, list]:
+        r"""Return a spanning tree (as a list of branches) for the given instance.
 
-        This function also returns all the branches that form superconducting loops, and a
-        list of lists of nodes (node_sets), which keeps the generation info for nodes, e.g.,
-        for the following spanning tree:
+        If the circuit contains multiple capacitive islands, the returned
+        spanning tree will not include the capacitive twig between two
+        capacitive islands.
 
-                   /---Node(2)
-        Node(1)---'
-                   '---Node(3)---Node(4)
+        Within node-set construction the candidate nodes are sorted in place
+        with ``list.sort`` so that the order of the spanning tree is
+        deterministic across runs.
 
-        has the node_sets returned as [[Node(1)], [Node(2),Node(3)], [Node(4)]]
+        For the example spanning tree::
+
+                       /---Node(2)
+            Node(1)---'
+                       '---Node(3)---Node(4)
+
+        the ``node_sets`` is returned as ``[[Node(1)], [Node(2), Node(3)],
+        [Node(4)]]``.
+
+        Parameters
+        ----------
+        consider_capacitive_loops:
+            when ``True``, capacitive branches are kept while building the
+            spanning tree, so loops formed purely by capacitors are detected
+            (default: ``False``)
+        use_closure_branches:
+            when ``True`` (default), the internally set
+            :attr:`closure_branches` are used to decide which branches lie
+            outside the spanning tree
 
         Returns
         -------
-            A list of spanning trees in the circuit, which does not include capacitor branches,
-            a list of branches that forms superconducting loops for each tree, and a list of lists of nodes
-            (node_sets) for each tree (which keeps the generation info for nodes of branches on the path)
-            and list of closure branches for each tree.
+        Dictionary with keys ``"list_of_trees"``, ``"loop_branches_for_trees"``,
+        ``"node_sets_for_trees"``, and ``"closure_branches_for_trees"``,
+        each mapping to a per-tree list. ``list_of_trees`` excludes capacitor
+        branches, ``loop_branches_for_trees`` collects all branches forming
+        superconducting loops for each tree, ``node_sets_for_trees`` records
+        the generation info for the nodes on the path, and
+        ``closure_branches_for_trees`` lists the closure branches for each
+        tree.
         """
 
         # Make a copy of self; do not need symbolic expressions etc., so do a minimal
@@ -576,8 +739,18 @@ class SymbolicCircuitGraph(ABC):
             "closure_branches_for_trees": closure_branches_for_trees,
         }
 
-    def _closure_branches(self, spanning_tree_dict=None):
-        r"""Returns and stores the closure branches in the circuit."""
+    def _closure_branches(
+        self, spanning_tree_dict: dict[str, list] | None = None
+    ) -> list[Branch | dict[Branch, float]]:
+        r"""Return the flattened list of closure branches in the circuit.
+
+        Parameters
+        ----------
+        spanning_tree_dict:
+            spanning-tree dictionary from which the closure branches are
+            extracted; if ``None`` (default), the cached
+            :attr:`spanning_tree_dict` is used
+        """
         return flatten_list_recursive(
             (spanning_tree_dict or self.spanning_tree_dict)[
                 "closure_branches_for_trees"
@@ -585,6 +758,21 @@ class SymbolicCircuitGraph(ABC):
         )
 
     def _time_dependent_flux_distribution(self):
+        r"""Return the symbolic time-dependent flux distribution across branches.
+
+        Constructs the constraint matrix :math:`R` from the loops generated
+        by each closure branch, the diagonal branch-capacitance matrix
+        :math:`C_\text{diag}` (with :math:`1/(8\,E_C)` entries), and the
+        node-to-branch incidence matrix :math:`W`. Solves the resulting
+        least-squares problem ``M @ B = I`` via the Moore-Penrose pseudoinverse
+        ``np.linalg.pinv``, then projects ``B`` onto the symbolic external
+        fluxes.
+
+        Returns
+        -------
+        Array of length ``len(self.branches)`` whose entries are the symbolic
+        per-branch flux contributions in terms of the external-flux symbols.
+        """
         closure_branches = self._closure_branches()
         # constructing the constraint matrix
         R = np.zeros([len(self.branches), len(closure_branches)])
@@ -644,25 +832,29 @@ class SymbolicCircuitGraph(ABC):
         return B.round(10) @ self.external_fluxes
 
     def _find_path_to_root(
-        self, node: Node, spanning_tree_dict=None
+        self, node: Node, spanning_tree_dict: dict[str, list] | None = None
     ) -> tuple[int, list[Node], list[Branch], int]:
-        r"""Returns all the nodes and branches in the spanning tree path between the
-        input node and the root of the spanning tree. Also returns the distance
-        (generation) between the input node and the root node. The root of the spanning
-        tree is node 0 if there is a physical ground node, otherwise it is node 1.
+        r"""Return spanning-tree path data from the input node to the root.
 
-        Notice that the branches that sit on the boundaries of capacitive islands are
-        not included in the branch list.
+        The root of the spanning tree is node 0 if there is a physical ground
+        node, otherwise it is node 1. Branches sitting on the boundaries of
+        capacitive islands are not included in the returned branch list.
 
         Parameters
         ----------
-        node: Node
-            Node variable which is the input
+        node:
+            input node whose path to the root is sought
+        spanning_tree_dict:
+            spanning-tree dictionary as returned by :meth:`_spanning_tree`;
+            if ``None`` (default), the cached :attr:`spanning_tree_dict` is
+            used
 
         Returns
         -------
-            An integer for the generation number, a list of ancestor nodes, and a list
-            of branches on the path
+        Tuple ``(generation, ancestor_nodes_list, branch_path_to_root,
+        tree_idx)`` containing the generation number, the list of ancestor
+        nodes from `node` up to the root, the list of branches on that path,
+        and the index of the tree containing `node`.
         """
         # extract spanning trees node_sets (to determine the generation of the node)
         tree_info_dict = spanning_tree_dict or self.spanning_tree_dict
@@ -717,14 +909,20 @@ class SymbolicCircuitGraph(ABC):
         return generation, ancestor_nodes_list, branch_path_to_root, tree_idx
 
     def _find_loop(
-        self, closure_branch: Branch, spanning_tree_dict=None
+        self,
+        closure_branch: Branch,
+        spanning_tree_dict: dict[str, list] | None = None,
     ) -> list["Branch"]:
         r"""Find out the loop that is closed by the closure branch.
 
         Parameters
         ----------
-        closure_branch: Branch
-            The input closure branch
+        closure_branch:
+            input closure branch
+        spanning_tree_dict:
+            spanning-tree dictionary as returned by :meth:`_spanning_tree`;
+            if ``None`` (default), the cached :attr:`spanning_tree_dict` is
+            used
 
         Returns
         -------
@@ -750,7 +948,18 @@ class SymbolicCircuitGraph(ABC):
         )
         return self._order_branches_in_loop(loop)
 
-    def _order_branches_in_loop(self, loop_branches):
+    def _order_branches_in_loop(self, loop_branches: list[Branch]) -> list[Branch]:
+        """Reorder a set of loop branches into a contiguous traversal sequence.
+
+        Walks the branches by chaining each one to the next via the shared
+        node, producing an ordering in which consecutive branches share a
+        node.
+
+        Parameters
+        ----------
+        loop_branches:
+            unordered branches that together form a single loop
+        """
         branches_in_order = [loop_branches[0]]
         branch_node_ids = [branch.node_ids() for branch in loop_branches]
         prev_node_id = branch_node_ids[0][0]
@@ -768,6 +977,20 @@ class SymbolicCircuitGraph(ABC):
         self,
         closure_branches: list[Branch | dict[Branch, float]] | None = None,
     ):
+        r"""Populate :attr:`external_fluxes` and :attr:`closure_branches`.
+
+        For each user-supplied or auto-detected closure branch, a symbolic
+        external flux ``Φi`` is created and attached to the instance. Raises
+        :exc:`ValueError` if a capacitive branch is used as a closure branch
+        without :attr:`use_dynamic_flux_grouping`.
+
+        Parameters
+        ----------
+        closure_branches:
+            optional list of closure branches; each entry is either a
+            :class:`Branch` or a mapping from branches to weights describing
+            how the external flux is distributed
+        """
         # setting the class properties
 
         if self.is_purely_harmonic and not self.use_dynamic_flux_grouping:
@@ -818,7 +1041,19 @@ class SymbolicCircuitGraph(ABC):
         return np.intersect1d(node_array1, node_array2).size == 0
 
     @staticmethod
-    def _parse_nodes(branches_list) -> list[Node]:
+    def _parse_nodes(branches_list: list) -> list[Node]:
+        """Construct the list of unique :class:`Node` instances from branch specs.
+
+        Coupler entries (those starting with ``"ML"``) are skipped. The
+        resulting node indices are sorted in place via ``list.sort`` so the
+        output node ordering is deterministic.
+
+        Parameters
+        ----------
+        branches_list:
+            sequence of parsed branch specifications, each beginning with the
+            branch type followed by two node indices
+        """
         node_index_list = []
         for branch_list_input in [
             branch for branch in branches_list if branch[0] != "ML"
@@ -839,10 +1074,9 @@ class SymbolicCircuitGraph(ABC):
         use_dynamic_flux_grouping: bool = False,
         initiate_sym_calc: bool = True,
     ):
-        """
-        Constructs the instance of Circuit from an input string. Here is an example of
-        an input string that is used to initiate an object of the
-        class `SymbolicCircuit`::
+        """Construct an instance of :class:`SymbolicCircuit` from an input string.
+
+        Example input string used to initiate an object::
 
             #zero-pi.yaml
             nodes    : 4
@@ -858,27 +1092,27 @@ class SymbolicCircuitGraph(ABC):
         Parameters
         ----------
         input_string:
-            String describing the number of nodes and branches connecting then along
-            with their parameters
+            string describing the number of nodes and branches connecting them
+            along with their parameters
         from_file:
-            Set to True by default, when a file name should be provided to
-            `input_string`, else the circuit graph description in YAML should be
-            provided as a string.
+            when ``True`` (default), `input_string` is interpreted as a file
+            name whose contents are loaded; otherwise it is treated as the
+            circuit graph description in YAML
         basis_completion:
-            choices: "heuristic" or "canonical"; used to choose a type of basis
-            for completing the transformation matrix. Set to "heuristic" by default.
-        use_dynamic_flux_grouping: bool
-            set to False by default. Indicates if the flux allocation is done by
-            assuming that flux is time dependent. When set to True, it disables the
-            option to change the closure branches.
+            choice of basis used to complete the transformation matrix; one
+            of ``"heuristic"`` (default) or ``"canonical"``
+        use_dynamic_flux_grouping:
+            when ``True``, the flux allocation is performed assuming
+            time-dependent flux, which disables the option to change the
+            closure branches (default: ``False``)
         initiate_sym_calc:
-            set to True by default. Initiates the object attributes by calling
-            the function `initiate_symboliccircuit` method when set to True.
-            Set to False for debugging.
+            when ``True`` (default), the object attributes are initialized by
+            calling :meth:`SymbolicCircuit.configure`; set to ``False`` for
+            debugging
 
         Returns
         -------
-            Instance of the class `SymbolicCircuit`
+        Instance of :class:`SymbolicCircuit`.
         """
         if from_file:
             file = open(input_string, "r")
@@ -953,13 +1187,24 @@ class SymbolicCircuitGraph(ABC):
         single_nodes: bool = True,
         basisvec_entries: list[int] | None = None,
     ):
-        """Returns the vectors which span a subspace where there is no generalized flux
-        difference across the branches present in the branch_subset.
+        """Return vectors spanning the no-flux-difference subspace for the branches.
+
+        The returned basis vectors correspond to node-variable combinations
+        across which there is no generalized flux difference for any branch
+        in `branch_subset`.
 
         Parameters
         ----------
+        branch_subset:
+            list of branches across which the no-flux-difference condition is
+            imposed
         single_nodes:
-            if the single nodes are taken into consideration for basis vectors.
+            when ``True`` (default), single-node modes are also taken into
+            consideration when constructing the basis vectors
+        basisvec_entries:
+            two-element sequence ``[on, off]`` giving the values used for
+            "in-set" and "out-of-set" entries of the basis vectors; defaults
+            to ``[1, 0]``
         """
         if basisvec_entries is None:
             basisvec_entries = [1, 0]
@@ -1082,17 +1327,15 @@ class SymbolicCircuitGraph(ABC):
         return basis
 
     @staticmethod
-    def _mode_in_subspace(mode, subspace) -> bool:
-        """Method to check if the vector mode is a part of the subspace provided as a
-        set of vectors.
+    def _mode_in_subspace(mode: ndarray | list, subspace: ndarray | list) -> bool:
+        """Check whether the vector `mode` is a part of the given `subspace`.
 
         Parameters
         ----------
         mode:
-            numpy ndarray of one dimension.
+            one-dimensional vector to be tested for membership
         subspace:
-            numpy ndarray which represents a collection of basis vectors for a vector
-            subspace
+            collection of basis vectors representing the vector subspace
         """
         if len(subspace) == 0:
             return False
@@ -1102,22 +1345,21 @@ class SymbolicCircuitGraph(ABC):
     def check_transformation_matrix(
         self, transformation_matrix: ndarray, enable_warnings: bool = True
     ) -> dict[str, list[int]]:
-        """Method to identify the different modes in the transformation matrix provided
-        by the user.
+        """Identify the different modes in a user-provided transformation matrix.
 
         Parameters
         ----------
         transformation_matrix:
-            numpy ndarray which is a square matrix having the dimensions of the number
-            of nodes present in the circuit.
-        warnings:
-            If False, will not raise the warnings regarding any unidentified modes. It
-            is set to True by default.
+            square ndarray with the dimensions of the number of nodes present
+            in the circuit
+        enable_warnings:
+            when ``True`` (default), warnings are emitted regarding any
+            unidentified modes
 
         Returns
         -------
-            A dictionary of lists which has the variable indices classified with
-            var indices corresponding to the rows of the transformation matrix
+        Dictionary of lists classifying the variable indices, where the
+        indices correspond to the rows of the transformation matrix.
         """
         # basic check to see if the matrix is invertible
         if np.linalg.det(transformation_matrix) == 0:
@@ -1249,14 +1491,19 @@ class SymbolicCircuitGraph(ABC):
         return var_categories_user
 
     def variable_transformation_matrix(self) -> tuple[ndarray, dict[str, list[int]]]:
-        """Evaluates the boundary conditions and constructs the variable transformation
-        matrix, which is returned along with the dictionary `var_categories` which
-        classifies the types of variables present in the circuit.
+        """Construct the variable transformation matrix and variable categories.
+
+        Evaluates the boundary conditions and builds the node-to-new-variable
+        transformation matrix, returning it along with the ``var_categories``
+        dictionary that classifies the types of variables present in the
+        circuit.
 
         Returns
         -------
-            tuple of transformation matrix for the node variables and `var_categories`
-            dict which classifies the variable types for each variable index
+        Tuple ``(transformation_matrix, var_categories)`` where
+        ``transformation_matrix`` maps node variables to new variables and
+        ``var_categories`` classifies the variable types (periodic, extended,
+        free, frozen, sigma) for each variable index.
         """
 
         # ****************  Finding the Periodic Modes ****************
