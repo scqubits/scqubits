@@ -10,15 +10,18 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
 import cmath
 import math
-
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import scipy as sp
 
 from numpy import ndarray
+from scipy.sparse import csc_matrix
 
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
@@ -84,11 +87,11 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         flux: float,
         cutoff: int,
         truncated_dim: int = 6,
-        id_str: Optional[str] = None,
-        evals_method: Union[Callable, str, None] = None,
-        evals_method_options: Union[dict, None] = None,
-        esys_method: Union[Callable, str, None] = None,
-        esys_method_options: Union[dict, None] = None,
+        id_str: str | None = None,
+        evals_method: Callable[..., Any] | str | None = None,
+        evals_method_options: dict[str, Any] | None = None,
+        esys_method: Callable[..., Any] | str | None = None,
+        esys_method_options: dict[str, Any] | None = None,
     ) -> None:
         base.QubitBaseClass.__init__(
             self,
@@ -107,7 +110,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         self._default_grid = discretization.Grid1d(-4.5 * np.pi, 4.5 * np.pi, 151)
 
     @staticmethod
-    def default_params() -> Dict[str, Any]:
+    def default_params() -> dict[str, Any]:
         return {
             "EJ": 8.9,
             "EC": 2.5,
@@ -118,7 +121,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         }
 
     @classmethod
-    def supported_noise_channels(cls) -> List[str]:
+    def supported_noise_channels(cls) -> list[str]:
         """Return a list of supported noise channels."""
         return [
             "tphi_1_over_f_cc",
@@ -131,7 +134,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         ]
 
     @classmethod
-    def effective_noise_channels(cls) -> List[str]:
+    def effective_noise_channels(cls) -> list[str]:
         """Return a default list of channels used when calculating effective t1 and t2
         noise."""
         noise_channels = cls.supported_noise_channels()
@@ -156,8 +159,8 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         return math.sqrt(8.0 * self.EL * self.EC)  # LC plasma oscillation energy
 
     def phi_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         """Returns the phi operator in the LC harmonic oscillator or eigenenergy basis.
 
         Parameters
@@ -185,8 +188,8 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def n_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         r"""
         Returns the :math:`n = - i d/d\phi` operator in the LC harmonic oscillator or eigenenergy basis.
 
@@ -217,8 +220,8 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         self,
         alpha: float = 1.0,
         beta: float = 0.0,
-        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
-    ) -> ndarray:
+        energy_esys: bool | tuple[ndarray, ndarray] = False,
+    ) -> ndarray | csc_matrix:
         r"""
         Returns the :math:`e^{i (\alpha \phi + \beta) }` operator, with :math:`\alpha` and :math:`\beta` being
         numbers, in the LC harmonic oscillator or eigenenergy basis.
@@ -240,7 +243,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             `truncated_dim`x `truncated_dim`. Otherwise, if eigenenergy basis is chosen,
             :math:`e^{i (\alpha \phi + \beta) }` has dimensions of m x m, for m given eigenvectors.
         """
-        exponent = 1j * (alpha * self.phi_operator())
+        exponent = 1j * (alpha * np.asarray(self.phi_operator()))
         native = sp.linalg.expm(exponent) * cmath.exp(1j * beta)
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
@@ -248,8 +251,8 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         self,
         alpha: float = 1.0,
         beta: float = 0.0,
-        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
-    ) -> ndarray:
+        energy_esys: bool | tuple[ndarray, ndarray] = False,
+    ) -> ndarray | csc_matrix:
         r"""
         Returns the :math:`\cos (\alpha \phi + \beta)` operator with :math:`\alpha` and :math:`\beta` being
         numbers, in the LC harmonic oscillator or eigenenergy basis.
@@ -268,7 +271,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             unless energy_esys is specified, :math:`\cos (\alpha \phi + \beta)` has dimensions of truncated_dim
             x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\cos (\alpha \phi + \beta)` has dimensions of m x m, for m given eigenvectors.
         """
-        argument = alpha * self.phi_operator() + beta * np.eye(self.hilbertdim())
+        argument = alpha * np.asarray(self.phi_operator()) + beta * np.eye(self.hilbertdim())
         native = sp.linalg.cosm(argument)
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
@@ -276,8 +279,8 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         self,
         alpha: float = 1.0,
         beta: float = 0.0,
-        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
-    ) -> ndarray:
+        energy_esys: bool | tuple[ndarray, ndarray] = False,
+    ) -> ndarray | csc_matrix:
         r"""
         Returns the :math:`\sin (\alpha \phi + \beta)` operator with :math:`\alpha` and :math:`\beta` being
         numbers, in the LC harmonic oscillator or eigenenergy basis.
@@ -296,13 +299,13 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             unless energy_esys is specified, :math:`\sin (\alpha \phi + \beta)` has dimensions of truncated_dim
             x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\sin (\alpha \phi + \beta)` has dimensions of m x m, for m given eigenvectors.
         """
-        argument = alpha * self.phi_operator() + beta * np.eye(self.hilbertdim())
+        argument = alpha * np.asarray(self.phi_operator()) + beta * np.eye(self.hilbertdim())
         native = sp.linalg.sinm(argument)
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def hamiltonian(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:  # follow Zhu et al., PRB 87, 024510 (2013)
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:  # follow Zhu et al., PRB 87, 024510 (2013)
         """Constructs Hamiltonian matrix in harmonic-oscillator, following Zhu et al.,
         PRB 87, 024510 (2013), or eigenenergy basis.
 
@@ -325,7 +328,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         diag_elements = [(i + 0.5) * self.plasma_energy() for i in range(dimension)]
         lc_osc_matrix = np.diag(diag_elements)
 
-        cos_matrix = self.cos_phi_operator(beta=2 * np.pi * self.flux)
+        cos_matrix = np.asarray(self.cos_phi_operator(beta=2 * np.pi * self.flux))
 
         hamiltonian_mat = lc_osc_matrix - self.EJ * cos_matrix
         return self.process_hamiltonian(
@@ -333,8 +336,8 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         )
 
     def d_hamiltonian_d_EJ(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         """Returns operator representing a derivative of the Hamiltonian with respect to
         EJ in the harmonic-oscillator or eigenenergy basis. The flux is grouped as in
         the Hamiltonian.
@@ -359,8 +362,8 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def d_hamiltonian_d_flux(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         """Returns operator representing a derivative of the Hamiltonian with respect to
         flux in the harmonic-oscillator or eigenenergy basis. The flux is grouped as in
         the Hamiltonian.
@@ -390,7 +393,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             Returns the Hilbert space dimension."""
         return self.cutoff
 
-    def potential(self, phi: Union[float, ndarray]) -> ndarray:
+    def potential(self, phi: float | ndarray) -> ndarray:
         r"""Fluxonium potential evaluated at :math:`\phi`.
 
         Parameters
@@ -407,9 +410,9 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
     def wavefunction(
         self,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         which: int = 0,
-        phi_grid: "Grid1d" = None,
+        phi_grid: Grid1d | None = None,
     ) -> storage.WaveFunction:
         r"""Returns a fluxonium wave function in :math:`\phi` basis
 

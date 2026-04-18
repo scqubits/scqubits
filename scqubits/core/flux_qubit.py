@@ -10,8 +10,11 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
+from collections.abc import Callable
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import numpy as np
 import scipy as sp
@@ -19,6 +22,7 @@ import scipy as sp
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
+from scipy.sparse import csc_matrix
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
@@ -31,30 +35,29 @@ import scqubits.utils.spectrum_utils as spec_utils
 
 from scqubits.core.noise import NOISE_PARAMS, NoisySystem
 
-
 # -Flux qubit noise class
 class NoisyFluxQubit(NoisySystem, ABC):
     @abstractmethod
     def d_hamiltonian_d_EJ1(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         pass
 
     @abstractmethod
     def d_hamiltonian_d_EJ2(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         pass
 
     @abstractmethod
     def d_hamiltonian_d_EJ3(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         pass
 
     @classmethod
     @abstractmethod
-    def supported_noise_channels(cls) -> List[str]:
+    def supported_noise_channels(cls) -> list[str]:
         pass
 
     def tphi_1_over_f_cc1(
@@ -62,7 +65,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
         A_noise: float = NOISE_PARAMS["A_cc"],
         i: int = 0,
         j: int = 1,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
@@ -108,7 +111,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
         A_noise: float = NOISE_PARAMS["A_cc"],
         i: int = 0,
         j: int = 1,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
@@ -154,7 +157,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
         A_noise: float = NOISE_PARAMS["A_cc"],
         i: int = 0,
         j: int = 1,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
@@ -199,7 +202,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
         A_noise: float = NOISE_PARAMS["A_cc"],
         i: int = 0,
         j: int = 1,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
@@ -246,9 +249,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
         else:
             return 1 / rate if rate != 0 else np.inf
 
-
 # -Flux qubit, both degrees of freedom in charge basis---------------------------------
-
 
 class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     r"""Flux Qubit.
@@ -337,11 +338,11 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         flux: float,
         ncut: int,
         truncated_dim: int = 6,
-        id_str: Optional[str] = None,
-        evals_method: Union[Callable, str, None] = None,
-        evals_method_options: Union[dict, None] = None,
-        esys_method: Union[Callable, str, None] = None,
-        esys_method_options: Union[dict, None] = None,
+        id_str: str | None = None,
+        evals_method: Callable | str | None = None,
+        evals_method_options: dict | None = None,
+        esys_method: Callable | str | None = None,
+        esys_method_options: dict | None = None,
     ) -> None:
         base.QubitBaseClass.__init__(
             self,
@@ -369,7 +370,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         )  # for plotting in phi_j basis
 
     @staticmethod
-    def default_params() -> Dict[str, Any]:
+    def default_params() -> dict[str, Any]:
         return {
             "EJ1": 1.0,
             "EJ2": 1.0,
@@ -387,7 +388,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         }
 
     @classmethod
-    def supported_noise_channels(cls) -> List[str]:
+    def supported_noise_channels(cls) -> list[str]:
         """Return a list of supported noise channels."""
         return [
             "tphi_1_over_f_cc1",
@@ -417,7 +418,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return np.linalg.inv(Cmat) / 2.0
 
     def _evals_calc(self, evals_count: int) -> ndarray:
-        hamiltonian_mat = self.hamiltonian()
+        hamiltonian_mat = np.asarray(self.hamiltonian())
         evals = sp.linalg.eigh(
             hamiltonian_mat,
             subset_by_index=(0, evals_count - 1),
@@ -426,8 +427,8 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         )
         return np.sort(evals)
 
-    def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
-        hamiltonian_mat = self.hamiltonian()
+    def _esys_calc(self, evals_count: int) -> tuple[ndarray, ndarray]:
+        hamiltonian_mat = np.asarray(self.hamiltonian())
         evals, evecs = sp.linalg.eigh(
             hamiltonian_mat,
             subset_by_index=(0, evals_count - 1),
@@ -523,8 +524,8 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return potential_mat
 
     def hamiltonian(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         """Return Hamiltonian in the basis obtained by employing charge basis for both
         degrees of freedom or in the eigenenergy basis.
 
@@ -549,8 +550,8 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         )
 
     def d_hamiltonian_d_EJ1(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         """Returns operator representing a derivative of the Hamiltonian with respect to
         EJ1 in the native Hamiltonian basis or eigenenergy basis.
 
@@ -575,8 +576,8 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def d_hamiltonian_d_EJ2(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         """Returns operator representing a derivative of the Hamiltonian with respect to
         EJ2 in the native Hamiltonian basis or eigenenergy basis.
 
@@ -601,8 +602,8 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def d_hamiltonian_d_EJ3(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         """Returns operator representing a derivative of the Hamiltonian with respect to
         EJ3 in the native Hamiltonian basis or eigenenergy basis.
 
@@ -637,8 +638,8 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def d_hamiltonian_d_flux(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         """Returns the operator representing a derivative of the Hamiltonian with
         respect to flux in the native Hamiltonian basis or eigenenergy basis.
 
@@ -692,8 +693,8 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return np.eye(dim)
 
     def n_1_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         r"""Returns the charge number operator conjugate to :math:`\phi_1` in the charge?
         or eigenenergy basis.
 
@@ -715,8 +716,8 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def n_2_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         r"""Returns the charge number operator conjugate to :math:`\phi_2` in the charge?
         or eigenenergy basis.
 
@@ -738,8 +739,8 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def exp_i_phi_1_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         r"""Returns operator :math:`e^{i\phi_1}` in the charge or eigenenergy basis.
 
         Parameters
@@ -761,8 +762,8 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def exp_i_phi_2_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         r"""Returns operator :math:`e^{i\phi_2}` in the charge or eigenenergy basis.
 
         Parameters
@@ -784,8 +785,8 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def cos_phi_1_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         r"""
         Returns operator :math:`\cos \phi_1` in the charge or eigenenergy basis.
 
@@ -804,14 +805,14 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
             x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\cos \phi_1` has dimensions of m x m,
             for m given eigenvectors.
         """
-        cos_op = 0.5 * self.exp_i_phi_1_operator()
+        cos_op = 0.5 * np.asarray(self.exp_i_phi_1_operator())
         cos_op += cos_op.T
         native = cos_op
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def cos_phi_2_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         r"""
         Returns operator :math:`\cos \phi_2` in the charge or eigenenergy basis.
 
@@ -830,14 +831,14 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
             x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\cos \phi_2` has dimensions of m x m,
             for m given eigenvectors.
         """
-        cos_op = 0.5 * self.exp_i_phi_2_operator()
+        cos_op = 0.5 * np.asarray(self.exp_i_phi_2_operator())
         cos_op += cos_op.T
         native = cos_op
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def sin_phi_1_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         r"""
         Returns operator :math:`\sin \phi_1` in the charge or eigenenergy basis.
 
@@ -856,14 +857,14 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
             x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\sin \phi_1` has dimensions of m x m,
             for m given eigenvectors.
         """
-        sin_op = -1j * 0.5 * self.exp_i_phi_1_operator()
+        sin_op = -1j * 0.5 * np.asarray(self.exp_i_phi_1_operator())
         sin_op += sin_op.conj().T
         native = sin_op
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def sin_phi_2_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         r"""
         Returns operator :math:`\sin \phi_2` in the charge or eigenenergy basis.
 
@@ -882,17 +883,17 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
             x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\sin \phi_2` has dimensions of m x m,
             for m given eigenvectors.
         """
-        sin_op = -1j * 0.5 * self.exp_i_phi_2_operator()
+        sin_op = -1j * 0.5 * np.asarray(self.exp_i_phi_2_operator())
         sin_op += sin_op.conj().T
         native = sin_op
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def plot_potential(
         self,
-        phi_grid: discretization.Grid1d = None,
-        contour_vals: ndarray = None,
+        phi_grid: discretization.Grid1d | None = None,
+        contour_vals: ndarray | None = None,
         **kwargs,
-    ) -> Tuple[Figure, Axes]:
+    ) -> tuple[Figure, Axes]:
         r"""
         Draw contour plot of the potential energy.
 
@@ -915,9 +916,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
     def wavefunction(
         self,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         which: int = 0,
-        phi_grid: discretization.Grid1d = None,
+        phi_grid: discretization.Grid1d | None = None,
     ) -> storage.WaveFunctionOnGrid:
         r"""
         Return a flux qubit wave function in :math:`\phi_1`, :math:`\phi2` basis
@@ -961,13 +962,13 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
     def plot_wavefunction(
         self,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         which: int = 0,
-        phi_grid: discretization.Grid1d = None,
+        phi_grid: discretization.Grid1d | None = None,
         mode: str = "abs",
         zero_calibrate: bool = True,
         **kwargs,
-    ) -> Tuple[Figure, Axes]:
+    ) -> tuple[Figure, Axes]:
         r"""Plots 2d phase-basis wave function.
 
         Parameters
@@ -989,7 +990,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         """
         amplitude_modifier = constants.MODE_FUNC_DICT[mode]
         wavefunc = self.wavefunction(esys, phi_grid=phi_grid, which=which)
-        wavefunc.amplitudes = amplitude_modifier(wavefunc.amplitudes)
+        wavefunc.amplitudes = amplitude_modifier(wavefunc.amplitudes)  # type: ignore[operator]
         if "figsize" not in kwargs:
             kwargs["figsize"] = (5, 5)
         return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)

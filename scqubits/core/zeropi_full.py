@@ -10,8 +10,10 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import Any, Dict, List, Optional, Tuple, Union, Callable
+from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 
@@ -34,10 +36,8 @@ from scqubits.core.noise import NoisySystem
 
 # - ZeroPi noise class
 
-
 class NoisyFullZeroPi(NoisySystem):
     pass
-
 
 class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi):
     r"""Zero-Pi qubit [Brooks2013]_ [Dempster2014]_ including coupling to the :math:`\zeta` mode.
@@ -169,13 +169,13 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         zeta_cutoff: int,
         grid: Grid1d,
         ncut: int,
-        ECS: float = None,
+        ECS: float | None = None,
         truncated_dim: int = 6,
-        id_str: Optional[str] = None,
-        evals_method: Union[Callable, str, None] = None,
-        evals_method_options: Union[dict, None] = None,
-        esys_method: Union[Callable, str, None] = None,
-        esys_method_options: Union[dict, None] = None,
+        id_str: str | None = None,
+        evals_method: Callable | str | None = None,
+        evals_method_options: dict | None = None,
+        esys_method: Callable | str | None = None,
+        esys_method_options: dict | None = None,
     ) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
         self._zeropi = scqubits.ZeroPi(
@@ -209,7 +209,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         dispatch.CENTRAL_DISPATCH.register("GRID_UPDATE", self)
 
     @staticmethod
-    def default_params() -> Dict[str, Any]:
+    def default_params() -> dict[str, Any]:
         return {
             "EJ": 10.0,
             "EL": 0.04,
@@ -237,7 +237,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return zeropi
 
     @classmethod
-    def supported_noise_channels(cls) -> List[str]:
+    def supported_noise_channels(cls) -> list[str]:
         """Return a list of supported noise channels."""
         return [
             "tphi_1_over_f_cc",
@@ -247,7 +247,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             "t1_inductive",
         ]
 
-    def widget(self, params: Dict[str, Any] = None) -> None:
+    def widget(self, params: dict[str, Any] | None = None) -> None:
         init_params = params or self.get_initdata()
         init_params.pop("id_str", None)
         del init_params["grid"]
@@ -258,7 +258,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             self.set_params_from_gui, init_params, image_filename=self._image_filename
         )
 
-    def set_params_from_gui(self, **kwargs) -> None:
+    def set_params_from_gui(self, **kwargs) -> None:  # type: ignore[override]
         for param_name, param_val in kwargs.items():
             if "grid_" in param_name:
                 setattr(self.grid, param_name[5:], param_val)
@@ -303,42 +303,46 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         )
 
     @property
-    def esys_method(self) -> Union[Callable, str, None]:
+    def esys_method(self) -> Callable | str | None:
         return self._zeropi.esys_method
 
     @esys_method.setter
-    def esys_method(self, value: Union[Callable, str, None] = None) -> None:
+    def esys_method(self, value: Callable | str | None = None) -> None:
         self._zeropi.esys_method = value
 
     @property
-    def esys_method_options(self) -> Union[dict, None]:
+    def esys_method_options(self) -> dict | None:
         return self._zeropi.esys_method_options
 
     @esys_method_options.setter
-    def esys_method_options(self, value: Union[dict, None] = None) -> None:
+    def esys_method_options(self, value: dict | None = None) -> None:
         self._zeropi.esys_method_options = value
 
     @property
-    def evals_method(self) -> Union[Callable, str, None]:
+    def evals_method(self) -> Callable | str | None:
         return self._zeropi.evals_method
 
     @evals_method.setter
-    def evals_method(self, value: Union[Callable, str, None] = None) -> None:
+    def evals_method(self, value: Callable | str | None = None) -> None:
         self._zeropi.evals_method = value
 
     @property
-    def evals_method_options(self) -> Union[dict, None]:
+    def evals_method_options(self) -> dict | None:
         return self._zeropi.evals_method_options
 
     @evals_method_options.setter
-    def evals_method_options(self, value: Union[dict, None] = None) -> None:
+    def evals_method_options(self, value: dict | None = None) -> None:
         self._zeropi.evals_method_options = value
 
     def hamiltonian(
         self,
         return_parts: bool = False,
-        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
-    ) -> Union[csc_matrix, Tuple[csc_matrix, ndarray, ndarray, ndarray]]:
+        energy_esys: bool | tuple[ndarray, ndarray] = False,
+    ) -> (
+        ndarray
+        | csc_matrix
+        | tuple[ndarray | csc_matrix, ndarray, ndarray, ndarray]
+    ):
         r"""Returns Hamiltonian in basis obtained by discretizing :math:`\phi`, employing
         charge basis for :math:`\theta`, and Fock basis for :math:`\zeta`, or in the
         eigenenergy basis.
@@ -408,9 +412,9 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
     def d_hamiltonian_d_flux(
         self,
-        zeropi_evecs: ndarray = None,
-        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
-    ) -> Union[ndarray, csc_matrix]:
+        zeropi_evecs: ndarray | None = None,
+        energy_esys: bool | tuple[ndarray, ndarray] = False,
+    ) -> ndarray | csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t flux, at the current value
         of flux, as stored in the object. The returned operator is in the product basis
         or eigenenergy basis.
@@ -448,9 +452,9 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
     def d_hamiltonian_d_EJ(
         self,
-        zeropi_evecs: ndarray = None,
-        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
-    ) -> Union[ndarray, csc_matrix]:
+        zeropi_evecs: ndarray | None = None,
+        energy_esys: bool | tuple[ndarray, ndarray] = False,
+    ) -> ndarray | csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t EJ. The returned operator is
         in the product basis or eigenenergy basis.
 
@@ -486,8 +490,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def d_hamiltonian_d_ng(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> Union[ndarray, csc_matrix]:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t ng. Returns matrix
         representing a derivative of the Hamiltonian in the native Hamiltonian basis or
         eigenenergy basis.
@@ -512,7 +516,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def _zeropi_operator_in_product_basis(
-        self, zeropi_operator, zeropi_evecs: ndarray = None
+        self, zeropi_operator, zeropi_evecs: ndarray | None = None
     ) -> csc_matrix:
         """Helper method that converts a zeropi operator into one in the product basis.
 
@@ -535,7 +539,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             for m in range(zeropi_dim):
                 op_eigen_basis += op_zeropi[n, m] * op.hubbard_sparse(n, m, zeropi_dim)
 
-        return sparse.kron(
+        return sparse.kron(  # type: ignore[return-value]
             op_eigen_basis,
             sparse.identity(zeta_dim, format="csc", dtype=np.complex128),
             format="csc",
@@ -543,9 +547,9 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
     def i_d_dphi_operator(
         self,
-        zeropi_evecs: ndarray = None,
-        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
-    ) -> Union[ndarray, csc_matrix]:
+        zeropi_evecs: ndarray | None = None,
+        energy_esys: bool | tuple[ndarray, ndarray] = False,
+    ) -> ndarray | csc_matrix:
         r"""Returns :math:`i d/d\phi` operator in the product or eigenenergy basis.
 
         Helper method _zeropi_operator_in_product_basis is employed which converts
@@ -581,9 +585,9 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
     def n_theta_operator(
         self,
-        zeropi_evecs: ndarray = None,
-        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
-    ) -> Union[ndarray, csc_matrix]:
+        zeropi_evecs: ndarray | None = None,
+        energy_esys: bool | tuple[ndarray, ndarray] = False,
+    ) -> ndarray | csc_matrix:
         r"""Returns :math:`n_\theta`  operator in the product or eigenenergy basis.
 
         Helper method _zeropi_operator_in_product_basis is employed which converts
@@ -619,9 +623,9 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
     def phi_operator(
         self,
-        zeropi_evecs: ndarray = None,
-        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
-    ) -> Union[ndarray, csc_matrix]:
+        zeropi_evecs: ndarray | None = None,
+        energy_esys: bool | tuple[ndarray, ndarray] = False,
+    ) -> ndarray | csc_matrix:
         r"""Returns :math:`\phi`  operator in the product or eigenenergy basis.
 
         Helper method _zeropi_operator_in_product_basis is employed which converts
@@ -665,10 +669,10 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return self.zeropi_cutoff * self.zeta_cutoff
 
     def _evals_calc(
-        self, evals_count: int, hamiltonian_mat: csc_matrix = None
+        self, evals_count: int, hamiltonian_mat: csc_matrix | None = None
     ) -> ndarray:
         if hamiltonian_mat is None:
-            hamiltonian_mat = self.hamiltonian()
+            hamiltonian_mat = self.hamiltonian()  # type: ignore[assignment]
         evals = spec_utils.eigsh_safe(
             hamiltonian_mat,
             k=evals_count,
@@ -679,10 +683,10 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return np.sort(evals)
 
     def _esys_calc(
-        self, evals_count: int, hamiltonian_mat: csc_matrix = None
-    ) -> Tuple[ndarray, ndarray]:
+        self, evals_count: int, hamiltonian_mat: csc_matrix | None = None
+    ) -> tuple[ndarray, ndarray]:
         if hamiltonian_mat is None:
-            hamiltonian_mat = self.hamiltonian()
+            hamiltonian_mat = self.hamiltonian()  # type: ignore[assignment]
         evals, evecs = spec_utils.eigsh_safe(
             hamiltonian_mat,
             k=evals_count,
@@ -715,7 +719,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         )
 
     def g_coupling_matrix(
-        self, zeropi_states: ndarray = None, evals_count: int = None
+        self, zeropi_states: ndarray | None = None, evals_count: int | None = None
     ) -> ndarray:
         r"""Returns a matrix of coupling strengths :math:`g_{ll'}` [cmp. Dempster et al., text
         above Eq. (17)], using the states from 'zeropi_states'. If

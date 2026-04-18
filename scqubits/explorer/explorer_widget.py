@@ -10,10 +10,11 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
 
 import itertools
 
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple
+from typing import TYPE_CHECKING, Any
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -44,7 +45,7 @@ if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep
 
 try:
-    from IPython.display import HTML, display, notebook
+    from IPython.display import HTML, display, notebook  # type: ignore[attr-defined]
 except ImportError:
     _HAS_IPYTHON = False
 else:
@@ -59,7 +60,6 @@ except ImportError:
 else:
     _HAS_IPYVUETIFY = True
 
-
 class PlotID:
     """Class for storing plot identifiers.
 
@@ -68,9 +68,9 @@ class PlotID:
 
     SEP = " | "
 
-    def __init__(self, plot_type: PlotType, subsystems: List[QuantumSystem]):
+    def __init__(self, plot_type: PlotType, subsystems: list[QuantumSystem]):
         self.plot_type: PlotType = plot_type
-        self.subsystems: List[QuantumSystem] = subsystems
+        self.subsystems: list[QuantumSystem] = subsystems
 
     def __repr__(self):
         return f"PlotID({self.plot_type}, {self.subsystems})"
@@ -84,7 +84,7 @@ class PlotID:
     def is_composite(self) -> bool:
         return len(self.subsystems) > 1
 
-    def subsys_ids(self) -> List[str]:
+    def subsys_ids(self) -> list[str]:
         return [subsys.id_str for subsys in self.subsystems]
 
     def is_default_active(self) -> bool:
@@ -92,7 +92,6 @@ class PlotID:
             return self.plot_type in default_panels["Composite"]
         subsys_type_str = type(self.subsystems[0]).__name__
         return self.plot_type in default_panels[subsys_type_str]
-
 
 class Explorer:
     """Generates the UI for exploring `ParameterSweep` objects.
@@ -136,11 +135,11 @@ class Explorer:
         self.sweep = sweep
         self.ncols = ncols  # number of columns used for axes in the figure display
 
-        self.subsystems: List[QuantumSystem] = self.sweep.hilbertspace.subsystem_list
-        self.subsys_names: List[str] = [subsys.id_str for subsys in self.subsystems]
+        self.subsystems: list[QuantumSystem] = list(self.sweep.hilbertspace.subsystem_list)
+        self.subsys_names: list[str] = [subsys.id_str for subsys in self.subsystems]
 
         # == GUI elements =========================================================
-        self.ui: Dict[str, Any] = {}
+        self.ui: dict[str, Any] = {}
         self.build_panel_switches()
         self.ui["add_plot_dialog"] = self.build_ui_add_plot_dialog()
 
@@ -232,8 +231,8 @@ class Explorer:
 
     def build_panel_switches(self) -> None:
         # The panel switches reflect the set of panels that are currently displayed
-        ui_panel_switch_by_plot_id: Dict[PlotID, ui.LinkedSwitch] = {}
-        ui_panel_switches_by_subsys_name: Dict[str, List[ui.LinkedSwitch]] = {
+        ui_panel_switch_by_plot_id: dict[PlotID, ui.LinkedSwitch] = {}
+        ui_panel_switches_by_subsys_name: dict[str, list[ui.LinkedSwitch]] = {
             "Composite": []
         }
 
@@ -371,13 +370,13 @@ class Explorer:
         self,
         plot_id: PlotID,
         param_slice: ParameterSlice,
-        fig_ax: Tuple[Figure, Axes],
+        fig_ax: tuple[Figure, Axes],
     ):
         if plot_id.plot_type is PlotType.ENERGY_SPECTRUM:
             panel_widget = self.settings[plot_id]
             return panels.display_bare_spectrum(
                 self.sweep,
-                plot_id.subsystems[0],
+                plot_id.subsystems[0],  # type: ignore[arg-type]
                 param_slice,
                 fig_ax,
                 subtract_ground=panel_widget[1].v_model,
@@ -421,9 +420,13 @@ class Explorer:
             )
         elif plot_id.plot_type is PlotType.ANHARMONICITY:
             return panels.display_anharmonicity(
-                self.sweep, plot_id.subsystems[0], param_slice, fig_ax
+                self.sweep,
+                plot_id.subsystems[0],  # type: ignore[arg-type]
+                param_slice,
+                fig_ax,
             )
         elif plot_id.plot_type is PlotType.TRANSITIONS:
+            initial_state: int | tuple[int, ...]
             if (
                 self.settings["Transitions"]["initial_bare_dressed_toggle"].v_model
                 == "bare"
@@ -442,6 +445,7 @@ class Explorer:
             subsys_name_tuple = self.settings["Transitions"][
                 "highlight_selectmultiple"
             ].v_model
+            subsys_list: list[QuantumSystem] | None
             if subsys_name_tuple == ():
                 subsys_list = None
             else:
@@ -455,7 +459,7 @@ class Explorer:
             return panels.display_transitions(
                 self.sweep,
                 photon_number,
-                subsys_list,
+                subsys_list,  # type: ignore[arg-type]
                 initial_state,
                 sidebands,
                 param_slice,
@@ -475,7 +479,7 @@ class Explorer:
 
             return panels.display_self_kerr(
                 sweep=self.sweep,
-                subsys=plot_id.subsystems[0],
+                subsys=plot_id.subsystems[0],  # type: ignore[arg-type]
                 param_slice=param_slice,
                 fig_ax=fig_ax,
             )
@@ -499,7 +503,7 @@ class Explorer:
         raise NotImplementedError(f"Plot type {plot_id} not implemented.")
 
     @property
-    def active_switches_by_plot_id(self) -> Dict[PlotID, "ui.LinkedSwitch"]:
+    def active_switches_by_plot_id(self) -> dict[PlotID, "ui.LinkedSwitch"]:
         """Returns a dictionary labeling all selected switches by their plot_id
         names."""
         return {
@@ -509,12 +513,12 @@ class Explorer:
         }
 
     @property
-    def selected_plot_id_list(self) -> List[PlotID]:
+    def selected_plot_id_list(self) -> list[PlotID]:
         """Returns a list of strings capturing the names of all panels selected via the
         switches."""
         return list(self.active_switches_by_plot_id.keys())
 
-    def create_sliders(self) -> Dict[str, "v.VuetifyWidget"]:
+    def create_sliders(self) -> dict[str, "v.VuetifyWidget"]:
         """Returns a list of selection sliders, one for each parameter that is part of
         the underlying ParameterSweep object."""
         slider_by_name = {
@@ -532,14 +536,14 @@ class Explorer:
         return slider_by_name
 
     @property
-    def fixed_params(self) -> Dict[str, float]:
+    def fixed_params(self) -> dict[str, float]:
         sliders = self.ui["fixed_param_sliders"]
         return {
             param_name: slider.current_value() for param_name, slider in sliders.items()
         }
 
     @property
-    def axes_list(self) -> List[Axes]:
+    def axes_list(self) -> list[Axes]:
         return self.plot_collection.axes_list()
 
     @matplotlib.rc_context(matplotlib_settings)
@@ -634,9 +638,9 @@ class Explorer:
         )
 
         for axes in self.axes_list:
-            for item in axes.lines + axes.collections + axes.texts:
+            for item in axes.lines + axes.collections + axes.texts:  # type: ignore[operator]
                 item.remove()
-            axes.set_prop_cycle(None)
+            axes.set_prop_cycle(None)  # type: ignore[call-overload]
             axes.relim()
             axes.autoscale_view()
 

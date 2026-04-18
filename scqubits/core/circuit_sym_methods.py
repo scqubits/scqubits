@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import functools
 import itertools
 import operator as builtin_op
 import re
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem
@@ -32,8 +35,37 @@ from scqubits.utils.misc import (
 )
 from abc import ABC
 
-
 class CircuitSymMethods(ABC):
+    # Attributes set by concrete subclasses (Circuit, Subsystem). Declared here so
+    # mypy can resolve cross-subclass attribute access in shared methods.
+    external_fluxes: list[Any]
+    offset_charges: list[Any]
+    free_charges: list[Any]
+    symbolic_params: dict[Any, Any]
+    var_categories: dict[str, list[int]]
+    dynamic_var_indices: list[int]
+    hierarchical_diagonalization: bool
+    ext_basis: Any
+    hamiltonian_symbolic: Any
+    type_of_matrices: str
+    subsystems: list[Any]
+    system_hierarchy: list[Any]
+    parent: Any
+    vars: dict[str, Any]
+    _hamiltonian_sym_for_numerics: Any
+    _id_str: str
+    potential_symbolic: Any
+    subsystem_interactions: Any
+    get_subsystem_index: Callable[..., Any]
+    transformation_matrix: Any
+    is_grounded: bool
+    closure_branches: list[Any]
+    symbolic_circuit: Any
+    affine_transformation_matrix: Any
+    use_dynamic_flux_grouping: bool
+    discretized_phi_range: dict[int, Any]
+    cutoff_names: list[str]
+    is_purely_harmonic: bool
 
     @staticmethod
     def _contains_trigonometric_terms(hamiltonian):
@@ -92,8 +124,8 @@ class CircuitSymMethods(ABC):
         return True
 
     def _constants_in_subsys(
-        self, H_sys: sm.Expr, constants_list: List[sm.Expr]
-    ) -> List[sm.Expr]:
+        self, H_sys: sm.Expr, constants_list: list[sm.Expr]
+    ) -> list[sm.Expr]:
         """Returns an expression of constants that belong to the subsystem with the
         Hamiltonian H_sys.
 
@@ -113,7 +145,7 @@ class CircuitSymMethods(ABC):
                 constants_subsys_list.append(term)
         return constants_subsys_list
 
-    def _list_of_constants_from_expr(self, expr: sm.Expr) -> List[sm.Expr]:
+    def _list_of_constants_from_expr(self, expr: sm.Expr) -> list[sm.Expr]:
         ordered_terms = expr.as_ordered_terms()
         constants = [
             term
@@ -136,7 +168,7 @@ class CircuitSymMethods(ABC):
         self,
         hamiltonian: sm.Expr,
         subsys_indices: list,
-        non_operator_symbols: List[sm.Symbol],
+        non_operator_symbols: list[sm.Symbol],
     ):
         systems_sym = []
         interaction_sym = []
@@ -395,7 +427,7 @@ class CircuitSymMethods(ABC):
 
     def _generate_hamiltonian_sym_for_numerics(
         self,
-        hamiltonian: Optional[sm.Expr] = None,
+        hamiltonian: sm.Expr | None = None,
         return_exprs=False,
     ):
         """Generates a symbolic expression which is ready for numerical evaluation
@@ -476,7 +508,7 @@ class CircuitSymMethods(ABC):
     def _qutip_parameter_function_factory(
         self,
         parameter_expr: sm.Expr,
-        free_var_func_dict: Dict[str, Callable],
+        free_var_func_dict: dict[str, Callable],
         lambdify_func: Callable,
     ) -> Callable:
         def parameter_func(t, args):
@@ -492,12 +524,10 @@ class CircuitSymMethods(ABC):
     @check_sync_status_circuit
     def hamiltonian_for_qutip_dynamics(
         self,
-        free_var_func_dict: Dict[str, Callable],
+        free_var_func_dict: dict[str, Callable],
         prefactor: float = 1.0,
-        extra_terms: Optional[str] = None,
-    ) -> Tuple[
-        List[Union[qt.Qobj, Tuple[qt.Qobj, Callable]]], sm.Expr, Dict[qt.Qobj, sm.Expr]
-    ]:
+        extra_terms: str | None = None,
+    ) -> tuple[list[qt.Qobj | tuple[qt.Qobj, Callable]], sm.Expr, dict[qt.Qobj, sm.Expr]]:
         """
         Returns the Hamiltonian in a format amenable to be forwarded to mesolve in Qutip. Also returns the symbolic expressions of time independent and time dependent terms of the Hamiltonian, which can be used for reference. `free_var_func_dict` is a dictionary with key-value pair `{"var": f}`, where `f` is a function returning the value of the variable `var` at time `t`. If one has extra terms to be added to the Hamiltonian (for instance, charge driving a fluxonium where there is no offset charge) they can be passed as a string in `extra_terms`.
         For example, to get the Hamiltonian for a circuit where Φ1 is the time varying parameter, this method can be called in the following way::
@@ -544,7 +574,7 @@ class CircuitSymMethods(ABC):
 
         expr_dict = sym_hamiltonian.expand().as_coefficients_dict()
         terms = list(expr_dict.keys())
-        time_dep_terms = {}
+        time_dep_terms: dict[sm.Expr, sm.Expr] = {}
 
         for term in terms:
             if len(list_intersection(list(term.free_symbols), free_var_symbols)) == 0:
@@ -609,7 +639,7 @@ class CircuitSymMethods(ABC):
     # ***** Functions for pretty display of symbolic expressions *****
     # ****************************************************************
     @staticmethod
-    def print_expr_in_latex(expr: Union[sm.Expr, List["sm.Equality"]]) -> None:
+    def print_expr_in_latex(expr: sm.Expr | list["sm.Equality"]) -> None:
         """Print a sympy expression or a list of equalities in LaTeX.
 
         Parameters
@@ -758,7 +788,7 @@ class CircuitSymMethods(ABC):
 
     def sym_potential(
         self, float_round: int = 6, print_latex: bool = False, return_expr: bool = False
-    ) -> Union[sm.Expr, None]:
+    ) -> sm.Expr | None:
         """Method prints a user readable symbolic potential for the current instance.
 
         Parameters
@@ -795,11 +825,11 @@ class CircuitSymMethods(ABC):
 
     def sym_hamiltonian(
         self,
-        subsystem_index: Optional[int] = None,
+        subsystem_index: int | None = None,
         float_round: int = 6,
         print_latex: bool = False,
         return_expr: bool = False,
-    ) -> Union[sm.Expr, None]:
+    ) -> sm.Expr | None:
         """Prints a user readable symbolic Hamiltonian for the current instance.
 
         Parameters
@@ -929,11 +959,11 @@ class CircuitSymMethods(ABC):
 
     def sym_interaction(
         self,
-        subsystem_indices: Tuple[int],
+        subsystem_indices: tuple[int],
         float_round: int = 6,
         print_latex: bool = False,
         return_expr: bool = False,
-    ) -> Union[sm.Expr, None]:
+    ) -> sm.Expr | None:
         """Print the interaction between any set of subsystems for the current instance.
         It would print the interaction terms having operators from all the subsystems
         mentioned in the tuple.
@@ -994,7 +1024,7 @@ class CircuitSymMethods(ABC):
             print(interaction)
         return None
 
-    def operator_names_in_hamiltonian_symbolic(self) -> List[str]:
+    def operator_names_in_hamiltonian_symbolic(self) -> list[str]:
         """Returns a list of the names (strings) of all operators occurring in the
         symbolic Hamiltonian."""
         return [

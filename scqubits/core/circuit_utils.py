@@ -10,8 +10,11 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
 import re
-from typing import TYPE_CHECKING, Callable, List, Union, Optional, Tuple, Dict
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 import scipy as sp
@@ -58,7 +61,7 @@ def _junction_order(branch_type: str) -> int:
         return 1
 
 
-def sawtooth_operator(x: Union[ndarray, csc_matrix]):
+def sawtooth_operator(x: ndarray | csc_matrix):
     """Returns the operator evaluated using applying the sawtooth_potential function on
     the diagonal elements of the operator x.
 
@@ -126,7 +129,7 @@ def truncation_template(
         The template for setting the truncated dims for the Circuit instance when
         hierarchical diagonalization is used.
     """
-    trunc_dims: List[Union[int, list]] = []
+    trunc_dims: list[int | list] = []
     for subsystem_hierarchy in system_hierarchy:
         if subsystem_hierarchy == flatten_list_recursive(subsystem_hierarchy):
             trunc_dims.append(individual_trunc_dim)
@@ -172,7 +175,7 @@ def _identity_phi(grid: discretization.Grid1d) -> csc_matrix:
         identity operator in the discretized phi basis
     """
     pt_count = grid.pt_count
-    return sparse.identity(pt_count, format="csc")
+    return sparse.identity(pt_count, format="csc")  # type: ignore[return-value]
 
 
 def _phi_operator(grid: discretization.Grid1d) -> csc_matrix:
@@ -268,17 +271,17 @@ def _sin_phi(grid: discretization.Grid1d) -> csc_matrix:
 def _identity_theta(ncut: int) -> csc_matrix:
     """Returns Operator identity in the charge basis."""
     dim_theta = 2 * ncut + 1
-    return sparse.identity(dim_theta, format="csc")
+    return sparse.identity(dim_theta, format="csc")  # type: ignore[return-value]
 
 
 def _n_theta_operator(ncut: int) -> csc_matrix:
     """Returns charge operator `n` in the charge basis."""
     dim_theta = 2 * ncut + 1
     diag_elements = np.arange(-ncut, ncut + 1)
-    n_theta_matrix = sparse.dia_matrix(
+    n_theta_matrix = sparse.dia_matrix(  # type: ignore[type-var]
         (diag_elements, [0]), shape=(dim_theta, dim_theta)
-    ).tocsc()
-    return n_theta_matrix
+    ).tocsc()  # type: ignore[misc]
+    return n_theta_matrix  # type: ignore[return-value]
 
 
 def _exp_i_theta_operator(ncut, prefactor=1) -> csc_matrix:
@@ -286,21 +289,21 @@ def _exp_i_theta_operator(ncut, prefactor=1) -> csc_matrix:
     # if type(prefactor) != int:
     #     raise ValueError("Prefactor must be an integer")
     dim_theta = 2 * ncut + 1
-    matrix = sparse.dia_matrix(
+    matrix = sparse.dia_matrix(  # type: ignore[type-var]
         (np.ones(dim_theta), [-prefactor]),
         shape=(dim_theta, dim_theta),
-    ).tocsc()
-    return matrix
+    ).tocsc()  # type: ignore[misc]
+    return matrix  # type: ignore[return-value]
 
 
 def _exp_i_theta_operator_conjugate(ncut) -> csc_matrix:
     r"""Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace."""
     dim_theta = 2 * ncut + 1
-    matrix = sparse.dia_matrix(
+    matrix = sparse.dia_matrix(  # type: ignore[type-var]
         (np.ones(dim_theta), [1]),
         shape=(dim_theta, dim_theta),
-    ).tocsc()
-    return matrix
+    ).tocsc()  # type: ignore[misc]
+    return matrix  # type: ignore[return-value]
 
 
 def _cos_theta(ncut: int) -> csc_matrix:
@@ -320,8 +323,8 @@ def _sin_theta(ncut: int) -> csc_matrix:
 
 
 def _generate_symbols_list(
-    var_str: str, iterable_list: List[int] or ndarray
-) -> List[sm.Symbol]:
+    var_str: str, iterable_list: list[int] | ndarray
+) -> list[sm.Symbol]:
     """Returns the list of symbols generated using the var_str + iterable as the name of
     the symbol.
 
@@ -383,7 +386,7 @@ def example_circuit(qubit: str) -> str:
 
 def grid_operator_func_factory(inner_op: Callable, index: int) -> Callable:
     def operator_func(
-        self: "Subsystem", energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+        self: "Subsystem", energy_esys: bool | tuple[ndarray, ndarray] = False
     ):
         native = self._kron_operator(
             inner_op(self.discretized_grids_dict_for_vars()[index]), index
@@ -395,7 +398,7 @@ def grid_operator_func_factory(inner_op: Callable, index: int) -> Callable:
 
 def hierarchical_diagonalization_func_factory(symbol_name: str) -> Callable:
     def operator_func(
-        self: "Subsystem", energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+        self: "Subsystem", energy_esys: bool | tuple[ndarray, ndarray] = False
     ):
         """Returns the operator <op_name> (corresponds to the name of the method
         "<op_name>_operator") for the Circuit/Subsystem instance.
@@ -438,10 +441,10 @@ def keep_terms_for_subsystem(sym_expr, subsys, substitute_zero=False):
 
 
 def operator_func_factory(
-    inner_op: Callable, index: int, op_type: Optional[str] = None
+    inner_op: Callable, index: int, op_type: str | None = None
 ) -> Callable:
     def operator_func(
-        self: "Subsystem", energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+        self: "Subsystem", energy_esys: bool | tuple[ndarray, ndarray] = False
     ):
         """Returns the operator <op_name> (corresponds to the name of the method
         "<op_name>_operator") for the Circuit/Subsystem instance.
@@ -482,13 +485,13 @@ def operator_func_factory(
 def _cos_dia(x: csc_matrix) -> csc_matrix:
     """Take the diagonal of the array x, compute its cosine, and fill the result into
     the diagonal of a sparse matrix."""
-    return sparse.diags(np.cos(x.diagonal())).tocsc()
+    return sparse.diags(np.cos(x.diagonal())).tocsc()  # type: ignore[return-value]
 
 
 def _sin_dia(x: csc_matrix) -> csc_matrix:
     """Take the diagonal of the array x, compute its sine, and fill the result into the
     diagonal of a sparse matrix."""
-    return sparse.diags(np.sin(x.diagonal())).tocsc()
+    return sparse.diags(np.sin(x.diagonal())).tocsc()  # type: ignore[return-value]
 
 
 def _sin_dia_dense(x: ndarray) -> ndarray:
@@ -547,10 +550,10 @@ def yaml_like_out_with_pp(circuit_yaml):
 
 
 def assemble_circuit(
-    circuit_list: List[str],
+    circuit_list: list[str],
     couplers: str,
     rename_parameters=False,
-) -> Tuple[str, List[Dict[int, int]]]:
+) -> tuple[str, list[dict[int, int]]]:
     """
     Assemble a yaml string for a large circuit that are made of smaller
     sub-circuits and coupling elements. This method takes a list of Sub-circuit yaml
@@ -658,10 +661,10 @@ def assemble_circuit(
         subcircuit_node_index_dict = {}
         for subcircuit_node_index in subcircuit_nodes_list[subcircuit_index]:
             subcircuit_node_index_dict[subcircuit_node_index] = (
-                subcircuit_node_index + node_index_offset
+                subcircuit_node_index + node_index_offset  # type: ignore[operator]
             )
         if subcircuit_is_grounded_list[subcircuit_index]:
-            subcircuit_node_index_dict[0] = 0
+            subcircuit_node_index_dict[0] = 0  # type: ignore[index]
         node_index_offset += (
             subcircuit_node_number_list[subcircuit_index]
             - subcircuit_is_grounded_list[subcircuit_index]
@@ -808,11 +811,11 @@ def assemble_circuit(
             else:
                 composite_circuit_yaml += str(word) + ", "
         composite_circuit_yaml += "]\n"
-    return composite_circuit_yaml, subcircuit_node_index_dict_list
+    return composite_circuit_yaml, subcircuit_node_index_dict_list  # type: ignore[return-value]
 
 
 def assemble_transformation_matrix(
-    transformation_matrix_list: List[ndarray],
+    transformation_matrix_list: list[ndarray],
 ) -> ndarray:
     """Assemble a transformation matrix for a large circuit that are made of smaller
     sub-circuits and coupling elements. This method takes a list of sub-circuit

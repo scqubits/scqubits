@@ -10,7 +10,9 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import Any, Dict, List, Tuple, Union
+from __future__ import annotations
+
+from typing import Any
 
 import numpy as np
 
@@ -24,25 +26,23 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 import scqubits.utils.misc as utils
 
-
-FIRST_STENCIL_COEFFS: Dict[int, List[float]] = {
+FIRST_STENCIL_COEFFS: dict[int, list[float]] = {
     3: [-1 / 2, 0.0, 1 / 2],
     5: [1 / 12, -2 / 3, 0.0, 2 / 3, -1 / 12],
     7: [-1 / 60, 3 / 20, -3 / 4, 0.0, 3 / 4, -3 / 20, 1 / 60],
     9: [1 / 280, -4 / 105, 1 / 5, -4 / 5, 0.0, 4 / 5, -1 / 5, 4 / 105, -1 / 280],
 }
 
-SECOND_STENCIL_COEFFS: Dict[int, List[float]] = {
+SECOND_STENCIL_COEFFS: dict[int, list[float]] = {
     3: [1, -2, 1],
     5: [-1 / 12, 4 / 3, -5 / 2, 4 / 3, -1 / 12],
     7: [1 / 90, -3 / 20, 3 / 2, -49 / 18, 3 / 2, -3 / 20, 1 / 90],
     9: [-1 / 560, 8 / 315, -1 / 5, 8 / 5, -205 / 72, 8 / 5, -1 / 5, 8 / 315, -1 / 560],
 }
 
-
 def band_matrix(
-    band_coeffs: Union[List[float], List[complex], ndarray],
-    band_offsets: Union[List[int], ndarray],
+    band_coeffs: list[float] | list[complex] | ndarray,
+    band_offsets: list[int] | ndarray,
     dim: int,
     dtype: Any = None,
     has_corners: bool = False,
@@ -88,7 +88,6 @@ def band_matrix(
         matrix.setdiag(corner_band, k=corner_offset)
     return matrix.tocsc()
 
-
 class Grid1d(dispatch.DispatchClient, serializers.Serializable):
     """Data structure and methods for setting up discretized 1d coordinate grid,
     generating corresponding derivative matrices.
@@ -133,7 +132,7 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
     def __hash__(self):
         return super().__hash__()
 
-    def get_initdata(self) -> Dict[str, Any]:
+    def get_initdata(self) -> dict[str, Any]:
         """Returns dict appropriate for creating/initializing a new Grid1d object.
 
         Returns
@@ -160,7 +159,7 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         return np.linspace(self.min_val, self.max_val, self.pt_count)
 
     def first_derivative_matrix(
-        self, prefactor: Union[float, complex] = 1.0, periodic: bool = False
+        self, prefactor: float | complex = 1.0, periodic: bool = False
     ) -> csc_matrix:
         r"""Generate sparse matrix for first derivative of the form
         :math:`\partial_{x_i}`. Uses STENCIL setting to construct the matrix with a
@@ -177,6 +176,7 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         -------
             sparse matrix in `dia` format
         """
+        dtp: type[np.complexfloating] | type[np.floating]
         if isinstance(prefactor, complex):
             dtp = np.complex128
         else:
@@ -194,7 +194,7 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         return derivative_matrix.tocsc()
 
     def second_derivative_matrix(
-        self, prefactor: Union[float, complex] = 1.0, periodic: bool = False
+        self, prefactor: float | complex = 1.0, periodic: bool = False
     ) -> csc_matrix:
         r"""Generate sparse matrix for second derivative of the form
         :math:`\partial^2_{x_i}`. Uses STENCIL setting to construct the matrix with
@@ -211,6 +211,7 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         -------
             sparse matrix in `dia` format
         """
+        dtp: type[np.complexfloating] | type[np.floating]
         if isinstance(prefactor, complex):
             dtp = np.complex128
         else:
@@ -226,7 +227,6 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
             matrix_diagonals, offset, self.pt_count, dtype=dtp, has_corners=periodic
         )
         return derivative_matrix.tocsc()
-
 
 class GridSpec(dispatch.DispatchClient, serializers.Serializable):
     """Class for specifying a general discretized coordinate grid (arbitrary
@@ -255,7 +255,7 @@ class GridSpec(dispatch.DispatchClient, serializers.Serializable):
             output += f"\n{param_name}\t: {param_val}"
         return output
 
-    def unwrap(self) -> Tuple[ndarray, ndarray, Union[List[int], ndarray], int]:
+    def unwrap(self) -> tuple[ndarray, ndarray, list[int] | ndarray, int]:
         """Auxiliary routine that yields a tuple of the parameters specifying the
         grid."""
         return self.min_vals, self.max_vals, self.pt_counts, self.var_count

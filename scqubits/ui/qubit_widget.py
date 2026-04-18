@@ -10,11 +10,13 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import Any, Callable, Dict, Optional
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import Any
 
 import scqubits.core.units as units
 import scqubits.utils.misc as utils
-
 
 try:
     import ipyvuetify
@@ -32,12 +34,11 @@ except ImportError:
 else:
     _HAS_IPYTHON = True
 
-
 @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def create_widget(
     callback_func: Callable,
-    init_params: Dict[str, Any],
-    image_filename: Optional[str] = None,
+    init_params: dict[str, Any],
+    image_filename: str | None = None,
 ) -> None:
     """Displays ipyvuetify for initialization of a QuantumSystem object.
 

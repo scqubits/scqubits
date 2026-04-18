@@ -10,16 +10,12 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
 import collections
 
-from typing import (
-    TYPE_CHECKING,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    OrderedDict,
-)
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, OrderedDict
 
 import matplotlib as mp
 
@@ -44,11 +40,10 @@ else:
 if TYPE_CHECKING:
     from scqubits.explorer.explorer_widget import PlotID
 
-
 if _HAS_IPYTHON and _HAS_IPYVUETIFY:
 
     class ValidatedNumberField(v.TextField):
-        _typecheck_func: callable = None
+        _typecheck_func: Callable[..., bool] | None = None
         _type = None
 
         num_value = None  # must determine appropriate traitlet type dynamically
@@ -269,12 +264,12 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
                 children=[v.Icon(children=[icon_name])],
             )
 
-    def flex_row(widgets: List[v.VuetifyWidget], class_="", **kwargs) -> v.Container:
+    def flex_row(widgets: list[v.VuetifyWidget], class_="", **kwargs) -> v.Container:
         return v.Container(
             class_="d-flex flex-row " + class_, children=widgets, **kwargs
         )
 
-    def flex_column(widgets: List[v.VuetifyWidget], class_="", **kwargs) -> v.Container:
+    def flex_column(widgets: list[v.VuetifyWidget], class_="", **kwargs) -> v.Container:
         return v.Container(
             class_="d-flex flex-column " + class_, children=widgets, **kwargs
         )
@@ -301,7 +296,7 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             self.content_row.children = content_list
 
     class ClosablePanel(PanelBase):
-        def __init__(self, panel_id: "PlotID" = None, content_list=None, width="49.5%"):
+        def __init__(self, panel_id: "PlotID | None" = None, content_list=None, width="49.5%"):
             super().__init__(panel_id=panel_id, content_list=content_list, width=width)
 
             self.btn = v.Btn(
@@ -339,7 +334,7 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             self,
             fig: mp.figure.Figure,
             axes: mp.axes.Axes,
-            panel_id: Optional["PlotID"] = None,
+            panel_id: "PlotID" | None = None,
             width="49%",
         ):
             self.fig = fig
@@ -362,10 +357,10 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
     class PlotPanelCollection:
         def __init__(
             self,
-            toggle_switches_by_plot_id: Dict["PlotID", v.Switch],
+            toggle_switches_by_plot_id: dict["PlotID", v.Switch],
             ncols: int = 2,
-            plot_choice_dialog: Callable = None,
-            plot_settings_dialog: Callable = None,
+            plot_choice_dialog: Callable[..., Any] | None = None,
+            plot_settings_dialog: Callable[..., Any] | None = None,
         ):
             self.ncols = ncols
             self.plot_choice_dialog = plot_choice_dialog
@@ -373,7 +368,7 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             self.panel_by_btn: OrderedDict[v.Btn, ClosablePlotPanel] = (
                 collections.OrderedDict()
             )
-            self.panel_by_id: OrderedDict[str, ClosablePlotPanel] = (
+            self.panel_by_id: OrderedDict["PlotID", ClosablePlotPanel] = (
                 collections.OrderedDict()
             )
             self.toggle_switches_by_plot_id = toggle_switches_by_plot_id
@@ -389,10 +384,10 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             if self.plot_choice_dialog:
                 self.plot_choice_dialog()
 
-        def axes_list(self) -> List[mp.axes.Axes]:
+        def axes_list(self) -> list[mp.axes.Axes]:
             return [panel.axes for panel in self.panel_by_btn.values()]
 
-        def card_list(self) -> List[v.Card]:
+        def card_list(self) -> list[v.Card]:
             """Returns the list of all the cards in the deck.
 
             Returns
@@ -402,7 +397,7 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             cards = [panel.card for panel in self.panel_by_btn.values()]
             return cards
 
-        def id_list(self) -> List[str]:
+        def id_list(self) -> "list[PlotID]":
             """Returns the list of all the ids in the deck.
 
             Returns
@@ -411,7 +406,7 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             """
             return list(self.panel_by_id.keys())
 
-        def setup_card(self, new_panel: ClosablePanel):
+        def setup_card(self, new_panel: ClosablePlotPanel):
             """Sets up a new card, connecting its close button to the card collection's
             `close_card` method."""
             card = new_panel.card

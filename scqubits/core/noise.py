@@ -10,11 +10,14 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
+from collections.abc import Callable
 import math
 import warnings
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, cast
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -42,7 +45,6 @@ from scqubits.settings import matplotlib_settings
 # filtering does not seem to work in jupyter.
 _t1_default_warning_given_flag = False
 
-
 def calc_therm_ratio(
     omega: float, T: float, omega_in_standard_units: bool = False
 ) -> float:
@@ -68,7 +70,6 @@ def calc_therm_ratio(
     omega = units.to_standard_units(omega) if not omega_in_standard_units else omega
     return (sp.constants.hbar * omega) / (sp.constants.k * T)
 
-
 def convert_eV_to_Hz(val: float) -> float:
     r"""Convert a value in electron volts to Hz.
 
@@ -82,7 +83,6 @@ def convert_eV_to_Hz(val: float) -> float:
         number in Hz
     """
     return val * sp.constants.e / sp.constants.h
-
 
 # Default values of various noise constants and parameters.
 NOISE_PARAMS = {
@@ -105,11 +105,10 @@ CONSTANTS = {
     / sp.constants.e**2.0,  # Normal quantum resistance, aka Klitzing constant.
 }
 
-
 class NoisySystem(ABC):
     @classmethod
     @abstractmethod
-    def supported_noise_channels(cls) -> List[str]:
+    def supported_noise_channels(cls) -> list[str]:
         pass
 
     @abstractmethod
@@ -117,7 +116,7 @@ class NoisySystem(ABC):
         pass
 
     @classmethod
-    def effective_noise_channels(cls) -> List[str]:
+    def effective_noise_channels(cls) -> list[str]:
         """Return a list of noise channels that are used when calculating the effective
         noise (i.e. via `t1_effective` and `t2_effective`."""
         return cls.supported_noise_channels()
@@ -127,13 +126,13 @@ class NoisySystem(ABC):
         self,
         param_name: str,
         param_vals: ndarray,
-        noise_channels: Optional[Union[str, List[str], List[Tuple[str, Dict]]]] = None,
-        common_noise_options: Optional[Dict] = None,
-        spectrum_data: Optional[SpectrumData] = None,
+        noise_channels: str | list[str] | list[tuple[str, dict]] | None = None,
+        common_noise_options: dict | None = None,
+        spectrum_data: SpectrumData | None = None,
         scale: float = 1,
-        num_cpus: Optional[int] = None,
+        num_cpus: int | None = None,
         **kwargs,
-    ) -> Tuple[Figure, Union[Axes, ndarray]]:
+    ) -> tuple[Figure, Axes | ndarray]:
         r"""Show plots of coherence for various channels supported by the qubit as they
         vary as a function of a changing parameter.
 
@@ -145,7 +144,6 @@ class NoisySystem(ABC):
                                               param_vals=np.linspace(-0.5, 0.5, 100),
                                               scale=1e-3,
                                               ylabel=r"$\mu s$");
-
 
         Parameters
         ----------
@@ -184,7 +182,7 @@ class NoisySystem(ABC):
         # if we only have a single noise channel to consider (and hence are given a
         # str), put it into a one element list
         noise_channels = cast(
-            List,
+            list,
             ([noise_channels] if isinstance(noise_channels, str) else noise_channels),
         )
 
@@ -201,8 +199,8 @@ class NoisySystem(ABC):
                     opts = noise_channel[1]
                     max_level = max(max_level, opts.get("i", 1), opts.get("j", 1))
 
-            spectrum_data = self.get_spectrum_vs_paramvals(  # type:ignore
-                param_name,  # type: ignore
+            spectrum_data = self.get_spectrum_vs_paramvals(  # type: ignore[attr-defined]
+                param_name,
                 param_vals,
                 evals_count=max_level + 1,
                 subtract_ground=True,
@@ -249,7 +247,7 @@ class NoisySystem(ABC):
         # remember current value of param_name
         current_val = getattr(self, param_name)
 
-        for channel_idx, noise_channel in enumerate(noise_channels):  # type:ignore
+        for channel_idx, noise_channel in enumerate(cast(list, noise_channels)):
             # case 1: noise_channel is a string representing the noise method
             if isinstance(noise_channel, str):
                 noise_channel_method = noise_channel
@@ -263,8 +261,8 @@ class NoisySystem(ABC):
                             noise_channel_method,
                         )(
                             esys=(
-                                spectrum_data.energy_table[param_idx, :],  # type:ignore
-                                spectrum_data.state_table[param_idx],  # type:ignore
+                                spectrum_data.energy_table[param_idx, :],
+                                spectrum_data.state_table[param_idx],  # type: ignore[index]
                             ),
                             **common_noise_options,
                         )
@@ -292,8 +290,8 @@ class NoisySystem(ABC):
                             noise_channel_method,
                         )(
                             esys=(
-                                spectrum_data.energy_table[param_idx, :],  # type:ignore
-                                spectrum_data.state_table[param_idx],  # type:ignore
+                                spectrum_data.energy_table[param_idx, :],
+                                spectrum_data.state_table[param_idx],  # type: ignore[index]
                             ),
                             **options,
                         )
@@ -307,7 +305,11 @@ class NoisySystem(ABC):
                     " or list of tuples}."
                 )
 
-            ax = axes.ravel()[channel_idx] if len(noise_channels) > 1 else axes
+            ax = (
+                axes.ravel()[channel_idx]  # type: ignore[union-attr]
+                if len(noise_channels) > 1
+                else axes
+            )
             plotting_options["fig_ax"] = fig, ax
             plotting_options["title"] = noise_channel_method
             plotting.data_vs_paramvals(
@@ -316,16 +318,16 @@ class NoisySystem(ABC):
             # check whether rate is essentially zero and decoherence time thus
             # excessively large
             if np.all(noise_vals / scale > 1e12):
-                ax.get_lines()[0].set_color("0.8")
+                ax.get_lines()[0].set_color("0.8")  # type: ignore[union-attr]
                 at = AnchoredText(
                     "subdominant noise channel",
                     frameon=False,
                     loc="center",
                 )
-                ax.add_artist(at)
+                ax.add_artist(at)  # type: ignore[union-attr]
 
         if len(noise_channels) > 1 and len(noise_channels) % 2:
-            axes.ravel()[-1].set_axis_off()
+            axes.ravel()[-1].set_axis_off()  # type: ignore[union-attr]
 
         # Set the parameter we varied to its initial value
         setattr(self, param_name, current_val)
@@ -338,14 +340,14 @@ class NoisySystem(ABC):
         self,
         param_name: str,
         param_vals: ndarray,
-        noise_channels: Union[str, List[str], List[Tuple[str, Dict]]] = None,
-        common_noise_options: Dict = None,
-        spectrum_data: SpectrumData = None,
+        noise_channels: str | list[str] | list[tuple[str, dict]] | None = None,
+        common_noise_options: dict | None = None,
+        spectrum_data: SpectrumData | None = None,
         get_rate: bool = False,
         scale: float = 1,
-        num_cpus: Optional[int] = None,
+        num_cpus: int | None = None,
         **kwargs,
-    ) -> Tuple[Figure, Axes]:
+    ) -> tuple[Figure, Axes]:
         r"""Plot effective :math:`T_1` coherence time (rate) as a function of changing
         parameter.
 
@@ -427,10 +429,10 @@ class NoisySystem(ABC):
                     opts = noise_channel[1]
                     max_level = max(max_level, opts.get("i", 1), opts.get("j", 1))
 
-            spectrum_data = self.get_spectrum_vs_paramvals(  # type:ignore
+            spectrum_data = self.get_spectrum_vs_paramvals(  # type: ignore[attr-defined]
                 param_name,
                 param_vals,
-                evals_count=max_level + 1,  # type: ignore
+                evals_count=max_level + 1,
                 subtract_ground=True,
                 get_eigenstates=True,
                 filename=None,
@@ -446,12 +448,12 @@ class NoisySystem(ABC):
                 scale
                 * self.set_and_return(
                     param_name, param_val
-                ).t1_effective(  # type:ignore
+                ).t1_effective(  # type: ignore[attr-defined]
                     noise_channels=noise_channels,
                     common_noise_options=common_noise_options,
                     esys=(
-                        spectrum_data.energy_table[param_idx, :],  # type:ignore
-                        spectrum_data.state_table[param_idx],  # type:ignore
+                        spectrum_data.energy_table[param_idx, :],
+                        spectrum_data.state_table[param_idx],  # type: ignore[index]
                     ),
                 )
                 for param_idx, param_val in enumerate(param_vals)
@@ -459,7 +461,7 @@ class NoisySystem(ABC):
         )
 
         # Set the parameter we varied to its initial value
-        setattr(self, param_name, current_val)  # type:ignore
+        setattr(self, param_name, current_val)
 
         plotting_options = {
             "title": "t1_effective",
@@ -479,7 +481,7 @@ class NoisySystem(ABC):
         plotting_options.update(kwargs)
 
         fig, axes = plotting.data_vs_paramvals(
-            param_vals, noise_vals, **plotting_options
+            param_vals, noise_vals, **plotting_options  # type: ignore[arg-type]
         )
 
         fig.tight_layout()
@@ -491,14 +493,14 @@ class NoisySystem(ABC):
         self,
         param_name: str,
         param_vals: ndarray,
-        noise_channels: Union[str, List[str], List[Tuple[str, Dict]]] = None,
-        common_noise_options: Dict = None,
-        spectrum_data: SpectrumData = None,
+        noise_channels: str | list[str] | list[tuple[str, dict]] | None = None,
+        common_noise_options: dict | None = None,
+        spectrum_data: SpectrumData | None = None,
         get_rate: bool = False,
         scale: float = 1,
-        num_cpus: Optional[int] = None,
+        num_cpus: int | None = None,
         **kwargs,
-    ) -> Tuple[Figure, Axes]:
+    ) -> tuple[Figure, Axes]:
         r"""Plot effective :math:`T_2` coherence time (rate) as a function of changing
         parameter.
 
@@ -578,10 +580,10 @@ class NoisySystem(ABC):
                     opts = noise_channel[1]
                     max_level = max(max_level, opts.get("i", 1), opts.get("j", 1))
 
-            spectrum_data = self.get_spectrum_vs_paramvals(  # type:ignore
+            spectrum_data = self.get_spectrum_vs_paramvals(  # type: ignore[attr-defined]
                 param_name,
                 param_vals,
-                evals_count=max_level + 1,  # type: ignore
+                evals_count=max_level + 1,
                 subtract_ground=True,
                 get_eigenstates=True,
                 filename=None,
@@ -599,8 +601,8 @@ class NoisySystem(ABC):
                     noise_channels=noise_channels,
                     common_noise_options=common_noise_options,
                     esys=(
-                        spectrum_data.energy_table[v_i, :],  # type:ignore
-                        spectrum_data.state_table[v_i],  # type:ignore
+                        spectrum_data.energy_table[v_i, :],
+                        spectrum_data.state_table[v_i],  # type: ignore[index]
                     ),
                     get_rate=get_rate,
                 )
@@ -627,7 +629,7 @@ class NoisySystem(ABC):
         plotting_options.update(kwargs)
 
         fig, axes = plotting.data_vs_paramvals(
-            param_vals, noise_vals, **plotting_options
+            param_vals, noise_vals, **plotting_options  # type: ignore[arg-type]
         )
 
         fig.tight_layout()
@@ -635,9 +637,9 @@ class NoisySystem(ABC):
 
     def _effective_rate(
         self,
-        noise_channels: Union[List[str], List[Tuple[str, Dict]]],
-        common_noise_options: Dict,
-        esys: Tuple[ndarray, ndarray],
+        noise_channels: list[str] | list[tuple[str, dict]],
+        common_noise_options: dict,
+        esys: tuple[ndarray, ndarray],
         noise_type: str,
     ) -> float:
         """Helper method used when calculating the effective rates by methods
@@ -718,9 +720,9 @@ class NoisySystem(ABC):
 
     def t1_effective(
         self,
-        noise_channels: Optional[Union[str, List[str], List[Tuple[str, Dict]]]] = None,
-        common_noise_options: Optional[Dict] = None,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        noise_channels: str | list[str] | list[tuple[str, dict]] | None = None,
+        common_noise_options: dict | None = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
@@ -754,7 +756,6 @@ class NoisySystem(ABC):
             spectral data used during noise calculations
         get_rate:
             get rate or time
-
 
         Returns
         -------
@@ -820,9 +821,9 @@ class NoisySystem(ABC):
 
     def t2_effective(
         self,
-        noise_channels: Union[str, List[str], List[Tuple[str, Dict]]] = None,
-        common_noise_options: Dict = None,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        noise_channels: str | list[str] | list[tuple[str, dict]] | None = None,
+        common_noise_options: dict | None = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
     ) -> float:
         r"""Calculate the effective :math:`T_2` time (or rate).
@@ -934,8 +935,8 @@ class NoisySystem(ABC):
         A_noise: float,
         i: int,
         j: int,
-        noise_op: Union[ndarray, csc_matrix],
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        noise_op: ndarray | csc_matrix,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
@@ -1016,7 +1017,7 @@ class NoisySystem(ABC):
         A_noise: float = NOISE_PARAMS["A_flux"],
         i: int = 0,
         j: int = 1,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
@@ -1063,7 +1064,7 @@ class NoisySystem(ABC):
         A_noise: float = NOISE_PARAMS["A_cc"],
         i: int = 0,
         j: int = 1,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
@@ -1110,7 +1111,7 @@ class NoisySystem(ABC):
         A_noise: float = NOISE_PARAMS["A_ng"],
         i: int = 0,
         j: int = 1,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
@@ -1128,7 +1129,6 @@ class NoisySystem(ABC):
             evals, evecs tuple
         get_rate:
             get rate or time
-
 
         Returns
         -------
@@ -1156,11 +1156,11 @@ class NoisySystem(ABC):
         self,
         i: int,
         j: int,
-        noise_op: Union[ndarray, csc_matrix],
+        noise_op: ndarray | csc_matrix,
         spectral_density: Callable,
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
     ) -> float:
         r"""Calculate the transition time (or rate) using Fermi's Golden Rule due to a
@@ -1198,7 +1198,6 @@ class NoisySystem(ABC):
             evals, evecs tuple
         get_rate:
             get rate or time
-
 
         Returns
         -------
@@ -1258,13 +1257,13 @@ class NoisySystem(ABC):
         self,
         i: int = 1,
         j: int = 0,
-        Q_cap: Optional[Union[float, Callable]] = None,
+        Q_cap: float | Callable | None = None,
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
-        noise_op: Optional[Union[ndarray, csc_matrix, qt.Qobj]] = None,
-        branch_params: Optional[dict] = None,
+        noise_op: ndarray | csc_matrix | qt.Qobj | None = None,
+        branch_params: dict | None = None,
     ) -> float:
         r""":math:`T_1` due to dielectric dissipation in the Josephson junction
         capacitances.
@@ -1353,12 +1352,12 @@ class NoisySystem(ABC):
         self,
         i: int = 1,
         j: int = 0,
-        Z: Union[float, Callable] = NOISE_PARAMS["R_0"],
+        Z: float | Callable = NOISE_PARAMS["R_0"],
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
-        noise_op: Optional[Union[ndarray, csc_matrix, qt.Qobj]] = None,
+        noise_op: ndarray | csc_matrix | qt.Qobj | None = None,
     ) -> float:
         r"""Noise due to charge coupling to an impedance (such as a transmission line).
 
@@ -1432,12 +1431,12 @@ class NoisySystem(ABC):
         i: int = 1,
         j: int = 0,
         M: float = NOISE_PARAMS["M"],
-        Z: Union[complex, float, Callable] = NOISE_PARAMS["R_0"],
+        Z: complex | float | Callable = NOISE_PARAMS["R_0"],
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
-        noise_op_method: Optional[Callable] = None,
+        noise_op_method: Callable | None = None,
     ) -> float:
         r"""Noise due to a bias flux line.
 
@@ -1462,7 +1461,6 @@ class NoisySystem(ABC):
             evals, evecs tuple
         get_rate:
             get rate or time
-
 
         Returns
         -------
@@ -1514,13 +1512,13 @@ class NoisySystem(ABC):
         self,
         i: int = 1,
         j: int = 0,
-        Q_ind: Union[float, Callable] = None,
+        Q_ind: float | Callable | None = None,
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
-        noise_op: Optional[Union[ndarray, csc_matrix, qt.Qobj]] = None,
-        branch_params: Optional[dict] = None,
+        noise_op: ndarray | csc_matrix | qt.Qobj | None = None,
+        branch_params: dict | None = None,
     ) -> float:
         r""":math:`T_1` due to inductive dissipation in a superinductor.
 
@@ -1621,19 +1619,18 @@ class NoisySystem(ABC):
         self,
         i: int = 1,
         j: int = 0,
-        Y_qp: Optional[Union[float, Callable]] = None,
+        Y_qp: float | Callable | None = None,
         x_qp: float = NOISE_PARAMS["x_qp"],
         T: float = NOISE_PARAMS["T"],
         Delta: float = NOISE_PARAMS["Delta"],
         total: bool = True,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
-        noise_op: Optional[Union[ndarray, csc_matrix, qt.Qobj]] = None,
+        noise_op: ndarray | csc_matrix | qt.Qobj | None = None,
     ) -> float:
         r"""Noise due to quasiparticle tunneling across a Josephson junction.
 
         References: Smith et al (2020), Catelani et al (2011), Pop et al (2014).
-
 
         Parameters
         ----------

@@ -10,12 +10,15 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
+from collections.abc import Iterable
 import cmath
 import numbers
 import warnings
 
 from collections import OrderedDict
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, Literal
+from typing import Any, Literal
 
 import numpy as np
 
@@ -36,35 +39,26 @@ EllipsisType = Any  # unfortunate workaround (see ongoing discussion)
 # Standard numpy types valid as a single slot index; with and without Ellipsis
 # ExtIndex is a single-slot index that enables custom slicing options, including
 # value-based indexing
-NpIndexNoEllipsis = Union[
-    int,
-    np.integer,
-    slice,
-    Tuple[int],
-    List[int],
-    Tuple[int, np.integer],
-    List[np.integer],
-]
-NpIndex = Union[NpIndexNoEllipsis, EllipsisType]
-ExtIndex = Union[NpIndex, float, complex]
+NpIndexNoEllipsis = int | np.integer | slice | tuple[int] | list[int] | tuple[int, np.integer] | list[np.integer]
+NpIndex = NpIndexNoEllipsis | EllipsisType
+ExtIndex = NpIndex | float | complex
 
 # Tuple of standard numpy or extended indices spans/can span multiple slots; with and
 # without Ellipsis
-NpIndexTupleNoEllipsis = Tuple[NpIndexNoEllipsis, ...]
-NpIndexTuple = Tuple[NpIndex, ...]
-ExtIndexTuple = Tuple[ExtIndex, ...]
+NpIndexTupleNoEllipsis = tuple[NpIndexNoEllipsis, ...]
+NpIndexTuple = tuple[NpIndex, ...]
+ExtIndexTuple = tuple[ExtIndex, ...]
 
 # Single- or multi-slot numpy or extended index; with and without Ellipsis
-NpIndicesNoEllipsis = Union[NpIndexNoEllipsis, NpIndexTupleNoEllipsis]
-NpIndices = Union[NpIndex, NpIndexTuple]
-ExtIndices = Union[ExtIndex, ExtIndexTuple]
+NpIndicesNoEllipsis = NpIndexNoEllipsis | NpIndexTupleNoEllipsis
+NpIndices = NpIndex | NpIndexTuple
+ExtIndices = ExtIndex | ExtIndexTuple
 
 # Numpy: valid slice(a, b, c) entry types
-NpSliceEntry = Union[int, np.integer, None]
-ExtSliceEntry = Union[NpSliceEntry, float, complex, str]
+NpSliceEntry = int | np.integer | None
+ExtSliceEntry = NpSliceEntry | float | complex | str
 
-
-def idx_for_value(value: Union[int, float, complex], param_vals: ndarray) -> int:
+def idx_for_value(value: int | float | complex, param_vals: ndarray) -> int:
     location = int(np.abs(param_vals - value).argmin())
     selected_value = param_vals[location]
 
@@ -86,7 +80,6 @@ def idx_for_value(value: Union[int, float, complex], param_vals: ndarray) -> int
             location,
         )
     return location
-
 
 def convert_to_std_npindex(
     index_tuple: ExtIndexTuple, parameters: "Parameters"
@@ -111,9 +104,8 @@ def convert_to_std_npindex(
     np_indices = ExtIndexTupleObject(extindex_obj_tuple).convert_to_np_index_exp()
     return np_indices
 
-
 def process_ellipsis(
-    array: Union["Parameters", np.ndarray], multi_idx: NpIndexTuple
+    array: "Parameters" | np.ndarray, multi_idx: NpIndexTuple
 ) -> NpIndexTupleNoEllipsis:
     """Removes `...` from the multi-index by explicit slicing.
 
@@ -128,9 +120,9 @@ def process_ellipsis(
     -------
         Processed multi-index not containing any `...`
     """
-    new_multi_idx: List[NpIndexNoEllipsis] = [
+    new_multi_idx: list[NpIndexNoEllipsis] = [
         slice(None, None, None)
-    ] * array.ndim  # type:ignore
+    ] * array.ndim  # type: ignore[operator, assignment]
     # Replace the slice(None, None, None) entries, starting from beginning until
     # Ellipsis is encountered
     slot = 0
@@ -145,7 +137,6 @@ def process_ellipsis(
         slot -= 1
     return tuple(new_multi_idx)
 
-
 class ExtIndexObject:
     """Object used for enabling enhanced indexing in NamedSlotsNdarray.
 
@@ -153,12 +144,12 @@ class ExtIndexObject:
     """
 
     def __init__(
-        self, idx_entry: ExtIndex, parameters: "Parameters", slot: Optional[int] = None
+        self, idx_entry: ExtIndex, parameters: "Parameters", slot: int | None = None
     ) -> None:
         self.idx_entry = idx_entry
         self._parameters = parameters
         self.slot = slot
-        self.name: Optional[str] = None
+        self.name: str | None = None
         self.type, self.std_idx_entry = self.convert_to_np_idx_entry(idx_entry)
 
     def convert_to_np_slice_entry(self, slice_entry: ExtSliceEntry) -> NpSliceEntry:
@@ -176,7 +167,7 @@ class ExtIndexObject:
 
         raise TypeError("Invalid slice entry: {}".format(slice_entry))
 
-    def convert_to_np_idx_entry(self, idx_entry: ExtIndex) -> Tuple[str, NpIndex]:
+    def convert_to_np_idx_entry(self, idx_entry: ExtIndex) -> tuple[str, NpIndex]:
         """Convert a generalized multi-index entry into a valid numpy multi-index entry,
         and returns that along with a str recording the idx_entry type."""
         if isinstance(idx_entry, (int, np.integer)):
@@ -222,16 +213,15 @@ class ExtIndexObject:
 
         raise TypeError("Invalid index: {}".format(idx_entry))
 
-
 class ExtIndexTupleObject:
-    def __init__(self, extindex_tuple: Tuple[ExtIndexObject, ...]):
+    def __init__(self, extindex_tuple: tuple[ExtIndexObject, ...]):
         self._parameters = extindex_tuple[0]._parameters
         self.slot_count = len(self._parameters)
         self.extindex_tuple = extindex_tuple
 
     def _name_based_to_np_index_exp(self) -> NpIndexTuple:
         """Converts a name-based multi-index into a standard numpy index_exp."""
-        converted_multi_index: List[NpIndex] = [
+        converted_multi_index: list[NpIndex] = [
             slice(None, None, None)
         ] * self.slot_count
 
@@ -243,7 +233,7 @@ class ExtIndexTupleObject:
             ), "Internal error in NamedSlotsNdarray: index missing `name` attribute!"
             slot_index = self._parameters.index_by_name[
                 extindex_object.name
-            ]  # type:ignore
+            ]
             assert isinstance(slot_index, int), "Internal NamedSlotsNdarray error"
             converted_multi_index[slot_index] = extindex_object.std_idx_entry
         return tuple(converted_multi_index)
@@ -258,7 +248,6 @@ class ExtIndexTupleObject:
             return self._name_based_to_np_index_exp()
 
         return tuple(extindex.std_idx_entry for extindex in self.extindex_tuple)
-
 
 class Parameters:
     """Convenience class for maintaining multiple parameter sets: names and values of
@@ -278,8 +267,8 @@ class Parameters:
 
     def __init__(
         self,
-        paramvals_by_name: Dict[str, ndarray],
-        paramnames_list: Optional[List[str]] = None,
+        paramvals_by_name: dict[str, ndarray],
+        paramnames_list: list[str] | None = None,
     ) -> None:
         if paramnames_list is not None:
             self.paramnames_list = paramnames_list
@@ -331,7 +320,7 @@ class Parameters:
         return len(self.paramnames_list)
 
     @property
-    def counts_by_name(self) -> Dict[str, int]:
+    def counts_by_name(self) -> dict[str, int]:
         """Returns a dictionary specifying for each parameter name the number of
         parameter values."""
         return {
@@ -340,25 +329,25 @@ class Parameters:
         }
 
     @property
-    def ranges(self) -> List[Iterable]:
+    def ranges(self) -> list[Iterable]:
         """Return a list of range objects suitable for looping over each parameter
         set."""
         return [range(count) for count in self.counts]
 
     @property
-    def paramvals_list(self) -> List[ndarray]:
+    def paramvals_list(self) -> list[ndarray]:
         """Return list of all parameter values sets."""
         return [self.paramvals_by_name[name] for name in self.paramnames_list]
 
     @property
-    def counts(self) -> Tuple[int, ...]:
+    def counts(self) -> tuple[int, ...]:
         """Returns list of the number of parameter values for each parameter set."""
         return tuple(len(paramvals) for paramvals in self)
 
     def create_reduced(
         self,
-        fixed_parametername_list: List[str],
-        fixed_values: Optional[List[float]] = None,
+        fixed_parametername_list: list[str],
+        fixed_values: list[float] | None = None,
     ) -> "Parameters":
         """Creates and returns a reduced Parameters object reflecting the fixing of a
         subset of parameters.
@@ -467,7 +456,6 @@ class Parameters:
 
         return OrderedDict(zip(self.paramnames_list, param_mesh_nsarray))
 
-
 class NamedSlotsNdarray(np.ndarray, Serializable):
     """
     This class implements multi-dimensional arrays, for which the leading M dimensions
@@ -497,7 +485,6 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         some_array[0.25, 0:2]                   -->     some_array[2, 0:2]
         some_array[-3.0, 0.0:(2.0 - 4.0*1j)]    -->     some_array[0, 0:1]
 
-
     (2) Name-based slicing
     Sometimes, it is convenient to refer to one of the slots
     by its name rather than its position within the multiple sets. As an example, let::
@@ -526,7 +513,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
     parameters: Parameters
 
     def __new__(
-        cls, input_array: np.ndarray, values_by_name: Dict[str, ndarray]
+        cls, input_array: np.ndarray, values_by_name: dict[str, ndarray]
     ) -> "NamedSlotsNdarray":
         implied_shape = tuple(len(values) for values in values_by_name.values())
         if input_array.shape[0 : len(values_by_name)] != implied_shape:
@@ -550,14 +537,14 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         extended string and value based slicing."""
         multi_index_std = np.index_exp[multi_index]  # convert to standard tuple form
         try:
-            obj = super().__getitem__(multi_index_std)
+            obj = super().__getitem__(multi_index_std)  # type: ignore[index]
             # This attempt fails if multi-index is string- or value-based
         except (TypeError, IndexError):
-            multi_index_std = convert_to_std_npindex(multi_index_std, self._parameters)
-            obj = super().__getitem__(multi_index_std)
+            multi_index_std = convert_to_std_npindex(multi_index_std, self._parameters)  # type: ignore[assignment]
+            obj = super().__getitem__(multi_index_std)  # type: ignore[index]
 
         if Ellipsis in multi_index_std:
-            multi_index_std = process_ellipsis(self, multi_index_std)
+            multi_index_std = process_ellipsis(self, multi_index_std)  # type: ignore[assignment]
         # If the resulting obj is a sliced view of the current array, then we must
         # adjust the internal Parameters instance accordingly
         if isinstance(obj, NamedSlotsNdarray):
@@ -565,7 +552,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
             dummy_array = np.empty(shape=self._parameters.counts)
             # Check whether all parameters are getting fixed; if not, adjust
             # Parameters for the new object
-            if not isinstance(dummy_array[multi_index_std[:param_count]], float):
+            if not isinstance(dummy_array[multi_index_std[:param_count]], float):  # type: ignore[index]
                 # have not reduced to one element
                 obj._parameters = self._parameters.create_sliced(
                     multi_index_std[:param_count]
@@ -612,7 +599,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         typename = "NamedSlotsNdarray"
         io_attributes = None
         if self.dtype in [np.float64, np.complex128, np.int_]:
-            io_ndarrays: Optional[Dict[str, ndarray]] = {
+            io_ndarrays: dict[str, ndarray] | None = {
                 "input_array": self.view(np.ndarray)
             }
             objects = {"values_by_name": self._parameters.paramvals_by_name}
@@ -629,7 +616,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         return len(self._parameters.paramvals_by_name)
 
     @rc_context(settings.matplotlib_settings)
-    def plot(self, **kwargs) -> Tuple[Figure, Axes]:
+    def plot(self, **kwargs) -> tuple[Figure, Axes]:
         if len(self._parameters) != 1:
             raise ValueError(
                 "Plotting of NamedSlotNdarray only supported for a "
@@ -643,7 +630,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         )
 
     @property
-    def param_info(self) -> Dict[str, ndarray]:
+    def param_info(self) -> dict[str, ndarray]:
         return self._parameters.paramvals_by_name
 
     def recast(self) -> "NamedSlotsNdarray":

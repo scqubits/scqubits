@@ -12,7 +12,9 @@
 
 # Recap on descriptors: see https://realpython.com/python-descriptors/
 
-from typing import Any, Generic, Optional, Type, TypeVar
+from __future__ import annotations
+
+from typing import Any, Generic, Type, TypeVar
 
 from scqubits.core.central_dispatch import DispatchClient
 
@@ -30,7 +32,7 @@ class ReadOnlyProperty(Generic[TargetType]):
 
     def __get__(self, instance: Any, *args, **kwargs) -> TargetType:
         if instance is None:  # when accessed on class level rather than instance level
-            return self  # type:ignore
+            return self  # type: ignore[return-value]
         return instance.__dict__[self.name]
 
     def __set__(self, instance: Any, value: Any):
@@ -59,8 +61,8 @@ class WatchedProperty(Generic[TargetType]):
         self,
         target_type: Type[TargetType],
         event: str,
-        inner_object_name: Optional[str] = None,
-        attr_name: Optional[str] = None,
+        inner_object_name: str | None = None,
+        attr_name: str | None = None,
         fget=None,
         fset=None,
     ) -> None:
@@ -76,7 +78,7 @@ class WatchedProperty(Generic[TargetType]):
 
     def __get__(self, instance: object, owner: Any) -> TargetType:
         if instance is None:  # when accessed on class level rather than instance level
-            return self  # type:ignore
+            return self  # type: ignore[return-value]
 
         assert self.attr_name
         if self.inner:

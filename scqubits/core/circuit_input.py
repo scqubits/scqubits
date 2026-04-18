@@ -1,4 +1,5 @@
-from typing import Tuple, Optional, Union, Dict
+from __future__ import annotations
+
 import pyparsing as pp
 import os
 
@@ -70,7 +71,7 @@ prefix_dict = {
     "p": 1e-12,  # pico
     "f": 1e-15,  # femto
 }
-PREFIX = pp.Char(list(prefix_dict.keys()))
+PREFIX = pp.Char(list(prefix_dict.keys()))  # type: ignore[arg-type]
 
 energy_names = ["EJ", "EC", "EL", "EML"]
 
@@ -78,10 +79,10 @@ energy_names = ["EJ", "EC", "EL", "EML"]
 UNITS_FREQ_ENERGY = Literal("Hz") ^ Literal("J") ^ Literal("eV")
 
 UNITS = {name: Opt(PREFIX, None) for name in energy_names}
-UNITS["EJ"] += UNITS_FREQ_ENERGY ^ Literal("A") ^ Literal("H")  # Ampere, Henry
-UNITS["EC"] += UNITS_FREQ_ENERGY ^ Literal("F")  # Farad
-UNITS["EL"] += UNITS_FREQ_ENERGY ^ Literal("H")  # Henry
-UNITS["EML"] += UNITS_FREQ_ENERGY ^ Literal("H")  # Henry
+UNITS["EJ"] += UNITS_FREQ_ENERGY ^ Literal("A") ^ Literal("H")  # type: ignore[assignment]  # Ampere, Henry
+UNITS["EC"] += UNITS_FREQ_ENERGY ^ Literal("F")  # type: ignore[assignment]  # Farad
+UNITS["EL"] += UNITS_FREQ_ENERGY ^ Literal("H")  # type: ignore[assignment]  # Henry
+UNITS["EML"] += UNITS_FREQ_ENERGY ^ Literal("H")  # type: ignore[assignment]  # Henry
 for name, unit in UNITS.items():
     unit.leave_whitespace()  # allow only "kHz", not "k Hz"
     unit.set_name(f"{name}_UNITS")
@@ -275,9 +276,9 @@ def convert_value_to_GHz(val, units):
         raise ValueError(f"Unknown unit {unit_str}")
 
 
-def process_param(
+def process_param(  # type: ignore[return]
     pattern,
-) -> Union[Dict[sm.Symbol, float], Tuple[Optional[sm.Symbol], Optional[float]]]:
+) -> dict[sm.Symbol, float] | tuple[sm.Symbol | None, float | None]:
     """Returns a tuple containing (symbol, value) given a pattern as detected by
     pyparsing.
 

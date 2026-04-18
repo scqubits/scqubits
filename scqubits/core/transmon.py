@@ -33,6 +33,8 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 
+from scipy.sparse import csc_matrix
+
 from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 from scqubits.core.storage import WaveFunction
@@ -207,7 +209,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
     def n_operator(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
-    ) -> ndarray:
+    ) -> ndarray | csc_matrix:
         """Returns charge operator n in the charge or eigenenergy basis.
 
         Parameters
@@ -228,11 +230,11 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         diag_elements = np.arange(-self.ncut, self.ncut + 1, 1)
         native = np.diag(diag_elements)
-        return self.process_op(native_op=native, energy_esys=energy_esys)  # type: ignore[return-value]
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def exp_i_phi_operator(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
-    ) -> ndarray:
+    ) -> ndarray | csc_matrix:
         r"""
         Returns operator :math:`e^{i\varphi}` in the charge or eigenenergy basis.
 
@@ -254,11 +256,11 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         dimension = self.hilbertdim()
         entries = np.repeat(1.0, dimension - 1)
         exp_op = np.diag(entries, -1)
-        return self.process_op(native_op=exp_op, energy_esys=energy_esys)  # type: ignore[return-value]
+        return self.process_op(native_op=exp_op, energy_esys=energy_esys)
 
     def cos_phi_operator(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
-    ) -> ndarray:
+    ) -> ndarray | csc_matrix:
         r"""
         Returns operator :math:`\cos \varphi` in the charge or eigenenergy basis.
 
@@ -277,13 +279,13 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\cos \varphi` has dimensions of m x m,
             for m given eigenvectors.
         """
-        cos_op = 0.5 * self.exp_i_phi_operator()
+        cos_op = 0.5 * np.asarray(self.exp_i_phi_operator())
         cos_op += cos_op.T
-        return self.process_op(native_op=cos_op, energy_esys=energy_esys)  # type: ignore[return-value]
+        return self.process_op(native_op=cos_op, energy_esys=energy_esys)
 
     def sin_phi_operator(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
-    ) -> ndarray:
+    ) -> ndarray | csc_matrix:
         r"""
         Returns operator :math:`\sin \varphi` in the charge or eigenenergy basis.
 
@@ -302,13 +304,13 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\sin \varphi` has dimensions of m x m,
             for m given eigenvectors.
         """
-        sin_op = -1j * 0.5 * self.exp_i_phi_operator()
+        sin_op = -1j * 0.5 * np.asarray(self.exp_i_phi_operator())
         sin_op += sin_op.conjugate().T
-        return self.process_op(native_op=sin_op, energy_esys=energy_esys)  # type: ignore[return-value]
+        return self.process_op(native_op=sin_op, energy_esys=energy_esys)
 
     def hamiltonian(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
-    ) -> ndarray:
+    ) -> ndarray | csc_matrix:
         """Returns Hamiltonian in the charge or eigenenergy basis.
 
         Parameters
@@ -335,13 +337,13 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         ind = np.arange(dimension - 1)
         hamiltonian_mat[ind, ind + 1] = -self.EJ / 2.0
         hamiltonian_mat[ind + 1, ind] = -self.EJ / 2.0
-        return self.process_hamiltonian(  # type: ignore[return-value]
+        return self.process_hamiltonian(
             native_hamiltonian=hamiltonian_mat, energy_esys=energy_esys
         )
 
     def d_hamiltonian_d_ng(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
-    ) -> ndarray:
+    ) -> ndarray | csc_matrix:
         """Returns operator representing a derivative of the Hamiltonian with respect to
         charge offset :attr:`ng` in the charge or eigenenergy basis.
 
@@ -361,11 +363,11 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             for m given eigenvectors.
         """
         native = -8 * self.EC * self.n_operator(energy_esys=energy_esys)
-        return self.process_op(native_op=native, energy_esys=energy_esys)  # type: ignore[return-value]
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def d_hamiltonian_d_EJ(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
-    ) -> ndarray:
+    ) -> ndarray | csc_matrix:
         """Returns operator representing a derivative of the Hamiltonian with respect to
         EJ in the charge or eigenenergy basis.
 
@@ -385,7 +387,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             for m given eigenvectors.
         """
         native = -self.cos_phi_operator()
-        return self.process_op(native_op=native, energy_esys=energy_esys)  # type: ignore[return-value]
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def hilbertdim(self) -> int:
         """Returns Hilbert space dimension."""
@@ -446,9 +448,9 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     ) -> tuple[Figure, Axes]:
         """Alias for plot_wavefunction."""
         return self.plot_wavefunction(
-            esys=esys,  # type: ignore[arg-type]
+            esys=esys,
             which=which,
-            phi_grid=phi_grid,  # type: ignore[arg-type]
+            phi_grid=phi_grid,
             mode=mode,
             scaling=scaling,
             **kwargs,
@@ -652,9 +654,9 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         ncut: int,
         truncated_dim: int = 6,
         id_str: str | None = None,
-        evals_method: str | None = None,
+        evals_method: Callable[..., Any] | str | None = None,
         evals_method_options: dict[str, Any] | None = None,
-        esys_method: str | None = None,
+        esys_method: Callable[..., Any] | str | None = None,
         esys_method_options: dict[str, Any] | None = None,
     ) -> None:
         base.QubitBaseClass.__init__(
@@ -676,7 +678,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         self._default_n_range = (-5, 6)
 
     @property
-    def EJ(self) -> float:  # type: ignore
+    def EJ(self) -> float:  # type: ignore[override]
         """This is the effective, flux dependent Josephson energy, playing the role of
         EJ in the parent class :class:`Transmon`"""
         return self.EJmax * np.sqrt(
@@ -709,7 +711,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
 
     def d_hamiltonian_d_flux(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
-    ) -> ndarray:
+    ) -> ndarray | csc_matrix:
         r"""Returns operator representing a derivative of the Hamiltonian with respect to
         :attr:`flux` in the charge or eigenenergy basis.
 
@@ -754,7 +756,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
             )
             * self.sin_phi_operator()
         )
-        return self.process_op(native_op=native, energy_esys=energy_esys)  # type: ignore[return-value]
+        return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def _compute_dispersion(
         self,
@@ -804,29 +806,27 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
                 [
                     [
                         np.abs(
-                            specdata_flux_0.energy_table[param_index, j]  # type:ignore
-                            - specdata_flux_05.energy_table[
-                                param_index, j
-                            ]  # type:ignore
+                            specdata_flux_0.energy_table[param_index, j]
+                            - specdata_flux_05.energy_table[param_index, j]
                         )
                         for param_index, _ in enumerate(param_vals)
                     ]
                     for j in levels_tuple
                 ]
             )
-            return specdata_flux_0.energy_table, dispersion  # type:ignore
+            return specdata_flux_0.energy_table, dispersion
 
         dispersion_list = []
         for i, j in transitions_tuple:
             list_ij = []
             for param_index, _ in enumerate(param_vals):
-                ei_0 = specdata_flux_0.energy_table[param_index, i]  # type:ignore
-                ei_05 = specdata_flux_05.energy_table[param_index, i]  # type:ignore
-                ej_0 = specdata_flux_0.energy_table[param_index, j]  # type:ignore
-                ej_05 = specdata_flux_05.energy_table[param_index, j]  # type:ignore
+                ei_0 = specdata_flux_0.energy_table[param_index, i]
+                ei_05 = specdata_flux_05.energy_table[param_index, i]
+                ej_0 = specdata_flux_0.energy_table[param_index, j]
+                ej_05 = specdata_flux_05.energy_table[param_index, j]
                 list_ij.append(
                     np.max([np.abs(ei_0 - ej_0), np.abs(ei_05 - ej_05)])
                     - np.min([np.abs(ei_0 - ej_0), np.abs(ei_05 - ej_05)])
                 )
             dispersion_list.append(list_ij)
-        return specdata_flux_0.energy_table, np.asarray(dispersion_list)  # type:ignore
+        return specdata_flux_0.energy_table, np.asarray(dispersion_list)

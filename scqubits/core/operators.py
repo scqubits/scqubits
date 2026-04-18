@@ -10,7 +10,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import Optional, Union
+from __future__ import annotations
 
 import numpy as np
 import scipy as sp
@@ -30,7 +30,7 @@ def annihilation_sparse(dimension: int) -> csc_matrix:
     """Returns a matrix of size dimension x dimension representing the annihilation
     operator in the format of a scipy sparse.csc_matrix."""
     offdiag_elements = np.sqrt(range(dimension))
-    return sp.sparse.dia_matrix(
+    return sp.sparse.dia_matrix(  # type: ignore[type-var, misc, return-value]
         (offdiag_elements, [1]), shape=(dimension, dimension)
     ).tocsc()
 
@@ -61,13 +61,15 @@ def hubbard_sparse(j1: int, j2: int, dimension: int) -> csc_matrix:
     -------
         sparse number operator matrix, size dimension x dimension
     """
-    hubbardmat = sp.sparse.dok_matrix((dimension, dimension), dtype=np.float64)
+    hubbardmat = sp.sparse.dok_matrix(
+        (dimension, dimension), dtype=np.float64  # type: ignore[arg-type]
+    )
     hubbardmat[j1, j2] = 1.0
     return hubbardmat.asformat("csc")
 
 
 def number(
-    dimension: int, prefactor: Optional[Union[float, complex]] = None
+    dimension: int, prefactor: float | complex | None = None
 ) -> ndarray:
     """Number operator matrix of size dimension x dimension in sparse matrix
     representation. An additional prefactor can be directly included in the generation
@@ -87,12 +89,12 @@ def number(
     """
     diag_elements = np.arange(dimension, dtype=np.float64)
     if prefactor:
-        diag_elements *= prefactor
+        diag_elements *= prefactor  # type: ignore[arg-type]
     return np.diagflat(diag_elements)
 
 
 def number_sparse(
-    dimension: int, prefactor: Optional[Union[float, complex]] = None
+    dimension: int, prefactor: float | complex | None = None
 ) -> csc_matrix:
     """Number operator matrix of size dimension x dimension in sparse matrix
     representation. An additional prefactor can be directly included in the generation
@@ -111,14 +113,14 @@ def number_sparse(
     """
     diag_elements = np.arange(dimension, dtype=np.float64)
     if prefactor:
-        diag_elements *= prefactor
+        diag_elements *= prefactor  # type: ignore[arg-type]
     return sp.sparse.dia_matrix(
         (diag_elements, [0]), shape=(dimension, dimension), dtype=np.float64
     ).tocsc()
 
 
 def a_plus_adag_sparse(
-    dimension: int, prefactor: Union[float, complex, None] = None
+    dimension: int, prefactor: float | complex | None = None
 ) -> csc_matrix:
     r"""Operator matrix for prefactor(:math:`a+a^\dagger`) of size dimension x dimension in
     sparse matrix representation.
@@ -140,7 +142,7 @@ def a_plus_adag_sparse(
 
 
 def a_plus_adag(
-    dimension: int, prefactor: Union[float, complex, None] = None
+    dimension: int, prefactor: float | complex | None = None
 ) -> ndarray:
     r"""Operator matrix for prefactor(:math:`a+a^\dagger`) of size dimension x dimension in
     sparse matrix representation.
@@ -161,7 +163,7 @@ def a_plus_adag(
 
 
 def cos_theta_harmonic(
-    dimension: int, prefactor: Union[float, complex, None] = None
+    dimension: int, prefactor: float | complex | None = None
 ) -> ndarray:
     r"""Operator matrix for cos(prefactor(:math:`a+a^\dagger`)) of size dimension x dimension in
     sparse matrix representation.
@@ -182,7 +184,7 @@ def cos_theta_harmonic(
 
 
 def sin_theta_harmonic(
-    dimension: int, prefactor: Union[float, complex, None] = None
+    dimension: int, prefactor: float | complex | None = None
 ) -> ndarray:
     r"""Operator matrix for sin(prefactor(:math:`a+a^\dagger`)) of size dimension x dimension in
     sparse matrix representation.
@@ -203,7 +205,7 @@ def sin_theta_harmonic(
 
 
 def iadag_minus_ia_sparse(
-    dimension: int, prefactor: Union[float, complex, None] = None
+    dimension: int, prefactor: float | complex | None = None
 ) -> csc_matrix:
     r"""Operator matrix for prefactor(:math:`ia-ia^\dagger`) of size dimension x dimension as
     ndarray
@@ -227,7 +229,7 @@ def iadag_minus_ia_sparse(
 
 
 def iadag_minus_ia(
-    dimension: int, prefactor: Union[float, complex, None] = None
+    dimension: int, prefactor: float | complex | None = None
 ) -> ndarray:
     r"""Operator matrix for prefactor(:math:`ia-ia^\dagger`) of size dimension x dimension as
     ndarray

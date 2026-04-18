@@ -10,12 +10,13 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
 
 import logging
 import warnings
 import weakref
 from types import MethodType
-from typing import Optional
+
 from weakref import WeakKeyDictionary
 
 import scqubits.settings as settings
@@ -27,7 +28,6 @@ LOGGER = logging.getLogger(__name__)
 # LOGGER.setLevel(logging.DEBUG)
 # ---------------------------------------------------------------
 
-
 EVENTS = [
     "QUANTUMSYSTEM_UPDATE",
     "GRID_UPDATE",
@@ -37,7 +37,6 @@ EVENTS = [
     "PARAMETERSWEEP_UPDATE",
     "CIRCUIT_UPDATE",
 ]
-
 
 class CentralDispatch:
     """Primary class managing the central dispatch system."""
@@ -68,7 +67,7 @@ class CentralDispatch:
         return self.clients_dict[event]
 
     def register(
-        self, event: str, who: "DispatchClient", callback: Optional[MethodType] = None
+        self, event: str, who: "DispatchClient", callback: MethodType | None = None
     ) -> None:
         """Register object `who` for event `event`. (This modifies `clients_dict`.)
 
@@ -161,10 +160,8 @@ class CentralDispatch:
         if settings.DISPATCH_ENABLED:
             self._dispatch(event, sender=caller, **kwargs)
 
-
 # Start global instance of CentralDispatch()
 CENTRAL_DISPATCH = CentralDispatch()
-
 
 class DispatchClient:
     """Base class inherited by objects participating in central dispatch."""

@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import copy
 import itertools
 import warnings
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any
 
 import numpy as np
 from numpy import ndarray
@@ -35,7 +37,6 @@ from scqubits.core.circuit_input import (
 
 from abc import ABC
 
-
 class Node:
     """Class representing a circuit node, and handled by `Circuit`. The attribute
     `branches` is a list of `Branch` objects containing all branches connected to the
@@ -53,8 +54,8 @@ class Node:
     def __init__(self, index: int, marker: int = 0):
         self.index: int = index
         self.marker: int = marker
-        self._init_params: Dict[str, int] = {"id": self.index, "marker": self.marker}
-        self.branches: List[Branch] = []
+        self._init_params: dict[str, int] = {"id": self.index, "marker": self.marker}
+        self.branches: list[Branch] = []
 
     def __str__(self) -> str:
         return "Node {}".format(self.index)
@@ -62,7 +63,7 @@ class Node:
     def __repr__(self) -> str:
         return "Node({})".format(self.index)
 
-    def connected_nodes(self, branch_type: str) -> List["Node"]:
+    def connected_nodes(self, branch_type: str) -> list["Node"]:
         """Returns a list of all nodes directly connected by branches to the current
         node, either considering all branches or a specified `branch_type` - ("C", "L", "JJ", "all") for capacitive, inductive, Josephson junction, or all types of branches.
         """
@@ -91,7 +92,6 @@ class Node:
         for k, v in self.__dict__.items():
             setattr(result, k, copy.deepcopy(v, memo))
         return result
-
 
 class Branch:
     """Class describing a circuit branch, used in the Circuit class.
@@ -122,9 +122,9 @@ class Branch:
         n_i: Node,
         n_f: Node,
         branch_type: str,
-        parameters: List[Union[float, Symbol, int]],
-        index: Optional[int] = None,
-        aux_params: Dict[Symbol, float] = {},
+        parameters: list[float | Symbol | int],
+        index: int | None = None,
+        aux_params: dict[Symbol, float] = {},
     ):
         self.nodes = (n_i, n_f)
         self.type = branch_type
@@ -164,7 +164,7 @@ class Branch:
                     self.parameters[f"EJ{junc_order}"] = parameters[junc_order - 1]
             self.parameters["ECJ"] = parameters[number_of_junc_params]
 
-    def node_ids(self) -> Tuple[int, int]:
+    def node_ids(self) -> tuple[int, int]:
         """Returns the indices of the nodes connected by the branch."""
         return self.nodes[0].index, self.nodes[1].index
 
@@ -176,7 +176,7 @@ class Branch:
             return True
         return False
 
-    def common_node(self, branch) -> Set[Node]:
+    def common_node(self, branch) -> set[Node]:
         """Returns the common nodes between self and the `branch` given as input."""
         return set(self.nodes) & set(branch.nodes)
 
@@ -187,7 +187,6 @@ class Branch:
         for k, v in self.__dict__.items():
             setattr(result, k, copy.deepcopy(v, memo))
         return result
-
 
 class Coupler:
     """Coupler class is used to define elements which couple two existing branches in
@@ -214,9 +213,9 @@ class Coupler:
         branch1: Branch,
         branch2: Branch,
         coupling_type: str,
-        parameters: List[Union[float, Symbol, int]],
-        index: Optional[int] = None,
-        aux_params: Dict[Symbol, float] = {},
+        parameters: list[float | Symbol | int],
+        index: int | None = None,
+        aux_params: dict[Symbol, float] = {},
     ):
         self.branches = (branch1, branch2)
         self.type = coupling_type
@@ -239,9 +238,8 @@ class Coupler:
             setattr(result, k, copy.deepcopy(v, memo))
         return result
 
-
 def make_coupler(
-    branches_list: List[Branch],
+    branches_list: list[Branch],
     coupler_type: str,
     idx1: int,
     idx2: int,
@@ -270,14 +268,13 @@ def make_coupler(
             coupler_type,
             list(params_dict.values()),
             _branch_count,
-            process_param(aux_params),
+            process_param(aux_params),  # type: ignore[arg-type]
         ),
         sym_params_dict,
     )
 
-
 def make_branch(
-    nodes_list: List[Node],
+    nodes_list: list[Node],
     branch_type: str,
     idx1: int,
     idx2: int,
@@ -316,13 +313,24 @@ def make_branch(
             branch_type,
             list(params_dict.values()),
             _branch_count,
-            process_param(aux_params),
+            process_param(aux_params),  # type: ignore[arg-type]
         ),
         sym_params_dict,
     )
 
-
 class SymbolicCircuitGraph(ABC):
+
+    # class-level annotations for attributes provided by subclass SymbolicCircuit
+    nodes: list[Node]
+    branches: list[Branch]
+    ground_node: Node | None
+    is_grounded: bool
+    use_dynamic_flux_grouping: bool
+    is_purely_harmonic: bool
+    basis_completion: str
+    spanning_tree_dict: dict[str, Any]
+    closure_branches: list[Branch | dict[Branch, float]]
+    external_fluxes: list[Symbol]
 
     def _spanning_tree(
         self, consider_capacitive_loops: bool = False, use_closure_branches: bool = True
@@ -410,14 +418,14 @@ class SymbolicCircuitGraph(ABC):
         # *****************************************************************************
 
         # **************** Constructing the node_sets ***************
-        node_sets_for_trees = []  # seperate node sets for separate trees
+        node_sets_for_trees: list[list[list[Node]]] = []  # seperate node sets for separate trees
         if circ_copy.is_grounded:
             node_sets = [[circ_copy.ground_node]]
         else:
             node_sets = [
                 [circ_copy.nodes[0]]
             ]  # starting with the first set that has the first node as the only element
-        node_sets_for_trees.append(node_sets)
+        node_sets_for_trees.append(node_sets)  # type: ignore[arg-type]
 
         num_nodes = len(circ_copy.nodes)
         # this needs to be done as the ground node is not included in self.nodes
@@ -482,24 +490,24 @@ class SymbolicCircuitGraph(ABC):
                     return n
 
         list_of_trees = []
-        for node_sets in node_sets_for_trees:
+        for node_sets in node_sets_for_trees:  # type: ignore[assignment]
             tree = []  # tree having branches of the instance that is copied
 
             # find the branch connecting this node to another node in a previous node set.
-            for index, node_set in enumerate(node_sets):
+            for index, node_set in enumerate(node_sets):  # type: ignore[assignment]
                 if index == 0:
                     continue
                 for node in node_set:
                     for prev_node in node_sets[index - 1]:
-                        if len(connecting_branches(node, prev_node)) != 0:
-                            tree.append(connecting_branches(node, prev_node)[0])
+                        if len(connecting_branches(node, prev_node)) != 0:  # type: ignore[arg-type]
+                            tree.append(connecting_branches(node, prev_node)[0])  # type: ignore[arg-type]
                             break
             list_of_trees.append(tree)
 
         # as the capacitors are removed to form the spanning tree, and as a result
         # floating branches as well, the set of all branches which form the
         # superconducting loops would be in circ_copy.
-        closure_branches_for_trees = [[] for tree in list_of_trees]
+        closure_branches_for_trees: list[list[Branch]] = [[] for tree in list_of_trees]
         loop_branches_for_trees = []
         for tree_idx, tree in enumerate(list_of_trees):
             loop_branches = tree.copy()
@@ -629,7 +637,7 @@ class SymbolicCircuitGraph(ABC):
 
     def _find_path_to_root(
         self, node: Node, spanning_tree_dict=None
-    ) -> Tuple[int, List[Node], List[Branch], int]:
+    ) -> tuple[int, list[Node], list[Branch], int]:
         r"""Returns all the nodes and branches in the spanning tree path between the
         input node and the root of the spanning tree. Also returns the distance
         (generation) between the input node and the root node. The root of the spanning
@@ -662,8 +670,8 @@ class SymbolicCircuitGraph(ABC):
                     break
             # find out the path from the node to the root
             current_node = node
-            ancestor_nodes_list = []
-            branch_path_to_root = []
+            ancestor_nodes_list: list[Node] = []
+            branch_path_to_root: list[Branch] = []
             root_node = node_sets[0][0]
             if root_node == node:
                 return (0, [], [], tree_idx)
@@ -702,7 +710,7 @@ class SymbolicCircuitGraph(ABC):
 
     def _find_loop(
         self, closure_branch: Branch, spanning_tree_dict=None
-    ) -> List["Branch"]:
+    ) -> list["Branch"]:
         r"""Find out the loop that is closed by the closure branch.
 
         Parameters
@@ -750,7 +758,7 @@ class SymbolicCircuitGraph(ABC):
 
     def _set_external_fluxes(
         self,
-        closure_branches: Optional[List[Union[Branch, Dict[Branch, float]]]] = None,
+        closure_branches: list[Branch | dict[Branch, float]] | None = None,
     ):
         # setting the class properties
 
@@ -766,7 +774,7 @@ class SymbolicCircuitGraph(ABC):
             ]
             closure_branch_list = flatten_list_recursive(closure_branch_list)
             for branch in closure_branch_list:
-                if branch.type == "C" and not self.use_dynamic_flux_grouping:
+                if branch.type == "C" and not self.use_dynamic_flux_grouping:  # type: ignore[union-attr]
                     raise ValueError(
                         "The closure branch cannot be a capacitive branch, when dynamic flux grouping is not used."
                     )
@@ -781,7 +789,7 @@ class SymbolicCircuitGraph(ABC):
 
     @staticmethod
     def are_branchsets_disconnected(
-        branch_list1: List[Branch], branch_list2: List[Branch]
+        branch_list1: list[Branch], branch_list2: list[Branch]
     ) -> bool:
         """Determines whether two sets of branches are disconnected.
 
@@ -802,7 +810,7 @@ class SymbolicCircuitGraph(ABC):
         return np.intersect1d(node_array1, node_array2).size == 0
 
     @staticmethod
-    def _parse_nodes(branches_list) -> List[Node]:
+    def _parse_nodes(branches_list) -> list[Node]:
         node_index_list = []
         for branch_list_input in [
             branch for branch in branches_list if branch[0] != "ML"
@@ -919,7 +927,7 @@ class SymbolicCircuitGraph(ABC):
                     branch_var_dict[sym_param] = sym_params[sym_param]
             couplers_list.append(coupler)
 
-        circuit = cls(
+        circuit = cls(  # type: ignore[call-arg]
             nodes_list,
             branches_list,
             couplers_list,
@@ -933,9 +941,9 @@ class SymbolicCircuitGraph(ABC):
 
     def _independent_modes(
         self,
-        branch_subset: List[Branch],
+        branch_subset: list[Branch],
         single_nodes: bool = True,
-        basisvec_entries: Optional[List[int]] = None,
+        basisvec_entries: list[int] | None = None,
     ):
         """Returns the vectors which span a subspace where there is no generalized flux
         difference across the branches present in the branch_subset.
@@ -964,7 +972,7 @@ class SymbolicCircuitGraph(ABC):
         # branch_subset, then identifying the sets of nodes in each of those sets
         branch_subset_copy = branch_subset.copy()
 
-        max_connected_subgraphs: List[List[Branch]] = (
+        max_connected_subgraphs: list[list[Branch]] = (
             []
         )  # list containing the maximum connected subgraphs
 
@@ -1085,7 +1093,7 @@ class SymbolicCircuitGraph(ABC):
 
     def check_transformation_matrix(
         self, transformation_matrix: ndarray, enable_warnings: bool = True
-    ) -> Dict[str, List[int]]:
+    ) -> dict[str, list[int]]:
         """Method to identify the different modes in the transformation matrix provided
         by the user.
 
@@ -1136,7 +1144,7 @@ class SymbolicCircuitGraph(ABC):
                 frozen_modes.append(Σ)
 
         # *********** Adding periodic, free and extended modes to frozen ************
-        modes = []  # starting with the frozen modes
+        modes: list[ndarray] = []  # starting with the frozen modes
 
         for m in (
             frozen_modes + free_modes + periodic_modes + LC_modes  # + extended_modes
@@ -1148,7 +1156,7 @@ class SymbolicCircuitGraph(ABC):
             if not self._mode_in_subspace(m, modes):
                 modes.append(m)
 
-        var_categories_circuit: Dict[str, list] = {
+        var_categories_circuit: dict[str, list] = {
             "periodic": [],
             "extended": [],
             "free": [],
@@ -1179,7 +1187,7 @@ class SymbolicCircuitGraph(ABC):
 
         user_given_modes = transformation_matrix.transpose()
 
-        var_categories_user: Dict[str, list] = {
+        var_categories_user: dict[str, list] = {
             "periodic": [],
             "extended": [],
             "free": [],
@@ -1232,7 +1240,7 @@ class SymbolicCircuitGraph(ABC):
 
         return var_categories_user
 
-    def variable_transformation_matrix(self) -> Tuple[ndarray, Dict[str, List[int]]]:
+    def variable_transformation_matrix(self) -> tuple[ndarray, dict[str, list[int]]]:
         """Evaluates the boundary conditions and constructs the variable transformation
         matrix, which is returned along with the dictionary `var_categories` which
         classifies the types of variables present in the circuit.
@@ -1272,7 +1280,7 @@ class SymbolicCircuitGraph(ABC):
         )
 
         # **************** Adding frozen, free, periodic , LC and extended modes ****
-        modes = []  # starting with an empty list
+        modes: list[ndarray] = []  # starting with an empty list
 
         for m in (
             frozen_modes + free_modes + periodic_modes + LC_modes  # + extended_modes
@@ -1303,12 +1311,12 @@ class SymbolicCircuitGraph(ABC):
                 a = next(vector_set)
                 mat = np.array(standard_basis + [a])
                 if np.linalg.matrix_rank(mat) == len(mat):
-                    standard_basis = standard_basis + [list(a)]
+                    standard_basis = standard_basis + [list(a)]  # type: ignore[list-item]
 
-            standard_basis = np.array(standard_basis)
+            standard_basis = np.array(standard_basis)  # type: ignore[assignment]
 
         elif self.basis_completion == "canonical":
-            standard_basis = np.identity(len(self.nodes) - self.is_grounded)
+            standard_basis = np.identity(len(self.nodes) - self.is_grounded)  # type: ignore[assignment]
 
         new_basis = modes.copy()
 
@@ -1317,7 +1325,7 @@ class SymbolicCircuitGraph(ABC):
             if np.linalg.matrix_rank(mat) == len(mat):
                 new_basis.append(m)
 
-        new_basis = np.array(new_basis)
+        new_basis = np.array(new_basis)  # type: ignore[assignment]
 
         # sorting the basis so that the free, periodic and frozen variables occur at
         # the beginning.
@@ -1357,7 +1365,7 @@ class SymbolicCircuitGraph(ABC):
         ]
         pos_list = pos_periodic + pos_rest + pos_free + pos_frozen + pos_Σ
         # transforming the new_basis matrix
-        new_basis = new_basis[pos_list].T
+        new_basis = new_basis[pos_list].T  # type: ignore[call-overload]
 
         # saving the variable identification to a dict
         var_categories = {

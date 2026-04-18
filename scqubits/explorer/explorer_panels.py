@@ -10,9 +10,11 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
 import itertools
 
-from typing import TYPE_CHECKING, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -35,26 +37,25 @@ if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSlice, ParameterSweep
     from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass
 
-
 @rc_context(matplotlib_settings)
 def display_bare_spectrum(
     sweep: "ParameterSweep",
-    subsys: Union["QubitBaseClass", "Oscillator"],
+    subsys: "QubitBaseClass" | "Oscillator",
     param_slice: "ParameterSlice",
-    fig_ax: Tuple[Figure, Axes],
-    evals_count: int = None,
+    fig_ax: tuple[Figure, Axes],
+    evals_count: int | None = None,
     subtract_ground: bool = False,
-) -> Tuple[Figure, Axes]:
+) -> tuple[Figure, Axes]:
     subsys_index = sweep.get_subsys_index(subsys)
     title = "Bare Spectrum: {}\n".format(subsys.id_str)
 
     evals_count = evals_count or -1
 
-    bare_evals = sweep["bare_evals"]["subsys":subsys_index][param_slice.fixed]
+    bare_evals = sweep["bare_evals"]["subsys":subsys_index][param_slice.fixed]  # type: ignore[misc]
     if subtract_ground:
         bare_evals = bare_evals - bare_evals[:, 0, np.newaxis]
 
-    fig, axes = bare_evals[:, 0:evals_count].plot(  # type:ignore
+    fig, axes = bare_evals[:, 0:evals_count].plot(
         title=title,
         ylabel="energy [{}]".format(units.get_units()),
         fig_ax=fig_ax,
@@ -62,28 +63,26 @@ def display_bare_spectrum(
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
     return fig, axes
 
-
 @rc_context(matplotlib_settings)
 def display_anharmonicity(
     sweep: "ParameterSweep",
     subsys: "QubitBaseClass",
     param_slice: "ParameterSlice",
-    fig_ax: Tuple[Figure, Axes],
-) -> None:
+    fig_ax: tuple[Figure, Axes],
+) -> tuple[Figure, Axes]:
     subsys_index = sweep.get_subsys_index(subsys)
 
-    bare_evals = sweep["bare_evals"]["subsys":subsys_index][param_slice.fixed]
+    bare_evals = sweep["bare_evals"]["subsys":subsys_index][param_slice.fixed]  # type: ignore[misc]
     anharmonicity = bare_evals[..., 2] - 2 * bare_evals[..., 1] + bare_evals[..., 0]
 
     title = "Anharmonicity: {}".format(subsys.id_str)
-    fig, axes = anharmonicity.plot(  # type:ignore
+    fig, axes = anharmonicity.plot(
         title=title,
         ylabel="anharmonicity [{}]".format(units.get_units()),
         fig_ax=fig_ax,
     )
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
     return fig, axes
-
 
 @rc_context(matplotlib_settings)
 def display_matrixelements(
@@ -92,8 +91,8 @@ def display_matrixelements(
     subsys: "QubitBaseClass",
     param_slice: "ParameterSlice",
     mode_str: str,
-    fig_ax: Tuple[Figure, Axes],
-) -> None:
+    fig_ax: tuple[Figure, Axes],
+) -> tuple[Figure, Axes]:
     subsys_index = sweep.get_subsys_index(subsys)
     evecs = sweep["bare_evecs"][subsys_index][param_slice.all]
 
@@ -101,7 +100,8 @@ def display_matrixelements(
     axes.cla()
 
     title = f"{subsys.id_str}: matrix elements (fixed)"
-    fig, axes = subsys.plot_matrixelements(
+    # show3d=False makes plot_matrixelements return tuple[Figure, Axes]
+    fig, axes = subsys.plot_matrixelements(  # type: ignore[assignment]
         operator_name,
         evecs,
         evals_count=subsys.truncated_dim,
@@ -124,7 +124,6 @@ def display_matrixelements(
     )
     return fig, axes
 
-
 @rc_context(matplotlib_settings)
 def display_matrixelement_sweep(
     sweep: "ParameterSweep",
@@ -132,8 +131,8 @@ def display_matrixelement_sweep(
     subsys: "QubitBaseClass",
     param_slice: "ParameterSlice",
     mode_str: str,
-    fig_ax: Tuple[Figure, Axes],
-) -> Tuple[Figure, Axes]:
+    fig_ax: tuple[Figure, Axes],
+) -> tuple[Figure, Axes]:
     subsys_index = sweep.get_subsys_index(subsys)
     evals = sweep["bare_evals"][subsys_index][param_slice.fixed]
     evecs = sweep["bare_evecs"][subsys_index][param_slice.fixed]
@@ -158,7 +157,7 @@ def display_matrixelement_sweep(
         dtype=np.complex128,
     )
     for index, paramval in enumerate(param_vals):
-        evecs = specdata.state_table[index]
+        evecs = specdata.state_table[index]  # type: ignore[index]
         matelem_table[index] = subsys.matrixelement_table(
             operator_name, evecs=evecs, evals_count=subsys.truncated_dim
         )
@@ -172,16 +171,15 @@ def display_matrixelement_sweep(
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
     return fig, axes
 
-
 @rc_context(matplotlib_settings)
 def display_bare_wavefunctions(
     sweep: "ParameterSweep",
     subsys: "QubitBaseClass",
     param_slice: "ParameterSlice",
-    fig_ax: Tuple[Figure, Axes],
+    fig_ax: tuple[Figure, Axes],
     mode="real",
     which=-1,
-) -> Tuple[Figure, Axes]:
+) -> tuple[Figure, Axes]:
     subsys_index = sweep.get_subsys_index(subsys)
 
     evals = sweep["bare_evals"][subsys_index][param_slice.all]
@@ -192,21 +190,20 @@ def display_bare_wavefunctions(
     settings.DISPATCH_ENABLED = True
 
     title = "Wavefunctions: {}".format(subsys.id_str)
-    return subsys.plot_wavefunction(
+    return subsys.plot_wavefunction(  # type: ignore[attr-defined]
         which=which, esys=(evals, evecs), mode=mode, title=title, fig_ax=fig_ax
     )
-
 
 @rc_context(matplotlib_settings)
 def display_transitions(
     sweep: "ParameterSweep",
     photon_number: int,
-    subsys_list: List["QuantumSystem"],
-    initial: Union[int, Tuple[int, ...]],
+    subsys_list: list["QuantumSystem"],
+    initial: int | tuple[int, ...],
     sidebands: bool,
     param_slice: "ParameterSlice",
-    fig_ax: Tuple[Figure, Axes],
-) -> Tuple[Figure, Axes]:
+    fig_ax: tuple[Figure, Axes],
+) -> tuple[Figure, Axes]:
     if photon_number == 1:
         title = r"Transition Spectrum"
     else:
@@ -239,19 +236,19 @@ def display_transitions(
 
     return fig, axes
 
-
 @rc_context(matplotlib_settings)
 def display_cross_kerr(
     sweep: "ParameterSweep",
     subsys1: "QuantumSystem",
     subsys2: "QuantumSystem",
     param_slice: "ParameterSlice",
-    fig_ax: Tuple[Figure, Axes],
-    which: Optional[Union[int, Tuple[int, int]]] = None,
-) -> Tuple[Figure, Axes]:
+    fig_ax: tuple[Figure, Axes],
+    which: int | tuple[int, int] | None = None,
+) -> tuple[Figure, Axes]:
     subsys1_index = sweep.get_subsys_index(subsys1)
     subsys2_index = sweep.get_subsys_index(subsys2)
     type_list = [type(sys) for sys in [subsys1, subsys2]]
+    label_list: list[int | tuple[int, int]] | list[str]
     if type_list.count(Oscillator) == 1:
         title = f"AC Stark: {subsys1.id_str} + {subsys2.id_str}"
         ylabel = rf"AC Stark Shift $\chi^{{{subsys1_index},{subsys2_index}}}_\ell$"
@@ -286,8 +283,8 @@ def display_cross_kerr(
             kerr_data[..., level1, level2] for level1, level2 in level_pairs
         ]
 
-    kerr_datasets = np.asarray(kerr_datasets).T
-    kerr_namedarray = NamedSlotsNdarray(kerr_datasets, kerr_data.param_info)
+    kerr_datasets_arr = np.asarray(kerr_datasets).T
+    kerr_namedarray = NamedSlotsNdarray(kerr_datasets_arr, kerr_data.param_info)
     fig, axes = kerr_namedarray.plot(
         title=title,
         label_list=label_list if label_list else None,
@@ -297,15 +294,14 @@ def display_cross_kerr(
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
     return fig, axes
 
-
 @rc_context(matplotlib_settings)
 def display_qubit_self_kerr(
     sweep: "ParameterSweep",
     subsys: "QuantumSystem",
     param_slice: "ParameterSlice",
-    fig_ax: Tuple[Figure, Axes],
-    which: Optional[List[Tuple[int, int]]] = None,
-) -> Tuple[Figure, Axes]:
+    fig_ax: tuple[Figure, Axes],
+    which: list[tuple[int, int]] | None = None,
+) -> tuple[Figure, Axes]:
     subsys_index = sweep.get_subsys_index(subsys)
     title = r"Self-Kerr: {}".format(subsys.id_str)
     ylabel = r"Kerr coefficient $\Lambda^{{{},{}}}_{{ll}}$".format(
@@ -324,8 +320,8 @@ def display_qubit_self_kerr(
     kerr_datasets = []
     for pair in level_pairs:
         kerr_datasets.append(kerr_data[..., pair[0], pair[1]])
-    kerr_datasets = np.asarray(kerr_datasets).T
-    kerr_namedarray = NamedSlotsNdarray(kerr_datasets, kerr_data.param_info)
+    kerr_datasets_arr = np.asarray(kerr_datasets).T
+    kerr_namedarray = NamedSlotsNdarray(kerr_datasets_arr, kerr_data.param_info)
 
     fig, axes = kerr_namedarray.plot(
         title=title,
@@ -336,14 +332,13 @@ def display_qubit_self_kerr(
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
     return fig, axes
 
-
 @rc_context(matplotlib_settings)
 def display_self_kerr(
     sweep: "ParameterSweep",
-    subsys: Union[scqubits.Oscillator, scqubits.KerrOscillator],
+    subsys: scqubits.Oscillator | scqubits.KerrOscillator,
     param_slice: "ParameterSlice",
-    fig_ax: Tuple[Figure, Axes],
-) -> Tuple[Figure, Axes]:
+    fig_ax: tuple[Figure, Axes],
+) -> tuple[Figure, Axes]:
     subsys_index = sweep.get_subsys_index(subsys)
     title = r"Self-Kerr: {}".format(subsys.id_str)
 

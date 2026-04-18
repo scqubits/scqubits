@@ -11,9 +11,12 @@
 ############################################################################
 """Helper routines for writing data to files."""
 
+from __future__ import annotations
+
 import os
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from numpy import ndarray
 
@@ -26,15 +29,14 @@ if TYPE_CHECKING:
     from scqubits.io_utils.fileio_backends import CSVReader, H5Reader, IOWriter
     from scqubits.io_utils.fileio_serializers import Serializable
 
-
 class IOData:
     """Class for processing input/output data."""
 
     def __init__(
         self,
         typename: str,
-        attributes: Union[Dict[str, Any], None],
-        ndarrays: Union[Dict[str, ndarray], None],
+        attributes: dict[str, Any] | None,
+        ndarrays: dict[str, ndarray] | None,
         objects: Any = None,
     ) -> None:
         self.typename = typename
@@ -42,11 +44,10 @@ class IOData:
         self.ndarrays = ndarrays or {}
         self.objects = objects or {}
 
-    def as_kwargs(self) -> Dict[str, Any]:
+    def as_kwargs(self) -> dict[str, Any]:
         """Return a joint dictionary of attributes, ndarrays, and objects, as used in
         __init__ calls."""
         return {**self.attributes, **self.ndarrays, **self.objects}
-
 
 def serialize(the_object: "Serializable") -> IOData:
     """Turn the given Python object into an IOData object, needed for writing data to
@@ -62,7 +63,6 @@ def serialize(the_object: "Serializable") -> IOData:
     raise NotImplementedError(
         "No implementation for writing {} to file".format(typename)
     )
-
 
 def deserialize(iodata: IOData) -> Any:
     """Turn IOData back into a Python object of the appropriate kind.
@@ -84,8 +84,7 @@ def deserialize(iodata: IOData) -> Any:
         "No implementation for converting {} data to Python object.".format(typename)
     )
 
-
-def write(the_object: Any, filename: str, file_handle: "h5py.Group" = None) -> None:
+def write(the_object: Any, filename: str, file_handle: h5py.Group | None = None) -> None:
     """Write `the_object` to a file with name `filename`. The optional `file_handle`
     parameter is used as a group name in case of h5 files.
 
@@ -102,8 +101,7 @@ def write(the_object: Any, filename: str, file_handle: "h5py.Group" = None) -> N
     writer = IO.get_writer(filename, file_handle=file_handle)
     writer.to_file(iodata, file_handle=file_handle)
 
-
-def read(filename: str, file_handle: "h5py.Group" = None) -> Any:
+def read(filename: str, file_handle: h5py.Group | None = None) -> Any:
     """Read a Serializable object from file.
 
     Parameters
@@ -121,13 +119,12 @@ def read(filename: str, file_handle: "h5py.Group" = None) -> Any:
     iodata = reader.from_file(filename, file_handle=file_handle)
     return deserialize(iodata)
 
-
 class FileIOFactory:
     """Factory method for choosing reader/writer according to given format."""
 
     def get_writer(
-        self, file_name: str, file_handle: "h5py.Group" = None
-    ) -> "IOWriter":
+        self, file_name: str, file_handle: h5py.Group | None = None
+    ) -> IOWriter:
         """Based on the extension of the provided file name, return the appropriate
         writer engine."""
         import scqubits.io_utils.fileio_backends as io_backends
@@ -145,9 +142,9 @@ class FileIOFactory:
     @staticmethod
     def get_reader(
         file_name: str,
-        file_handle: Optional["h5py.Group"] = None,
-        get_external_reader: Optional[Callable] = None,
-    ) -> Union["CSVReader", "H5Reader"]:
+        file_handle: h5py.Group | None = None,
+        get_external_reader: Callable | None = None,
+    ) -> CSVReader | H5Reader:
         """Based on the extension of the provided file name, return the appropriate
         reader engine."""
         if get_external_reader:
@@ -164,6 +161,5 @@ class FileIOFactory:
             "Extension '{}' of given file name '{}' does not match any supported "
             "file type: {}".format(suffix, file_name, const.FILE_TYPES)
         )
-
 
 IO = FileIOFactory()

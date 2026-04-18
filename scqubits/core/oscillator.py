@@ -10,8 +10,10 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
 import os
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any
 
 import numpy as np
 import scipy as sp
@@ -28,8 +30,8 @@ _default_evals_count = 6
 
 
 def harm_osc_wavefunction(
-    n: int, x: Union[float, ndarray], l_osc: float
-) -> Union[float, ndarray]:
+    n: int, x: float | ndarray, l_osc: float
+) -> float | ndarray:
     r"""For given quantum number :math:`n=0,1,2,\ldots` return the value of the harmonic
     oscillator wave function :math:`\psi_n(x) = N H_n(x/l_{\rm osc}) \exp(-x^2/2
     l_{\rm osc})`, N being the proper normalization factor.
@@ -96,20 +98,20 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
     def __init__(
         self,
         E_osc: float,
-        l_osc: Union[float, None] = None,
+        l_osc: float | None = None,
         truncated_dim: int = _default_evals_count,
-        id_str: Optional[str] = None,
+        id_str: str | None = None,
     ) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
-        self.truncated_dim: int = truncated_dim  # type:ignore
-        self.l_osc: Union[None, float] = l_osc  # type:ignore
+        self.truncated_dim: int = truncated_dim
+        self.l_osc: float | None = l_osc  # type: ignore[no-redef, assignment]
         self.E_osc = E_osc
         self._image_filename = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "qubit_img/oscillator.jpg"
         )
 
     @staticmethod
-    def default_params() -> Dict[str, Any]:
+    def default_params() -> dict[str, Any]:
         return {"E_osc": 5.0, "l_osc": 1, "truncated_dim": _default_evals_count}
 
     def eigenvals(self, evals_count: int = _default_evals_count) -> ndarray:
@@ -125,7 +127,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
 
     def eigensys(
         self, evals_count: int = _default_evals_count
-    ) -> Tuple[ndarray, ndarray]:
+    ) -> tuple[ndarray, ndarray]:
         """Returns array of eigenvalues and eigenvectors.
 
         Parameters
@@ -151,7 +153,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         """Returns the annihilation operator."""
         return op.annihilation(self.truncated_dim)
 
-    def matrixelement_table(self, *args, **kwargs) -> ndarray:
+    def matrixelement_table(self, *args: Any, **kwargs: Any) -> ndarray:
         raise NotImplementedError(
             "The Oscillator class does not implement the matrixelement_table method."
         )
@@ -215,11 +217,11 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         self,
         E_osc: float,
         K: float,
-        l_osc: Union[float, None] = None,
+        l_osc: float | None = None,
         truncated_dim: int = _default_evals_count,
-        id_str: Optional[str] = None,
+        id_str: str | None = None,
     ) -> None:
-        self.K: float = K  # type:ignore
+        self.K = K
 
         super().__init__(
             E_osc=E_osc,
@@ -233,7 +235,7 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         )
 
     @staticmethod
-    def default_params() -> Dict[str, Any]:
+    def default_params() -> dict[str, Any]:
         return {
             "E_osc": 5.0,
             "K": 0.05,

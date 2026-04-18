@@ -10,7 +10,10 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
 from abc import ABC
+from typing import Any
 from numpy import ndarray
 import numpy as np
 import qutip as qt
@@ -21,13 +24,12 @@ from scqubits.core.noise import NOISE_PARAMS, NoisySystem
 from scqubits.core.circuit_utils import get_trailing_number
 from scqubits.utils.misc import is_string_float, Qobj_to_scipy_csc_matrix
 
+from collections.abc import Callable
 from types import MethodType
-from typing import Callable, Optional, Tuple, Union
 
 import sympy as sm
 
 from scqubits.core.symbolic_circuit import Branch
-
 
 class NoisyCircuit(NoisySystem, ABC):
     """This class represents a noisy quantum circuit, extending the :class:`NoisySystem` class.
@@ -42,6 +44,12 @@ class NoisyCircuit(NoisySystem, ABC):
     -----
         This class is designed to be subclassed and extended with specific noise models for different types of quantum circuits.
     """
+
+    # class-level annotations for attributes provided by subclasses (see circuit_routines.py)
+    transformation_matrix: Any
+    symbolic_circuit: Any
+    is_grounded: bool
+    return_parent_circuit: Callable[..., Any]
 
     @staticmethod
     def Q_from_branch(branch: Branch):
@@ -75,7 +83,7 @@ class NoisyCircuit(NoisySystem, ABC):
         key = "Q_" + ("ind" if branch.type == "L" else "cap")
         if key in branch.aux_params.keys():
             Q_str = branch.aux_params[key]
-            if not is_string_float(Q_str):
+            if not is_string_float(Q_str):  # type: ignore[arg-type]
 
                 def Q_func(omega, T):
                     return eval(Q_str)
@@ -87,7 +95,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
     def _d_hamiltonian_d_function_factory(self, param_sym: sm.Symbol) -> Callable:
         def param_derivative(
-            self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+            self, energy_esys: bool | tuple[ndarray, ndarray] = False
         ):
             parent_instance = self.return_parent_circuit()
             hamiltonian = parent_instance._hamiltonian_sym_for_numerics
@@ -172,7 +180,7 @@ class NoisyCircuit(NoisySystem, ABC):
             )
 
     def _transform_expr_to_new_variables(
-        self, expr_node_vars: sm.Expr, substitute_symbol: Optional[str] = None
+        self, expr_node_vars: sm.Expr, substitute_symbol: str | None = None
     ):
         """This method transforms a symbolic expression that represents a physical
         quantity in the circuit from the old variables to the new variables.
@@ -293,7 +301,7 @@ class NoisyCircuit(NoisySystem, ABC):
             A_noise: float = NOISE_PARAMS[f"A_{noise_type}"],
             i: int = 0,
             j: int = 1,
-            esys: Tuple[ndarray, ndarray] = None,
+            esys: tuple[ndarray, ndarray] | None = None,
             get_rate: bool = False,
             **kwargs,
         ) -> float:
@@ -452,7 +460,7 @@ class NoisyCircuit(NoisySystem, ABC):
             A_noise: float = NOISE_PARAMS["A_cc"],
             i: int = 0,
             j: int = 1,
-            esys: Tuple[ndarray, ndarray] = None,
+            esys: tuple[ndarray, ndarray] | None = None,
             get_rate: bool = False,
             **kwargs,
         ) -> float:
@@ -537,7 +545,7 @@ class NoisyCircuit(NoisySystem, ABC):
             A_noise: float = NOISE_PARAMS["A_flux"],
             i: int = 0,
             j: int = 1,
-            esys: Tuple[ndarray, ndarray] = None,
+            esys: tuple[ndarray, ndarray] | None = None,
             get_rate: bool = False,
             **kwargs,
         ) -> float:
@@ -624,7 +632,7 @@ class NoisyCircuit(NoisySystem, ABC):
             A_noise: float = NOISE_PARAMS["A_ng"],
             i: int = 0,
             j: int = 1,
-            esys: Tuple[ndarray, ndarray] = None,
+            esys: tuple[ndarray, ndarray] | None = None,
             get_rate: bool = False,
             **kwargs,
         ) -> float:
@@ -642,7 +650,6 @@ class NoisyCircuit(NoisySystem, ABC):
                 evals, evecs tuple
             get_rate:
                 get rate or time
-
 
             Returns
             -------
@@ -676,10 +683,10 @@ class NoisyCircuit(NoisySystem, ABC):
             i: int = 1,
             j: int = 0,
             M: float = NOISE_PARAMS["M"],
-            Z: Union[complex, float, Callable] = NOISE_PARAMS["R_0"],
+            Z: complex | float | Callable = NOISE_PARAMS["R_0"],
             T: float = NOISE_PARAMS["T"],
             total: bool = True,
-            esys: Tuple[ndarray, ndarray] = None,
+            esys: tuple[ndarray, ndarray] | None = None,
             get_rate: bool = False,
         ):
             r"""Noise due to a bias flux line.
@@ -705,7 +712,6 @@ class NoisyCircuit(NoisySystem, ABC):
                 evals, evecs tuple
             get_rate:
                 get rate or time
-
 
             Returns
             -------
@@ -852,18 +858,17 @@ class NoisyCircuit(NoisySystem, ABC):
             self=self,
             i: int = 1,
             j: int = 0,
-            Y_qp: Optional[Union[float, Callable]] = None,
+            Y_qp: float | Callable | None = None,
             x_qp: float = NOISE_PARAMS["x_qp"],
             T: float = NOISE_PARAMS["T"],
             Delta: float = NOISE_PARAMS["Delta"],
             total: bool = True,
-            esys: Optional[Tuple[ndarray, ndarray]] = None,
+            esys: tuple[ndarray, ndarray] | None = None,
             get_rate: bool = False,
         ) -> float:
             r"""Noise due to quasiparticle tunneling across a Josephson junction.
 
             References: Smith et al (2020), Catelani et al (2011), Pop et al (2014).
-
 
             Parameters
             ----------
@@ -925,10 +930,10 @@ class NoisyCircuit(NoisySystem, ABC):
             self,
             i: int = 1,
             j: int = 0,
-            Z: Union[float, Callable] = NOISE_PARAMS["R_0"],
+            Z: float | Callable = NOISE_PARAMS["R_0"],
             T: float = NOISE_PARAMS["T"],
             total: bool = True,
-            esys: Optional[Tuple[ndarray, ndarray]] = None,
+            esys: tuple[ndarray, ndarray] | None = None,
             get_rate: bool = False,
         ) -> float:
             r"""Noise due to charge coupling to an impedance (such as a transmission line).
@@ -1031,10 +1036,10 @@ class NoisyCircuit(NoisySystem, ABC):
                 self,
                 i: int = 1,
                 j: int = 0,
-                Q_cap: Optional[Union[float, Callable]] = None,
+                Q_cap: float | Callable | None = None,
                 T: float = NOISE_PARAMS["T"],
                 total: bool = True,
-                esys: Optional[Tuple[ndarray, ndarray]] = None,
+                esys: tuple[ndarray, ndarray] | None = None,
                 get_rate: bool = False,
                 branch: Branch = branch,
             ) -> float:
@@ -1095,14 +1100,14 @@ class NoisyCircuit(NoisySystem, ABC):
 
         else:
 
-            def t1_method(
+            def t1_method(  # type: ignore[misc]
                 self,
                 i: int = 1,
                 j: int = 0,
-                Q_ind: Optional[Union[float, Callable]] = None,
+                Q_ind: float | Callable | None = None,
                 T: float = NOISE_PARAMS["T"],
                 total: bool = True,
-                esys: Optional[Tuple[ndarray, ndarray]] = None,
+                esys: tuple[ndarray, ndarray] | None = None,
                 get_rate: bool = False,
                 branch: Branch = branch,
             ) -> float:
@@ -1204,18 +1209,17 @@ class NoisyCircuit(NoisySystem, ABC):
             self=self,
             i: int = 1,
             j: int = 0,
-            Y_qp: Optional[Union[float, Callable]] = None,
+            Y_qp: float | Callable | None = None,
             x_qp: float = NOISE_PARAMS["x_qp"],
             T: float = NOISE_PARAMS["T"],
             Delta: float = NOISE_PARAMS["Delta"],
             total: bool = True,
-            esys: Optional[Tuple[ndarray, ndarray]] = None,
+            esys: tuple[ndarray, ndarray] | None = None,
             get_rate: bool = False,
         ) -> float:
             r"""Overall T1 time due to quasiparticle tunneling across all the Josephson junctions in a circuit.
 
             References: Smith et al (2020), Catelani et al (2011), Pop et al (2014).
-
 
             Parameters
             ----------
@@ -1308,10 +1312,10 @@ class NoisyCircuit(NoisySystem, ABC):
             self,
             i: int = 1,
             j: int = 0,
-            Q_ind: Optional[Union[float, Callable]] = None,
+            Q_ind: float | Callable | None = None,
             T: float = NOISE_PARAMS["T"],
             total: bool = True,
-            esys: Optional[Tuple[ndarray, ndarray]] = None,
+            esys: tuple[ndarray, ndarray] | None = None,
             get_rate: bool = False,
         ) -> float:
             r""":math:`T_1` due to inductive dissipation in all the superinductors of the circuit.
@@ -1403,10 +1407,10 @@ class NoisyCircuit(NoisySystem, ABC):
             self,
             i: int = 1,
             j: int = 0,
-            Q_cap: Optional[Union[float, Callable]] = None,
+            Q_cap: float | Callable | None = None,
             T: float = NOISE_PARAMS["T"],
             total: bool = True,
-            esys: Optional[Tuple[ndarray, ndarray]] = None,
+            esys: tuple[ndarray, ndarray] | None = None,
             get_rate: bool = False,
         ) -> float:
             r""":math:`T_1` due to dielectric dissipation in the all the capacitances of the circuit.
@@ -1493,10 +1497,10 @@ class NoisyCircuit(NoisySystem, ABC):
             self=self,
             i: int = 1,
             j: int = 0,
-            Z: Union[float, Callable] = NOISE_PARAMS["R_0"],
+            Z: float | Callable = NOISE_PARAMS["R_0"],
             T: float = NOISE_PARAMS["T"],
             total: bool = True,
-            esys: Optional[Tuple[ndarray, ndarray]] = None,
+            esys: tuple[ndarray, ndarray] | None = None,
             get_rate: bool = False,
         ) -> float:
             r"""Noise due to all the charge couplings to impedances (such as a transmission line) in a circuit.
@@ -1583,10 +1587,10 @@ class NoisyCircuit(NoisySystem, ABC):
             i: int = 1,
             j: int = 0,
             M: float = NOISE_PARAMS["M"],
-            Z: Union[complex, float, Callable] = NOISE_PARAMS["R_0"],
+            Z: complex | float | Callable = NOISE_PARAMS["R_0"],
             T: float = NOISE_PARAMS["T"],
             total: bool = True,
-            esys: Optional[Tuple[ndarray, ndarray]] = None,
+            esys: tuple[ndarray, ndarray] | None = None,
             get_rate: bool = False,
         ) -> float:
             r"""Total Noise due to all flux bias lines in a circuit.
@@ -1612,7 +1616,6 @@ class NoisyCircuit(NoisySystem, ABC):
                 evals, evecs tuple
             get_rate:
                 get rate or time
-
 
             Returns
             -------

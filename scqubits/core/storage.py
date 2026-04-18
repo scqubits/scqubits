@@ -10,7 +10,9 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -45,7 +47,7 @@ class WaveFunction:
     """
 
     def __init__(
-        self, basis_labels: np.ndarray, amplitudes: np.ndarray, energy: float = None
+        self, basis_labels: np.ndarray, amplitudes: np.ndarray, energy: float | None = None
     ) -> None:
         self.basis_labels = basis_labels
         self.amplitudes = amplitudes
@@ -106,7 +108,7 @@ class WaveFunctionOnGrid:
     """
 
     def __init__(
-        self, gridspec: "GridSpec", amplitudes: np.ndarray, energy: float = None
+        self, gridspec: "GridSpec", amplitudes: np.ndarray, energy: float | None = None
     ) -> None:
         self.gridspec = gridspec
         self.amplitudes = amplitudes
@@ -135,9 +137,9 @@ class DataStore(serializers.Serializable):
 
     def __init__(
         self,
-        system_params: Dict[str, Any],
-        param_name: str = None,
-        param_vals: np.ndarray = None,
+        system_params: dict[str, Any],
+        param_name: str | None = None,
+        param_vals: np.ndarray | None = None,
         **kwargs,
     ) -> None:
         self.system_params = system_params
@@ -192,7 +194,7 @@ class SpectrumData(DataStore):
         name of parameter being varied
     param_vals:
         parameter values for which spectrum data are stored
-    state_table: Union[List[QutipEigenstates], np.ndarray, List[np.ndarray]]
+    state_table: list[QutipEigenstates] | np.ndarray | list[np.ndarray]
         eigenstate data stored for each `param_vals` point, either as pure np.ndarray or
         list of qutip.qobj
     matrixelem_table:
@@ -202,12 +204,12 @@ class SpectrumData(DataStore):
     # mark for file serializers purposes:
     def __init__(
         self,
-        energy_table: np.ndarray,  # Union[np.ndarray, list],
-        system_params: Dict[str, Any],
-        param_name: str = None,
-        param_vals: np.ndarray = None,
-        state_table: Union[List[QutipEigenstates], np.ndarray, List[np.ndarray]] = None,
-        matrixelem_table: np.ndarray = None,
+        energy_table: np.ndarray,  # np.ndarray | list,
+        system_params: dict[str, Any],
+        param_name: str | None = None,
+        param_vals: np.ndarray | None = None,
+        state_table: list[QutipEigenstates] | np.ndarray | list[np.ndarray] | None = None,
+        matrixelem_table: np.ndarray | None = None,
         **kwargs,
     ) -> None:
         self.system_params = system_params
@@ -228,15 +230,15 @@ class SpectrumData(DataStore):
 
     def subtract_ground(self) -> None:
         """Subtract ground state energies from spectrum."""
-        self.energy_table -= self.energy_table[:, 0]  # type:ignore
+        self.energy_table -= self.energy_table[:, 0]
 
     def plot_evals_vs_paramvals(
         self,
-        which: Union[int, List[int]] = -1,
+        which: int | list[int] = -1,
         subtract_ground: bool = False,
-        label_list: List[str] = None,
+        label_list: list[str] | None = None,
         **kwargs,
-    ) -> "Tuple[Figure, Axes]":
+    ) -> "tuple[Figure, Axes]":
         """Plots eigenvalues of as a function of one parameter, as stored in
         :class:`SpectrumData` object.
 

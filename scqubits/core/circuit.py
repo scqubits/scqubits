@@ -10,9 +10,12 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
+from collections.abc import Callable
 import re
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Union, Callable, get_type_hints
+from typing import Any, get_type_hints
 
 import numpy as np
 import sympy as sm
@@ -47,12 +50,10 @@ from scqubits.core.circuit_plotting import CircuitPlot
 from scqubits.core.circuit_sym_methods import CircuitSymMethods
 from scqubits.core.circuit_noise import NoisyCircuit
 
-
 class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot):
     pass
 
-
-class Subsystem(
+class Subsystem(  # type: ignore[misc]
     CircuitABC,
     base.QubitBaseClass,
     serializers.Serializable,
@@ -70,14 +71,14 @@ class Subsystem(
         The basis that should be used for extended variables
     hamiltonian_symbolic: sm.Expr
         The symbolic expression which defines the Hamiltonian for the new subsystem
-    system_hierarchy: Optional[List], optional
+    system_hierarchy: list | None, optional
         Defines the hierarchy of the new subsystem, is set to None when hierarchical
         diagonalization is not required. by default None
-    subsystem_trunc_dims: Optional[List], optional
+    subsystem_trunc_dims: list | None, optional
         Defines the truncated dimensions for the subsystems inside the current
         subsystem, is set to None when hierarchical diagonalization is not required,
         by default `None`
-    truncated_dim: Optional[int], optional
+    truncated_dim: int | None, optional
         sets the truncated dimension for the current subsystem, set to 10 by default.
 
     Attributes
@@ -86,18 +87,18 @@ class Subsystem(
         set to True when the circuit is defined hierarchically, by default `False`
     hamiltonian_symbolic: Sympy.Expr
         the symbolic Hamiltonian for the circuit
-    external_fluxes: List[Sympy.Symbol]
+    external_fluxes: list[Sympy.Symbol]
         list of external flux variables
-    offset_charges: List[Sympy.Symbol]
+    offset_charges: list[Sympy.Symbol]
         list of offset charge variables
-    free_charges: List[Sympy.Symbol]
+    free_charges: list[Sympy.Symbol]
         list of free charge variables
-    var_categories: Dict[str, List[int]]
+    var_categories: dict[str, list[int]]
         dictionary with keys "periodic", "extended", "free", "frozen" and values as
         the indices of the respective variable types
-    cutoff_names: List[str]
+    cutoff_names: list[str]
         list of cutoff names for the variables
-    discretized_phi_range: Dict[int, Tuple[float, float]]
+    discretized_phi_range: dict[int, tuple[float, float]]
         dictionary with keys as the indices of the extended variables and values as
         the range of discretized phi variables
     type_of_matrices: str
@@ -118,14 +119,14 @@ class Subsystem(
         self,
         parent: "Subsystem",
         hamiltonian_symbolic: sm.Expr,
-        ext_basis: Union[str, List],
-        system_hierarchy: Union[list, None] = None,
-        subsystem_trunc_dims: Union[list, None] = None,
+        ext_basis: str | list,
+        system_hierarchy: list | None = None,
+        subsystem_trunc_dims: list | None = None,
         truncated_dim: int = 10,
-        evals_method: Union[Callable, str, None] = None,
-        evals_method_options: Union[dict, None] = None,
-        esys_method: Union[Callable, str, None] = None,
-        esys_method_options: Union[dict, None] = None,
+        evals_method: Callable | str | None = None,
+        evals_method_options: dict | None = None,
+        esys_method: Callable | str | None = None,
+        esys_method_options: dict | None = None,
     ):
         # switch used in protecting the class from erroneous addition of new attributes
         object.__setattr__(self, "_frozen", False)
@@ -154,11 +155,11 @@ class Subsystem(
         self._H_LC_str_harmonic = None
         self.ext_basis = ext_basis
 
-        self.dynamic_var_indices: List[int] = flatten_list_recursive(
+        self.dynamic_var_indices: list[int] = flatten_list_recursive(
             [self.system_hierarchy]
         )
 
-        self.var_categories: Dict[str, List[int]] = {}
+        self.var_categories: dict[str, list[int]] = {}
         for var_type in self.parent.var_categories:
             self.var_categories[var_type] = [
                 var_index
@@ -166,7 +167,7 @@ class Subsystem(
                 if var_index in self.dynamic_var_indices
             ]
 
-        self.cutoff_names: List[str] = []
+        self.cutoff_names: list[str] = []
         for var_type in self.var_categories.keys():
             if var_type == "periodic":
                 for var_index in self.var_categories["periodic"]:
@@ -175,7 +176,7 @@ class Subsystem(
                 for var_index in self.var_categories["extended"]:
                     self.cutoff_names.append(f"cutoff_ext_{var_index}")
 
-        self.discretized_phi_range: Dict[int, Tuple[float]] = {
+        self.discretized_phi_range: dict[int, tuple[float]] = {
             idx: self.parent.discretized_phi_range[idx]
             for idx in self.parent.discretized_phi_range
             if idx in self.dynamic_var_indices
@@ -199,7 +200,7 @@ class Subsystem(
         self._init_params = []
 
         # attributes for purely harmonic
-        self.normal_mode_freqs = []
+        self.normal_mode_freqs: np.ndarray = np.array([], dtype=float)
 
         self._configure()
         self._frozen = True
@@ -255,7 +256,7 @@ class Subsystem(
 
     def _configure(
         self,
-        subsys_dict: Optional[Dict[str, Any]] = None,
+        subsys_dict: dict[str, Any] | None = None,
     ) -> None:
         """Function which is used to initiate the subsystem instance."""
         self._frozen = False
@@ -301,8 +302,7 @@ class Subsystem(
             return True
         return False
 
-
-class Circuit(
+class Circuit(  # type: ignore[misc]
     CircuitABC,
     base.QubitBaseClass,
     serializers.Serializable,
@@ -317,7 +317,7 @@ class Circuit(
         String describing the number of nodes and branches connecting then along
         with their parameters
     from_file:
-        Set to True by default, when a file name should be provided to
+        set to True by default, when a file name should be provided to
         `input_string`, else the circuit graph description in YAML should be
         provided as a string.
     basis_completion:
@@ -344,18 +344,18 @@ class Circuit(
         set to True when the circuit is defined hierarchically, by default `False`
     hamiltonian_symbolic: sm.Expr
         the symbolic Hamiltonian for the circuit
-    external_fluxes: List[sm.Symbol]
+    external_fluxes: list[sm.Symbol]
         list of external flux variables
-    offset_charges: List[sm.Symbol]
+    offset_charges: list[sm.Symbol]
         list of offset charge variables
-    free_charges: List[sm.Symbol]
+    free_charges: list[sm.Symbol]
         list of free charge variables
-    var_categories: Dict[str, List[int]]
+    var_categories: dict[str, list[int]]
         dictionary with keys "periodic", "extended", "free", "frozen" and values as
         the indices of the respective variable types
-    cutoff_names: List[str]
+    cutoff_names: list[str]
         list of cutoff names for the variables
-    discretized_phi_range: Dict[int, Tuple[float, float]]
+    discretized_phi_range: dict[int, tuple[float, float]]
         dictionary with keys as the indices of the extended variables and values as
         the range of discretized phi variables
     type_of_matrices: str
@@ -364,7 +364,7 @@ class Circuit(
         truncated dimension for the current instance
     is_purely_harmonic: bool
         internally set to True when the instance is purely harmonic
-    dynamic_var_indices: List[int]
+    dynamic_var_indices: list[int]
         list of dynamic variable indices, showing the degrees of freedom of the circuit.
     hilbert_space: HilbertSpace
         HilbertSpace instance for the instance, when hierarchical diagonalization is used
@@ -376,7 +376,7 @@ class Circuit(
 
     def __init__(
         self,
-        input_string: Optional[str] = None,
+        input_string: str | None = None,
         from_file: bool = True,
         basis_completion: str = "heuristic",
         ext_basis: str = "discretized",
@@ -384,12 +384,12 @@ class Circuit(
         generate_noise_methods: bool = False,
         initiate_sym_calc: bool = True,
         truncated_dim: int = 10,
-        symbolic_param_dict: Dict[str, float] = {},
-        symbolic_hamiltonian: Optional[sm.Expr] = None,
-        evals_method: Union[Callable, str, None] = None,
-        evals_method_options: Union[dict, None] = None,
-        esys_method: Union[Callable, str, None] = None,
-        esys_method_options: Union[dict, None] = None,
+        symbolic_param_dict: dict[str, float] = {},
+        symbolic_hamiltonian: sm.Expr | None = None,
+        evals_method: Callable | str | None = None,
+        evals_method_options: dict | None = None,
+        esys_method: Callable | str | None = None,
+        esys_method_options: dict | None = None,
     ):
         # switch used in protecting the class from erroneous addition of new attributes
         object.__setattr__(self, "_frozen", False)
@@ -437,7 +437,7 @@ class Circuit(
     def _from_symbolic_hamiltonian(
         self,
         symbolic_hamiltonian: sm.Expr,
-        symbolic_param_dict: Dict[str, float],
+        symbolic_param_dict: dict[str, float],
         initiate_sym_calc: bool,
         truncated_dim: int,
         ext_basis: str,
@@ -459,8 +459,8 @@ class Circuit(
         self.subsystem_trunc_dims: list = []
         self.operators_by_name = None
 
-        self.discretized_phi_range: Dict[int, Tuple[float, float]] = {}
-        self.cutoff_names: List[str] = []
+        self.discretized_phi_range: dict[int, tuple[float, float]] = {}
+        self.cutoff_names: list[str] = []
 
         # setting default grids for plotting
         self._default_grid_phi: discretization.Grid1d = discretization.Grid1d(
@@ -499,7 +499,7 @@ class Circuit(
             String describing the number of nodes and branches connecting then along
             with their parameters
         from_file:
-            Set to True by default, when a file name should be provided to
+            set to True by default, when a file name should be provided to
             `input_string`, else the circuit graph description in YAML should be
             provided as a string.
         basis_completion:
@@ -538,21 +538,21 @@ class Circuit(
         self.symbolic_circuit: SymbolicCircuit = symbolic_circuit
 
         self.ext_basis = ext_basis
-        self.hierarchical_diagonalization: bool = False
-        self.truncated_dim: int = truncated_dim
-        self.system_hierarchy: list = []
-        self.subsystem_trunc_dims: list = []
+        self.hierarchical_diagonalization = False
+        self.truncated_dim = truncated_dim
+        self.system_hierarchy = []
+        self.subsystem_trunc_dims = []
         self.operators_by_name = None
 
-        self.discretized_phi_range: Dict[int, Tuple[float, float]] = {}
-        self.cutoff_names: List[str] = []
+        self.discretized_phi_range = {}
+        self.cutoff_names = []
 
         # setting default grids for plotting
-        self._default_grid_phi: discretization.Grid1d = discretization.Grid1d(
+        self._default_grid_phi = discretization.Grid1d(
             -6 * np.pi, 6 * np.pi, 200
         )
 
-        self.type_of_matrices: str = (
+        self.type_of_matrices = (
             "sparse"  # type of matrices used to construct the operators
         )
         # copying all the required attributes
@@ -608,7 +608,7 @@ class Circuit(
         return None
 
     @staticmethod
-    def default_params() -> Dict[str, Any]:
+    def default_params() -> dict[str, Any]:
         return {}
 
     def _clear_unnecessary_attribs(self):
@@ -635,14 +635,14 @@ class Circuit(
 
     def configure(
         self,
-        transformation_matrix: Optional[ndarray] = None,
-        system_hierarchy: Optional[list] = None,
-        subsystem_trunc_dims: Optional[list] = None,
-        closure_branches: Optional[List[Union[Branch, Dict[Branch, float]]]] = None,
-        ext_basis: Optional[Union[str, List[str]]] = None,
-        use_dynamic_flux_grouping: Optional[bool] = None,
+        transformation_matrix: ndarray | None = None,
+        system_hierarchy: list | None = None,
+        subsystem_trunc_dims: list | None = None,
+        closure_branches: list[Branch | dict[Branch, float]] | None = None,
+        ext_basis: str | list[str] | None = None,
+        use_dynamic_flux_grouping: bool | None = None,
         generate_noise_methods: bool = False,
-        subsys_dict: Optional[Dict[str, Any]] = None,
+        subsys_dict: dict[str, Any] | None = None,
     ):
         """Method which re-initializes a circuit instance to update, hierarchical
         diagonalization parameters or closure branches or the variable transformation
@@ -728,7 +728,7 @@ class Circuit(
             self.subsystem_trunc_dims = old_subsystem_trunc_dims
             if hasattr(self, "symbolic_circuit"):
                 self.transformation_matrix = old_transformation_matrix
-                self.closure_branches = old_closure_branches
+                self.closure_branches = old_closure_branches  # type: ignore[assignment]
             # Calling configure
             if hasattr(self, "symbolic_circuit"):
                 self._configure(
@@ -752,12 +752,12 @@ class Circuit(
 
     def _read_symbolic_hamiltonian(
         self, symbolic_hamiltonian: sm.Expr
-    ) -> Tuple[List[sm.Expr], List[sm.Expr], List[sm.Expr], Dict[str, List[int]]]:
+    ) -> tuple[list[sm.Expr], list[sm.Expr], list[sm.Expr], dict[str, list[int]]]:
         free_symbols = symbolic_hamiltonian.free_symbols
         external_fluxes = []
         offset_charges = []
         free_charges = []
-        var_categories = {"periodic": [], "extended": [], "free": [], "frozen": []}
+        var_categories: dict[str, list[int]] = {"periodic": [], "extended": [], "free": [], "frozen": []}
         for var_sym in free_symbols:
             if re.match(r"^ng\d+$", var_sym.name):
                 offset_charges.append(var_sym)
@@ -778,10 +778,10 @@ class Circuit(
 
     def _configure_sym_hamiltonian(
         self,
-        system_hierarchy: Optional[list] = None,
-        subsystem_trunc_dims: Optional[list] = None,
-        subsys_dict: Optional[Dict[str, Any]] = None,
-        ext_basis: Optional[Union[str, List[str]]] = None,
+        system_hierarchy: list | None = None,
+        subsystem_trunc_dims: list | None = None,
+        subsys_dict: dict[str, Any] | None = None,
+        ext_basis: str | list[str] | None = None,
     ):
         """Method which re-initializes a circuit instance to update, hierarchical
         diagonalization parameters or closure branches or the variable transformation
@@ -931,13 +931,13 @@ class Circuit(
 
     def _configure(
         self,
-        transformation_matrix: Optional[ndarray] = None,
-        system_hierarchy: Optional[list] = None,
-        subsystem_trunc_dims: Optional[list] = None,
-        closure_branches: Optional[List[Union[Branch, Dict[Branch, float]]]] = None,
-        ext_basis: Optional[Union[str, List[str]]] = None,
-        use_dynamic_flux_grouping: Optional[bool] = None,
-        subsys_dict: Optional[Dict[str, Any]] = None,
+        transformation_matrix: ndarray | None = None,
+        system_hierarchy: list | None = None,
+        subsystem_trunc_dims: list | None = None,
+        closure_branches: list[Branch | dict[Branch, float]] | None = None,
+        ext_basis: str | list[str] | None = None,
+        use_dynamic_flux_grouping: bool | None = None,
+        subsys_dict: dict[str, Any] | None = None,
         generate_noise_methods: bool = False,
     ):
         """Method which re-initializes a circuit instance to update, hierarchical
@@ -983,7 +983,7 @@ class Circuit(
         ):
             self.symbolic_circuit.configure(
                 transformation_matrix=transformation_matrix,
-                closure_branches=closure_branches,
+                closure_branches=closure_branches,  # type: ignore[arg-type]
                 use_dynamic_flux_grouping=use_dynamic_flux_grouping,
             )
 
@@ -1136,7 +1136,7 @@ class Circuit(
         self._frozen = True
         self.update()
 
-    def supported_noise_channels(self) -> List[str]:
+    def supported_noise_channels(self) -> list[str]:  # type: ignore[override]
         """Return a list of supported noise channels."""
         if not hasattr(self, "_noise_methods_generated"):
             raise Exception(
@@ -1196,7 +1196,7 @@ class Circuit(
         vars_type: str = "node",
         print_latex: bool = False,
         return_expr: bool = False,
-    ) -> Union[sm.Expr, None]:
+    ) -> sm.Expr | None:
         """Method that gives a user readable symbolic Lagrangian for the current
         instance.
 
@@ -1211,7 +1211,7 @@ class Circuit(
             return the sympy expression
         """
         if vars_type == "node":
-            lagrangian = self.lagrangian_node_vars
+            lagrangian = self.lagrangian_node_vars  # type: ignore[attr-defined]
             # replace v\theta with \theta_dot
             for var_index in range(
                 1, 1 + len(self.symbolic_circuit.nodes) - self.is_grounded
@@ -1222,7 +1222,7 @@ class Circuit(
                 )
             # break down the lagrangian into kinetic and potential part, and rejoin
             # with evaluate=False to force the kinetic terms together and appear first
-            sym_lagrangian_PE_node_vars = self.potential_node_vars
+            sym_lagrangian_PE_node_vars = self.potential_node_vars  # type: ignore[attr-defined]
             for external_flux in self.external_fluxes:
                 sym_lagrangian_PE_node_vars = sym_lagrangian_PE_node_vars.replace(
                     external_flux,
@@ -1234,13 +1234,13 @@ class Circuit(
                     ),
                 )
             lagrangian = sm.Add(
-                (self._make_expr_human_readable(lagrangian + self.potential_node_vars)),
+                (self._make_expr_human_readable(lagrangian + self.potential_node_vars)),  # type: ignore[attr-defined]
                 (self._make_expr_human_readable(-sym_lagrangian_PE_node_vars)),
                 evaluate=False,
             )
 
         elif vars_type == "new":
-            lagrangian = self.lagrangian_symbolic
+            lagrangian = self.lagrangian_symbolic  # type: ignore[attr-defined]
             # replace v\theta with \theta_dot
             for var_index in self.dynamic_var_indices:
                 lagrangian = lagrangian.replace(
@@ -1279,7 +1279,7 @@ class Circuit(
             print(lagrangian)
         return None
 
-    def sym_external_fluxes(self) -> Dict[sm.Expr, Tuple["Branch", List["Branch"]]]:
+    def sym_external_fluxes(self) -> dict[sm.Expr, tuple["Branch", list["Branch"]]]:
         """Method returns a dictionary of Human readable external fluxes with associated
         branches and loops (represented as lists of branches) for the current instance.
 
@@ -1305,7 +1305,7 @@ class Circuit(
             for branch in list_closure_branches
         }
 
-    def oscillator_list(self, osc_index_list: List[int]):
+    def oscillator_list(self, osc_index_list: list[int]):
         """If hierarchical diagonalization is used, specify subsystems that corresponds
         to single-mode oscillators, if there is any. The attributes `_osc_subsys_list`
         and `osc_subsys_list` of the :attr:`hilbert_space` attribute of the Circuit instance
@@ -1333,7 +1333,7 @@ class Circuit(
                 osc_subsys_list.append(subsystem)
         self.hilbert_space._osc_subsys_list = osc_subsys_list
 
-    def qubit_list(self, qbt_index_list: List[int]):
+    def qubit_list(self, qbt_index_list: list[int]):
         """If hierarchical diagonalization is used, specify subsystems that corresponds
         to single-mode oscillators, if there is any. The attributes `_osc_subsys_list`
         and `osc_subsys_list` of the `hilbert_space` attribute of the Circuit instance

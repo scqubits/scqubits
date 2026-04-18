@@ -10,7 +10,9 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import TYPE_CHECKING, Tuple
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -21,11 +23,10 @@ from scqubits.core.qubit_base import QubitBaseClass
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep
 
-
 def bare_matrixelement(
     sweep: "ParameterSweep",
-    paramindex_tuple: Tuple[int, ...],
-    paramvals_tuple: Tuple[float, ...],
+    paramindex_tuple: tuple[int, ...],
+    paramvals_tuple: tuple[float, ...],
     operator_name: str,
     subsystem: QubitBaseClass,
 ) -> np.ndarray:
@@ -60,11 +61,10 @@ def bare_matrixelement(
         evals_count=subsystem.truncated_dim,
     )
 
-
 def dressed_matrixelement(
     sweep: "ParameterSweep",
-    paramindex_tuple: Tuple[int, ...],
-    paramvals_tuple: Tuple[float, ...],
+    paramindex_tuple: tuple[int, ...],
+    paramvals_tuple: tuple[float, ...],
     operator: Qobj,
 ) -> np.ndarray:
     """Given parameter sweep data, compute and return a matrix element table using the

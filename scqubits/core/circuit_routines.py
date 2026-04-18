@@ -10,12 +10,14 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
 
+from collections.abc import Callable
 import functools
 import operator as builtin_op
 import re
 from types import MethodType
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem
@@ -76,8 +78,56 @@ import scqubits.core.circuit as circuit
 import scqubits.core.diag as diag
 from abc import ABC
 
-
 class CircuitRoutines(ABC):
+    # Attributes set by concrete subclasses (Circuit, Subsystem) in their __init__.
+    # Declared here so mypy can resolve cross-subclass access patterns in shared
+    # methods defined on this ABC.
+    hierarchical_diagonalization: bool
+    var_categories: dict[str, list[int]]
+    dynamic_var_indices: list[int]
+    external_fluxes: list[Any]
+    symbolic_params: dict[Any, Any]
+    offset_charges: list[Any]
+    free_charges: list[Any]
+    type_of_matrices: str
+    system_hierarchy: list[Any]
+    parent: Any
+    is_purely_harmonic: bool
+    subsystem_trunc_dims: list[Any]
+    is_child: bool
+    subsystems: list[Any]
+    symbolic_circuit: Any
+    closure_branches: list[Any]
+    cutoff_names: list[str]
+    discretized_phi_range: dict[int, Any]
+    ext_basis: Any
+    transformation_matrix: Any
+    use_dynamic_flux_grouping: bool
+    affine_transformation_matrix: Any
+    _default_grid_phi: Any
+    evals_method: Any
+    evals_method_options: Any
+    esys_method: Any
+    esys_method_options: Any
+    _hamiltonian_sym_for_numerics: Any
+    _out_of_sync_with_parent: bool
+    broadcast: Callable[..., Any]
+    _generate_sym_potential: Callable[..., Any]
+    _find_and_set_sym_attrs: Callable[..., Any]
+    _generate_hamiltonian_sym_for_numerics: Callable[..., Any]
+    _sym_subsystem_hamiltonian_and_interactions: Callable[..., Any]
+    _is_expression_purely_harmonic: Callable[..., Any]
+    _basis_for_var_index: Callable[..., Any]
+    _evaluate_symbolic_expr: Callable[..., Any]
+    truncated_dim: int
+    hilbert_space: Any
+    operators_by_name: Any
+    _id_str: str
+    eigensys: Callable[..., Any]
+    generate_bare_esys: Callable[..., Any]
+    _get_eval_hamiltonian_string: Callable[..., Any]
+    _is_diagonalization_necessary: Callable[..., Any]
+
     _read_only_attributes = [
         "ext_basis",
         "transformation_matrix",
@@ -100,7 +150,7 @@ class CircuitRoutines(ABC):
         obj_in_bytes = dill.dumps(self)
         initdata = {"subsystem_in_hex": obj_in_bytes.hex()}
         if hasattr(self, "_id_str"):
-            initdata["id_str"] = self._id_str  # type:ignore
+            initdata["id_str"] = self._id_str
         iodata = dict_serialize(initdata)
         iodata.typename = type(self).__name__
         return iodata
@@ -280,11 +330,11 @@ class CircuitRoutines(ABC):
             setattr(self.__class__, property_name, property_obj)
 
     @staticmethod
-    def default_params() -> Dict[str, Any]:
+    def default_params() -> dict[str, Any]:
         # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
         return {}
 
-    def cutoffs_dict(self) -> Dict[int, int]:
+    def cutoffs_dict(self) -> dict[int, int]:
         """Returns a dictionary, where each variable is associated with its respective
         cutoff.
 
@@ -338,7 +388,7 @@ class CircuitRoutines(ABC):
             return None
         self._out_of_sync = False
         if reset_affected_subsystem_indices:
-            self.affected_subsystem_indices = []
+            self.affected_subsystem_indices: list[int] = []
         for subsys in self.subsystems:
             if subsys.hierarchical_diagonalization:
                 subsys._set_sync_status_to_True()
@@ -352,7 +402,7 @@ class CircuitRoutines(ABC):
             if self.hierarchical_diagonalization:
                 self.hilbert_space._out_of_sync = True
         if self.hierarchical_diagonalization and (sender in self.subsystems):
-            sender._out_of_sync_with_parent = True
+            sender._out_of_sync_with_parent = True  # type: ignore[attr-defined]
             self._store_updated_subsystem_index(self.subsystems.index(sender))
             self.broadcast("CIRCUIT_UPDATE")
             self._out_of_sync = True
@@ -597,7 +647,7 @@ class CircuitRoutines(ABC):
     def _make_property(
         self,
         attrib_name: str,
-        init_val: Union[int, float],
+        init_val: int | float,
         property_update_type: str,
         use_central_dispatch: bool = True,
     ) -> None:
@@ -668,7 +718,7 @@ class CircuitRoutines(ABC):
     ##############################################
 
     def set_discretized_phi_range(
-        self, var_indices: Tuple[int], phi_range: Tuple[float]
+        self, var_indices: tuple[int], phi_range: tuple[float]
     ) -> None:
         """Sets the flux range for discretized phi basis or for plotting.
 
@@ -695,7 +745,7 @@ class CircuitRoutines(ABC):
             self.discretized_phi_range[var_index] = phi_range
         self.operators_by_name = self._set_operators()
 
-    def set_and_return(self, attr_name: str, value: Any) -> base.QubitBaseClass:
+    def set_and_return(self, attr_name: str, value: Any) -> "CircuitRoutines":
         """
         Allows to set an attribute after which self is returned. This is useful for
         doing something like example::
@@ -721,16 +771,16 @@ class CircuitRoutines(ABC):
         setattr(self, attr_name, value)
         return self
 
-    def get_ext_basis(self) -> Union[str, List[str]]:
+    def get_ext_basis(self) -> str | list[str]:
         """Get the ext_basis object for the Circuit instance, according to the setting
         in self.hierarchical_diagonalization."""
         if not self.hierarchical_diagonalization:
             return self.ext_basis
         else:
-            ext_basis = []
+            ext_basis: list[str | list[str]] = []
             for subsys in self.subsystems:
                 ext_basis.append(subsys.get_ext_basis())
-            return ext_basis
+            return ext_basis  # type: ignore[return-value]
 
     # *****************************************************************
     # **** Functions to construct the operators for the Hamiltonian ****
@@ -783,7 +833,7 @@ class CircuitRoutines(ABC):
     def _generate_subsystems(
         self,
         only_update_subsystems: bool = False,
-        subsys_dict: Optional[Dict[str, Any]] = None,
+        subsys_dict: dict[str, Any] | None = None,
     ):
         """Generates the subsystems (child instances of Circuit) depending on the
         :attr:`system_hierarchy`"""
@@ -798,8 +848,8 @@ class CircuitRoutines(ABC):
             self._create_new_subsystems(systems_sym, interaction_sym)
 
     def _get_systems_and_interactions(
-        self, hamiltonian: sm.Expr, subsys_dict: Optional[Dict[str, Any]]
-    ) -> Tuple[List[sm.Expr], List[sm.Expr]]:
+        self, hamiltonian: sm.Expr, subsys_dict: dict[str, Any] | None
+    ) -> tuple[list[sm.Expr], list[sm.Expr]]:
         non_operator_symbols = (
             self.offset_charges
             + self.free_charges
@@ -814,7 +864,7 @@ class CircuitRoutines(ABC):
         )
 
     def _update_existing_subsystems(
-        self, systems_sym: List[sm.Expr], interaction_sym: List[sm.Expr]
+        self, systems_sym: list[sm.Expr], interaction_sym: list[sm.Expr]
     ):
         for subsys_index, subsys in enumerate(self.subsystems):
             subsys.hamiltonian_symbolic = systems_sym[subsys_index]
@@ -823,7 +873,7 @@ class CircuitRoutines(ABC):
             self.subsystem_interactions[subsys_index] = interaction_sym[subsys_index]
 
     def _create_new_subsystems(
-        self, systems_sym: List[sm.Expr], interaction_sym: List[sm.Expr]
+        self, systems_sym: list[sm.Expr], interaction_sym: list[sm.Expr]
     ):
         self.subsystem_hamiltonians = dict(
             zip(range(len(self.system_hierarchy)), systems_sym)
@@ -840,7 +890,7 @@ class CircuitRoutines(ABC):
                 ext_basis = "harmonic" if is_purely_harmonic else self.ext_basis
             self.subsystems.append(
                 circuit.Subsystem(
-                    self,
+                    self,  # type: ignore[arg-type]
                     systems_sym[index],
                     system_hierarchy=self.system_hierarchy[index],
                     truncated_dim=(
@@ -1015,7 +1065,7 @@ class CircuitRoutines(ABC):
             ]
 
         # setting the attribute self.vars
-        self.vars: Dict[str, Any] = {
+        self.vars: dict[str, Any] = {
             "periodic": {
                 "sin": periodic_symbols_sin,
                 "cos": periodic_symbols_cos,
@@ -1046,9 +1096,9 @@ class CircuitRoutines(ABC):
     # #################################################################
     # ############## Functions to construct the operators #############
     # #################################################################
-    def get_cutoffs(self) -> Dict[str, list]:
+    def get_cutoffs(self) -> dict[str, list]:
         """Method to get the cutoffs for each of the circuit's degree of freedom."""
-        cutoffs_dict: Dict[str, List[Any]] = {
+        cutoffs_dict: dict[str, list[Any]] = {
             "cutoff_n": [],
             "cutoff_ext": [],
         }
@@ -1085,8 +1135,8 @@ class CircuitRoutines(ABC):
 
     # helper functions
     def _kron_operator(
-        self, operator: Union[csc_matrix, ndarray], var_index: int
-    ) -> Union[csc_matrix, ndarray]:
+        self, operator: csc_matrix | ndarray, var_index: int
+    ) -> csc_matrix | ndarray:
         """Identity wraps the operator with identities generated for all the other
         variable indices present in the current Subsystem.
 
@@ -1118,23 +1168,23 @@ class CircuitRoutines(ABC):
 
         if len(dynamic_var_indices) > 1:
             if var_index_pos > 0:
-                identity_left = sparse.identity(
-                    np.prod(var_dim_list[:var_index_pos]),
+                identity_left = sparse.identity(  # type: ignore[call-overload]
+                    int(np.prod(var_dim_list[:var_index_pos])),
                     format=matrix_format,
                 )
             if var_index_pos < len(dynamic_var_indices) - 1:
-                identity_right = sparse.identity(
-                    np.prod(var_dim_list[var_index_pos + 1 :]),
+                identity_right = sparse.identity(  # type: ignore[call-overload]
+                    int(np.prod(var_dim_list[var_index_pos + 1 :])),
                     format=matrix_format,
                 )
 
             if var_index == dynamic_var_indices[0]:
-                return sparse.kron(operator, identity_right, format=matrix_format)
+                return sparse.kron(operator, identity_right, format=matrix_format)  # type: ignore[call-overload]
             elif var_index == dynamic_var_indices[-1]:
-                return sparse.kron(identity_left, operator, format=matrix_format)
+                return sparse.kron(identity_left, operator, format=matrix_format)  # type: ignore[call-overload]
             else:
                 return sparse.kron(
-                    sparse.kron(identity_left, operator, format=matrix_format),
+                    sparse.kron(identity_left, operator, format=matrix_format),  # type: ignore[call-overload]
                     identity_right,
                     format=matrix_format,
                 )
@@ -1142,8 +1192,8 @@ class CircuitRoutines(ABC):
             return self._sparsity_adaptive(operator)
 
     def _sparsity_adaptive(
-        self, matrix: Union[csc_matrix, ndarray]
-    ) -> Union[csc_matrix, ndarray]:
+        self, matrix: csc_matrix | ndarray
+    ) -> csc_matrix | ndarray:
         """Changes the type of matrix depending on the attribute :attr:`type_of_matrices`.
 
         Parameters
@@ -1191,7 +1241,7 @@ class CircuitRoutines(ABC):
 
     def exp_i_operator(
         self, var_sym: sm.Symbol, prefactor: float
-    ) -> Union[csc_matrix, ndarray]:
+    ) -> csc_matrix | ndarray:
         """Returns the bare operator exp(i*\theta*prefactor), without the kron product.
 
         Needs the oscillator lengths to be set in the attribute, :attr:`osc_lengths`,
@@ -1219,7 +1269,7 @@ class CircuitRoutines(ABC):
                     (diagonal, [0]), shape=(phi_grid.pt_count, phi_grid.pt_count)
                 ).tocsc()
             elif "Q" in var_sym.name:
-                exp_i_theta = sp.linalg.expm(
+                exp_i_theta = sp.linalg.expm(  # type: ignore[assignment]
                     _i_d_dphi_operator(phi_grid).toarray() * prefactor * 1j
                 )
         elif var_basis == "harmonic":
@@ -1337,7 +1387,7 @@ class CircuitRoutines(ABC):
                 )
         return junction_potential_matrix
 
-    def _set_harmonic_basis_osc_params(self, hamiltonian: Optional[sm.Expr] = None):
+    def _set_harmonic_basis_osc_params(self, hamiltonian: sm.Expr | None = None):
         osc_lengths = {}
         osc_freqs = {}
         hamiltonian_sym = hamiltonian or self._hamiltonian_sym_for_numerics
@@ -1363,7 +1413,7 @@ class CircuitRoutines(ABC):
 
     def _purely_harmonic_operator_func_factory(self, operator_name: str):
         def purely_harmonic_operator_func(
-            self: "Subsystem", energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+            self: "Subsystem", energy_esys: bool | tuple[ndarray, ndarray] = False
         ):
             """Returns the operator <op_name> (corresponds to the name of the method
             "<op_name>_operator") for the Circuit/Subsystem instance.
@@ -1404,12 +1454,13 @@ class CircuitRoutines(ABC):
                     ],
                 )
             )
-            ops = dict.fromkeys(["Q", "θ"])
+            ops: dict[str, Any] = dict.fromkeys(["Q", "θ"])
             for optype in ops:
                 terms = op_exprs[optype].as_ordered_terms()
-                operator = 0
+                operator: Any = 0
                 for term in terms:
                     sym_var_index = get_trailing_number(term.free_symbols.pop().name)
+                    term_op: csc_matrix | ndarray
                     if optype == "Q":
                         term_op = op.iadag_minus_ia_sparse(
                             getattr(self, f"cutoff_ext_{sym_var_index}"),
@@ -1440,7 +1491,7 @@ class CircuitRoutines(ABC):
 
         return purely_harmonic_operator_func
 
-    def _generate_operator_methods(self) -> Dict[str, Callable]:
+    def _generate_operator_methods(self) -> dict[str, Callable]:
         """Returns the set of operator functions to be turned into methods of the
         `Circuit` class."""
         periodic_vars = self.vars["periodic"]
@@ -1458,7 +1509,7 @@ class CircuitRoutines(ABC):
                     )
 
         elif self.ext_basis == "discretized":
-            nonwrapped_ops = {
+            nonwrapped_ops: dict[str, Callable[..., Any]] = {
                 "position": _phi_operator,
                 "cos": _cos_phi,
                 "sin": _sin_phi,
@@ -1476,7 +1527,7 @@ class CircuitRoutines(ABC):
 
         elif self.ext_basis == "harmonic":
             self._set_harmonic_basis_osc_params()
-            nonwrapped_ops = {
+            nonwrapped_ops_h: dict[str, Callable[..., Any] | None] = {
                 "creation": op.creation_sparse,
                 "annihilation": op.annihilation_sparse,
                 "number": op.number_sparse,
@@ -1485,6 +1536,7 @@ class CircuitRoutines(ABC):
                 "cos": None,
                 "momentum": None,
             }
+            nonwrapped_ops = nonwrapped_ops_h  # type: ignore[assignment]
 
             for list_idx, var_index in enumerate(self.var_categories["extended"]):
                 if self.is_purely_harmonic and self.ext_basis == "harmonic":
@@ -1510,6 +1562,9 @@ class CircuitRoutines(ABC):
 
                     for short_op_name in nonwrapped_ops.keys():
                         op_func = nonwrapped_ops[short_op_name]
+                        # None values set at dict construction above have all been
+                        # overwritten in the preceding four lines.
+                        assert op_func is not None
                         sym_variable = extended_vars[short_op_name][list_idx]
                         op_name = sym_variable.name + "_operator"
                         extended_operators[op_name] = operator_func_factory(
@@ -1544,7 +1599,7 @@ class CircuitRoutines(ABC):
     # #################################################################
     # ############### Functions for parameter queries #################
     # #################################################################
-    def offset_free_charge_values(self) -> List[float]:
+    def offset_free_charge_values(self) -> list[float]:
         """Returns all the offset charges set using the circuit attributes for each of
         the periodic degree of freedom."""
         return [
@@ -1552,7 +1607,7 @@ class CircuitRoutines(ABC):
             for charge_var in self.offset_charges + self.free_charges
         ]
 
-    def _set_operators(self) -> Dict[str, Callable]:
+    def _set_operators(self) -> dict[str, Callable]:
         """Creates the operator methods `<name>_operator` for the circuit."""
 
         if self.hierarchical_diagonalization:
@@ -1574,9 +1629,9 @@ class CircuitRoutines(ABC):
 
     def identity_wrap_for_hd(
         self,
-        operator: Optional[Union[csc_matrix, ndarray]],
+        operator: csc_matrix | ndarray | None,
         child_instance,
-        bare_esys: Optional[Dict[int, Tuple]] = None,
+        bare_esys: dict[int, tuple] | None = None,
     ) -> qt.Qobj:
         """Returns an identity wrapped operator whose size is equal to the
         `self.hilbertdim()`. Only converts operator which belongs to a specific variable
@@ -1589,7 +1644,7 @@ class CircuitRoutines(ABC):
         instance:
             The subsystem to which the operator belongs
         bare_esys:
-            Dict containing subsystem indices starting from 0, paired with the bare esys for each of the subsystem
+            dict containing subsystem indices starting from 0, paired with the bare esys for each of the subsystem
 
         Returns
         -------
@@ -1633,7 +1688,7 @@ class CircuitRoutines(ABC):
 
     @check_sync_status_circuit
     def get_operator_by_name(
-        self, operator_name: str, power: Optional[int] = None, bare_esys=None
+        self, operator_name: str, power: int | None = None, bare_esys=None
     ) -> qt.Qobj:
         """Returns the operator for the given operator symbol which has the same
         dimension as the hilbertdim of the instance from which the operator is
@@ -1706,7 +1761,7 @@ class CircuitRoutines(ABC):
     # ############ Functions for eigenvalues and matrices ############
     # #################################################################
 
-    def _hamiltonian_for_harmonic_extended_vars(self) -> Union[csc_matrix, ndarray]:
+    def _hamiltonian_for_harmonic_extended_vars(self) -> csc_matrix | ndarray:
         hamiltonian = self._hamiltonian_sym_for_numerics
         # substitute all parameter values
         all_sym_parameters = (
@@ -1770,7 +1825,7 @@ class CircuitRoutines(ABC):
             )
         )
 
-        replacement_dict: Dict[str, Any] = {
+        replacement_dict: dict[str, Any] = {
             **self.operators_by_name,
             **offset_free_var_dict,
             **external_flux_dict,
@@ -1799,7 +1854,7 @@ class CircuitRoutines(ABC):
         else:
             return junction_potential_matrix
 
-    def _evaluate_hamiltonian(self) -> csc_matrix:
+    def _evaluate_hamiltonian(self) -> csc_matrix | ndarray:
         hamiltonian = self._hamiltonian_sym_for_numerics
         hamiltonian = hamiltonian.subs(
             [
@@ -1819,11 +1874,11 @@ class CircuitRoutines(ABC):
     @check_sync_status_circuit
     def _hamiltonian_for_purely_harmonic(
         self, return_unsorted: bool = False
-    ) -> csc_matrix:
+    ) -> csc_matrix | ndarray:
         """Hamiltonian for purely harmonic systems when ext_basis is set to harmonic.
 
         Returns
-            csc_matrix:
+            csc_matrix or dense ndarray, depending on self.type_of_matrices
         """
         hamiltonian = self._hamiltonian_sym_for_numerics
         # substitute parameters
@@ -1838,12 +1893,12 @@ class CircuitRoutines(ABC):
         operator_dict = {}
         for var_index in self.dynamic_var_indices:
             cutoff = getattr(self, f"cutoff_ext_{var_index}")
-            theta_operator = op.a_plus_adag_sparse(
+            theta_operator: csc_matrix | ndarray = op.a_plus_adag_sparse(
                 cutoff,
                 prefactor=(self.osc_lengths[var_index] / 2**0.5),
             )
             theta_operator = self._kron_operator(theta_operator, var_index)
-            Q_operator = op.iadag_minus_ia_sparse(
+            Q_operator: csc_matrix | ndarray = op.iadag_minus_ia_sparse(
                 cutoff,
                 prefactor=1 / (self.osc_lengths[var_index] * 2**0.5),
             )
@@ -1863,21 +1918,23 @@ class CircuitRoutines(ABC):
         evals_count:
             Number of eigenenergies
         """
-        operator_for_var_index = []
+        operator_for_var_index: list[csc_matrix | ndarray] = []
         for idx, var_index in enumerate(self.var_categories["extended"]):
             cutoff = getattr(self, f"cutoff_ext_{var_index}")
             evals = (0.5 + np.arange(0, cutoff)) * self.normal_mode_freqs[idx]
             H_osc = sp.sparse.dia_matrix(
                 (evals, [0]), shape=(cutoff, cutoff), dtype=np.float64
-            )
+            ).tocsc()
             operator_for_var_index.append(self._kron_operator(H_osc, var_index))
-        H = sum(operator_for_var_index)
-        unsorted_eigs = H.diagonal()
+        # sum() of sparse/dense matrices produces the same sparse/dense sum at runtime;
+        # mypy's Iterable[SupportsAdd] stub can't narrow this — safe to ignore.
+        H = sum(operator_for_var_index)  # type: ignore[arg-type]
+        unsorted_eigs = H.diagonal()  # type: ignore[attr-defined]
         dressed_indices = np.argsort(unsorted_eigs)[:evals_count]
         return unsorted_eigs[dressed_indices]
 
     @check_sync_status_circuit
-    def hamiltonian(self) -> Union[csc_matrix, ndarray]:
+    def hamiltonian(self) -> csc_matrix | ndarray:
         """Returns the Hamiltonian of the Circuit."""
         if not self.hierarchical_diagonalization:
             if self.is_purely_harmonic and self.ext_basis == "harmonic":
@@ -1934,7 +1991,7 @@ class CircuitRoutines(ABC):
         )
         return np.sort(evals)
 
-    def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
+    def _esys_calc(self, evals_count: int) -> tuple[ndarray, ndarray]:
 
         if self.is_child and not self._is_diagonalization_necessary():
             subsys_index = self.parent.subsystems.index(self)

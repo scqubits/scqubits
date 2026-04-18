@@ -10,15 +10,17 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
 import ast
 import functools
 import platform
 import warnings
 
 import inspect
-from collections.abc import Sequence
+from collections.abc import Callable, Iterable, Sequence
 from io import StringIO
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any
 
 import matplotlib
 import numpy as np
@@ -32,10 +34,9 @@ from scqubits.settings import IN_IPYTHON
 if IN_IPYTHON:
     from tqdm.notebook import tqdm
 else:
-    from tqdm import tqdm
+    from tqdm import tqdm  # type: ignore[assignment]
 
-
-def process_which(which: Union[int, Iterable[int]], max_index: int) -> List[int]:
+def process_which(which: int | Iterable[int], max_index: int) -> list[int]:
     """Processes different ways of specifying the selection of  wanted
     eigenvalues/eigenstates.
 
@@ -57,8 +58,7 @@ def process_which(which: Union[int, Iterable[int]], max_index: int) -> List[int]
         return [which]
     return list(which)
 
-
-def make_bare_labels(subsystem_count: int, *args) -> Tuple[int, ...]:
+def make_bare_labels(subsystem_count: int, *args) -> tuple[int, ...]:
     """For two given subsystem states, return the full-system bare state label obtained
     by placing all remaining subsys_list in their ground states.
 
@@ -80,11 +80,9 @@ def make_bare_labels(subsystem_count: int, *args) -> Tuple[int, ...]:
         bare_labels[subsys_index] = label
     return tuple(bare_labels)
 
-
-def drop_private_keys(full_dict: Dict[str, Any]) -> Dict[str, Any]:
+def drop_private_keys(full_dict: dict[str, Any]) -> dict[str, Any]:
     """Filter for entries in the full dictionary that have numerical values."""
     return {key: value for key, value in full_dict.items() if key[0] != "_"}
-
 
 class InfoBar:
     """Static "progress" bar used whenever multiprocessing is involved.
@@ -100,7 +98,7 @@ class InfoBar:
     def __init__(self, desc: str, num_cpus: int) -> None:
         self.desc = desc
         self.num_cpus = num_cpus
-        self.tqdm_bar = None
+        self.tqdm_bar: Any = None
 
     def __enter__(self) -> None:
         self.tqdm_bar = tqdm(
@@ -114,7 +112,6 @@ class InfoBar:
     def __exit__(self, *args) -> None:
         if self.tqdm_bar:
             self.tqdm_bar.close()
-
 
 class Required:
     """Decorator class, ensuring that a given requirement or set of requirements is
@@ -162,7 +159,6 @@ class Required:
 
         return decorated_func
 
-
 def check_sync_status(func: Callable) -> Callable:
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
@@ -180,7 +176,6 @@ def check_sync_status(func: Callable) -> Callable:
         return func(self, *args, **kwargs)
 
     return wrapper
-
 
 def check_sync_status_circuit(func: Callable) -> Callable:
     @functools.wraps(func)
@@ -202,7 +197,6 @@ def check_sync_status_circuit(func: Callable) -> Callable:
 
     return wrapper
 
-
 def check_lookup_exists(func: Callable) -> Callable:
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
@@ -215,7 +209,6 @@ def check_lookup_exists(func: Callable) -> Callable:
         return func(self, *args, **kwargs)
 
     return wrapper
-
 
 class DeprecationMessage:
     """Decorator class, producing an adjustable warning and info upon usage of the
@@ -238,17 +231,14 @@ class DeprecationMessage:
 
         return decorated_func
 
-
 def to_expression_or_string(string_expr: str) -> Any:
     try:
         return ast.literal_eval(string_expr)
     except ValueError:
         return string_expr
 
-
-def remove_nones(dict_data: Dict[str, Any]) -> Dict[str, Any]:
+def remove_nones(dict_data: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in dict_data.items() if value is not None}
-
 
 def qt_ket_to_ndarray(qobj_ket: qt.Qobj) -> np.ndarray:
     # Qutip's `.eigenstates()` returns an object-valued ndarray, each idx_entry of which
@@ -259,14 +249,12 @@ def qt_ket_to_ndarray(qobj_ket: qt.Qobj) -> np.ndarray:
         else qobj_ket.data.toarray()
     )
 
-
 def Qobj_to_scipy_csc_matrix(qobj_array: qt.Qobj) -> sp.sparse.csc_matrix:
     return (
         qobj_array.to("csr").data.as_scipy().tocsc()
         if qt.__version__ >= "5.0.0"
         else qobj_array.data.tocsc()
     )
-
 
 def get_shape(lst, shape=()):
     """Returns the shape of nested lists similarly to numpy's shape.
@@ -294,15 +282,13 @@ def get_shape(lst, shape=()):
 
     return shape
 
-
 def tuple_to_short_str(the_tuple: tuple) -> str:
     short_str = ""
     for entry in the_tuple:
         short_str += str(entry) + ","
     return short_str[:-1]
 
-
-def to_list(obj: Any) -> List[Any]:
+def to_list(obj: Any) -> list[Any]:
     """
     Converts object to a list: if the input is already a list, it will return the same list. If the input is
     a numpy array, it will convert to a python list. Otherwise, it will return
@@ -323,8 +309,7 @@ def to_list(obj: Any) -> List[Any]:
         return obj.tolist()
     return [obj]
 
-
-def about(print_info=True) -> Optional[str]:
+def about(print_info=True) -> str | None:
     """Prints or returns a string with basic information about scqubits as well as
     installed version of various packages that scqubits depends on.
 
@@ -363,7 +348,6 @@ def about(print_info=True) -> Optional[str]:
     else:
         return fs.getvalue()
 
-
 def cite(print_info=True):
     """Prints or returns a string with scqubits citation information.
 
@@ -389,14 +373,12 @@ def cite(print_info=True):
     else:
         return fs.getvalue()
 
-
 def is_string_float(the_string: str) -> bool:
     try:
         float(the_string)
         return True
     except ValueError:
         return False
-
 
 def is_string_int(the_string: str) -> bool:
     try:
@@ -405,10 +387,8 @@ def is_string_int(the_string: str) -> bool:
     except ValueError:
         return False
 
-
 def list_intersection(list1: list, list2: list) -> list:
     return [item for item in list1 if item in list2]
-
 
 def flatten_list(nested_list):
     """Flattens a list of lists once, not recursive.
@@ -424,7 +404,6 @@ def flatten_list(nested_list):
     Flattened list of objects
     """
     return functools.reduce(lambda a, b: a + b, nested_list)
-
 
 def flatten_list_recursive(some_list: list) -> list:
     """Flattens a list of lists recursively.
@@ -446,7 +425,6 @@ def flatten_list_recursive(some_list: list) -> list:
         )
     return some_list[:1] + flatten_list_recursive(some_list[1:])
 
-
 def unique_elements_in_list(list_object: list) -> list:
     """Returns a list of all the unique elements in the list.
 
@@ -455,14 +433,11 @@ def unique_elements_in_list(list_object: list) -> list:
     list_object :
         A list of any objects
     """
-    unique_list = []
-    [
-        unique_list.append(element)
-        for element in list_object
-        if element not in unique_list
-    ]
+    unique_list: list = []
+    for element in list_object:
+        if element not in unique_list:
+            unique_list.append(element)
     return unique_list
-
 
 def number_of_lists_in_list(list_object: list) -> int:
     """Takes a list as an argument and returns the number of lists in that list. (Counts
@@ -479,12 +454,11 @@ def number_of_lists_in_list(list_object: list) -> int:
     """
     return sum([1 for element in list_object if type(element) == list])
 
-
 def inspect_public_API(
     module: Any,
-    public_names: List[str] = [],
-    private_names: List[str] = [],
-) -> List[str]:
+    public_names: list[str] = [],
+    private_names: list[str] = [],
+) -> list[str]:
     """Find all public names in a module.
 
     Parameters
@@ -506,7 +480,6 @@ def inspect_public_API(
             public_names.append(name)
 
     return public_names
-
 
 MATPLOTLIB_WIDGET_BACKEND = "module://ipympl.backend_nbagg"
 _HAS_WIDGET_BACKEND = get_matplotlib_backend() == MATPLOTLIB_WIDGET_BACKEND

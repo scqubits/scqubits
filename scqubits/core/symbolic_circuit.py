@@ -9,10 +9,12 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
 import copy
 import itertools
 import warnings
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any
 
 import numpy as np
 from numpy import ndarray
@@ -50,7 +52,6 @@ from scqubits.core.symbolic_circuit_graph import (
     Coupler,
 )
 
-
 class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
     r"""Describes a circuit consisting of nodes and branches.
 
@@ -69,11 +70,11 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
 
     Parameters
     ----------
-    nodes_list: List[Node]
+    nodes_list: list[Node]
         List of nodes in the circuit
-    branches_list: List[Branch]
+    branches_list: list[Branch]
         List of branches connecting the above set of nodes.
-    couplers_list: List[Coupler]
+    couplers_list: list[Coupler]
         List of couplers connecting the branches.
     basis_completion: str
         choices are: "heuristic" (default) or "canonical"; selects type of basis for
@@ -89,18 +90,18 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
 
     def __init__(
         self,
-        nodes_list: List[Node],
-        branches_list: List[Branch],
-        couplers_list: List[Coupler],
-        branch_var_dict: Dict[Union[Any, Symbol], Union[Any, float]],
+        nodes_list: list[Node],
+        branches_list: list[Branch],
+        couplers_list: list[Coupler],
+        branch_var_dict: dict[Any | Symbol, Any | float],
         basis_completion: str = "heuristic",
         use_dynamic_flux_grouping: bool = False,
         initiate_sym_calc: bool = True,
         input_string: str = "",
     ):
-        self.branches: List[Branch] = branches_list
-        self.nodes: List[Node] = nodes_list
-        self.couplers: List[Coupler] = couplers_list
+        self.branches: list[Branch] = branches_list
+        self.nodes: list[Node] = nodes_list
+        self.couplers: list[Coupler] = couplers_list
         self.input_string: str = input_string
 
         self._sys_type = type(self).__name__  # for object description
@@ -108,11 +109,11 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         # attributes set by methods
         self.transformation_matrix: ndarray
 
-        self.var_categories: Dict[str, List[int]] = {}
-        self.external_fluxes: List[Symbol] = []
-        self.closure_branches: List[Union[Branch, Dict[Branch, float]]] = []
+        self.var_categories: dict[str, list[int]] = {}
+        self.external_fluxes: list[Symbol] = []
+        self.closure_branches: list[Branch | dict[Branch, float]] = []
 
-        self.symbolic_params: Dict[Symbol, float] = branch_var_dict
+        self.symbolic_params: dict[Symbol, float] = branch_var_dict
 
         self.hamiltonian_symbolic: sympy.Expr
         # to store the internally used lagrangian
@@ -126,7 +127,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
 
         # parameters for grounding the circuit
         self.is_grounded = False
-        self.ground_node: Optional[Node] = None
+        self.ground_node: Node | None = None
         for node in self.nodes:
             if node.is_ground():
                 self.ground_node = node
@@ -195,7 +196,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
 
         return orthogonal_evecs
 
-    def _purely_harmonic_transformation(self) -> Tuple[ndarray, ndarray]:
+    def _purely_harmonic_transformation(self) -> tuple[ndarray, ndarray]:
         trans_mat, _ = self.variable_transformation_matrix()
         c_mat = (
             trans_mat.T @ self._capacitance_matrix(substitute_params=True) @ trans_mat
@@ -251,9 +252,9 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
 
     def configure(
         self,
-        transformation_matrix: Optional[ndarray] = None,
-        closure_branches: List[Union[Branch, Dict[Branch, float]]] = [],
-        use_dynamic_flux_grouping: Optional[bool] = None,
+        transformation_matrix: ndarray | None = None,
+        closure_branches: list[Branch | dict[Branch, float]] = [],
+        use_dynamic_flux_grouping: bool | None = None,
     ):
         """Method to initialize the CustomQCircuit instance and initialize all the
         attributes needed before it can be passed on to AnalyzeQCircuit.
@@ -341,7 +342,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
             # than 3. Else, the calculation will be skipped to the end when numerical
             # Hamiltonian of the circuit is requested.
             substitute_params = True
-            self.frozen_var_exprs = {}
+            self.frozen_var_exprs: dict[int | None, sm.Expr] = {}
 
         # Calculate the Lagrangian
         (
@@ -361,7 +362,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
             substitute_params=substitute_params
         )
 
-    def _replace_energies_with_capacitances_L(self) -> Tuple[sympy.Expr, sympy.Expr]:
+    def _replace_energies_with_capacitances_L(self) -> tuple[sympy.Expr, sympy.Expr]:
         """Method replaces the energies in the Lagrangian with capacitances which are
         arbitrarily generated to make sure that the Lagrangian looks dimensionally
         correct."""
@@ -390,7 +391,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
 
     # Serialize will not currently work for the Circuit class.
     @staticmethod
-    def default_params() -> Dict[str, Any]:
+    def default_params() -> dict[str, Any]:
         # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
         return {}
 
@@ -590,7 +591,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
             C_mat = C_mat[1:, 1:]
         return C_mat
 
-    def _EC_matrix(self, substitute_params: bool = False) -> Union[ndarray, sm.Matrix]:
+    def _EC_matrix(self, substitute_params: bool = False) -> ndarray | sm.Matrix:
         """Returns the charging energy matrix for the circuit."""
         transformation_matrix = self.transformation_matrix
 
@@ -761,10 +762,10 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         # substitute params if necessary
         if substitute_params and terms != 0:
             for symbol in self.symbolic_params:
-                terms = terms.subs(symbol.name, self.symbolic_params[symbol])
+                terms = terms.subs(symbol.name, self.symbolic_params[symbol])  # type: ignore[attr-defined]
         return terms
 
-    def _node_voltage_exprs(self, substitute_params: bool = True) -> List[sm.Expr]:
+    def _node_voltage_exprs(self, substitute_params: bool = True) -> list[sm.Expr]:
         """Returns the node voltage expressions in terms of the new variables."""
         transformation_matrix = self.transformation_matrix
         EC_mat_θ = self._EC_matrix(substitute_params=substitute_params)
@@ -877,7 +878,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
 
     def generate_symbolic_lagrangian(
         self, substitute_params: bool = False
-    ) -> Tuple[sympy.Expr, sympy.Expr, sympy.Expr, sympy.Expr]:
+    ) -> tuple[sympy.Expr, sympy.Expr, sympy.Expr, sympy.Expr]:
         r"""
         Returns four symbolic expressions: lagrangian_θ, potential_θ, lagrangian_φ,
         potential_φ, where θ represents the set of new variables and φ represents

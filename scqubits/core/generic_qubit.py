@@ -10,7 +10,9 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import Any, Dict, Optional, Tuple
+from __future__ import annotations
+
+from typing import Any
 
 import numpy as np
 import scipy as sp
@@ -25,7 +27,6 @@ import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.utils.spectrum_utils import get_matrixelement_table, order_eigensystem
 
 # -generic qubit (two-level system)----------------------------------------------
-
 
 class GenericQubit(base.QuantumSystem, serializers.Serializable):
     """Class for a generic qubit (genuine two-level system). Create a class instance
@@ -42,18 +43,18 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
 
-    truncated_dim = 2  # type:ignore
+    truncated_dim = 2
     _sys_type: str
     _init_params: list
 
     E = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
 
-    def __init__(self, E: float, id_str: Optional[str] = None) -> None:
+    def __init__(self, E: float, id_str: str | None = None) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
         self.E = E
 
     @staticmethod
-    def default_params() -> Dict[str, Any]:
+    def default_params() -> dict[str, Any]:
         return {"E": 5.0}
 
     def hamiltonian(self):
@@ -68,7 +69,7 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
         evals = sp.linalg.eigh(hamiltonian_mat, eigvals_only=True)
         return np.sort(evals)
 
-    def eigensys(self, evals_count: int = 2) -> Tuple[ndarray, ndarray]:
+    def eigensys(self, evals_count: int = 2) -> tuple[ndarray, ndarray]:
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = sp.linalg.eigh(hamiltonian_mat, eigvals_only=False)
         evals, evecs = order_eigensystem(evals, evecs)
@@ -94,7 +95,7 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
     def create(cls) -> base.QuantumSystem:
         raise NotImplementedError
 
-    def widget(self, params: Dict[str, Any] = None):
+    def widget(self, params: dict[str, Any] | None = None):
         raise NotImplementedError(
             "GenericQubit does not support widget-based " "creation."
         )

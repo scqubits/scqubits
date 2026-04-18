@@ -1,4 +1,6 @@
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem
@@ -29,8 +31,34 @@ from scqubits.utils.misc import (
 from scqubits.utils.plot_utils import _process_options
 from abc import ABC
 
-
 class CircuitPlot(ABC):
+    # The following attributes and methods are provided by sibling mixins
+    # (CircuitRoutines, CircuitSymMethods) when composed into Subsystem/Circuit.
+    # They are declared here under TYPE_CHECKING so that mypy understands the
+    # mixin's references to them without affecting runtime behavior.
+    if TYPE_CHECKING:
+        dynamic_var_indices: list[int]
+        var_categories: dict[str, list[int]]
+        cutoff_names: list[str]
+        ext_basis: str
+        hierarchical_diagonalization: bool
+        subsystems: list["Subsystem"]
+        external_fluxes: list[sm.Symbol]
+        symbolic_params: dict[sm.Symbol, float]
+        potential_symbolic: sm.Expr
+
+        def get_osc_param(
+            self, var_index: int, which_param: str = ...
+        ) -> float: ...
+        def get_subsystem_index(self, var_index: int) -> int: ...
+        def cutoffs_dict(self) -> dict[int, int]: ...
+        def discretized_grids_dict_for_vars(
+            self,
+        ) -> dict[int, discretization.Grid1d]: ...
+        def eigensys(
+            self, evals_count: int = ...
+        ) -> tuple[ndarray, ndarray]: ...
+
     # ****************************************************************
     # ************* Functions for plotting wave function *************
     # ****************************************************************
@@ -178,7 +206,7 @@ class CircuitPlot(ABC):
                 wf_dim += 1
         return wf_dim
 
-    def _dims_to_be_summed(self, var_indices: Tuple[int], num_wf_dims) -> List[int]:
+    def _dims_to_be_summed(self, var_indices: tuple[int], num_wf_dims) -> list[int]:
         all_var_indices = self.dynamic_var_indices
         non_summed_dims = []
         for var_index in all_var_indices:
@@ -189,7 +217,7 @@ class CircuitPlot(ABC):
         return [dim for dim in range(num_wf_dims) if dim not in non_summed_dims]
 
     def _reshape_and_change_to_variable_basis(
-        self, wf: ndarray, var_indices: Tuple[int]
+        self, wf: ndarray, var_indices: tuple[int]
     ) -> ndarray:
         """This method changes the basis of the wavefunction when hierarchical
         diagonalization is used.
@@ -250,8 +278,8 @@ class CircuitPlot(ABC):
     def _change_to_phi_basis(
         self,
         wf_original_basis: ndarray,
-        var_indices: Tuple[int],
-        grids_dict: Dict[int, Union[discretization.Grid1d, ndarray]],
+        var_indices: tuple[int],
+        grids_dict: dict[int, discretization.Grid1d | ndarray],
         change_discrete_charge_to_phi: bool,
     ):
         """Changes the basis of the varaible indices to discretized phi basis which is
@@ -268,11 +296,17 @@ class CircuitPlot(ABC):
 
             if var_basis == "harmonic":
                 wf_ext_basis = self._basis_change_harm_osc_to_phi(
-                    wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
+                    wf_ext_basis,
+                    wf_dim,
+                    var_index,
+                    cast(discretization.Grid1d, grids_dict[var_index]),
                 )
             elif var_basis == "periodic" and change_discrete_charge_to_phi:
                 wf_ext_basis = self._basis_change_n_to_phi(
-                    wf_ext_basis, wf_dim, var_index, grids_dict[var_index]
+                    wf_ext_basis,
+                    wf_dim,
+                    var_index,
+                    cast(discretization.Grid1d, grids_dict[var_index]),
                 )
         return wf_ext_basis
 
@@ -280,10 +314,10 @@ class CircuitPlot(ABC):
         self,
         which: int = 0,
         mode: str = "abs-sqr",
-        var_indices: Tuple[int] = (1,),
-        eigensys: ndarray = None,
+        var_indices: tuple[int] = (1,),
+        eigensys: tuple[ndarray, ndarray] | None = None,
         change_discrete_charge_to_phi: bool = True,
-        grids_dict: Dict[int, discretization.Grid1d] = None,
+        grids_dict: dict[int, discretization.Grid1d] | None = None,
     ):
         """Returns treated wave function of the current Circuit instance for the
         specified variables.
@@ -327,7 +361,9 @@ class CircuitPlot(ABC):
         wf_ext_basis = self._change_to_phi_basis(
             wf_original_basis,
             var_indices=var_indices,
-            grids_dict=grids_dict,
+            grids_dict=cast(
+                "dict[int, discretization.Grid1d | ndarray]", grids_dict
+            ),
             change_discrete_charge_to_phi=change_discrete_charge_to_phi,
         )
 
@@ -370,13 +406,13 @@ class CircuitPlot(ABC):
         self,
         which=0,
         mode: str = "abs-sqr",
-        var_indices: Tuple[int] = (1,),
-        esys: Tuple[ndarray, ndarray] = None,
+        var_indices: tuple[int] = (1,),
+        esys: tuple[ndarray, ndarray] | None = None,
         change_discrete_charge_to_phi: bool = True,
         zero_calibrate: bool = True,
-        grids_dict: Dict[int, discretization.Grid1d] = {},
+        grids_dict: dict[int, discretization.Grid1d] = {},
         **kwargs,
-    ) -> Tuple[Figure, Axes]:
+    ) -> tuple[Figure, Axes]:
         """Returns the plot of the wavefunction in the requested variables. At most 2
         numbers of variables for wavefunction can be specified as plotting axis. If the
         number of plotting variables for wave function is smaller than the number of
@@ -432,7 +468,7 @@ class CircuitPlot(ABC):
                 "Cannot plot wave function in more than 2 dimensions. The number of "
                 "dimensions should be less than 2."
             )
-        var_indices = np.sort(var_indices)
+        var_indices = np.sort(var_indices)  # type: ignore[assignment]
         grids_per_varindex_dict = grids_dict or self.discretized_grids_dict_for_vars()
 
         plot_data = self.generate_wf_plot_data(
@@ -483,7 +519,7 @@ class CircuitPlot(ABC):
         change_discrete_charge_to_phi: bool,
         zero_calibrate: bool,
         kwargs,
-    ) -> Tuple[Figure, Axes]:
+    ) -> tuple[Figure, Axes]:
         # check if each variable is periodic
         grids = []
         labels = []
@@ -554,7 +590,7 @@ class CircuitPlot(ABC):
         grids_per_varindex_dict,
         change_discrete_charge_to_phi: bool,
         kwargs,
-    ) -> Tuple[Figure, Axes]:
+    ) -> tuple[Figure, Axes]:
         var_index = var_indices[0]
 
         if not change_discrete_charge_to_phi and (
@@ -676,7 +712,7 @@ class CircuitPlot(ABC):
 
         return potential_func(*parameters.values())
 
-    def plot_potential(self, **kwargs) -> Tuple[Figure, Axes]:
+    def plot_potential(self, **kwargs) -> tuple[Figure, Axes]:
         r"""Returns the plot of the potential for the circuit instance. Make sure to not
         set more than two variables in the instance.potential to a Numpy array, as the
         the code cannot plot with more than 3 dimensions.

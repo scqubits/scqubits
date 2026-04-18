@@ -10,9 +10,12 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
+from collections.abc import Callable
 import warnings
 
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import numpy as np
 
@@ -39,13 +42,10 @@ from scqubits.core.storage import WaveFunctionOnGrid
 
 # - ZeroPi noise class
 
-
 class NoisyZeroPi(NoisySystem):
     pass
 
-
 # -Symmetric 0-pi qubit, phi discretized, theta in charge basis
-
 
 class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     r"""Zero-Pi Qubit.
@@ -122,20 +122,20 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         EJ: float,
         EL: float,
         ECJ: float,
-        EC: Optional[float],
+        EC: float | None,
         ng: float,
         flux: float,
         grid: Grid1d,
         ncut: int,
         dEJ: float = 0.0,
         dCJ: float = 0.0,
-        ECS: float = None,
+        ECS: float | None = None,
         truncated_dim: int = 6,
-        id_str: Optional[str] = None,
-        evals_method: Union[Callable, str, None] = None,
-        evals_method_options: Union[dict, None] = None,
-        esys_method: Union[Callable, str, None] = None,
-        esys_method_options: Union[dict, None] = None,
+        id_str: str | None = None,
+        evals_method: Callable | str | None = None,
+        evals_method_options: dict | None = None,
+        esys_method: Callable | str | None = None,
+        esys_method_options: dict | None = None,
     ) -> None:
         base.QubitBaseClass.__init__(
             self,
@@ -175,7 +175,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         dispatch.CENTRAL_DISPATCH.register("GRID_UPDATE", self)
 
     @staticmethod
-    def default_params() -> Dict[str, Any]:
+    def default_params() -> dict[str, Any]:
         return {
             "EJ": 10.0,
             "EL": 0.04,
@@ -199,7 +199,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return zeropi
 
     @classmethod
-    def supported_noise_channels(cls) -> List[str]:
+    def supported_noise_channels(cls) -> list[str]:
         """Return a list of supported noise channels."""
         return [
             "tphi_1_over_f_cc",
@@ -209,7 +209,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             "t1_inductive",
         ]
 
-    def widget(self, params: Dict[str, Any] = None) -> None:
+    def widget(self, params: dict[str, Any] | None = None) -> None:
         init_params = params or self.get_initdata()
         init_params.pop("id_str", None)
         del init_params["grid"]
@@ -220,7 +220,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             self.set_params_from_gui, init_params, image_filename=self._image_filename
         )
 
-    def set_params_from_gui(self, **kwargs) -> None:
+    def set_params_from_gui(self, **kwargs) -> None:  # type: ignore[override]
         phi_grid = discretization.Grid1d(
             kwargs.pop("grid_min_val"),
             kwargs.pop("grid_max_val"),
@@ -245,7 +245,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         )
         return np.sort(evals)
 
-    def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
+    def _esys_calc(self, evals_count: int) -> tuple[ndarray, ndarray]:
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = utils.eigsh_safe(
             hamiltonian_mat,
@@ -381,8 +381,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return potential_mat
 
     def hamiltonian(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> csc_matrix:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         r"""Calculates Hamiltonian in basis obtained by discretizing :math:`\phi` and
         employing charge basis for :math:`\theta` or in the eigenenergy basis. Returns
         matrix representing the potential energy operator.
@@ -433,8 +433,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return -2.0 * np.pi * self.EJ * op_1 - np.pi * self.EJ * self.dEJ * op_2
 
     def d_hamiltonian_d_flux(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> Union[ndarray, csc_matrix]:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t flux, at the current value
         of flux, as stored in the object. The flux is assumed to be given in the units
         of the ratio :math:`\Phi_{ext}/\Phi_0`. Returns matrix representing a derivative
@@ -473,8 +473,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         )
 
     def d_hamiltonian_d_EJ(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> Union[ndarray, csc_matrix]:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t EJ. Returns matrix
         representing a derivative of the Hamiltonian in the native Hamiltonian basis or
         eigenenergy basis.
@@ -499,8 +499,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def d_hamiltonian_d_ng(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> Union[ndarray, csc_matrix]:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t ng as stored in the object.
         Returns matrix representing a derivative of the Hamiltonian in the native
         Hamiltonian basis or eigenenergy basis.
@@ -529,14 +529,14 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         Identity operator acting only on the :math:`\phi` Hilbert subspace.
         """
         pt_count = self.grid.pt_count
-        return sparse.identity(pt_count, format="csc")
+        return sparse.identity(pt_count, format="csc")  # type: ignore[return-value]
 
     def _identity_theta(self) -> csc_matrix:
         r"""
         Identity operator acting only on the :math:`\theta` Hilbert subspace.
         """
         dim_theta = 2 * self.ncut + 1
-        return sparse.identity(dim_theta, format="csc")
+        return sparse.identity(dim_theta, format="csc")  # type: ignore[return-value]
 
     def i_d_dphi_operator(self) -> csc_matrix:
         r"""Operator :math:`i d/d\phi`."""
@@ -558,8 +558,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return phi_matrix
 
     def phi_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> Union[ndarray, csc_matrix]:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         r"""Returns :math:`\phi` operator in the native or eigenenergy basis.
 
         Parameters
@@ -582,8 +582,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def n_theta_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> Union[ndarray, csc_matrix]:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         r"""Returns :math:`n_\theta` operator in the native or eigenenergy basis.
 
         Parameters
@@ -606,9 +606,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         diag_elements = np.arange(-self.ncut, self.ncut + 1)
         n_theta_matrix = sparse.dia_matrix(
             (diag_elements, [0]), shape=(dim_theta, dim_theta)
-        ).tocsc()
+        ).tocsc()  # type: ignore[type-var,misc]
         native = sparse.kron(self._identity_phi(), n_theta_matrix, format="csc")
-        return self.process_op(native_op=native, energy_esys=energy_esys)
+        return self.process_op(native_op=native, energy_esys=energy_esys)  # type: ignore[arg-type]
 
     def _sin_phi_operator(self, x: float = 0) -> csc_matrix:
         r"""
@@ -653,8 +653,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return cos_theta_matrix
 
     def cos_theta_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> Union[ndarray, csc_matrix]:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         r"""Returns :math:`\cos(\theta)` operator in the native or eigenenergy basis.
 
         Parameters
@@ -698,8 +698,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return sin_theta_matrix
 
     def sin_theta_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> Union[ndarray, csc_matrix]:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
         r"""Returns :math:`\sin(\theta)` operator in the native or eigenenergy basis.
 
         Parameters
@@ -725,10 +725,10 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
     def plot_potential(
         self,
-        theta_grid: Grid1d = None,
-        contour_vals: Union[List[float], ndarray] = None,
+        theta_grid: Grid1d | None = None,
+        contour_vals: list[float] | ndarray | None = None,
         **kwargs,
-    ) -> Tuple[Figure, Axes]:
+    ) -> tuple[Figure, Axes]:
         r"""Draw contour plot of the potential energy.
 
         Parameters
@@ -755,9 +755,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
     def wavefunction(
         self,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         which: int = 0,
-        theta_grid: Grid1d = None,
+        theta_grid: Grid1d | None = None,
     ) -> WaveFunctionOnGrid:
         r"""Returns a zero-pi wave function in :math:`\phi,\theta` basis
 
@@ -800,13 +800,13 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
     def plot_wavefunction(
         self,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         which: int = 0,
-        theta_grid: Grid1d = None,
+        theta_grid: Grid1d | None = None,
         mode: str = "abs",
         zero_calibrate: bool = True,
         **kwargs,
-    ) -> Tuple[Figure, Axes]:
+    ) -> tuple[Figure, Axes]:
         """Plots 2d phase-basis wave function.
 
         Parameters
@@ -830,7 +830,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
         amplitude_modifier = constants.MODE_FUNC_DICT[mode]
         wavefunc = self.wavefunction(esys, theta_grid=theta_grid, which=which)
-        wavefunc.amplitudes = amplitude_modifier(wavefunc.amplitudes)
+        wavefunc.amplitudes = amplitude_modifier(wavefunc.amplitudes)  # type: ignore[operator]
         return plot.wavefunction2d(
             wavefunc,
             zero_calibrate=zero_calibrate,
