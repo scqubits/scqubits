@@ -92,7 +92,7 @@ Related repo: C:\Users\drjen\coding\scqubits-doc\
 
 ## Environment
 
-This project uses a conda environment already active in this terminal 
+This project uses a Python 3.10 conda environment already active in this terminal 
 
 When suggesting new dependencies:
 - Check conda-forge first: `mamba search -c conda-forge <package>`.
