@@ -53,8 +53,7 @@ class CentralDispatch:
     # expire. Callback methods are stored as weakref.WeakMethod for the same reason.
 
     def get_clients_dict(self, event: str) -> WeakKeyDictionary:
-        """For given `event`, return the dict mapping each registered client to their
-        callback routine.
+        """Return the dict mapping each registered client to their callback routine.
 
         Parameters
         ----------
@@ -70,7 +69,9 @@ class CentralDispatch:
     def register(
         self, event: str, who: "DispatchClient", callback: MethodType | None = None
     ) -> None:
-        """Register object `who` for event `event`. (This modifies `clients_dict`.)
+        """Register object `who` for event `event`.
+
+        This modifies `clients_dict`.
 
         Parameters
         ----------
@@ -78,8 +79,8 @@ class CentralDispatch:
             event name from EVENTS
         who:
             object to be registered
-        callback: method, optional
-            custom callback method other than `.receive()`
+        callback:
+            custom callback method other than `.receive()` (optional)
         """
         LOGGER.debug(
             "Registering {} for {}. welcome.".format(type(who).__name__, event)
@@ -100,7 +101,9 @@ class CentralDispatch:
         self.get_clients_dict(event)[who] = callback_ref
 
     def unregister(self, event: str, who: "DispatchClient") -> None:
-        """Unregister object `who` from event `event`.  (This modifies `clients_dict`.)
+        """Unregister object `who` from event `event`.
+
+        This modifies `clients_dict`.
 
         Parameters
         ----------
@@ -112,7 +115,9 @@ class CentralDispatch:
         del self.get_clients_dict(event)[who]
 
     def unregister_object(self, who: "DispatchClient") -> None:
-        """Unregister object `who` from all events.  (This modifies `clients_dict`.)
+        """Unregister object `who` from all events.
+
+        This modifies `clients_dict`.
 
         Parameters
         ----------
@@ -147,8 +152,10 @@ class CentralDispatch:
             # callback_ref(event, sender=sender, **kwargs)
 
     def listen(self, caller: "DispatchClient", event: str, **kwargs) -> None:
-        """Receive message from client `caller` for event `event`. If dispatch is
-        globally enabled, trigger a dispatch to all clients registered for event.
+        """Receive message from client `caller` for event `event`.
+
+        If dispatch is globally enabled, trigger a dispatch to all clients
+        registered for event.
 
         Parameters
         ----------
@@ -196,6 +203,7 @@ class DispatchClient:
         warnings.warn("`receive() method not implemented for {}".format(self))
 
     def __del__(self) -> None:
+        """Unregister the client from all dispatch events on garbage collection."""
         # Garbage collection will invoke this at undetermined time. `if` clauses
         # below prevent exceptions upon program exit. (`logging` and
         # `CENTRAL_DISPATCH` may have already been removed.)

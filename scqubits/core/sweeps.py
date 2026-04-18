@@ -31,8 +31,10 @@ def bare_matrixelement(
     operator_name: str,
     subsystem: QubitBaseClass,
 ) -> np.ndarray:
-    """Given parameter sweep data, compute and return a matrix element table using the
-    bare states of the specified subsystem.
+    """Compute a matrix-element table in the bare states of the given subsystem.
+
+    The result is evaluated from the parameter sweep data at the specified
+    parameter-index point.
 
     Parameters
     ----------
@@ -51,8 +53,8 @@ def bare_matrixelement(
 
     Returns
     -------
-    ndarray of matrix elements, in general complex-valued; shape: square array of
-    size set by the truncated_dim of the subsystem
+    Array of matrix elements (in general complex-valued); square array of size set
+    by the ``truncated_dim`` of the subsystem.
     """
     subsys_index = sweep.get_subsys_index(subsystem)
     bare_evecs = sweep["bare_evecs"][subsys_index][paramindex_tuple]
@@ -69,8 +71,10 @@ def dressed_matrixelement(
     paramvals_tuple: tuple[float, ...],
     operator: Qobj,
 ) -> np.ndarray:
-    """Given parameter sweep data, compute and return a matrix element table using the
-    dressed states of the composite Hilbert space.
+    """Compute a matrix-element table in the dressed states of the composite system.
+
+    The result is evaluated from the parameter sweep data at the specified
+    parameter-index point.
 
     Parameters
     ----------
@@ -86,8 +90,8 @@ def dressed_matrixelement(
 
     Returns
     -------
-    ndarray of matrix elements, in general complex-valued; shape: square array of
-    size set by the truncated_dim of the subsystem
+    Array of matrix elements (in general complex-valued); square array of size set
+    by the ``truncated_dim`` of the subsystem.
     """
     evecs = sweep["evecs"][paramindex_tuple]
     return np.asarray(

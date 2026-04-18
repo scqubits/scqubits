@@ -80,7 +80,17 @@ def set_units(units: str) -> str:
 
 
 def get_units_time_label(units: str | None = None) -> str:
-    """Get a LaTeX representation of 1/units"""
+    """Return a LaTeX representation of 1/units.
+
+    Parameters
+    ----------
+    units:
+        units to label (optional; defaults to ``_current_units``)
+
+    Returns
+    -------
+    LaTeX string for the time unit corresponding to 1/`units`.
+    """
     units = units or _current_units
     if units not in _supported_units:
         raise ValueError(
@@ -98,9 +108,10 @@ def show_supported_units() -> list[str]:
 
 
 def to_standard_units(value: float) -> float:
-    r"""
-    Converts `value` (a frequency or angular frequency) from currently set system units
-    to standard units (Hz or 2pi/s).
+    r"""Convert `value` from system units to standard units (Hz or 2pi/s).
+
+    `value` is interpreted as a frequency or angular frequency in the currently set
+    system units.
 
     Parameters
     ----------
@@ -109,33 +120,35 @@ def to_standard_units(value: float) -> float:
 
     Returns
     -------
-    frequency or angular frequency converted to Hz or 2pi/s
+    Frequency or angular frequency converted to Hz or 2pi/s.
     """
     return value * _units_factor[_current_units]
 
 
 def from_standard_units(value: float) -> float:
-    r"""Converts `value` (a frequency or angular frequency) from standard units (`[Hz]`
-    or  `2\pi / [s]`) to currently set system units.
+    r"""Convert `value` from standard units to the currently set system units.
+
+    `value` is interpreted as a frequency or angular frequency in standard units
+    (`[Hz]` or :math:`2\pi / [s]`).
 
     Parameters
     ----------
     value:
         a frequency or angular frequency assumed to be in standard units
-        (`[Hz]` or `2\pi / [s]`)
+        (`[Hz]` or :math:`2\pi / [s]`)
 
     Returns
     -------
-    frequency or angular frequency converted to system units
+    Frequency or angular frequency converted to system units.
     """
     return value / _units_factor[_current_units]
 
 
 def units_scale_factor(units: str | None = None) -> float:
-    """The units_scale_factor function returns a numerical scaling factor that converts
-    from Hz to the `units` given as a string argument. If no argument is given, the
-    current units stored in `_current_units` are used. If the units are not supported, a
-    `ValueError` is raised.
+    """Return a numerical scaling factor that converts from Hz to the given `units`.
+
+    If no argument is given, the current units stored in `_current_units` are used.
+    If the units are not supported, a `ValueError` is raised.
 
     Parameters
     ----------

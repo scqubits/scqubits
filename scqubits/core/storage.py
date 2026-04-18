@@ -32,8 +32,9 @@ if TYPE_CHECKING:
 
 
 class WaveFunction:
-    """Container for wave function amplitudes defined for a specific basis. Optionally,
-    a corresponding energy is saved as well.
+    """Container for wave function amplitudes defined for a specific basis.
+
+    Optionally, a corresponding energy is saved as well.
 
     Parameters
     ----------
@@ -57,29 +58,40 @@ class WaveFunction:
         self.energy = energy
 
     def rescale(self, scale_factor: float) -> None:
-        """Rescale the wavefunction amplitudes by a given factor."""
-        self.amplitudes *= scale_factor
-
-    def rescale_to_potential(self, potential_vals: np.ndarray):
-        """Rescale the dimensionless amplitude to a (pseudo-)energy that allows us to
-        plot wavefunctions and potential energies in the same plot.
+        """Rescale the wavefunction amplitudes by a given factor.
 
         Parameters
         ----------
-        potential_vals:
-            array of potential energy values (that determine the energy range on the y axis
+        scale_factor:
+            multiplicative factor applied in place to ``self.amplitudes``
         """
-        self.amplitudes *= self.amplitude_scale_factor(potential_vals)
+        self.amplitudes *= scale_factor
 
-    def amplitude_scale_factor(self, potential_vals: np.ndarray) -> float:
-        """Returnn scale factor that converts the dimensionless amplitude to a
-        (pseudo-)energy that allows us to plot wavefunctions and potential energies in
+    def rescale_to_potential(self, potential_vals: np.ndarray) -> None:
+        """Rescale the dimensionless amplitude to a (pseudo-)energy.
+
+        This rescaling allows us to plot wavefunctions and potential energies in
         the same plot.
 
         Parameters
         ----------
         potential_vals:
-            array of potential energy values (that determine the energy range on the y axis
+            array of potential energy values (that determine the energy range on
+            the y axis)
+        """
+        self.amplitudes *= self.amplitude_scale_factor(potential_vals)
+
+    def amplitude_scale_factor(self, potential_vals: np.ndarray) -> float:
+        """Return scale factor converting dimensionless amplitude to (pseudo-)energy.
+
+        The returned factor allows wavefunctions and potential energies to be
+        plotted in the same plot.
+
+        Parameters
+        ----------
+        potential_vals:
+            array of potential energy values (that determine the energy range on
+            the y axis)
 
         Returns
         -------
@@ -97,8 +109,10 @@ class WaveFunction:
 
 
 class WaveFunctionOnGrid:
-    """Container for wave function amplitudes defined on a coordinate grid (arbitrary
-    dimensions). Optionally, a corresponding eigenenergy is saved as well.
+    """Container for wave function amplitudes defined on a coordinate grid.
+
+    The grid may have arbitrary dimensions. Optionally, a corresponding
+    eigenenergy is saved as well.
 
     Parameters
     ----------
@@ -122,8 +136,7 @@ class WaveFunctionOnGrid:
 
 
 class DataStore(serializers.Serializable):
-    """Base class for storing and processing spectral data and custom data from
-    parameter sweeps.
+    """Base class for storing and processing spectral and custom sweep data.
 
     Parameters
     ----------
@@ -182,8 +195,9 @@ class DataStore(serializers.Serializable):
 
 
 class SpectrumData(DataStore):
-    """Container holding energy and state data as a function of a particular parameter
-    that is varied. Also stores all other system parameters used for generating the set,
+    """Container for energy and state data as a function of a varied parameter.
+
+    Also stores all other system parameters used for generating the set,
     and provides method for writing data to file.
 
     Parameters
@@ -244,8 +258,7 @@ class SpectrumData(DataStore):
         label_list: list[str] | None = None,
         **kwargs,
     ) -> "tuple[Figure, Axes]":
-        """Plots eigenvalues of as a function of one parameter, as stored in
-        :class:`SpectrumData` object.
+        """Plot eigenvalues as a function of one parameter, as stored in this object.
 
         Parameters
         ----------
