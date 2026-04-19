@@ -336,7 +336,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     flux:
         magnetic flux through the circuit loop, measured in units of the flux quantum
     ncut:
-        charge number cutoff for the charge on both islands `n`,  `n = -ncut, ..., ncut`
+        charge number cutoff for the charge on both islands ``n``, ``n = -ncut, ..., ncut``
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
@@ -513,7 +513,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return evals, evecs
 
     def hilbertdim(self) -> int:
-        """Return Hilbert space dimension."""
+        """Return the Hilbert space dimension."""
         return (2 * self.ncut + 1) ** 2
 
     def potential(self, phi1: ndarray, phi2: ndarray) -> ndarray:
@@ -569,7 +569,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return kinetic_mat
 
     def potentialmat(self) -> ndarray:
-        """Return the potential energy matrix for the potential."""
+        """Return the potential energy matrix."""
         potential_mat = (
             -0.5
             * self.EJ1
@@ -607,26 +607,26 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def hamiltonian(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
     ) -> ndarray | csc_matrix:
-        """Return Hamiltonian in the charge basis or in the eigenenergy basis.
+        """Return the Hamiltonian in the charge or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns Hamiltonian in the charge basis for both
-            degrees of freedom.
-            If `True`, the energy eigenspectrum is computed and the Hamiltonian is
-            returned in the energy eigenbasis.
-            If `energy_esys = esys`, where ``esys`` is a tuple containing two
-            ndarrays (eigenvalues and energy eigenvectors), the Hamiltonian is
-            returned in the energy eigenbasis without recomputing the eigenspectrum.
+            If ``False`` (default), returns the Hamiltonian in the charge basis
+            for both degrees of freedom. If ``True``, the energy eigenspectrum
+            is computed and the Hamiltonian is returned in the energy
+            eigenbasis. If ``energy_esys = esys``, where ``esys`` is a tuple
+            containing two ndarrays (eigenvalues and energy eigenvectors), the
+            Hamiltonian is returned in the energy eigenbasis without recomputing
+            the eigenspectrum.
 
         Returns
         -------
         Hamiltonian in chosen basis as ndarray. In the energy eigenbasis (with
         ``energy_esys=True``), the Hamiltonian has dimensions
         ``truncated_dim x truncated_dim``; if an eigensystem is supplied via
-        ``energy_esys=esys``,
-        the Hamiltonian has dimensions ``m x m`` for ``m`` given eigenvectors.
+        ``energy_esys=esys``, the Hamiltonian has dimensions ``m x m`` for ``m``
+        given eigenvectors.
         """
         hamiltonian_mat = self.kineticmat() + self.potentialmat()
         return self.process_hamiltonian(
@@ -636,15 +636,15 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def d_hamiltonian_d_EJ1(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
     ) -> ndarray | csc_matrix:
-        """Return derivative of the Hamiltonian with respect to ``EJ1``.
+        """Return the derivative of the Hamiltonian with respect to ``EJ1``.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator in the native Hamiltonian basis.
-            If `True`, the energy eigenspectrum is computed and the operator is
-            returned in the energy eigenbasis.
-            If `energy_esys = esys`, where ``esys`` is a tuple containing two
+            If ``False`` (default), returns the operator in the native Hamiltonian
+            basis. If ``True``, the energy eigenspectrum is computed and the
+            operator is returned in the energy eigenbasis. If
+            ``energy_esys = esys``, where ``esys`` is a tuple containing two
             ndarrays (eigenvalues and energy eigenvectors), the operator is
             returned in the energy eigenbasis without recomputing the
             eigenspectrum.
@@ -665,15 +665,15 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def d_hamiltonian_d_EJ2(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
     ) -> ndarray | csc_matrix:
-        """Return derivative of the Hamiltonian with respect to ``EJ2``.
+        """Return the derivative of the Hamiltonian with respect to ``EJ2``.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator in the native Hamiltonian basis.
-            If `True`, the energy eigenspectrum is computed and the operator is
-            returned in the energy eigenbasis.
-            If `energy_esys = esys`, where ``esys`` is a tuple containing two
+            If ``False`` (default), returns the operator in the native Hamiltonian
+            basis. If ``True``, the energy eigenspectrum is computed and the
+            operator is returned in the energy eigenbasis. If
+            ``energy_esys = esys``, where ``esys`` is a tuple containing two
             ndarrays (eigenvalues and energy eigenvectors), the operator is
             returned in the energy eigenbasis without recomputing the
             eigenspectrum.
@@ -694,15 +694,15 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def d_hamiltonian_d_EJ3(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
     ) -> ndarray | csc_matrix:
-        """Return derivative of the Hamiltonian with respect to ``EJ3``.
+        """Return the derivative of the Hamiltonian with respect to ``EJ3``.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator in the native Hamiltonian basis.
-            If `True`, the energy eigenspectrum is computed and the operator is
-            returned in the energy eigenbasis.
-            If `energy_esys = esys`, where ``esys`` is a tuple containing two
+            If ``False`` (default), returns the operator in the native Hamiltonian
+            basis. If ``True``, the energy eigenspectrum is computed and the
+            operator is returned in the energy eigenbasis. If
+            ``energy_esys = esys``, where ``esys`` is a tuple containing two
             ndarrays (eigenvalues and energy eigenvectors), the operator is
             returned in the energy eigenbasis without recomputing the
             eigenspectrum.
@@ -733,15 +733,15 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def d_hamiltonian_d_flux(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
     ) -> ndarray | csc_matrix:
-        """Return derivative of the Hamiltonian with respect to ``flux``.
+        """Return the derivative of the Hamiltonian with respect to ``flux``.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator in the native Hamiltonian basis.
-            If `True`, the energy eigenspectrum is computed and the operator is
-            returned in the energy eigenbasis.
-            If `energy_esys = esys`, where ``esys`` is a tuple containing two
+            If ``False`` (default), returns the operator in the native Hamiltonian
+            basis. If ``True``, the energy eigenspectrum is computed and the
+            operator is returned in the energy eigenbasis. If
+            ``energy_esys = esys``, where ``esys`` is a tuple containing two
             ndarrays (eigenvalues and energy eigenvectors), the operator is
             returned in the energy eigenbasis without recomputing the
             eigenspectrum.
@@ -799,10 +799,10 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the operator in the charge basis.
-            If `True`, the energy eigenspectrum is computed and the operator is
-            returned in the energy eigenbasis.
-            If `energy_esys = esys`, where ``esys`` is a tuple containing two
+            If ``False`` (default), returns the operator in the charge basis. If
+            ``True``, the energy eigenspectrum is computed and the operator is
+            returned in the energy eigenbasis. If ``energy_esys = esys``, where
+            ``esys`` is a tuple containing two
             ndarrays (eigenvalues and energy eigenvectors), the operator is
             returned in the energy eigenbasis without recomputing the
             eigenspectrum.
@@ -826,10 +826,10 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the operator in the charge basis.
-            If `True`, the energy eigenspectrum is computed and the operator is
-            returned in the energy eigenbasis.
-            If `energy_esys = esys`, where ``esys`` is a tuple containing two
+            If ``False`` (default), returns the operator in the charge basis. If
+            ``True``, the energy eigenspectrum is computed and the operator is
+            returned in the energy eigenbasis. If ``energy_esys = esys``, where
+            ``esys`` is a tuple containing two
             ndarrays (eigenvalues and energy eigenvectors), the operator is
             returned in the energy eigenbasis without recomputing the
             eigenspectrum.
@@ -853,10 +853,10 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the operator in the charge basis.
-            If `True`, the energy eigenspectrum is computed and the operator is
-            returned in the energy eigenbasis.
-            If `energy_esys = esys`, where ``esys`` is a tuple containing two
+            If ``False`` (default), returns the operator in the charge basis. If
+            ``True``, the energy eigenspectrum is computed and the operator is
+            returned in the energy eigenbasis. If ``energy_esys = esys``, where
+            ``esys`` is a tuple containing two
             ndarrays (eigenvalues and energy eigenvectors), the operator is
             returned in the energy eigenbasis without recomputing the
             eigenspectrum.
@@ -880,10 +880,10 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the operator in the charge basis.
-            If `True`, the energy eigenspectrum is computed and the operator is
-            returned in the energy eigenbasis.
-            If `energy_esys = esys`, where ``esys`` is a tuple containing two
+            If ``False`` (default), returns the operator in the charge basis. If
+            ``True``, the energy eigenspectrum is computed and the operator is
+            returned in the energy eigenbasis. If ``energy_esys = esys``, where
+            ``esys`` is a tuple containing two
             ndarrays (eigenvalues and energy eigenvectors), the operator is
             returned in the energy eigenbasis without recomputing the
             eigenspectrum.
@@ -907,10 +907,10 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the operator in the charge basis.
-            If `True`, the energy eigenspectrum is computed and the operator is
-            returned in the energy eigenbasis.
-            If `energy_esys = esys`, where ``esys`` is a tuple containing two
+            If ``False`` (default), returns the operator in the charge basis. If
+            ``True``, the energy eigenspectrum is computed and the operator is
+            returned in the energy eigenbasis. If ``energy_esys = esys``, where
+            ``esys`` is a tuple containing two
             ndarrays (eigenvalues and energy eigenvectors), the operator is
             returned in the energy eigenbasis without recomputing the
             eigenspectrum.
@@ -936,10 +936,10 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the operator in the charge basis.
-            If `True`, the energy eigenspectrum is computed and the operator is
-            returned in the energy eigenbasis.
-            If `energy_esys = esys`, where ``esys`` is a tuple containing two
+            If ``False`` (default), returns the operator in the charge basis. If
+            ``True``, the energy eigenspectrum is computed and the operator is
+            returned in the energy eigenbasis. If ``energy_esys = esys``, where
+            ``esys`` is a tuple containing two
             ndarrays (eigenvalues and energy eigenvectors), the operator is
             returned in the energy eigenbasis without recomputing the
             eigenspectrum.
@@ -965,10 +965,10 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the operator in the charge basis.
-            If `True`, the energy eigenspectrum is computed and the operator is
-            returned in the energy eigenbasis.
-            If `energy_esys = esys`, where ``esys`` is a tuple containing two
+            If ``False`` (default), returns the operator in the charge basis. If
+            ``True``, the energy eigenspectrum is computed and the operator is
+            returned in the energy eigenbasis. If ``energy_esys = esys``, where
+            ``esys`` is a tuple containing two
             ndarrays (eigenvalues and energy eigenvectors), the operator is
             returned in the energy eigenbasis without recomputing the
             eigenspectrum.
@@ -994,10 +994,10 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the operator in the charge basis.
-            If `True`, the energy eigenspectrum is computed and the operator is
-            returned in the energy eigenbasis.
-            If `energy_esys = esys`, where ``esys`` is a tuple containing two
+            If ``False`` (default), returns the operator in the charge basis. If
+            ``True``, the energy eigenspectrum is computed and the operator is
+            returned in the energy eigenbasis. If ``energy_esys = esys``, where
+            ``esys`` is a tuple containing two
             ndarrays (eigenvalues and energy eigenvectors), the operator is
             returned in the energy eigenbasis without recomputing the
             eigenspectrum.
@@ -1021,13 +1021,12 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         contour_vals: ndarray | None = None,
         **kwargs,
     ) -> tuple[Figure, Axes]:
-        r"""
-        Draw contour plot of the potential energy.
+        r"""Draw a contour plot of the potential energy.
 
         Parameters
         ----------
         phi_grid:
-            used for setting a custom grid for :math:`\phi`; if None use self._default_grid
+            custom grid for :math:`\phi`; if ``None``, uses ``self._default_grid``
         contour_vals:
             specific contours to draw
         **kwargs:
@@ -1047,7 +1046,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         which: int = 0,
         phi_grid: discretization.Grid1d | None = None,
     ) -> storage.WaveFunctionOnGrid:
-        r"""Return a flux qubit wave function in :math:`\phi_1`, :math:`\phi_2` basis.
+        r"""Return a flux qubit wave function in the :math:`\phi_1`, :math:`\phi_2` basis.
 
         Parameters
         ----------
@@ -1056,7 +1055,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         which:
             index of desired wave function (default: 0)
         phi_grid:
-            used for setting a custom grid for :math:`\phi`; if None use self._default_grid
+            custom grid for :math:`\phi`; if ``None``, uses ``self._default_grid``
         """
         evals_count = max(which + 1, 3)
         if esys is None:
@@ -1095,22 +1094,22 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         zero_calibrate: bool = True,
         **kwargs,
     ) -> tuple[Figure, Axes]:
-        r"""Plots 2d phase-basis wave function.
+        r"""Plot the 2D phase-basis wave function.
 
         Parameters
         ----------
         esys:
-            eigenvalues, eigenvectors as obtained from `.eigensystem()`
+            eigenvalues, eigenvectors as obtained from :meth:`eigensystem`
         which:
             index of wave function to be plotted (default: 0)
         phi_grid:
-            used for setting a custom grid for :math:`\phi`; if None use self._default_grid
+            custom grid for :math:`\phi`; if ``None``, uses ``self._default_grid``
         mode:
-            choices as specified in `constants.MODE_FUNC_DICT`
-            (default: 'abs')
+            choices as specified in ``constants.MODE_FUNC_DICT``
+            (default: ``'abs'``)
         zero_calibrate:
-            if True, colors are adjusted to use zero wavefunction amplitude as the
-            neutral color in the palette
+            if ``True``, colors are adjusted to use zero wave function amplitude
+            as the neutral color in the palette
         **kwargs:
             plot options
         """

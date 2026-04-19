@@ -323,7 +323,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def hamiltonian(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
     ) -> ndarray | csc_matrix:  # follow Zhu et al., PRB 87, 024510 (2013)
-        """Construct the Hamiltonian in the harmonic-oscillator or eigenenergy basis.
+        """Return the Hamiltonian in the harmonic-oscillator or eigenenergy basis.
 
         Follows Zhu et al., PRB 87, 024510 (2013).
 
@@ -420,7 +420,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         return self.cutoff
 
     def potential(self, phi: float | ndarray) -> ndarray:
-        r"""Fluxonium potential evaluated at :math:`\phi`.
+        r"""Return the fluxonium potential evaluated at :math:`\phi`.
 
         Parameters
         ----------

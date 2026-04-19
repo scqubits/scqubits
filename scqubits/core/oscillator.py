@@ -42,15 +42,15 @@ def harm_osc_wavefunction(n: int, x: float | ndarray, l_osc: float) -> float | n
     Parameters
     ----------
     n:
-        index of wave function, n=0 is ground state
+        index of wave function; ``n=0`` is the ground state.
     x:
-        coordinate(s) where wave function is evaluated
+        coordinate(s) where the wave function is evaluated.
     l_osc:
-        oscillator length, defined via <0|x^2|0> = l_osc^2/2
+        oscillator length, defined via ``<0|x^2|0> = l_osc^2/2``.
 
     Returns
     -------
-    value of harmonic oscillator wave function
+    value of harmonic oscillator wave function.
     """
     result = pbdv(n, np.sqrt(2.0) * x / l_osc) / np.sqrt(
         l_osc * np.sqrt(np.pi) * factorial(n)
@@ -59,23 +59,26 @@ def harm_osc_wavefunction(n: int, x: float | ndarray, l_osc: float) -> float | n
 
 
 def convert_to_E_osc(E_kin: float, E_pot: float) -> float:
-    r"""Return the oscillator energy for a harmonic Hamiltonian of the form
+    r"""Return the oscillator energy for a harmonic Hamiltonian.
+
+    The Hamiltonian has the form
     :math:`H=\frac{1}{2}E_{\rm kin}p^2 + \frac{1}{2}E_{\rm pot}x^2`.
 
     Parameters
     ----------
     E_kin:
-        kinetic-energy coefficient
+        kinetic-energy coefficient.
     E_pot:
-        potential-energy coefficient
+        potential-energy coefficient.
     """
     return np.sqrt(E_kin * E_pot)
 
 
 def convert_to_l_osc(E_kin: float, E_pot: float) -> float:
-    r"""Return the oscillator length for a harmonic Hamiltonian of the form
-    :math:`H=\frac{1}{2}E_{\rm kin}p^2 + \frac{1}{2}E_{\rm pot}x^2`.
+    r"""Return the oscillator length for a harmonic Hamiltonian.
 
+    The Hamiltonian has the form
+    :math:`H=\frac{1}{2}E_{\rm kin}p^2 + \frac{1}{2}E_{\rm pot}x^2`.
     Here, :math:`\varphi_\text{osc}` denotes the oscillator length, defined
     via the position operator
     :math:`\hat\varphi = (\varphi_\text{osc}/\sqrt{2})(\hat a + \hat a^\dagger)`.
@@ -83,9 +86,9 @@ def convert_to_l_osc(E_kin: float, E_pot: float) -> float:
     Parameters
     ----------
     E_kin:
-        kinetic-energy coefficient
+        kinetic-energy coefficient.
     E_pot:
-        potential-energy coefficient
+        potential-energy coefficient.
     """
     return (E_kin / E_pot) ** (1 / 4)
 
@@ -101,13 +104,13 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
     Parameters
     ----------
     E_osc:
-        energy of the oscillator
+        energy of the oscillator.
     l_osc:
         oscillator length (required to define :meth:`phi_operator` and
-        :meth:`n_operator`)
+        :meth:`n_operator`).
     truncated_dim:
-        desired dimension of the truncated quantum system; expected:
-        truncated_dim > 1
+        desired dimension of the truncated quantum system; expected
+        ``truncated_dim > 1``.
     id_str:
         optional string by which this instance can be referred to in
         :class:`HilbertSpace` and :class:`ParameterSweep`. If not provided,
@@ -143,7 +146,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         Parameters
         ----------
         evals_count:
-            number of desired eigenvalues (default: 6)
+            number of desired eigenvalues (default: 6).
         """
         evals = [self.E_osc * n for n in range(evals_count)]
         return np.asarray(evals)
@@ -159,7 +162,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         Parameters
         ----------
         evals_count:
-            number of desired eigenvalues (default: 6)
+            number of desired eigenvalues (default: 6).
         """
         evals_count = evals_count or _default_evals_count
         evecs = np.zeros(shape=(self.truncated_dim, evals_count), dtype=np.float64)
@@ -230,15 +233,15 @@ class KerrOscillator(Oscillator, serializers.Serializable):
     Parameters
     ----------
     E_osc:
-        energy of harmonic term
+        energy of the harmonic term.
     K:
-        energy of the Kerr term
+        energy of the Kerr term.
     l_osc:
         oscillator length (used to define :meth:`phi_operator` and
-        :meth:`n_operator`)
+        :meth:`n_operator`).
     truncated_dim:
-        desired dimension of the truncated quantum system; expected:
-        truncated_dim > 1
+        desired dimension of the truncated quantum system; expected
+        ``truncated_dim > 1``.
     id_str:
         optional string by which this instance can be referred to in
         :class:`HilbertSpace` and :class:`ParameterSweep`. If not provided,
@@ -279,12 +282,12 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         }
 
     def eigenvals(self, evals_count: int = _default_evals_count) -> ndarray:
-        """Returns array of eigenvalues.
+        """Return array of eigenvalues.
 
         Parameters
         ----------
         evals_count:
-            number of desired eigenvalues (default: 6)
+            number of desired eigenvalues (default: 6).
         """
         evals = [(self.E_osc + self.K) * n - self.K * n**2 for n in range(evals_count)]
         return np.asarray(evals)

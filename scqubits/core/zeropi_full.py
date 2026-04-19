@@ -275,7 +275,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         )
 
     def set_params_from_gui(self, **kwargs) -> None:  # type: ignore[override]
-        """Set new parameters through the provided dictionary."""
+        """Set instance parameters from GUI-provided keyword arguments."""
         for param_name, param_val in kwargs.items():
             if "grid_" in param_name:
                 setattr(self.grid, param_name[5:], param_val)
@@ -315,7 +315,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return output
 
     def set_EC_via_ECS(self, ECS: float) -> None:
-        """Helper function to set :attr:`EC` by providing `ECS`, keeping `ECJ` constant.
+        """Set :attr:`EC` by providing `ECS`, keeping `ECJ` constant.
 
         Parameters
         ----------
@@ -326,7 +326,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
     @property
     def E_zeta(self) -> float:
-        """Returns energy quantum of the zeta mode."""
+        """Return the energy quantum of the zeta mode."""
         return (8.0 * self.EL * self.EC) ** 0.5
 
     def set_E_zeta(self, value: float) -> None:
@@ -515,7 +515,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         Operator in chosen basis. If product basis is chosen, operator
         returned as a csc_matrix. If the eigenenergy basis is chosen,
         unless `energy_esys` is specified, operator has dimensions of
-        :attr:`truncated_dim` x truncated_dim, and is returned as an ndarray.
+        :attr:`truncated_dim` x :attr:`truncated_dim`, and is returned as an ndarray.
         Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
         for m given eigenvectors, and is returned as an ndarray.
         """
@@ -558,7 +558,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         Operator in chosen basis. If product basis chosen, operator
         returned as a csc_matrix. If the eigenenergy basis is chosen,
         unless `energy_esys` is specified, operator has dimensions of
-        :attr:`truncated_dim` x truncated_dim, and is returned as an ndarray.
+        :attr:`truncated_dim` x :attr:`truncated_dim`, and is returned as an ndarray.
         Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
         for m given eigenvectors, and is returned as an ndarray.
         """
@@ -587,7 +587,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         Operator in chosen basis. If native basis chosen, operator
         returned as a csc_matrix. If the eigenenergy basis is chosen,
         unless `energy_esys` is specified, operator has dimensions of
-        :attr:`truncated_dim` x truncated_dim, and is returned as an ndarray.
+        :attr:`truncated_dim` x :attr:`truncated_dim`, and is returned as an ndarray.
         Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
         for m given eigenvectors, and is returned as an ndarray.
         """
@@ -599,7 +599,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         zeropi_operator: ndarray | csc_matrix,
         zeropi_evecs: ndarray | None = None,
     ) -> csc_matrix:
-        """Helper method that converts a zeropi operator into one in the product basis.
+        """Convert a zeropi operator into one in the product basis.
 
         Parameters
         ----------
@@ -668,7 +668,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         Operator in chosen basis. If product basis chosen, operator
         returned as a csc_matrix. If the eigenenergy basis is chosen,
         unless `energy_esys` is specified, operator has dimensions of
-        :attr:`truncated_dim` x truncated_dim, and is returned as an ndarray.
+        :attr:`truncated_dim` x :attr:`truncated_dim`, and is returned as an ndarray.
         Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
         for m given eigenvectors, and is returned as an ndarray.
         """
@@ -711,7 +711,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         Operator in chosen basis. If product basis chosen, operator
         returned as a csc_matrix. If the eigenenergy basis is chosen,
         unless `energy_esys` is specified, operator has dimensions of
-        :attr:`truncated_dim` x truncated_dim, and is returned as an ndarray.
+        :attr:`truncated_dim` x :attr:`truncated_dim`, and is returned as an ndarray.
         Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
         for m given eigenvectors, and is returned as an ndarray.
         """
@@ -754,7 +754,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         Operator in chosen basis. If product basis chosen, operator
         returned as a csc_matrix. If the eigenenergy basis is chosen,
         unless `energy_esys` is specified, operator has dimensions of
-        :attr:`truncated_dim` x truncated_dim, and is returned as an ndarray.
+        :attr:`truncated_dim` x :attr:`truncated_dim`, and is returned as an ndarray.
         Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
         for m given eigenvectors, and is returned as an ndarray.
         """
@@ -764,7 +764,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def hilbertdim(self) -> int:
-        """Returns Hilbert space dimension.
+        """Return the Hilbert space dimension.
 
         Returns
         -------

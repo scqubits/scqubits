@@ -125,7 +125,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
     ) -> float:
         r""":math:`T_1` due to inductive dissipation in superinductors.
 
-        References: nguyen et al (2019), Smith et al (2020)
+        References: Nguyen et al. (2019), Smith et al. (2020).
 
         Parameters
         ----------
@@ -183,8 +183,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
                 return Q_ind
 
         def spectral_density1(omega, T):
-            r"""Calculates the first spectral density from the angular frequency and
-            temperature.
+            r"""Compute the first spectral density from angular frequency and temperature.
 
             Parameters
             ----------
@@ -214,8 +213,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         noise_op1 = self.phi_1_operator()
 
         def spectral_density2(omega, T):
-            r"""Calculates the second spectral density from the angular frequency and
-            temperature.
+            r"""Compute the second spectral density from angular frequency and temperature.
 
             Parameters
             ----------
@@ -226,7 +224,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
 
             Returns
             -------
-            Spectral Density
+            Spectral density
             """
             therm_ratio = calc_therm_ratio(omega, T)
             s = (
@@ -280,7 +278,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
     ) -> float:
         r""":math:`T_1` due to dielectric dissipation in the Josephson-junction capacitances.
 
-        References:  Nguyen et al (2019), Smith et al (2020).
+        References: Nguyen et al (2019), Smith et al (2020).
 
         Parameters
         ----------
@@ -302,9 +300,9 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or rate
-             in inverse units.
+        time or rate
+            decoherence time in units of :math:`2\pi` (system units), or rate in
+            inverse units.
         """
         if "t1_capacitive" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -327,8 +325,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
                 return Q_cap
 
         def spectral_density1(omega, T):
-            r"""Calculates the first spectral density from the angular frequency and
-            temperature.
+            r"""Compute the first spectral density from angular frequency and temperature.
 
             Parameters
             ----------
@@ -357,8 +354,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             return s1
 
         def spectral_density2(omega, T):
-            r"""Calculates the second spectral density from the angular frequency and
-            temperature.
+            r"""Compute the second spectral density from angular frequency and temperature.
 
             Parameters
             ----------
@@ -425,7 +421,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
     ) -> float:
         r""":math:`T_1` due to dielectric dissipation in the shunt capacitor.
 
-        References:  Nguyen et al (2019), Smith et al (2020).
+        References: Nguyen et al (2019), Smith et al (2020).
 
         Parameters
         ----------
@@ -472,8 +468,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
                 return Q_cap
 
         def spectral_density(omega, T):
-            r"""Calculates the spectral density from the angular frequency and
-            temperature.
+            r"""Compute the spectral density from angular frequency and temperature.
 
             Parameters
             ----------

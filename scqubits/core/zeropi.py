@@ -346,7 +346,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         self.EC = 1 / (1 / ECS - 1 / self.ECJ)
 
     def hilbertdim(self) -> int:
-        """Returns Hilbert space dimension."""
+        """Return the Hilbert space dimension."""
         return self.grid.pt_count * (2 * self.ncut + 1)
 
     def potential(self, phi: ndarray, theta: ndarray) -> ndarray:
@@ -370,7 +370,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         )
 
     def sparse_kinetic_mat(self) -> csc_matrix:
-        """Kinetic energy portion of the Hamiltonian.
+        """Return the kinetic-energy part of the Hamiltonian.
 
         Returns
         -------
@@ -406,7 +406,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return kinetic_matrix
 
     def sparse_potential_mat(self) -> csc_matrix:
-        """Potential energy portion of the Hamiltonian.
+        """Return the potential-energy part of the Hamiltonian.
 
         Returns
         -------
@@ -604,21 +604,17 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def _identity_phi(self) -> csc_matrix:
-        r"""
-        Identity operator acting only on the :math:`\phi` Hilbert subspace.
-        """
+        r"""Return the identity operator on the :math:`\phi` subspace."""
         pt_count = self.grid.pt_count
         return sparse.identity(pt_count, format="csc")  # type: ignore[return-value]
 
     def _identity_theta(self) -> csc_matrix:
-        r"""
-        Identity operator acting only on the :math:`\theta` Hilbert subspace.
-        """
+        r"""Return the identity operator on the :math:`\theta` subspace."""
         dim_theta = 2 * self.ncut + 1
         return sparse.identity(dim_theta, format="csc")  # type: ignore[return-value]
 
     def i_d_dphi_operator(self) -> csc_matrix:
-        r"""Operator :math:`i d/d\phi`."""
+        r"""Return the operator :math:`i\,d/d\phi`."""
         return sparse.kron(
             self.grid.first_derivative_matrix(prefactor=1j),
             self._identity_theta(),
@@ -626,9 +622,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         )
 
     def _phi_operator(self) -> dia_matrix:
-        r"""
-        Operator :math:`\phi`, acting only on the :math:`\phi` Hilbert subspace.
-        """
+        r"""Return the :math:`\phi` operator on the :math:`\phi` Hilbert subspace."""
         pt_count = self.grid.pt_count
 
         phi_matrix = sparse.dia_matrix((pt_count, pt_count))
@@ -724,9 +718,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return cos_phi_matrix
 
     def _cos_theta_operator(self) -> csc_matrix:
-        r"""
-        Operator :math:`\cos(\theta)`, acting only on the :math:`\theta` Hilbert subspace.
-        """
+        r"""Return the :math:`\cos(\theta)` operator on the :math:`\theta` subspace."""
         dim_theta = 2 * self.ncut + 1
         cos_theta_matrix = (
             0.5
@@ -769,9 +761,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def _sin_theta_operator(self) -> csc_matrix:
-        r"""
-        Operator :math:`\sin(\theta)`, acting only on the :math:`\theta` Hilbert space.
-        """
+        r"""Return the :math:`\sin(\theta)` operator on the :math:`\theta` subspace."""
         dim_theta = 2 * self.ncut + 1
         sin_theta_matrix = (
             -0.5
@@ -820,13 +810,14 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         contour_vals: list[float] | ndarray | None = None,
         **kwargs,
     ) -> tuple[Figure, Axes]:
-        r"""Draw contour plot of the potential energy.
+        r"""Draw a contour plot of the potential energy.
 
         Parameters
         ----------
         theta_grid:
-            used for setting a custom grid for :math:`\theta`; if None use self._default_grid
+            custom grid for :math:`\theta`; if `None`, uses :attr:`_default_grid`
         contour_vals:
+            optional list of contour level values
         **kwargs:
             plotting parameters
         """
@@ -855,11 +846,11 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         Parameters
         ----------
         esys:
-            eigenvalues, eigenvectors
+            eigenvalues and eigenvectors; if `None`, the eigensystem is recomputed
         which:
-             index of desired wave function (default: 0)
+            index of the desired wave function (default: 0)
         theta_grid:
-            used for setting a custom grid for :math:`\theta`; if None use self._default_grid
+            custom grid for :math:`\theta`; if `None`, uses :attr:`_default_grid`
         """
         evals_count = max(which + 1, 3)
         if esys is None:
@@ -898,22 +889,23 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         zero_calibrate: bool = True,
         **kwargs,
     ) -> tuple[Figure, Axes]:
-        """Plots 2d phase-basis wave function.
+        """Plot the 2D phase-basis wave function.
 
         Parameters
         ----------
         esys:
-            eigenvalues, eigenvectors as obtained from `.eigensystem()`
+            eigenvalues and eigenvectors as obtained from :meth:`eigensys`; if
+            `None`, the eigensystem is recomputed
         which:
-            index of wave function to be plotted (default: 0)
+            index of the wave function to be plotted (default: 0)
         theta_grid:
-            used for setting a custom grid for theta; if None use self._default_grid
+            custom grid for :math:`\\theta`; if `None`, uses :attr:`_default_grid`
         mode:
-            choices as specified in `constants.MODE_FUNC_DICT`
-            (default: 'abs')
+            amplitude-modifier choice from
+            :data:`scqubits.core.constants.MODE_FUNC_DICT` (default: ``'abs'``)
         zero_calibrate:
-            if True, colors are adjusted to use zero wavefunction amplitude as the
-            neutral color in the palette
+            if `True`, colors are calibrated so that zero amplitude maps to
+            the palette's neutral color
         **kwargs:
             plot options
         """

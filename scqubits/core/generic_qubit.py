@@ -39,7 +39,7 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
     Parameters
     ----------
     E:
-       qubit energy splitting
+       qubit energy splitting.
     id_str:
         optional string by which this instance can be referred to in :class:`HilbertSpace`
         and :class:`ParameterSweep`. If not provided, an id is auto-generated.
@@ -65,7 +65,7 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
         return 0.5 * self.E * self.sz_operator()
 
     def hilbertdim(self) -> int:
-        """Returns Hilbert space dimension."""
+        """Return the Hilbert space dimension."""
         return 2
 
     def eigenvals(self, evals_count: int = 2) -> ndarray:
@@ -77,7 +77,7 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
         Parameters
         ----------
         evals_count:
-            number of desired eigenvalues (default: 2)
+            number of desired eigenvalues (default: 2).
         """
         hamiltonian_mat = self.hamiltonian()
         evals = sp.linalg.eigh(hamiltonian_mat, eigvals_only=True)
@@ -91,7 +91,7 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
         Parameters
         ----------
         evals_count:
-            number of desired eigenvalues (default: 2)
+            number of desired eigenvalues (default: 2).
         """
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = sp.linalg.eigh(hamiltonian_mat, eigvals_only=False)
@@ -101,14 +101,11 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
     def matrixelement_table(self, operator: str) -> ndarray:
         """Return table of matrix elements for ``operator`` with respect to qubit eigenstates.
 
-        The operator is given as a string matching a class method returning an
-        operator matrix.
-
         Parameters
         ----------
         operator:
-            name of class method in string form, returning operator matrix in
-            qubit-internal basis.
+            name of a class method (in string form) returning the operator
+            matrix in the qubit-internal basis.
         """
         _, evecs = self.eigensys()
         operator_matrix = getattr(self, operator)()
@@ -126,7 +123,7 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
         Parameters
         ----------
         params:
-            unused; kept for API compatibility with :meth:`QuantumSystem.widget`
+            unused; kept for API compatibility with :meth:`QuantumSystem.widget`.
         """
         raise NotImplementedError(
             "GenericQubit does not support widget-based " "creation."

@@ -197,18 +197,18 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def find_EJ_EC(
         E01: float, anharmonicity: float, ng: float = 0, ncut: int = 30
     ) -> ndarray:
-        """Finds the EJ and EC values given a qubit splitting `E01` and `anharmonicity`.
+        """Find ``EJ`` and ``EC`` matching a given qubit splitting and anharmonicity.
 
         Parameters
         ----------
-            E01:
-                qubit transition energy
-            anharmonicity:
-                absolute qubit anharmonicity, (E2-E1) - (E1-E0)
-            ng:
-                offset charge (default: 0)
-            ncut:
-                charge number cutoff (default: 30)
+        E01:
+            qubit transition energy
+        anharmonicity:
+            absolute qubit anharmonicity, (E2-E1) - (E1-E0)
+        ng:
+            offset charge (default: 0)
+        ncut:
+            charge number cutoff (default: 30)
 
         Returns
         -------
@@ -233,21 +233,21 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def n_operator(
         self, energy_esys: bool | tuple[ndarray, ndarray] = False
     ) -> ndarray | csc_matrix:
-        """Return the charge operator :math:`\\hat n` in the charge or eigenenergy basis.
+        r"""Return the charge operator :math:`\hat n` in the charge or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If ``False`` (default), returns :math:`\\hat n` in the charge basis.
-            If ``True``, the energy eigenspectrum is computed and :math:`\\hat n`
+            If ``False`` (default), returns :math:`\hat n` in the charge basis.
+            If ``True``, the energy eigenspectrum is computed and :math:`\hat n`
             is returned in the energy eigenbasis. If ``energy_esys = esys``, where
             ``esys`` is a tuple ``(evals, evecs)`` of eigenvalues and eigenvectors,
-            :math:`\\hat n` is expressed in that eigenbasis without recomputing
+            :math:`\hat n` is expressed in that eigenbasis without recomputing
             the spectrum.
 
         Returns
         -------
-        Charge operator :math:`\\hat n` in the chosen basis as ndarray. For
+        Charge operator :math:`\hat n` in the chosen basis as ndarray. For
         ``energy_esys=True`` the shape is ``truncated_dim x truncated_dim``; if
         an explicit eigensystem of ``m`` eigenvectors is passed, the shape is
         ``m x m``.
@@ -419,11 +419,11 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def hilbertdim(self) -> int:
-        """Returns Hilbert space dimension."""
+        """Return the Hilbert space dimension."""
         return 2 * self.ncut + 1
 
     def potential(self, phi: float | ndarray) -> ndarray:
-        r"""Transmon phase-basis potential evaluated at :math:`\phi`.
+        r"""Return the transmon phase-basis potential evaluated at :math:`\phi`.
 
         Parameters
         ----------
@@ -440,18 +440,18 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         nrange: tuple[int, int] | None = None,
         **kwargs,
     ) -> tuple[Figure, Axes]:
-        """Plots transmon wave function in charge basis.
+        """Plot the transmon wave function in the charge basis.
 
         Parameters
         ----------
         esys:
             eigenvalues, eigenvectors
         mode:
-            choices as specified in `constants.MODE_FUNC_DICT` (default: 'real')
+            choices as specified in ``constants.MODE_FUNC_DICT`` (default: ``'real'``)
         which:
             index or indices of wave functions to plot (default: 0)
         nrange:
-            range of `n` to be included on the x-axis (default: (-5,6))
+            range of ``n`` to be included on the x-axis (default: ``(-5, 6)``)
         **kwargs:
             plotting parameters
         """
@@ -762,7 +762,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
 
     @property
     def EJ(self) -> float:  # type: ignore[override]
-        """Effective, flux-dependent Josephson energy (parent-class :attr:`Transmon.EJ`)."""
+        """Return the effective, flux-dependent Josephson energy (overrides :attr:`Transmon.EJ`)."""
         return self.EJmax * np.sqrt(
             np.cos(np.pi * self.flux) ** 2 + self.d**2 * np.sin(np.pi * self.flux) ** 2
         )
@@ -797,12 +797,12 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
     ) -> ndarray | csc_matrix:
         r"""Return the derivative of the Hamiltonian with respect to :attr:`flux`.
 
-        Here, the derivative is taken with respect to flux before the qubit's
+        The derivative is taken with respect to flux before the qubit's
         :math:`\phi` degree of freedom in the Hamiltonian is shifted by a
         flux-dependent quantity :math:`\varphi_{0}` (see Eq. 2.17 and
-        surrounding text in PRA 76, 042319 (2007)). Then only after the flux
-        derivative is taken, both the Hamiltonian as well as its flux
-        derivative are assumed to be shifted by :math:`\varphi_{0}`.
+        surrounding text in PRA 76, 042319 (2007)). Only after the flux
+        derivative is taken are both the Hamiltonian and its flux derivative
+        assumed to be shifted by :math:`\varphi_{0}`.
 
         Parameters
         ----------

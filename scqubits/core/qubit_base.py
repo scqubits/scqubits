@@ -199,7 +199,7 @@ class QuantumSystem(DispatchClient, ABC):
         return self._id_str
 
     def get_initdata(self) -> dict[str, Any]:
-        """Return dict suitable for creating/initializing a new Serializable object."""
+        """Return a dict suitable for initializing a new :class:`Serializable` object."""
         EXCLUDE = [
             "evals_method",
             "evals_method_options",
@@ -215,7 +215,7 @@ class QuantumSystem(DispatchClient, ABC):
 
     @abstractmethod
     def hilbertdim(self) -> int:
-        """Returns dimension of Hilbert space."""
+        """Return the dimension of the Hilbert space."""
 
     @classmethod
     def get_operator_names(cls) -> list[str]:
@@ -280,9 +280,9 @@ class QuantumSystem(DispatchClient, ABC):
             setattr(self, param_name, param_val)
 
     def supported_noise_channels(self) -> list[str]:
-        """Returns a list of noise channels this QuantumSystem supports.
+        """Return a list of noise channels supported by this QuantumSystem.
 
-        If none, return an empty list.
+        Returns an empty list if none are supported.
         """
         return []
 
@@ -363,7 +363,7 @@ class QubitBaseClass(QuantumSystem, ABC):
 
     @abstractmethod
     def hamiltonian(self):
-        """Returns the Hamiltonian."""
+        """Return the Hamiltonian."""
 
     def _evals_calc(self, evals_count: int) -> ndarray:
         """Compute the lowest ``evals_count`` eigenvalues of :meth:`hamiltonian`.
@@ -465,7 +465,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             path and filename without suffix, if file output desired
             (default: None)
         return_spectrumdata:
-            if set to true, the returned data is provided as a
+            if ``True``, the returned data is provided as a
             :class:`SpectrumData` object (default: False)
 
         Returns
@@ -557,7 +557,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             path and filename without suffix, if file output desired
             (default: None)
         return_spectrumdata:
-            if set to true, the returned data is provided as a
+            if ``True``, the returned data is provided as a
             :class:`SpectrumData` object (default: False)
 
         Returns
@@ -669,12 +669,12 @@ class QubitBaseClass(QuantumSystem, ABC):
         return dia_matrix(evals).tocsc()
 
     def anharmonicity(self) -> float:
-        """Returns the qubit's anharmonicity, (E_2 - E_1) - (E_1 - E_0)."""
+        """Return the qubit's anharmonicity, (E_2 - E_1) - (E_1 - E_0)."""
         energies = self.eigenvals(evals_count=3)
         return energies[2] - 2 * energies[1] + energies[0]
 
     def E01(self) -> float:
-        """Returns the qubit's fundamental energy splitting, E_1 - E_0."""
+        """Return the qubit's fundamental energy splitting, E_1 - E_0."""
         energies = self.eigenvals(evals_count=2)
         return energies[1] - energies[0]
 
@@ -741,16 +741,16 @@ class QubitBaseClass(QuantumSystem, ABC):
         """Return table of matrix elements for ``operator`` w.r.t. qubit eigenstates.
 
         The operator is given as a string matching a class method returning an
-        operator matrix. E.g., for an instance ``trm`` of Transmon, the matrix
-        element table for the charge operator is given by
-        ``trm.op_matrixelement_table('n_operator')``. When ``evecs`` is set to
-        ``None``, the eigensystem is calculated on-the-fly.
+        operator matrix. E.g., for an instance ``trm`` of :class:`Transmon`,
+        the matrix element table for the charge operator is given by
+        ``trm.matrixelement_table('n_operator')``. When ``evecs`` is ``None``,
+        the eigensystem is calculated on the fly.
 
         Parameters
         ----------
         operator:
             name of class method in string form, returning operator matrix in
-            qubit-internal basis.
+            qubit-internal basis
         evecs:
             if not provided, then the necessary eigenstates are calculated on the fly
         evals_count:
@@ -759,8 +759,8 @@ class QubitBaseClass(QuantumSystem, ABC):
         filename:
             output file name
         return_datastore:
-            if set to true, the returned data is provided as a DataStore object
-            (default: False)
+            if ``True``, the returned data is provided as a :class:`DataStore`
+            object (default: False)
         """
         if evecs is None:
             _, evecs = self.eigensys(evals_count=evals_count)
@@ -836,8 +836,8 @@ class QubitBaseClass(QuantumSystem, ABC):
             number of desired eigenvalues (sorted from smallest to largest)
             (default: 6)
         subtract_ground:
-            if True, eigenvalues are returned relative to the ground state eigenvalue
-            (default: False)
+            if ``True``, eigenvalues are returned relative to the ground state
+            eigenvalue (default: False)
         get_eigenstates:
             return eigenstates along with eigenvalues (default: False)
         filename:
@@ -1018,23 +1018,23 @@ class QubitBaseClass(QuantumSystem, ABC):
         Parameters
         ----------
         dispersion_name:
-            parameter inducing the dispersion, typically 'ng' or 'flux' (will be
-            scanned over range from 0 to 1)
+            parameter inducing the dispersion, typically ``'ng'`` or ``'flux'``
+            (will be scanned over the range from 0 to 1)
         param_name:
             name of parameter to be varied
         param_vals:
             parameter values to be plugged in
         ref_param:
             optional, name of parameter to use as reference for the parameter value;
-            e.g., to compute charge dispersion vs. EJ/EC, use EJ as param_name and
-            EC as ref_param
+            e.g., to compute charge dispersion vs. EJ/EC, use EJ as ``param_name`` and
+            EC as ``ref_param``
         transitions:
-            integer tuple or tuples specifying for which transitions dispersion is to
-            be calculated
-            (default: = (0,1))
+            integer tuple or tuples specifying for which transitions the dispersion
+            is to be calculated
+            (default: ``(0, 1)``)
         levels:
-            tuple specifying levels (rather than transitions) for which dispersion
-            should be plotted; overrides transitions parameter when given
+            tuple specifying levels (rather than transitions) for which the dispersion
+            should be plotted; overrides ``transitions`` when given
         point_count:
             number of points scanned for the dispersion parameter for determining min
             and max values of transition energies (default: 50)
@@ -1211,23 +1211,23 @@ class QubitBaseClass(QuantumSystem, ABC):
         Parameters
         ----------
         dispersion_name:
-            parameter inducing the dispersion, typically 'ng' or 'flux' (will be
-            scanned over range from 0 to 1)
+            parameter inducing the dispersion, typically ``'ng'`` or ``'flux'``
+            (will be scanned over the range from 0 to 1)
         param_name:
             name of parameter to be varied
         param_vals:
             parameter values to be plugged in
         ref_param:
             optional, name of parameter to use as reference for the parameter value;
-            e.g., to compute charge dispersion vs. EJ/EC, use EJ as param_name and
-            EC as ref_param
+            e.g., to compute charge dispersion vs. EJ/EC, use EJ as ``param_name`` and
+            EC as ``ref_param``
         transitions:
-            integer tuple or tuples specifying for which transitions dispersion is to
-            be calculated
-            (default: = (0,1))
+            integer tuple or tuples specifying for which transitions the dispersion
+            is to be calculated
+            (default: ``(0, 1)``)
         levels:
-            int or tuple specifying level(s) (rather than transitions) for which
-            dispersion should be plotted; overrides transitions parameter when given
+            int or tuple specifying level(s) (rather than transitions) for which the
+            dispersion should be plotted; overrides ``transitions`` when given
         point_count:
             number of points scanned for the dispersion parameter for determining min
             and max values of transition energies (default: 50)
@@ -1298,7 +1298,8 @@ class QubitBaseClass(QuantumSystem, ABC):
             number of desired matrix elements, starting with ground state
             (default: 6)
         mode:
-            idx_entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value (default)
+            key from :data:`constants.MODE_FUNC_DICT`, e.g., ``'abs'`` for absolute
+            value (default: ``'abs'``)
         show_numbers:
             determines whether matrix element values are printed on top of the plot
             (default: False)
@@ -1353,8 +1354,8 @@ class QubitBaseClass(QuantumSystem, ABC):
             list [(i1, i2), (i3, i4), ...] of index tuples
             for specific desired matrix elements (default: 4)
         mode:
-            idx_entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value
-            (default: 'abs')
+            key from :data:`constants.MODE_FUNC_DICT`, e.g., ``'abs'`` for absolute
+            value (default: ``'abs'``)
         num_cpus:
             number of cores to be used for computation
             (default: settings.NUM_CPUS)
@@ -1378,13 +1379,13 @@ class QubitBaseClass(QuantumSystem, ABC):
     def set_and_return(self, attr_name: str, value: Any) -> "QubitBaseClass":
         """Set an attribute and return ``self`` to allow method chaining.
 
-        This is useful for doing something like example::
+        This enables, for example::
 
             qubit.set_and_return('flux', 0.23).some_method()
 
-        instead of example::
+        instead of::
 
-            qubit.flux=0.23
+            qubit.flux = 0.23
             qubit.some_method()
 
         Parameters
@@ -1450,7 +1451,7 @@ class QubitBaseClass1d(QubitBaseClass):
     def wavefunction1d_defaults(
         self, mode: str, evals: ndarray, wavefunc_count: int
     ) -> dict[str, Any]:
-        """Plot defaults for plotting.wavefunction1d.
+        """Return plot defaults for :func:`plotting.wavefunction1d`.
 
         Parameters
         ----------
@@ -1488,14 +1489,16 @@ class QubitBaseClass1d(QubitBaseClass):
         which:
             single index or tuple/list of integers indexing the wave function(s) to be
             plotted.
-            If which is -1, all wavefunctions up to the truncation limit are plotted.
+            If ``which`` is -1, all wave functions up to the truncation limit are
+            plotted.
         mode:
-            choices as specified in `constants.MODE_FUNC_DICT`
-            (default: 'real')
+            choices as specified in :data:`constants.MODE_FUNC_DICT`
+            (default: ``'real'``)
         esys:
             eigenvalues, eigenvectors
         phi_grid:
-            used for setting a custom grid for phi; if None use self._default_grid
+            used for setting a custom grid for ``phi``; if ``None`` use
+            ``self._default_grid``
         scaling:
             custom scaling of wave function amplitude/modulus
         **kwargs:
