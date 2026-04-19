@@ -343,7 +343,7 @@ class CircuitRoutines(ABC):
 
         return hamiltonian
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, name: str, value: Any) -> None:
         """Restrict attribute creation/modification once the instance is frozen.
 
         Parameters
@@ -376,7 +376,7 @@ class CircuitRoutines(ABC):
         }
         return pickle_func, pickle_args, (pickled_dict, pickled_properties)
 
-    def __setstate__(self, state):
+    def __setstate__(self, state: tuple[dict[str, Any], dict[str, Any]]) -> None:
         """Restore instance ``__dict__`` and dynamic properties when unpickling.
 
         Parameters
@@ -610,7 +610,7 @@ class CircuitRoutines(ABC):
         self.hilbert_space._out_of_sync = False
         self.affected_subsystem_indices = []
 
-    def _is_internal_update_required(self, param_name):
+    def _is_internal_update_required(self, param_name: str) -> bool:
         """Check whether changing ``param_name`` requires an internal rebuild.
 
         Parameters
@@ -1077,7 +1077,7 @@ class CircuitRoutines(ABC):
             f"The var_index={var_index} could not be identified with any subsystem."
         )
 
-    def _update_interactions(self, recursive=False) -> None:
+    def _update_interactions(self, recursive: bool = False) -> None:
         """Rebuild HilbertSpace interactions when hierarchical diagonalization is on.
 
         Parameters
@@ -1135,7 +1135,7 @@ class CircuitRoutines(ABC):
                 if subsys.hierarchical_diagonalization:
                     subsys._update_interactions(recursive=recursive)
 
-    def _operator_from_sym_expr_wrapper(self, sym_expr):
+    def _operator_from_sym_expr_wrapper(self, sym_expr: sm.Expr):
         """Return a closure that evaluates ``sym_expr`` to a numerical operator.
 
         Parameters
@@ -1445,7 +1445,7 @@ class CircuitRoutines(ABC):
         return self._sparsity_adaptive(exp_i_theta)
 
     def _evaluate_matrix_sawtooth_terms(
-        self, saw_expr: sm.Expr, bare_esys=None
+        self, saw_expr: sm.Expr, bare_esys: dict[int, tuple] | None = None
     ) -> qt.Qobj:
         """Evaluate symbolic sawtooth-potential terms to a :class:`qutip.Qobj`.
 
@@ -1487,7 +1487,7 @@ class CircuitRoutines(ABC):
         return saw_potential_matrix
 
     def _evaluate_matrix_cosine_terms(
-        self, junction_potential: sm.Expr, bare_esys=None
+        self, junction_potential: sm.Expr, bare_esys: dict[int, tuple] | None = None
     ) -> qt.Qobj:
         """Evaluate symbolic Josephson cosine/sine terms to a :class:`qutip.Qobj`.
 
@@ -1813,7 +1813,7 @@ class CircuitRoutines(ABC):
 
         return {func_name: getattr(self, func_name) for func_name in op_func_by_name}
 
-    def is_subsystem(self, instance):
+    def is_subsystem(self, instance: "CircuitRoutines") -> bool:
         """Return ``True`` if ``instance`` shares any variable index with ``self``.
 
         Parameters
@@ -1828,7 +1828,7 @@ class CircuitRoutines(ABC):
     def identity_wrap_for_hd(
         self,
         operator: csc_matrix | ndarray | None,
-        child_instance,
+        child_instance: "CircuitRoutines",
         bare_esys: dict[int, tuple] | None = None,
     ) -> qt.Qobj:
         r"""Return an identity-wrapped operator of size :meth:`hilbertdim`.
@@ -1890,7 +1890,10 @@ class CircuitRoutines(ABC):
 
     @check_sync_status_circuit
     def get_operator_by_name(
-        self, operator_name: str, power: int | None = None, bare_esys=None
+        self,
+        operator_name: str,
+        power: int | None = None,
+        bare_esys: dict[int, tuple] | None = None,
     ) -> qt.Qobj:
         """Return the operator named ``operator_name`` for this instance.
 
@@ -2264,7 +2267,7 @@ class CircuitRoutines(ABC):
                 subsys_eigensys[idx] = subsys.eigensys(evals_count=subsys.truncated_dim)
         return self.eigensys(evals_count=self.truncated_dim), subsys_eigensys
 
-    def set_bare_eigensys(self, eigensys):
+    def set_bare_eigensys(self, eigensys: tuple) -> None:
         """Store a precomputed bare eigensystem in the :attr:`hilbert_space` lookup.
 
         Has no effect unless :attr:`hierarchical_diagonalization` is ``True``.

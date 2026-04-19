@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem
@@ -96,8 +96,12 @@ class CircuitPlot(ABC):
     # ************* Functions for plotting wave function *************
     # ****************************************************************
     def _recursive_basis_change(
-        self, wf_reshaped, wf_dim: int, subsystem, relevant_indices=None
-    ):
+        self,
+        wf_reshaped: ndarray,
+        wf_dim: int,
+        subsystem: "Subsystem",
+        relevant_indices=None,
+    ) -> ndarray:
         """Change the basis recursively, reversing hierarchical diagonalization.
 
         Parameters
@@ -152,8 +156,12 @@ class CircuitPlot(ABC):
         return wf_new_basis
 
     def _basis_change_harm_osc_to_n(
-        self, wf_original_basis, wf_dim, var_index, grid_n: discretization.Grid1d
-    ):
+        self,
+        wf_original_basis: ndarray,
+        wf_dim: int,
+        var_index: int,
+        grid_n: discretization.Grid1d,
+    ) -> ndarray:
         """Change the basis from harmonic oscillator to charge (``n``) basis.
 
         Parameters
@@ -188,8 +196,12 @@ class CircuitPlot(ABC):
         return wf_new_basis
 
     def _basis_change_harm_osc_to_phi(
-        self, wf_original_basis, wf_dim, var_index, grid_phi: discretization.Grid1d
-    ):
+        self,
+        wf_original_basis: ndarray,
+        wf_dim: int,
+        var_index: int,
+        grid_phi: discretization.Grid1d,
+    ) -> ndarray:
         """Change the basis from harmonic oscillator to discretized phi basis.
 
         Parameters
@@ -224,8 +236,12 @@ class CircuitPlot(ABC):
         return wf_ext_basis
 
     def _basis_change_n_to_phi(
-        self, wf_original_basis, wf_dim, var_index, grid_phi: discretization.Grid1d
-    ):
+        self,
+        wf_original_basis: ndarray,
+        wf_dim: int,
+        var_index: int,
+        grid_phi: discretization.Grid1d,
+    ) -> ndarray:
         """Change the basis from charge (``n``) to discretized phi basis.
 
         Parameters
@@ -258,7 +274,7 @@ class CircuitPlot(ABC):
         )
         return wf_ext_basis
 
-    def _get_var_dim_for_reshaped_wf(self, wf_var_indices, var_index):
+    def _get_var_dim_for_reshaped_wf(self, wf_var_indices, var_index: int) -> int:
         """Return the axis of the reshaped wave function corresponding to ``var_index``.
 
         Parameters
@@ -292,7 +308,9 @@ class CircuitPlot(ABC):
                 wf_dim += 1
         return wf_dim
 
-    def _dims_to_be_summed(self, var_indices: tuple[int], num_wf_dims) -> list[int]:
+    def _dims_to_be_summed(
+        self, var_indices: tuple[int], num_wf_dims: int
+    ) -> list[int]:
         """Return the wave-function axes to sum over for a marginal in ``var_indices``.
 
         Parameters
@@ -526,7 +544,7 @@ class CircuitPlot(ABC):
 
     def plot_wavefunction(
         self,
-        which=0,
+        which: int = 0,
         mode: str = "abs-sqr",
         var_indices: tuple[int] = (1,),
         esys: tuple[ndarray, ndarray] | None = None,
@@ -628,11 +646,11 @@ class CircuitPlot(ABC):
     def _plot_wf_pdf_2D(
         self,
         wf_plot: ndarray,
-        var_indices,
-        grids_per_varindex_dict,
+        var_indices: tuple[int, ...],
+        grids_per_varindex_dict: dict[int, discretization.Grid1d],
         change_discrete_charge_to_phi: bool,
         zero_calibrate: bool,
-        kwargs,
+        kwargs: dict[str, Any],
     ) -> tuple[Figure, Axes]:
         """Render a 2D wavefunction probability density on the supplied grids.
 
@@ -722,10 +740,10 @@ class CircuitPlot(ABC):
         self,
         wf_plot: ndarray,
         mode: str,
-        var_indices,
-        grids_per_varindex_dict,
+        var_indices: tuple[int, ...],
+        grids_per_varindex_dict: dict[int, discretization.Grid1d],
         change_discrete_charge_to_phi: bool,
-        kwargs,
+        kwargs: dict[str, Any],
     ) -> tuple[Figure, Axes]:
         """Render a 1D wavefunction (or marginal probability density).
 

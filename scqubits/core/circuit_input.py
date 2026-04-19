@@ -284,7 +284,7 @@ def parse_code_line(code_line: str, _branch_count: int):
     return branch_type, node_idx1, node_idx2, params, aux_params, _branch_count
 
 
-def convert_value_to_GHz(val, units):
+def convert_value_to_GHz(val: float, units: tuple[str | None, str] | None) -> float:
     """Convert a given value and units to energy in GHz.
 
     The units are given as a ``(prefix, unit_str)`` pair such that the prefix

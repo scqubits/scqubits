@@ -620,7 +620,7 @@ class CircuitSymMethods(ABC):
             )
         return potential_symbolic
 
-    def _is_mat_mul_replacement_necessary(self, term):
+    def _is_mat_mul_replacement_necessary(self, term: sm.Expr):
         """Return ``True`` if `term` mixes extended-variable factors via ``*``.
 
         Such terms must be rendered with matrix multiplication when the term
@@ -694,7 +694,7 @@ class CircuitSymMethods(ABC):
     def _generate_hamiltonian_sym_for_numerics(
         self,
         hamiltonian: sm.Expr | None = None,
-        return_exprs=False,
+        return_exprs: bool = False,
     ):
         """Generate a numerics-ready symbolic Hamiltonian.
 
@@ -1345,8 +1345,11 @@ class CircuitSymMethods(ABC):
         return None
 
     def operator_names_in_hamiltonian_symbolic(self) -> list[str]:
-        """Returns a list of the names (strings) of all operators occurring in the
-        symbolic Hamiltonian."""
+        """Return the names of all operator symbols in the symbolic Hamiltonian.
+
+        Excludes offset charges (``ng``), external fluxes (``Φ``), and any
+        symbolic parameters.
+        """
         return [
             symbol.name
             for symbol in self.hamiltonian_symbolic.free_symbols
@@ -1355,8 +1358,13 @@ class CircuitSymMethods(ABC):
         ]
 
     def offset_charge_transformation(self) -> None:
-        """Prints the variable transformation between offset charges of transformed
-        variables and the node charges."""
+        """Print the offset-charge transformation from node charges to periodic vars.
+
+        Renders the equations relating each ``ng_i`` (offset charge of a
+        periodic variable) to a linear combination of node-offset charges
+        ``q_ni``, using the inverse of :attr:`transformation_matrix`. Output
+        is rendered via LaTeX in IPython, plain-printed otherwise.
+        """
         if not hasattr(self, "symbolic_circuit"):
             raise Exception(
                 f"{self._id_str} instance is not generated from a SymbolicCircuit instance, and hence does not have any associated branches."
