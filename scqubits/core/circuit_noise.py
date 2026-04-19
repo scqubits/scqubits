@@ -95,8 +95,10 @@ class NoisyCircuit(NoisySystem, ABC):
         return None
 
     def _d_hamiltonian_d_function_factory(self, param_sym: sm.Symbol) -> Callable:
-        """Build a method returning the Hamiltonian derivative with respect to
-        ``param_sym``.
+        """Build a method returning :math:`\\partial H / \\partial p`.
+
+        The returned method differentiates the Hamiltonian symbolically with
+        respect to the parameter ``param_sym`` and evaluates it numerically.
 
         Parameters
         ----------
@@ -133,7 +135,9 @@ class NoisyCircuit(NoisySystem, ABC):
         return param_derivative
 
     def _generate_methods_d_hamiltonian_d(self):
-        """Generate methods returning the Hamiltonian derivative with respect to
+        """Generate ``d_hamiltonian_d_*`` helper methods on the instance.
+
+        Generates methods returning the Hamiltonian derivative with respect to
         offset charges, external fluxes, and junction energies.
 
         For each external flux and offset charge, a method
@@ -188,8 +192,9 @@ class NoisyCircuit(NoisySystem, ABC):
     def _transform_expr_to_new_variables(
         self, expr_node_vars: sm.Expr, substitute_symbol: str | None = None
     ):
-        """Transform a symbolic expression from node-flux to transformed
-        variables.
+        """Transform a symbolic expression from node-flux to new variables.
+
+        Rewrites the input expression in the new (transformed) variables.
 
         The input expression in the original node variables ``φ<n>`` is
         rewritten in the new variables ``θ<n>`` using the instance's
@@ -227,7 +232,9 @@ class NoisyCircuit(NoisySystem, ABC):
                 )
         return expr_node_vars
 
-    def _junction_related_evaluation(self, branch_junction: Branch, calc="dhdEJ"):
+    def _junction_related_evaluation(
+        self, branch_junction: Branch, calc: str = "dhdEJ"
+    ):
         """Evaluate a junction-related operator in the parent circuit basis.
 
         Locates, in the parent circuit's symbolic Hamiltonian, the term
@@ -359,10 +366,13 @@ class NoisyCircuit(NoisySystem, ABC):
         return tphi_1_over_f_func
 
     def _generate_tphi_1_over_f_methods(self):
-        """This function is a dynamic method generator, crafting methods for calculating
-        the 1/f dephasing time (or rate) due to different types of noise in the quantum
-        circuit. The generated methods are named `tphi_1_over_f_{noise_type}{index}`,
-        where `noise_type` can be 'cc', 'ng', or 'flux', and `index` differentiates
+        """Generate ``tphi_1_over_f_*`` dephasing methods on the instance.
+
+        This function is a dynamic method generator, crafting methods for
+        calculating the 1/f dephasing time (or rate) due to different types of
+        noise in the quantum circuit. The generated methods are named
+        ``tphi_1_over_f_{noise_type}{index}``, where ``noise_type`` can be
+        ``'cc'``, ``'ng'``, or ``'flux'``, and ``index`` differentiates
         individual noise sources.
 
         external_fluxes :
@@ -374,18 +384,36 @@ class NoisyCircuit(NoisySystem, ABC):
 
         Notes
         -----
-        1. Identifies the branches in the circuit that are junctions (indicated by "JJ" in the branch type).
-        2. Initializes dictionaries to store the generated methods for each type of noise.
-        3. Iterates over the external fluxes, offset charges, and junction branches in the circuit.
-        4. Depending on the type of parameter (external flux, offset charge, or junction branch), it determines the type of noise and the function to differentiate the Hamiltonian with respect to the parameter.
-        5. If the parameter is an expression, it extracts the trailing number from the parameter name and uses it to get the appropriate differentiation function from the current instance.
-        6. If the parameter is a junction branch, it uses the branch's ID string as the trailing number and gets the appropriate differentiation function from the current instance.
-        7. Defines a function `tphi_1_over_f_func` that calculates the 1/f dephasing time (or rate) for the current parameter. This function invokes the differentiation function to generate the noise operator, converts the noise operator to a sparse matrix if necessary, and then calls the `tphi_1_over_f` method of the current instance to calculate the 1/f dephasing time (or rate).
-        8. Adds the `tphi_1_over_f_func` function to the appropriate dictionary, depending on the type of parameter.
-        9. Merges the dictionaries into a single dictionary `noise_methods`.
-        10. Iterates over the `noise_methods` dictionary and adds each method as an attribute of the current instance.
+        1. Identifies the branches in the circuit that are junctions (indicated
+           by ``"JJ"`` in the branch type).
+        2. Initializes dictionaries to store the generated methods for each
+           type of noise.
+        3. Iterates over the external fluxes, offset charges, and junction
+           branches in the circuit.
+        4. Depending on the type of parameter (external flux, offset charge, or
+           junction branch), it determines the type of noise and the function
+           to differentiate the Hamiltonian with respect to the parameter.
+        5. If the parameter is an expression, it extracts the trailing number
+           from the parameter name and uses it to get the appropriate
+           differentiation function from the current instance.
+        6. If the parameter is a junction branch, it uses the branch's ID
+           string as the trailing number and gets the appropriate
+           differentiation function from the current instance.
+        7. Defines a function ``tphi_1_over_f_func`` that calculates the 1/f
+           dephasing time (or rate) for the current parameter. This function
+           invokes the differentiation function to generate the noise operator,
+           converts the noise operator to a sparse matrix if necessary, and
+           then calls the ``tphi_1_over_f`` method of the current instance to
+           calculate the 1/f dephasing time (or rate).
+        8. Adds the ``tphi_1_over_f_func`` function to the appropriate
+           dictionary, depending on the type of parameter.
+        9. Merges the dictionaries into a single dictionary ``noise_methods``.
+        10. Iterates over the ``noise_methods`` dictionary and adds each method
+            as an attribute of the current instance.
 
-        This function does not return anything; it modifies the current instance by adding the 1/f dephasing time (or rate) calculation methods as attributes.
+        This function does not return anything; it modifies the current instance
+        by adding the 1/f dephasing time (or rate) calculation methods as
+        attributes.
         """
         # calculating the rates from each of the flux sources
         junction_branches = [branch for branch in self.branches if "JJ" in branch.type]
@@ -434,32 +462,52 @@ class NoisyCircuit(NoisySystem, ABC):
             setattr(self, method_name, MethodType(noise_methods[method_name], self))
 
     def _generate_overall_tphi_cc(self):
-        """
-        This function calculates the overall dephasing time (Tphi) due to 1/f critical current (cc) noise in the quantum circuit.
+        """Generate the overall ``tphi_1_over_f_cc`` method on the instance.
+
+        This function calculates the overall dephasing time (Tphi) due to 1/f
+        critical current (cc) noise in the quantum circuit.
 
         Steps
         -----
-        1. Checks if there are any existing methods for calculating Tphi due to 1/f cc noise. This is done by searching the methods of the current instance for method names that match the pattern "tphi_1_over_f_cc\\d+$". If such methods exist, the function returns None and does not generate a new method.
+        1. Checks if there are any existing methods for calculating Tphi due to
+           1/f cc noise. This is done by searching the methods of the current
+           instance for method names that match the pattern
+           ``"tphi_1_over_f_cc\\d+$"``. If such methods exist, the function
+           returns None and does not generate a new method.
 
-        2. Defines a new method `tphi_1_over_f_cc` for calculating the overall Tphi due to 1/f cc noise. This method performs the following steps:
+        2. Defines a new method ``tphi_1_over_f_cc`` for calculating the
+           overall Tphi due to 1/f cc noise. This method performs the following
+           steps:
 
-            a. Initializes an empty list `tphi_times` to store the Tphi times for each junction branch in the circuit.
+            a. Initializes an empty list ``tphi_times`` to store the Tphi
+               times for each junction branch in the circuit.
 
-            b. Iterates over the junction branches in the circuit. A junction branch is a branch that represents a Josephson junction (JJ).
+            b. Iterates over the junction branches in the circuit. A junction
+               branch is a branch that represents a Josephson junction (JJ).
 
-            c. Calls the method for calculating Tphi due to 1/f cc noise for the current junction branch. The method is an attribute of the current instance that is named "tphi_1_over_f_cc" followed by the ID string of the branch.
+            c. Calls the method for calculating Tphi due to 1/f cc noise for
+               the current junction branch. The method is an attribute of the
+               current instance that is named ``"tphi_1_over_f_cc"`` followed
+               by the ID string of the branch.
 
-            d. Appends the calculated Tphi time to the `tphi_times` list.
+            d. Appends the calculated Tphi time to the ``tphi_times`` list.
 
-            e. Calculates the total rate of dephasing by summing the reciprocals of the Tphi times.
+            e. Calculates the total rate of dephasing by summing the
+               reciprocals of the Tphi times.
 
-            f. If the `get_rate` parameter is True, returns the total rate of dephasing. Otherwise, returns the reciprocal of the total rate (the overall Tphi time), or infinity if the total rate is zero.
+            f. If the ``get_rate`` parameter is True, returns the total rate
+               of dephasing. Otherwise, returns the reciprocal of the total
+               rate (the overall Tphi time), or infinity if the total rate is
+               zero.
 
-        3. Adds the `tphi_1_over_f_cc` method as an attribute of the current instance. This is done using the `setattr` function and the `MethodType` class to bind the method to the current instance.
+        3. Adds the ``tphi_1_over_f_cc`` method as an attribute of the current
+           instance. This is done using the ``setattr`` function and the
+           ``MethodType`` class to bind the method to the current instance.
 
         Notes
         -----
-        This function does not return anything; it modifies the current instance by adding the `tphi_1_over_f_cc` method as an attribute.
+        This function does not return anything; it modifies the current
+        instance by adding the ``tphi_1_over_f_cc`` method as an attribute.
         """
         if not any([re.match(r"tphi_1_over_f_cc\d+$", method) for method in dir(self)]):
             return None
@@ -512,34 +560,52 @@ class NoisyCircuit(NoisySystem, ABC):
         setattr(self, "tphi_1_over_f_cc", MethodType(tphi_1_over_f_cc, self))
 
     def _generate_overall_tphi_flux(self):
-        """
-        This function calculates the overall dephasing time (Tphi) due to 1/f flux noise in the quantum circuit.
+        """Generate the overall ``tphi_1_over_f_flux`` method on the instance.
 
-        Parameters
-        ----------
+        This function calculates the overall dephasing time (Tphi) due to 1/f
+        flux noise in the quantum circuit.
+
         Steps
         -----
-        1. Checks if there are any existing methods for calculating Tphi due to 1/f flux noise. This is done by searching the methods of the current instance for method names that match the pattern "tphi_1_over_f_flux\\d+$". If such methods exist, the function returns None and does not generate a new method.
+        1. Checks if there are any existing methods for calculating Tphi due
+           to 1/f flux noise. This is done by searching the methods of the
+           current instance for method names that match the pattern
+           ``"tphi_1_over_f_flux\\d+$"``. If such methods exist, the function
+           returns None and does not generate a new method.
 
-        2. Defines a new method `tphi_1_over_f_flux` for calculating the overall Tphi due to 1/f flux noise. This method performs the following steps:
+        2. Defines a new method ``tphi_1_over_f_flux`` for calculating the
+           overall Tphi due to 1/f flux noise. This method performs the
+           following steps:
 
-            a. Initializes an empty list `tphi_times` to store the Tphi times for each external flux in the circuit.
+            a. Initializes an empty list ``tphi_times`` to store the Tphi
+               times for each external flux in the circuit.
 
             b. Iterates over the external fluxes in the circuit.
 
-            c. Calls the method for calculating Tphi due to 1/f flux noise for the current external flux. The method is an attribute of the current instance that is named "tphi_1_over_f_flux" followed by the trailing number in the name of the flux.
+            c. Calls the method for calculating Tphi due to 1/f flux noise for
+               the current external flux. The method is an attribute of the
+               current instance that is named ``"tphi_1_over_f_flux"`` followed
+               by the trailing number in the name of the flux.
 
-            d. Appends the calculated Tphi time to the `tphi_times` list.
+            d. Appends the calculated Tphi time to the ``tphi_times`` list.
 
-            e. Calculates the total rate of dephasing by summing the reciprocals of the Tphi times.
+            e. Calculates the total rate of dephasing by summing the
+               reciprocals of the Tphi times.
 
-            f. If the `get_rate` parameter is True, returns the total rate of dephasing. Otherwise, returns the reciprocal of the total rate (the overall Tphi time), or infinity if the total rate is zero.
+            f. If the ``get_rate`` parameter is True, returns the total rate
+               of dephasing. Otherwise, returns the reciprocal of the total
+               rate (the overall Tphi time), or infinity if the total rate is
+               zero.
 
-        3. Adds the `tphi_1_over_f_flux` method as an attribute of the current instance. This is done using the `setattr` function and the `MethodType` class to bind the method to the current instance.
+        3. Adds the ``tphi_1_over_f_flux`` method as an attribute of the
+           current instance. This is done using the ``setattr`` function and
+           the ``MethodType`` class to bind the method to the current
+           instance.
 
         Notes
         -----
-        This function does not return anything; it modifies the current instance by adding the `tphi_1_over_f_flux` method as an attribute.
+        This function does not return anything; it modifies the current
+        instance by adding the ``tphi_1_over_f_flux`` method as an attribute.
         """
         if not any(
             [re.match(r"tphi_1_over_f_flux\d+$", method) for method in dir(self)]
@@ -595,37 +661,55 @@ class NoisyCircuit(NoisySystem, ABC):
         setattr(self, "tphi_1_over_f_flux", MethodType(tphi_1_over_f_flux, self))
 
     def _generate_overall_tphi_ng(self):
-        """
+        """Generate the overall ``tphi_1_over_f_ng`` method on the instance.
+
         Overall Dephasing Time (Tphi) Calculator due to 1/f Flux Noise
         --------------------------------------------------------------
 
-        This function calculates the overall dephasing time (Tphi) due to 1/f flux noise in the quantum circuit.
+        This function calculates the overall dephasing time (Tphi) due to 1/f
+        flux noise in the quantum circuit.
 
-        Parameters
-        ----------
         Steps
         -----
-        1. Checks if there are any existing methods for calculating Tphi due to 1/f flux noise. This is done by searching the methods of the current instance for method names that match the pattern "tphi_1_over_f_flux\\d+$". If such methods exist, the function returns None and does not generate a new method.
+        1. Checks if there are any existing methods for calculating Tphi due
+           to 1/f flux noise. This is done by searching the methods of the
+           current instance for method names that match the pattern
+           ``"tphi_1_over_f_flux\\d+$"``. If such methods exist, the function
+           returns None and does not generate a new method.
 
-        2. Defines a new method `tphi_1_over_f_flux` for calculating the overall Tphi due to 1/f flux noise. This method performs the following steps:
+        2. Defines a new method ``tphi_1_over_f_flux`` for calculating the
+           overall Tphi due to 1/f flux noise. This method performs the
+           following steps:
 
-            a. Initializes an empty list `tphi_times` to store the Tphi times for each external flux in the circuit.
+            a. Initializes an empty list ``tphi_times`` to store the Tphi
+               times for each external flux in the circuit.
 
             b. Iterates over the external fluxes in the circuit.
 
-            c. Calls the method for calculating Tphi due to 1/f flux noise for the current external flux. The method is an attribute of the current instance that is named "tphi_1_over_f_flux" followed by the trailing number in the name of the flux.
+            c. Calls the method for calculating Tphi due to 1/f flux noise for
+               the current external flux. The method is an attribute of the
+               current instance that is named ``"tphi_1_over_f_flux"`` followed
+               by the trailing number in the name of the flux.
 
-            d. Appends the calculated Tphi time to the `tphi_times` list.
+            d. Appends the calculated Tphi time to the ``tphi_times`` list.
 
-            e. Calculates the total rate of dephasing by summing the reciprocals of the Tphi times.
+            e. Calculates the total rate of dephasing by summing the
+               reciprocals of the Tphi times.
 
-            f. If the `get_rate` parameter is True, returns the total rate of dephasing. Otherwise, returns the reciprocal of the total rate (the overall Tphi time), or infinity if the total rate is zero.
+            f. If the ``get_rate`` parameter is True, returns the total rate
+               of dephasing. Otherwise, returns the reciprocal of the total
+               rate (the overall Tphi time), or infinity if the total rate is
+               zero.
 
-        3. Adds the `tphi_1_over_f_flux` method as an attribute of the current instance. This is done using the `setattr` function and the `MethodType` class to bind the method to the current instance.
+        3. Adds the ``tphi_1_over_f_flux`` method as an attribute of the
+           current instance. This is done using the ``setattr`` function and
+           the ``MethodType`` class to bind the method to the current
+           instance.
 
         Notes
         -----
-        This function does not return anything; it modifies the current instance by adding the `tphi_1_over_f_flux` method as an attribute.
+        This function does not return anything; it modifies the current
+        instance by adding the ``tphi_1_over_f_flux`` method as an attribute.
         """
         if not any([re.match(r"tphi_1_over_f_ng\d+$", method) for method in dir(self)]):
             return None
@@ -681,6 +765,20 @@ class NoisyCircuit(NoisySystem, ABC):
         setattr(self, "tphi_1_over_f_ng", MethodType(tphi_1_over_f_ng, self))
 
     def _t1_flux_bias_line_function_factory(self, noise_op_method: Callable):
+        """Build a ``t1_flux_bias_line`` method for a given noise-operator method.
+
+        Parameters
+        ----------
+        noise_op_method:
+            callable returning the noise operator used in the bias-flux-line
+            :math:`T_1` calculation; bound to the closure of the returned
+            function.
+
+        Returns
+        -------
+        A function suitable for binding to the circuit instance that evaluates
+        the :math:`T_1` time/rate due to flux-bias-line noise.
+        """
         def flux_bias_noise(
             self=self,
             i: int = 1,
@@ -738,43 +836,62 @@ class NoisyCircuit(NoisySystem, ABC):
         return flux_bias_noise
 
     def _generate_t1_flux_bias_line_methods(self):
-        """
+        """Generate ``t1_flux_bias_line<n>`` methods on the instance.
+
         T1 Coherence Time Calculator due to Flux Bias Line Noise
         --------------------------------------------------------
 
-        This function calculates the T1 coherence times due to flux bias line noise for each external flux in the quantum circuit.
+        This function calculates the T1 coherence times due to flux bias line
+        noise for each external flux in the quantum circuit.
 
-        Parameters
-        ----------
         Returns
         -------
         None
 
         Steps
         -----
-        1. Initializes an empty dictionary `flux_bias_line_methods` to store the T1 calculation methods for each external flux.
+        1. Initializes an empty dictionary ``flux_bias_line_methods`` to store
+           the T1 calculation methods for each external flux.
 
         2. Iterates over the external fluxes in the circuit.
 
-        3. Extracts the trailing number from the name of the current flux using the `get_trailing_number` function.
+        3. Extracts the trailing number from the name of the current flux
+           using the ``get_trailing_number`` function.
 
-        4. Retrieves the method for calculating the derivative of the Hamiltonian with respect to the current flux. This is done using the `getattr` function and the name of the method, which is "d_hamiltonian_d_flux" followed by the trailing number.
+        4. Retrieves the method for calculating the derivative of the
+           Hamiltonian with respect to the current flux. This is done using
+           the ``getattr`` function and the name of the method, which is
+           ``"d_hamiltonian_d_flux"`` followed by the trailing number.
 
-        5. Defines a new method `flux_bias_noise` for calculating the T1 time due to flux bias line noise for the current flux. This method performs the following steps:
+        5. Defines a new method ``flux_bias_noise`` for calculating the T1
+           time due to flux bias line noise for the current flux. This method
+           performs the following steps:
 
-            a. Calls the `t1_flux_bias_line` method of the :class:`NoisySystem` class with the current instance, the state indices `i` and `j`, the noise parameters `M`, `Z`, and `T`, the `total` flag, the system eigenvalues and eigenvectors `esys`, the `get_rate` flag, and the noise operator method as arguments.
+            a. Calls the ``t1_flux_bias_line`` method of the
+               :class:`NoisySystem` class with the current instance, the state
+               indices ``i`` and ``j``, the noise parameters ``M``, ``Z``, and
+               ``T``, the ``total`` flag, the system eigenvalues and
+               eigenvectors ``esys``, the ``get_rate`` flag, and the noise
+               operator method as arguments.
 
             b. Returns the calculated T1 time.
 
-        6. Adds the `flux_bias_noise` method to the `flux_bias_line_methods` dictionary with a key that is "t1_flux_bias_line" followed by the trailing number.
+        6. Adds the ``flux_bias_noise`` method to the
+           ``flux_bias_line_methods`` dictionary with a key that is
+           ``"t1_flux_bias_line"`` followed by the trailing number.
 
-        7. Iterates over the keys in the `flux_bias_line_methods` dictionary.
+        7. Iterates over the keys in the ``flux_bias_line_methods``
+           dictionary.
 
-        8. Adds each method in the `flux_bias_line_methods` dictionary as an attribute of the current instance. This is done using the `setattr` function and the `MethodType` class to bind the method to the current instance.
+        8. Adds each method in the ``flux_bias_line_methods`` dictionary as
+           an attribute of the current instance. This is done using the
+           ``setattr`` function and the ``MethodType`` class to bind the
+           method to the current instance.
 
         Notes
         -----
-        This function does not return anything; it modifies the current instance by adding the T1 calculation methods as attributes.
+        This function does not return anything; it modifies the current
+        instance by adding the T1 calculation methods as attributes.
         """
         flux_bias_line_methods = {}
         for flux_sym in self.external_fluxes:
@@ -790,11 +907,12 @@ class NoisyCircuit(NoisySystem, ABC):
             )
 
     def _generate_t1_methods(self):
-        """Generates methods for calculating the T1 coherence times due to capacitive,
-        inductive, and charge impedance noise for each branch in the circuit.
+        """Generate ``t1_capacitive`` and ``t1_inductive`` methods on the instance.
 
-        Parameters
-        ----------
+        Generates methods for calculating the T1 coherence times due to
+        capacitive, inductive, and charge impedance noise for each branch in
+        the circuit.
+
         Returns
         -------
         None
@@ -803,23 +921,39 @@ class NoisyCircuit(NoisySystem, ABC):
         -----
         This function performs the following steps:
 
-        1. Initializes empty dictionaries `t1_capacitive_methods`, `t1_inductive_methods`, and `t1_charge_impedance_methods` to store the T1 calculation methods for each type of noise.
+        1. Initializes empty dictionaries ``t1_capacitive_methods``,
+           ``t1_inductive_methods``, and ``t1_charge_impedance_methods`` to
+           store the T1 calculation methods for each type of noise.
 
         2. Iterates over the branches in the circuit.
 
         3. Checks the type of the current branch.
 
-        4. If the branch type is "L", adds a method for calculating the T1 time due to inductive noise to the `t1_inductive_methods` dictionary. The method is generated by calling the `wrapper_t1_inductive_capacitive` function with the current branch as an argument. The key for the method in the dictionary is "t1_inductive" followed by the ID string of the branch.
+        4. If the branch type is ``"L"``, adds a method for calculating the
+           T1 time due to inductive noise to the ``t1_inductive_methods``
+           dictionary. The method is generated by calling the
+           ``wrapper_t1_inductive_capacitive`` function with the current
+           branch as an argument. The key for the method in the dictionary is
+           ``"t1_inductive"`` followed by the ID string of the branch.
 
-        5. If the branch type is not "L", adds a method for calculating the T1 time due to capacitive noise to the `t1_capacitive_methods` dictionary. The method is generated in the same way as for inductive noise.
+        5. If the branch type is not ``"L"``, adds a method for calculating
+           the T1 time due to capacitive noise to the ``t1_capacitive_methods``
+           dictionary. The method is generated in the same way as for
+           inductive noise.
 
-        6. Merges the `t1_capacitive_methods`, `t1_inductive_methods`, and `t1_charge_impedance_methods` dictionaries into a single `noise_methods` dictionary.
+        6. Merges the ``t1_capacitive_methods``, ``t1_inductive_methods``, and
+           ``t1_charge_impedance_methods`` dictionaries into a single
+           ``noise_methods`` dictionary.
 
-        7. Iterates over the keys in the `noise_methods` dictionary.
+        7. Iterates over the keys in the ``noise_methods`` dictionary.
 
-        8. Adds each method in the `noise_methods` dictionary as an attribute of the current instance. This is done using the `setattr` function and the `MethodType` class to bind the method to the current instance.
+        8. Adds each method in the ``noise_methods`` dictionary as an
+           attribute of the current instance. This is done using the
+           ``setattr`` function and the ``MethodType`` class to bind the
+           method to the current instance.
 
-        This function does not return anything; it modifies the current instance by adding the T1 calculation methods as attributes.
+        This function does not return anything; it modifies the current
+        instance by adding the T1 calculation methods as attributes.
         """
         t1_capacitive_methods = {}
         t1_inductive_methods = {}
@@ -851,6 +985,20 @@ class NoisyCircuit(NoisySystem, ABC):
         # self._data.update(t1_quasiparticle_tunneling_methods)
 
     def _wrapper_t1_quasiparticle_tunneling(self, branch: Branch):
+        """Build a ``t1_quasiparticle_tunneling`` method for a junction branch.
+
+        Parameters
+        ----------
+        branch:
+            Josephson-junction branch for which the quasiparticle-tunneling
+            :math:`T_1` method is generated.
+
+        Returns
+        -------
+        A function suitable for binding to the circuit instance that evaluates
+        the :math:`T_1` time/rate due to quasiparticle tunneling across the
+        given junction branch.
+        """
         def t1_quasiparticle_tunneling(
             self=self,
             i: int = 1,
@@ -911,15 +1059,23 @@ class NoisyCircuit(NoisySystem, ABC):
         return t1_quasiparticle_tunneling
 
     def _wrapper_t1_charge_impedance(self, branch: Branch):
-        """Generates the t1_charge_impedance method necessary for a given impedance line, which
-        couples to the circuit with a capacitance to one or a set of nodes. The input `node_expr`,
-        is the symbolic expression for the nodes coupled to the impedance line.
+        """Generate the ``t1_charge_impedance`` method for a given branch.
+
+        The method is built for a given impedance line that couples to the
+        circuit with a capacitance to one or a set of nodes.
 
         Parameters
         ----------
+        branch:
+            branch of the circuit (capacitive, junction, or inductive) whose
+            associated branch variable defines the noise operator for the
+            impedance line.
 
-        node_expr:
-            The symbolic expression for the nodes coupled to the impedance line.
+        Returns
+        -------
+        Function suitable for binding to the circuit instance, returning the
+        :math:`T_1` time/rate due to charge-impedance noise on the chosen
+        branch.
         """
         # find the conjugate charge operator for the given node_expr
 
@@ -994,11 +1150,14 @@ class NoisyCircuit(NoisySystem, ABC):
         self,
         branch: Branch,
     ):
-        """
+        """Build a per-branch ``t1_inductive`` or ``t1_capacitive`` method.
+
         T1 Coherence Time Calculator due to Inductive or Capacitive Noise
         -----------------------------------------------------------------
 
-        This function generates a method for calculating the T1 coherence time due to inductive or capacitive noise for a given branch in the quantum circuit.
+        This function generates a method for calculating the T1 coherence time
+        due to inductive or capacitive noise for a given branch in the quantum
+        circuit.
 
         Parameters
         ----------
@@ -1014,15 +1173,19 @@ class NoisyCircuit(NoisySystem, ABC):
         -----
         1. Checks the type of the branch.
 
-        2. If the branch type is not "L", generates a method for calculating the T1 time due to capacitive noise.
+        2. If the branch type is not ``"L"``, generates a method for
+           calculating the T1 time due to capacitive noise.
 
-        3. If the branch type is "L", generates a method for calculating the T1 time due to inductive noise by calling the `t1_inductive` method.
+        3. If the branch type is ``"L"``, generates a method for calculating
+           the T1 time due to inductive noise by calling the ``t1_inductive``
+           method.
 
         4. Returns the generated method.
 
         Notes
         -----
-        This function does not modify the current instance; it returns a new method for calculating the T1 time.
+        This function does not modify the current instance; it returns a new
+        method for calculating the T1 time.
         """
         if branch.type != "L":
             # inductive noise for any branch with a capacitance
@@ -1162,11 +1325,13 @@ class NoisyCircuit(NoisySystem, ABC):
         return t1_method
 
     def _generate_overall_t1_quasiparticle_tunneling(self):
-        """
+        """Generate the overall ``t1_quasiparticle_tunneling`` method.
+
         T1 Coherence Time Calculator due to Quasiparticle Tunneling
         ------------------------------------------------------------
 
-        This function generates an overall method for calculating the T1 coherence time due to quasiparticle tunneling for the entire circuit.
+        This function generates an overall method for calculating the T1
+        coherence time due to quasiparticle tunneling for the entire circuit.
 
         Returns
         -------
@@ -1174,21 +1339,34 @@ class NoisyCircuit(NoisySystem, ABC):
 
         Description
         -----------
-        1. Checks if there are any existing methods for calculating T1 due to quasiparticle tunneling for any of the branches in the circuit. If not, it returns None.
+        1. Checks if there are any existing methods for calculating T1 due to
+           quasiparticle tunneling for any of the branches in the circuit. If
+           not, it returns None.
 
-        2. Checks if the circuit is purely harmonic, in which case it also returns None.
+        2. Checks if the circuit is purely harmonic, in which case it also
+           returns None.
 
-        3. If the checks pass, it defines a new method `t1_quasiparticle_tunneling` that calculates the overall T1 time due to quasiparticle tunneling.
+        3. If the checks pass, it defines a new method
+           ``t1_quasiparticle_tunneling`` that calculates the overall T1 time
+           due to quasiparticle tunneling.
 
-        4. This method iterates over all the branches in the circuit that are Josephson junctions (indicated by "JJ" in the branch type), and for each branch, it calls the corresponding branch-specific T1 calculation method.
+        4. This method iterates over all the branches in the circuit that are
+           Josephson junctions (indicated by ``"JJ"`` in the branch type), and
+           for each branch, it calls the corresponding branch-specific T1
+           calculation method.
 
-        5. It then calculates the total rate of decoherence as the sum of the reciprocals of the T1 times for all the branches, and returns the reciprocal of the total rate (or the total rate itself if `get_rate` is True).
+        5. It then calculates the total rate of decoherence as the sum of the
+           reciprocals of the T1 times for all the branches, and returns the
+           reciprocal of the total rate (or the total rate itself if
+           ``get_rate`` is True).
 
-        6. Finally, the function adds the `t1_quasiparticle_tunneling` method as an attribute of the current instance.
+        6. Finally, the function adds the ``t1_quasiparticle_tunneling``
+           method as an attribute of the current instance.
 
         Notes
         -----
-        This function does not return anything; it modifies the current instance by adding the T1 calculation methods as attributes.
+        This function does not return anything; it modifies the current
+        instance by adding the T1 calculation methods as attributes.
         """
         if not any(
             [
@@ -1269,33 +1447,44 @@ class NoisyCircuit(NoisySystem, ABC):
         )
 
     def _generate_overall_t1_inductive(self):
-        """
+        """Generate the overall ``t1_inductive`` method on the instance.
+
         T1 Coherence Time Calculator due to Inductive Noise
         ---------------------------------------------------
 
-        This function generates an overall method for calculating the T1 coherence time due to inductive noise for the entire circuit.
+        This function generates an overall method for calculating the T1
+        coherence time due to inductive noise for the entire circuit.
 
-        Parameters
-        ----------
         Returns
         -------
         None
 
         Description
         -----------
-        1. Checks if there are any existing methods for calculating T1 due to inductive noise for any of the branches in the circuit. If not, it returns None.
+        1. Checks if there are any existing methods for calculating T1 due to
+           inductive noise for any of the branches in the circuit. If not, it
+           returns None.
 
-        2. If the checks pass, it defines a new method `t1_method` that calculates the overall T1 time due to inductive noise.
+        2. If the checks pass, it defines a new method ``t1_method`` that
+           calculates the overall T1 time due to inductive noise.
 
-        3. This method iterates over all the branches in the circuit that are inductors (indicated by "L" in the branch type), and for each branch, it calls the corresponding branch-specific T1 calculation method.
+        3. This method iterates over all the branches in the circuit that are
+           inductors (indicated by ``"L"`` in the branch type), and for each
+           branch, it calls the corresponding branch-specific T1 calculation
+           method.
 
-        4. It then calculates the total rate of decoherence as the sum of the reciprocals of the T1 times for all the branches, and returns the reciprocal of the total rate (or the total rate itself if `get_rate` is True).
+        4. It then calculates the total rate of decoherence as the sum of the
+           reciprocals of the T1 times for all the branches, and returns the
+           reciprocal of the total rate (or the total rate itself if
+           ``get_rate`` is True).
 
-        5. Finally, the function adds the `t1_method` method as an attribute of the current instance.
+        5. Finally, the function adds the ``t1_method`` method as an attribute
+           of the current instance.
 
-        Notes:
-        ------
-        This function does not return anything; it modifies the current instance by adding the T1 calculation methods as attributes.
+        Notes
+        -----
+        This function does not return anything; it modifies the current
+        instance by adding the T1 calculation methods as attributes.
         """
         if not any([re.match(r"t1_inductive\d+$", method) for method in dir(self)]):
             return None
@@ -1361,33 +1550,44 @@ class NoisyCircuit(NoisySystem, ABC):
         setattr(self, "t1_inductive", MethodType(t1_method, self))
 
     def _generate_overall_t1_capacitive(self):
-        """
+        """Generate the overall ``t1_capacitive`` method on the instance.
+
         T1 Coherence Time Calculator due to Capacitive Noise
         ----------------------------------------------------
 
-        This function generates an overall method for calculating the T1 coherence time due to capacitive noise for the entire circuit.
+        This function generates an overall method for calculating the T1
+        coherence time due to capacitive noise for the entire circuit.
 
-        Parameters
-        ----------
         Returns
         -------
         None
 
         Description
         -----------
-        1. Checks if there are any existing methods for calculating T1 due to capacitive noise for any of the branches in the circuit. If not, it returns None.
+        1. Checks if there are any existing methods for calculating T1 due to
+           capacitive noise for any of the branches in the circuit. If not, it
+           returns None.
 
-        2. If the checks pass, it defines a new method `t1_method` that calculates the overall T1 time due to capacitive noise.
+        2. If the checks pass, it defines a new method ``t1_method`` that
+           calculates the overall T1 time due to capacitive noise.
 
-        3. This method iterates over all the branches in the circuit that are not inductors (indicated by "L" in the branch type), and for each branch, it calls the corresponding branch-specific T1 calculation method.
+        3. This method iterates over all the branches in the circuit that are
+           not inductors (indicated by ``"L"`` in the branch type), and for
+           each branch, it calls the corresponding branch-specific T1
+           calculation method.
 
-        4. It then calculates the total rate of decoherence as the sum of the reciprocals of the T1 times for all the branches, and returns the reciprocal of the total rate (or the total rate itself if `get_rate` is True).
+        4. It then calculates the total rate of decoherence as the sum of the
+           reciprocals of the T1 times for all the branches, and returns the
+           reciprocal of the total rate (or the total rate itself if
+           ``get_rate`` is True).
 
-        5. Finally, the function adds the `t1_method` method as an attribute of the current instance.
+        5. Finally, the function adds the ``t1_method`` method as an attribute
+           of the current instance.
 
         Notes
         -----
-        This function does not return anything; it modifies the current instance by adding the T1 calculation methods as attributes.
+        This function does not return anything; it modifies the current
+        instance by adding the T1 calculation methods as attributes.
         """
         if not any([re.match(r"t1_capacitive\d+$", method) for method in dir(self)]):
             return None
@@ -1451,11 +1651,12 @@ class NoisyCircuit(NoisySystem, ABC):
         setattr(self, "t1_capacitive", MethodType(t1_method, self))
 
     def _generate_overall_t1_charge_impedance(self):
-        """
-        This function dynamically generates a method for calculating the T1 coherence time due to charge impedance noise for the entire quantum circuit.
+        """Generate the overall ``t1_charge_impedance`` method on the instance.
 
-        Parameters
-        ----------
+        This function dynamically generates a method for calculating the T1
+        coherence time due to charge impedance noise for the entire quantum
+        circuit.
+
         Returns
         -------
         None
@@ -1464,15 +1665,25 @@ class NoisyCircuit(NoisySystem, ABC):
         -----
         This function performs the following steps:
 
-        1. Checks if there are any existing methods for calculating T1 due to charge impedance noise for any of the branches in the circuit. If not, it returns None.
-        2. Defines a new method `t1_method` that calculates the overall T1 time due to charge impedance noise. This method:
-            - Iterates over all the branches in the circuit that are not inductors (indicated by "L" in the branch type).
-            - For each branch, it calls the corresponding branch-specific T1 calculation method.
-            - Calculates the total rate of decoherence as the sum of the reciprocals of the T1 times for all the branches.
-            - Returns the reciprocal of the total rate (or the total rate itself if `get_rate` is True).
-        3. Adds the `t1_method` method as an attribute of the current instance.
+        1. Checks if there are any existing methods for calculating T1 due to
+           charge impedance noise for any of the branches in the circuit. If
+           not, it returns None.
+        2. Defines a new method ``t1_method`` that calculates the overall T1
+           time due to charge impedance noise. This method:
 
-        This function does not return anything; it modifies the current instance by adding the T1 calculation method as an attribute.
+            - Iterates over all the branches in the circuit that are not
+              inductors (indicated by ``"L"`` in the branch type).
+            - For each branch, it calls the corresponding branch-specific T1
+              calculation method.
+            - Calculates the total rate of decoherence as the sum of the
+              reciprocals of the T1 times for all the branches.
+            - Returns the reciprocal of the total rate (or the total rate
+              itself if ``get_rate`` is True).
+        3. Adds the ``t1_method`` method as an attribute of the current
+           instance.
+
+        This function does not return anything; it modifies the current
+        instance by adding the T1 calculation method as an attribute.
         """
         if not any(
             [re.match(r"t1_charge_impedance\d+$", method) for method in dir(self)]
@@ -1537,11 +1748,12 @@ class NoisyCircuit(NoisySystem, ABC):
         setattr(self, "t1_charge_impedance", MethodType(t1_method, self))
 
     def _generate_overall_t1_flux_bias_line(self):
-        """
-        This function dynamically generates a method for calculating the T1 coherence time due to flux bias line noise for the entire quantum circuit.
+        """Generate the overall ``t1_flux_bias_line`` method on the instance.
 
-        Parameters
-        ----------
+        This function dynamically generates a method for calculating the T1
+        coherence time due to flux bias line noise for the entire quantum
+        circuit.
+
         Returns
         -------
         None
@@ -1550,15 +1762,24 @@ class NoisyCircuit(NoisySystem, ABC):
         -----
         This function performs the following steps:
 
-        1. Checks if there are any existing methods for calculating T1 due to flux bias line noise for any of the branches in the circuit. If not, it returns None.
-        2. Defines a new method `t1_flux_bias_line` that calculates the overall T1 time due to flux bias line noise. This method:
-            - Iterates over all the external fluxes in the circuit.
-            - For each flux, it calls the corresponding branch-specific T1 calculation method.
-            - Calculates the total rate of decoherence as the sum of the reciprocals of the T1 times for all the fluxes.
-            - Returns the reciprocal of the total rate (or the total rate itself if `get_rate` is True).
-        3. Adds the `t1_flux_bias_line` method as an attribute of the current instance.
+        1. Checks if there are any existing methods for calculating T1 due to
+           flux bias line noise for any of the branches in the circuit. If
+           not, it returns None.
+        2. Defines a new method ``t1_flux_bias_line`` that calculates the
+           overall T1 time due to flux bias line noise. This method:
 
-        This function does not return anything; it modifies the current instance by adding the T1 calculation method as an attribute.
+            - Iterates over all the external fluxes in the circuit.
+            - For each flux, it calls the corresponding branch-specific T1
+              calculation method.
+            - Calculates the total rate of decoherence as the sum of the
+              reciprocals of the T1 times for all the fluxes.
+            - Returns the reciprocal of the total rate (or the total rate
+              itself if ``get_rate`` is True).
+        3. Adds the ``t1_flux_bias_line`` method as an attribute of the current
+           instance.
+
+        This function does not return anything; it modifies the current
+        instance by adding the T1 calculation method as an attribute.
         """
         if not any(
             [re.match(r"t1_flux_bias_line\d+$", method) for method in dir(self)]
@@ -1630,11 +1851,11 @@ class NoisyCircuit(NoisySystem, ABC):
         setattr(self, "t1_flux_bias_line", MethodType(t1_flux_bias_line, self))
 
     def generate_noise_methods(self):
-        """This function is responsible for dynamically generating all the methods that
-        calculate the different types of noise in the quantum circuit.
+        """Dynamically generate all noise-calculation methods on the instance.
 
-        Parameters
-        ----------
+        This function is responsible for dynamically generating all the methods
+        that calculate the different types of noise in the quantum circuit.
+
         Returns
         -------
         None
@@ -1644,31 +1865,39 @@ class NoisyCircuit(NoisySystem, ABC):
         This function performs the following steps:
 
         1. Unfreezes the circuit to allow changes.
-        2. Generates methods for calculating the derivatives of the Hamiltonian with respect to the different circuit parameters.
-        3. Generates methods for calculating the Tphi times due to 1/f noise for each branch in the circuit.
-        4. Generates methods for calculating the T1 times due to flux bias line noise for each branch in the circuit.
-        5. Generates methods for calculating the T1 times due to various noise sources for each branch in the circuit.
-        6. Generates methods for calculating the overall Tphi times due to charge coupling, flux, and ng noise for the entire circuit.
-        7. Generates methods for calculating the overall T1 times due to capacitive, charge impedance, inductive, flux bias line, and quasiparticle tunneling noise for the entire circuit.
-        8. Sets the `_noise_methods_generated` attribute to True.
+        2. Generates methods for calculating the derivatives of the Hamiltonian
+           with respect to the different circuit parameters.
+        3. Generates methods for calculating the Tphi times due to 1/f noise
+           for each branch in the circuit.
+        4. Generates methods for calculating the T1 times due to flux bias
+           line noise for each branch in the circuit.
+        5. Generates methods for calculating the T1 times due to various noise
+           sources for each branch in the circuit.
+        6. Generates methods for calculating the overall Tphi times due to
+           charge coupling, flux, and ng noise for the entire circuit.
+        7. Generates methods for calculating the overall T1 times due to
+           capacitive, charge impedance, inductive, flux bias line, and
+           quasiparticle tunneling noise for the entire circuit.
+        8. Sets the ``_noise_methods_generated`` attribute to True.
         9. Freezes the circuit again to prevent further changes.
 
         The methods generated by this function are:
 
-        - `generate_methods_d_hamiltonian_d`
-        - `generate_tphi_1_over_f_methods`
-        - `generate_t1_flux_bias_line_methods`
-        - `generate_t1_methods`
-        - `generate_overall_tphi_cc`
-        - `generate_overall_tphi_flux`
-        - `generate_overall_tphi_ng`
-        - `generate_overall_t1_capacitive`
-        - `generate_overall_t1_charge_impedance`
-        - `generate_overall_t1_inductive`
-        - `generate_overall_t1_flux_bias_line`
-        - `generate_overall_t1_quasiparticle_tunneling`
+        - ``generate_methods_d_hamiltonian_d``
+        - ``generate_tphi_1_over_f_methods``
+        - ``generate_t1_flux_bias_line_methods``
+        - ``generate_t1_methods``
+        - ``generate_overall_tphi_cc``
+        - ``generate_overall_tphi_flux``
+        - ``generate_overall_tphi_ng``
+        - ``generate_overall_t1_capacitive``
+        - ``generate_overall_t1_charge_impedance``
+        - ``generate_overall_t1_inductive``
+        - ``generate_overall_t1_flux_bias_line``
+        - ``generate_overall_t1_quasiparticle_tunneling``
 
-        This function does not return anything; it modifies the current instance by adding the noise calculation methods as attributes.
+        This function does not return anything; it modifies the current
+        instance by adding the noise calculation methods as attributes.
         """
         self._frozen = False
         self._generate_methods_d_hamiltonian_d()

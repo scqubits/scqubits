@@ -689,6 +689,7 @@ class Circuit(  # type: ignore[misc]
 
     @staticmethod
     def default_params() -> dict[str, Any]:
+        """Return an empty dict of default parameters for :class:`Circuit`."""
         return {}
 
     def _clear_unnecessary_attribs(self):
@@ -724,42 +725,59 @@ class Circuit(  # type: ignore[misc]
         generate_noise_methods: bool = False,
         subsys_dict: dict[str, Any] | None = None,
     ):
-        """Method which re-initializes a circuit instance to update, hierarchical
-        diagonalization parameters or closure branches or the variable transformation
-        used to describe the circuit.
+        """Re-initialize a circuit instance to update hierarchical settings.
+
+        Re-initializes the instance to update hierarchical diagonalization
+        parameters, closure branches, or the variable transformation used to
+        describe the circuit.
 
         Parameters
         ----------
         transformation_matrix:
             A user defined variable transformation which has the dimensions of the
-            number nodes (not counting the ground node), by default `None`
+            number nodes (not counting the ground node), by default ``None``
         system_hierarchy:
             A list of lists which is provided by the user to define subsystems,
-            by default `None`
+            by default ``None``
         subsystem_trunc_dims:
-            dict object which can be generated for a specific system_hierarchy using the
-            method `truncation_template`, by default `None`
+            dict object which can be generated for a specific system_hierarchy
+            using the method ``truncation_template``, by default ``None``
         closure_branches:
-            Each element of the list corresponds to one external flux variable. If the element is a branch
-            the external flux will be associated with that branch. If the element is a dictionary, the external flux variable
-            will be distributed across the branches according to the dictionary with the factor given as a key value.
+            Each element of the list corresponds to one external flux variable.
+            If the element is a branch the external flux will be associated with
+            that branch. If the element is a dictionary, the external flux
+            variable will be distributed across the branches according to the
+            dictionary with the factor given as a key value.
         ext_basis:
-            can be "discretized" or "harmonic" which chooses whether to use discretized
-            phi or harmonic oscillator basis for extended variables,
-            by default `None`
+            can be "discretized" or "harmonic" which chooses whether to use
+            discretized phi or harmonic oscillator basis for extended variables,
+            by default ``None``
         use_dynamic_flux_grouping:
-            set to False by default. Indicates if the flux allocation is done by assuming that flux is time dependent. When set to True, it disables the option to change the closure branches.
+            set to False by default. Indicates if the flux allocation is done by
+            assuming that flux is time dependent. When set to True, it disables
+            the option to change the closure branches.
         generate_noise_methods:
-            set to False by default. Indicates if the noise methods should be generated for the circuit instance.
+            set to False by default. Indicates if the noise methods should be
+            generated for the circuit instance.
         subsys_dict:
-            User provided dictionary with two keys "systems_sym" and "interaction_sym" defining the symbolic Hamiltonians and interactions for the subsystems. By default set to None, and is internally generated.
+            User provided dictionary with two keys ``"systems_sym"`` and
+            ``"interaction_sym"`` defining the symbolic Hamiltonians and
+            interactions for the subsystems. By default set to None, and is
+            internally generated.
+
         Raises
         ------
         Exception
             When system_hierarchy is set and subsystem_trunc_dims is not set.
         Exception
-            When closure_branches is set and the Circuit instance is initialized with the setting
-            `use_dynamic_flux_grouping=True`.
+            When closure_branches is set and the Circuit instance is initialized
+            with the setting ``use_dynamic_flux_grouping=True``.
+
+        Notes
+        -----
+        Mutates instance state by reassigning attributes such as
+        ``system_hierarchy``, ``subsystem_trunc_dims``, ``transformation_matrix``,
+        and ``closure_branches``.
         """
 
         old_system_hierarchy = self.system_hierarchy
@@ -833,6 +851,25 @@ class Circuit(  # type: ignore[misc]
     def _read_symbolic_hamiltonian(
         self, symbolic_hamiltonian: sm.Expr
     ) -> tuple[list[sm.Expr], list[sm.Expr], list[sm.Expr], dict[str, list[int]]]:
+        """Extract flux, charge, and variable-category metadata.
+
+        Extracts the metadata from the supplied symbolic Hamiltonian.
+
+        Parameters
+        ----------
+        symbolic_hamiltonian:
+            symbolic expression for the Hamiltonian whose free symbols are inspected
+            to identify external fluxes, offset charges, free charges, and variable
+            categories
+
+        Returns
+        -------
+        Tuple ``(external_fluxes, offset_charges, free_charges, var_categories)``
+        where the first three entries are lists of sympy symbols and
+        ``var_categories`` is a dictionary mapping the keys ``"periodic"``,
+        ``"extended"``, ``"free"``, ``"frozen"`` to sorted lists of variable
+        indices.
+        """
         free_symbols = symbolic_hamiltonian.free_symbols
         external_fluxes = []
         offset_charges = []
@@ -868,29 +905,39 @@ class Circuit(  # type: ignore[misc]
         subsys_dict: dict[str, Any] | None = None,
         ext_basis: str | list[str] | None = None,
     ):
-        """Method which re-initializes a circuit instance to update, hierarchical
-        diagonalization parameters or closure branches or the variable transformation
-        used to describe the circuit.
+        """Re-initialize a symbolic-Hamiltonian circuit's hierarchical settings.
+
+        Re-initializes a circuit instance (built from a symbolic Hamiltonian) to
+        update hierarchical diagonalization parameters or basis choices.
 
         Parameters
         ----------
         system_hierarchy:
             A list of lists which is provided by the user to define subsystems,
-            by default `None`
+            by default ``None``
         subsystem_trunc_dims:
-            dict object which can be generated for a specific system_hierarchy using the
-            method `truncation_template`, by default `None`
+            dict object which can be generated for a specific system_hierarchy
+            using the method ``truncation_template``, by default ``None``
         subsys_dict:
-            User provided dictionary with two keys "systems_sym" and "interaction_sym" defining the symbolic Hamiltonians and interactions for the subsystems. By default set to None, and is internally generated.
+            User provided dictionary with two keys ``"systems_sym"`` and
+            ``"interaction_sym"`` defining the symbolic Hamiltonians and
+            interactions for the subsystems. By default set to None, and is
+            internally generated.
         ext_basis:
-            can be "discretized" or "harmonic" which chooses whether to use discretized
-            phi or harmonic oscillator basis for extended variables,
-            by default `None`
+            can be "discretized" or "harmonic" which chooses whether to use
+            discretized phi or harmonic oscillator basis for extended variables,
+            by default ``None``
 
         Raises
         ------
         Exception
             when system_hierarchy is set and subsystem_trunc_dims is not set.
+
+        Notes
+        -----
+        Mutates instance state by reassigning many attributes (e.g.
+        ``ext_basis``, ``hierarchical_diagonalization``, ``cutoff_names``,
+        ``operators_by_name``).
         """
         self._frozen = False
         system_hierarchy = system_hierarchy or self.system_hierarchy
@@ -1025,38 +1072,56 @@ class Circuit(  # type: ignore[misc]
         subsys_dict: dict[str, Any] | None = None,
         generate_noise_methods: bool = False,
     ):
-        """Method which re-initializes a circuit instance to update, hierarchical
-        diagonalization parameters or closure branches or the variable transformation
-        used to describe the circuit.
+        """Re-initialize a symbolic-circuit instance's hierarchical settings.
+
+        Re-initializes a circuit instance (built from a symbolic circuit) to
+        update hierarchical diagonalization parameters, closure branches, or the
+        variable transformation used to describe the circuit.
 
         Parameters
         ----------
         transformation_matrix:
-            A user defined variable transformation which has the dimensions of the
-            number nodes (not counting the ground node), by default `None`
+            A user defined variable transformation which has the dimensions of
+            the number nodes (not counting the ground node), by default ``None``
         system_hierarchy:
             A list of lists which is provided by the user to define subsystems,
-            by default `None`
+            by default ``None``
         subsystem_trunc_dims:
-            dict object which can be generated for a specific system_hierarchy using the
-            method `truncation_template`, by default `None`
+            dict object which can be generated for a specific system_hierarchy
+            using the method ``truncation_template``, by default ``None``
         closure_branches:
-            Each element of the list corresponds to one external flux variable. If the element is a branch
-            the external flux will be associated with that branch. If the element is a dictionary, the external flux variable
-            will be distributed across the branches according to the dictionary with the factor given as a key value.
+            Each element of the list corresponds to one external flux variable.
+            If the element is a branch the external flux will be associated with
+            that branch. If the element is a dictionary, the external flux
+            variable will be distributed across the branches according to the
+            dictionary with the factor given as a key value.
         ext_basis:
-            can be "discretized" or "harmonic" which chooses whether to use discretized, or can be a list of lists of lists, when hierarchical diagonalization is used.
+            can be "discretized" or "harmonic" which chooses whether to use
+            discretized, or can be a list of lists of lists, when hierarchical
+            diagonalization is used.
         use_dynamic_flux_grouping:
-            set to False by default. Indicates if the flux allocation is done by assuming that flux is time dependent. When set to True, it disables the option to change the closure branches.
+            set to False by default. Indicates if the flux allocation is done by
+            assuming that flux is time dependent. When set to True, it disables
+            the option to change the closure branches.
         subsys_dict:
-            User provided dictionary with two keys `"systems_sym"` and `"interaction_sym"` defining the symbolic Hamiltonians and interactions for the subsystems. By default set to None, and is internally generated.
+            User provided dictionary with two keys ``"systems_sym"`` and
+            ``"interaction_sym"`` defining the symbolic Hamiltonians and
+            interactions for the subsystems. By default set to None, and is
+            internally generated.
         generate_noise_methods:
-            set to False by default. Indicates if the noise methods should be generated for the circuit instance.
+            set to False by default. Indicates if the noise methods should be
+            generated for the circuit instance.
 
         Raises
         ------
         Exception
             when system_hierarchy is set and subsystem_trunc_dims is not set.
+
+        Notes
+        -----
+        Mutates instance state by reassigning many attributes (e.g.
+        ``hierarchical_diagonalization``, ``hamiltonian_symbolic``,
+        ``ext_basis``, ``operators_by_name``).
         """
         self._frozen = False
 
@@ -1234,6 +1299,13 @@ class Circuit(  # type: ignore[misc]
         ]
 
     def effective_noise_channels(self):
+        """Return the names of effective (combined) noise-channel methods.
+
+        Returns
+        -------
+        List of supported noise-channel method names that correspond to combined
+        (effective) noise channels rather than per-branch contributions.
+        """
         if not hasattr(self, "_noise_methods_generated"):
             raise Exception(
                 "Noise methods are not generated, please use configure() with generate_noise_methods=True to generate them."
@@ -1244,8 +1316,16 @@ class Circuit(  # type: ignore[misc]
             if not is_string_float(method_name[-1])
         ]
 
-    def variable_transformation(self, new_vars_to_node_vars=True) -> None:
-        """Prints the variable transformation used in this circuit."""
+    def variable_transformation(self, new_vars_to_node_vars: bool = True) -> None:
+        """Print the variable transformation used in this circuit.
+
+        Parameters
+        ----------
+        new_vars_to_node_vars:
+            if ``True`` (default), display the new variables expressed in terms
+            of node variables; if ``False``, display node variables in terms of
+            the new variables.
+        """
         trans_mat = self.transformation_matrix
         if new_vars_to_node_vars:
             trans_mat = np.linalg.inv(trans_mat)
@@ -1282,8 +1362,10 @@ class Circuit(  # type: ignore[misc]
         print_latex: bool = False,
         return_expr: bool = False,
     ) -> sm.Expr | None:
-        """Method that gives a user readable symbolic Lagrangian for the current
-        instance.
+        """Return or print a user-readable symbolic Lagrangian.
+
+        Provides a Lagrangian for the current instance, in either node-variable
+        or new-variable form.
 
         Parameters
         ----------
@@ -1365,8 +1447,10 @@ class Circuit(  # type: ignore[misc]
         return None
 
     def sym_external_fluxes(self) -> dict[sm.Expr, tuple["Branch", list["Branch"]]]:
-        """Method returns a dictionary of Human readable external fluxes with associated
-        branches and loops (represented as lists of branches) for the current instance.
+        """Return a dictionary of external fluxes with associated branches/loops.
+
+        Returns human-readable external fluxes mapped to their associated branches
+        and loops (represented as lists of branches) for the current instance.
 
         Returns
         -------
@@ -1391,11 +1475,13 @@ class Circuit(  # type: ignore[misc]
         }
 
     def oscillator_list(self, osc_index_list: list[int]):
-        """If hierarchical diagonalization is used, specify subsystems that corresponds
-        to single-mode oscillators, if there is any. The attributes `_osc_subsys_list`
-        and `osc_subsys_list` of the :attr:`hilbert_space` attribute of the Circuit instance
-        will be assigned accordingly, enabling the correct identification of harmonic
-        modes for the dispersive regime analysis in ParameterSweep.
+        """Mark subsystems as single-mode oscillators (hierarchical diag only).
+
+        If hierarchical diagonalization is used, the attributes
+        ``_osc_subsys_list`` and ``osc_subsys_list`` of the :attr:`hilbert_space`
+        attribute of the Circuit instance will be assigned accordingly, enabling
+        the correct identification of harmonic modes for the dispersive regime
+        analysis in :class:`ParameterSweep`.
 
         Parameters
         ----------
@@ -1419,11 +1505,12 @@ class Circuit(  # type: ignore[misc]
         self.hilbert_space._osc_subsys_list = osc_subsys_list
 
     def qubit_list(self, qbt_index_list: list[int]):
-        """If hierarchical diagonalization is used, specify subsystems that corresponds
-        to single-mode oscillators, if there is any. The attributes `_osc_subsys_list`
-        and `osc_subsys_list` of the `hilbert_space` attribute of the Circuit instance
-        will be assigned accordingly, enabling the correct identification of harmonic
-        modes for the dispersive regime analysis in ParameterSweep.
+        """Mark subsystems as qubits (hierarchical diagonalization only).
+
+        The attribute ``_qbt_subsys_list`` of the :attr:`hilbert_space`
+        attribute of the Circuit instance will be assigned accordingly, enabling
+        the correct identification of qubit subsystems for the dispersive regime
+        analysis in :class:`ParameterSweep`.
 
         Parameters
         ----------

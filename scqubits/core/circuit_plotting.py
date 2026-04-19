@@ -51,11 +51,25 @@ class CircuitPlot(ABC):
         potential_symbolic: sm.Expr
 
         def get_osc_param(self, var_index: int, which_param: str = ...) -> float:
-            """Stub: oscillator parameter for ``var_index`` provided by sibling mixin."""
+            """Stub: oscillator parameter for ``var_index`` provided by sibling mixin.
+
+            Parameters
+            ----------
+            var_index:
+                index of the variable whose oscillator parameter is requested.
+            which_param:
+                key identifying which oscillator parameter to retrieve.
+            """
             ...
 
         def get_subsystem_index(self, var_index: int) -> int:
-            """Stub: subsystem index for ``var_index`` provided by sibling mixin."""
+            """Stub: subsystem index for ``var_index`` provided by sibling mixin.
+
+            Parameters
+            ----------
+            var_index:
+                index of the variable whose subsystem index is requested.
+            """
             ...
 
         def cutoffs_dict(self) -> dict[int, int]:
