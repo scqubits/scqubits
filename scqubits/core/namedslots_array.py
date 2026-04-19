@@ -73,14 +73,15 @@ def idx_for_value(value: int | float | complex, param_vals: ndarray) -> int:
     Parameters
     ----------
     value:
-        target value to be located in ``param_vals``
+        target value to be located in ``param_vals``.
     param_vals:
-        array of parameter values to search
+        array of parameter values to search.
 
     Returns
     -------
-    Index of the entry of ``param_vals`` closest to ``value``. If no exact match
-    exists and ``settings.FUZZY_SLICING`` is False, a ``ValueError`` is raised.
+    Index of the entry of ``param_vals`` closest to ``value``. If no exact
+    match exists and ``settings.FUZZY_SLICING`` is ``False``, raises
+    :exc:`ValueError`.
     """
     location = int(np.abs(param_vals - value).argmin())
     selected_value = param_vals[location]
@@ -108,18 +109,18 @@ def idx_for_value(value: int | float | complex, param_vals: ndarray) -> int:
 def convert_to_std_npindex(
     index_tuple: ExtIndexTuple, parameters: "Parameters"
 ) -> NpIndexTuple:
-    """Converts name-based and value-based indexing to standard numpy indexing.
+    """Convert name-based and value-based indexing to standard numpy indexing.
 
     Parameters
     ----------
     index_tuple:
-        the indexing object to be converted
+        the indexing object to be converted.
     parameters:
-        records the parameters associated with the indices
+        records the parameters associated with the indices.
 
     Returns
     -------
-    standard numpy index tuple
+    Standard numpy index tuple.
     """
     extindex_obj_tuple = tuple(
         ExtIndexObject(entry, parameters, slot=slot_index)
@@ -132,18 +133,19 @@ def convert_to_std_npindex(
 def process_ellipsis(
     array: "Parameters" | np.ndarray, multi_idx: NpIndexTuple
 ) -> NpIndexTupleNoEllipsis:
-    """Removes `...` from the multi-index by explicit slicing.
+    """Remove ``...`` from the multi-index by explicit slicing.
 
     Parameters
     ----------
     array:
-        numpy array
+        numpy array.
     multi_idx:
-        numpy slicing multi-index that MUST contain an instance of `...` (Ellipsis)
+        numpy slicing multi-index that MUST contain an instance of ``...``
+        (``Ellipsis``).
 
     Returns
     -------
-    Processed multi-index not containing any `...`
+    Processed multi-index containing no ``...``.
     """
     new_multi_idx: list[NpIndexNoEllipsis] = [
         slice(None, None, None)
@@ -164,19 +166,19 @@ def process_ellipsis(
 
 
 class ExtIndexObject:
-    """Object used for enabling enhanced indexing in :class:`NamedSlotsNdarray`.
+    """Helper enabling enhanced indexing in :class:`NamedSlotsNdarray`.
 
     Handles a single ``idx_entry`` in a multi-index.
 
     Parameters
     ----------
     idx_entry:
-        single entry of an extended-syntax multi-index
+        single entry of an extended-syntax multi-index.
     parameters:
         :class:`Parameters` instance recording the parameters associated with
-        the indices
+        the indices.
     slot:
-        position of this ``idx_entry`` within the surrounding multi-index
+        position of this ``idx_entry`` within the surrounding multi-index.
     """
 
     def __init__(
@@ -195,7 +197,7 @@ class ExtIndexObject:
         ----------
         slice_entry:
             entry of a slice; may be ``None``, an integer, or a value-based
-            ``float``/``complex`` entry to be located within the parameter set
+            ``float``/``complex`` entry to be located within the parameter set.
         """
         if isinstance(slice_entry, (int, np.integer)):
             return slice_entry
@@ -215,12 +217,12 @@ class ExtIndexObject:
         Parameters
         ----------
         idx_entry:
-            single entry of an extended-syntax multi-index
+            single entry of an extended-syntax multi-index.
 
         Returns
         -------
-        Tuple ``(type_str, np_idx_entry)`` where ``type_str`` records the entry
-        kind (e.g. ``"int"``, ``"slice"``, ``"slice.name"``, ``"val"``,
+        Tuple ``(type_str, np_idx_entry)`` where ``type_str`` records the
+        entry kind (e.g. ``"int"``, ``"slice"``, ``"slice.name"``, ``"val"``,
         ``"tuple"``, ``"ellipsis"``).
         """
         if isinstance(idx_entry, (int, np.integer)):
@@ -270,14 +272,14 @@ class ExtIndexObject:
 class ExtIndexTupleObject:
     """Helper wrapping a tuple of :class:`ExtIndexObject` instances.
 
-    Used for conversion of an extended-syntax multi-index to a standard numpy
+    Used to convert an extended-syntax multi-index to a standard numpy
     multi-index.
 
     Parameters
     ----------
     extindex_tuple:
         tuple of :class:`ExtIndexObject` instances representing the entries of
-        an extended-syntax multi-index
+        an extended-syntax multi-index.
     """
 
     def __init__(self, extindex_tuple: tuple[ExtIndexObject, ...]) -> None:
@@ -286,7 +288,7 @@ class ExtIndexTupleObject:
         self.extindex_tuple = extindex_tuple
 
     def _name_based_to_np_index_exp(self) -> NpIndexTuple:
-        """Converts a name-based multi-index into a standard numpy index_exp."""
+        """Convert a name-based multi-index into a standard numpy ``index_exp``."""
         converted_multi_index: list[NpIndex] = [
             slice(None, None, None)
         ] * self.slot_count
@@ -336,10 +338,10 @@ class Parameters:
     ----------
     paramvals_by_name:
         dictionary mapping parameter names to arrays of parameter values (note
-        that ordering of python dicts can be a concern)
+        that the ordering of Python dicts can be a concern).
     paramnames_list:
-        optional list of the same names as in ``paramvals_by_name`` used to set
-        an explicit ordering
+        optional list of the same names as in ``paramvals_by_name``, used to
+        set an explicit ordering.
     """
 
     def __init__(
@@ -376,7 +378,7 @@ class Parameters:
         key:
             string name of a parameter set, integer index, ``slice``, or
             ``tuple``/``list`` of indices describing a multi-slot selection;
-            ``Ellipsis`` is treated as a full slice
+            ``Ellipsis`` is treated as a full slice.
 
         Returns
         -------
@@ -428,12 +430,12 @@ class Parameters:
 
     @property
     def paramvals_list(self) -> list[ndarray]:
-        """Return list of all parameter values sets."""
+        """Return a list of all parameter value arrays."""
         return [self.paramvals_by_name[name] for name in self.paramnames_list]
 
     @property
     def counts(self) -> tuple[int, ...]:
-        """Returns list of the number of parameter values for each parameter set."""
+        """Return a tuple of the number of parameter values for each parameter set."""
         return tuple(len(paramvals) for paramvals in self)
 
     def create_reduced(
@@ -446,15 +448,15 @@ class Parameters:
         Parameters
         ----------
         fixed_parametername_list:
-            names of parameters to be fixed
+            names of parameters to be fixed.
         fixed_values:
-            list of values to which parameters are fixed, optional (default: use the
-            0-th element of the array of each fixed parameter)
+            optional list of values to which parameters are fixed (default:
+            use the 0-th element of each fixed parameter's array).
 
         Returns
         -------
-        :class:`Parameters` object with all parameters; fixed ones only including
-        one value.
+        :class:`Parameters` object containing all parameters; fixed ones each
+        retain only one value.
         """
         if fixed_values is not None:
             # need to reformat as array of single-entry arrays
@@ -477,15 +479,15 @@ class Parameters:
         Parameters
         ----------
         np_indices:
-            numpy slicing entries
+            numpy slicing entries.
         remove_fixed:
-            if True, do not include fixed parameters in the returned
-            :class:`Parameters` object
+            if ``True``, do not include fixed parameters in the returned
+            :class:`Parameters` object.
 
         Returns
         -------
         :class:`Parameters` object with either fixed parameters removed or
-        including only the fixed value.
+        retaining only the fixed value.
         """
         new_paramvals_list = self.paramvals_list.copy()
         if not isinstance(np_indices, tuple):
@@ -530,7 +532,7 @@ class Parameters:
         ----------
         indexing:
             matrix (``'ij'``, default) or cartesian (``'xy'``) indexing of the
-            output; passed directly to :func:`numpy.meshgrid`
+            output; passed directly to :func:`numpy.meshgrid`.
 
         Returns
         -------
@@ -551,55 +553,55 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
     """Multi-dimensional array whose leading dimensions are named slots.
 
     The leading M dimensions are each associated with a slot name and a
-    corresponding array of slot values (float or complex or str). All standard
+    corresponding array of slot values (float, complex, or str). All standard
     slicing of the multi-dimensional array with integer-valued indices is
     supported as usual, e.g.::
 
         some_array[0, 3:-1, -4, ::2]
 
-    Slicing of the multi-dimensional array associated with named sets of values is
-    extended in two ways:
+    Slicing of the multi-dimensional array associated with named sets of
+    values is extended in two ways.
 
-    (1) Value-based slicing
-    Integer indices other than the `step` index may be
-    replaced by a float or a complex number or a str. This prompts a lookup and
-    substitution by the integer index representing the location of the closest
-    element (as measured by the absolute value of the difference for numbers,
-    and an exact match for str) in the set of slot values.
+    (1) Value-based slicing.
+    Integer indices other than the ``step`` index may be replaced by a float,
+    a complex number, or a str. This prompts a lookup and substitution by the
+    integer index of the closest matching element (smallest absolute
+    difference for numbers, exact match for str) in the set of slot values.
 
-    As an example, consider the situation of two named value sets::
+    As an example, consider two named value sets::
 
         values_by_slotname = {'param1': np.asarray([-4.4, -0.1, 0.3, 10.0]),
                               'param2': np.asarray([0.1*1j, 3.0 - 4.0*1j, 25.0])}
 
-    Then, the following are examples of value-based slicing::
+    Then the following are examples of value-based slicing::
 
         some_array[0.25, 0:2]                   -->     some_array[2, 0:2]
         some_array[-3.0, 0.0:(2.0 - 4.0*1j)]    -->     some_array[0, 0:1]
 
-    (2) Name-based slicing
-    Sometimes, it is convenient to refer to one of the slots
-    by its name rather than its position within the multiple sets. As an example, let::
+    (2) Name-based slicing.
+    Sometimes it is convenient to refer to one of the slots by its name
+    rather than its position within the multiple sets. As an example, let::
 
         values_by_slotname = {'ng': np.asarray([-0.1, 0.0, 0.1, 0.2]),
                              'flux': np.asarray([-1.0, -0.5, 0.0, 0.5, 1.0])}
 
-    If we are interested in the slice of `some_array` obtained by setting 'flux' to a
-    value or the value associated with a given index, we can now use::
+    To select the slice of ``some_array`` obtained by setting ``'flux'`` to a
+    given value or to the value at a given index, use::
 
         some_array['flux':0.5]            -->    some_array[:, 1]
         some_array['flux'::2, 'ng':-1]    -->    some_array[-1, :2]
 
-    Name-based slicing has the format `<name str>:start:stop`  where `start` and
-    `stop` may be integers or make use of value-based slicing. Note: the `step`
-    option is not available in name-based slicing. Name-based and standard
-    position-based slicing cannot be combined: `some_array['name1':3, 2:4]` is not
-    supported. For such mixed- mode slicing, use several stages of slicing as in
-    `some_array['name1':3][2:4]`.
+    Name-based slicing has the format ``<name str>:start:stop``, where
+    ``start`` and ``stop`` may be integers or use value-based slicing. Note
+    that the ``step`` option is not available in name-based slicing.
+    Name-based and standard position-based slicing cannot be combined:
+    ``some_array['name1':3, 2:4]`` is not supported. For such mixed-mode
+    slicing, use successive slicing stages, as in
+    ``some_array['name1':3][2:4]``.
 
-    A special treatment is reserved for a pure string entry in position 0: this
-    string will be directly converted into an index via the corresponding
-    values_by_slotindex.
+    A special treatment is reserved for a pure string entry in position 0:
+    this string is directly converted into an index via the corresponding
+    ``values_by_slotindex``.
     """
 
     parameters: Parameters
@@ -613,9 +615,9 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         ----------
         input_array:
             underlying numpy array whose leading dimensions must match the
-            shape implied by ``values_by_name``
+            shape implied by ``values_by_name``.
         values_by_name:
-            dictionary mapping each slot name to its array of slot values
+            dictionary mapping each slot name to its array of slot values.
 
         Returns
         -------
@@ -645,15 +647,15 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         Parameters
         ----------
         multi_index:
-            standard numpy multi-index, or an extended-syntax multi-index using
-            name-based or value-based entries
+            standard numpy multi-index, or an extended-syntax multi-index
+            using name-based or value-based entries.
 
         Returns
         -------
-        Result of the indexing operation. When the result remains an array with
-        named slots, a :class:`NamedSlotsNdarray` with an adjusted internal
-        :class:`Parameters` instance is returned; otherwise an ordinary numpy
-        ``ndarray`` or scalar.
+        Result of the indexing operation. When the result remains an array
+        with named slots, a :class:`NamedSlotsNdarray` with an adjusted
+        internal :class:`Parameters` instance is returned; otherwise an
+        ordinary numpy ``ndarray`` or scalar.
         """
         multi_index_std = np.index_exp[multi_index]  # convert to standard tuple form
         try:
@@ -702,7 +704,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         state:
             tuple produced by :meth:`__reduce__`; the last entry is the
             stored :class:`Parameters` instance and the remaining entries are
-            forwarded to ``ndarray.__setstate__``
+            forwarded to ``ndarray.__setstate__``.
         """
         # needed for multiprocessing / proper pickling
         self._parameters = state[-1]
@@ -715,7 +717,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         Parameters
         ----------
         io_data:
-            :class:`IOData` instance produced by :meth:`serialize`
+            :class:`IOData` instance produced by :meth:`serialize`.
         """
         if "input_array" in io_data.ndarrays:
             input_array = io_data.ndarrays["input_array"]
@@ -728,7 +730,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         return NamedSlotsNdarray(input_array, values_by_name)
 
     def serialize(self) -> IOData:
-        """Convert the content of the current class instance into IOData format."""
+        """Convert the contents of this instance into :class:`IOData` format."""
         import scqubits.io_utils.fileio as io
 
         typename = "NamedSlotsNdarray"
@@ -759,7 +761,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         ----------
         **kwargs:
             additional keyword arguments forwarded to
-            :func:`scqubits.utils.plotting.data_vs_paramvals`
+            :func:`scqubits.utils.plotting.data_vs_paramvals`.
 
         Returns
         -------

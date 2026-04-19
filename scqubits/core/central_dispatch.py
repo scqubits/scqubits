@@ -53,12 +53,12 @@ class CentralDispatch:
     # expire. Callback methods are stored as weakref.WeakMethod for the same reason.
 
     def get_clients_dict(self, event: str) -> WeakKeyDictionary:
-        """Return the dict mapping each registered client to their callback routine.
+        """Return the dict mapping each registered client to its callback routine.
 
         Parameters
         ----------
         event:
-            event name from EVENTS
+            event name from :data:`EVENTS`.
 
         Returns
         -------
@@ -69,18 +69,18 @@ class CentralDispatch:
     def register(
         self, event: str, who: "DispatchClient", callback: MethodType | None = None
     ) -> None:
-        """Register object `who` for event `event`.
+        """Register object ``who`` for event ``event``.
 
-        This modifies `clients_dict`.
+        This modifies ``clients_dict``.
 
         Parameters
         ----------
         event:
-            event name from EVENTS
+            event name from :data:`EVENTS`.
         who:
-            object to be registered
+            object to be registered.
         callback:
-            custom callback method other than `.receive()` (optional)
+            custom callback method other than ``.receive()`` (optional).
         """
         LOGGER.debug(
             "Registering {} for {}. welcome.".format(type(who).__name__, event)
@@ -101,41 +101,41 @@ class CentralDispatch:
         self.get_clients_dict(event)[who] = callback_ref
 
     def unregister(self, event: str, who: "DispatchClient") -> None:
-        """Unregister object `who` from event `event`.
+        """Unregister object ``who`` from event ``event``.
 
-        This modifies `clients_dict`.
+        This modifies ``clients_dict``.
 
         Parameters
         ----------
         event:
-            event name from EVENTS
+            event name from :data:`EVENTS`.
         who:
-            object to be unregistered
+            object to be unregistered.
         """
         del self.get_clients_dict(event)[who]
 
     def unregister_object(self, who: "DispatchClient") -> None:
-        """Unregister object `who` from all events.
+        """Unregister object ``who`` from all events.
 
-        This modifies `clients_dict`.
+        This modifies ``clients_dict``.
 
         Parameters
         ----------
         who:
-            object to be unregistered
+            object to be unregistered.
         """
         for event in self.clients_dict:
             self.get_clients_dict(event).pop(who, None)
 
     def _dispatch(self, event: str, sender: "DispatchClient", **kwargs) -> None:
-        """Issue a dispatch for `event` coming from `sender.
+        """Issue a dispatch for ``event`` coming from ``sender``.
 
         Parameters
         ----------
         event:
-            event name from EVENTS
+            event name from :data:`EVENTS`.
         sender:
-            object requesting the dispatch
+            object requesting the dispatch.
         **kwargs
         """
         for client, callback_ref in self.get_clients_dict(event).items():
@@ -152,17 +152,17 @@ class CentralDispatch:
             # callback_ref(event, sender=sender, **kwargs)
 
     def listen(self, caller: "DispatchClient", event: str, **kwargs) -> None:
-        """Receive message from client `caller` for event `event`.
+        """Receive a message from client ``caller`` for event ``event``.
 
         If dispatch is globally enabled, trigger a dispatch to all clients
-        registered for event.
+        registered for ``event``.
 
         Parameters
         ----------
         caller:
-            object requesting the dispatch
+            object requesting the dispatch.
         event:
-            event name from EVENTS
+            event name from :data:`EVENTS`.
         **kwargs
         """
         if settings.DISPATCH_ENABLED:
@@ -177,12 +177,12 @@ class DispatchClient:
     """Base class inherited by objects participating in central dispatch."""
 
     def broadcast(self, event: str, **kwargs) -> None:
-        """Request a broadcast from CENTRAL_DISPATCH reporting `event`.
+        """Request a broadcast from :data:`CENTRAL_DISPATCH` reporting ``event``.
 
         Parameters
         ----------
         event:
-            event name from EVENTS
+            event name from :data:`EVENTS`.
         **kwargs
         """
         if settings.DISPATCH_ENABLED:
@@ -190,14 +190,14 @@ class DispatchClient:
         CENTRAL_DISPATCH.listen(self, event, **kwargs)
 
     def receive(self, event: str, sender: "DispatchClient", **kwargs) -> None:
-        """Receive a message from CENTRAL_DISPATCH and initiate action on it.
+        """Receive a message from :data:`CENTRAL_DISPATCH` and act on it.
 
         Parameters
         ----------
         event:
-            event name from EVENTS
+            event name from :data:`EVENTS`.
         sender:
-            original sender reporting the event
+            original sender reporting the event.
         **kwargs
         """
         warnings.warn("`receive() method not implemented for {}".format(self))

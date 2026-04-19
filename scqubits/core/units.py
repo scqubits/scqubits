@@ -30,28 +30,24 @@ _units_time_labels = {"GHz": r"$ns$", "MHz": r"$\mu s$", "kHz": r"$ms$", "Hz": r
 
 
 def get_units() -> str:
-    """The get_units function returns the current units of the system.
-
-    Returns
-    -------
-    The current units as a string
-    """
+    """Return the currently set system units as a string."""
     return _current_units
 
 
 def set_units(units: str) -> str:
-    """The set_units function is used to set the system units for all qubit instances.
-    The default unit system is GHz, but this can be changed by calling `set_units()`
-    with one of the `_supported_units`
+    """Set the system units for all qubit instances.
+
+    The default unit system is GHz; this can be changed by calling
+    :func:`set_units` with one of the entries in ``_supported_units``.
 
     Parameters
     ----------
     units:
-        Specify the units that are to be used in the system
+        units to be used by the system.
 
     Returns
     -------
-    The units that were set
+    The units that were set.
     """
     # Importing here avoids a cyclic import problem.
     from scqubits.core.qubit_base import QuantumSystem
@@ -80,16 +76,16 @@ def set_units(units: str) -> str:
 
 
 def get_units_time_label(units: str | None = None) -> str:
-    """Return a LaTeX representation of 1/units.
+    """Return a LaTeX representation of ``1/units``.
 
     Parameters
     ----------
     units:
-        units to label (optional; defaults to ``_current_units``)
+        units to label (optional; defaults to ``_current_units``).
 
     Returns
     -------
-    LaTeX string for the time unit corresponding to 1/`units`.
+    LaTeX string for the time unit corresponding to ``1/units``.
     """
     units = units or _current_units
     if units not in _supported_units:
@@ -103,15 +99,15 @@ def get_units_time_label(units: str | None = None) -> str:
 
 
 def show_supported_units() -> list[str]:
-    """Returns a list of supported system units."""
+    """Return a list of supported system units."""
     return _supported_units
 
 
 def to_standard_units(value: float) -> float:
-    r"""Convert `value` from system units to standard units (Hz or 2pi/s).
+    r"""Convert ``value`` from system units to standard units (Hz or :math:`2\pi/`s).
 
-    `value` is interpreted as a frequency or angular frequency in the currently set
-    system units.
+    ``value`` is interpreted as a frequency or angular frequency in the
+    currently set system units.
 
     Parameters
     ----------
@@ -120,22 +116,22 @@ def to_standard_units(value: float) -> float:
 
     Returns
     -------
-    Frequency or angular frequency converted to Hz or 2pi/s.
+    Frequency or angular frequency converted to Hz or :math:`2\pi/`s.
     """
     return value * _units_factor[_current_units]
 
 
 def from_standard_units(value: float) -> float:
-    r"""Convert `value` from standard units to the currently set system units.
+    r"""Convert ``value`` from standard units to the currently set system units.
 
-    `value` is interpreted as a frequency or angular frequency in standard units
-    (`[Hz]` or :math:`2\pi / [s]`).
+    ``value`` is interpreted as a frequency or angular frequency in standard
+    units (``[Hz]`` or :math:`2\pi / [s]`).
 
     Parameters
     ----------
     value:
         a frequency or angular frequency assumed to be in standard units
-        (`[Hz]` or :math:`2\pi / [s]`)
+        (``[Hz]`` or :math:`2\pi / [s]`).
 
     Returns
     -------
@@ -145,19 +141,20 @@ def from_standard_units(value: float) -> float:
 
 
 def units_scale_factor(units: str | None = None) -> float:
-    """Return a numerical scaling factor that converts from Hz to the given `units`.
+    """Return the numerical scaling factor converting from Hz to ``units``.
 
-    If no argument is given, the current units stored in `_current_units` are used.
-    If the units are not supported, a `ValueError` is raised.
+    If no argument is given, the current units stored in ``_current_units`` are
+    used. Raises :exc:`ValueError` if the units are not supported.
 
     Parameters
     ----------
     units:
-        units to convert to (optional; if none given, default to `_current_units`)
+        units to convert to (optional; defaults to ``_current_units``).
 
     Returns
     -------
-    A numerical scaling factor that converts from Hz to `units` or `_current_units`.
+    Numerical scaling factor converting from Hz to ``units`` (or
+    ``_current_units``).
     """
     units = _current_units if units is None else units
 

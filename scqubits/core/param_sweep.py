@@ -75,14 +75,13 @@ class ParameterSlice:
     Parameters
     ----------
     param_name:
-        name of the single parameter which is being swept
+        name of the single parameter being swept
     param_val:
-        single selected value of the parameter (as used, e.g., in the Explorer)
+        selected value of the parameter (as used, e.g., in the Explorer)
     fixed_params:
-        dictionary giving the names of the fixed parameters and their corresponding
-        values
+        dictionary mapping fixed parameter names to their values
     params_ordered:
-        list of all parameter names, giving their ordering
+        list of all parameter names in their canonical order
     """
 
     def __init__(
@@ -194,11 +193,11 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     def __getitem__(self, key):
         """Return stored data by string key, or set up pre-slicing for index keys.
 
-        If ``key`` is a string, the corresponding entry of the internal data
-        dictionary is returned (e.g., ``"evals"``, ``"evecs"``, ``"bare_evals"``).
-        Otherwise, ``key`` is interpreted as a numpy-style index and stored as the
-        current parameter pre-slicing; ``self`` is then returned to support chained
-        access such as ``<Sweep>[p1, p2, ...].dressed_eigenstates()``.
+        If ``key`` is a string, return the corresponding entry of the internal
+        data dictionary (e.g., ``"evals"``, ``"evecs"``, ``"bare_evals"``).
+        Otherwise, ``key`` is interpreted as a numpy-style index and stored as
+        the current parameter pre-slicing; ``self`` is then returned to support
+        chained access such as ``<Sweep>[p1, p2, ...].dressed_eigenstates()``.
 
         Note: this method mutates ``self._current_param_indices`` as a side
         effect of pre-slicing.
@@ -228,19 +227,19 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         return self
 
     def receive(self, event: str, sender: object, **kwargs) -> None:
-        """Hook to ``CENTRAL_DISPATCH``.
+        """Hook for ``CENTRAL_DISPATCH``.
 
-        This method is accessed by the global ``CentralDispatch`` instance
-        whenever an event occurs that :class:`ParameterSweep` is registered for.
-        In reaction to update events, the lookup table is marked as out of sync
-        by setting ``self._out_of_sync = True``.
+        Called by the global ``CentralDispatch`` instance whenever an event
+        occurs that :class:`ParameterSweep` is registered for. In response to
+        update events, the lookup table is marked as out of sync by setting
+        ``self._out_of_sync = True``.
 
         Parameters
         ----------
         event:
             type of event being received
         sender:
-            identity of sender announcing the event
+            sender announcing the event
         **kwargs:
             additional keyword arguments forwarded by the dispatcher (unused)
         """
@@ -253,7 +252,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     def set_update_func(self, update_hilbertspace: Callable) -> Callable:
         """Account for the two possible signatures of ``update_hilbertspace``.
 
-        Inspect whether a ``self`` argument is given. If not, return a function
+        Inspect whether a ``self`` argument is given; if not, return a wrapper
         that accepts ``self`` as a dummy argument.
 
         Parameters
@@ -735,16 +734,16 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         tuple[list[tuple[StateLabel, StateLabel]], list[NamedSlotsNdarray]]
         | SpectrumData
     ):
-        """Extract transition energy data from dressed eigenenergies using bare-state lookup.
+        """Extract transition energies from dressed eigenenergies using bare-state lookup.
 
-        Usage is based on preslicing to select all or a subset of parameters to
-        be involved in the sweep, e.g.,
+        Usage is based on pre-slicing to select all or a subset of parameters
+        to be involved in the sweep, e.g.,
 
         ``<ParameterSweep>[0, :, 2].transitions()``
 
         produces all eigenenergy differences for transitions starting in the
-        ground state (default when no initial state is specified) as a function
-        of the middle parameter while parameters 1 and 3 are fixed by the
+        ground state (the default when no initial state is specified) as a
+        function of the middle parameter, with parameters 1 and 3 fixed by the
         indices 0 and 2.
 
         Note: difference energies are cast to real-valued floats; any imaginary
@@ -753,46 +752,49 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         Parameters
         ----------
         subsystems:
-            single subsystems or list of subsystems considered as "active" for the
-            transitions to be generated; if omitted as a parameter, all subsystems
-            are considered as actively participating in the transitions
+            single subsystem or list of subsystems considered "active" for the
+            transitions to be generated; if omitted, all subsystems are treated
+            as actively participating
         initial:
-            initial state from which transitions originate, specified either (1) as a
-            bare product state (tuple of excitation numbers of all subsystems or of the
-            active ones given in `subsystems`); or (2) as a dressed-state index in
-            the form of an integer >= 0.
-            (default: (0,0,...,0) which is usually closest to the ground state)
+            initial state from which transitions originate, specified either
+            (1) as a bare product state (tuple of excitation numbers of all
+            subsystems, or of the active ones given in ``subsystems``), or
+            (2) as a dressed-state index (integer ``>= 0``).
+            (default: ``(0, 0, ..., 0)``, usually closest to the ground state)
         final:
-            concrete final state for which the transition energy should be generated,
-            given either as a bare product state (tuple of excitation numbers),
-            or as a dressed state (non-negative integer). If `final` is omitted
-            a list of final states is generated for dispersive transitions within each
-            (active) subsystem. Sidebands can be switched on with the subsequent
-            keyword option. `final=-1` can be chosen for a final state list to all
-            other dressed states (helpful when the dispersive limit breaks down).
+            concrete final state for which the transition energy should be
+            generated, given either as a bare product state (tuple of
+            excitation numbers) or as a dressed state (non-negative integer).
+            If ``final`` is omitted, a list of final states is generated for
+            dispersive transitions within each (active) subsystem; sidebands
+            can be switched on with the ``sidebands`` keyword. ``final=-1``
+            selects all other dressed states as final states (helpful when the
+            dispersive limit breaks down).
         sidebands:
-            if set to true, sideband transitions with multiple subsystems changing
-            excitation levels are included (default: False)
+            if ``True``, include sideband transitions in which multiple
+            subsystems change excitation levels (default: ``False``)
         photon_number:
-            number of photons involved in transition; transition frequencies are divided
-            by this number (default: photon_number=1, i.e., single-photon transitions)
+            number of photons involved in the transition; transition
+            frequencies are divided by this number (default: ``1``, i.e.,
+            single-photon transitions)
         make_positive:
-            boolean option relevant if the initial state is an excited state;
-            downwards transition energies would regularly be negative, but are
-            converted to positive if this flag is set to True
+            relevant when the initial state is an excited state; downward
+            transition energies are normally negative but are converted to
+            positive values when this flag is ``True``
         as_specdata:
-            whether data is handed back in raw array form or wrapped into a SpectrumData
-            object (default: False)
+            if ``True``, return a :class:`SpectrumData` object; otherwise
+            return raw arrays (default: ``False``)
         param_indices:
-            usually to be omitted, as param_indices will be set via pre-slicing
+            usually omitted, as ``param_indices`` is set via pre-slicing
 
         Returns
         -------
-        A tuple consisting of a list of all the transitions and a corresponding
-        list of difference energies, e.g.
-        ((0,0,0), (0,0,1)),    <energy array for transition 0,0,0 -> 0,0,1>.
-        If `as_specdata` is set to True, a SpectrumData object is returned instead,
-        saving transition label info in an attribute named `labels`.
+        A tuple consisting of a list of transitions and a corresponding list
+        of difference energies, e.g.
+        ``((0,0,0), (0,0,1)), <energy array for transition 0,0,0 -> 0,0,1>``.
+        If ``as_specdata`` is ``True``, a :class:`SpectrumData` object is
+        returned instead, with transition label info stored in an attribute
+        named ``labels``.
         """
         subsys_list = self._process_subsystems_option(subsystems)
         initial_states = initial if isinstance(initial, list) else [initial]  # type: ignore[list-item]
@@ -870,35 +872,27 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     ) -> None:
         """Validate initial and final state tuples against the HilbertSpace dimensions.
 
-        This method ensures that each state tuple, either initial or final, is
-        correctly structured and within the valid range for the quantum
-        system's dimensions. If the state tuples are not lists, they are
-        converted into lists for validation. Raises errors for any mismatch or
-        exceeding values.
+        Ensure that each state tuple, initial or final, is correctly structured
+        and within the valid range for the quantum system's dimensions. State
+        arguments that are not already lists are wrapped into lists for
+        validation.
 
         Parameters
         ----------
         initial:
-            The initial state(s) to be validated. It can be a single state or
-            a list of states. Each state is either a ``StateLabel`` or a tuple
-            representing the quantum state in terms of subsystem excitation
-            numbers.
+            initial state(s) to be validated; either a single state or a list
+            of states. Each state is either a ``StateLabel`` or a tuple of
+            subsystem excitation numbers.
         final:
-            The final state(s) to be validated, structured similarly to the
-            ``initial`` parameter.
+            final state(s) to be validated, with the same structure as
+            ``initial``.
 
         Raises
         ------
         ValueError
-            If any tuple length does not match the number of subsystems or if
+            If any tuple length does not match the number of subsystems, or if
             any tuple value exceeds the maximum allowed dimension of the
-            corresponding subsystem. Also raises an error if the initial state
-            values are greater than the final state values, which is not
-            allowed in certain quantum systems.
-
-        Returns
-        -------
-        None
+            corresponding subsystem.
         """
         initial = initial if isinstance(initial, list) else [initial]  # type: ignore[list-item]
         final = final if isinstance(final, list) else [final]  # type: ignore[list-item]
@@ -934,59 +928,64 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     ) -> tuple[Figure, Axes]:
         """Plot transition energies as a function of one external parameter.
 
-        Usage is based on preslicing of the :class:`ParameterSweep` object to
-        select a single parameter to be involved in the sweep. E.g.,
+        Usage is based on pre-slicing of the :class:`ParameterSweep` object to
+        select a single parameter to be involved in the sweep, e.g.,
 
         ``<ParameterSweep>[0, :, 2].plot_transitions()``
 
-        plots all eigenenergy differences for transitions starting in the ground
-        state (default when no initial state is specified) as a function of the middle
-        parameter while parameters 1 and 3 are fixed by the indices 0 and 2.
+        plots all eigenenergy differences for transitions starting in the
+        ground state (the default when no initial state is specified) as a
+        function of the middle parameter, with parameters 1 and 3 fixed by
+        the indices 0 and 2.
 
         Parameters
         ----------
         subsystems:
-            single subsystems or list of subsystems considered as "active" for the
-            transitions to be generated; if omitted as a parameter, all subsystems
-            are considered as actively participating in the transitions
+            single subsystem or list of subsystems considered "active" for the
+            transitions to be generated; if omitted, all subsystems are
+            treated as actively participating
         initial:
-            initial state from which transitions originate: the initial state
-            can either be specified as a tuple referring to a bare product state,
-            or as an integer representing the dressed state index. For bare product
-            states, the required tuple has as many entries as the underlying
-            :class:`HilbertSpace` object has subsystems. (If `subsystems` is given, then the
-            tuple may be reduced to entries for just these subsystems; other subsystems
-            are given a "0" entry automatically.) The dressed state corresponding to the
-            given bare product state is determined by considerations of overlaps.
-            Note: for an initial dressed state, the `sidebands` option is ignored.
+            initial state from which transitions originate, given either as a
+            tuple referring to a bare product state, or as an integer dressed
+            state index. For a bare product state, the tuple has as many
+            entries as the underlying :class:`HilbertSpace` has subsystems.
+            (If ``subsystems`` is given, the tuple may be reduced to entries
+            for just those subsystems; other subsystems are filled with ``0``
+            automatically.) The dressed state corresponding to a given bare
+            product state is determined by overlap.
+            Note: for an initial dressed state, the ``sidebands`` option is
+            ignored.
         final:
-            concrete final state for which the transition energy should be generated,
-            given either as a bare product state (tuple of excitation numbers),
-            or as a dressed state (non-negative integer). If `final` is omitted
-            a list of final states is generated for dispersive transitions within each
-            (active) subsystem. Sidebands can be switched on with the subsequent
-            keyword option. `final=-1` can be chosen for a final state list to all
-            other dressed states (helpful when the dispersive limit breaks down).
+            concrete final state for which the transition energy should be
+            generated, given either as a bare product state (tuple of
+            excitation numbers) or as a dressed state (non-negative integer).
+            If ``final`` is omitted, a list of final states is generated for
+            dispersive transitions within each (active) subsystem; sidebands
+            can be switched on with the ``sidebands`` keyword. ``final=-1``
+            selects all other dressed states as final states (helpful when the
+            dispersive limit breaks down).
         sidebands:
-            if set to true, sideband transitions with multiple subsystems changing
-            excitation levels are included (default: False). This option is ignored
-            if `initial` is given as an integer dressed state index.
+            if ``True``, include sideband transitions in which multiple
+            subsystems change excitation levels (default: ``False``); ignored
+            when ``initial`` is given as an integer dressed-state index
         photon_number:
-            number of photons involved in transition; transition frequencies are divided
-            by this number (default: photon_number=1, i.e., single-photon transitions)
+            number of photons involved in the transition; transition
+            frequencies are divided by this number (default: ``1``, i.e.,
+            single-photon transitions)
         make_positive:
-            boolean option relevant if the initial state is an excited state;
-            downwards transition energies would regularly be negative, but are
-            converted to positive if this flag is set to True (default: True)
+            relevant when the initial state is an excited state; downward
+            transition energies are normally negative but are converted to
+            positive values when this flag is ``True`` (default: ``True``)
         coloring:
-            For `"transition"` (default), transitions are colored by their
-            dispersive nature; for "`plain`" no selective highlighting is attempted.
+            ``"transition"`` (default) colors transitions by their dispersive
+            character; ``"plain"`` applies no selective highlighting
         param_indices:
-            usually to be omitted, as param_indices will be set via pre-slicing
+            usually omitted, as ``param_indices`` is set via pre-slicing
 
         Returns
         -------
-        Plot Figure and Axes objects
+        Matplotlib :class:`~matplotlib.figure.Figure` and
+        :class:`~matplotlib.axes.Axes` objects.
         """
         self._validate_states(initial, final)
 
@@ -1057,18 +1056,14 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         Parameters
         ----------
         sweep_function:
-            name of a sweep function in :mod:`scqubits.core.sweeps` as a
-            string, or a custom callable provided by the user
+            name of a sweep function in :mod:`scqubits.core.sweeps` (as a
+            string), or a custom callable provided by the user
         sweep_name:
-            if given, the generated data is stored in
+            if given, store the generated data under
             ``<ParameterSweep>[<sweep_name>]`` rather than
             ``<ParameterSweep>[<sweep_function>]``
         **kwargs:
-            keyword arguments handed over to the sweep function
-
-        Returns
-        -------
-        None
+            keyword arguments forwarded to the sweep function
         """
         if callable(sweep_function):
             if not hasattr(sweep_function, "__name__") and not sweep_name:
@@ -1092,21 +1087,18 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     ) -> None:
         """Generate matrix-element data for a given operator as a function of the sweep.
 
+        The resulting data is accessible as ``<ParameterSweep>[<sweep_name>]``.
+
         Parameters
         ----------
         operator:
-            name of the operator in question (str), or full operator in
-            :class:`qutip.Qobj` form
+            name of the operator (``str``), or full operator as a
+            :class:`qutip.Qobj`
         sweep_name:
-            the sweep data will be accessible as
-            ``<ParameterSweep>[<sweep_name>]``
+            key under which the generated data is stored
         subsystem:
-            subsystem for which to compute matrix elements; required if
-            ``operator`` is given in string form
-
-        Returns
-        -------
-        ``None``; results are saved as ``<ParameterSweep>[<sweep_name>]``.
+            subsystem for which to compute matrix elements; required when
+            ``operator`` is given as a string
         """
         if isinstance(operator, str):
             operator_func = functools.partial(
@@ -1144,24 +1136,22 @@ class ParameterSweep(
     hilbertspace:
         :class:`HilbertSpace` object describing the quantum system of interest
     paramvals_by_name:
-        Dictionary which specifies a parameter name for each set of parameter values,
-        and the set of values to be used in the sweep.
+        dictionary mapping each parameter name to the array of values to be
+        used in the sweep
     update_hilbertspace:
-        function that updates the associated :class:`HilbertSpace` object with a given
-        set of parameters; signature is either
-        `update_hilbertspace(paramval1, paramval2, ...)`
-        or
-        `update_hilbertspace(self, paramval1, paramval2, ...)`
-        where `self` makes the :class:`ParameterSweep` instance available, and thereby
-        dict-like access to subsystems and interaction terms
+        function that updates the associated :class:`HilbertSpace` for a given
+        set of parameter values; signature is either
+        ``update_hilbertspace(paramval1, paramval2, ...)`` or
+        ``update_hilbertspace(self, paramval1, paramval2, ...)``,
+        where ``self`` exposes the :class:`ParameterSweep` instance (and
+        thereby dict-like access to subsystems and interaction terms)
     evals_count:
         number of dressed eigenvalues/eigenstates to keep. (The number of bare
         eigenvalues/eigenstates is determined for each subsystem by
         :attr:`truncated_dim`.) (default: 20)
     subsys_update_info:
-        To speed up calculations, the user may provide information that specifies which
-        subsystems are being updated for each of the given parameter sweeps. This
-        information is specified by a dictionary of the following form::
+        optional dictionary specifying which subsystems are updated by each
+        sweep parameter, used to speed up calculations. The expected form is::
 
             {
                 "<parameter name 1>": [<subsystem a>],
@@ -1169,73 +1159,77 @@ class ParameterSweep(
                 ...
             }
 
-        This indicates that changes in `<parameter name 1>` only require updates of
-        `<subsystem a>` while leaving other subsystems unchanged. Similarly, sweeping
-        `<parameter name 2>` affects `<subsystem b>`, `<subsystem c>` etc.
+        i.e., changes in ``<parameter name 1>`` only require updates of
+        ``<subsystem a>``, leaving other subsystems unchanged; similarly,
+        sweeping ``<parameter name 2>`` affects ``<subsystem b>``,
+        ``<subsystem c>``, etc.
     bare_only:
-        if set to True, only bare eigendata is calculated; useful when performing a
-        sweep for a single quantum system, no interaction (default: False)
+        if ``True``, only bare eigendata is calculated; useful for sweeping a
+        single quantum system without interactions (default: ``False``)
     labeling_scheme:
-        the scheme of generating the dressed state labeling in lookup table.
-        - "DE" (Dressed Energy): traverse the eigenstates
-        in the order of their dressed energy, and find the corresponding bare
-        state label by overlaps (default)
-        - "LX" (Lexical ordering): traverse the bare states in `lexical order`_,
-        and perform the branch analysis generalized from Dumas et al. (2024).
-        - "BE" (Bare Energy): traverse the bare states in the order of
-        their energy before coupling and perform label assignment. This is particularly
-        useful when the Hilbert space is too large and not all the eigenstates need
-        to be labeled.
+        scheme used to generate the dressed-state labeling in the lookup
+        table:
 
+        - ``"DE"`` (Dressed Energy): traverse the eigenstates in order of
+          dressed energy, and find the corresponding bare-state label by
+          overlap (default)
+        - ``"LX"`` (Lexical ordering): traverse the bare states in `lexical
+          order`_ and perform the branch analysis generalized from Dumas et
+          al. (2024)
+        - ``"BE"`` (Bare Energy): traverse the bare states in order of their
+          energy before coupling and perform label assignment. Particularly
+          useful when the Hilbert space is too large for all eigenstates to be
+          labeled.
     labeling_subsys_priority:
-        a permutation of the subsystem indices and bare labels. If it is provided,
-        lexical ordering is performed on the permuted labels. A "branch" is defined
-        as a series of eigenstates formed by putting excitations into the last
-        subsystem in the list.
+        a permutation of the subsystem indices and bare labels. If provided,
+        lexical ordering is performed on the permuted labels. A "branch" is
+        defined as a series of eigenstates formed by putting excitations into
+        the last subsystem in the list.
     labeling_BEs_count:
-        the number of dressed states to be labeled, for "BE" scheme only.
+        number of dressed states to be labeled (``"BE"`` scheme only)
     ignore_low_overlap:
-        if set to False (default), bare product states and dressed eigenstates are
-        identified if `|<psi_bare|psi_dressed>|^2 > 0.5`; if True,
-        then identification will always take place based on which bare product state
-        has the maximum overlap
+        if ``False`` (default), bare product states and dressed eigenstates
+        are identified only if
+        :math:`|\\langle\\psi_\\text{bare}|\\psi_\\text{dressed}\\rangle|^2 > 0.5`;
+        if ``True``, identification is always made based on which bare product
+        state has the maximum overlap
     autorun:
-        Determines whether to directly run the sweep or delay it until `.run()` is
-        called manually. (Default: `settings.AUTORUN_SWEEP=True`)
+        if ``True``, run the sweep immediately; if ``False``, delay until
+        :meth:`run` is called manually (default: ``settings.AUTORUN_SWEEP``)
     deepcopy:
-        if set to True, the parameter sweep is run with an exact copy of the Hilbert
-        space; this ensures that all parameters after the sweep are identical to
-        parameters before the sweep. Note: changing global HilbertSpace or
-        QuantumSystem attributes will have no effect with this option; all updates
-        must be made via `<ParameterSweep>.hilbertspace[<id_str>] = ...` If
-        set to False (default), updates to global instances have the expected effect.
-        The HilbertSpace object and all its constituent parts are left in the state
-        reached by the very final parameter update.
+        if ``True``, the parameter sweep is run with an exact copy of the
+        :class:`HilbertSpace`; this ensures that all parameters after the
+        sweep match those before the sweep. Note: changes to global
+        :class:`HilbertSpace` or :class:`QuantumSystem` attributes will have
+        no effect under this option; all updates must be made via
+        ``<ParameterSweep>.hilbertspace[<id_str>] = ...``. If ``False``
+        (default), updates to global instances have the expected effect, and
+        the :class:`HilbertSpace` object and its constituents are left in the
+        state reached by the final parameter update.
     num_cpus:
         number of CPU cores requested for computing the sweep
-        (default value `settings.NUM_CPUS`)
+        (default: ``settings.NUM_CPUS``)
 
     Notes
     -----
     :class:`ParameterSweep` supports array-like access ("pre-slicing") and
-    dict-like access.
-    With dict-like access via string-keywords `<ParameterSweep>[<str>]`,
-    the following data is returned:
+    dict-like access. With dict-like access via string keys
+    ``<ParameterSweep>[<str>]``, the following data is returned:
 
-    `"evals"` and `"evecs"`
+    ``"evals"`` and ``"evecs"``
         dressed eigenenergies and eigenstates as
         :obj:`.NamedSlotsNdarray`; eigenstates are decomposed in the bare
         product-state basis of the non-interacting subsystems' eigenbases
-    `"bare_evals"` and `"bare_evecs"`
+    ``"bare_evals"`` and ``"bare_evecs"``
         bare eigenenergies and eigenstates as :obj:`.NamedSlotsNdarray`
-    `"lamb"`, `"chi"`, and `"kerr"`
+    ``"lamb"``, ``"chi"``, and ``"kerr"``
         dispersive energy coefficients
-    `"<custom sweep>"`
-        NamedSlotsNdarray for custom data generated with `add_sweep`.
+    ``"<custom sweep>"``
+        :obj:`.NamedSlotsNdarray` of custom data generated with
+        :meth:`add_sweep`
 
-    Array-like access is responsible for "pre-slicing",
-    enable lookup functionality such as
-    `<Sweep>[p1, p2, ...].eigensys()`
+    Array-like access drives "pre-slicing" and enables lookup functionality
+    such as ``<Sweep>[p1, p2, ...].eigensys()``.
 
     .. _lexical order: https://en.wikipedia.org/wiki/Lexicographic_order#Cartesian_products/
     """
@@ -1298,10 +1292,10 @@ class ParameterSweep(
             self.run()
 
     def _check_subsys_id_strs(self) -> None:
-        """
-        Repeated id_str are not allowed in ParameterSweep.
-        We now uses id_str to find the corresponding subsystem listed in
-        subsys_update_info.
+        """Ensure subsystem ``id_str`` values are unique within the sweep.
+
+        Repeated ``id_str`` values are not allowed: the lookup of subsystems
+        listed in ``subsys_update_info`` relies on ``id_str``.
         """
         id_strs = [subsystem.id_str for subsystem in self.hilbertspace.subsystem_list]
         if len(id_strs) != len(set(id_strs)):
@@ -1370,12 +1364,7 @@ class ParameterSweep(
         pass
 
     def serialize(self) -> "IOData":
-        """Convert the content of the current class instance into IOData format.
-
-        Returns
-        -------
-        IOData
-        """
+        """Convert this :class:`ParameterSweep` into :class:`IOData` form."""
         initdata = {
             "paramvals_by_name": self._parameters.ordered_dict,
             "hilbertspace": self._hilbertspace,
@@ -1434,20 +1423,21 @@ class ParameterSweep(
     ) -> tuple[NamedSlotsNdarray, NamedSlotsNdarray, NamedSlotsNdarray]:
         """Compute bare eigenvalues, eigenvectors, and circuit ``esys`` arrays.
 
-        The bare energy spectra are computed according to the following scheme.
-        1. Perform a loop over all subsystems to separately obtain the bare
-        energy eigenvalues and eigenstates for each subsystem.
-        2. If ``update_subsystem_info`` is given, remove those sweeps that
-        leave the subsystems fixed.
+        The bare energy spectra are computed according to the following scheme:
+
+        1. Loop over all subsystems to separately obtain the bare eigenvalues
+           and eigenstates for each subsystem.
+        2. If ``subsys_update_info`` is given, drop those sweeps that leave the
+           subsystem fixed.
         3. If ``self._num_cpus > 1``, parallelize.
 
         Returns
         -------
         Three :class:`NamedSlotsNdarray` instances with axes
         ``[<paramname1>, <paramname2>, ..., "subsys"]`` containing,
-        respectively, bare eigenvalues, bare eigenvectors, and the per-subsystem
-        ``circuit_esys`` data used by hierarchical diagonalization. Here,
-        ``"subsys": 0, 1, ...`` enumerates subsystems.
+        respectively, bare eigenvalues, bare eigenvectors, and the
+        per-subsystem ``circuit_esys`` data used by hierarchical
+        diagonalization. Here, ``"subsys": 0, 1, ...`` enumerates subsystems.
         """
         bare_evals = np.empty((self.subsystem_count,), dtype=object)
         bare_evecs = np.empty((self.subsystem_count,), dtype=object)
@@ -1878,7 +1868,7 @@ class StoredSweep(
     """Container for a previously computed :class:`ParameterSweep` loaded from disk.
 
     A :class:`StoredSweep` exposes the :class:`ParameterSweepBase` interface
-    (preslicing, lookup, transition extraction, plotting) on top of pre-computed
+    (pre-slicing, lookup, transition extraction, plotting) on top of pre-computed
     sweep data without recomputing eigensystems.
 
     Parameters
@@ -1931,7 +1921,7 @@ class StoredSweep(
         return StoredSweep(**iodata.as_kwargs())  # type: ignore[abstract]
 
     def serialize(self) -> "IOData":  # type: ignore[empty-body]
-        """Convert the contents of this :class:`StoredSweep` into :class:`IOData` form."""
+        """Convert this :class:`StoredSweep` into :class:`IOData` form."""
         pass
 
     def get_hilbertspace(self) -> HilbertSpace:
@@ -1981,22 +1971,23 @@ class StoredSweep(
 def generator(sweep: "ParameterSweepBase", func: Callable, **kwargs) -> np.ndarray:
     """Compute custom sweep data as a function of the external parameter(s).
 
-    Calculated via the user-provided callable ``func``.
+    The data is computed via the user-provided callable ``func``.
 
     Parameters
     ----------
     sweep:
-        ParameterSweep object containing HilbertSpace and spectral information
+        :class:`ParameterSweep` object containing :class:`HilbertSpace` and
+        spectral information
     func:
-        signature: `func(parametersweep, paramindex_tuple, paramvals_tuple,
-        **kwargs)`, specifies how to calculate the data for a single choice of
-        parameter(s)
+        callable with signature
+        ``func(parametersweep, paramindex_tuple, paramvals_tuple, **kwargs)``
+        that returns the data for a single choice of parameter(s)
     **kwargs:
-        keyword arguments to be included in func
+        keyword arguments forwarded to ``func``
 
     Returns
     -------
-    array of custom data
+    Array of custom data.
     """
     # obtain reduced parameters from pre-slicing info
     reduced_parameters = sweep._parameters.create_sliced(

@@ -25,11 +25,11 @@ def annihilation(dimension: int) -> ndarray:
     Parameters
     ----------
     dimension:
-        matrix size
+        matrix size.
 
     Returns
     -------
-    annihilation operator matrix, size ``dimension x dimension``
+    Annihilation operator matrix, size ``dimension x dimension``.
     """
     offdiag_elements = np.sqrt(range(1, dimension))
     return np.diagflat(offdiag_elements, 1)
@@ -41,12 +41,12 @@ def annihilation_sparse(dimension: int) -> csc_matrix:
     Parameters
     ----------
     dimension:
-        matrix size
+        matrix size.
 
     Returns
     -------
-    annihilation operator as :class:`scipy.sparse.csc_matrix`,
-    size ``dimension x dimension``
+    Annihilation operator as :class:`scipy.sparse.csc_matrix`,
+    size ``dimension x dimension``.
     """
     offdiag_elements = np.sqrt(range(dimension))
     return sp.sparse.dia_matrix(  # type: ignore[type-var, misc, return-value]
@@ -60,11 +60,11 @@ def creation(dimension: int) -> ndarray:
     Parameters
     ----------
     dimension:
-        matrix size
+        matrix size.
 
     Returns
     -------
-    creation operator matrix, size ``dimension x dimension``
+    Creation operator matrix, size ``dimension x dimension``.
     """
     return annihilation(dimension).T
 
@@ -75,12 +75,12 @@ def creation_sparse(dimension: int) -> csc_matrix:
     Parameters
     ----------
     dimension:
-        matrix size
+        matrix size.
 
     Returns
     -------
-    creation operator as :class:`scipy.sparse.csc_matrix`,
-    size ``dimension x dimension``
+    Creation operator as :class:`scipy.sparse.csc_matrix`,
+    size ``dimension x dimension``.
     """
     return annihilation_sparse(dimension).transpose().tocsc()
 
@@ -91,15 +91,15 @@ def hubbard_sparse(j1: int, j2: int, dimension: int) -> csc_matrix:
     Parameters
     ----------
     j1:
-        row index of the Hubbard operator
+        row index of the Hubbard operator.
     j2:
-        column index of the Hubbard operator
+        column index of the Hubbard operator.
     dimension:
-        matrix size
+        matrix size.
 
     Returns
     -------
-    sparse Hubbard operator matrix, size ``dimension x dimension``
+    Sparse Hubbard operator matrix, size ``dimension x dimension``.
     """
     hubbardmat = sp.sparse.dok_matrix(
         (dimension, dimension), dtype=np.float64  # type: ignore[arg-type]
@@ -111,19 +111,18 @@ def hubbard_sparse(j1: int, j2: int, dimension: int) -> csc_matrix:
 def number(dimension: int, prefactor: float | complex | None = None) -> ndarray:
     """Return the number operator as a dense matrix.
 
-    An additional prefactor can be directly included in the generation
-    of the matrix by supplying ``prefactor``.
+    An optional ``prefactor`` is folded directly into the matrix entries.
 
     Parameters
     ----------
     dimension:
-        matrix size
+        matrix size.
     prefactor:
-        prefactor multiplying the number operator matrix
+        prefactor multiplying the number operator matrix.
 
     Returns
     -------
-    number operator matrix, size ``dimension x dimension``
+    Number operator matrix, size ``dimension x dimension``.
     """
     diag_elements = np.arange(dimension, dtype=np.float64)
     if prefactor:
@@ -136,19 +135,18 @@ def number_sparse(
 ) -> csc_matrix:
     """Return the number operator as a sparse matrix.
 
-    An additional prefactor can be directly included in the generation
-    of the matrix by supplying ``prefactor``.
+    An optional ``prefactor`` is folded directly into the matrix entries.
 
     Parameters
     ----------
     dimension:
-        matrix size
+        matrix size.
     prefactor:
-        prefactor multiplying the number operator matrix
+        prefactor multiplying the number operator matrix.
 
     Returns
     -------
-    sparse number operator matrix, size ``dimension x dimension``
+    Sparse number operator matrix, size ``dimension x dimension``.
     """
     diag_elements = np.arange(dimension, dtype=np.float64)
     if prefactor:
@@ -161,40 +159,38 @@ def number_sparse(
 def a_plus_adag_sparse(
     dimension: int, prefactor: float | complex | None = None
 ) -> csc_matrix:
-    r"""Operator matrix for ``prefactor`` :math:`(a+a^\dagger)` as a sparse matrix.
+    r"""Return ``prefactor`` :math:`(a+a^\dagger)` as a sparse matrix.
 
     Parameters
     ----------
     dimension:
-        matrix size
+        matrix size.
     prefactor:
-        prefactor multiplying the number operator matrix
-        (if not given, this defaults to 1)
+        overall prefactor (defaults to 1 if not given).
 
     Returns
     -------
-    ``prefactor`` :math:`(a+a^\dagger)` as sparse operator matrix,
-    size ``dimension x dimension``
+    ``prefactor`` :math:`(a+a^\dagger)` as a sparse operator matrix,
+    size ``dimension x dimension``.
     """
     prefactor = prefactor if prefactor is not None else 1.0
     return prefactor * (annihilation_sparse(dimension) + creation_sparse(dimension))
 
 
 def a_plus_adag(dimension: int, prefactor: float | complex | None = None) -> ndarray:
-    r"""Operator matrix for ``prefactor`` :math:`(a+a^\dagger)` as a dense matrix.
+    r"""Return ``prefactor`` :math:`(a+a^\dagger)` as a dense matrix.
 
     Parameters
     ----------
     dimension:
-        matrix size
+        matrix size.
     prefactor:
-        prefactor multiplying the number operator matrix
-        (if not given, this defaults to 1)
+        overall prefactor (defaults to 1 if not given).
 
     Returns
     -------
     ``prefactor`` :math:`(a+a^\dagger)` as :class:`~numpy.ndarray`,
-    size ``dimension x dimension``
+    size ``dimension x dimension``.
     """
     return a_plus_adag_sparse(dimension, prefactor=prefactor).toarray()
 
@@ -202,20 +198,19 @@ def a_plus_adag(dimension: int, prefactor: float | complex | None = None) -> nda
 def cos_theta_harmonic(
     dimension: int, prefactor: float | complex | None = None
 ) -> ndarray:
-    r"""Operator matrix for :math:`\cos(\text{prefactor}\,(a+a^\dagger))` as a dense matrix.
+    r"""Return :math:`\cos(\text{prefactor}\,(a+a^\dagger))` as a dense matrix.
 
     Parameters
     ----------
     dimension:
-        matrix size
+        matrix size.
     prefactor:
-        prefactor multiplying the number operator matrix
-        (if not given, this defaults to 1)
+        prefactor inside the cosine argument (defaults to 1 if not given).
 
     Returns
     -------
     :math:`\cos(\text{prefactor}\,(a+a^\dagger))` as :class:`~numpy.ndarray`,
-    size ``dimension x dimension``
+    size ``dimension x dimension``.
     """
     return sp.linalg.cosm(a_plus_adag_sparse(dimension, prefactor=prefactor).toarray())
 
@@ -223,20 +218,19 @@ def cos_theta_harmonic(
 def sin_theta_harmonic(
     dimension: int, prefactor: float | complex | None = None
 ) -> ndarray:
-    r"""Operator matrix for :math:`\sin(\text{prefactor}\,(a+a^\dagger))` as a dense matrix.
+    r"""Return :math:`\sin(\text{prefactor}\,(a+a^\dagger))` as a dense matrix.
 
     Parameters
     ----------
     dimension:
-        matrix size
+        matrix size.
     prefactor:
-        prefactor multiplying the number operator matrix
-        (if not given, this defaults to 1)
+        prefactor inside the sine argument (defaults to 1 if not given).
 
     Returns
     -------
     :math:`\sin(\text{prefactor}\,(a+a^\dagger))` as :class:`~numpy.ndarray`,
-    size ``dimension x dimension``
+    size ``dimension x dimension``.
     """
     return sp.linalg.sinm(a_plus_adag_sparse(dimension, prefactor=prefactor).toarray())
 
@@ -244,20 +238,19 @@ def sin_theta_harmonic(
 def iadag_minus_ia_sparse(
     dimension: int, prefactor: float | complex | None = None
 ) -> csc_matrix:
-    r"""Operator matrix for ``prefactor`` :math:`(ia^\dagger-ia)` as a sparse matrix.
+    r"""Return ``prefactor`` :math:`(ia^\dagger-ia)` as a sparse matrix.
 
     Parameters
     ----------
     dimension:
-        matrix size
+        matrix size.
     prefactor:
-        prefactor multiplying the number operator matrix
-        (if not given, this defaults to 1)
+        overall prefactor (defaults to 1 if not given).
 
     Returns
     -------
-    ``prefactor`` :math:`(ia^\dagger-ia)` as sparse operator matrix,
-    size ``dimension x dimension``
+    ``prefactor`` :math:`(ia^\dagger-ia)` as a sparse operator matrix,
+    size ``dimension x dimension``.
     """
     prefactor = prefactor if prefactor is not None else 1.0
     return prefactor * (
@@ -266,20 +259,19 @@ def iadag_minus_ia_sparse(
 
 
 def iadag_minus_ia(dimension: int, prefactor: float | complex | None = None) -> ndarray:
-    r"""Operator matrix for ``prefactor`` :math:`(ia^\dagger-ia)` as a dense matrix.
+    r"""Return ``prefactor`` :math:`(ia^\dagger-ia)` as a dense matrix.
 
     Parameters
     ----------
     dimension:
-        matrix size
+        matrix size.
     prefactor:
-        prefactor multiplying the number operator matrix
-        (if not given, this defaults to 1)
+        overall prefactor (defaults to 1 if not given).
 
     Returns
     -------
     ``prefactor`` :math:`(ia^\dagger-ia)` as :class:`~numpy.ndarray`,
-    size ``dimension x dimension``
+    size ``dimension x dimension``.
     """
     return iadag_minus_ia_sparse(dimension, prefactor=prefactor).toarray()
 

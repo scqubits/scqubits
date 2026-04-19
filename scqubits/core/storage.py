@@ -39,12 +39,12 @@ class WaveFunction:
     Parameters
     ----------
     basis_labels:
-        labels of basis states; for example, in position basis: values of position
-        variable
+        labels of basis states; for example, in the position basis, values of
+        the position variable.
     amplitudes:
-        wave function amplitudes for each basis label value
+        wave function amplitudes for each basis label.
     energy:
-        energy of the wave function
+        energy of the wave function.
     """
 
     def __init__(
@@ -63,21 +63,21 @@ class WaveFunction:
         Parameters
         ----------
         scale_factor:
-            multiplicative factor applied in place to ``self.amplitudes``
+            multiplicative factor applied in place to ``self.amplitudes``.
         """
         self.amplitudes *= scale_factor
 
     def rescale_to_potential(self, potential_vals: np.ndarray) -> None:
         """Rescale the dimensionless amplitude to a (pseudo-)energy.
 
-        This rescaling allows us to plot wavefunctions and potential energies in
-        the same plot.
+        This rescaling allows wavefunctions and potential energies to be
+        plotted on the same axes.
 
         Parameters
         ----------
         potential_vals:
-            array of potential energy values (that determine the energy range on
-            the y axis)
+            array of potential energy values (determines the energy range on
+            the y axis).
         """
         self.amplitudes *= self.amplitude_scale_factor(potential_vals)
 
@@ -85,17 +85,17 @@ class WaveFunction:
         """Return scale factor converting dimensionless amplitude to (pseudo-)energy.
 
         The returned factor allows wavefunctions and potential energies to be
-        plotted in the same plot.
+        plotted on the same axes.
 
         Parameters
         ----------
         potential_vals:
-            array of potential energy values (that determine the energy range on
-            the y axis)
+            array of potential energy values (determines the energy range on
+            the y axis).
 
         Returns
         -------
-        scale factor
+        scale factor.
         """
         FILL_FACTOR = 0.1
         energy_range = np.max(potential_vals) - np.min(potential_vals)
@@ -117,11 +117,11 @@ class WaveFunctionOnGrid:
     Parameters
     ----------
     gridspec:
-        grid specifications for the stored wave function
+        grid specifications for the stored wave function.
     amplitudes:
-        wave function amplitudes on each grid point
+        wave function amplitudes at each grid point.
     energy:
-        energy corresponding to the wave function
+        energy corresponding to the wave function.
     """
 
     def __init__(
@@ -141,14 +141,14 @@ class DataStore(serializers.Serializable):
     Parameters
     ----------
     system_params:
-        info about system parameters
+        info about system parameters.
     param_name:
-        name of parameter being varies
+        name of the parameter being varied.
     param_vals:
-        parameter values for which spectrum data are stored
+        parameter values for which spectrum data are stored.
     **kwargs:
-        keyword arguments for data to be stored: ``dataname=data``, where data should be
-        an array-like object
+        keyword arguments for data to be stored: ``dataname=data``, where
+        ``data`` should be an array-like object.
     """
 
     def __init__(
@@ -175,13 +175,13 @@ class DataStore(serializers.Serializable):
             )  # register additional dataset for file IO
 
     def add_data(self, **kwargs) -> None:
-        """Adds one or several data sets to the DataStorage object.
+        """Add one or more data sets to the :class:`DataStore` object.
 
         Parameters
         ----------
         **kwargs:
-            ``dataname=data`` with ``data`` an array-like object. The data set will
-            be  accessible through ``<DataStorage>.dataname``.
+            ``dataname=data`` with ``data`` an array-like object. The data set
+            will be accessible through ``<DataStore>.dataname``.
         """
         for dataname, data in kwargs.items():
             setattr(self, dataname, data)
@@ -197,25 +197,25 @@ class DataStore(serializers.Serializable):
 class SpectrumData(DataStore):
     """Container for energy and state data as a function of a varied parameter.
 
-    Also stores all other system parameters used for generating the set,
-    and provides method for writing data to file.
+    Also stores all other system parameters used for generating the data set,
+    and provides a method for writing data to file.
 
     Parameters
     ----------
     energy_table:
-        energy eigenvalues stored for each `param_vals` point,
-        [[evals for first param_val], [evals for second param_val], ...]
+        energy eigenvalues stored for each ``param_vals`` point,
+        ``[[evals for first param_val], [evals for second param_val], ...]``.
     system_params:
-        info about system parameters
+        info about system parameters.
     param_name:
-        name of parameter being varied
+        name of the parameter being varied.
     param_vals:
-        parameter values for which spectrum data are stored
+        parameter values for which spectrum data are stored.
     state_table:
-        eigenstate data stored for each `param_vals` point, either as pure np.ndarray or
-        list of qutip.qobj
+        eigenstate data stored for each ``param_vals`` point, either as a
+        pure ``np.ndarray`` or a list of ``qutip.Qobj``.
     matrixelem_table:
-        matrix element data stored for each `param_vals` point
+        matrix element data stored for each ``param_vals`` point.
     """
 
     # mark for file serializers purposes:
@@ -263,20 +263,19 @@ class SpectrumData(DataStore):
         Parameters
         ----------
         which:
-            default: -1, signals to plot all eigenvalues;
-            int>0: plot eigenvalues 0..int-1;
-            list(int) plot the specific
-            eigenvalues (indices listed)
+            default ``-1`` plots all eigenvalues;
+            ``int > 0`` plots eigenvalues ``0..int-1``;
+            ``list[int]`` plots the specific eigenvalues at those indices.
         subtract_ground:
-            whether to subtract the ground state energy, default: False
+            whether to subtract the ground state energy (default: ``False``).
         label_list:
-            list of labels associated with the individual curves to be plotted
+            list of labels associated with the individual curves to be plotted.
         **kwargs:
-            standard plotting option (see separate documentation)
+            standard plotting options (see separate documentation).
 
         Returns
         -------
-        Figure and Axes objects for further processing
+        Figure and Axes objects for further processing.
         """
         return plot.evals_vs_paramvals(
             self,

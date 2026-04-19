@@ -36,26 +36,25 @@ def _dict_merge(
 ) -> dict[str, Any]:
     """Selectively merge two dictionaries.
 
-    Makes a copy of `d` and selectively updates/adds entries from `d_other`, as
-    long as the keys are not given in `exclude`. Whether entries in `d` are
-    overwritten by entries in `d_other` is determined by the value of the
-    `overwrite` parameter.
+    Returns a copy of ``d`` updated with entries from ``d_other``, skipping any
+    keys listed in ``exclude``. Whether existing entries in ``d`` are
+    overwritten by those in ``d_other`` is controlled by ``overwrite``.
 
     Parameters
     ----------
     d:
-        dictionary
+        first dictionary.
     d_other:
-        second dictionary to be merged with the first
+        second dictionary to be merged with the first.
     exclude:
-        list of potential keys in d_other to be excluded from being added to
-        resulting merge
+        keys in ``d_other`` to be excluded from the merge.
     overwrite:
-        determines if keys already in d should be overwritten by those in d_other
+        whether keys already in ``d`` should be overwritten by those in
+        ``d_other``.
 
     Returns
     -------
-    merged dictionary
+    merged dictionary.
     """
     exclude = [] if exclude is None else exclude
 
@@ -70,32 +69,31 @@ def _dict_merge(
 def _cast_matrix(
     matrix: ndarray | csc_matrix | Qobj, cast_to: str, force_cast: bool = True
 ) -> ndarray | csc_matrix | Qobj:
-    """Cast a given operator into a required form as defined by `cast_to`.
+    """Cast a given operator into the form specified by ``cast_to``.
 
-    Operators of the type :class:`qutip.Qobj` are first converted to an
-    `ndarray` or a scipy sparse matrix form (depending on the given object's
-    underlying `dtype`). Later those are converted (or not) to a dense or
-    sparse form depending on whether `force_cast` is set.
+    Operators of type :class:`qutip.Qobj` are first converted to an
+    ``ndarray`` or a scipy sparse matrix (depending on the object's underlying
+    ``dtype``), then optionally converted to a dense or sparse form according
+    to ``force_cast``.
 
-    NOTE: Currently we only ever cast to the csc format for sparse
-    matrices. Internally `Qobj` uses the csr or dia formats instead, however.
-    It could be worthwhile to also use those representations directly
-    whenever it makes sense, and avoid unnecessary conversions.
+    NOTE: Currently we only ever cast to the csc format for sparse matrices,
+    although internally ``Qobj`` uses the csr or dia formats. It could be
+    worthwhile to use those representations directly when appropriate to
+    avoid unnecessary conversions.
 
     Parameters
     ----------
     matrix:
-        matrix given as an ndarray, Qobj, or scipy's sparse matrix format
+        matrix given as an ndarray, Qobj, or scipy sparse matrix.
     cast_to:
-        string representing the format that matrix should be cast into:
-        'sparse' or 'dense'
+        target format, either ``'sparse'`` or ``'dense'``.
     force_cast:
-        determines if explicit casting to dense or sparse format should be
-        always performed
+        whether explicit casting to dense or sparse form should always be
+        performed.
 
     Returns
     -------
-    matrix in the sparse or dense form
+    matrix in the sparse or dense form.
     """
     if cast_to not in ["sparse", "dense"]:
         raise ValueError("Can only cast matrix to 'sparse' or 'dense' forms.")
@@ -131,25 +129,25 @@ def _cast_matrix(
 def _convert_evecs_to_qobjs(
     evecs: ndarray, matrix_qobj: Qobj, wrap: bool = False
 ) -> ndarray:
-    """Convert an `ndarray` of eigenvectors to a numpy array of qutip's Qobjs.
+    """Convert an ``ndarray`` of eigenvectors to a numpy array of qutip Qobjs.
 
     Eigenvectors are typically returned (as columns) from a diagonalization
-    routine such as ``eigh`` or ``eigsh``. Potentially also wraps those into
+    routine such as ``eigh`` or ``eigsh``. Optionally wraps the result in
     :class:`scqubits.io_utils.fileio_qutip.QutipEigenstates`.
 
     Parameters
     ----------
     evecs:
-        ndarray of eigenvectors (as columns)
+        ndarray of eigenvectors (as columns).
     matrix_qobj:
-        matrix in the qutip Qobj form; if given, used to extract the tensor
-        product structure
+        matrix in qutip Qobj form, used to extract the tensor product
+        structure.
     wrap:
-        determines if we wrap results in QutipEigenstates
+        whether to wrap results in :class:`QutipEigenstates`.
 
     Returns
     -------
-    eigenvectors represented in terms of Qobjs
+    eigenvectors represented as Qobjs.
     """
     evecs_count = evecs.shape[1]
     evec_dims = [matrix_qobj.dims[0], [1] * len(matrix_qobj.dims[0])]
@@ -179,15 +177,15 @@ def evals_scipy_dense(
     Parameters
     ----------
     matrix:
-        ndarray or qutip.Qobj to be diagonalized
+        ndarray or qutip.Qobj to be diagonalized.
     evals_count:
-        how many eigenvalues should be returned
+        number of eigenvalues to return.
     **kwargs:
-        optional settings that are passed onto the diagonalization routine
+        optional settings passed to the diagonalization routine.
 
     Returns
     -------
-    eigenvalues of matrix
+    eigenvalues of matrix.
     """
     m = _cast_matrix(matrix, "dense")
 
@@ -215,16 +213,16 @@ def esys_scipy_dense(
     Parameters
     ----------
     matrix:
-        ndarray or qutip.Qobj to be diagonalized
+        ndarray or qutip.Qobj to be diagonalized.
     evals_count:
-        how many eigenvalues/vectors should be returned
+        number of eigenvalues/vectors to return.
     **kwargs:
-        optional settings that are passed onto the diagonalization routine
+        optional settings passed to the diagonalization routine.
 
     Returns
     -------
-    a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if
-    `matrix` is a Qobj instance.
+    tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if
+    ``matrix`` is a Qobj instance.
     """
     m = _cast_matrix(matrix, "dense")
 
@@ -246,22 +244,22 @@ def evals_scipy_sparse(
     Assumes a Hermitian sparse matrix; returns real eigenvalues in ascending
     order.
 
-    Note the convoluted convention when it comes to ordering and how it is related
-    to the presence of `return_eigenvectors` parameter. See here for details:
-    https://github.com/scipy/scipy/issues/9082
+    Note the subtle ordering convention and its dependence on the
+    ``return_eigenvectors`` parameter; see
+    https://github.com/scipy/scipy/issues/9082 for details.
 
     Parameters
     ----------
     matrix:
-        ndarray or qutip.Qobj to be diagonalized
+        ndarray or qutip.Qobj to be diagonalized.
     evals_count:
-        how many eigenvalues should be returned
+        number of eigenvalues to return.
     **kwargs:
-        optional settings that are passed onto the diagonalization routine
+        optional settings passed to the diagonalization routine.
 
     Returns
     -------
-    eigenvalues of matrix
+    eigenvalues of matrix.
     """
     m = _cast_matrix(matrix, "sparse")
 
@@ -288,33 +286,35 @@ def esys_scipy_sparse(
     Assumes a Hermitian sparse matrix; returns real eigenvalues in ascending
     order.
 
-    Note the convoluted convention when it comes to ordering and how it is related
-    to the presence of `return_eigenvectors` parameter. See here for details:
-    https://github.com/scipy/scipy/issues/9082
+    Note the subtle ordering convention and its dependence on the
+    ``return_eigenvectors`` parameter; see
+    https://github.com/scipy/scipy/issues/9082 for details.
 
     This function ensures that:
-    1. We always use the same "random" starting vector v0. Otherwise results show
-    random behavior (small deviations between different runs, problem for pytests)
-    2. We test for degenerate eigenvalues. If there are any, we orthogonalize the
-    eigenvectors properly.
+
+    1. The same "random" starting vector ``v0`` is always used. Otherwise
+       results show small run-to-run deviations, which is problematic for
+       pytests.
+    2. Degenerate eigenvalues are detected; when present, the corresponding
+       eigenvectors are properly orthogonalized.
 
     TODO:
-        Right now, this is essentially a copy/paste of spectrum_utils.eigsh_safe().
-        When the dust settles, should combine both into one.
+        Currently this is essentially a copy of ``spectrum_utils.eigsh_safe()``;
+        the two should eventually be combined.
 
     Parameters
     ----------
     matrix:
-        ndarray or qutip.Qobj to be diagonalized
+        ndarray or qutip.Qobj to be diagonalized.
     evals_count:
-        how many eigenvalues/vectors should be returned
+        number of eigenvalues/vectors to return.
     **kwargs:
-        optional settings that are passed onto the diagonalization routine
+        optional settings passed to the diagonalization routine.
 
     Returns
     -------
-    a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if
-    `matrix` is a Qobj instance.
+    tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if
+    ``matrix`` is a Qobj instance.
     """
     m = _cast_matrix(matrix, "sparse")
 
@@ -353,15 +353,15 @@ def evals_primme_sparse(
     Parameters
     ----------
     matrix:
-        ndarray or qutip.Qobj to be diagonalized
+        ndarray or qutip.Qobj to be diagonalized.
     evals_count:
-        how many eigenvalues/vectors should be returned
+        number of eigenvalues to return.
     **kwargs:
-        optional settings that are passed onto the diagonalization routine
+        optional settings passed to the diagonalization routine.
 
     Returns
     -------
-    eigenvalues of matrix
+    eigenvalues of matrix.
     """
     try:
         import primme
@@ -395,16 +395,16 @@ def esys_primme_sparse(
     Parameters
     ----------
     matrix:
-        ndarray or qutip.Qobj to be diagonalized
+        ndarray or qutip.Qobj to be diagonalized.
     evals_count:
-        how many eigenvalues/vectors should be returned
+        number of eigenvalues/vectors to return.
     **kwargs:
-        optional settings that are passed onto the diagonalization routine
+        optional settings passed to the diagonalization routine.
 
     Returns
     -------
-    a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if
-    `matrix` is a Qobj instance.
+    tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if
+    ``matrix`` is a Qobj instance.
     """
     try:
         import primme
@@ -445,15 +445,15 @@ def evals_cupy_dense(
     Parameters
     ----------
     matrix:
-        ndarray or qutip.Qobj to be diagonalized
+        ndarray or qutip.Qobj to be diagonalized.
     evals_count:
-        how many eigenvalues/vectors should be returned
+        number of eigenvalues to return.
     **kwargs:
-        optional settings that are passed onto the diagonalization routine
+        optional settings passed to the diagonalization routine.
 
     Returns
     -------
-    eigenvalues of matrix
+    eigenvalues of matrix.
     """
     try:
         import cupy as cp
@@ -479,16 +479,16 @@ def esys_cupy_dense(
     Parameters
     ----------
     matrix:
-        ndarray or qutip.Qobj to be diagonalized
+        ndarray or qutip.Qobj to be diagonalized.
     evals_count:
-        how many eigenvalues/vectors should be returned
+        number of eigenvalues/vectors to return.
     **kwargs:
-        optional settings that are passed onto the diagonalization routine
+        optional settings passed to the diagonalization routine.
 
     Returns
     -------
-    a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if
-    `matrix` is a Qobj instance.
+    tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if
+    ``matrix`` is a Qobj instance.
     """
     try:
         import cupy as cp
@@ -515,20 +515,20 @@ def evals_cupy_sparse(
     """Diagonalize via cupy's sparse ``eigsh``; return only eigenvalues.
 
     Assumes a Hermitian sparse matrix; returns real eigenvalues in ascending
-    order. Requires that the cupy (and cupyx) library is installed.
+    order. Requires that the cupy library (including cupyx) is installed.
 
     Parameters
     ----------
     matrix:
-        ndarray or qutip.Qobj to be diagonalized
+        ndarray or qutip.Qobj to be diagonalized.
     evals_count:
-        how many eigenvalues/vectors should be returned
+        number of eigenvalues to return.
     **kwargs:
-        optional settings that are passed onto the diagonalization routine
+        optional settings passed to the diagonalization routine.
 
     Returns
     -------
-    eigenvalues of matrix
+    eigenvalues of matrix.
     """
     try:
         import cupy as cp
@@ -559,21 +559,21 @@ def esys_cupy_sparse(
     """Diagonalize via cupy's sparse ``eigsh``; return eigenvalues and eigenvectors.
 
     Assumes a Hermitian sparse matrix; returns real eigenvalues in ascending
-    order. Requires that the cupy library is installed.
+    order. Requires that the cupy library (including cupyx) is installed.
 
     Parameters
     ----------
     matrix:
-        ndarray or qutip.Qobj to be diagonalized
+        ndarray or qutip.Qobj to be diagonalized.
     evals_count:
-        how many eigenvalues/vectors should be returned
+        number of eigenvalues/vectors to return.
     **kwargs:
-        optional settings that are passed onto the diagonalization routine
+        optional settings passed to the diagonalization routine.
 
     Returns
     -------
-    a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if
-    `matrix` is a Qobj instance.
+    tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if
+    ``matrix`` is a Qobj instance.
     """
     try:
         import cupy as cp
@@ -613,25 +613,26 @@ def evals_jax_dense(
 
     Assumes a Hermitian matrix; returns real eigenvalues in ascending order.
 
-    If available, different backends/devics (e.g., particular GPUs) can be set
-    though jax's interface, see https://jax.readthedocs.io/en/latest/user_guides.html
+    If available, different backends/devices (e.g., particular GPUs) can be
+    selected through jax's interface; see
+    https://jax.readthedocs.io/en/latest/user_guides.html.
 
-    Note, that jax's documentation is inconsistent, and `eigvals` and/or
-    `subset_by_index` seems not to be implemented. Hence, here we calculate all the
-    eigenvalues, but then only return the requested subset.
+    Note that jax's documentation is inconsistent: ``eigvals`` and/or
+    ``subset_by_index`` appear not to be implemented. As a workaround, we
+    compute all eigenvalues and then return only the requested subset.
 
     Parameters
     ----------
     matrix:
-        ndarray or qutip.Qobj to be diagonalized
+        ndarray or qutip.Qobj to be diagonalized.
     evals_count:
-        how many eigenvalues should be returned
+        number of eigenvalues to return.
     **kwargs:
-        optional settings that are passed onto the diagonalization routine
+        optional settings passed to the diagonalization routine.
 
     Returns
     -------
-    eigenvalues of matrix
+    eigenvalues of matrix.
     """
     try:
         import jax
@@ -659,26 +660,28 @@ def esys_jax_dense(
 
     Assumes a Hermitian matrix; returns real eigenvalues in ascending order.
 
-    If available, different backends/devics (e.g., particular GPUs) can be set
-    though jax's interface, see https://jax.readthedocs.io/en/latest/user_guides.html
+    If available, different backends/devices (e.g., particular GPUs) can be
+    selected through jax's interface; see
+    https://jax.readthedocs.io/en/latest/user_guides.html.
 
-    Note, that jax's documentation is inconsistent, and `eigvals` and/or
-    `subset_by_index` seems not to be implemented. Hence, here we calculate all the
-    eigenvalues and eigenvectors, but then only return the requested subset.
+    Note that jax's documentation is inconsistent: ``eigvals`` and/or
+    ``subset_by_index`` appear not to be implemented. As a workaround, we
+    compute all eigenvalues and eigenvectors and then return only the
+    requested subset.
 
     Parameters
     ----------
     matrix:
-        ndarray or qutip.Qobj to be diagonalized
+        ndarray or qutip.Qobj to be diagonalized.
     evals_count:
-        how many eigenvalues/vectors should be returned
+        number of eigenvalues/vectors to return.
     **kwargs:
-        optional settings that are passed onto the diagonalization routine
+        optional settings passed to the diagonalization routine.
 
     Returns
     -------
-    a tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if
-    `matrix` is a Qobj instance.
+    tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if
+    ``matrix`` is a Qobj instance.
     """
     try:
         import jax

@@ -51,25 +51,22 @@ def band_matrix(
     """Return a square sparse band matrix with constant (off-)diagonals.
 
     Diagonals are filled with the values ``band_coeffs[0]``, ``band_coeffs[1]``, ...
-    placed at the offsets ``band_offsets[0]``, ``band_offsets[1]``, ... The
-    ``has_corners`` option allows generation of band matrices with corner elements,
-    in which lower off-diagonals wrap into the top-right corner and upper
-    off-diagonals wrap into the bottom-left corner.
+    placed at the offsets ``band_offsets[0]``, ``band_offsets[1]``, ... When
+    ``has_corners`` is ``True``, lower off-diagonals wrap into the top-right
+    corner and upper off-diagonals wrap into the bottom-left corner.
 
     Parameters
     ----------
     band_coeffs:
-        each element of band_coeffs is a number to be assigned as a constant to the
-        (off-)diagonals
+        each element is a constant assigned to one (off-)diagonal.
     band_offsets:
-        offsets specifying the positions of the (off-)diagonals
+        offsets specifying the positions of the (off-)diagonals.
     dim:
-        (linear) dimension of the matrix
+        (linear) dimension of the matrix.
     dtype:
-        if not specified, dtype is inferred from the dtype of `band_vecs`
+        if not specified, dtype is inferred from ``band_coeffs``.
     has_corners:
-        if set to True, the off diagonals are wrapped into the opposing corners of
-        the matrix
+        if ``True``, off-diagonals wrap into the opposing corners of the matrix.
     """
     ones_vector = np.ones(dim)
     vectors = [ones_vector * number for number in band_coeffs]
@@ -97,11 +94,11 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
     Parameters
     ----------
     min_val:
-        minimum value of the discretized variable
+        minimum value of the discretized variable.
     max_val:
-        maximum value of the discretized variable
+        maximum value of the discretized variable.
     pt_count:
-        number of grid points
+        number of grid points.
     """
 
     min_val = descriptors.WatchedProperty(float, "GRID_UPDATE")
@@ -129,12 +126,12 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         return output
 
     def __eq__(self, other: Any) -> bool:
-        """Return True if `other` is a :class:`Grid1d` with identical attributes.
+        """Return ``True`` if ``other`` is a :class:`Grid1d` with identical attributes.
 
         Parameters
         ----------
         other:
-            object to compare against
+            object to compare against.
         """
         if not isinstance(other, type(self)):
             return False
@@ -145,36 +142,26 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         return super().__hash__()
 
     def get_initdata(self) -> dict[str, Any]:
-        """Return a dict suitable for creating/initializing a new Grid1d object.
+        """Return a dict of parameters needed to reconstruct this grid.
 
         Returns
         -------
-        Dictionary containing the parameters needed to reconstruct this grid.
+        Dictionary suitable for initializing a new :class:`Grid1d` instance.
         """
         return self.__dict__
 
     def grid_spacing(self) -> float:
-        """Return the spacing between neighboring grid points.
-
-        Returns
-        -------
-        Spacing between neighboring grid points.
-        """
+        """Return the spacing between neighboring grid points."""
         return (self.max_val - self.min_val) / (self.pt_count - 1)
 
     def make_linspace(self) -> ndarray:
-        """Return a numpy array of the grid points.
-
-        Returns
-        -------
-        1d array of the grid point coordinates.
-        """
+        """Return a 1d numpy array of the grid point coordinates."""
         return np.linspace(self.min_val, self.max_val, self.pt_count)
 
     def first_derivative_matrix(
         self, prefactor: float | complex = 1.0, periodic: bool = False
     ) -> csc_matrix:
-        r"""Generate the sparse matrix for the first derivative :math:`\partial_{x_i}`.
+        r"""Return the sparse matrix for the first derivative :math:`\partial_{x_i}`.
 
         Uses the ``STENCIL`` setting to construct the matrix with a multi-point
         stencil.
@@ -182,9 +169,9 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         Parameters
         ----------
         prefactor:
-            prefactor of the derivative matrix (default: 1.0)
+            prefactor of the derivative matrix (default: 1.0).
         periodic:
-            set to True if variable is a periodic variable
+            set to ``True`` if the variable is periodic.
 
         Returns
         -------
@@ -210,7 +197,7 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
     def second_derivative_matrix(
         self, prefactor: float | complex = 1.0, periodic: bool = False
     ) -> csc_matrix:
-        r"""Generate the sparse matrix for the second derivative :math:`\partial^2_{x_i}`.
+        r"""Return the sparse matrix for the second derivative :math:`\partial^2_{x_i}`.
 
         Uses the ``STENCIL`` setting to construct the matrix with a multi-point
         stencil.
@@ -218,9 +205,9 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         Parameters
         ----------
         prefactor:
-            optional prefactor of the derivative matrix (default: 1.0)
+            prefactor of the derivative matrix (default: 1.0).
         periodic:
-            set to True if variable is a periodic variable (default: False)
+            set to ``True`` if the variable is periodic (default: ``False``).
 
         Returns
         -------
@@ -250,7 +237,7 @@ class GridSpec(dispatch.DispatchClient, serializers.Serializable):
     Parameters
     ----------
     minmaxpts_array:
-        array of with entries [minvalue, maxvalue, number of points]
+        array with rows of the form ``[min_value, max_value, num_points]``.
     """
 
     min_vals = descriptors.WatchedProperty(ndarray, "GRID_UPDATE")
@@ -272,7 +259,7 @@ class GridSpec(dispatch.DispatchClient, serializers.Serializable):
         return output
 
     def unwrap(self) -> tuple[ndarray, ndarray, list[int] | ndarray, int]:
-        """Return a tuple of the parameters specifying the grid.
+        """Return the parameters specifying the grid as a tuple.
 
         Returns
         -------

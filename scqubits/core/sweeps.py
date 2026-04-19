@@ -39,22 +39,22 @@ def bare_matrixelement(
     Parameters
     ----------
     sweep:
-        :class:`ParameterSweep` object to be used for the computation
+        :class:`ParameterSweep` object to be used for the computation.
     paramindex_tuple:
-        a complete set of parameter indices (i.e. a single point in the multi-dim
-        parameter space)
+        a complete set of parameter indices (i.e. a single point in the
+        multi-dim parameter space).
     paramvals_tuple:
-        [not used, but required by `generator` interface]
+        [not used, but required by the ``generator`` interface].
     operator_name:
-        operator for which matrix elements are requested, given in string form
+        name of the operator for which matrix elements are requested.
     subsystem:
-        subsystem belonging to the underlying Hilbert space and compatible with the
-        specified operator name
+        subsystem belonging to the underlying Hilbert space and compatible
+        with the specified operator name.
 
     Returns
     -------
-    Array of matrix elements (in general complex-valued); square array of size set
-    by the ``truncated_dim`` of the subsystem.
+    Array of matrix elements (in general complex-valued); square array of size
+    set by the ``truncated_dim`` of the subsystem.
     """
     subsys_index = sweep.get_subsys_index(subsystem)
     bare_evecs = sweep["bare_evecs"][subsys_index][paramindex_tuple]
@@ -79,19 +79,19 @@ def dressed_matrixelement(
     Parameters
     ----------
     sweep:
-        :class:`ParameterSweep` object to be used for the computation
+        :class:`ParameterSweep` object to be used for the computation.
     paramindex_tuple:
-        a complete set of parameter indices (i.e. a single point in the multi-dim
-        parameter space)
+        a complete set of parameter indices (i.e. a single point in the
+        multi-dim parameter space).
     paramvals_tuple:
-        [not used, but required by `generator` interface]
+        [not used, but required by the ``generator`` interface].
     operator:
-        given as `Qobj`, valid operator in the full Hilbert space
+        a valid operator in the full Hilbert space, given as a :class:`qutip.Qobj`.
 
     Returns
     -------
-    Array of matrix elements (in general complex-valued); square array of size set
-    by the ``truncated_dim`` of the subsystem.
+    Array of matrix elements (in general complex-valued); square array of size
+    set by the ``truncated_dim`` of the subsystem.
     """
     evecs = sweep["evecs"][paramindex_tuple]
     return np.asarray(

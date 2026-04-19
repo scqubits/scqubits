@@ -79,11 +79,10 @@ class MixinCompatible(Protocol):
 
 
 class SpectrumLookupMixin(MixinCompatible):
-    """SpectrumLookupMixin is used as a mix-in class by :class:`ParameterSweep`.
+    """Mix-in class providing spectrum-lookup methods.
 
-    It makes various
-    spectrum and spectrum lookup related methods directly available at the
-    :class:`ParameterSweep` level.
+    Used by :class:`HilbertSpace` and :class:`ParameterSweep` to expose
+    spectrum and spectrum-lookup methods directly on those classes.
     """
 
     _inside_hilbertspace = False
@@ -116,16 +115,13 @@ class SpectrumLookupMixin(MixinCompatible):
 
     @property
     def _bare_product_states_labels(self) -> list[tuple[int, ...]]:
-        """Generates the list of bare-state labels in canonical order.
+        """Return the list of bare-state labels in canonical order.
 
-        For example,
-        for a Hilbert space composed of two subsystems sys1 and sys2, each label is
-        of the type (3,0) meaning sys1 is in bare eigenstate 3, sys2 in bare
-        eigenstate 0. The full list then reads
-        [(0,0), (0,1), (0,2), ..., (0,max_2),
-        (1,0), (1,1), (1,2), ..., (1,max_2),
-        ...
-        (max_1,0), (max_1,1), (max_1,2), ..., (max_1,max_2)]
+        For example, for a Hilbert space composed of two subsystems ``sys1``
+        and ``sys2``, each label has the form ``(3, 0)``, meaning ``sys1`` is
+        in bare eigenstate 3 and ``sys2`` in bare eigenstate 0. The full list
+        reads ``[(0,0), (0,1), ..., (0,max_2), (1,0), (1,1), ..., (1,max_2),
+        ..., (max_1,0), ..., (max_1,max_2)]``.
         """
         return list(np.ndindex(*self.hilbertspace.subsystem_dims))
 
@@ -144,10 +140,10 @@ class SpectrumLookupMixin(MixinCompatible):
           state label by overlaps (default).
         - Lexical (``ordering="LX"``): traverse the bare states in `lexical order`_,
           and perform the branch analysis generalized from Dumas et al. (2024).
-        - Bare Energy (``ordering="BE"``): traverse the bare states in the order of
-          their energy before coupling and perform label assignment. This is
-          particularly useful when the Hilbert space is too large and not all the
-          eigenstates need to be labeled.
+        - Bare Energy (``ordering="BE"``): traverse the bare states in order
+          of their energy before coupling and perform label assignment.
+          Particularly useful when the Hilbert space is too large for every
+          eigenstate to be labeled.
 
         Parameters
         ----------
@@ -157,12 +153,12 @@ class SpectrumLookupMixin(MixinCompatible):
             - "LX": Lexical ordering
             - "BE": Bare Energy
         subsys_priority:
-            a permutation of the subsystem indices and bare labels. If it is
+            a permutation of the subsystem indices and bare labels. If
             provided, lexical ordering is performed on the permuted labels. A
-            "branch" is defined as a series of eigenstates formed by putting
-            excitations into the last subsystem in the list.
+            "branch" is a series of eigenstates formed by putting excitations
+            into the last subsystem in the list.
         BEs_count:
-            the number of eigenstates to be assigned, for "BE" scheme only. If
+            number of eigenstates to be assigned (``"BE"`` scheme only). If
             ``None``, all available eigenstates will be labeled.
 
         Returns
@@ -295,7 +291,7 @@ class SpectrumLookupMixin(MixinCompatible):
         bare_labels: tuple[int, ...],
         param_npindices: NpIndices | None = None,
     ) -> ndarray | int | None:
-        """For given bare product state return the corresponding dressed-state index.
+        """Return the dressed-state index for a given bare product state.
 
         Parameters
         ----------
@@ -304,14 +300,13 @@ class SpectrumLookupMixin(MixinCompatible):
             ``self.hilbertspace.subsystem_count``.
         param_npindices:
             indices of parameter values of interest. Depending on the nature of
-            the slice, this can be a single parameter point or multiple ones.
+            the slice, this may be a single parameter point or multiple ones.
 
         Returns
         -------
         Dressed-state index closest to the specified bare state with excitation
         numbers given by ``bare_labels``. If ``param_npindices`` spans multiple
-        parameter points, a corresponding 1d array of length dictated by the
-        number of parameter points is returned.
+        parameter points, a 1d array of corresponding length is returned.
         """
         param_npindices = self.set_npindextuple(param_npindices)
         try:
@@ -328,7 +323,7 @@ class SpectrumLookupMixin(MixinCompatible):
         dressed_index: int,
         param_indices: tuple[int, ...] | None = None,
     ) -> tuple[int, ...] | None:
-        """For given dressed index, look up the corresponding bare index.
+        """Return the bare index corresponding to a given dressed index.
 
         Parameters
         ----------
@@ -341,7 +336,7 @@ class SpectrumLookupMixin(MixinCompatible):
 
         Returns
         -------
-        Bare state specification in tuple form. Example: ``(1,0,3)`` means
+        Bare state specification as a tuple. Example: ``(1, 0, 3)`` means
         subsystem 1 is in bare state 1, subsystem 2 in bare state 0, and
         subsystem 3 in bare state 3.
         """
@@ -373,12 +368,12 @@ class SpectrumLookupMixin(MixinCompatible):
         Parameters
         ----------
         param_indices:
-            position indices of parameter values in question
+            position indices of parameter values in question.
 
         Returns
         -------
-        dressed eigensystem for the external parameter fixed to the value indicated
-        by the provided index
+        dressed eigensystem for the external parameter fixed to the value
+        indicated by the provided index.
         """
         param_index_tuple = self.set_npindextuple(param_indices)
         return self._data["evecs"][param_index_tuple]
@@ -494,11 +489,10 @@ class SpectrumLookupMixin(MixinCompatible):
         subsys: "QuantumSys",
         param_indices: tuple[int, ...] | None = None,
     ) -> NamedSlotsNdarray:
-        """Return ndarray of bare eigenstates for given subsystems and parameter index.
+        """Return an ndarray of bare eigenstates for the given subsystem and parameter.
 
-        Eigenstates are expressed in the basis internal to the subsystems.
-        Usually to be used with pre-slicing when part of
-        :class:`.ParameterSweep`.
+        Eigenstates are expressed in the basis internal to the subsystem.
+        Typically used with preslicing when part of :class:`.ParameterSweep`.
 
         Parameters
         ----------
@@ -526,12 +520,12 @@ class SpectrumLookupMixin(MixinCompatible):
     ) -> NamedSlotsNdarray:
         """Return :obj:`.NamedSlotsNdarray` of bare eigenenergies for a subsystem.
 
-        Usually to be used with preslicing.
+        Typically used with preslicing.
 
         Parameters
         ----------
         subsys:
-            Hilbert space subsystem for which bare eigendata is to be looked up.
+            Hilbert-space subsystem for which bare eigenenergies are looked up.
         param_indices:
             position indices of parameter values in question.
 
@@ -571,7 +565,7 @@ class SpectrumLookupMixin(MixinCompatible):
         return qt.tensor(*product_state_list)
 
     def all_params_fixed(self, param_indices: slice | tuple) -> bool:
-        """Checks whether the indices provided fix all the parameters.
+        """Return whether the provided indices fix every parameter.
 
         Parameters
         ----------
@@ -580,7 +574,7 @@ class SpectrumLookupMixin(MixinCompatible):
 
         Returns
         -------
-        True if all parameters are being fixed by `param_indices`.
+        ``True`` if all parameters are fixed by ``param_indices``.
         """
         param_indices_std = convert_to_std_npindex(
             np.index_exp[param_indices], self._parameters
@@ -606,36 +600,33 @@ class SpectrumLookupMixin(MixinCompatible):
     ) -> dict[tuple[int, ...], float]:
         """Return the bare-state components and probabilities of a dressed state.
 
-        A dressed state is a superposition of bare states. This function returns
+        A dressed state is a superposition of bare states. This method returns
         a dressed state's bare components and the associated occupation
-        probabilities. They are sorted by probability in descending order.
+        probabilities, sorted by probability in descending order.
 
         Parameters
         ----------
         state_label:
-            The bare label of the dressed state of interest. Could be
-                - a tuple/list of bare labels (int)
-                - a single dressed label (int)
+            label identifying the dressed state of interest. Either:
 
+            - a tuple/list of bare labels (int), or
+            - a single dressed label (int).
         components_count:
-            The number of components to be returned. If None, all components
-            will be returned.
-
+            number of components to return. If ``None``, all components are
+            returned.
         return_probability:
-            Whether to return the occupation probabilities. If not, return
-            the probability amplitudes.
-
+            if ``True``, return occupation probabilities; if ``False``, return
+            probability amplitudes.
         param_npindices:
-            This method only allows for a HilbertSpace object or a single
-            parameter ParameterSweep. If it's a multi-dimensional sweep,
-            param_npindices should be provided to specify a point in the
-            parameter space. If None, the current parameter preslicing will
-            be used.
+            indices specifying a point in parameter space. Required for
+            multi-dimensional sweeps; otherwise the current parameter
+            preslicing is used. Only a :class:`HilbertSpace` or a
+            single-parameter :class:`ParameterSweep` may omit this.
 
         Returns
         -------
-        A dictionary of the bare labels and their associated probability
-        (or probability amplitude if specified).
+        Dictionary mapping bare labels to their associated probability (or
+        probability amplitude if ``return_probability=False``).
         """
         param_npindices = self.set_npindextuple(param_npindices)
 
@@ -689,21 +680,20 @@ class SpectrumLookupMixin(MixinCompatible):
     ) -> Qobj:
         """Return the excitation operator used by branch analysis for ``mode``.
 
-        Branch analysis requires a step-by-step excitation of a chosen state,
-        which helps cover the entire Hilbert space and complete the assignment
-        of dressed indices. For the moment, this returns the creation operator
-        for linear modes, and the :math:`\\sum_i |i+1\\rangle\\langle i|`
-        operator for other modes.
+        Branch analysis requires step-by-step excitation of a chosen state to
+        cover the entire Hilbert space and complete the assignment of dressed
+        indices. Currently returns the creation operator for linear modes, and
+        the :math:`\\sum_i |i+1\\rangle\\langle i|` operator for other modes.
 
         Parameters
         ----------
         mode:
-            The mode to be excited.
+            the mode to be excited.
 
         Returns
         -------
-        The excitation operator for the given mode, tensor producted with
-        the identity operators of the other subsystems.
+        The excitation operator for the given mode, tensored with identity
+        operators on the other subsystems.
         """
         hilbertspace = self.hilbertspace
         if isinstance(mode, int):
@@ -737,46 +727,46 @@ class SpectrumLookupMixin(MixinCompatible):
     ) -> tuple[list, list]:
         """Perform one recursive step of branch analysis (Dumas et al. 2024).
 
-        This is a core function to be run recursively, realizing a depth-first
-        search in the tree whose leaves can be labeled by bare labels.
+        Core routine, run recursively, realizing a depth-first search in the
+        tree whose leaves can be labeled by bare labels.
 
-        In a nutshell, the function will:
-        1. Start from the "ground" state / starting point the branch, find
-        all of the branch states
-        2. Remove the found states from the remaining candidates
-        3. [If at the end of the depth-first search] Return the branch states
-        4. [If not at the end] For each branch state, use it as an init state to
-        start such search again, which will return a (nested) list of branch
-        states. Combine the list of branch states and return a nested list of
-        those states
+        In brief, the function:
 
-        In such way, the function will recursively go through this multi-dimensional
-        Hilbert space and assign the eigenstates to their labels.
+        1. Starts from the "ground" state / starting point of the branch and
+           finds all branch states.
+        2. Removes the found states from the remaining candidates.
+        3. [If at the end of the depth-first search] returns the branch states.
+        4. [Otherwise] for each branch state, uses it as an initial state to
+           start such a search again, returning a (nested) list of branch
+           states. Combines the lists and returns a nested list of states.
+
+        This way, the function recursively traverses the multi-dimensional
+        Hilbert space and assigns each eigenstate to its label.
 
         Parameters
         ----------
         subsys_priority:
-            a permutation of the subsystem indices and bare labels. If it is
+            a permutation of the subsystem indices and bare labels. If
             provided, lexical ordering is performed on the permuted labels.
-            It also represents the depth of the subsystem labels to be traversed. The later
-            the subsystem appears in the list, the deeper it is in the recursion.
-            A "branch" is defined as a series of eigenstates formed by
+            Also represents the depth of the subsystem labels to be traversed:
+            the later a subsystem appears in the list, the deeper it lies in
+            the recursion. A "branch" is a series of eigenstates formed by
             putting excitations into the last subsystem in the list.
         recusion_depth:
-            the current depth of the recursion. It should be 0 at the beginning.
+            current depth of the recursion. Should be 0 at the start.
         init_drs_idx:
-            the dressed index of the initial state of this branch.
+            dressed index of the initial state of this branch.
         init_state:
-            the initial state of this branch.
+            initial state of this branch.
         remaining_drs_indices:
-            the list of the remaining dressed indices to be assigned.
+            list of remaining dressed indices to be assigned.
         remaining_evecs:
-            The list of the remaining eigenstates to be assigned.
+            list of remaining eigenstates to be assigned.
 
         Returns
         -------
         branch_drs_indices, branch_states
-            The (nested) list of the branch states and their dressed indices.
+            (nested) lists of branch states and their dressed indices.
         """
 
         hspace = self.hilbertspace
@@ -846,45 +836,40 @@ class SpectrumLookupMixin(MixinCompatible):
     ) -> np.ndarray:
         """Perform full branch analysis at a single parameter point (lexical order).
 
-        Following Dumas et al. (2024), running through all bare labels in the
-        lexical order is equivalent to a depth-first traversal in a tree
-        structure. The method starts a recursive labeling using
+        Following Dumas et al. (2024), running through all bare labels in
+        lexical order is equivalent to a depth-first traversal of a tree
+        structure. The method starts a recursive labeling via
         :meth:`_branch_analysis_LX_step`.
 
-        The eigenstates-bare-state-paring is based on the
-        "first-come-first-served" principle, the ordering of such traversal will
-        permute the bare labels and change the traversal order based on the
-        lexical order. For the last mode in the list, its states will be labelled
+        Eigenstate-bare-state pairing follows the "first-come-first-served"
+        principle; the traversal order permutes the bare labels according to
+        ``subsys_priority``. The last mode in the list has its states labelled
         sequentially and organized in a single branch.
 
-        At the end, this function will organize the eigenstates into a
-        multi-dimensional array according to the mode_priority.
+        Finally, this method organizes the eigenstates into a multi-dimensional
+        array according to ``subsys_priority``.
 
         Parameters
         ----------
         param_indices:
-            the indices of the parameter sweep to be analyzed.
-
+            indices of the parameter sweep to be analyzed.
         subsys_priority:
             a permutation of the subsystem indices and bare labels. If
-            it is provided, lexical ordering is performed on the permuted labels.
-            A "branch" is defined as a series of eigenstates formed by putting
-            excitations into the last subsystem in the list.
-
+            provided, lexical ordering is performed on the permuted labels. A
+            "branch" is a series of eigenstates formed by putting excitations
+            into the last subsystem in the list.
         transpose:
-            if True, the returned array will be transposed, according to the
-            mode_priority. Otherwise, the array will be in the
-            shape of the subsystem dimensions in the original order. Now
-            it is a purely internal knob for testing.
+            if ``True``, the returned array is transposed according to
+            ``subsys_priority``; otherwise it has the shape of the subsystem
+            dimensions in the original order. Internal knob for testing.
 
         Returns
         -------
         branch_drs_indices
-            the multi-dimensional array of the dressed indices organized by
-            the mode_priority. If the dimensions of the subsystems are
-            D0, D1 and D2, the returned array will have the shape (D0, D1, D2).
-            If transposed is True, the array will be transposed according to
-            the mode_priority.
+            multi-dimensional array of dressed indices organized by
+            ``subsys_priority``. If the subsystem dimensions are ``D0, D1, D2``,
+            the returned array has shape ``(D0, D1, D2)``. If ``transpose`` is
+            ``True``, the array is transposed according to ``subsys_priority``.
         """
         if subsys_priority is None:
             subsys_priority = list(range(self.hilbertspace.subsystem_count))
@@ -929,36 +914,35 @@ class SpectrumLookupMixin(MixinCompatible):
         """Perform full branch analysis at one parameter point in bare-energy order.
 
         Following Dumas et al. (2024), this labels a few eigenstates with the
-        lowest bare energies. It is particularly useful when the Hilbert space
-        is too large and not all the eigenstates need to be labeled.
+        lowest bare energies. Particularly useful when the Hilbert space is
+        too large for every eigenstate to be labeled.
 
-        In the bare energy ordering for branch analysis, the way to obtain the
-        excited dressed states
-        is ambiguous, e.g. |21> can be excited from |11> or |20>. So we need the
-        user to input `subsys_priority` to specify the path / branch to be taken.
-        It specifies the order of the subsystems to be excited, the last subsystem
-        in the list will be excited if possible.
+        In bare-energy ordering, the way to obtain excited dressed states is
+        ambiguous: e.g., ``|21>`` may be excited from ``|11>`` or ``|20>``. The
+        user must therefore supply ``subsys_priority`` to specify the
+        path/branch taken. It gives the order in which subsystems are excited;
+        the last subsystem in the list is excited if possible.
 
         Parameters
         ----------
         param_indices:
-            the indices of the parameter sweep to be analyzed.
+            indices of the parameter sweep to be analyzed.
         subsys_priority:
             a permutation of the subsystem indices and bare labels. If
-            it is provided, lexical ordering is performed on the permuted labels.
-            A "branch" is defined as a series of eigenstates formed by putting
-            excitations into the last subsystem in the list.
+            provided, lexical ordering is performed on the permuted labels. A
+            "branch" is a series of eigenstates formed by putting excitations
+            into the last subsystem in the list.
         BEs_count:
-            the number of states to be assigned. If None, all available eigenstates
-            will be assigned.
+            number of states to be assigned. If ``None``, all available
+            eigenstates are assigned.
         source_maj_vote:
-            if True, the branch will be determined by majority vote of the
-            potential candidates. It is purely an internal knob to test the
-            behavior of the branch analysis. It overrides mode_priority.
+            if ``True``, the branch is determined by majority vote of the
+            candidates. Internal knob for testing branch-analysis behavior;
+            overrides ``subsys_priority``.
 
         Returns
         -------
-        the multi-dimensional array of the dressed indices
+        Multi-dimensional array of dressed indices.
         """
         hspace = self.hilbertspace
         dims = hspace.subsystem_dims
@@ -1075,12 +1059,12 @@ class SpectrumLookupMixin(MixinCompatible):
         Two ordering methods for the labeling are provided:
 
         - Lexical (``ordering="LX"``): traverse the bare states in
-          `lexical order`_, and perform the branch analysis generalized from
+          `lexical order`_ and perform the branch analysis generalized from
           Dumas et al. (2024).
-        - Bare Energy (``ordering="BE"``): traverse the bare states in the order
-          of their energy before coupling and perform label assignment. This is
-          particularly useful when the Hilbert space is too large and not all
-          the eigenstates need to be labeled.
+        - Bare Energy (``ordering="BE"``): traverse the bare states in order
+          of their energy before coupling and perform label assignment.
+          Particularly useful when the Hilbert space is too large for every
+          eigenstate to be labeled.
 
         Parameters
         ----------

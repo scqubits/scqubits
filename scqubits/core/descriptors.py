@@ -27,7 +27,7 @@ class ReadOnlyProperty(Generic[TargetType]):
     Parameters
     ----------
     target_type:
-        type of the underlying property
+        type of the underlying property.
     """
 
     def __init__(self, target_type: Type[TargetType]):
@@ -39,62 +39,62 @@ class ReadOnlyProperty(Generic[TargetType]):
         Parameters
         ----------
         owner:
-            class on which the descriptor is being assigned
+            class on which the descriptor is being assigned.
         name:
-            attribute name under which the descriptor is being assigned
+            attribute name under which the descriptor is being assigned.
         """
         self.name = f"_{name}"
 
     def __get__(self, instance: Any, *args, **kwargs) -> TargetType:
         """Return the value stored under ``self.name`` on ``instance``.
 
-        When accessed on the class itself (``instance`` is ``None``), returns
+        When accessed on the class itself (``instance`` is ``None``), return
         the descriptor object.
 
         Parameters
         ----------
         instance:
-            owning instance, or ``None`` if accessed on the class
+            owning instance, or ``None`` if accessed on the class.
         """
         if instance is None:  # when accessed on class level rather than instance level
             return self  # type: ignore[return-value]
         return instance.__dict__[self.name]
 
     def __set__(self, instance: Any, value: Any):
-        """Always raises :exc:`AttributeError`; this property is read-only.
+        """Always raise :exc:`AttributeError`; this property is read-only.
 
         Parameters
         ----------
         instance:
-            owning instance
+            owning instance.
         value:
-            value attempted to be assigned
+            value attempted to be assigned.
         """
         raise AttributeError("Property is for reading only, cannot assign to it.")
 
 
 class WatchedProperty(Generic[TargetType]):
-    """Descriptor class for properties that are monitored for changes.
+    """Descriptor for properties that are monitored for changes.
 
-    Upon change of the value, the instance class invokes its ``broadcast()``
-    method to send the appropriate event notification to
+    On a value change, the owning instance invokes its ``broadcast()`` method
+    to send the corresponding event notification to
     :class:`~scqubits.core.central_dispatch.CentralDispatch`.
 
     Parameters
     ----------
     target_type:
-        type of watched property
+        type of the watched property.
     event:
-        name of event to be triggered when property is changed
+        name of the event triggered when the property changes.
     inner_object_name:
-        used, e.g., in ``FullZeroPi`` where an inner-object property is to be set
+        used, e.g., in ``FullZeroPi`` where an inner-object property is to be set.
     attr_name:
-        custom attribute name to be used (default: name from defining property
-        in instance class, obtained in ``__set_name__``)
+        custom attribute name to be used (default: name from the defining
+        property in the instance class, obtained in ``__set_name__``).
     fget:
-        optional custom getter callable
+        optional custom getter callable.
     fset:
-        optional custom setter callable
+        optional custom setter callable.
     """
 
     def __init__(
@@ -118,9 +118,9 @@ class WatchedProperty(Generic[TargetType]):
         Parameters
         ----------
         owner:
-            class on which the descriptor is being assigned
+            class on which the descriptor is being assigned.
         name:
-            attribute name under which the descriptor is being assigned
+            attribute name under which the descriptor is being assigned.
         """
         self.name = name
         self.attr_name = self.attr_name or name
@@ -128,15 +128,15 @@ class WatchedProperty(Generic[TargetType]):
     def __get__(self, instance: object, owner: Any) -> TargetType:
         """Return the watched value, dispatching through ``fget``/``inner`` as needed.
 
-        When accessed on the class itself (``instance`` is ``None``), returns
+        When accessed on the class itself (``instance`` is ``None``), return
         the descriptor object.
 
         Parameters
         ----------
         instance:
-            owning instance, or ``None`` if accessed on the class
+            owning instance, or ``None`` if accessed on the class.
         owner:
-            class on which the descriptor is defined
+            class on which the descriptor is defined.
         """
         if instance is None:  # when accessed on class level rather than instance level
             return self  # type: ignore[return-value]
@@ -162,9 +162,9 @@ class WatchedProperty(Generic[TargetType]):
         Parameters
         ----------
         instance:
-            owning instance
+            owning instance.
         value:
-            new value for the watched property
+            new value for the watched property.
         """
         if self.inner and self.attr_name:
             inner_instance = instance.__dict__[self.inner]

@@ -71,19 +71,21 @@ def has_duplicate_id_str(subsystem_list: list[QuantumSys]) -> bool:
 class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     """Specify a term in the interaction Hamiltonian of a composite Hilbert space.
 
-    Constructs the Hamiltonian in :class:`qutip.Qobj` format.
-    The expected form of the interaction term is of two possible types:
-    1. V = g A B C ..., where A, B, C... are Hermitian operators in subsystems in
-    subsystem_list, 2. V = g A B C... + h.c., where A, B, C... may be non-Hermitian.
+    Constructs the Hamiltonian in :class:`qutip.Qobj` format. The interaction
+    term takes one of two forms:
+
+    1. ``V = g A B C ...``, where ``A, B, C, ...`` are Hermitian operators on
+       subsystems in ``subsystem_list``;
+    2. ``V = g A B C ... + h.c.``, where ``A, B, C, ...`` may be non-Hermitian.
 
     Parameters
     ----------
     g_strength:
         coefficient parametrizing the interaction strength.
     operator_list:
-        list of tuples (subsys_index, operator)
+        list of ``(subsys_index, operator)`` tuples.
     add_hc:
-        If set to True, the interaction Hamiltonian is of type 2, and the Hermitian
+        if ``True``, the interaction Hamiltonian is of type 2 and the Hermitian
         conjugate is added.
     """
 
@@ -137,11 +139,11 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         Parameters
         ----------
         subsystem_list:
-            list of all quantum systems in :class:`HilbertSpace` calling
-            :meth:`hamiltonian`, needed for identity wrapping
+            list of all quantum systems in the :class:`HilbertSpace` calling
+            :meth:`hamiltonian`; needed for identity wrapping.
         bare_esys:
-            optionally, the bare eigensystems for each subsystem can be provided to
-            speed up computation; these are provided in dict form via <subsys>: esys)
+            optional precomputed bare eigensystems for each subsystem, supplied as
+            a dict ``{subsys_index: esys}``; speeds up computation when available.
 
         Returns
         -------
@@ -165,18 +167,18 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     ) -> list[qt.Qobj]:
         """Return identity-wrapped operators, one per entry in ``operator_list``.
 
-        Note: at this point, any callable operator is actually evaluated.
+        Any callable operator in ``operator_list`` is evaluated here.
 
         Parameters
         ----------
         operator_list:
-            list of tuples (subsys_index, operator)
+            list of ``(subsys_index, operator)`` tuples.
         subsystem_list:
-            list of all quantum systems in :class:`HilbertSpace` calling
-            :meth:`hamiltonian`, needed for identity wrapping
+            list of all quantum systems in the :class:`HilbertSpace` calling
+            :meth:`hamiltonian`; needed for identity wrapping.
         bare_esys:
-            optionally, the bare eigensystems for each subsystem can be provided to
-            speed up computation; these are provided in dict form via <subsys>: esys)
+            optional precomputed bare eigensystems for each subsystem, supplied as
+            a dict ``{subsys_index: esys}``; speeds up computation when available.
 
         Returns
         -------
@@ -215,20 +217,20 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
 class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
     """Specify a term in the interaction Hamiltonian via a string expression.
 
-    Constructs the Hamiltonian in :class:`qutip.Qobj` format.
-    The form of the interaction is defined using the expr string. Each operator must be
-    hermitian, unless add_hc = True in which case each operator my be non-hermitian.
-    Acceptable functions inside of expr string include: cos(), sin(),
-    dag(), conj(), exp(), sqrt(), trans(), cosm(), sinm(), expm(), and sqrtm() along
-    with other operators allowed in Python expressions.
+    Constructs the Hamiltonian in :class:`qutip.Qobj` format. The interaction
+    is defined by the ``expr`` string. Each operator must be Hermitian, unless
+    ``add_hc=True``, in which case each operator may be non-Hermitian.
+    Functions usable inside ``expr`` include ``cos()``, ``sin()``, ``dag()``,
+    ``conj()``, ``exp()``, ``sqrt()``, ``trans()``, ``cosm()``, ``sinm()``,
+    ``expm()``, and ``sqrtm()``, along with other operators allowed in Python
+    expressions.
 
     Parameters
     ----------
     expr:
         string that defines the interaction.
     operator_list:
-        list of tuples of operator names, operators, and subsystem indices
-        eg. {name: (operator, subsystem)}.
+        list of ``(subsys_index, name, operator)`` tuples.
     id_wrapped_operator_list:
         optional list of ``(name, callable)`` pairs supplying operators that are
         already identity-wrapped on the full Hilbert space; the callable is invoked
@@ -237,7 +239,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         optional mapping of constant names to numerical or qubit-valued constants
         that may be referenced inside ``expr``.
     add_hc:
-        If set to True, the interaction Hamiltonian is of type 2, and the Hermitian
+        if ``True``, the interaction Hamiltonian is of type 2 and the Hermitian
         conjugate is added.
     """
 
@@ -345,11 +347,11 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         Parameters
         ----------
         subsys_list:
-            list of all quantum systems in :class:`HilbertSpace`, needed for
+            list of all quantum systems in the :class:`HilbertSpace`; needed for
             identity wrapping.
         bare_esys:
-            optionally, the bare eigensystems for each subsystem can be provided to
-            speed up computation; these are provided in dict form via <subsys>: esys.
+            optional precomputed bare eigensystems for each subsystem, supplied as
+            a dict ``{subsys_index: esys}``; speeds up computation when available.
         """
         idwrapped_ops_by_name = {}
         for subsys_index, name, op in self.operator_list:
@@ -376,11 +378,11 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         Parameters
         ----------
         subsystem_list:
-            list of all quantum systems in :class:`HilbertSpace` calling
-            :meth:`hamiltonian`, needed for identity wrapping
+            list of all quantum systems in the :class:`HilbertSpace` calling
+            :meth:`hamiltonian`; needed for identity wrapping.
         bare_esys:
-            optionally, the bare eigensystems for each subsystem can be provided to
-            speed up computation; these are provided in dict form via <subsys>: esys)
+            optional precomputed bare eigensystems for each subsystem, supplied as
+            a dict ``{subsys_index: esys}``; speeds up computation when available.
         """
         idwrapped_ops_by_name = self.id_wrap_all_ops(
             subsystem_list, bare_esys=bare_esys
@@ -403,34 +405,33 @@ class HilbertSpace(
 ):
     """Composite Hilbert space assembled from one or more subsystems.
 
-    The class provides methods to turn subsystem operators into operators acting on
-    the full Hilbert space, and establishes the interface to qutip. Returned
-    operators are of the :class:`qutip.Qobj` type. The class also provides methods
-    for obtaining eigenvalues, absorption and emission spectra as a function of an
+    Provides methods that lift subsystem operators to operators acting on the
+    full Hilbert space and establishes the interface to qutip; returned
+    operators are of the :class:`qutip.Qobj` type. Also provides methods for
+    obtaining eigenvalues and absorption/emission spectra as a function of an
     external parameter.
 
     Parameters
     ----------
     subsystem_list:
-        list of all quantum systems comprising the composite Hilbert space
+        list of all quantum systems comprising the composite Hilbert space.
     interaction_list:
-        (optional) typically, interaction terms are added one by one by means of the
-        :meth:`add_interaction` method. Alternatively, a list of interaction term
-        objects can be supplied here upon initialization of a :class:`HilbertSpace`
-        instance.
+        optional list of interaction-term objects supplied at initialization.
+        Typically, interaction terms are added one by one via
+        :meth:`add_interaction` instead.
     ignore_low_overlap:
-        if set to False (default), bare product states and dressed eigenstates are
+        if ``False`` (default), bare product states and dressed eigenstates are
         identified only when their overlap exceeds the threshold set in
-        ``settings.OVERLAP_THRESHOLD``; if True, identification always proceeds via
-        the bare product state with the maximum overlap.
+        ``settings.OVERLAP_THRESHOLD``; if ``True``, identification always
+        proceeds via the bare product state with the maximum overlap.
     esys_method:
-        method for esys diagonalization, callable or string representation
+        method for esys diagonalization; callable or string representation.
     esys_method_options:
-        dictionary with esys diagonalization options
+        dictionary with esys diagonalization options.
     evals_method:
-        method for evals diagonalization, callable or string representation
+        method for evals diagonalization; callable or string representation.
     evals_method_options:
-        dictionary with evals diagonalization options
+        dictionary with evals diagonalization options.
     """
 
     _lookup_exists = False
@@ -689,17 +690,17 @@ class HilbertSpace(
 
     @property
     def subsystem_dims(self) -> list[int]:
-        """Returns list of the Hilbert space dimensions of each subsystem."""
+        """Return the list of Hilbert space dimensions of each subsystem."""
         return [subsystem.truncated_dim for subsystem in self]
 
     @property
     def dimension(self) -> int:
-        """Returns total dimension of joint Hilbert space."""
+        """Return the total dimension of the joint Hilbert space."""
         return np.prod(np.asarray(self.subsystem_dims)).item()
 
     @property
     def subsystem_count(self) -> int:
-        """Returns number of subsystems composing the joint Hilbert space."""
+        """Return the number of subsystems composing the joint Hilbert space."""
         return len(self._subsystems)
 
     ###################################################################################
@@ -716,16 +717,17 @@ class HilbertSpace(
 
         The labeling uses one of the following methods:
 
-        - Dressed Energy (``ordering="DE"``): traverse the eigenstates
-          in the order of their dressed energy, and find the corresponding bare
-          state label by overlaps (default)
-        - Lexical (``ordering="LX"``): traverse the bare states in lexical order
-          (see https://en.wikipedia.org/wiki/Lexicographic_order#Cartesian_products),
+        - Dressed Energy (``ordering="DE"``): traverse the eigenstates in
+          order of their dressed energy and find the corresponding bare state
+          label by overlaps (default).
+        - Lexical (``ordering="LX"``): traverse the bare states in lexical
+          order (see
+          https://en.wikipedia.org/wiki/Lexicographic_order#Cartesian_products)
           and perform the branch analysis generalized from Dumas et al. (2024).
-        - Bare Energy (``ordering="BE"``): traverse the bare states in the order of
-          their energy before coupling and perform label assignment. This is
-          particularly useful when the Hilbert space is too large and not all the
-          eigenstates need to be labeled.
+        - Bare Energy (``ordering="BE"``): traverse the bare states in order
+          of their energy before coupling and perform label assignment.
+          Particularly useful when the Hilbert space is too large for every
+          eigenstate to be labeled.
 
         Parameters
         ----------
@@ -735,13 +737,13 @@ class HilbertSpace(
             - "LX": Lexical ordering
             - "BE": Bare Energy
         subsys_priority:
-            a permutation of the subsystem indices and bare labels. If it is provided,
-            lexical ordering is performed on the permuted labels. A "branch" is defined
-            as a series of eigenstates formed by putting excitations into the last
-            subsystem in the list.
+            a permutation of the subsystem indices and bare labels. If
+            provided, lexical ordering is performed on the permuted labels. A
+            "branch" is a series of eigenstates formed by putting excitations
+            into the last subsystem in the list.
         BEs_count:
-            the number of eigenstates to be assigned, for "BE" scheme only. If None,
-            all eigenstates will be generated and labeled.
+            number of eigenstates to be assigned (``"BE"`` scheme only). If
+            ``None``, all eigenstates will be generated and labeled.
         update_subsystem_indices:
             optional list of subsystem indices whose bare eigensystems should be
             recomputed; subsystems not listed reuse cached bare data. If ``None``,
@@ -749,12 +751,12 @@ class HilbertSpace(
 
         Returns
         -------
-        a :class:`NamedSlotsNdarray` object containing the branch analysis results
-        organized by the parameter indices.
-        For each parameter point, a flattened multi-dimensional array
-        is stored, representing the dressed indices organized by the
-        bare indices. E.g. if the dimensions of the subsystems are D0, D1 and D2,
-        the returned array will be ravelled from the shape (D0, D1, D2).
+        a :class:`NamedSlotsNdarray` object containing the branch-analysis results
+        organized by the parameter indices. For each parameter point, a flattened
+        multi-dimensional array is stored, representing the dressed indices
+        organized by the bare indices. E.g., if the subsystem dimensions are
+        ``D0, D1, D2``, the returned array is ravelled from shape
+        ``(D0, D1, D2)``.
         """
         self._lookup_exists = True
         bare_esys_dict = self.generate_bare_esys(
@@ -862,10 +864,10 @@ class HilbertSpace(
         Parameters
         ----------
         evals_count:
-            number of desired eigenvalues/eigenstates
+            number of desired eigenvalues/eigenstates.
         bare_esys:
-            optionally, the bare eigensystems for each subsystem can be provided to
-            speed up computation; these are provided in dict form via <subsys>: esys
+            optional precomputed bare eigensystems for each subsystem, supplied as
+            a dict ``{subsys_index: esys}``; speeds up computation when available.
         """
         # hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
         # return hamiltonian_mat.eigenenergies(eigvals=evals_count)
@@ -904,10 +906,10 @@ class HilbertSpace(
         Parameters
         ----------
         evals_count:
-            number of desired eigenvalues/eigenstates
+            number of desired eigenvalues/eigenstates.
         bare_esys:
-            optionally, the bare eigensystems for each subsystem can be provided to
-            speed up computation; these are provided in dict form via <subsys>: esys
+            optional precomputed bare eigensystems for each subsystem, supplied as
+            a dict ``{subsys_index: esys}``; speeds up computation when available.
 
         Returns
         -------
@@ -995,8 +997,8 @@ class HilbertSpace(
         Parameters
         ----------
         bare_esys:
-            optionally, the bare eigensystems for each subsystem can be provided to
-            speed up computation; these are provided in dict form via <subsys>: esys
+            optional precomputed bare eigensystems for each subsystem, supplied as
+            a dict ``{subsys_index: esys}``; speeds up computation when available.
 
         Returns
         -------
@@ -1013,8 +1015,8 @@ class HilbertSpace(
         Parameters
         ----------
         bare_esys:
-            optionally, the bare eigensystems for each subsystem can be provided to
-            speed up computation; these are provided in dict form via <subsys>: esys
+            optional precomputed bare eigensystems for each subsystem, supplied as
+            a dict ``{subsys_index: esys}``; speeds up computation when available.
 
         Returns
         -------
@@ -1042,8 +1044,8 @@ class HilbertSpace(
         Parameters
         ----------
         bare_esys:
-            optionally, the bare eigensystems for each subsystem can be provided to
-            speed up computation; these are provided in dict form via <subsys>: esys
+            optional precomputed bare eigensystems for each subsystem, supplied as
+            a dict ``{subsys_index: esys}``; speeds up computation when available.
 
         Returns
         -------
@@ -1079,10 +1081,9 @@ class HilbertSpace(
         Parameters
         ----------
         subsystem:
-            Subsystem for which the Hamiltonian is to be provided.
+            subsystem for which the Hamiltonian is to be provided.
         evals:
-            Eigenenergies can be provided as ``evals``; otherwise, they are
-            calculated.
+            precomputed eigenenergies; if ``None``, they are calculated.
         """
         evals_count = subsystem.truncated_dim
 
@@ -1100,16 +1101,16 @@ class HilbertSpace(
     def diag_operator(self, diag_elements: ndarray, subsystem: QuantumSys) -> qt.Qobj:
         """Return the identity-wrapped diagonal operator for the full Hilbert space.
 
-        For given diagonal elements of a diagonal operator in ``subsystem``, returns
-        the :class:`qutip.Qobj` operator for the full Hilbert space (performing
-        wrapping in identities for other subsystems).
+        Given the diagonal elements of a diagonal operator on ``subsystem``,
+        returns the :class:`qutip.Qobj` operator on the full Hilbert space,
+        wrapping in identities on the other subsystems.
 
         Parameters
         ----------
         diag_elements:
-            diagonal elements of subsystem diagonal operator
+            diagonal elements of the subsystem diagonal operator.
         subsystem:
-            subsystem where diagonal operator is defined
+            subsystem on which the diagonal operator is defined.
         """
         dim = subsystem.truncated_dim
         index = range(dim)
@@ -1129,7 +1130,7 @@ class HilbertSpace(
         k:
             column eigenstate index for the Hubbard operator.
         subsystem:
-            subsystem in which Hubbard operator acts
+            subsystem on which the Hubbard operator acts.
         """
         dim = subsystem.truncated_dim
         operator = qt.states.basis(dim, j) * qt.states.basis(dim, k).dag()
@@ -1143,7 +1144,7 @@ class HilbertSpace(
         Parameters
         ----------
         subsystem:
-            specifies subsystem in which annihilation operator acts
+            subsystem on which the annihilation operator acts.
         """
         dim = subsystem.truncated_dim
         operator = qt.destroy(dim)
@@ -1165,30 +1166,28 @@ class HilbertSpace(
     ) -> SpectrumData:
         """Return the full-Hamiltonian spectrum as a function of an external param.
 
-        Parameter values are specified as a list or array in ``param_vals``. The
-        Hamiltonian ``hamiltonian_func`` must be a function of that particular
-        parameter, and is expected to internally set subsystem parameters. If a
-        ``filename`` string is provided, then eigenvalue data is written to that
-        file.
+        Parameter values are specified as a list or array in ``param_vals``.
+        The callback ``update_hilbertspace`` is invoked at each parameter value
+        and is expected to set the subsystem parameters accordingly.
 
         Parameters
         ----------
         param_vals:
-            array of parameter values
+            array of parameter values.
         update_hilbertspace:
-            update_hilbertspace(param_val) specifies how a change in the external
-            parameter affects the Hilbert space components
+            ``update_hilbertspace(param_val)`` specifies how a change in the
+            external parameter affects the Hilbert-space components.
         evals_count:
-            number of desired energy levels (default: 10)
+            number of desired energy levels (default: 10).
         get_eigenstates:
-            set to true if eigenstates should be returned as well
-            (default: False)
+            if ``True``, eigenstates are returned alongside eigenvalues
+            (default: ``False``).
         param_name:
-            name for the parameter that is varied in `param_vals`
-            (default: "external_parameter")
+            name for the parameter that is varied in ``param_vals``
+            (default: ``"external_parameter"``).
         num_cpus:
-            number of cores to be used for computation
-            (default: settings.NUM_CPUS)
+            number of cores to use for computation (default:
+            ``settings.NUM_CPUS``).
         """
         num_cpus = num_cpus or settings.NUM_CPUS
         target_map = cpu_switch.get_map_method(num_cpus)
@@ -1269,11 +1268,10 @@ class HilbertSpace(
         subsystem.)
 
         The returned operator should not retain memory of the Hilbert-space sizes
-        of the underlying subsystems, thus we modify the dims of the returned
-        operator. ``truncated_dim`` should be set to the cutoff Hilbert-space size
-        of the dressed system: if it is set to the default value ``None``, no cutoff
-        of the resulting operator is made but the dims of the resulting
-        :class:`qutip.Qobj` will be ``[[dimension], [dimension]]``.
+        of the underlying subsystems, so the ``dims`` of the returned operator are
+        flattened. ``truncated_dim`` sets the cutoff Hilbert-space size of the
+        dressed system; if left at ``None`` (default), no cutoff is applied and
+        the resulting :class:`qutip.Qobj` has ``dims=[[dimension], [dimension]]``.
 
         :meth:`op_in_dressed_eigenbasis` offers two different interfaces:
 
@@ -1387,9 +1385,8 @@ class HilbertSpace(
         Parameters
         ----------
         check_validity:
-            optional bool indicating whether to check the validity of the
-            interaction; switch this off for speed if you are sure the interaction
-            is valid
+            whether to check the validity of the interaction; switch off for
+            speed if you are sure the interaction is valid.
         id_str:
             optional string by which this instance can be referred to in
             :class:`HilbertSpace` and :class:`scqubits.ParameterSweep`. If not
