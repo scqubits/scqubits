@@ -24,7 +24,7 @@ Related repo: C:\Users\drjen\coding\scqubits-doc\
 
 ## Code standards
 - PEP 8, NumPy docstrings, type hints on all public methods
-- Python 3.9-3.12
+- Python 3.10-3.12
 
 ## Critical rules
 - Do NOT change public API signatures without flagging it
@@ -46,8 +46,7 @@ Related repo: C:\Users\drjen\coding\scqubits-doc\
 
    ## Goal
    Add and correct type annotations across scqubits, verified by mypy.
-   For this project, assume that we will support Python 3.10 and upwards
-   (dropping 3.9 from being supported).
+   This project supports Python 3.10 and upwards (3.9 has been dropped).
 
    ## Scope rules
    - **Never change runtime behavior.** Annotations only. No refactors, no
