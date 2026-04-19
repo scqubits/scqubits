@@ -271,10 +271,9 @@ def parse_code_line(code_line: str, _branch_count: int):
 
     Returns
     -------
-    A tuple ``(branch_type, node_idx1, node_idx2, params, aux_params,
-    _branch_count)`` containing the branch type string, the two node indices,
-    the list of branch parameter results, the auxiliary-parameter parse
-    results, and the branch count passed in.
+    A tuple containing the branch type string, the two node indices, the list
+    of branch parameter results, the auxiliary-parameter parse results, and
+    the branch count passed in.
     """
     pp_result = BRANCHES.parse_string(code_line)
     branch_type = pp_result.BRANCH_TYPE[0]

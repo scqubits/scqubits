@@ -623,8 +623,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         Returns
         -------
         Hamiltonian in chosen basis as ndarray. In the energy eigenbasis (with
-        ``energy_esys=True``), the Hamiltonian has dimensions ``truncated_dim x
-        truncated_dim``; if an eigensystem is supplied via ``energy_esys=esys``,
+        ``energy_esys=True``), the Hamiltonian has dimensions
+        ``truncated_dim x truncated_dim``; if an eigensystem is supplied via
+        ``energy_esys=esys``,
         the Hamiltonian has dimensions ``m x m`` for ``m`` given eigenvectors.
         """
         hamiltonian_mat = self.kineticmat() + self.potentialmat()
@@ -651,8 +652,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         Returns
         -------
         Operator in chosen basis as ndarray. In the energy eigenbasis (with
-        ``energy_esys=True``), the operator has dimensions ``truncated_dim x
-        truncated_dim``; if an eigensystem is supplied via ``energy_esys=esys``,
+        ``energy_esys=True``), the operator has dimensions
+        ``truncated_dim x truncated_dim``; if an eigensystem is supplied via
+        ``energy_esys=esys``,
         the operator has dimensions ``m x m`` for ``m`` given eigenvectors.
         """
         native = -0.5 * np.kron(
@@ -679,8 +681,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         Returns
         -------
         Operator in chosen basis as ndarray. In the energy eigenbasis (with
-        ``energy_esys=True``), the operator has dimensions ``truncated_dim x
-        truncated_dim``; if an eigensystem is supplied via ``energy_esys=esys``,
+        ``energy_esys=True``), the operator has dimensions
+        ``truncated_dim x truncated_dim``; if an eigensystem is supplied via
+        ``energy_esys=esys``,
         the operator has dimensions ``m x m`` for ``m`` given eigenvectors.
         """
         native = -0.5 * np.kron(
@@ -707,8 +710,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         Returns
         -------
         Operator in chosen basis as ndarray. In the energy eigenbasis (with
-        ``energy_esys=True``), the operator has dimensions ``truncated_dim x
-        truncated_dim``; if an eigensystem is supplied via ``energy_esys=esys``,
+        ``energy_esys=True``), the operator has dimensions
+        ``truncated_dim x truncated_dim``; if an eigensystem is supplied via
+        ``energy_esys=esys``,
         the operator has dimensions ``m x m`` for ``m`` given eigenvectors.
         """
         native = (
@@ -745,8 +749,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         Returns
         -------
         Operator in chosen basis as ndarray. In the energy eigenbasis (with
-        ``energy_esys=True``), the operator has dimensions ``truncated_dim x
-        truncated_dim``; if an eigensystem is supplied via ``energy_esys=esys``,
+        ``energy_esys=True``), the operator has dimensions
+        ``truncated_dim x truncated_dim``; if an eigensystem is supplied via
+        ``energy_esys=esys``,
         the operator has dimensions ``m x m`` for ``m`` given eigenvectors.
         """
         native = (
