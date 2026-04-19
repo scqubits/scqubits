@@ -179,8 +179,10 @@ class CircuitSymMethods(ABC):
     def _constants_in_subsys(
         self, H_sys: sm.Expr, constants_list: list[sm.Expr]
     ) -> list[sm.Expr]:
-        """Return the constants from ``constants_list`` belonging to the subsystem
-        with Hamiltonian ``H_sys``.
+        """Return the constants of ``constants_list`` belonging to a subsystem.
+
+        A constant belongs to the subsystem with Hamiltonian ``H_sys`` if all of
+        its free symbols also appear in ``H_sys``.
 
         Parameters
         ----------
@@ -505,6 +507,21 @@ class CircuitSymMethods(ABC):
         return (subsys, operator)
 
     def _combine_factors(self, factor_op_list, bare_esys):
+        """Combine per-subsystem operator factors into a flat operator list.
+
+        Operators tagged with the same parent subsystem are multiplied together
+        and identity-wrapped via :meth:`identity_wrap_for_hd`; standalone
+        operators pass through unchanged.
+
+        Parameters
+        ----------
+        factor_op_list:
+            list whose entries are either operators or
+            ``(subsystem, operator)`` tuples
+        bare_esys:
+            optional cached bare eigensystem data forwarded to identity-wrap
+            calls
+        """
         operators_per_subsys = {}
         operator_list = []
         for factor_op in factor_op_list:
@@ -527,6 +544,17 @@ class CircuitSymMethods(ABC):
         return operator_list
 
     def _shift_harmonic_oscillator_potential(self, hamiltonian: sm.Expr) -> sm.Expr:
+        """Shift extended-variable harmonic-oscillator potentials to flux minima.
+
+        Solves the linear system that eliminates the linear-in-coordinate
+        terms of `hamiltonian`, then substitutes the resulting flux offsets and
+        rounds residual coefficients via :func:`round_symbolic_expr`.
+
+        Parameters
+        ----------
+        hamiltonian:
+            symbolic Hamiltonian (after parameter substitution) to shift
+        """
         # shifting the harmonic oscillator potential to the point of external fluxes
         flux_shift_vars = {}
         for var_index in self.var_categories["extended"]:
@@ -571,6 +599,12 @@ class CircuitSymMethods(ABC):
         # * ##########################################################################
 
     def _generate_sym_potential(self):
+        """Return the symbolic potential extracted from the symbolic Hamiltonian.
+
+        Sums the terms identified by :func:`is_potential_term` and rewrites
+        ``cosθi`` / ``sinθi`` placeholder symbols into proper sympy ``cos`` /
+        ``sin`` expressions on the dynamic variables.
+        """
         # and bringing the potential into the same form as for the class Circuit
         potential_symbolic = 0 * sm.symbols("x")
         for term in self.hamiltonian_symbolic.as_ordered_terms():
@@ -587,12 +621,34 @@ class CircuitSymMethods(ABC):
         return potential_symbolic
 
     def _is_mat_mul_replacement_necessary(self, term):
+        """Return ``True`` if `term` mixes extended-variable factors via ``*``.
+
+        Such terms must be rendered with matrix multiplication when the term
+        is later evaluated on numerical operators.
+
+        Parameters
+        ----------
+        term:
+            symbolic Hamiltonian term to inspect
+        """
         return (
             set(self.var_categories["extended"])
             & set([get_trailing_number(str(i)) for i in term.free_symbols])
         ) and "*" in str(term)
 
     def _replace_mat_mul_operator(self, term: sm.Expr):
+        """Render `term` as a string using matrix-multiplication semantics.
+
+        For the discretized basis, ``*`` between charge operators is rewritten
+        as ``@``. For the harmonic basis, ``X**n`` on extended-variable
+        operators becomes ``matrix_power(X, n)`` and remaining inter-operator
+        ``*`` becomes ``@``.
+
+        Parameters
+        ----------
+        term:
+            symbolic Hamiltonian term to render as a Python expression string
+        """
         if not self._is_mat_mul_replacement_necessary(term):
             return str(term)
 
@@ -640,10 +696,22 @@ class CircuitSymMethods(ABC):
         hamiltonian: sm.Expr | None = None,
         return_exprs=False,
     ):
-        """Generates a symbolic expression which is ready for numerical evaluation
-        starting from the expression stored in the attribute :attr:`Circuit.hamiltonian_symbolic`.
+        """Generate a numerics-ready symbolic Hamiltonian.
 
-        Stores the result in the attribute :attr:`Circuit._hamiltonian_sym_for_numerics`.
+        Substitutes identity placeholders for external fluxes / offset charges
+        and (in the discretized basis) marks squared momentum operators ``Q**2``
+        as ``Qs``. Stores the result in
+        :attr:`Circuit._hamiltonian_sym_for_numerics` unless ``return_exprs`` is
+        ``True``, in which case ``(hamiltonian, cos_terms)`` is returned.
+
+        Parameters
+        ----------
+        hamiltonian:
+            symbolic Hamiltonian to process; defaults to
+            ``self.hamiltonian_symbolic.expand()``
+        return_exprs:
+            if ``True``, return ``(hamiltonian, cos_terms)`` instead of mutating
+            instance attributes
         """
 
         hamiltonian = hamiltonian or (
@@ -678,8 +746,17 @@ class CircuitSymMethods(ABC):
         setattr(self, "junction_potential", cos_terms)
 
     def _get_eval_hamiltonian_string(self, H: sm.Expr) -> str:
-        """Returns the string which defines the expression for Hamiltonian in harmonic
-        oscillator basis."""
+        """Return the Python expression string for the Hamiltonian in the chosen basis.
+
+        Each operator symbol is rewritten as a call to its ``_operator()``
+        accessor and matrix multiplication is expressed via ``@`` per
+        :meth:`_replace_mat_mul_operator`.
+
+        Parameters
+        ----------
+        H:
+            symbolic Hamiltonian to render
+        """
         expr_dict = H.as_coefficients_dict()
         # removing zero terms
         expr_dict = {key: expr_dict[key] for key in expr_dict if expr_dict[key] != 0}
@@ -721,6 +798,22 @@ class CircuitSymMethods(ABC):
         free_var_func_dict: dict[str, Callable],
         lambdify_func: Callable,
     ) -> Callable:
+        """Build a ``parameter_func(t, args)`` for time-dependent qutip terms.
+
+        Each free symbol of ``parameter_expr`` is evaluated via the matching
+        callable in ``free_var_func_dict``, and the resulting numerical values
+        are passed to ``lambdify_func`` to produce the scalar coefficient at
+        time ``t``.
+
+        Parameters
+        ----------
+        parameter_expr:
+            symbolic expression for the time-dependent coefficient
+        free_var_func_dict:
+            mapping from free-symbol name to a ``(t, args) -> float`` callable
+        lambdify_func:
+            sympy-lambdified evaluator for ``parameter_expr``
+        """
         def parameter_func(t, args):
             return lambdify_func(
                 *[
@@ -740,28 +833,41 @@ class CircuitSymMethods(ABC):
     ) -> tuple[
         list[qt.Qobj | tuple[qt.Qobj, Callable]], sm.Expr, dict[qt.Qobj, sm.Expr]
     ]:
-        """
-        Returns the Hamiltonian in a format amenable to be forwarded to mesolve in Qutip. Also returns the symbolic expressions of time independent and time dependent terms of the Hamiltonian, which can be used for reference. `free_var_func_dict` is a dictionary with key-value pair `{"var": f}`, where `f` is a function returning the value of the variable `var` at time `t`. If one has extra terms to be added to the Hamiltonian (for instance, charge driving a fluxonium where there is no offset charge) they can be passed as a string in `extra_terms`.
-        For example, to get the Hamiltonian for a circuit where Φ1 is the time varying parameter, this method can be called in the following way::
+        r"""Return the Hamiltonian in a format suitable for ``qutip.mesolve``.
+
+        Splits the Hamiltonian into time-independent and time-dependent
+        contributions. Each free symbol of ``free_var_func_dict`` is treated
+        as a time-varying parameter; remaining terms are collected into the
+        fixed part. Optional ``extra_terms`` are added before splitting (useful
+        e.g. for charge drives on a fluxonium without offset charge).
+
+        Example::
 
             def flux_t(t, args):
-                return 0.5 + 0.02*np.sin(t*2)
-            def ng_t(t, args):
-                return 0.5 + 0.02*np.cos(t*2)
-            def EJ_t(t, args):
-                return (1-np.exp(-t/1))*0.2
-            free_var_func_dict = {"Φ1": flux_t, "EJ": EJ_t, "ng": ng_t}
-
-            mesolve_input_H = self.hamiltonian_for_qutip_dynamics(free_var_func_dict, extra_terms="0.1*ng*Q1")
+                return 0.5 + 0.02 * np.sin(t * 2)
+            free_var_func_dict = {"Φ1": flux_t}
+            H = self.hamiltonian_for_qutip_dynamics(
+                free_var_func_dict, extra_terms="0.1*ng*Q1"
+            )
 
         Parameters
         ----------
         free_var_func_dict:
-            Dict, as defined in the description above
+            mapping ``{"var": f}`` where ``f(t, args)`` returns the value of
+            ``var`` at time ``t``
         prefactor:
-            prefactor with which the Hamiltonian and corresponding operators are multiplied, useful to set it to `2*np.pi` for some qutip simulations
+            scalar multiplying the Hamiltonian and time-dependent operators
+            (e.g. set to ``2*np.pi`` for qutip simulations)
         extra_terms:
-            a string which will be converted into sympy expression, containing terms which are not present in the Circuit Hamiltonian. It is useful to define custom drive operators.
+            string parsed by sympy containing extra Hamiltonian terms (useful
+            for custom drive operators)
+
+        Returns
+        -------
+        Tuple ``(H_qutip, fixed_hamiltonian, time_dep_terms)`` where
+        ``H_qutip`` is the qutip-mesolve-style nested list, ``fixed_hamiltonian``
+        is the symbolic time-independent part, and ``time_dep_terms`` is a
+        dict mapping each qutip operator to its symbolic coefficient.
         """
         free_var_names = list(free_var_func_dict.keys())
         free_var_symbols = [sm.symbols(sym_name) for sym_name in free_var_names]
@@ -869,12 +975,14 @@ class CircuitSymMethods(ABC):
             display(Latex(equalities_in_latex))
 
     def __repr__(self) -> str:
-        # string to describe the Circuit
+        """Return the circuit's ``id_str`` as the textual representation."""
         return self._id_str
 
     def _repr_latex_(self):
-        """Describes the Circuit instance, its parameters, and the symbolic
-        Hamiltonian."""
+        """Return a LaTeX/Markdown rendering of the circuit for IPython display.
+
+        Falls back to the plain ``id_str`` if IPython is not available.
+        """
         # string to describe the Circuit
         if not _HAS_IPYTHON:
             return self._id_str

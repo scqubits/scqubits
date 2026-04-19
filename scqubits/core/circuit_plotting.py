@@ -83,7 +83,13 @@ class CircuitPlot(ABC):
             ...
 
         def eigensys(self, evals_count: int = ...) -> tuple[ndarray, ndarray]:
-            """Stub: eigensystem accessor provided by sibling mixin."""
+            """Stub: eigensystem accessor provided by sibling mixin.
+
+            Parameters
+            ----------
+            evals_count:
+                see :meth:`scqubits.core.qubit_base.QubitBaseClass.eigensys`
+            """
             ...
 
     # ****************************************************************
@@ -529,55 +535,47 @@ class CircuitPlot(ABC):
         grids_dict: dict[int, discretization.Grid1d] = {},
         **kwargs,
     ) -> tuple[Figure, Axes]:
-        """Returns the plot of the wavefunction in the requested variables. At most 2
-        numbers of variables for wavefunction can be specified as plotting axis. If the
-        number of plotting variables for wave function is smaller than the number of
-        variables in the circuit, the marginal probability distribution of the state
-        with respect to the specified variables is plotted. This means the norm square
-        of the wave function is integrated over the rest of the variables and is then
-        plotted.
+        """Plot the wavefunction in the requested variables.
+
+        At most two variables may be specified as plotting axes. If the number
+        of plotting variables is smaller than the number of variables in the
+        circuit, the marginal probability distribution (norm-squared wave
+        function integrated over the remaining variables) is plotted instead.
 
         Parameters
         ----------
         which:
             integer to choose which wave function to plot
         mode:
-            "abs", "real", "imag", "abs-sqr" - decides which part of the wave function is plotted,
-            by default "abs-sqr"
+            ``"abs"``, ``"real"``, ``"imag"``, or ``"abs-sqr"`` — selects which
+            part of the wave function is plotted (default: ``"abs-sqr"``)
         var_indices:
-            A tuple containing the indices of the variables chosen to plot the
-            wave function in. It should not have more than 2 entries.
+            tuple containing the indices of the variables chosen as plot axes;
+            should not have more than 2 entries
         esys:
-            The object returned by the method `.eigensys`, is used to avoid the
-            re-evaluation of the eigen systems if already evaluated.
+            object returned by :meth:`eigensys`; used to avoid re-evaluating
+            the eigensystem if already computed
         change_discrete_charge_to_phi:
-            If True, the wave function is plotted in the phi basis for the periodic
-            variables. If False, the wave function is plotted in the charge basis
-            for the periodic variables.
+            if ``True``, plot in the phi basis for periodic variables; if
+            ``False``, plot in the charge basis for periodic variables
         zero_calibrate:
-            if True, colors are adjusted to use zero wavefunction amplitude as the
-            neutral color in the palette
+            if ``True``, colors are adjusted to use zero wavefunction amplitude
+            as the neutral color in the palette
         grids_dict:
-            A dictionary which pairs var indices with the grids used to create
-            the plot. The way to specify the grids is as follows:
-            1. For extended variables, the grids should be of type `discretization.Grid1d`.
-            2. When the discretized phi basis is used for the extended variable, the grids
-            used in the diagonalization is used to plot the wave function instead of
-            the grids specified here.
-            3. For periodic variables, only if `change_discrete_charge_to_phi` is True,
-            the grid specified here will used for plotting. The grid is specified as an integer
-            which is the number of points in the grid. The grid has a minimum and maximum value
-            of -pi and pi respectively.
-            4. If the grid is not specified for a variable that requires a grid for plotting (i.e.
-            extended variable with harmonic oscillator basis, or periodic variable with
-            `change_discrete_charge_to_phi` set to True), the default grid is used.
-
+            dict pairing var indices with the grids used to create the plot.
+            For extended variables, grids should be of type
+            :class:`scqubits.core.discretization.Grid1d`. When the discretized
+            phi basis is used for an extended variable, the diagonalization
+            grid is used instead. For periodic variables, the grid is used
+            only if ``change_discrete_charge_to_phi`` is ``True``, specified as
+            an integer point count over ``[-pi, pi]``. Missing grids fall back
+            to defaults.
         **kwargs:
             plotting parameters
 
         Returns
         -------
-        Returns a axes and figure for further editing.
+        ``(Figure, Axes)`` tuple for further editing.
         """
         if len(var_indices) > 2:
             raise AttributeError(
@@ -636,6 +634,28 @@ class CircuitPlot(ABC):
         zero_calibrate: bool,
         kwargs,
     ) -> tuple[Figure, Axes]:
+        """Render a 2D wavefunction probability density on the supplied grids.
+
+        Internal helper for :meth:`plot_wavefunction` when two variables are
+        chosen as plot axes.
+
+        Parameters
+        ----------
+        wf_plot:
+            2D wavefunction values (real, ``abs``, ``imag``, or ``abs-sqr``)
+        var_indices:
+            tuple of two variable indices selecting the plot axes
+        grids_per_varindex_dict:
+            mapping from variable index to its
+            :class:`scqubits.core.discretization.Grid1d`
+        change_discrete_charge_to_phi:
+            if ``True``, periodic variables are plotted in phi basis
+        zero_calibrate:
+            if ``True``, neutral color in the palette corresponds to zero
+        kwargs:
+            extra keyword arguments forwarded to
+            :func:`scqubits.utils.plotting.wavefunction2d`
+        """
         # check if each variable is periodic
         grids = []
         labels = []
@@ -707,6 +727,28 @@ class CircuitPlot(ABC):
         change_discrete_charge_to_phi: bool,
         kwargs,
     ) -> tuple[Figure, Axes]:
+        """Render a 1D wavefunction (or marginal probability density).
+
+        Internal helper for :meth:`plot_wavefunction` when a single variable
+        is chosen as the plot axis.
+
+        Parameters
+        ----------
+        wf_plot:
+            1D wavefunction values (real, ``abs``, ``imag``, or ``abs-sqr``)
+        mode:
+            ``"abs"``, ``"real"``, ``"imag"``, or ``"abs-sqr"``
+        var_indices:
+            single-element tuple of the variable index selecting the plot axis
+        grids_per_varindex_dict:
+            mapping from variable index to its
+            :class:`scqubits.core.discretization.Grid1d`
+        change_discrete_charge_to_phi:
+            if ``True``, periodic variables are plotted in phi basis
+        kwargs:
+            extra keyword arguments forwarded to the underlying matplotlib
+            plot helper
+        """
         var_index = var_indices[0]
 
         if not change_discrete_charge_to_phi and (
@@ -763,13 +805,16 @@ class CircuitPlot(ABC):
     # ************* Functions for plotting potential *****************
     # ****************************************************************
     def potential_energy(self, **kwargs) -> ndarray:
-        """Returns the full potential of the circuit evaluated in a grid of points as
-        chosen by the user or using default variable ranges.
+        r"""Return the circuit potential evaluated on a user-specified grid.
+
+        If a variable's value is not supplied via ``kwargs``, the current
+        instance attribute (for parameters/external fluxes) or an error (for
+        ``θ<index>`` coordinates) is used.
 
         Parameters
         ----------
         θ<index>:
-            value(s) for variable :math:`\theta_i` in the potential.
+            value(s) for variable :math:`\theta_i` in the potential
         """
         periodic_indices = self.var_categories["periodic"]
         discretized_ext_indices = self.var_categories["extended"]
@@ -829,18 +874,20 @@ class CircuitPlot(ABC):
         return potential_func(*parameters.values())
 
     def plot_potential(self, **kwargs) -> tuple[Figure, Axes]:
-        r"""Returns the plot of the potential for the circuit instance. Make sure to not
-        set more than two variables in the instance.potential to a Numpy array, as the
-        the code cannot plot with more than 3 dimensions.
+        r"""Plot the circuit potential as a function of one or two coordinates.
+
+        At most two ``θ<index>`` variables may be supplied as numpy arrays; any
+        further array argument would require more than three plot dimensions
+        and is rejected.
 
         Parameters
         ----------
         θ<index>:
-            value(s) for the variable :math:`\theta_i` occurring in the potential.
+            value(s) for the variable :math:`\theta_i` occurring in the potential
 
         Returns
         -------
-        Returns a axes and figure for further editing.
+        ``(Figure, Axes)`` tuple for further editing.
         """
 
         periodic_indices = self.var_categories["periodic"]
