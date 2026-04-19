@@ -1356,7 +1356,7 @@ class HilbertSpace(
                 .add_interaction(g=<float>,
                                 op1=(<ndarray>, <QuantumSystem>),
                                 op2=(<csc_matrix>, <QuantumSystem>),
-                                 …,
+                                 ...,
                                 add_hc=<bool>)
 
             Alternatively, specify subsystem operators via callable methods.
@@ -1366,7 +1366,7 @@ class HilbertSpace(
                 .add_interaction(g=<float>,
                                  op1=<Callable>,
                                  op2=<Callable>,
-                                 …,
+                                 ...,
                                  add_hc=<bool>)
         2. String-based interface for more general interaction operator expressions
                 Specify a Python expression that generates the desired operator. The
@@ -1375,7 +1375,7 @@ class HilbertSpace(
                     .add_interaction(expr=<str>,
                                      op1=(<str>, <ndarray>, <subsys>),
                                      op2=(<str>, <Callable>),
-                                     …)
+                                     ...)
         3. General Qobj operator
             Specify a fully identity-wrapped :class:`qutip.Qobj` operator.
             Signature::
