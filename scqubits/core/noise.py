@@ -1301,7 +1301,7 @@ class NoisySystem(ABC):
         esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
         noise_op: ndarray | csc_matrix | qt.Qobj | None = None,
-        branch_params: dict | None = None,
+        branch_params: float | int | None = None,
     ) -> float:
         r""":math:`T_1` due to dielectric dissipation in the Josephson junction capacitances.
 
@@ -1327,7 +1327,7 @@ class NoisySystem(ABC):
         noise_op:
             optional noise operator overriding the default ``self.n_operator()``
         branch_params:
-            optional dict of branch parameters used in place of ``self.EC``
+            scalar capacitive energy used in place of ``self.EC``
 
         Returns
         -------
@@ -1570,7 +1570,7 @@ class NoisySystem(ABC):
         esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
         noise_op: ndarray | csc_matrix | qt.Qobj | None = None,
-        branch_params: dict | None = None,
+        branch_params: float | int | None = None,
     ) -> float:
         r""":math:`T_1` due to inductive dissipation in a superinductor.
 

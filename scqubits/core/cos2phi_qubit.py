@@ -1768,10 +1768,20 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         ndarray of shape :attr:`truncated_dim` x :attr:`truncated_dim` (or
         m x m if a custom ``esys`` with m eigenvectors is supplied).
         """
-        native = (
+        # ng is a scalar; convert to a scaled-identity sparse matrix so the
+        # algebra is well-typed (avoids `sparse - scalar` which scipy's stubs
+        # reject and which is deprecated at runtime in newer scipy versions).
+        # The csc_matrix(...) wrapper on `native` keeps the static return type
+        # consistent with process_op's signature; chained sparse ops otherwise
+        # broaden to _spbase.
+        n_theta = self.n_theta_operator()
+        ng_identity = csc_matrix(
+            self.ng * sparse.identity(n_theta.shape[0], format="csc")
+        )
+        native = csc_matrix(
             4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator()
             - 4
             * self._disordered_ecj()
-            * (self.n_theta_operator() - self.ng - self.n_zeta_operator())
-        )  # type: ignore[operator]
+            * (n_theta - ng_identity - self.n_zeta_operator())
+        )
         return self.process_op(native_op=native, energy_esys=energy_esys)

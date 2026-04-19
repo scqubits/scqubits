@@ -676,8 +676,9 @@ class Circuit(  # type: ignore[misc]
             branch_node_ids = [node.index for node in branch.nodes]
             branch_params_circ = branch.parameters.copy()
             for param in branch_params_circ:
-                if isinstance(branch_params_circ[param], sm.Symbol):
-                    branch_params_circ[param] = branch_params_circ[param].name
+                val = branch_params_circ[param]
+                if isinstance(val, sm.Symbol):
+                    branch_params_circ[param] = val.name
             if node_id_1 not in branch_node_ids or node_id_2 not in branch_node_ids:
                 continue
             if branch.type != branch_type:

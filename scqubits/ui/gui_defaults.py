@@ -21,7 +21,7 @@ from collections.abc import Sequence
 
 try:
     import ipyvuetify as v
-    import ipywidgets  # type: ignore[import-untyped]
+    import ipywidgets
 except ImportError:
     _HAS_IPYVUETIFY = False
 else:

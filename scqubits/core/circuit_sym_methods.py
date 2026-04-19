@@ -8,6 +8,9 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from numpy import ndarray
+    from scipy.sparse import csc_matrix
+
     from scqubits.core.circuit import Subsystem
 
 import numpy as np
@@ -74,6 +77,34 @@ class CircuitSymMethods(ABC):
     discretized_phi_range: dict[int, Any]
     cutoff_names: list[str]
     is_purely_harmonic: bool
+
+    # Method stubs declaring methods provided by sibling mixins
+    # (CircuitRoutines) when composed into Subsystem/Circuit. Declared under
+    # TYPE_CHECKING so that mypy resolves shared-method `self.X` references
+    # without affecting runtime behavior.
+    if TYPE_CHECKING:
+        def _identity_qobj(self) -> qt.Qobj: ...
+        def _evaluate_matrix_cosine_terms(
+            self,
+            junction_potential: sm.Expr,
+            bare_esys: dict[int, tuple] | None = ...,
+        ) -> qt.Qobj: ...
+        def _evaluate_matrix_sawtooth_terms(
+            self, saw_expr: sm.Expr, bare_esys: dict[int, tuple] | None = ...
+        ) -> qt.Qobj: ...
+        def return_root_child(self, var_index: int) -> "Subsystem": ...
+        def identity_wrap_for_hd(
+            self,
+            operator: csc_matrix | ndarray | None,
+            child_instance: "Subsystem",
+            bare_esys: dict[int, tuple] | None = ...,
+        ) -> qt.Qobj: ...
+        def get_operator_by_name(
+            self,
+            operator_name: str,
+            power: int | None = ...,
+            bare_esys: dict[int, tuple] | None = ...,
+        ) -> qt.Qobj: ...
 
     @staticmethod
     def _contains_trigonometric_terms(hamiltonian: sm.Expr) -> bool:
@@ -474,7 +505,7 @@ class CircuitSymMethods(ABC):
             self.return_root_child(get_trailing_number(sym.name))
             for sym in factor.free_symbols
         ]
-        if len(np.unique(index_subsystem)) > 1:
+        if len(set(index_subsystem)) > 1:
             raise Exception(
                 "Sawtooth function terms must belong to the same subsystem."
             )

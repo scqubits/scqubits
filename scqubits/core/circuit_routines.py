@@ -1407,11 +1407,14 @@ class CircuitRoutines(ABC):
         var_basis = self._basis_for_var_index(var_index)
 
         if var_basis == "periodic":
+            # Periodic-variable invariant: prefactor must be an integer (the
+            # diagonal offset of the resulting dia_matrix). The commented-out
+            # check below documents the historical assertion.
             # if abs(prefactor) != 1:
             #     raise Exception("Prefactor for periodic variable should be 1.")
             # if prefactor > 0:
             exp_i_theta = _exp_i_theta_operator(
-                self.cutoffs_dict()[var_index], prefactor
+                self.cutoffs_dict()[var_index], int(prefactor)
             )
         elif var_basis == "discretized":
             phi_grid = discretization.Grid1d(
