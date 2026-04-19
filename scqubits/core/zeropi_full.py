@@ -78,7 +78,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
     ECJ:
         charging energy associated with the two junctions
     EC:
-        charging energy of the large shunting capacitances; set to `None` if `ECS` is
+        charging energy of the large shunting capacitances; set to ``None`` if `ECS` is
         provided instead
     dEJ:
         relative disorder in EJ, i.e., (EJ1-EJ2)/EJavg
@@ -422,8 +422,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             If set to true, `hamiltonian` returns
             [hamiltonian, evals, evecs, g_coupling_matrix]
         energy_esys:
-            If `False` (default), returns Hamiltonian in native Hamiltonian basis.
-            If `True`, the energy eigenspectrum is computed, returns Hamiltonian in
+            If ``False`` (default), returns Hamiltonian in native Hamiltonian basis.
+            If ``True``, the energy eigenspectrum is computed, returns Hamiltonian in
             the energy eigenbasis.
             If `energy_esys = esys`, where esys is a tuple containing two ndarrays
             (eigenvalues and energy eigenvectors), returns Hamiltonian in the energy
@@ -503,8 +503,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             :meth:`_zeropi_operator_in_product_basis` uses ``zeropievecs`` to convert
             the operator to the product basis.
         energy_esys:
-            If `False` (default), returns operator in the product basis.
-            If `True`, the energy eigenspectrum is computed, returns operator in the
+            If ``False`` (default), returns operator in the product basis.
+            If ``True``, the energy eigenspectrum is computed, returns operator in the
             energy eigenbasis.
             If `energy_esys = esys`, where esys is a tuple containing two ndarrays
             (eigenvalues and energy eigenvectors), returns operator in the energy
@@ -546,8 +546,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             :meth:`_zeropi_operator_in_product_basis` uses ``zeropievecs`` to convert
             the operator to the product basis.
         energy_esys:
-            If `False` (default), returns operator in the product basis.
-            If `True`, the energy eigenspectrum is computed, returns operator in the
+            If ``False`` (default), returns operator in the product basis.
+            If ``True``, the energy eigenspectrum is computed, returns operator in the
             energy eigenbasis.
             If `energy_esys = esys`, where esys is a tuple containing two ndarrays
             (eigenvalues and energy eigenvectors), returns operator in the energy
@@ -575,8 +575,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator in the native basis.
-            If `True`, the energy eigenspectrum is computed, returns operator in the
+            If ``False`` (default), returns operator in the native basis.
+            If ``True``, the energy eigenspectrum is computed, returns operator in the
             energy eigenbasis.
             If `energy_esys = esys`, where esys is a tuple containing two ndarrays
             (eigenvalues and energy eigenvectors), returns operator in the energy
@@ -656,8 +656,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             :meth:`_zeropi_operator_in_product_basis` uses ``zeropievecs`` to convert
             the operator to the product basis.
         energy_esys:
-            If `False` (default), returns operator in the product basis.
-            If `True`, the energy eigenspectrum is computed, returns operator in the
+            If ``False`` (default), returns operator in the product basis.
+            If ``True``, the energy eigenspectrum is computed, returns operator in the
             energy eigenbasis.
             If `energy_esys = esys`, where esys is a tuple containing two ndarrays
             (eigenvalues and energy eigenvectors), returns operator in the energy
@@ -699,8 +699,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             :meth:`_zeropi_operator_in_product_basis` uses ``zeropievecs`` to convert
             the operator to the product basis.
         energy_esys:
-            If `False` (default), returns operator in the product basis.
-            If `True`, the energy eigenspectrum is computed, returns operator in the
+            If ``False`` (default), returns operator in the product basis.
+            If ``True``, the energy eigenspectrum is computed, returns operator in the
             energy eigenbasis.
             If `energy_esys = esys`, where esys is a tuple containing two ndarrays
             (eigenvalues and energy eigenvectors), returns operator in the energy
@@ -742,8 +742,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             :meth:`_zeropi_operator_in_product_basis` uses ``zeropievecs`` to convert
             the operator to the product basis.
         energy_esys:
-            If `False` (default), returns operator in the product basis.
-            If `True`, the energy eigenspectrum is computed, returns operator in the
+            If ``False`` (default), returns operator in the product basis.
+            If ``True``, the energy eigenspectrum is computed, returns operator in the
             energy eigenbasis.
             If `energy_esys = esys`, where esys is a tuple containing two ndarrays
             (eigenvalues and energy eigenvectors), returns operator in the energy

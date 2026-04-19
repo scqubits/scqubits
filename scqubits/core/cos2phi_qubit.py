@@ -798,9 +798,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the :math:`\phi` operator in the
+            If ``False`` (default), returns the :math:`\phi` operator in the
             native basis.
-            If `True`, the energy eigenspectrum is computed and the operator
+            If ``True``, the energy eigenspectrum is computed and the operator
             is returned in the energy eigenbasis.
             If `energy_esys = esys`, where ``esys`` is a tuple of two ndarrays
             (eigenvalues and eigenvectors), the operator is returned in the
@@ -841,9 +841,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the :math:`n_\phi` operator in the
+            If ``False`` (default), returns the :math:`n_\phi` operator in the
             native basis.
-            If `True`, the energy eigenspectrum is computed and the operator
+            If ``True``, the energy eigenspectrum is computed and the operator
             is returned in the energy eigenbasis.
             If `energy_esys = esys`, where ``esys`` is a tuple of two ndarrays
             (eigenvalues and eigenvectors), the operator is returned in the
@@ -884,9 +884,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the :math:`\zeta` operator in the
+            If ``False`` (default), returns the :math:`\zeta` operator in the
             native basis.
-            If `True`, the energy eigenspectrum is computed and the operator
+            If ``True``, the energy eigenspectrum is computed and the operator
             is returned in the energy eigenbasis.
             If `energy_esys = esys`, where ``esys`` is a tuple of two ndarrays
             (eigenvalues and eigenvectors), the operator is returned in the
@@ -927,9 +927,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the :math:`n_\zeta` operator in the
+            If ``False`` (default), returns the :math:`n_\zeta` operator in the
             native basis.
-            If `True`, the energy eigenspectrum is computed and the operator
+            If ``True``, the energy eigenspectrum is computed and the operator
             is returned in the energy eigenbasis.
             If `energy_esys = esys`, where ``esys`` is a tuple of two ndarrays
             (eigenvalues and eigenvectors), the operator is returned in the
@@ -1000,9 +1000,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the :math:`n_\theta` operator in the
+            If ``False`` (default), returns the :math:`n_\theta` operator in the
             charge basis.
-            If `True`, the energy eigenspectrum is computed and the operator
+            If ``True``, the energy eigenspectrum is computed and the operator
             is returned in the energy eigenbasis.
             If `energy_esys = esys`, where ``esys`` is a tuple of two ndarrays
             (eigenvalues and eigenvectors), the operator is returned in the
@@ -1146,10 +1146,10 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the Hamiltonian in the native basis
+            If ``False`` (default), returns the Hamiltonian in the native basis
             (harmonic basis for :math:`\phi, \zeta` and charge basis for
             :math:`\theta`).
-            If `True`, the energy eigenspectrum is computed and the Hamiltonian
+            If ``True``, the energy eigenspectrum is computed and the Hamiltonian
             is returned in the energy eigenbasis.
             If `energy_esys = esys`, where ``esys`` is a tuple of two ndarrays
             (eigenvalues and eigenvectors), the Hamiltonian is returned in the
@@ -1351,9 +1351,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         phi_grid:
-            custom grid for :math:`\phi`; if `None`, uses the default phi grid
+            custom grid for :math:`\phi`; if ``None``, uses the default phi grid
         theta_grid:
-            custom grid for :math:`\theta`; if `None`, uses the default theta
+            custom grid for :math:`\theta`; if ``None``, uses the default theta
             grid
         contour_vals:
             optional list of contour level values
@@ -1393,16 +1393,16 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         esys:
-            eigenvalues and eigenvectors as a tuple of ndarrays; if `None`,
+            eigenvalues and eigenvectors as a tuple of ndarrays; if ``None``,
             the eigensystem is recomputed
         which:
             index of the desired wave function (default: 0)
         phi_grid:
-            custom grid for :math:`\phi`; if `None`, uses the default phi grid
+            custom grid for :math:`\phi`; if ``None``, uses the default phi grid
         zeta_grid:
-            custom grid for :math:`\zeta`; if `None`, uses the default zeta grid
+            custom grid for :math:`\zeta`; if ``None``, uses the default zeta grid
         theta_grid:
-            custom grid for :math:`\theta`; if `None`, uses the default theta
+            custom grid for :math:`\theta`; if ``None``, uses the default theta
             grid
 
         Returns
@@ -1481,19 +1481,19 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         ----------
         esys:
             eigenvalues and eigenvectors as obtained from
-            :meth:`eigensys`; if `None`, the eigensystem is recomputed
+            :meth:`eigensys`; if ``None``, the eigensystem is recomputed
         which:
             index of the wave function to be plotted (default: 0)
         phi_grid:
-            custom grid for :math:`\phi`; if `None`, uses the default phi grid
+            custom grid for :math:`\phi`; if ``None``, uses the default phi grid
         theta_grid:
-            custom grid for :math:`\theta`; if `None`, uses the default theta
+            custom grid for :math:`\theta`; if ``None``, uses the default theta
             grid
         mode:
             amplitude-modifier choice from
             :data:`scqubits.core.constants.MODE_FUNC_DICT` (default: ``'abs'``)
         zero_calibrate:
-            if `True`, colors are calibrated so that zero amplitude maps to
+            if ``True``, colors are calibrated so that zero amplitude maps to
             the palette's neutral color
         **kwargs:
             additional plotting parameters
@@ -1547,9 +1547,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the operator in the native
+            If ``False`` (default), returns the operator in the native
             (harmonic-oscillator) basis.
-            If `True`, the energy eigenspectrum is computed and the operator
+            If ``True``, the energy eigenspectrum is computed and the operator
             is returned in the energy eigenbasis.
             If `energy_esys = esys`, where ``esys`` is a tuple of two ndarrays
             (eigenvalues and eigenvectors), the operator is returned in the
@@ -1573,9 +1573,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the operator in the native
+            If ``False`` (default), returns the operator in the native
             (harmonic-oscillator) basis.
-            If `True`, the energy eigenspectrum is computed and the operator
+            If ``True``, the energy eigenspectrum is computed and the operator
             is returned in the energy eigenbasis.
             If `energy_esys = esys`, where ``esys`` is a tuple of two ndarrays
             (eigenvalues and eigenvectors), the operator is returned in the
@@ -1599,9 +1599,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the operator in the native
+            If ``False`` (default), returns the operator in the native
             (harmonic-oscillator) basis.
-            If `True`, the energy eigenspectrum is computed and the operator
+            If ``True``, the energy eigenspectrum is computed and the operator
             is returned in the energy eigenbasis.
             If `energy_esys = esys`, where ``esys`` is a tuple of two ndarrays
             (eigenvalues and eigenvectors), the operator is returned in the
@@ -1627,9 +1627,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the operator in the native
+            If ``False`` (default), returns the operator in the native
             (harmonic-oscillator) basis.
-            If `True`, the energy eigenspectrum is computed and the operator
+            If ``True``, the energy eigenspectrum is computed and the operator
             is returned in the energy eigenbasis.
             If `energy_esys = esys`, where ``esys`` is a tuple of two ndarrays
             (eigenvalues and eigenvectors), the operator is returned in the
@@ -1655,9 +1655,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the operator in the native
+            If ``False`` (default), returns the operator in the native
             (harmonic-oscillator) basis.
-            If `True`, the energy eigenspectrum is computed and the operator
+            If ``True``, the energy eigenspectrum is computed and the operator
             is returned in the energy eigenbasis.
             If `energy_esys = esys`, where ``esys`` is a tuple of two ndarrays
             (eigenvalues and eigenvectors), the operator is returned in the
@@ -1705,9 +1705,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the operator in the native
+            If ``False`` (default), returns the operator in the native
             (harmonic-oscillator) basis.
-            If `True`, the energy eigenspectrum is computed and the operator
+            If ``True``, the energy eigenspectrum is computed and the operator
             is returned in the energy eigenbasis.
             If `energy_esys = esys`, where ``esys`` is a tuple of two ndarrays
             (eigenvalues and eigenvectors), the operator is returned in the
@@ -1748,9 +1748,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the operator in the native
+            If ``False`` (default), returns the operator in the native
             (harmonic-oscillator) basis.
-            If `True`, the energy eigenspectrum is computed and the operator
+            If ``True``, the energy eigenspectrum is computed and the operator
             is returned in the energy eigenbasis.
             If `energy_esys = esys`, where ``esys`` is a tuple of two ndarrays
             (eigenvalues and eigenvectors), the operator is returned in the

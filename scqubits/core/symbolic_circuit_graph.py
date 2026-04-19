@@ -94,7 +94,7 @@ class Node:
         return result
 
     def is_ground(self) -> bool:
-        """Returns a bool if the node is a ground node (Node with index set to 0)."""
+        """Return a bool if the node is a ground node (Node with index set to 0)."""
         return True if self.index == 0 else False
 
     def __deepcopy__(self, memo: dict[int, Any]) -> "Node":
@@ -206,7 +206,7 @@ class Branch:
             self.parameters["ECJ"] = parameters[number_of_junc_params]
 
     def node_ids(self) -> tuple[int, int]:
-        """Returns the indices of the nodes connected by the branch."""
+        """Return the indices of the nodes connected by the branch."""
         return self.nodes[0].index, self.nodes[1].index
 
     def is_connected(self, branch: "Branch") -> bool:

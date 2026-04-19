@@ -84,7 +84,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     ECJ:
         charging energy associated with the two junctions
     EC:
-        charging energy of the large shunting capacitances; set to `None` if `ECS` is
+        charging energy of the large shunting capacitances; set to ``None`` if `ECS` is
         provided instead
     dEJ:
         relative disorder in EJ, i.e., (EJ1-EJ2)/EJavg
@@ -227,7 +227,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         ----------
         params:
             optional dict overriding the parameters used to populate the widget;
-            if `None`, current instance parameters are used
+            if ``None``, current instance parameters are used
         """
         init_params = params or self.get_initdata()
         init_params.pop("id_str", None)
@@ -815,7 +815,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         Parameters
         ----------
         theta_grid:
-            custom grid for :math:`\theta`; if `None`, uses :attr:`_default_grid`
+            custom grid for :math:`\theta`; if ``None``, uses :attr:`_default_grid`
         contour_vals:
             optional list of contour level values
         **kwargs:
@@ -846,11 +846,11 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         Parameters
         ----------
         esys:
-            eigenvalues and eigenvectors; if `None`, the eigensystem is recomputed
+            eigenvalues and eigenvectors; if ``None``, the eigensystem is recomputed
         which:
             index of the desired wave function (default: 0)
         theta_grid:
-            custom grid for :math:`\theta`; if `None`, uses :attr:`_default_grid`
+            custom grid for :math:`\theta`; if ``None``, uses :attr:`_default_grid`
         """
         evals_count = max(which + 1, 3)
         if esys is None:
@@ -895,16 +895,16 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         ----------
         esys:
             eigenvalues and eigenvectors as obtained from :meth:`eigensys`; if
-            `None`, the eigensystem is recomputed
+            ``None``, the eigensystem is recomputed
         which:
             index of the wave function to be plotted (default: 0)
         theta_grid:
-            custom grid for :math:`\\theta`; if `None`, uses :attr:`_default_grid`
+            custom grid for :math:`\\theta`; if ``None``, uses :attr:`_default_grid`
         mode:
             amplitude-modifier choice from
             :data:`scqubits.core.constants.MODE_FUNC_DICT` (default: ``'abs'``)
         zero_calibrate:
-            if `True`, colors are calibrated so that zero amplitude maps to
+            if ``True``, colors are calibrated so that zero amplitude maps to
             the palette's neutral color
         **kwargs:
             plot options

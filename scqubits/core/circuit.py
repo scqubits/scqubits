@@ -80,22 +80,22 @@ class Subsystem(  # type: ignore[misc]
     subsystem_trunc_dims:
         Defines the truncated dimensions for the subsystems inside the current
         subsystem, is set to None when hierarchical diagonalization is not required,
-        by default `None`
+        by default ``None``
     truncated_dim:
         sets the truncated dimension for the current subsystem, set to 10 by default.
     evals_method:
-        optional override for the eigenvalue solver routine, by default `None`
+        optional override for the eigenvalue solver routine, by default ``None``
     evals_method_options:
-        keyword options forwarded to ``evals_method``, by default `None`
+        keyword options forwarded to ``evals_method``, by default ``None``
     esys_method:
-        optional override for the eigensystem solver routine, by default `None`
+        optional override for the eigensystem solver routine, by default ``None``
     esys_method_options:
-        keyword options forwarded to ``esys_method``, by default `None`
+        keyword options forwarded to ``esys_method``, by default ``None``
 
     Attributes
     ----------
     hierarchical_diagonalization: bool
-        set to True when the circuit is defined hierarchically, by default `False`
+        set to True when the circuit is defined hierarchically, by default ``False``
     hamiltonian_symbolic: Sympy.Expr
         the symbolic Hamiltonian for the circuit
     external_fluxes: list[Sympy.Symbol]
@@ -317,7 +317,7 @@ class Subsystem(  # type: ignore[misc]
         self._frozen = True
 
     def _is_diagonalization_necessary(self) -> bool:
-        """Checks if the subsystem needs to be diagonalized."""
+        """Check if the subsystem needs to be diagonalized."""
         parent_subsys_idx = self.parent.subsystems.index(self)
         if parent_subsys_idx in self.parent.affected_subsystem_indices:
             return True
@@ -358,10 +358,10 @@ class Circuit(  # type: ignore[misc]
         when ``True``, generate per-channel noise methods on the instance after
         construction; by default ``False``.
     initiate_sym_calc:
-        parameter to initiate Circuit instance, by default `True`
+        parameter to initiate Circuit instance, by default ``True``
     truncated_dim:
         truncated dimension if the user wants to use this circuit instance in
-        HilbertSpace, by default `None`
+        HilbertSpace, by default ``None``
     symbolic_param_dict:
         mapping from symbolic-parameter name (string) to numerical value, used when
         the instance is initialized from a ``symbolic_hamiltonian`` rather than a
@@ -370,18 +370,18 @@ class Circuit(  # type: ignore[misc]
         optional pre-built symbolic Hamiltonian. If provided, ``input_string`` must
         be ``None``; by default ``None``.
     evals_method:
-        optional override for the eigenvalue solver routine, by default `None`
+        optional override for the eigenvalue solver routine, by default ``None``
     evals_method_options:
-        keyword options forwarded to ``evals_method``, by default `None`
+        keyword options forwarded to ``evals_method``, by default ``None``
     esys_method:
-        optional override for the eigensystem solver routine, by default `None`
+        optional override for the eigensystem solver routine, by default ``None``
     esys_method_options:
-        keyword options forwarded to ``esys_method``, by default `None`
+        keyword options forwarded to ``esys_method``, by default ``None``
 
     Attributes
     ----------
     hierarchical_diagonalization: bool
-        set to True when the circuit is defined hierarchically, by default `False`
+        set to True when the circuit is defined hierarchically, by default ``False``
     hamiltonian_symbolic: sm.Expr
         the symbolic Hamiltonian for the circuit
     external_fluxes: list[sm.Symbol]
@@ -572,10 +572,10 @@ class Circuit(  # type: ignore[misc]
             phi or harmonic oscillator basis for extended variables,
             by default "discretized"
         initiate_sym_calc:
-            attribute to initiate Circuit instance, by default `True`
+            attribute to initiate Circuit instance, by default ``True``
         truncated_dim:
             truncated dimension if the user wants to use this circuit instance in
-            HilbertSpace, by default `None`
+            HilbertSpace, by default ``None``
         use_dynamic_flux_grouping:
             set to False by default. Indicates if the flux allocation is done by
             assuming that flux is time dependent. When set to True, it disables the

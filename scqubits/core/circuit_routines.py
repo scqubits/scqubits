@@ -203,7 +203,7 @@ class CircuitRoutines(ABC):
                 return subsys.return_root_child(var_index)
 
     def return_parent_circuit(self):
-        """Returns the parent Circuit instance."""
+        """Return the parent Circuit instance."""
         if not self.is_child:
             return self
         return self.parent.return_parent_circuit()
@@ -819,7 +819,7 @@ class CircuitRoutines(ABC):
     def set_discretized_phi_range(
         self, var_indices: tuple[int], phi_range: tuple[float]
     ) -> None:
-        """Sets the flux range for discretized phi basis or for plotting.
+        """Set the flux range for discretized phi basis or for plotting.
 
         Parameters
         ----------
@@ -1280,7 +1280,7 @@ class CircuitRoutines(ABC):
                     yield self.subsystem_trunc_dims[idx]
 
     def hilbertdim(self):
-        """Returns the Hilbert dimension of the Circuit instance."""
+        """Return the Hilbert dimension of the Circuit instance."""
         cutoff_values = np.fromiter(self._collect_cutoff_values(), dtype=int)
         return np.prod(cutoff_values)
 
@@ -1365,7 +1365,7 @@ class CircuitRoutines(ABC):
         return matrix
 
     def _identity_qobj(self):
-        """Returns the Qobj of the identity matrix of the right dimensions."""
+        """Return the Qobj of the identity matrix of the right dimensions."""
         if not self.hierarchical_diagonalization:
             return qt.identity(self.hilbertdim())
 
@@ -1374,7 +1374,7 @@ class CircuitRoutines(ABC):
         return qt.tensor([qt.identity(truncdim) for truncdim in subsys_trunc_dims])
 
     def _identity(self):
-        """Returns the Identity operator for the entire Hilbert space of the circuit."""
+        """Return the Identity operator for the entire Hilbert space of the circuit."""
         if (
             hasattr(self, "hierarchical_diagonalization")
             and self.hierarchical_diagonalization
@@ -1804,7 +1804,7 @@ class CircuitRoutines(ABC):
         ]
 
     def _set_operators(self) -> dict[str, Callable]:
-        """Creates the operator methods `<name>_operator` for the circuit."""
+        """Create the operator methods `<name>_operator` for the circuit."""
 
         if self.hierarchical_diagonalization:
             for subsys in self.subsystems:
@@ -2154,7 +2154,7 @@ class CircuitRoutines(ABC):
 
     @check_sync_status_circuit
     def hamiltonian(self) -> csc_matrix | ndarray:
-        """Returns the Hamiltonian of the Circuit."""
+        """Return the Hamiltonian of the Circuit."""
         if not self.hierarchical_diagonalization:
             if self.is_purely_harmonic and self.ext_basis == "harmonic":
                 return self._hamiltonian_for_purely_harmonic()

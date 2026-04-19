@@ -183,7 +183,7 @@ def get_trailing_number(input_str: str) -> int:
 
 
 def _identity_phi(grid: discretization.Grid1d) -> csc_matrix:
-    """Returns identity operator in the discretized_phi basis.
+    """Return identity operator in the discretized_phi basis.
 
     Parameters
     ----------
@@ -199,7 +199,7 @@ def _identity_phi(grid: discretization.Grid1d) -> csc_matrix:
 
 
 def _phi_operator(grid: discretization.Grid1d) -> csc_matrix:
-    """Returns phi operator in the discretized_phi basis.
+    """Return phi operator in the discretized_phi basis.
 
     Parameters
     ----------
@@ -219,7 +219,7 @@ def _phi_operator(grid: discretization.Grid1d) -> csc_matrix:
 
 
 def _i_d_dphi_operator(grid: discretization.Grid1d) -> csc_matrix:
-    """Returns i*d/dphi operator in the discretized_phi basis.
+    """Return i*d/dphi operator in the discretized_phi basis.
 
     Parameters
     ----------
@@ -234,7 +234,7 @@ def _i_d_dphi_operator(grid: discretization.Grid1d) -> csc_matrix:
 
 
 def _i_d2_dphi2_operator(grid: discretization.Grid1d) -> csc_matrix:
-    """Returns i*d2/dphi2 operator in the discretized_phi basis.
+    """Return i*d2/dphi2 operator in the discretized_phi basis.
 
     Parameters
     ----------
@@ -249,7 +249,7 @@ def _i_d2_dphi2_operator(grid: discretization.Grid1d) -> csc_matrix:
 
 
 def _cos_phi(grid: discretization.Grid1d) -> csc_matrix:
-    """Returns cos operator in the discretized_phi basis.
+    """Return cos operator in the discretized_phi basis.
 
     Parameters
     ----------
@@ -269,7 +269,7 @@ def _cos_phi(grid: discretization.Grid1d) -> csc_matrix:
 
 
 def _sin_phi(grid: discretization.Grid1d) -> csc_matrix:
-    """Returns sin operator in the discretized_phi basis.
+    """Return sin operator in the discretized_phi basis.
 
     Parameters
     ----------

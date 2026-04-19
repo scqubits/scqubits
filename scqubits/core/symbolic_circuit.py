@@ -827,7 +827,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         return L_mat
 
     def _generate_branch_flux_allocations(self):
-        """Returns an array of the flux allocation for each branch in the circuit."""
+        """Return an array of the flux allocation for each branch in the circuit."""
         if self.use_dynamic_flux_grouping:
             return self._time_dependent_flux_distribution()
 
