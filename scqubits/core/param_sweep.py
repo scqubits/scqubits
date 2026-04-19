@@ -1745,9 +1745,7 @@ class ParameterSweep(
             energies_all_l[..., l] = self[:].energy_by_bare_index(tuple(l * bare_label))
         return energies_all_l
 
-    def _energies_2(
-        self, subsys1: QuantumSystem, subsys2: QuantumSystem
-    ) -> ndarray:
+    def _energies_2(self, subsys1: QuantumSystem, subsys2: QuantumSystem) -> ndarray:
         """Return dressed energies for joint excitations of ``subsys1`` and ``subsys2``.
 
         For each pair of levels ``(l1, l2)`` within the truncated dimensions

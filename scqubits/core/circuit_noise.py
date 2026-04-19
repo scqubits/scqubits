@@ -779,6 +779,7 @@ class NoisyCircuit(NoisySystem, ABC):
         A function suitable for binding to the circuit instance that evaluates
         the :math:`T_1` time/rate due to flux-bias-line noise.
         """
+
         def flux_bias_noise(
             self=self,
             i: int = 1,
@@ -999,6 +1000,7 @@ class NoisyCircuit(NoisySystem, ABC):
         the :math:`T_1` time/rate due to quasiparticle tunneling across the
         given junction branch.
         """
+
         def t1_quasiparticle_tunneling(
             self=self,
             i: int = 1,

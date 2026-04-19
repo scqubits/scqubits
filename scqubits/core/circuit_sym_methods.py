@@ -814,6 +814,7 @@ class CircuitSymMethods(ABC):
         lambdify_func:
             sympy-lambdified evaluator for ``parameter_expr``
         """
+
         def parameter_func(t, args):
             return lambdify_func(
                 *[

@@ -1327,9 +1327,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             + 2 * self.dEJ * self.EJ * np.sin(phi + np.pi * self.flux) * np.sin(theta)
         )
 
-    def reduced_potential(
-        self, phi: float | ndarray, theta: float | ndarray
-    ) -> float:
+    def reduced_potential(self, phi: float | ndarray, theta: float | ndarray) -> float:
         r"""Return the reduced potential at :math:`\zeta = 0`.
 
         Parameters
