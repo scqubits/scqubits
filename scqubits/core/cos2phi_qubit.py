@@ -513,7 +513,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     r"""Cosine Two Phi Qubit.
 
     | [1] Smith et al., NPJ Quantum Inf. 6, 8 (2020)
-    http://www.nature.com/articles/s41534-019-0231-2
+    | http://www.nature.com/articles/s41534-019-0231-2
 
     .. math::
 
