@@ -219,7 +219,7 @@ def remove_comments(code: str) -> str:
     -------
     The same source with comments removed.
     """
-    return pp.pythonStyleComment.suppress().transformString(code)
+    return pp.pythonStyleComment.suppress().transform_string(code)
 
 
 def remove_branchline(code: str) -> str:
@@ -234,7 +234,7 @@ def remove_branchline(code: str) -> str:
     -------
     The source with the ``branches:`` line suppressed.
     """
-    return Suppress(Literal("branches") + ":").transformString(code)
+    return Suppress(Literal("branches") + ":").transform_string(code)
 
 
 def strip_empty_lines(code: str) -> str:
