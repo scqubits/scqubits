@@ -83,6 +83,7 @@ class CircuitSymMethods(ABC):
     # TYPE_CHECKING so that mypy resolves shared-method `self.X` references
     # without affecting runtime behavior.
     if TYPE_CHECKING:
+
         def _identity_qobj(self) -> qt.Qobj: ...
         def _evaluate_matrix_cosine_terms(
             self,

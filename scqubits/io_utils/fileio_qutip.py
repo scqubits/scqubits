@@ -54,7 +54,7 @@ class QutipEigenstates(np.ndarray, Serializable):
     class."""
 
     @classmethod
-    def deserialize(cls, io_data: IOData) -> np.ndarray:  # type:ignore
+    def deserialize(cls, io_data: IOData) -> np.ndarray:  # type: ignore
         """Take the given IOData and return an instance of the described class,
         initialized with the data stored in io_data."""
         # Qobj in Qutip>=5 wants this to be a nested list

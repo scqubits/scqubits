@@ -221,7 +221,12 @@ class TestNoiseHelpers:
 class TestNoiseBranches:
     @pytest.mark.parametrize(
         "channel",
-        ["tphi_1_over_f_cc", "tphi_1_over_f_ng", "t1_capacitive", "t1_charge_impedance"],
+        [
+            "tphi_1_over_f_cc",
+            "tphi_1_over_f_ng",
+            "t1_capacitive",
+            "t1_charge_impedance",
+        ],
     )
     def test_get_rate_is_reciprocal(self, transmon, channel):
         time = getattr(transmon, channel)(get_rate=False)
@@ -230,7 +235,12 @@ class TestNoiseBranches:
 
     @pytest.mark.parametrize(
         "channel",
-        ["tphi_1_over_f_cc", "tphi_1_over_f_ng", "t1_capacitive", "t1_charge_impedance"],
+        [
+            "tphi_1_over_f_cc",
+            "tphi_1_over_f_ng",
+            "t1_capacitive",
+            "t1_charge_impedance",
+        ],
     )
     def test_explicit_esys_matches_default_esys(self, transmon, channel):
         esys = transmon.eigensys(evals_count=4)
