@@ -22,7 +22,7 @@ import warnings
 
 from abc import ABC
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 import numpy as np
 from matplotlib.axes import Axes
@@ -30,7 +30,6 @@ from matplotlib.figure import Figure
 from numpy import ndarray
 from qutip import Qobj
 from scipy.sparse import csc_matrix
-from typing_extensions import Literal
 
 import scqubits as scq
 import scqubits.core.central_dispatch as dispatch

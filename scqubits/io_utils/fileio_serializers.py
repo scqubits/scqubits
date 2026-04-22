@@ -19,14 +19,13 @@ import inspect
 from abc import ABCMeta
 from collections import OrderedDict
 from numbers import Number
-from typing import TYPE_CHECKING, Any, TypeVar, Type
+from typing import TYPE_CHECKING, Any, Protocol, Type, TypeVar, runtime_checkable
 
 import numpy as np
 
 from numpy import ndarray
 from scipy.sparse import csc_matrix
 from sympy import Expr
-from typing_extensions import Protocol, runtime_checkable
 
 import scqubits.utils.misc as utils
 

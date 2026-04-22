@@ -34,7 +34,6 @@ requirements:
     - scipy >=1.5
     - sympy
     - tqdm
-    - typing_extensions
   # Optional dependencies
     - ipywidgets >=7.5
     - ipyvuetify
