@@ -43,7 +43,12 @@ class QutipEigenstates(np.ndarray, Serializable):
 
         typename = type(self).__name__
         evec_count = len(self)
-        qobj_dims = np.asarray(self[0].dims)
+        # qutip's Qobj.dims is a list-of-lists with potentially different inner
+        # lengths (e.g. ``[[3, 4, 4], [1]]`` for a multipartite ket). NumPy
+        # >= 1.24 rejects implicit object-dtype creation from ragged lists, so
+        # request object-dtype explicitly. Round-trips correctly via
+        # ``.tolist()`` on the deserialize side (see :meth:`deserialize`).
+        qobj_dims = np.asarray(self[0].dims, dtype=object)
         qobj_shape = np.asarray(self[0].shape)
         io_attributes = {"evec_count": evec_count}
         io_ndarrays = {
