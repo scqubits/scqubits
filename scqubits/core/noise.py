@@ -374,7 +374,7 @@ class NoisySystem(ABC):
         depolarizing noise channels, according to the formula:
 
         .. math::
-            \frac{1}{T_{1}^{\rm eff}} = \frac{1}{2} \sum_k \frac{1}{T_{1}^{k}}
+            \frac{1}{T_{1}^{\rm eff}} = \sum_k \frac{1}{T_{1}^{k}}
 
         where :math:`k` runs over the channels that can contribute to the effective
         noise. By default, all depolarizing noise channels returned by
@@ -751,7 +751,7 @@ class NoisySystem(ABC):
         depolarizing noise channels, according to the formula:
 
         .. math::
-            \frac{1}{T_{1}^{\rm eff}} = \frac{1}{2} \sum_k \frac{1}{T_{1}^{k}}
+            \frac{1}{T_{1}^{\rm eff}} = \sum_k \frac{1}{T_{1}^{k}}
 
         where :math:`k` runs over the channels that can contribute to the effective
         noise. By default, all depolarizing noise channels returned by
