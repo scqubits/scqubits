@@ -10,11 +10,12 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
 import functools
 import importlib
 
-from typing import Dict, List, Union
-from typing_extensions import Literal  # for Python 3.7 compatibility
+from typing import Literal
 
 import numpy as np
 
@@ -46,7 +47,7 @@ from scqubits.core.oscillator import Oscillator
 from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass
 from scqubits.utils import misc as utils
 
-QuantumSys = Union[QubitBaseClass, Oscillator]
+QuantumSys = QubitBaseClass | Oscillator
 
 
 class HilbertSpaceUi:
@@ -61,15 +62,15 @@ class HilbertSpaceUi:
         self.current_interaction_idx = None
         # self.interaction_terms_dict = collections.OrderedDict()
 
-        self.op1subsys_widget: List[v.Select] = []
-        self.op2subsys_widget: List[v.Select] = []
-        self.op1_ddown_widget: List[v.Select] = []
-        self.op2_ddown_widget: List[v.Select] = []
-        self.g_widget: List[ValidatedNumberField] = []
-        self.addhc_widget: List[v.Select] = []
-        self.string_expr_widget: List[v.TextField] = []
-        self.interact_box1: List[v.Container] = []
-        self.interact_box2: List[v.Container] = []
+        self.op1subsys_widget: list[v.Select] = []
+        self.op2subsys_widget: list[v.Select] = []
+        self.op1_ddown_widget: list[v.Select] = []
+        self.op2_ddown_widget: list[v.Select] = []
+        self.g_widget: list[ValidatedNumberField] = []
+        self.addhc_widget: list[v.Select] = []
+        self.string_expr_widget: list[v.TextField] = []
+        self.interact_box1: list[v.Container] = []
+        self.interact_box2: list[v.Container] = []
 
         # == subsystems panel =========================================================
         self.subsys_refresh_button = v.Btn(
@@ -168,13 +169,13 @@ class HilbertSpaceUi:
         self.connect_ui()
 
     @staticmethod
-    def possible_operators(subsystem: str) -> List[str]:
+    def possible_operators(subsystem: str) -> list[str]:
         if subsystem is None:
             return []
         main = importlib.import_module("__main__")
         return [
             method_name
-            for method_name in dir(main.__dict__[subsystem])  # type:ignore
+            for method_name in dir(main.__dict__[subsystem])
             if "_operator" in method_name
             and method_name[0] != "_"
             and "get_" not in method_name
@@ -448,7 +449,7 @@ class HilbertSpaceUi:
             "string_expr": "",
         }
 
-    def widgets_dict(self, idx: int) -> Dict[str, "v.VuetifyWidget"]:
+    def widgets_dict(self, idx: int) -> dict[str, "v.VuetifyWidget"]:
         return {
             "subsys_list": self.subsys_widget,
             "subsys1": self.op1subsys_widget[idx],
@@ -460,7 +461,7 @@ class HilbertSpaceUi:
             "string_expr": self.string_expr_widget[idx],
         }
 
-    def subsystem_list(self) -> "List[QuantumSys]":
+    def subsystem_list(self) -> "list[QuantumSys]":
         main = importlib.import_module("__main__")
         return [
             eval(subsys_name, main.__dict__) for subsys_name in self.subsys_widget.items
@@ -468,13 +469,15 @@ class HilbertSpaceUi:
 
     def validated_interact_list(
         self,
-    ) -> Union[Literal[False], list]:
+    ) -> Literal[False] | list:
         self.status_output.children = []
 
         main = importlib.import_module("__main__")
         subsysname_list = self.subsys_widget.v_model
 
-        interaction_list = []
+        interaction_list: list[
+            scqubits.InteractionTerm | scqubits.InteractionTermStr
+        ] = []
         for idx, _ in enumerate(self.interact_box1):
             interaction_term = self.widgets_dict(idx)
             for subsys in ["subsys1", "subsys2"]:

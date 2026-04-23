@@ -1,10 +1,16 @@
+from __future__ import annotations
+
 import functools
 import itertools
 import operator as builtin_op
 import re
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from numpy import ndarray
+    from scipy.sparse import csc_matrix
+
     from scqubits.core.circuit import Subsystem
 
 import numpy as np
@@ -34,27 +40,131 @@ from abc import ABC
 
 
 class CircuitSymMethods(ABC):
+    """Mixin providing symbolic-Hamiltonian utilities shared by circuit classes.
+
+    Implements helpers for splitting, simplifying and rendering symbolic
+    Hamiltonians, as well as building numerical operators from symbolic
+    expressions for use by :class:`Circuit` and :class:`Subsystem`.
+    """
+
+    # Attributes set by concrete subclasses (Circuit, Subsystem). Declared here so
+    # mypy can resolve cross-subclass attribute access in shared methods.
+    external_fluxes: list[Any]
+    offset_charges: list[Any]
+    free_charges: list[Any]
+    symbolic_params: dict[Any, Any]
+    var_categories: dict[str, list[int]]
+    dynamic_var_indices: list[int]
+    hierarchical_diagonalization: bool
+    ext_basis: Any
+    hamiltonian_symbolic: Any
+    type_of_matrices: str
+    subsystems: list[Any]
+    system_hierarchy: list[Any]
+    parent: Any
+    vars: dict[str, Any]
+    _hamiltonian_sym_for_numerics: Any
+    _id_str: str
+    potential_symbolic: Any
+    subsystem_interactions: Any
+    get_subsystem_index: Callable[..., Any]
+    transformation_matrix: Any
+    is_grounded: bool
+    closure_branches: list[Any]
+    symbolic_circuit: Any
+    affine_transformation_matrix: Any
+    use_dynamic_flux_grouping: bool
+    discretized_phi_range: dict[int, Any]
+    cutoff_names: list[str]
+    is_purely_harmonic: bool
+
+    # Method stubs declaring methods provided by sibling mixins
+    # (CircuitRoutines) when composed into Subsystem/Circuit. Declared under
+    # TYPE_CHECKING so that mypy resolves shared-method `self.X` references
+    # without affecting runtime behavior.
+    if TYPE_CHECKING:
+        def _identity_qobj(self) -> qt.Qobj: ...
+        def _evaluate_matrix_cosine_terms(
+            self,
+            junction_potential: sm.Expr,
+            bare_esys: dict[int, tuple] | None = ...,
+        ) -> qt.Qobj: ...
+        def _evaluate_matrix_sawtooth_terms(
+            self, saw_expr: sm.Expr, bare_esys: dict[int, tuple] | None = ...
+        ) -> qt.Qobj: ...
+        def return_root_child(self, var_index: int) -> "Subsystem": ...
+        def identity_wrap_for_hd(
+            self,
+            operator: csc_matrix | ndarray | None,
+            child_instance: "Subsystem",
+            bare_esys: dict[int, tuple] | None = ...,
+        ) -> qt.Qobj: ...
+        def get_operator_by_name(
+            self,
+            operator_name: str,
+            power: int | None = ...,
+            bare_esys: dict[int, tuple] | None = ...,
+        ) -> qt.Qobj: ...
 
     @staticmethod
-    def _contains_trigonometric_terms(hamiltonian):
-        """Check if the hamiltonian contains any trigonometric terms."""
+    def _contains_trigonometric_terms(hamiltonian: sm.Expr) -> bool:
+        """Check if the Hamiltonian contains any trigonometric terms.
+
+        Parameters
+        ----------
+        hamiltonian:
+            symbolic Hamiltonian expression to inspect
+        """
         trigonometric_operators = [sm.cos, sm.sin, sm.Function("saw", real=True)]
         return any(hamiltonian.atoms(operator) for operator in trigonometric_operators)
 
     @staticmethod
-    def _is_symbol_periodic_charge(sym):
+    def _is_symbol_periodic_charge(sym: sm.Symbol) -> bool:
+        """Return True if ``sym`` is a periodic charge symbol of the form ``n<index>``.
+
+        Parameters
+        ----------
+        sym:
+            sympy symbol whose name is tested
+        """
         return sym.name[0] == "n" and sym.name[1:].isnumeric()
 
     @staticmethod
-    def _is_symbol_continuous_charge(sym):
+    def _is_symbol_continuous_charge(sym: sm.Symbol) -> bool:
+        """Return True if ``sym`` is a continuous charge symbol of the form ``Q<index>``.
+
+        Parameters
+        ----------
+        sym:
+            sympy symbol whose name is tested
+        """
         return sym.name[0] == "Q" and sym.name[1:].isnumeric()
 
     @staticmethod
-    def _is_symbol_phase(sym):
+    def _is_symbol_phase(sym: sm.Symbol) -> bool:
+        """Return True if ``sym`` is a phase symbol of the form ``θ<index>``.
+
+        Parameters
+        ----------
+        sym:
+            sympy symbol whose name is tested
+        """
         return sym.name[0] == "θ" and sym.name[1:].isnumeric()
 
     @staticmethod
-    def _find_and_categorize_variable_indices(hamiltonian):
+    def _find_and_categorize_variable_indices(
+        hamiltonian: sm.Expr,
+    ) -> tuple[set[int], set[int], set[int]]:
+        """Categorize variable indices appearing in ``hamiltonian`` by symbol type.
+
+        Returns three sets of trailing-number indices: those of periodic charge
+        symbols, continuous charge symbols, and phase symbols, respectively.
+
+        Parameters
+        ----------
+        hamiltonian:
+            symbolic Hamiltonian expression to inspect
+        """
         periodic_var_indices = set(
             get_trailing_number(symbol.name)
             for symbol in hamiltonian.free_symbols
@@ -73,8 +183,14 @@ class CircuitSymMethods(ABC):
         return periodic_var_indices, extended_var_indices, phase_var_indices
 
     # @staticmethod
-    def _is_expression_purely_harmonic(self, hamiltonian):
-        """Method used to check if the hamiltonian is purely harmonic."""
+    def _is_expression_purely_harmonic(self, hamiltonian: sm.Expr) -> bool:
+        """Check if the Hamiltonian is purely harmonic.
+
+        Parameters
+        ----------
+        hamiltonian:
+            symbolic Hamiltonian expression to inspect
+        """
         # if the hamiltonian contains any cos or sin term, return False
         if self._contains_trigonometric_terms(hamiltonian):
             return False
@@ -92,19 +208,23 @@ class CircuitSymMethods(ABC):
         return True
 
     def _constants_in_subsys(
-        self, H_sys: sm.Expr, constants_list: List[sm.Expr]
-    ) -> List[sm.Expr]:
-        """Returns an expression of constants that belong to the subsystem with the
-        Hamiltonian H_sys.
+        self, H_sys: sm.Expr, constants_list: list[sm.Expr]
+    ) -> list[sm.Expr]:
+        """Return the constants of ``constants_list`` belonging to a subsystem.
+
+        A constant belongs to the subsystem with Hamiltonian ``H_sys`` if all of
+        its free symbols also appear in ``H_sys``.
 
         Parameters
         ----------
         H_sys:
-            subsystem hamiltonian
+            subsystem Hamiltonian
+        constants_list:
+            list of constant terms to be partitioned across subsystems
 
         Returns
         -------
-            expression of constants belonging to the subsystem
+        list of constants belonging to the subsystem
         """
         constants_subsys_list = []
         subsys_free_symbols = set(H_sys.free_symbols)
@@ -113,7 +233,22 @@ class CircuitSymMethods(ABC):
                 constants_subsys_list.append(term)
         return constants_subsys_list
 
-    def _list_of_constants_from_expr(self, expr: sm.Expr) -> List[sm.Expr]:
+    def _list_of_constants_from_expr(self, expr: sm.Expr) -> list[sm.Expr]:
+        """Return the terms of ``expr`` whose free symbols are entirely parameters.
+
+        A term qualifies as a constant if all of its free symbols are external
+        fluxes, offset charges, free charges, symbolic parameters, or the
+        identity placeholder ``I``.
+
+        Parameters
+        ----------
+        expr:
+            symbolic expression to scan for constant terms
+
+        Returns
+        -------
+        list of constant terms found in ``expr``
+        """
         ordered_terms = expr.as_ordered_terms()
         constants = [
             term
@@ -136,8 +271,30 @@ class CircuitSymMethods(ABC):
         self,
         hamiltonian: sm.Expr,
         subsys_indices: list,
-        non_operator_symbols: List[sm.Symbol],
-    ):
+        non_operator_symbols: list[sm.Symbol],
+    ) -> tuple[list[sm.Expr], list[sm.Expr]]:
+        """Split ``hamiltonian`` into per-subsystem Hamiltonians and interactions.
+
+        Constant terms are extracted first and re-attached to the subsystem
+        whose free symbols contain them (or to the first subsystem if none
+        match).
+
+        Parameters
+        ----------
+        hamiltonian:
+            full symbolic Hamiltonian to be split
+        subsys_indices:
+            list whose entries are (possibly nested) lists of variable indices
+            defining each subsystem
+        non_operator_symbols:
+            symbols that should not be treated as operators when partitioning
+            terms (e.g. external fluxes, offset charges, parameters)
+
+        Returns
+        -------
+        tuple of two lists: per-subsystem Hamiltonians and per-subsystem
+        interaction expressions
+        """
         systems_sym = []
         interaction_sym = []
         constants = self._list_of_constants_from_expr(hamiltonian)
@@ -161,14 +318,48 @@ class CircuitSymMethods(ABC):
 
         return systems_sym, interaction_sym
 
-    def _remove_constants_from_hamiltonian(self, hamiltonian, constants):
+    def _remove_constants_from_hamiltonian(
+        self, hamiltonian: sm.Expr, constants: list[sm.Expr]
+    ) -> sm.Expr:
+        """Subtract each term in ``constants`` from ``hamiltonian``.
+
+        Parameters
+        ----------
+        hamiltonian:
+            symbolic Hamiltonian from which constants are subtracted
+        constants:
+            list of constant terms to remove
+        """
         for const in constants:
             hamiltonian -= const
         return hamiltonian
 
     def _find_subsys_hamiltonian(
-        self, hamiltonian, subsys_index_list, non_operator_symbols
-    ):
+        self,
+        hamiltonian: sm.Expr,
+        subsys_index_list: list[int],
+        non_operator_symbols: list[sm.Symbol],
+    ) -> tuple[sm.Expr, sm.Expr]:
+        """Split ``hamiltonian`` into a subsystem part and an interaction part.
+
+        Terms whose operator indices lie entirely within ``subsys_index_list``
+        contribute to the subsystem Hamiltonian; terms with operator indices
+        both inside and outside the list contribute to the interaction.
+
+        Parameters
+        ----------
+        hamiltonian:
+            symbolic Hamiltonian to be split
+        subsys_index_list:
+            variable indices defining the subsystem
+        non_operator_symbols:
+            symbols that should not be treated as operators
+
+        Returns
+        -------
+        tuple ``(H_sys, H_int)`` of the subsystem Hamiltonian and the
+        interaction Hamiltonian
+        """
         hamiltonian_terms = hamiltonian.as_ordered_terms()
         H_sys = 0 * sm.symbols("x")
         H_int = 0 * sm.symbols("x")
@@ -191,7 +382,23 @@ class CircuitSymMethods(ABC):
         return H_sys, H_int
 
     @check_sync_status_circuit
-    def _evaluate_symbolic_expr(self, sym_expr, bare_esys=None) -> qt.Qobj:
+    def _evaluate_symbolic_expr(
+        self, sym_expr: sm.Expr, bare_esys: Any = None
+    ) -> qt.Qobj:
+        """Numerically evaluate a symbolic operator expression.
+
+        Substitutes circuit parameters into ``sym_expr`` and converts each
+        term into a matrix using the appropriate operator factory; the
+        weighted sum of these matrices is returned.
+
+        Parameters
+        ----------
+        sym_expr:
+            symbolic expression containing operator symbols and parameters
+        bare_esys:
+            optional cached bare eigensystem data forwarded to identity-wrap
+            calls when hierarchical diagonalization is in use
+        """
         sym_expr = self._substitute_parameters(sym_expr)
         if sym_expr == 0:
             return 0
@@ -202,7 +409,18 @@ class CircuitSymMethods(ABC):
         ]
         return sum(eval_matrix_list)
 
-    def _substitute_parameters(self, sym_expr):
+    def _substitute_parameters(self, sym_expr: sm.Expr) -> sm.Expr:
+        """Substitute current parameter attribute values into ``sym_expr``.
+
+        External fluxes, offset charges, free charges, and symbolic
+        parameters are replaced by the corresponding attribute values of
+        ``self``.
+
+        Parameters
+        ----------
+        sym_expr:
+            symbolic expression in which parameters are replaced
+        """
         param_symbols = (
             self.external_fluxes
             + self.offset_charges
@@ -213,7 +431,24 @@ class CircuitSymMethods(ABC):
             sym_expr = sym_expr.subs(param, getattr(self, param.name))
         return sym_expr
 
-    def _evaluate_term(self, term, coefficient_sympy, bare_esys):
+    def _evaluate_term(
+        self, term: sm.Expr, coefficient_sympy: sm.Expr, bare_esys: Any
+    ) -> qt.Qobj:
+        """Evaluate a single symbolic term to its matrix form.
+
+        Each operator factor of ``term`` is converted to a matrix and the
+        result is multiplied by the (real) ``coefficient_sympy``.
+
+        Parameters
+        ----------
+        term:
+            symbolic operator product (without coefficient)
+        coefficient_sympy:
+            scalar coefficient multiplying ``term``
+        bare_esys:
+            optional cached bare eigensystem data forwarded to identity-wrap
+            calls when hierarchical diagonalization is in use
+        """
         if term == 1:
             return self._identity_qobj() * float(coefficient_sympy)
         factors = term.as_ordered_factors()
@@ -225,7 +460,21 @@ class CircuitSymMethods(ABC):
             coefficient_sympy
         )
 
-    def _evaluate_factor(self, factor, bare_esys):
+    def _evaluate_factor(self, factor: sm.Expr, bare_esys: Any) -> Any:
+        """Dispatch a single symbolic factor to the right matrix-evaluation routine.
+
+        Cosine/sine factors are routed to the matrix-cosine evaluator,
+        sawtooth factors to the sawtooth evaluator, and all remaining
+        operator factors to the operator-name lookup.
+
+        Parameters
+        ----------
+        factor:
+            symbolic factor to evaluate
+        bare_esys:
+            optional cached bare eigensystem data forwarded to identity-wrap
+            calls when hierarchical diagonalization is in use
+        """
         if any([arg.has(sm.cos) or arg.has(sm.sin) for arg in (1.0 * factor).args]):
             return self._evaluate_matrix_cosine_terms(factor, bare_esys=bare_esys)
         elif any(
@@ -235,14 +484,28 @@ class CircuitSymMethods(ABC):
         else:
             return self._evaluate_operator_factor(factor)
 
-    def _evaluate_sawtooth_factor(self, factor, bare_esys):
+    def _evaluate_sawtooth_factor(self, factor: sm.Expr, bare_esys: Any) -> Any:
+        """Evaluate a sawtooth-function factor to its matrix form.
+
+        When hierarchical diagonalization is active, all symbols in the
+        factor must belong to the same subsystem; the resulting operator is
+        identity-wrapped onto the full Hilbert space.
+
+        Parameters
+        ----------
+        factor:
+            symbolic factor containing sawtooth operators
+        bare_esys:
+            optional cached bare eigensystem data forwarded to identity-wrap
+            calls when hierarchical diagonalization is in use
+        """
         if not self.hierarchical_diagonalization:
             return self._evaluate_matrix_sawtooth_terms(factor, bare_esys=bare_esys)
         index_subsystem = [
             self.return_root_child(get_trailing_number(sym.name))
             for sym in factor.free_symbols
         ]
-        if len(np.unique(index_subsystem)) > 1:
+        if len(set(index_subsystem)) > 1:
             raise Exception(
                 "Sawtooth function terms must belong to the same subsystem."
             )
@@ -251,7 +514,19 @@ class CircuitSymMethods(ABC):
             operator, index_subsystem[0], bare_esys=bare_esys
         )
 
-    def _evaluate_operator_factor(self, factor):
+    def _evaluate_operator_factor(self, factor: sm.Expr) -> Any:
+        """Evaluate a non-trigonometric operator factor of the form ``op**k``.
+
+        Without hierarchical diagonalization, the matrix is fetched directly
+        via :meth:`get_operator_by_name`. Otherwise the owning subsystem is
+        looked up and a tuple ``(subsys, operator)`` is returned for later
+        identity-wrapping by :meth:`_combine_factors`.
+
+        Parameters
+        ----------
+        factor:
+            symbolic factor whose single free symbol identifies the operator
+        """
         power_dict = dict(factor.as_powers_dict())
         free_sym = list(factor.free_symbols)[0]
         if not self.hierarchical_diagonalization:
@@ -263,6 +538,21 @@ class CircuitSymMethods(ABC):
         return (subsys, operator)
 
     def _combine_factors(self, factor_op_list, bare_esys):
+        """Combine per-subsystem operator factors into a flat operator list.
+
+        Operators tagged with the same parent subsystem are multiplied together
+        and identity-wrapped via :meth:`identity_wrap_for_hd`; standalone
+        operators pass through unchanged.
+
+        Parameters
+        ----------
+        factor_op_list:
+            list whose entries are either operators or
+            ``(subsystem, operator)`` tuples
+        bare_esys:
+            optional cached bare eigensystem data forwarded to identity-wrap
+            calls
+        """
         operators_per_subsys = {}
         operator_list = []
         for factor_op in factor_op_list:
@@ -285,6 +575,17 @@ class CircuitSymMethods(ABC):
         return operator_list
 
     def _shift_harmonic_oscillator_potential(self, hamiltonian: sm.Expr) -> sm.Expr:
+        """Shift extended-variable harmonic-oscillator potentials to flux minima.
+
+        Solves the linear system that eliminates the linear-in-coordinate
+        terms of `hamiltonian`, then substitutes the resulting flux offsets and
+        rounds residual coefficients via :func:`round_symbolic_expr`.
+
+        Parameters
+        ----------
+        hamiltonian:
+            symbolic Hamiltonian (after parameter substitution) to shift
+        """
         # shifting the harmonic oscillator potential to the point of external fluxes
         flux_shift_vars = {}
         for var_index in self.var_categories["extended"]:
@@ -329,6 +630,12 @@ class CircuitSymMethods(ABC):
         # * ##########################################################################
 
     def _generate_sym_potential(self):
+        """Return the symbolic potential extracted from the symbolic Hamiltonian.
+
+        Sums the terms identified by :func:`is_potential_term` and rewrites
+        ``cosθi`` / ``sinθi`` placeholder symbols into proper sympy ``cos`` /
+        ``sin`` expressions on the dynamic variables.
+        """
         # and bringing the potential into the same form as for the class Circuit
         potential_symbolic = 0 * sm.symbols("x")
         for term in self.hamiltonian_symbolic.as_ordered_terms():
@@ -344,13 +651,35 @@ class CircuitSymMethods(ABC):
             )
         return potential_symbolic
 
-    def _is_mat_mul_replacement_necessary(self, term):
+    def _is_mat_mul_replacement_necessary(self, term: sm.Expr):
+        """Return ``True`` if `term` mixes extended-variable factors via ``*``.
+
+        Such terms must be rendered with matrix multiplication when the term
+        is later evaluated on numerical operators.
+
+        Parameters
+        ----------
+        term:
+            symbolic Hamiltonian term to inspect
+        """
         return (
             set(self.var_categories["extended"])
             & set([get_trailing_number(str(i)) for i in term.free_symbols])
         ) and "*" in str(term)
 
     def _replace_mat_mul_operator(self, term: sm.Expr):
+        """Render `term` as a string using matrix-multiplication semantics.
+
+        For the discretized basis, ``*`` between charge operators is rewritten
+        as ``@``. For the harmonic basis, ``X**n`` on extended-variable
+        operators becomes ``matrix_power(X, n)`` and remaining inter-operator
+        ``*`` becomes ``@``.
+
+        Parameters
+        ----------
+        term:
+            symbolic Hamiltonian term to render as a Python expression string
+        """
         if not self._is_mat_mul_replacement_necessary(term):
             return str(term)
 
@@ -395,13 +724,25 @@ class CircuitSymMethods(ABC):
 
     def _generate_hamiltonian_sym_for_numerics(
         self,
-        hamiltonian: Optional[sm.Expr] = None,
-        return_exprs=False,
+        hamiltonian: sm.Expr | None = None,
+        return_exprs: bool = False,
     ):
-        """Generates a symbolic expression which is ready for numerical evaluation
-        starting from the expression stored in the attribute :attr:`Circuit.hamiltonian_symbolic`.
+        """Generate a numerics-ready symbolic Hamiltonian.
 
-        Stores the result in the attribute :attr:`Circuit._hamiltonian_sym_for_numerics`.
+        Substitutes identity placeholders for external fluxes / offset charges
+        and (in the discretized basis) marks squared momentum operators ``Q**2``
+        as ``Qs``. Stores the result in
+        :attr:`Circuit._hamiltonian_sym_for_numerics` unless ``return_exprs`` is
+        ``True``, in which case ``(hamiltonian, cos_terms)`` is returned.
+
+        Parameters
+        ----------
+        hamiltonian:
+            symbolic Hamiltonian to process; defaults to
+            ``self.hamiltonian_symbolic.expand()``
+        return_exprs:
+            if ``True``, return ``(hamiltonian, cos_terms)`` instead of mutating
+            instance attributes
         """
 
         hamiltonian = hamiltonian or (
@@ -436,8 +777,17 @@ class CircuitSymMethods(ABC):
         setattr(self, "junction_potential", cos_terms)
 
     def _get_eval_hamiltonian_string(self, H: sm.Expr) -> str:
-        """Returns the string which defines the expression for Hamiltonian in harmonic
-        oscillator basis."""
+        """Return the Python expression string for the Hamiltonian in the chosen basis.
+
+        Each operator symbol is rewritten as a call to its ``_operator()``
+        accessor and matrix multiplication is expressed via ``@`` per
+        :meth:`_replace_mat_mul_operator`.
+
+        Parameters
+        ----------
+        H:
+            symbolic Hamiltonian to render
+        """
         expr_dict = H.as_coefficients_dict()
         # removing zero terms
         expr_dict = {key: expr_dict[key] for key in expr_dict if expr_dict[key] != 0}
@@ -476,9 +826,26 @@ class CircuitSymMethods(ABC):
     def _qutip_parameter_function_factory(
         self,
         parameter_expr: sm.Expr,
-        free_var_func_dict: Dict[str, Callable],
+        free_var_func_dict: dict[str, Callable],
         lambdify_func: Callable,
     ) -> Callable:
+        """Build a ``parameter_func(t, args)`` for time-dependent qutip terms.
+
+        Each free symbol of ``parameter_expr`` is evaluated via the matching
+        callable in ``free_var_func_dict``, and the resulting numerical values
+        are passed to ``lambdify_func`` to produce the scalar coefficient at
+        time ``t``.
+
+        Parameters
+        ----------
+        parameter_expr:
+            symbolic expression for the time-dependent coefficient
+        free_var_func_dict:
+            mapping from free-symbol name to a ``(t, args) -> float`` callable
+        lambdify_func:
+            sympy-lambdified evaluator for ``parameter_expr``
+        """
+
         def parameter_func(t, args):
             return lambdify_func(
                 *[
@@ -492,34 +859,47 @@ class CircuitSymMethods(ABC):
     @check_sync_status_circuit
     def hamiltonian_for_qutip_dynamics(
         self,
-        free_var_func_dict: Dict[str, Callable],
+        free_var_func_dict: dict[str, Callable],
         prefactor: float = 1.0,
-        extra_terms: Optional[str] = None,
-    ) -> Tuple[
-        List[Union[qt.Qobj, Tuple[qt.Qobj, Callable]]], sm.Expr, Dict[qt.Qobj, sm.Expr]
+        extra_terms: str | None = None,
+    ) -> tuple[
+        list[qt.Qobj | tuple[qt.Qobj, Callable]], sm.Expr, dict[qt.Qobj, sm.Expr]
     ]:
-        """
-        Returns the Hamiltonian in a format amenable to be forwarded to mesolve in Qutip. Also returns the symbolic expressions of time independent and time dependent terms of the Hamiltonian, which can be used for reference. `free_var_func_dict` is a dictionary with key-value pair `{"var": f}`, where `f` is a function returning the value of the variable `var` at time `t`. If one has extra terms to be added to the Hamiltonian (for instance, charge driving a fluxonium where there is no offset charge) they can be passed as a string in `extra_terms`.
-        For example, to get the Hamiltonian for a circuit where Φ1 is the time varying parameter, this method can be called in the following way::
+        r"""Return the Hamiltonian in a format suitable for ``qutip.mesolve``.
+
+        Splits the Hamiltonian into time-independent and time-dependent
+        contributions. Each free symbol of ``free_var_func_dict`` is treated
+        as a time-varying parameter; remaining terms are collected into the
+        fixed part. Optional ``extra_terms`` are added before splitting (useful
+        e.g. for charge drives on a fluxonium without offset charge).
+
+        Example::
 
             def flux_t(t, args):
-                return 0.5 + 0.02*np.sin(t*2)
-            def ng_t(t, args):
-                return 0.5 + 0.02*np.cos(t*2)
-            def EJ_t(t, args):
-                return (1-np.exp(-t/1))*0.2
-            free_var_func_dict = {"Φ1": flux_t, "EJ": EJ_t, "ng": ng_t}
-
-            mesolve_input_H = self.hamiltonian_for_qutip_dynamics(free_var_func_dict, extra_terms="0.1*ng*Q1")
+                return 0.5 + 0.02 * np.sin(t * 2)
+            free_var_func_dict = {"Φ1": flux_t}
+            H = self.hamiltonian_for_qutip_dynamics(
+                free_var_func_dict, extra_terms="0.1*ng*Q1"
+            )
 
         Parameters
         ----------
         free_var_func_dict:
-            Dict, as defined in the description above
+            mapping ``{"var": f}`` where ``f(t, args)`` returns the value of
+            ``var`` at time ``t``
         prefactor:
-            prefactor with which the Hamiltonian and corresponding operators are multiplied, useful to set it to `2*np.pi` for some qutip simulations
+            scalar multiplying the Hamiltonian and time-dependent operators
+            (e.g. set to ``2*np.pi`` for qutip simulations)
         extra_terms:
-            a string which will be converted into sympy expression, containing terms which are not present in the Circuit Hamiltonian. It is useful to define custom drive operators.
+            string parsed by sympy containing extra Hamiltonian terms (useful
+            for custom drive operators)
+
+        Returns
+        -------
+        Tuple ``(H_qutip, fixed_hamiltonian, time_dep_terms)`` where
+        ``H_qutip`` is the qutip-mesolve-style nested list, ``fixed_hamiltonian``
+        is the symbolic time-independent part, and ``time_dep_terms`` is a
+        dict mapping each qutip operator to its symbolic coefficient.
         """
         free_var_names = list(free_var_func_dict.keys())
         free_var_symbols = [sm.symbols(sym_name) for sym_name in free_var_names]
@@ -544,7 +924,7 @@ class CircuitSymMethods(ABC):
 
         expr_dict = sym_hamiltonian.expand().as_coefficients_dict()
         terms = list(expr_dict.keys())
-        time_dep_terms = {}
+        time_dep_terms: dict[sm.Expr, sm.Expr] = {}
 
         for term in terms:
             if len(list_intersection(list(term.free_symbols), free_var_symbols)) == 0:
@@ -609,7 +989,7 @@ class CircuitSymMethods(ABC):
     # ***** Functions for pretty display of symbolic expressions *****
     # ****************************************************************
     @staticmethod
-    def print_expr_in_latex(expr: Union[sm.Expr, List["sm.Equality"]]) -> None:
+    def print_expr_in_latex(expr: sm.Expr | list["sm.Equality"]) -> None:
         """Print a sympy expression or a list of equalities in LaTeX.
 
         Parameters
@@ -627,12 +1007,14 @@ class CircuitSymMethods(ABC):
             display(Latex(equalities_in_latex))
 
     def __repr__(self) -> str:
-        # string to describe the Circuit
+        """Return the circuit's ``id_str`` as the textual representation."""
         return self._id_str
 
     def _repr_latex_(self):
-        """Describes the Circuit instance, its parameters, and the symbolic
-        Hamiltonian."""
+        """Return a LaTeX/Markdown rendering of the circuit for IPython display.
+
+        Falls back to the plain ``id_str`` if IPython is not available.
+        """
         # string to describe the Circuit
         if not _HAS_IPYTHON:
             return self._id_str
@@ -715,7 +1097,7 @@ class CircuitSymMethods(ABC):
 
         Returns
         -------
-            Sympy expression which is simplified to make it human readable.
+        Sympy expression which is simplified to make it human readable.
         """
         expr_modified = expr
         # rounding the decimals in the coefficients
@@ -758,7 +1140,7 @@ class CircuitSymMethods(ABC):
 
     def sym_potential(
         self, float_round: int = 6, print_latex: bool = False, return_expr: bool = False
-    ) -> Union[sm.Expr, None]:
+    ) -> sm.Expr | None:
         """Method prints a user readable symbolic potential for the current instance.
 
         Parameters
@@ -783,20 +1165,23 @@ class CircuitSymMethods(ABC):
                 ),
             )
 
+        if return_expr:
+            return potential
         if print_latex:
             print(latex(potential))
         if _HAS_IPYTHON:
             self.print_expr_in_latex(potential)
         else:
             print(potential)
+        return None
 
     def sym_hamiltonian(
         self,
-        subsystem_index: Optional[int] = None,
+        subsystem_index: int | None = None,
         float_round: int = 6,
         print_latex: bool = False,
         return_expr: bool = False,
-    ) -> Union[sm.Expr, None]:
+    ) -> sm.Expr | None:
         """Prints a user readable symbolic Hamiltonian for the current instance.
 
         Parameters
@@ -922,14 +1307,15 @@ class CircuitSymMethods(ABC):
             self.print_expr_in_latex(sym_hamiltonian)
         else:
             print(sym_hamiltonian)
+        return None
 
     def sym_interaction(
         self,
-        subsystem_indices: Tuple[int],
+        subsystem_indices: tuple[int],
         float_round: int = 6,
         print_latex: bool = False,
         return_expr: bool = False,
-    ) -> Union[sm.Expr, None]:
+    ) -> sm.Expr | None:
         """Print the interaction between any set of subsystems for the current instance.
         It would print the interaction terms having operators from all the subsystems
         mentioned in the tuple.
@@ -988,10 +1374,14 @@ class CircuitSymMethods(ABC):
             self.print_expr_in_latex(interaction)
         else:
             print(interaction)
+        return None
 
-    def operator_names_in_hamiltonian_symbolic(self) -> List[str]:
-        """Returns a list of the names (strings) of all operators occurring in the
-        symbolic Hamiltonian."""
+    def operator_names_in_hamiltonian_symbolic(self) -> list[str]:
+        """Return the names of all operator symbols in the symbolic Hamiltonian.
+
+        Excludes offset charges (``ng``), external fluxes (``Φ``), and any
+        symbolic parameters.
+        """
         return [
             symbol.name
             for symbol in self.hamiltonian_symbolic.free_symbols
@@ -1000,8 +1390,13 @@ class CircuitSymMethods(ABC):
         ]
 
     def offset_charge_transformation(self) -> None:
-        """Prints the variable transformation between offset charges of transformed
-        variables and the node charges."""
+        """Print the offset-charge transformation from node charges to periodic vars.
+
+        Renders the equations relating each ``ng_i`` (offset charge of a
+        periodic variable) to a linear combination of node-offset charges
+        ``q_ni``, using the inverse of :attr:`transformation_matrix`. Output
+        is rendered via LaTeX in IPython, plain-printed otherwise.
+        """
         if not hasattr(self, "symbolic_circuit"):
             raise Exception(
                 f"{self._id_str} instance is not generated from a SymbolicCircuit instance, and hence does not have any associated branches."

@@ -10,8 +10,11 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
 import re
-from typing import TYPE_CHECKING, Callable, List, Union, Optional, Tuple, Dict
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 import scipy as sp
@@ -34,17 +37,20 @@ if TYPE_CHECKING:
 
 
 def _junction_order(branch_type: str) -> int:
-    """Returns the order of the branch if it is a JJ branch, if the order is n its
-    energy is given by cos(phi) + cos(2*phi) + ... + cos(n*phi)
+    """Return the order of a JJ branch.
 
-    Args:
-        branch (_type_): Branch
+    For order :math:`n`, the energy is given by
+    :math:`\\cos(\\varphi) + \\cos(2\\varphi) + \\cdots + \\cos(n\\varphi)`.
 
-    Raises:
-        ValueError: when the branch is not a josephson junction
+    Parameters
+    ----------
+    branch_type:
+        branch type string (expected to contain ``"JJ"``)
 
     Returns
-        _type_: int, order of the josephson junction
+    -------
+    Order of the Josephson junction. Raises :class:`ValueError` when the branch
+    type does not correspond to a Josephson junction.
     """
     if "JJ" not in branch_type:
         raise ValueError("The branch is not a JJ branch")
@@ -58,9 +64,8 @@ def _junction_order(branch_type: str) -> int:
         return 1
 
 
-def sawtooth_operator(x: Union[ndarray, csc_matrix]):
-    """Returns the operator evaluated using applying the sawtooth_potential function on
-    the diagonal elements of the operator x.
+def sawtooth_operator(x: ndarray | csc_matrix):
+    """Apply :func:`sawtooth_potential` to the diagonal of ``x``.
 
     Parameters
     ----------
@@ -84,7 +89,19 @@ def sawtooth_operator(x: Union[ndarray, csc_matrix]):
 #     return (x_rel)**2/(np.pi)**2 # normalized to have a maximum of 1
 
 
-def sawtooth_potential(phi_pts):
+def sawtooth_potential(phi_pts: ndarray):
+    """Return the sawtooth-junction potential evaluated at ``phi_pts``.
+
+    The potential is computed from a truncated Fourier series with skewness
+    parameter :math:`s=0.99` and ``N=1000`` terms:
+    :math:`V(\\varphi) = -\\sum_{k=1}^{N} (s+1)(-s)^{k-1}
+    \\cos(k\\varphi)/k^2`.
+
+    Parameters
+    ----------
+    phi_pts:
+        phase values at which the potential is evaluated
+    """
     # definition from Andras
     skewness = 0.99
     N = 1000
@@ -94,8 +111,14 @@ def sawtooth_potential(phi_pts):
     return -V
 
 
-def _capacitance_variable_for_branch(branch_type: str):
-    """Returns the parameter name that stores the capacitance of the branch."""
+def _capacitance_variable_for_branch(branch_type: str) -> str:
+    """Return the parameter name that stores the capacitance of the branch.
+
+    Parameters
+    ----------
+    branch_type:
+        branch type string (expected to contain ``"C"`` or ``"JJ"``)
+    """
     if "C" in branch_type:
         return "EC"
     elif "JJ" in branch_type:
@@ -107,8 +130,9 @@ def _capacitance_variable_for_branch(branch_type: str):
 def truncation_template(
     system_hierarchy: list, individual_trunc_dim: int = 6, combined_trunc_dim: int = 30
 ) -> list:
-    """Function to generate a template for defining the truncated dimensions for
-    subsystems when hierarchical diagonalization is used.
+    """Generate a template for truncated subsystem dimensions.
+
+    Used when hierarchical diagonalization is enabled.
 
     Parameters
     ----------
@@ -123,10 +147,10 @@ def truncation_template(
 
     Returns
     -------
-        The template for setting the truncated dims for the Circuit instance when
-        hierarchical diagonalization is used.
+    The template for setting the truncated dims for the Circuit instance when
+    hierarchical diagonalization is used.
     """
-    trunc_dims: List[Union[int, list]] = []
+    trunc_dims: list[int | list] = []
     for subsystem_hierarchy in system_hierarchy:
         if subsystem_hierarchy == flatten_list_recursive(subsystem_hierarchy):
             trunc_dims.append(individual_trunc_dim)
@@ -137,25 +161,29 @@ def truncation_template(
     return trunc_dims
 
 
-def get_trailing_number(input_str: str) -> Union[int, None]:
-    """Returns the number trailing a string given as input. Example: $
-    get_trailing_number("a23") $ 23.
+def get_trailing_number(input_str: str) -> int:
+    """Return the integer trailing the input string.
+
+    For example, ``get_trailing_number("a23")`` returns ``23``.
 
     Parameters
     ----------
     input_str:
-        String which ends with a number
+        string which ends with a number; raises :class:`ValueError` if no
+        trailing digits are present
 
     Returns
     -------
-        returns the trailing integer as int, else returns None
+    trailing integer
     """
     match = re.search(r"\d+$", input_str)
-    return int(match.group()) if match else None
+    if match is None:
+        raise ValueError(f"get_trailing_number: {input_str!r} has no trailing digits")
+    return int(match.group())
 
 
 def _identity_phi(grid: discretization.Grid1d) -> csc_matrix:
-    """Returns identity operator in the discretized_phi basis.
+    """Return identity operator in the discretized_phi basis.
 
     Parameters
     ----------
@@ -164,14 +192,14 @@ def _identity_phi(grid: discretization.Grid1d) -> csc_matrix:
 
     Returns
     -------
-        identity operator in the discretized phi basis
+    identity operator in the discretized phi basis
     """
     pt_count = grid.pt_count
-    return sparse.identity(pt_count, format="csc")
+    return sparse.identity(pt_count, format="csc")  # type: ignore[return-value]
 
 
 def _phi_operator(grid: discretization.Grid1d) -> csc_matrix:
-    """Returns phi operator in the discretized_phi basis.
+    """Return phi operator in the discretized_phi basis.
 
     Parameters
     ----------
@@ -180,7 +208,7 @@ def _phi_operator(grid: discretization.Grid1d) -> csc_matrix:
 
     Returns
     -------
-        phi operator in the discretized phi basis
+    phi operator in the discretized phi basis
     """
     pt_count = grid.pt_count
 
@@ -191,7 +219,7 @@ def _phi_operator(grid: discretization.Grid1d) -> csc_matrix:
 
 
 def _i_d_dphi_operator(grid: discretization.Grid1d) -> csc_matrix:
-    """Returns i*d/dphi operator in the discretized_phi basis.
+    """Return i*d/dphi operator in the discretized_phi basis.
 
     Parameters
     ----------
@@ -200,13 +228,13 @@ def _i_d_dphi_operator(grid: discretization.Grid1d) -> csc_matrix:
 
     Returns
     -------
-        i*d/dphi operator in the discretized phi basis
+    i*d/dphi operator in the discretized phi basis
     """
     return grid.first_derivative_matrix(prefactor=-1j)
 
 
 def _i_d2_dphi2_operator(grid: discretization.Grid1d) -> csc_matrix:
-    """Returns i*d2/dphi2 operator in the discretized_phi basis.
+    """Return i*d2/dphi2 operator in the discretized_phi basis.
 
     Parameters
     ----------
@@ -215,13 +243,13 @@ def _i_d2_dphi2_operator(grid: discretization.Grid1d) -> csc_matrix:
 
     Returns
     -------
-        i*d2/dphi2 operator in the discretized phi basis
+    i*d2/dphi2 operator in the discretized phi basis
     """
     return grid.second_derivative_matrix(prefactor=-1.0)
 
 
 def _cos_phi(grid: discretization.Grid1d) -> csc_matrix:
-    """Returns cos operator in the discretized_phi basis.
+    """Return cos operator in the discretized_phi basis.
 
     Parameters
     ----------
@@ -230,7 +258,7 @@ def _cos_phi(grid: discretization.Grid1d) -> csc_matrix:
 
     Returns
     -------
-        cos operator in the discretized phi basis
+    cos operator in the discretized phi basis
     """
     pt_count = grid.pt_count
 
@@ -241,7 +269,7 @@ def _cos_phi(grid: discretization.Grid1d) -> csc_matrix:
 
 
 def _sin_phi(grid: discretization.Grid1d) -> csc_matrix:
-    """Returns sin operator in the discretized_phi basis.
+    """Return sin operator in the discretized_phi basis.
 
     Parameters
     ----------
@@ -250,7 +278,7 @@ def _sin_phi(grid: discretization.Grid1d) -> csc_matrix:
 
     Returns
     -------
-        sin operator in the discretized phi basis
+    sin operator in the discretized phi basis
     """
     pt_count = grid.pt_count
 
@@ -261,51 +289,89 @@ def _sin_phi(grid: discretization.Grid1d) -> csc_matrix:
 
 
 def _identity_theta(ncut: int) -> csc_matrix:
-    """Returns Operator identity in the charge basis."""
+    """Return the identity operator in the charge basis.
+
+    Parameters
+    ----------
+    ncut:
+        charge basis cutoff, ``n = -ncut, ..., ncut``
+    """
     dim_theta = 2 * ncut + 1
-    return sparse.identity(dim_theta, format="csc")
+    return sparse.identity(dim_theta, format="csc")  # type: ignore[return-value]
 
 
 def _n_theta_operator(ncut: int) -> csc_matrix:
-    """Returns charge operator `n` in the charge basis."""
+    """Return the charge operator :math:`n` in the charge basis.
+
+    Parameters
+    ----------
+    ncut:
+        charge basis cutoff, ``n = -ncut, ..., ncut``
+    """
     dim_theta = 2 * ncut + 1
     diag_elements = np.arange(-ncut, ncut + 1)
-    n_theta_matrix = sparse.dia_matrix(
+    n_theta_matrix = sparse.dia_matrix(  # type: ignore[type-var]
         (diag_elements, [0]), shape=(dim_theta, dim_theta)
-    ).tocsc()
-    return n_theta_matrix
+    ).tocsc()  # type: ignore[misc]
+    return n_theta_matrix  # type: ignore[return-value]
 
 
-def _exp_i_theta_operator(ncut, prefactor=1) -> csc_matrix:
-    r"""Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace."""
+def _exp_i_theta_operator(ncut: int, prefactor: int = 1) -> csc_matrix:
+    r"""Operator :math:`\cos(\theta)`, acting only on the :math:`\theta` Hilbert subspace.
+
+    Parameters
+    ----------
+    ncut:
+        charge basis cutoff, ``n = -ncut, ..., ncut``
+    prefactor:
+        integer prefactor multiplying :math:`\theta` in the exponent
+    """
     # if type(prefactor) != int:
     #     raise ValueError("Prefactor must be an integer")
     dim_theta = 2 * ncut + 1
-    matrix = sparse.dia_matrix(
+    matrix = sparse.dia_matrix(  # type: ignore[type-var]
         (np.ones(dim_theta), [-prefactor]),
         shape=(dim_theta, dim_theta),
-    ).tocsc()
-    return matrix
+    ).tocsc()  # type: ignore[misc]
+    return matrix  # type: ignore[return-value]
 
 
-def _exp_i_theta_operator_conjugate(ncut) -> csc_matrix:
-    r"""Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace."""
+def _exp_i_theta_operator_conjugate(ncut: int) -> csc_matrix:
+    r"""Operator :math:`\cos(\theta)`, acting only on the :math:`\theta` Hilbert subspace.
+
+    Parameters
+    ----------
+    ncut:
+        charge basis cutoff, ``n = -ncut, ..., ncut``
+    """
     dim_theta = 2 * ncut + 1
-    matrix = sparse.dia_matrix(
+    matrix = sparse.dia_matrix(  # type: ignore[type-var]
         (np.ones(dim_theta), [1]),
         shape=(dim_theta, dim_theta),
-    ).tocsc()
-    return matrix
+    ).tocsc()  # type: ignore[misc]
+    return matrix  # type: ignore[return-value]
 
 
 def _cos_theta(ncut: int) -> csc_matrix:
-    """Returns operator :math:`\\cos \\varphi` in the charge basis."""
+    """Return the operator :math:`\\cos \\varphi` in the charge basis.
+
+    Parameters
+    ----------
+    ncut:
+        charge basis cutoff, ``n = -ncut, ..., ncut``
+    """
     cos_op = 0.5 * (_exp_i_theta_operator(ncut) + _exp_i_theta_operator_conjugate(ncut))
     return cos_op
 
 
 def _sin_theta(ncut: int) -> csc_matrix:
-    """Returns operator :math:`\\sin \\varphi` in the charge basis."""
+    """Return the operator :math:`\\sin \\varphi` in the charge basis.
+
+    Parameters
+    ----------
+    ncut:
+        charge basis cutoff, ``n = -ncut, ..., ncut``
+    """
     sin_op = (
         -1j
         * 0.5
@@ -315,10 +381,9 @@ def _sin_theta(ncut: int) -> csc_matrix:
 
 
 def _generate_symbols_list(
-    var_str: str, iterable_list: List[int] or ndarray
-) -> List[sm.Symbol]:
-    """Returns the list of symbols generated using the var_str + iterable as the name of
-    the symbol.
+    var_str: str, iterable_list: list[int] | ndarray
+) -> list[sm.Symbol]:
+    """Return symbols whose names are ``var_str + str(iterable)``.
 
     Parameters
     ----------
@@ -335,13 +400,12 @@ def is_potential_term(term: sm.Expr) -> bool:
 
     Parameters
     ----------
-    term: sm.Expr
-        a single terms in the form of Sympy expression.
+    term:
+        a single term as a Sympy expression
 
     Returns
     -------
-    bool
-        True if the term is part of the potential of this instance's Hamiltonian
+    ``True`` if the term is part of the potential of this instance's Hamiltonian.
     """
     for symbol in term.free_symbols:
         if "θ" in symbol.name or "Φ" in symbol.name:
@@ -350,8 +414,10 @@ def is_potential_term(term: sm.Expr) -> bool:
 
 
 def example_circuit(qubit: str) -> str:
-    """Returns example input strings for AnalyzeQCircuit and CustomQCircuit for some of
-    the popular qubits.
+    """Return example input strings for some of the popular qubits.
+
+    The input strings are intended for ``AnalyzeQCircuit`` and
+    ``CustomQCircuit``.
 
     Parameters
     ----------
@@ -377,8 +443,29 @@ def example_circuit(qubit: str) -> str:
 
 
 def grid_operator_func_factory(inner_op: Callable, index: int) -> Callable:
+    """Build an operator method for a discretized-grid variable.
+
+    Wraps ``inner_op`` so that, when called as a method on a
+    :class:`~scqubits.core.circuit.Subsystem`, it constructs the corresponding
+    operator on the discretized grid for the variable identified by ``index``,
+    embeds it via ``_kron_operator``, and applies optional energy-eigenbasis
+    conversion.
+
+    Parameters
+    ----------
+    inner_op:
+        callable that returns the operator on a single discretized grid
+    index:
+        index of the variable on which the operator acts
+
+    Returns
+    -------
+    Method to be attached to a :class:`~scqubits.core.circuit.Subsystem`
+    instance.
+    """
+
     def operator_func(
-        self: "Subsystem", energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+        self: "Subsystem", energy_esys: bool | tuple[ndarray, ndarray] = False
     ):
         native = self._kron_operator(
             inner_op(self.discretized_grids_dict_for_vars()[index]), index
@@ -389,8 +476,26 @@ def grid_operator_func_factory(inner_op: Callable, index: int) -> Callable:
 
 
 def hierarchical_diagonalization_func_factory(symbol_name: str) -> Callable:
+    """Build an operator method for a hierarchically diagonalized variable.
+
+    The returned method retrieves the operator with name ``symbol_name`` from
+    the parent subsystem (via :meth:`get_operator_by_name`), converts it to a
+    SciPy CSC matrix, and applies optional energy-eigenbasis conversion.
+
+    Parameters
+    ----------
+    symbol_name:
+        name of the operator to be looked up via
+        :meth:`~scqubits.core.circuit.Subsystem.get_operator_by_name`
+
+    Returns
+    -------
+    Method to be attached to a :class:`~scqubits.core.circuit.Subsystem`
+    instance.
+    """
+
     def operator_func(
-        self: "Subsystem", energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+        self: "Subsystem", energy_esys: bool | tuple[ndarray, ndarray] = False
     ):
         """Returns the operator <op_name> (corresponds to the name of the method
         "<op_name>_operator") for the Circuit/Subsystem instance.
@@ -417,7 +522,27 @@ def hierarchical_diagonalization_func_factory(symbol_name: str) -> Callable:
     return operator_func
 
 
-def keep_terms_for_subsystem(sym_expr, subsys, substitute_zero=False):
+def keep_terms_for_subsystem(
+    sym_expr: sm.Expr, subsys: "Subsystem", substitute_zero: bool = False
+) -> sm.Expr:
+    """Drop terms from ``sym_expr`` not involving ``subsys`` variables.
+
+    If ``substitute_zero`` is ``True``, every free symbol in ``sym_expr`` is
+    substituted with zero and the resulting expression is returned.
+
+    Parameters
+    ----------
+    sym_expr:
+        symbolic expression to filter
+    subsys:
+        subsystem whose ``dynamic_var_indices`` determine the terms to keep
+    substitute_zero:
+        if ``True``, substitute zero for all free symbols and return that
+
+    Returns
+    -------
+    Filtered symbolic expression.
+    """
     if substitute_zero:
         for var_sym in sym_expr.free_symbols:
             sym_expr = sym_expr.subs(var_sym, 0)
@@ -433,10 +558,35 @@ def keep_terms_for_subsystem(sym_expr, subsys, substitute_zero=False):
 
 
 def operator_func_factory(
-    inner_op: Callable, index: int, op_type: Optional[str] = None
+    inner_op: Callable, index: int, op_type: str | None = None
 ) -> Callable:
+    """Build an operator method for periodic or harmonic-basis variables.
+
+    Wraps ``inner_op`` so that, when called as a method on a
+    :class:`~scqubits.core.circuit.Subsystem`, it constructs the corresponding
+    operator on the relevant Hilbert subspace (using a prefactor derived from
+    the oscillator length when ``ext_basis == "harmonic"`` and ``op_type`` is
+    one of ``"position"``, ``"momentum"``, ``"sin"``, ``"cos"``), embeds it
+    via ``_kron_operator``, and applies optional energy-eigenbasis conversion.
+
+    Parameters
+    ----------
+    inner_op:
+        callable that returns the bare operator on the variable's Hilbert space
+    index:
+        index of the variable on which the operator acts
+    op_type:
+        operator-type tag controlling the harmonic-basis prefactor; one of
+        ``"position"``, ``"momentum"``, ``"sin"``, ``"cos"``, or ``None``
+
+    Returns
+    -------
+    Method to be attached to a :class:`~scqubits.core.circuit.Subsystem`
+    instance.
+    """
+
     def operator_func(
-        self: "Subsystem", energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
+        self: "Subsystem", energy_esys: bool | tuple[ndarray, ndarray] = False
     ):
         """Returns the operator <op_name> (corresponds to the name of the method
         "<op_name>_operator") for the Circuit/Subsystem instance.
@@ -475,33 +625,84 @@ def operator_func_factory(
 
 
 def _cos_dia(x: csc_matrix) -> csc_matrix:
-    """Take the diagonal of the array x, compute its cosine, and fill the result into
-    the diagonal of a sparse matrix."""
-    return sparse.diags(np.cos(x.diagonal())).tocsc()
+    """Return a sparse diagonal matrix containing ``cos(x.diagonal())``.
+
+    Parameters
+    ----------
+    x:
+        input sparse matrix whose diagonal is used
+    """
+    return sparse.diags(np.cos(x.diagonal())).tocsc()  # type: ignore[return-value]
 
 
 def _sin_dia(x: csc_matrix) -> csc_matrix:
-    """Take the diagonal of the array x, compute its sine, and fill the result into the
-    diagonal of a sparse matrix."""
-    return sparse.diags(np.sin(x.diagonal())).tocsc()
+    """Return a sparse diagonal matrix containing ``sin(x.diagonal())``.
+
+    Parameters
+    ----------
+    x:
+        input sparse matrix whose diagonal is used
+    """
+    return sparse.diags(np.sin(x.diagonal())).tocsc()  # type: ignore[return-value]
 
 
 def _sin_dia_dense(x: ndarray) -> ndarray:
-    """This is a special function to calculate the sin of dense diagonal matrices."""
+    """Compute the sine of a dense diagonal matrix.
+
+    Parameters
+    ----------
+    x:
+        input dense diagonal matrix whose diagonal is used
+    """
     return np.diag(np.sin(x.diagonal()))
 
 
 def _cos_dia_dense(x: ndarray) -> ndarray:
-    """This is a special function to calculate the cos of dense diagonal matrices."""
+    """Compute the cosine of a dense diagonal matrix.
+
+    Parameters
+    ----------
+    x:
+        input dense diagonal matrix whose diagonal is used
+    """
     return np.diag(np.cos(x.diagonal()))
 
 
 def matrix_power_sparse(dense_mat: ndarray, n: int) -> csc_matrix:
+    """Return the ``n``-th matrix power of ``dense_mat`` computed in sparse form.
+
+    Parameters
+    ----------
+    dense_mat:
+        dense input matrix, converted internally to :class:`scipy.sparse.csc_matrix`
+    n:
+        non-negative integer exponent
+
+    Returns
+    -------
+    Sparse matrix :math:`(\\text{dense\\_mat})^n`.
+    """
     sparse_mat = sparse.csc_matrix(dense_mat)
     return sparse_mat**n
 
 
 def round_symbolic_expr(expr: sm.Expr, number_of_digits: int) -> sm.Expr:
+    """Round all floating-point coefficients in a Sympy expression.
+
+    The expression is first expanded; every :class:`sympy.Float` encountered
+    in the resulting tree is replaced by its rounded value.
+
+    Parameters
+    ----------
+    expr:
+        Sympy expression to round
+    number_of_digits:
+        number of decimal digits to round to
+
+    Returns
+    -------
+    Rounded Sympy expression.
+    """
     rounded_expr = expr.expand()
     for term in sm.preorder_traversal(expr.expand()):
         if isinstance(term, sm.Float):
@@ -509,7 +710,26 @@ def round_symbolic_expr(expr: sm.Expr, number_of_digits: int) -> sm.Expr:
     return rounded_expr
 
 
-def yaml_like_out_with_pp(circuit_yaml):
+def yaml_like_out_with_pp(circuit_yaml: str) -> list[list]:
+    """Parse a circuit YAML string into a list of branch token lists.
+
+    The input is preprocessed (comments, branch-line markers, and empty
+    lines stripped) and each remaining line is parsed with
+    :data:`scqubits.core.circuit_input.BRANCHES`. Each parsed branch is
+    converted into a flat list of strings/values suitable for further
+    YAML emission.
+
+    Parameters
+    ----------
+    circuit_yaml:
+        circuit YAML string in the syntax accepted by the custom-circuit
+        module
+
+    Returns
+    -------
+    A list of branches, where each branch is a list of token strings (or
+    raw values for non-:class:`pyparsing.ParseResults` items).
+    """
     import pyparsing as pp
 
     code = circuit_input.remove_comments(circuit_yaml)
@@ -542,84 +762,91 @@ def yaml_like_out_with_pp(circuit_yaml):
 
 
 def assemble_circuit(
-    circuit_list: List[str],
+    circuit_list: list[str],
     couplers: str,
-    rename_parameters=False,
-) -> Tuple[str, List[Dict[int, int]]]:
-    """
-    Assemble a yaml string for a large circuit that are made of smaller
-    sub-circuits and coupling elements. This method takes a list of Sub-circuit yaml
-    strings as the first argument, and a yaml string that characterize the coupler
-    branches as the second argument. For example, if one wish to make a yaml string for
-    a circuit consist of a grounded fluxonium capacitively coupled to another fluxonium,
-    then one need to define:
+    rename_parameters: bool = False,
+) -> tuple[str, list[dict[int, int]]]:
+    """Assemble a YAML string for a composite circuit from sub-circuits and couplers.
 
-    circuit_1 = '''
-    branches:
-    - [C, 0, 1, EC = 1]
-    - [JJ, 0, 1, EJ = 20, ECJ = 3]
-    - [L, 0, 1, EL = 10]
-    '''
-    circuit_2 = '''
-    branches:
-    - [C, 0, 1, EC = 3]
-    - [JJ, 0, 1, EJ = 1, ECJ = 2]
-    - [L, 0, 1, EL = 0.5]
-    '''
-    circuit_list = [circuit_1, circuit_2]
-    couplers = '''
-    branches:
-    - [C, 1: 1, 2: 1, E_coup = 1]
-    '''
+    This method takes a list of sub-circuit YAML strings as the first argument
+    and a YAML string characterizing the coupler branches as the second
+    argument. For example, to assemble a grounded fluxonium capacitively
+    coupled to another fluxonium, define::
 
-    If rename_parameters argument set to False, the resulting yaml string for the assembled
-    composite circuit is:
-    branches:
-    - [C, 0, 1, EC = 1]
-    - [JJ, 0, 1, EJ = 20, ECJ = 3]
-    - [L, 0, 1, EL = 10]
-    - [C, 0, 2, EC]
-    - [JJ, 0, 2, EJ, ECJ]
-    - [L, 0, 2, EL]
-    - [C, 1, 2, E_coup = 1]
+        circuit_1 = '''
+        branches:
+        - [C, 0, 1, EC = 1]
+        - [JJ, 0, 1, EJ = 20, ECJ = 3]
+        - [L, 0, 1, EL = 10]
+        '''
+        circuit_2 = '''
+        branches:
+        - [C, 0, 1, EC = 3]
+        - [JJ, 0, 1, EJ = 1, ECJ = 2]
+        - [L, 0, 1, EL = 0.5]
+        '''
+        circuit_list = [circuit_1, circuit_2]
+        couplers = '''
+        branches:
+        - [C, 1: 1, 2: 1, E_coup = 1]
+        '''
 
-    If rename_parameters argument set to True, the resulting yaml string for the assembled
-    composite circuit is:
-    branches:
-    - [C, 0, 1, EC_1 = 1]
-    - [JJ, 0, 1, EJ_1 = 20, ECJ_1 = 3]
-    - [L, 0, 1, EL_1 = 10]
-    - [C, 0, 2, EC_2 = 3]
-    - [JJ, 0, 2, EJ_2 = 1, ECJ_2 = 2]
-    - [L, 0, 2, EL_2 = 0.5]
-    - [C, 1, 2, E_coup_12 = 1]
+    With ``rename_parameters=False``, the resulting YAML string for the
+    assembled composite circuit is::
 
-    The yaml strings for each coupler circuit follow the syntax of input strings used in the
-    custom circuit module, whereas the syntax for coupler branches is different. Each coupler
-    branch is represented by:
-    <branch-type>, <subcircuit-index>:<node-index-of-the-circuit>, <subcircuit-index>:<node-index-of-the-circuit>, <param-1> [, <param-2>]]
+        branches:
+        - [C, 0, 1, EC = 1]
+        - [JJ, 0, 1, EJ = 20, ECJ = 3]
+        - [L, 0, 1, EL = 10]
+        - [C, 0, 2, EC]
+        - [JJ, 0, 2, EJ, ECJ]
+        - [L, 0, 2, EL]
+        - [C, 1, 2, E_coup = 1]
 
-    All the grounded sub-circuit share the same ground node in the composite circuit.
-    The parameter symbols are global, i.e. the same parameter symbol that appears in different
-    subcircuit yaml strings will be treated as one parameter in the composite circuit. The
-    symbolic parameters are only initialized once, with the value specified at the first
-    instance of appearance (notice the initial value for EC in the above example).
+    With ``rename_parameters=True``, the resulting YAML string for the
+    assembled composite circuit is::
+
+        branches:
+        - [C, 0, 1, EC_1 = 1]
+        - [JJ, 0, 1, EJ_1 = 20, ECJ_1 = 3]
+        - [L, 0, 1, EL_1 = 10]
+        - [C, 0, 2, EC_2 = 3]
+        - [JJ, 0, 2, EJ_2 = 1, ECJ_2 = 2]
+        - [L, 0, 2, EL_2 = 0.5]
+        - [C, 1, 2, E_coup_12 = 1]
+
+    The YAML string for each sub-circuit follows the syntax of input strings
+    used in the custom circuit module, whereas the syntax for coupler branches
+    is different. Each coupler branch is represented by::
+
+        <branch-type>, <subcircuit-index>:<node-index>,
+        <subcircuit-index>:<node-index>, <param-1> [, <param-2>]
+
+    All grounded sub-circuits share the same ground node in the composite
+    circuit. The parameter symbols are global, i.e., the same parameter symbol
+    appearing in different sub-circuit YAML strings is treated as one
+    parameter in the composite circuit. The symbolic parameters are only
+    initialized once, with the value specified at the first instance of
+    appearance (notice the initial value for ``EC`` in the above example).
 
     Parameters
     ----------
     circuit_list:
-        A list of yaml strings encoding branches of sub-circuits.
+        a list of YAML strings encoding branches of sub-circuits
     couplers:
-        A yaml string that encodes information of coupler branches
+        a YAML string that encodes information about coupler branches
     rename_parameters:
-        If set to True, parameters in the sub-circuits will be renamed as <original-parameter-name>_<sub-circuit-index>
-        parameters in the couplers will be renamed as <original-parameter-name>_<sub-circuit-1-index><sub-circuit-2-index>
+        if ``True``, parameters in the sub-circuits will be renamed as
+        ``<original-parameter-name>_<sub-circuit-index>`` and parameters in
+        the couplers will be renamed as
+        ``<original-parameter-name>_<sub-circuit-1-index><sub-circuit-2-index>``
 
     Returns
     -------
-        A yaml string for the composite circuit, which can be used as the input for the custom
-        circuit module, and a list of dictionaries which provides the mapping between the
-        node indices of the sub-circuits (keys) and those of the composite circuit (values).
+    A YAML string for the composite circuit, which can be used as the input
+    for the custom circuit module, together with a list of dictionaries
+    providing the mapping between the node indices of the sub-circuits (keys)
+    and those of the composite circuit (values).
     """
     # identify numbers of subcircuits
     subcircuit_number = len(circuit_list)
@@ -653,10 +880,10 @@ def assemble_circuit(
         subcircuit_node_index_dict = {}
         for subcircuit_node_index in subcircuit_nodes_list[subcircuit_index]:
             subcircuit_node_index_dict[subcircuit_node_index] = (
-                subcircuit_node_index + node_index_offset
+                subcircuit_node_index + node_index_offset  # type: ignore[operator]
             )
         if subcircuit_is_grounded_list[subcircuit_index]:
-            subcircuit_node_index_dict[0] = 0
+            subcircuit_node_index_dict[0] = 0  # type: ignore[index]
         node_index_offset += (
             subcircuit_node_number_list[subcircuit_index]
             - subcircuit_is_grounded_list[subcircuit_index]
@@ -803,15 +1030,16 @@ def assemble_circuit(
             else:
                 composite_circuit_yaml += str(word) + ", "
         composite_circuit_yaml += "]\n"
-    return composite_circuit_yaml, subcircuit_node_index_dict_list
+    return composite_circuit_yaml, subcircuit_node_index_dict_list  # type: ignore[return-value]
 
 
 def assemble_transformation_matrix(
-    transformation_matrix_list: List[ndarray],
+    transformation_matrix_list: list[ndarray],
 ) -> ndarray:
-    """Assemble a transformation matrix for a large circuit that are made of smaller
-    sub-circuits and coupling elements. This method takes a list of sub-circuit
-    transformation matrices as the argument.
+    """Assemble a transformation matrix for a composite circuit from sub-circuits.
+
+    This method takes a list of sub-circuit transformation matrices as the
+    argument.
 
     Parameters
     ----------
@@ -820,7 +1048,7 @@ def assemble_transformation_matrix(
 
     Returns
     -------
-        A numpy ndarray for the composite circuit.
+    A numpy ndarray for the composite circuit.
     """
 
     return sp.linalg.block_diag(*transformation_matrix_list)

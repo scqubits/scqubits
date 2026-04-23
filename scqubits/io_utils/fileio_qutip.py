@@ -18,6 +18,37 @@ from scqubits.io_utils.fileio_serializers import Serializable
 from scqubits.utils import misc as utils
 
 
+def _expand_qobj_dims(dims: list) -> list:
+    """Pad qutip's compact ``[1]`` row to match the partner row's length.
+
+    qutip >= 5 reports a multipartite ket's ``Qobj.dims`` compactly as
+    ``[[d_1, ..., d_n], [1]]`` rather than the expanded
+    ``[[d_1, ..., d_n], [1, 1, ..., 1]]`` form. The compact form is a
+    ragged list which:
+
+    1. NumPy >= 1.24 rejects from ``np.asarray(...)`` without ``dtype=object``;
+    2. ``dtype=object`` arrays cannot be stored by h5py.
+
+    Padding to the expanded form yields a uniform integer array that h5py
+    accepts. qutip auto-normalizes back to the compact form when the dims
+    are passed to ``Qobj(...)`` on deserialize, so the round-trip is
+    semantically lossless.
+
+    Returns ``dims`` unchanged when no padding is needed (operators, or
+    already-expanded kets/bras).
+    """
+    if len(dims) != 2:
+        return dims
+    n0, n1 = len(dims[0]), len(dims[1])
+    if n0 == n1:
+        return dims
+    if dims[0] == [1]:
+        return [[1] * n1, dims[1]]
+    if dims[1] == [1]:
+        return [dims[0], [1] * n0]
+    return dims
+
+
 class QutipEigenstates(np.ndarray, Serializable):
     """Wrapper class that adds serialization functionality to the numpy ndarray
     class."""
@@ -43,7 +74,10 @@ class QutipEigenstates(np.ndarray, Serializable):
 
         typename = type(self).__name__
         evec_count = len(self)
-        qobj_dims = np.asarray(self[0].dims)
+        # Pad qutip's compact dims (e.g. [[3, 4, 4], [1]]) to the expanded
+        # form so the result is a uniform integer array compatible with h5py.
+        # See :func:`_expand_qobj_dims` for rationale.
+        qobj_dims = np.asarray(_expand_qobj_dims(self[0].dims))
         qobj_shape = np.asarray(self[0].shape)
         io_attributes = {"evec_count": evec_count}
         io_ndarrays = {

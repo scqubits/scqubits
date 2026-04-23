@@ -26,9 +26,11 @@ Matplotlib.
 #    LICENSE file in the root directory of this source tree.
 #######################################################################################
 
+from __future__ import annotations
+
 import warnings
 
-from typing import Any, Optional, Type, Union
+from typing import Any, Type
 
 import matplotlib.font_manager as mpl_font
 import numpy as np
@@ -38,11 +40,11 @@ from cycler import cycler
 
 # Set format for output of warnings
 def warning_on_one_line(
-    message: Union[Warning, str],
+    message: Warning | str,
     category: Type[Warning],
     filename: str,
     lineno: int,
-    line: Optional[str] = None,
+    line: str | None = None,
 ) -> str:
     return "{}: {}\n {}: {}".format(category.__name__, message, filename, lineno)
 

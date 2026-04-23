@@ -22,6 +22,8 @@ carried out with the help of Numpy and Scipy; plotting capabilities rely on Matp
 
 import warnings
 
+from typing import TYPE_CHECKING
+
 from scqubits import settings
 
 # core
@@ -70,21 +72,31 @@ from scqubits.core.circuit_utils import truncation_template
 from scqubits.core.symbolic_circuit import SymbolicCircuit
 
 
-# GUI
-try:
+# GUI — graceful fallback when the optional `ipyvuetify` dependency is missing.
+# At type-check time, mypy always sees the real classes; at runtime, the
+# try/except applies and substitutes error-raising stubs if imports fail.
+if TYPE_CHECKING:
     from scqubits.explorer.explorer_widget import Explorer
     from scqubits.ui.gui import GUI
-except (ImportError, NameError):
+else:
+    try:
+        from scqubits.explorer.explorer_widget import Explorer
+        from scqubits.ui.gui import GUI
+    except (ImportError, NameError):
 
-    def Explorer(*args, **kwargs):
-        warnings.warn(
-            "scqubits: could not create Explorer - did you install the optional dependency ipyvuetify?"
-        )
+        def Explorer(*args, **kwargs):
+            raise ImportError(
+                "scqubits: Explorer requires the optional dependency "
+                "`ipyvuetify`. Install it with `pip install scqubits[gui]` "
+                "or `pip install ipyvuetify`."
+            )
 
-    def GUI(*args, **kwargs):
-        warnings.warn(
-            "scqubits: could not create GUI - did you install the optional dependency ipyvuetify?"
-        )
+        def GUI(*args, **kwargs):
+            raise ImportError(
+                "scqubits: GUI requires the optional dependency "
+                "`ipyvuetify`. Install it with `pip install scqubits[gui]` "
+                "or `pip install ipyvuetify`."
+            )
 
 
 # for showing scqubits info

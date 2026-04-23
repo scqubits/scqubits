@@ -9,10 +9,12 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
 import copy
 import itertools
 import warnings
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any
 
 import numpy as np
 from numpy import ndarray
@@ -64,43 +66,49 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         C       1,2     1
         JJ      1,2     1       10
 
-    The `Circuit` object can be initiated using::
+    The :class:`Circuit` object can be initiated using::
         `Circuit.from_input_file("transmon_num.inp")`
 
     Parameters
     ----------
-    nodes_list: List[Node]
-        List of nodes in the circuit
-    branches_list: List[Branch]
-        List of branches connecting the above set of nodes.
-    couplers_list: List[Coupler]
-        List of couplers connecting the branches.
-    basis_completion: str
-        choices are: "heuristic" (default) or "canonical"; selects type of basis for
-        completing the transformation matrix.
-    use_dynamic_flux_grouping: bool
-        set to False by default. Indicates if the flux allocation is done by assuming
-        that flux is time dependent. When set to True, it disables the option to change
-        the closure branches.
-    initiate_sym_calc: bool
-        set to True by default. Initiates the object attributes by calling the
-        function initiate_symboliccircuit method when set to True.
+    nodes_list:
+        list of :class:`Node` instances in the circuit
+    branches_list:
+        list of :class:`Branch` instances connecting the nodes
+    couplers_list:
+        list of :class:`Coupler` instances connecting the branches
+    branch_var_dict:
+        mapping from symbolic branch-parameter symbols to their numeric
+        default values
+    basis_completion:
+        selects the type of basis used to complete the transformation matrix;
+        choices are ``"heuristic"`` (default) or ``"canonical"``
+    use_dynamic_flux_grouping:
+        when ``True``, the flux allocation is performed assuming time-dependent
+        flux, which disables the option to change the closure branches
+        (default: ``False``)
+    initiate_sym_calc:
+        when ``True`` (default), the object attributes are initialized by
+        calling :meth:`configure`
+    input_string:
+        the raw input string from which the circuit was parsed (empty by
+        default); used for bookkeeping and serialization
     """
 
     def __init__(
         self,
-        nodes_list: List[Node],
-        branches_list: List[Branch],
-        couplers_list: List[Coupler],
-        branch_var_dict: Dict[Union[Any, Symbol], Union[Any, float]],
+        nodes_list: list[Node],
+        branches_list: list[Branch],
+        couplers_list: list[Coupler],
+        branch_var_dict: dict[Any | Symbol, Any | float],
         basis_completion: str = "heuristic",
         use_dynamic_flux_grouping: bool = False,
         initiate_sym_calc: bool = True,
         input_string: str = "",
     ):
-        self.branches: List[Branch] = branches_list
-        self.nodes: List[Node] = nodes_list
-        self.couplers: List[Coupler] = couplers_list
+        self.branches: list[Branch] = branches_list
+        self.nodes: list[Node] = nodes_list
+        self.couplers: list[Coupler] = couplers_list
         self.input_string: str = input_string
 
         self._sys_type = type(self).__name__  # for object description
@@ -108,11 +116,11 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         # attributes set by methods
         self.transformation_matrix: ndarray
 
-        self.var_categories: Dict[str, List[int]] = {}
-        self.external_fluxes: List[Symbol] = []
-        self.closure_branches: List[Union[Branch, Dict[Branch, float]]] = []
+        self.var_categories: dict[str, list[int]] = {}
+        self.external_fluxes: list[Symbol] = []
+        self.closure_branches: list[Branch | dict[Branch, float]] = []
 
-        self.symbolic_params: Dict[Symbol, float] = branch_var_dict
+        self.symbolic_params: dict[Symbol, float] = branch_var_dict
 
         self.hamiltonian_symbolic: sympy.Expr
         # to store the internally used lagrangian
@@ -126,7 +134,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
 
         # parameters for grounding the circuit
         self.is_grounded = False
-        self.ground_node: Optional[Node] = None
+        self.ground_node: Node | None = None
         for node in self.nodes:
             if node.is_ground():
                 self.ground_node = node
@@ -147,21 +155,41 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         if initiate_sym_calc:
             self.configure()
 
-    def _is_any_branch_parameter_symbolic(self):
+    def _is_any_branch_parameter_symbolic(self) -> bool:
+        """Return ``True`` if any branch parameter is symbolic."""
         return True if len(self.symbolic_params) > 0 else False
 
     @staticmethod
     def _gram_schmidt(initial_vecs: ndarray, metric: ndarray) -> ndarray:
-        def inner_product(u, v, metric):
+        r"""Return the Gram-Schmidt orthogonalization of `initial_vecs`.
+
+        Orthogonalization is performed with respect to the inner product
+        :math:`\langle u, v\rangle = u^\top M v` defined by the given
+        `metric` matrix :math:`M`.
+
+        Parameters
+        ----------
+        initial_vecs:
+            row-stacked input vectors to be orthogonalized
+        metric:
+            square symmetric matrix defining the inner product
+        """
+
+        def inner_product(u: ndarray, v: ndarray, metric: ndarray) -> ndarray:
+            """Return the metric-weighted inner product ``u @ metric @ v``."""
             return u @ metric @ v
 
-        def projection(u, v, metric):
-            """Projection of u on v.
+        def projection(u: ndarray, v: ndarray, metric: ndarray) -> ndarray:
+            """Return the metric-weighted projection of ``u`` onto ``v``.
 
             Parameters
             ----------
-            u : ndarray
-            v : ndarray
+            u:
+                vector being projected
+            v:
+                vector defining the projection direction
+            metric:
+                square symmetric matrix defining the inner product
             """
             return v * inner_product(v, u, metric) / inner_product(v, v, metric)
 
@@ -175,8 +203,31 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         return np.array(orthogonal_vecs).T
 
     def _orthogonalize_degenerate_eigen_vecs(
-        self, evecs: ndarray, eigs: ndarray, relevant_eig_indices, cap_matrix: ndarray
+        self,
+        evecs: ndarray,
+        eigs: ndarray,
+        relevant_eig_indices: list[int] | range | ndarray,
+        cap_matrix: ndarray,
     ) -> ndarray:
+        """Re-orthogonalize eigenvector columns belonging to degenerate eigenvalues.
+
+        Within each group of (nearly) coincident eigenvalues, the corresponding
+        columns of `evecs` are replaced by a Gram-Schmidt orthogonalization
+        with respect to the metric `cap_matrix`. Non-degenerate columns are
+        left unchanged.
+
+        Parameters
+        ----------
+        evecs:
+            eigenvector matrix with eigenvectors stored as columns
+        eigs:
+            eigenvalues corresponding to the columns of `evecs`
+        relevant_eig_indices:
+            indices into `eigs` that are considered when identifying
+            degenerate sets
+        cap_matrix:
+            capacitance matrix used as the Gram-Schmidt metric
+        """
         relevant_eigs = eigs[relevant_eig_indices]
         unique_eigs = np.unique(np.round(relevant_eigs, 10))
         close_eigs = [
@@ -195,7 +246,24 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
 
         return orthogonal_evecs
 
-    def _purely_harmonic_transformation(self) -> Tuple[ndarray, ndarray]:
+    def _purely_harmonic_transformation(self) -> tuple[ndarray, ndarray]:
+        r"""Return normal-mode frequencies and transformation for a harmonic circuit.
+
+        Diagonalizes the generalized eigenvalue problem
+        :math:`L^{-1} v = \omega^2 C\, v` using
+        ``scipy.linalg.eig``, which for a general (non-Hermitian) pair can
+        return complex eigenvalues; any residual imaginary part is discarded
+        via ``.real`` after taking the square root of the finite, non-zero
+        eigenvalues.
+
+        Returns
+        -------
+        Tuple ``(normal_mode_freqs, trans_mat_new)``. ``normal_mode_freqs`` is
+        an array of the positive normal-mode frequencies (square roots of the
+        finite, non-zero generalized eigenvalues). ``trans_mat_new`` is the
+        variable transformation matrix whose first columns span the normal
+        modes orthogonalized with respect to the capacitance metric.
+        """
         trans_mat, _ = self.variable_transformation_matrix()
         c_mat = (
             trans_mat.T @ self._capacitance_matrix(substitute_params=True) @ trans_mat
@@ -251,22 +319,27 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
 
     def configure(
         self,
-        transformation_matrix: Optional[ndarray] = None,
-        closure_branches: List[Union[Branch, Dict[Branch, float]]] = [],
-        use_dynamic_flux_grouping: Optional[bool] = None,
+        transformation_matrix: ndarray | None = None,
+        closure_branches: list[Branch | dict[Branch, float]] = [],
+        use_dynamic_flux_grouping: bool | None = None,
     ):
-        """Method to initialize the CustomQCircuit instance and initialize all the
-        attributes needed before it can be passed on to AnalyzeQCircuit.
+        """Initialize attributes derived from the circuit topology and parameters.
 
         Parameters
         ----------
         transformation_matrix:
-            array used to set a transformation matrix other than the one generated by
-            the method `variable_transformation_matrix`.
+            array used to set a transformation matrix other than the one
+            generated by :meth:`variable_transformation_matrix`
         closure_branches:
-            Each element of the list corresponds to one external flux variable. If the element is a branch
-            the external flux will be associated with that branch. If the element is a dictionary, the external flux variable
-            will be distributed across the branches according to the dictionary with the factor given as a key value.
+            each element corresponds to one external flux variable; if the
+            element is a :class:`Branch`, the external flux is associated with
+            that branch, while if the element is a mapping, the external flux
+            is distributed across its branches with the factors given as
+            values
+        use_dynamic_flux_grouping:
+            optional override for :attr:`use_dynamic_flux_grouping`; when
+            truthy, the instance's flag is updated before (re)building the
+            symbolic circuit
         """
         if transformation_matrix is None and hasattr(self, "transformation_matrix"):
             transformation_matrix = self.transformation_matrix
@@ -341,7 +414,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
             # than 3. Else, the calculation will be skipped to the end when numerical
             # Hamiltonian of the circuit is requested.
             substitute_params = True
-            self.frozen_var_exprs = {}
+            self.frozen_var_exprs: dict[int | None, sm.Expr] = {}
 
         # Calculate the Lagrangian
         (
@@ -361,10 +434,13 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
             substitute_params=substitute_params
         )
 
-    def _replace_energies_with_capacitances_L(self) -> Tuple[sympy.Expr, sympy.Expr]:
-        """Method replaces the energies in the Lagrangian with capacitances which are
-        arbitrarily generated to make sure that the Lagrangian looks dimensionally
-        correct."""
+    def _replace_energies_with_capacitances_L(self) -> tuple[sympy.Expr, sympy.Expr]:
+        """Replace symbolic energies in the Lagrangian with capacitance symbols.
+
+        Symbolic capacitive energies ``ECj`` are substituted by
+        ``1 / (8 * Cj)`` so that the Lagrangian reads in dimensionally
+        conventional form.
+        """
         # Replacing energies with capacitances if any branch parameters are symbolic
         L = self._lagrangian_symbolic.expand()
         L_old = self.lagrangian_node_vars
@@ -390,16 +466,32 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
 
     # Serialize will not currently work for the Circuit class.
     @staticmethod
-    def default_params() -> Dict[str, Any]:
+    def default_params() -> dict[str, Any]:
+        """Return an empty default-parameter dict (serialization stub)."""
         # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
         return {}
 
-    def update_param_init_val(self, param_name, value):
-        """Updates the param init val for param_name."""
+    def update_param_init_val(self, param_name: str, value: float) -> None:
+        """Update the initial value associated with a symbolic branch parameter.
+
+        Parameters
+        ----------
+        param_name:
+            name of the symbolic parameter as a string
+        value:
+            new numeric value to associate with the symbol
+        """
         self.symbolic_params[sm.symbols(param_name)] = value
         self.configure()
 
-    def _junction_terms(self):
+    def _junction_terms(self) -> sm.Expr | int:
+        r"""Return the sum of cosine Josephson terms for all standard JJ branches.
+
+        For each Josephson branch (excluding sawtooth ``JJs`` branches) and each
+        junction harmonic order, the contribution
+        :math:`-E_{Jk}\cos[k(\varphi_a - \varphi_b + \varphi_\text{ext})]`
+        is added, with appropriate handling of the ground node.
+        """
         terms = 0
         # looping over all the junction terms
         junction_branches = [
@@ -590,8 +682,15 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
             C_mat = C_mat[1:, 1:]
         return C_mat
 
-    def _EC_matrix(self, substitute_params: bool = False) -> Union[ndarray, sm.Matrix]:
-        """Returns the charging energy matrix for the circuit."""
+    def _EC_matrix(self, substitute_params: bool = False) -> ndarray | sm.Matrix:
+        """Return the charging energy matrix for the circuit.
+
+        Parameters
+        ----------
+        substitute_params:
+            when ``True``, all symbolic branch parameters are replaced by their
+            numeric default values (default: ``False``)
+        """
         transformation_matrix = self.transformation_matrix
 
         frozen_indices = [
@@ -620,7 +719,13 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
             EC_mat_θ = np.linalg.inv(C_mat_θ)
         return EC_mat_θ
 
-    def _capacitor_terms(self):
+    def _capacitor_terms(self) -> sm.Expr | int:
+        r"""Return the kinetic-energy contribution from all capacitive branches.
+
+        For each capacitive (or junction) branch, the term
+        :math:`(v_{\varphi_a} - v_{\varphi_b})^2 / (16 E_C)` is accumulated,
+        with the ground-node case handled separately.
+        """
         terms = 0
         branches_with_capacitance = [
             branch
@@ -670,13 +775,23 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
     def _inductance_matrix_branch_vars(
         self, substitute_params: bool = False, return_inverse: bool = False
     ):
-        """Generate a inductance matrix for the circuit, including the mutual
-        inductances.
+        """Generate the branch-variable inductance matrix, including mutuals.
+
+        Parameters
+        ----------
+        substitute_params:
+            when ``True``, all symbolic branch parameters are replaced by their
+            numeric default values (default: ``False``)
+        return_inverse:
+            when ``True``, the inverse of the inductance matrix is returned
+            (default: ``False``)
 
         Returns
         -------
-        _type_
-            _description_
+        Inductance matrix (or its inverse) restricted to the inductive
+        branches. The matrix is returned as a ``numpy.ndarray`` whenever the
+        branch parameters are numeric (or `substitute_params` is ``True``);
+        otherwise as a ``sympy.Matrix``.
         """
         num_branches = len(self.branches)
         if not self._is_any_branch_parameter_symbolic() or substitute_params:
@@ -712,7 +827,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         return L_mat
 
     def _generate_branch_flux_allocations(self):
-        """Returns an array of the flux allocation for each branch in the circuit."""
+        """Return an array of the flux allocation for each branch in the circuit."""
         if self.use_dynamic_flux_grouping:
             return self._time_dependent_flux_distribution()
 
@@ -731,8 +846,15 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
                 flux_allocation_array[branch.index, flux_idx] = element[branch]
         return np.dot(flux_allocation_array, self.external_fluxes)
 
-    def _inductor_terms(self, substitute_params: bool = False):
-        """Returns terms corresponding to purely inductive branches in the circuit."""
+    def _inductor_terms(self, substitute_params: bool = False) -> sm.Expr | int:
+        """Return terms corresponding to purely inductive branches in the circuit.
+
+        Parameters
+        ----------
+        substitute_params:
+            when ``True``, all symbolic branch parameters are replaced by their
+            numeric default values (default: ``False``)
+        """
         inverse_inductance_mat = self._inductance_matrix_branch_vars(
             substitute_params, return_inverse=True
         )
@@ -761,11 +883,22 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         # substitute params if necessary
         if substitute_params and terms != 0:
             for symbol in self.symbolic_params:
-                terms = terms.subs(symbol.name, self.symbolic_params[symbol])
+                terms = terms.subs(symbol.name, self.symbolic_params[symbol])  # type: ignore[attr-defined]
         return terms
 
-    def _node_voltage_exprs(self, substitute_params: bool = True) -> List[sm.Expr]:
-        """Returns the node voltage expressions in terms of the new variables."""
+    def _node_voltage_exprs(self, substitute_params: bool = True) -> list[sm.Expr]:
+        """Return the node-voltage expressions in terms of the new variables.
+
+        The transformed momenta are ordered by ``np.sort`` over the periodic,
+        extended, and free variable indices so that they line up with the
+        column ordering of the transformation matrix.
+
+        Parameters
+        ----------
+        substitute_params:
+            when ``True`` (default), all symbolic branch parameters are
+            replaced by their numeric default values
+        """
         transformation_matrix = self.transformation_matrix
         EC_mat_θ = self._EC_matrix(substitute_params=substitute_params)
         p_θ_vars = [
@@ -807,18 +940,19 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
     def _branch_charge_expr(
         self, branch: Branch, substitute_params: bool = True
     ) -> sm.Expr:
-        """Returns the charge on the branch in terms of the charge operators.
+        """Return the charge on the branch in terms of the charge operators.
 
         Parameters
         ----------
-        branch
-            One of the branches of the circuit
-        substitute_params, optional
-            Whether to substitute the symbolic branch parameters with their corresponding values, by default True
+        branch:
+            one of the branches of the circuit
+        substitute_params:
+            when ``True`` (default), substitute the symbolic branch parameters
+            with their corresponding numeric values
 
         Returns
         -------
-            Symbolic expression of charge on the branch
+        Symbolic expression of charge on the branch.
         """
         node_voltages = self._node_voltage_exprs(substitute_params=substitute_params)
         node_id1, node_id2 = [
@@ -839,16 +973,16 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         self,
         branch: Branch,
     ) -> sm.Expr:
-        """Returns the branch flux expression in terms of the new variables.
+        """Return the branch flux expression in terms of the new variables.
 
         Parameters
         ----------
-        branch
-            One of the branches of the circuit
+        branch:
+            one of the branches of the circuit
 
         Returns
         -------
-            Symbolic expression of flux across the branch
+        Symbolic expression of flux across the branch.
         """
         transformation_matrix = self.transformation_matrix
 
@@ -877,11 +1011,21 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
 
     def generate_symbolic_lagrangian(
         self, substitute_params: bool = False
-    ) -> Tuple[sympy.Expr, sympy.Expr, sympy.Expr, sympy.Expr]:
-        r"""
-        Returns four symbolic expressions: lagrangian_θ, potential_θ, lagrangian_φ,
-        potential_φ, where θ represents the set of new variables and φ represents
-        the set of node variables
+    ) -> tuple[sympy.Expr, sympy.Expr, sympy.Expr, sympy.Expr]:
+        r"""Build the symbolic Lagrangian and potential in node and new variables.
+
+        The :math:`\theta` variables denote the transformed (new) variables and
+        the :math:`\varphi` variables denote the node variables.
+
+        Parameters
+        ----------
+        substitute_params:
+            when ``True``, all symbolic branch parameters are replaced by
+            their numeric default values (default: ``False``)
+
+        Returns
+        -------
+        Tuple ``(lagrangian_θ, potential_θ, lagrangian_φ, potential_φ)``.
         """
         transformation_matrix = self.transformation_matrix
 
@@ -964,16 +1108,23 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         return lagrangian_θ, potential_θ, lagrangian_φ, potential_φ
 
     def generate_symbolic_hamiltonian(
-        self, substitute_params=False, reevaluate_lagrangian: bool = False
+        self, substitute_params: bool = False, reevaluate_lagrangian: bool = False
     ) -> sympy.Expr:
-        r"""Returns the Hamiltonian of the circuit in terms of the new variables
-        :math:`\theta_i`.
+        r"""Return the Hamiltonian in terms of the new variables :math:`\theta_i`.
+
+        The transformed momenta are ordered by ``np.sort`` over the periodic,
+        extended, and free variable indices so that they line up with the
+        column ordering of the transformation matrix.
 
         Parameters
         ----------
         substitute_params:
-            When set to True, the symbols defined for branch parameters will be
-            substituted with the numerical values in the respective Circuit attributes.
+            when ``True``, the symbols defined for branch parameters are
+            substituted with the numerical values stored on the instance
+        reevaluate_lagrangian:
+            when ``True``, the symbolic Lagrangian (and hence the potential)
+            is regenerated by calling :meth:`generate_symbolic_lagrangian`
+            instead of reusing the cached :attr:`potential_symbolic`
         """
         if reevaluate_lagrangian:
             _, potential_symbolic, _, _ = self.generate_symbolic_lagrangian(
@@ -1028,18 +1179,19 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         self,
         substitute_params: bool = False,
     ) -> sympy.Expr:
-        """
-        Calculate the transformed capacitance matrix C_mat_theta.
+        """Calculate the transformed capacitance matrix ``C_mat_theta``.
 
         Parameters
         ----------
-        substitute_params : bool
-            If True, substitute symbolic parameters with their numerical values.
+        substitute_params:
+            when ``True``, substitute symbolic parameters with their numerical
+            values (default: ``False``)
 
         Returns
         -------
-        numpy.ndarray or sympy.Matrix
-            The transformed capacitance matrix C_mat_theta.
+        Transformed capacitance matrix ``C_mat_theta``, returned as a
+        ``numpy.ndarray`` when the branch parameters are numeric (or
+        `substitute_params` is ``True``); otherwise as a ``sympy.Matrix``.
         """
         # Calculate indices to be excluded from the matrix
         frozen_indices = [
@@ -1047,7 +1199,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         ]
 
         # Generate the transformed capacitance matrix
-        if self.is_any_branch_parameter_symbolic() and not substitute_params:
+        if self._is_any_branch_parameter_symbolic() and not substitute_params:
             C_mat_theta = (
                 self.transformation_matrix.T
                 * self._capacitance_matrix()
@@ -1073,14 +1225,19 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         self,
         substitute_params: bool = False,
     ) -> sympy.Expr:
-        """
-        Calculate the inverse of the transformed capacitance matrix C_mat_theta.
+        """Calculate the inverse of the transformed capacitance matrix.
+
+        Parameters
+        ----------
+        substitute_params:
+            when ``True``, all symbolic branch parameters are replaced by
+            their numeric default values (default: ``False``)
         """
         C_mat_theta = self.trans_cap_matrix(substitute_params=substitute_params)
 
         # remove free indices
         free_indices = [i - 1 for i in self.var_categories["free"]]
-        if self.is_any_branch_parameter_symbolic() and not substitute_params:
+        if self._is_any_branch_parameter_symbolic() and not substitute_params:
             inv_C_mat_theta = C_mat_theta.inv()
 
             relevant_indices = [

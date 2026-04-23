@@ -10,9 +10,11 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
 import itertools
 
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 import scqubits as scq
 import scqubits.ui.gui_custom_widgets as ui
@@ -20,13 +22,12 @@ import scqubits.ui.gui_custom_widgets as ui
 from scqubits.ui.gui_defaults import PlotType, mode_dropdown_list
 from scqubits.utils import misc as utils
 
-
 if TYPE_CHECKING:
     from scqubits import Explorer
     from scqubits.explorer.explorer_widget import PlotID
 
 try:
-    from IPython.display import HTML, display, notebook
+    from IPython.display import HTML, display
 except ImportError:
     _HAS_IPYTHON = False
 else:
@@ -59,10 +60,10 @@ class ExplorerSettings:
     @utils.Required(ipyvuetify=_HAS_IPYVUETIFY)
     def __init__(self, explorer: "Explorer"):
         self.explorer = explorer
-        self.ui: Dict[str, Any] = {}
-        self.ui["level_slider"]: Dict[PlotID, v.VuetifyWidget] = {}
-        self.ui["Transitions"]: Dict[str, v.VuetifyWidget] = {}
-        self.ui["kerr"]: Dict[str, v.VuetifyWidget] = {}
+        self.ui: dict[str, Any] = {}
+        self.ui["level_slider"] = {}
+        self.ui["Transitions"] = {}
+        self.ui["kerr"] = {}
 
         for plot_id in self.explorer.ui["panel_switch_by_plot_id"].keys():
             self.ui[plot_id] = self.build_settings_ui(plot_id)
@@ -95,7 +96,9 @@ class ExplorerSettings:
         return self.ui[item]
 
     def build_settings_ui(self, plot_id: "PlotID"):
-        subsys = plot_id.subsystems
+        # `subsys` is reassigned from list to single element in many branches below;
+        # use `Any` to avoid narrowing-error churn without changing runtime behavior.
+        subsys: Any = plot_id.subsystems
         plot_type = plot_id.plot_type
 
         if plot_type is PlotType.ENERGY_SPECTRUM:

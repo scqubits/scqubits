@@ -10,15 +10,18 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
 import math
 
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, cast
 
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
-from matplotlib.figure import Axes, Figure
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 
 import scqubits as scq
 import scqubits.ui.gui_custom_widgets as ui
@@ -55,7 +58,6 @@ except ImportError:
 else:
     _HAS_IPYTHON = True
 
-
 QUBITS_WITH_GRID_INIT = (scq.ZeroPi, scq.FullZeroPi)  #  scq.Bifluxon
 QUBITS_WITH_PHI_GRID = (
     scq.Transmon,
@@ -77,7 +79,7 @@ QUBITS_WITH_2D_WAVEFUNCTION_PLOT = (
 class GUI:
     """Generates the GUI for scqubits, handling single-qubit properties."""
 
-    fig_ax: Optional[Tuple[Figure, Axes]] = (
+    fig_ax: tuple[Figure, Axes] | None = (
         None  # Handle to the most recently generated Figure, Axes tuple
     )
 
@@ -95,12 +97,12 @@ class GUI:
 
         self.plot_renewal_requested = True
 
-        self.active_defaults: Dict[str, Any] = {}
-        self.qubit_params: Dict[str, Union[int, float, None]] = {}
-        self.qubit_scan_params: Dict[str, Union[int, float, None]] = {}
+        self.active_defaults: dict[str, Any] = {}
+        self.qubit_params: dict[str, int | float | None] = {}
+        self.qubit_scan_params: dict[str, int | float | None] = {}
 
         # Display Elements
-        self.fig: Optional[Figure] = None
+        self.fig: Figure | None = None
         self.v_plot_output = ipywidgets.Output(
             layout=ipywidgets.Layout(overflow="hidden")
         )
@@ -112,10 +114,10 @@ class GUI:
         self.v_save_btn = init_save_btn()
         self.v_save_filename = init_filename_textfield()
 
-        self.dict_v_ranges: Dict[str, Dict[str, ui.ValidatedNumberField]] = {}
-        self.dict_v_noise_params: Dict[str, ui.ValidatedNumberField] = {}
-        self.dict_v_plot_options: Dict[str, Any] = {}
-        self.dict_v_qubit_params: Dict[str, Any] = {}
+        self.dict_v_ranges: dict[str, dict[str, ui.ValidatedNumberField]] = {}
+        self.dict_v_noise_params: dict[str, ui.ValidatedNumberField] = {}
+        self.dict_v_plot_options: dict[str, Any] = {}
+        self.dict_v_qubit_params: dict[str, Any] = {}
 
         # ------------------------------------------------------------------------------
 
@@ -308,7 +310,7 @@ class GUI:
         self.unobserve_plot_options_widget()
 
     # Retrieval Methods------------------------------------------------------------------
-    def get_current_values(self) -> Dict[str, Union[int, float]]:
+    def get_current_values(self) -> dict[str, int | float]:
         """Obtains the current values from each of the qubit parameter sliders.
 
         Returns
@@ -366,12 +368,12 @@ class GUI:
 
     def check_ranges(
         self,
-        new_min: Union[int, float],
-        new_max: Union[int, float],
+        new_min: int | float,
+        new_max: int | float,
         widget_name: str,
         text_widget: dict,
         changed_widget_key: str,
-    ) -> Tuple[Union[int, float], Union[int, float]]:
+    ) -> tuple[int | float, int | float]:
         """Adjusts range values so that they make sense/are viable.
 
         Parameters
@@ -403,8 +405,8 @@ class GUI:
 
     def update_range_values(
         self,
-        new_min: Union[int, float],
-        new_max: Union[int, float],
+        new_min: int | float,
+        new_max: int | float,
         widget_name: str,
         text_widget: dict,
     ):
@@ -687,7 +689,9 @@ class GUI:
         if current_dropdown_value != "User specified":
             for param_name, param_val in gui_defaults.paramvals_from_papers[
                 current_qubit
-            ][current_dropdown_value]["params"].items():
+            ][current_dropdown_value][
+                "params"
+            ].items():  # type: ignore[attr-defined]
                 if self.dict_v_qubit_params[param_name].num_value != param_val:
                     self.dict_v_plot_options["literature_params"].v_model = (
                         "User specified"
@@ -707,7 +711,7 @@ class GUI:
         params = gui_defaults.paramvals_from_papers[current_qubit][
             current_dropdown_value
         ]["params"]
-        for param_name, param_val in params.items():
+        for param_name, param_val in params.items():  # type: ignore[attr-defined]
             param_max = self.dict_v_ranges[param_name]["max"].v_model
             param_min = self.dict_v_ranges[param_name]["min"].v_model
 
@@ -739,7 +743,9 @@ class GUI:
 
         if wavefunction_state_slider_text["max"].num_value >= hilbertdim - 1:
             new_max = max(hilbertdim - 2, 0)
-            new_min = wavefunction_state_slider_text["min"].num_value
+            new_min = cast(
+                "int | float", wavefunction_state_slider_text["min"].num_value
+            )
             new_min, new_max = self.check_ranges(
                 new_min,
                 new_max,
@@ -756,7 +762,9 @@ class GUI:
         ):
             multi_state_selector_text = self.dict_v_ranges["multi_state_selector"]
             if multi_state_selector_text["max"].num_value >= hilbertdim - 2:
-                new_min = multi_state_selector_text["min"].num_value
+                new_min = cast(
+                    "int | float", multi_state_selector_text["min"].num_value
+                )
                 new_max = hilbertdim - 3
                 new_min, new_max = self.check_ranges(
                     new_min,
@@ -774,7 +782,9 @@ class GUI:
             ]
 
             if wavefunction_state_slider_text["max"].num_value >= hilbertdim - 2:
-                new_min = wavefunction_state_slider_text["min"].num_value
+                new_min = cast(
+                    "int | float", wavefunction_state_slider_text["min"].num_value
+                )
                 new_max = hilbertdim - 3
                 new_min, new_max = self.check_ranges(
                     new_min,
@@ -794,8 +804,8 @@ class GUI:
     def ranges_update(self, change) -> None:
         self.unobserve_all()
         for widget_name, text_widgets in self.dict_v_ranges.items():
-            new_min = text_widgets["min"].num_value
-            new_max = text_widgets["max"].num_value
+            new_min = cast("int | float", text_widgets["min"].num_value)
+            new_max = cast("int | float", text_widgets["max"].num_value)
             changed_widget_key = change["owner"].label
 
             new_min, new_max = self.check_ranges(
@@ -812,6 +822,7 @@ class GUI:
         self.plot_refresh(change=None)
 
     def save_button_clicked_action(self, widget, event, data) -> None:
+        assert self.fig is not None
         self.fig.savefig(self.v_save_filename.v_model)
 
     def plot_refresh(self, change, *args):
@@ -852,7 +863,7 @@ class GUI:
 
     @matplotlib.rc_context(matplotlib_settings)
     def wavefunctions_plot_refresh(self) -> None:
-        value_dict = {
+        value_dict: dict[str, Any] = {
             "mode_value": gui_defaults.mode_dropdown_dict[
                 self.dict_v_plot_options["amplitude_mode"].v_model
             ],
@@ -883,14 +894,14 @@ class GUI:
 
         if isinstance(self.active_qubit, QUBITS_WITH_PHI_GRID):
             value_dict["phi_grid"] = Grid1d(
-                min_val=self.dict_v_ranges["phi"]["min"].num_value,
-                max_val=self.dict_v_ranges["phi"]["max"].num_value,
+                min_val=cast(float, self.dict_v_ranges["phi"]["min"].num_value),
+                max_val=cast(float, self.dict_v_ranges["phi"]["max"].num_value),
                 pt_count=self.active_qubit._default_grid.pt_count,
             )
         if isinstance(self.active_qubit, QUBITS_WITH_THETA_GRID):
             value_dict["theta_grid"] = Grid1d(
-                min_val=self.dict_v_ranges["theta"]["min"].num_value,
-                max_val=self.dict_v_ranges["theta"]["max"].num_value,
+                min_val=cast(float, self.dict_v_ranges["theta"]["min"].num_value),
+                max_val=cast(float, self.dict_v_ranges["theta"]["max"].num_value),
                 pt_count=self.active_qubit._default_grid.pt_count,
             )
         self.wavefunctions_plot(**value_dict)
@@ -938,14 +949,18 @@ class GUI:
             "j": self.dict_v_plot_options["j_text"].num_value,
             "T": self.dict_v_noise_params["T"].num_value,
         }
-        noise_params_dict = {}
+        noise_params_dict: dict[str, Any] = {}
 
         for noise_param in self.dict_v_noise_params.keys():
             if noise_param != "T":
                 param_val = self.dict_v_noise_params[noise_param].num_value
                 noise_params_dict[noise_param] = param_val
 
-        noise_channels = {"t1_eff": [], "t2_eff": [], "coherence_times": []}
+        noise_channels: dict[str, list[Any]] = {
+            "t1_eff": [],
+            "t2_eff": [],
+            "coherence_times": [],
+        }
         for noise_channel in noise_channel_options:
             if "tphi_1_over_f" in noise_channel:
                 tphi_dict = {
@@ -1128,7 +1143,7 @@ class GUI:
         noise_params_grid.children = list(self.dict_v_noise_params.values())
         return noise_params_grid
 
-    def plot_options_widgets(self) -> Dict[int, tuple]:
+    def plot_options_widgets(self) -> dict[int, tuple]:
         plot_options_for_active_qubit = {
             0: self.energy_spectrum_options_widgets(),
             1: self.wavefunctions_options_widgets(),
@@ -1200,6 +1215,7 @@ class GUI:
         -------
             Tuple of plot options widgets
         """
+        plot_options_widgets_tuple: tuple[Any, ...]
         if isinstance(self.active_qubit, QUBITS_WITHOUT_WAVEFUNCTION_PLOT):
             plot_options_widgets_tuple = (
                 v.Text(children=["Not implemented (configuration space >2d)"]),
@@ -1302,7 +1318,7 @@ class GUI:
     def evals_vs_paramvals_plot(
         self,
         scan_value: str,
-        scan_range: Tuple[float, float],
+        scan_range: tuple[float, float],
         eigenvalue_state_value: int,
         subtract_ground_tf: bool,
     ) -> None:
@@ -1335,10 +1351,11 @@ class GUI:
             )
             self.plot_renewal_requested = False
             if _HAS_WIDGET_BACKEND:
-                self.fig.canvas.header_visible = False
+                self.fig.canvas.header_visible = False  # type: ignore[union-attr]
                 with self.v_plot_output:
                     plt.show()
         else:
+            assert self.fig is not None
             self.fig.axes[0].clear()
             self.active_qubit.plot_evals_vs_paramvals(
                 scan_value,
@@ -1347,6 +1364,7 @@ class GUI:
                 subtract_ground=subtract_ground_tf,
                 fig_ax=(self.fig, self.fig.axes[0]),
             )
+        assert self.fig is not None
         self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
         if not _HAS_WIDGET_BACKEND:
             plt.close("all")
@@ -1357,11 +1375,11 @@ class GUI:
     @matplotlib.rc_context(matplotlib_settings)
     def wavefunctions_plot(
         self,
-        eigenvalue_states: Union[List[int], int],
+        eigenvalue_states: list[int] | int,
         mode_value: str,
-        scale_value: Optional[float] = None,
-        phi_grid: Optional[Grid1d] = None,
-        theta_grid: Optional[Grid1d] = None,
+        scale_value: float | None = None,
+        phi_grid: Grid1d | None = None,
+        theta_grid: Grid1d | None = None,
     ) -> None:
         """This method will refresh the wavefunctions plot using the current values of
         the plot options widgets as well as the qubit param widgets.
@@ -1388,15 +1406,16 @@ class GUI:
                 for elem in self.v_plot_output.outputs
                 if "data" in elem and "Label" not in elem["data"]["text/plain"]
             )
-            if len(eigenvalue_states) == 0:
+            if len(eigenvalue_states) == 0:  # type: ignore[arg-type]
                 if _HAS_WIDGET_BACKEND:
+                    assert self.fig is not None
                     self.fig.axes[0].clear()
                 error_label = v.Text(children=["Must select at least one state."])
                 with self.v_plot_output:
                     display(error_label)
                 return
             if self.plot_renewal_requested:
-                self.fig, ax = self.active_qubit.plot_wavefunction(  # type:ignore
+                self.fig, ax = self.active_qubit.plot_wavefunction(
                     which=eigenvalue_states,
                     mode=mode_value,
                     scaling=scale_value,
@@ -1404,12 +1423,13 @@ class GUI:
                 )
                 self.plot_renewal_requested = False
                 if _HAS_WIDGET_BACKEND:
-                    self.fig.canvas.header_visible = False
+                    self.fig.canvas.header_visible = False  # type: ignore[attr-defined]
                     with self.v_plot_output:
                         plt.show()
             else:
+                assert self.fig is not None
                 self.fig.axes[0].clear()
-                self.active_qubit.plot_wavefunction(  # type:ignore
+                self.active_qubit.plot_wavefunction(
                     which=eigenvalue_states,
                     mode=mode_value,
                     scaling=scale_value,
@@ -1425,25 +1445,27 @@ class GUI:
                 grid_dict = {"phi_grid": phi_grid, "theta_grid": theta_grid}
 
             if self.plot_renewal_requested:
-                self.fig, ax = self.active_qubit.plot_wavefunction(  # type:ignore
+                self.fig, ax = self.active_qubit.plot_wavefunction(
                     which=eigenvalue_states, mode=mode_value, **grid_dict
                 )
                 self.plot_renewal_requested = False
 
                 if _HAS_WIDGET_BACKEND:
-                    self.fig.canvas.header_visible = False
+                    self.fig.canvas.header_visible = False  # type: ignore[union-attr]
                     with self.v_plot_output:
                         plt.show()
             else:
+                assert self.fig is not None
                 self.fig.delaxes(self.fig.axes[1])
                 self.fig.axes[0].clear()
-                self.active_qubit.plot_wavefunction(  # type:ignore
+                self.active_qubit.plot_wavefunction(
                     which=eigenvalue_states,
                     mode=mode_value,
                     **grid_dict,
                     fig_ax=(self.fig, self.fig.axes[0]),
                 )
 
+        assert self.fig is not None
         self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
         if not _HAS_WIDGET_BACKEND:
             plt.close("all")
@@ -1455,7 +1477,7 @@ class GUI:
         self,
         operator_value: str,
         scan_value: str,
-        scan_range: Tuple[float, float],
+        scan_range: tuple[float, float],
         matrix_element_state_value: int,
         mode_value: str,
     ) -> None:
@@ -1490,10 +1512,11 @@ class GUI:
             )
             self.plot_renewal_requested = False
             if _HAS_WIDGET_BACKEND:
-                self.fig.canvas.header_visible = False
+                self.fig.canvas.header_visible = False  # type: ignore[union-attr]
                 with self.v_plot_output:
                     plt.show()
         else:
+            assert self.fig is not None
             self.fig.axes[0].clear()
             self.active_qubit.plot_matelem_vs_paramvals(
                 operator_value,
@@ -1504,12 +1527,13 @@ class GUI:
                 fig_ax=(self.fig, self.fig.axes[0]),
             )
 
+        assert self.fig is not None
         self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
         if not _HAS_WIDGET_BACKEND:
             plt.close("all")
             with self.v_plot_output:
                 display(self.fig)
-        GUI.fig_ax = self.fig, self.fig.axes
+        GUI.fig_ax = self.fig, self.fig.axes  # type: ignore[assignment]
 
     def matrixelements_plot(
         self,
@@ -1549,10 +1573,12 @@ class GUI:
             )
             self.plot_renewal_requested = False
             if _HAS_WIDGET_BACKEND:
-                self.fig.canvas.header_visible = False
+                self.fig.canvas.header_visible = False  # type: ignore[union-attr]
                 with self.v_plot_output:
                     plt.show()
         else:
+            assert self.fig is not None
+            axes: Any
             if show3d_tf:
                 self.fig.delaxes(self.fig.axes[2])
                 self.fig.delaxes(self.fig.axes[1])
@@ -1573,19 +1599,20 @@ class GUI:
                 fig_ax=(self.fig, axes),
             )
 
+        assert self.fig is not None
         self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
         if not _HAS_WIDGET_BACKEND:
             plt.close("all")
             with self.v_plot_output:
                 display(self.fig)
-        GUI.fig_ax = self.fig, self.fig.axes
+        GUI.fig_ax = self.fig, self.fig.axes  # type: ignore[assignment]
 
     def coherence_vs_paramvals_plot(
         self,
         scan_value: str,
-        scan_range: Tuple[float, float],
-        noise_channels: Dict[str, List[Union[str, Tuple[str, Dict[str, float]]]]],
-        common_noise_options: Dict[str, Union[int, float]],
+        scan_range: tuple[float, float],
+        noise_channels: dict[str, list[str | tuple[str, dict[str, float]]]],
+        common_noise_options: dict[str, int | float],
         t1_effective_tf: bool,
         t2_effective_tf: bool,
     ) -> None:
@@ -1610,6 +1637,7 @@ class GUI:
         self.v_plot_output.outputs = tuple(elem for elem in self.v_plot_output.outputs)
         if len(noise_channels["coherence_times"]) == 0:
             if _HAS_WIDGET_BACKEND:
+                assert self.fig is not None
                 self.fig.axes[0].clear()
             error_label = v.Text(children=["Must select at least one noise channel."])
             with self.v_plot_output:
@@ -1645,23 +1673,25 @@ class GUI:
                     param_vals=np_list,
                     noise_channels=noise_channels["t1_eff"],
                     common_noise_options=common_noise_options,
-                    fig_ax=(self.fig, ax[0]),
+                    fig_ax=(self.fig, ax[0]),  # type: ignore[index]
                 )
                 self.active_qubit.plot_t2_effective_vs_paramvals(
                     param_name=scan_value,
                     param_vals=np_list,
                     noise_channels=noise_channels["t2_eff"],
                     common_noise_options=common_noise_options,
-                    fig_ax=(self.fig, ax[1]),
+                    fig_ax=(self.fig, ax[1]),  # type: ignore[index]
                 )
             self.plot_renewal_requested = False
             if _HAS_WIDGET_BACKEND:
-                self.fig.canvas.header_visible = False
+                self.fig.canvas.header_visible = False  # type: ignore[union-attr]
                 with self.v_plot_output:
                     plt.show()
         else:
+            assert self.fig is not None
             for ax in self.fig.axes:
                 ax.clear()
+            axes: Any
             if not t1_effective_tf and not t2_effective_tf:
                 if len(noise_channels["coherence_times"]) > 1:
                     axes = np.array(self.fig.axes).reshape(
@@ -1707,9 +1737,10 @@ class GUI:
                     common_noise_options=common_noise_options,
                     fig_ax=(self.fig, self.fig.axes[1]),
                 )
+        assert self.fig is not None
         self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
         if not _HAS_WIDGET_BACKEND:
             plt.close("all")
             with self.v_plot_output:
                 display(self.fig)
-        GUI.fig_ax = self.fig, self.fig.axes
+        GUI.fig_ax = self.fig, self.fig.axes  # type: ignore[assignment]

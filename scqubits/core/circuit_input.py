@@ -1,6 +1,9 @@
-from typing import Tuple, Optional, Union, Dict
+from __future__ import annotations
+
 import pyparsing as pp
 import os
+
+from collections.abc import Sequence
 
 from scqubits.utils.misc import is_string_float
 from pyparsing import Group, Opt, Or, Literal, Suppress
@@ -70,7 +73,7 @@ prefix_dict = {
     "p": 1e-12,  # pico
     "f": 1e-15,  # femto
 }
-PREFIX = pp.Char(list(prefix_dict.keys()))
+PREFIX = pp.Char(list(prefix_dict.keys()))  # type: ignore[arg-type]
 
 energy_names = ["EJ", "EC", "EL", "EML"]
 
@@ -78,10 +81,10 @@ energy_names = ["EJ", "EC", "EL", "EML"]
 UNITS_FREQ_ENERGY = Literal("Hz") ^ Literal("J") ^ Literal("eV")
 
 UNITS = {name: Opt(PREFIX, None) for name in energy_names}
-UNITS["EJ"] += UNITS_FREQ_ENERGY ^ Literal("A") ^ Literal("H")  # Ampere, Henry
-UNITS["EC"] += UNITS_FREQ_ENERGY ^ Literal("F")  # Farad
-UNITS["EL"] += UNITS_FREQ_ENERGY ^ Literal("H")  # Henry
-UNITS["EML"] += UNITS_FREQ_ENERGY ^ Literal("H")  # Henry
+UNITS["EJ"] += UNITS_FREQ_ENERGY ^ Literal("A") ^ Literal("H")  # type: ignore[assignment]  # Ampere, Henry
+UNITS["EC"] += UNITS_FREQ_ENERGY ^ Literal("F")  # type: ignore[assignment]  # Farad
+UNITS["EL"] += UNITS_FREQ_ENERGY ^ Literal("H")  # type: ignore[assignment]  # Henry
+UNITS["EML"] += UNITS_FREQ_ENERGY ^ Literal("H")  # type: ignore[assignment]  # Henry
 for name, unit in UNITS.items():
     unit.leave_whitespace()  # allow only "kHz", not "k Hz"
     unit.set_name(f"{name}_UNITS")
@@ -116,6 +119,25 @@ order_count = pp.Empty()
 
 
 def find_jj_order(str_result: str, location: int, tokens: pp.ParseResults):
+    """Parse-action helper that extracts the order of a Josephson-junction branch.
+
+    Used as a pyparsing parse action for ``order_count`` to determine the
+    junction order embedded in a ``JJ``-type branch specification.
+
+    Parameters
+    ----------
+    str_result:
+        the full input string being parsed.
+    location:
+        the location within the input string where parsing started.
+    tokens:
+        the tokens collected so far by pyparsing.
+
+    Returns
+    -------
+    The parse result containing the integer junction order extracted from the
+    branch specification.
+    """
     from scqubits.core.circuit_utils import _junction_order
 
     JJ_TYPE = BEG + BRANCH_TYPES["JJ"]
@@ -186,14 +208,48 @@ BRANCHES = Or([BRANCH_JJ, BRANCH_C, BRANCH_L, BRANCH_EM])
 
 # - For filtering out only the code specifying the branches -----------------
 def remove_comments(code: str) -> str:
-    return pp.pythonStyleComment.suppress().transformString(code)
+    """Strip Python-style comments from a circuit YAML input string.
+
+    Parameters
+    ----------
+    code:
+        raw circuit-input source as a single string.
+
+    Returns
+    -------
+    The same source with comments removed.
+    """
+    return pp.pythonStyleComment.suppress().transform_string(code)
 
 
 def remove_branchline(code: str) -> str:
-    return Suppress(Literal("branches") + ":").transformString(code)
+    """Remove the leading ``branches:`` marker from a circuit-input string.
+
+    Parameters
+    ----------
+    code:
+        circuit-input source containing a ``branches:`` header.
+
+    Returns
+    -------
+    The source with the ``branches:`` line suppressed.
+    """
+    return Suppress(Literal("branches") + ":").transform_string(code)
 
 
 def strip_empty_lines(code: str) -> str:
+    """Drop empty lines and leading whitespace from each line of ``code``.
+
+    Parameters
+    ----------
+    code:
+        multi-line input string.
+
+    Returns
+    -------
+    The string rejoined with the platform's line separator, containing only
+    non-empty, left-stripped lines.
+    """
     return os.linesep.join(
         [line.lstrip() for line in code.splitlines() if line.lstrip()]
     )
@@ -203,22 +259,21 @@ pp.autoname_elements()
 
 
 # - Parsing and processing ParsedResults data ------------------------------
-def parse_code_line(code_line: str, _branch_count):
-    """
+def parse_code_line(code_line: str, _branch_count: int):
+    """Parse a single branch specification line of a circuit input file.
 
     Parameters
     ----------
-        code_line (str): string describing the branch from the input file
-        _branch_count (_type_): the count of the branch in a given circuit
+    code_line:
+        string describing the branch from the input file.
+    _branch_count:
+        the count of the branch in a given circuit.
 
     Returns
     -------
-        branch_type: str
-        node_idx1: int
-        node_idx2: int
-        params: str
-        aux_params: str
-        _branch_count: int
+    A tuple containing the branch type string, the two node indices, the list
+    of branch parameter results, the auxiliary-parameter parse results, and
+    the branch count passed in.
     """
     pp_result = BRANCHES.parse_string(code_line)
     branch_type = pp_result.BRANCH_TYPE[0]
@@ -228,23 +283,32 @@ def parse_code_line(code_line: str, _branch_count):
     return branch_type, node_idx1, node_idx2, params, aux_params, _branch_count
 
 
-def convert_value_to_GHz(val, units):
-    """Converts a given value and units to energy in GHz. The units are given in a
-    string in the format "pU" where p is an optional multiplier prefix and U is units.
-    For example: "pH", "nA", "fF", "eV".
+def convert_value_to_GHz(val: float, units: tuple[str | None, str] | None) -> float:
+    """Convert a given value and units to energy in GHz.
+
+    The units are given as a ``(prefix, unit_str)`` pair such that the prefix
+    is one of the keys of ``prefix_dict`` (``T``, ``G``, ``M``, ``k``, ``m``,
+    ``u``, ``n``, ``p``, ``f``) or ``None``, and the unit string is one of
+    ``Hz``, ``J``, ``eV``, ``F``, ``H``, ``A``. For example, ``("p", "H")``
+    represents picohenry.
 
     Parameters
     ----------
-        val (float): value in given units
-        units (str): units described in a string with an optional multiplier prefix
+    val:
+        value in given units.
+    units:
+        ``(prefix, unit_str)`` sequence describing the units, or ``None`` if
+        the value is already in GHz. ``prefix`` may be ``None`` for no SI
+        prefix.
 
     Raises
     ------
-        ValueError: If the unit is unknown.
+    ValueError
+        If the unit is unknown.
 
     Returns
     -------
-        float: Energy in GHz
+    Energy in GHz.
     """
     # all the possible units
     # capacitance F, inductance H, current A, energy J, frequency Hz, eV
@@ -275,14 +339,28 @@ def convert_value_to_GHz(val, units):
         raise ValueError(f"Unknown unit {unit_str}")
 
 
-def process_param(
-    pattern,
-) -> Union[Dict[sm.Symbol, float], Tuple[Optional[sm.Symbol], Optional[float]]]:
-    """Returns a tuple containing (symbol, value) given a pattern as detected by
-    pyparsing.
+def process_param(  # type: ignore[return]
+    pattern: pp.ParseResults,
+) -> dict[sm.Symbol, float] | tuple[sm.Symbol | None, float | None]:
+    """Return a ``(symbol, value)`` tuple given a pyparsing-detected pattern.
 
-    Either the symbol or the value can be returned to be none, when the symbol is
-    already assigned or no symbol is assigned to the given branch parameter.
+    Either the symbol or the value can be ``None``, when the symbol is already
+    assigned or when no symbol is assigned to the given branch parameter. For
+    auxiliary-parameter blocks, a dictionary mapping parameter names to their
+    parsed values is returned instead.
+
+    Parameters
+    ----------
+    pattern:
+        the pyparsing parse result describing one parameter or
+        auxiliary-parameter block, named ``"ASSIGN"``, ``"SYMBOL"``,
+        ``"VALUE"`` or ``"AUX_PARAM"``.
+
+    Returns
+    -------
+    A ``(sympy symbol or None, float value or None)`` tuple for ordinary
+    parameters, or a ``dict`` mapping auxiliary parameter names to their
+    values for an ``"AUX_PARAM"`` pattern.
     """
     name = pattern.getName()
     if name == "ASSIGN":

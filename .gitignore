@@ -37,3 +37,8 @@ scqubits/ui/.ipynb_checkpoints/test-checkpoint.ipynb
 scqubits/.vscode/settings.json
 *.ipynb
 /.asv/
+/CLAUDE.md
+/docstring_audit.py
+/docstring_fixer.py
+/modernize_types.py
+/monkeytype.sqlite3
