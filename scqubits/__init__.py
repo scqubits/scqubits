@@ -17,6 +17,7 @@ making it easy to work with composite Hilbert spaces consisting of coupled
 superconducting qubits and harmonic modes. Internally, numerics within scqubits is
 carried out with the help of Numpy and Scipy; plotting capabilities rely on Matplotlib.
 """
+
 #######################################################################################
 
 
@@ -70,7 +71,6 @@ from scqubits.core.diag import (
 from scqubits.core.circuit import Circuit
 from scqubits.core.circuit_utils import truncation_template
 from scqubits.core.symbolic_circuit import SymbolicCircuit
-
 
 # GUI — graceful fallback when the optional `ipyvuetify` dependency is missing.
 # At type-check time, mypy always sees the real classes; at runtime, the

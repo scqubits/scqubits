@@ -92,12 +92,12 @@ class TestQutipEigenstatesSerialize:
         """
         iodata = self._serialize_one_ket([[3, 4, 4], [1]])
         qobj_dims = iodata.ndarrays["qobj_dims"]
-        assert qobj_dims.dtype != object, (
-            f"qobj_dims has dtype {qobj_dims.dtype!r}; h5py cannot store this"
-        )
-        assert np.issubdtype(qobj_dims.dtype, np.integer), (
-            f"qobj_dims should be integer dtype, got {qobj_dims.dtype!r}"
-        )
+        assert (
+            qobj_dims.dtype != object
+        ), f"qobj_dims has dtype {qobj_dims.dtype!r}; h5py cannot store this"
+        assert np.issubdtype(
+            qobj_dims.dtype, np.integer
+        ), f"qobj_dims should be integer dtype, got {qobj_dims.dtype!r}"
 
     def test_serialize_deserialize_roundtrip_compact(self):
         """End-to-end round-trip preserves the Qobj's shape and per-subsystem

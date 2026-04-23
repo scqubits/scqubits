@@ -788,7 +788,7 @@ class SpectrumLookupMixin(MixinCompatible):
             else:
                 # continue the depth-first search:
                 # recursively call the function and append all the branch states
-                (_branch_drs_indices, _branch_states) = self._branch_analysis_LX_step(
+                _branch_drs_indices, _branch_states = self._branch_analysis_LX_step(
                     subsys_priority,
                     recusion_depth + 1,
                     current_drs_idx,
