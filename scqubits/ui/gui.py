@@ -1673,14 +1673,14 @@ class GUI:
                     param_vals=np_list,
                     noise_channels=noise_channels["t1_eff"],
                     common_noise_options=common_noise_options,
-                    fig_ax=(self.fig, ax[0]),  # type: ignore[index]
+                    fig_ax=(self.fig, ax[0]),
                 )
                 self.active_qubit.plot_t2_effective_vs_paramvals(
                     param_name=scan_value,
                     param_vals=np_list,
                     noise_channels=noise_channels["t2_eff"],
                     common_noise_options=common_noise_options,
-                    fig_ax=(self.fig, ax[1]),  # type: ignore[index]
+                    fig_ax=(self.fig, ax[1]),
                 )
             self.plot_renewal_requested = False
             if _HAS_WIDGET_BACKEND:
