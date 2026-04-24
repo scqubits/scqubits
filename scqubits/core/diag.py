@@ -745,21 +745,21 @@ def esys_cuquantum(
 
     batch_size = 1 # densepurestate entry is not well explained. we don't know what it is. ## I think one can create a batch of initial states and solve them in parallel.
 
-    init_states = [] # rename to seed_states
+    seed_states = []
     for _ in range(evals_count):
-        init_state = cudm.DensePureState(
+        seed_state = cudm.DensePureState(
             ctx, subsys_dims, batch_size, "complex128"
         )
-        init_state.allocate_storage()
-        init_state.storage[:] = cupy.random.randn(hspace_dim * batch_size)
-        norm = init_state.norm()
-        init_state.inplace_scale(1.0 / cupy.sqrt(norm))
-        init_states.append(init_state)
+        seed_state.allocate_storage()
+        seed_state.storage[:] = cupy.random.randn(hspace_dim * batch_size)
+        norm = seed_state.norm()
+        seed_state.inplace_scale(1.0 / cupy.sqrt(norm))
+        seed_states.append(seed_state)
 
     cudm_operator = qcu.CuQobjEvo(qt.QobjEvo(hamiltonian)).operator #This is a temporary solution. We need to wait for the formal convertion function.
     spectrum = cudm.OperatorSpectrumSolver(cudm_operator, "SA", True, config)
-    spectrum.prepare(ctx, init_states[0], max_num_eigvals=evals_count)
-    result = spectrum.compute(0.0, None, init_states, 1e-10)
+    spectrum.prepare(ctx, seed_states[0], max_num_eigvals=evals_count)
+    result = spectrum.compute(0.0, None, seed_states, 1e-10)
 
     evals = result.evals[:, 0].get()
     evecs = np.empty((evals_count,), dtype=object)
