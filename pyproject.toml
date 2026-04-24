@@ -54,7 +54,7 @@ gui = [
 ]
 develop = [
     "pytest", "traitlets", "h5py (>=2.10)",
-    "mypy", "types-tqdm", "scipy-stubs",
+    "mypy", "types-tqdm", "scipy-stubs==1.15.2.2",
 ]
 
 [project.urls]
