@@ -1,0 +1,22 @@
+name: mypy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install scqubits + mypy
+        run: |
+          pip install ".[develop]"
+          pip install mypy==1.19.1
+      - name: Run mypy
+        run: mypy scqubits/

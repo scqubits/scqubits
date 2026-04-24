@@ -1,11 +1,6 @@
 name: Locally install scqubits with mambabuild and run pytests
 
-on: 
-  push: 
-    branches:
-      - main
-      - devel_peterg
-      - spc-main-devel
+on:
   workflow_dispatch:
 
 jobs:
