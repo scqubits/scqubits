@@ -17,6 +17,6 @@ jobs:
       - name: Install scqubits + dev deps (includes mypy, stubs)
         run: |
           pip install ".[gui,develop]"
-          pip install mypy==1.19.1
+          pip install mypy==1.19.1 scipy-stubs==1.15.2.2
       - name: Run mypy
         run: mypy scqubits/
