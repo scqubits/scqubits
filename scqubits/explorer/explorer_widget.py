@@ -644,7 +644,7 @@ class Explorer:
         for axes in self.axes_list:
             for item in axes.lines + axes.collections + axes.texts:  # type: ignore[operator]
                 item.remove()
-            axes.set_prop_cycle(None)  # type: ignore[call-overload]
+            axes.set_prop_cycle(None)
             axes.relim()
             axes.autoscale_view()
 

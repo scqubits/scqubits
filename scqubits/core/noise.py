@@ -326,7 +326,7 @@ class NoisySystem(ABC):
                 )
 
             ax = (
-                axes.ravel()[channel_idx]  # type: ignore[union-attr]
+                axes.ravel()[channel_idx]
                 if len(noise_channels) > 1
                 else axes
             )
@@ -338,16 +338,16 @@ class NoisySystem(ABC):
             # check whether rate is essentially zero and decoherence time thus
             # excessively large
             if np.all(noise_vals / scale > 1e12):
-                ax.get_lines()[0].set_color("0.8")  # type: ignore[union-attr]
+                ax.get_lines()[0].set_color("0.8")
                 at = AnchoredText(
                     "subdominant noise channel",
                     frameon=False,
                     loc="center",
                 )
-                ax.add_artist(at)  # type: ignore[union-attr]
+                ax.add_artist(at)
 
         if len(noise_channels) > 1 and len(noise_channels) % 2:
-            axes.ravel()[-1].set_axis_off()  # type: ignore[union-attr]
+            axes.ravel()[-1].set_axis_off()
 
         # Set the parameter we varied to its initial value
         setattr(self, param_name, current_val)
