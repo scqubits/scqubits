@@ -225,9 +225,9 @@ def test_custom_diagonalization_matches_default_using_custom_procedure():
     """Test custom diagonalization gives same result as using the default method when
     using a custom procedure."""
 
-    def custom_esys(matrix, evals_count, **kwargs):
+    def custom_esys(hamiltonian, evals_count, **kwargs):
         evals, evecs = sp.linalg.eigh(
-            matrix, subset_by_index=(0, evals_count - 1), eigvals_only=False, **kwargs
+            hamiltonian, subset_by_index=(0, evals_count - 1), eigvals_only=False, **kwargs
         )
         return evals, evecs
 
