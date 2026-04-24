@@ -325,11 +325,7 @@ class NoisySystem(ABC):
                     " or list of tuples}."
                 )
 
-            ax = (
-                axes.ravel()[channel_idx]
-                if len(noise_channels) > 1
-                else axes
-            )
+            ax = axes.ravel()[channel_idx] if len(noise_channels) > 1 else axes
             plotting_options["fig_ax"] = fig, ax
             plotting_options["title"] = noise_channel_method
             plotting.data_vs_paramvals(
