@@ -52,19 +52,19 @@ from scqubits.core.charge_basis_operators import (
     _sin_theta,
 )
 from scqubits.core.circuit_utils import get_trailing_number, sawtooth_potential
-from scqubits.core.dense_matrix_helpers import (
-    _cos_dia,
-    _cos_dia_dense,
-    _sin_dia,
-    _sin_dia_dense,
-    matrix_power_sparse,
-)
 from scqubits.core.discretized_phi_operators import (
     _cos_phi,
     _i_d2_dphi2_operator,
     _i_d_dphi_operator,
     _phi_operator,
     _sin_phi,
+)
+from scqubits.core.matrix_helpers import (
+    _cos_dia,
+    _cos_dia_dense,
+    _sin_dia,
+    _sin_dia_dense,
+    matrix_power_sparse,
 )
 from scqubits.core.namedslots_array import NamedSlotsNdarray
 from scqubits.core.operator_factories import (

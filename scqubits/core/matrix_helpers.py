@@ -1,4 +1,4 @@
-# dense_matrix_helpers.py
+# matrix_helpers.py
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
 # Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
@@ -9,14 +9,20 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
-"""Diagonal-acting helpers used when the circuit's symbolic Hamiltonian is
-evaluated against either dense or sparse operator matrices.
-
-The four ``cos``/``sin`` variants are stored in the
-``replacement_dict`` passed to :func:`eval` inside
+"""Mixed dense/sparse matrix helpers used as callable replacements when the
+circuit's symbolic Hamiltonian is evaluated by
 ``_hamiltonian_for_harmonic_extended_vars`` (see ``circuit_routines.py``).
-``matrix_power_sparse`` provides the ``matrix_power`` entry for the same
-dispatch.
+
+Five helpers populate the ``replacement_dict`` passed to :func:`eval`:
+
+- ``_cos_dia`` / ``_sin_dia`` — sparse-in, sparse-out cos/sin on the diagonal
+- ``_cos_dia_dense`` / ``_sin_dia_dense`` — dense-in, dense-out variants
+- ``matrix_power_sparse`` — dense-in, sparse-out matrix power
+
+The dispatcher selects between the sparse and dense variants based on the
+circuit's ``type_of_matrices`` setting. (B5 plans to replace this
+``eval``-driven dispatch with ``sympy.lambdify``, at which point this
+module disappears.)
 """
 
 from __future__ import annotations

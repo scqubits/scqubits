@@ -35,19 +35,19 @@ from scqubits.core.circuit_utils import (
     sawtooth_potential,
     truncation_template,
 )
-from scqubits.core.dense_matrix_helpers import (
-    _cos_dia,
-    _cos_dia_dense,
-    _sin_dia,
-    _sin_dia_dense,
-    matrix_power_sparse,
-)
 from scqubits.core.discretized_phi_operators import (
     _cos_phi,
     _i_d_dphi_operator,
     _identity_phi,
     _phi_operator,
     _sin_phi,
+)
+from scqubits.core.matrix_helpers import (
+    _cos_dia,
+    _cos_dia_dense,
+    _sin_dia,
+    _sin_dia_dense,
+    matrix_power_sparse,
 )
 from scqubits.core.sympy_helpers import (
     _generate_symbols_list,

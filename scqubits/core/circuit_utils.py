@@ -32,7 +32,7 @@ from scqubits.core import discretization as discretization
 # and have moved to dedicated modules during the B1 split. Re-exports
 # keep existing downstream
 # `from scqubits.core.circuit_utils import <name>` imports working.
-from scqubits.core.dense_matrix_helpers import matrix_power_sparse  # noqa: F401
+from scqubits.core.matrix_helpers import matrix_power_sparse  # noqa: F401
 from scqubits.core.operator_factories import (  # noqa: F401
     grid_operator_func_factory,
     hierarchical_diagonalization_func_factory,
