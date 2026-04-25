@@ -4,6 +4,7 @@ import functools
 import itertools
 import operator as builtin_op
 import re
+
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
@@ -16,27 +17,26 @@ if TYPE_CHECKING:
 import numpy as np
 import qutip as qt
 import sympy as sm
+
 from sympy import latex
 
 try:
-    from IPython.display import display, Latex
+    from IPython.display import Latex, display
 except ImportError:
     _HAS_IPYTHON = False
 else:
     _HAS_IPYTHON = True
 
-from scqubits.core.circuit_utils import (
-    is_potential_term,
-    get_trailing_number,
-    round_symbolic_expr,
-)
+from abc import ABC
+
+from scqubits.core.circuit_utils import get_trailing_number
+from scqubits.core.sympy_helpers import is_potential_term, round_symbolic_expr
 from scqubits.utils.misc import (
+    check_sync_status_circuit,
     flatten_list_recursive,
     list_intersection,
-    check_sync_status_circuit,
     unique_elements_in_list,
 )
-from abc import ABC
 
 
 class CircuitSymMethods(ABC):

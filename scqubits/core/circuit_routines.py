@@ -52,12 +52,10 @@ from scqubits.core.charge_basis_operators import (
     _sin_theta,
 )
 from scqubits.core.circuit_utils import (
-    _generate_symbols_list,
     get_trailing_number,
     grid_operator_func_factory,
     hierarchical_diagonalization_func_factory,
     operator_func_factory,
-    round_symbolic_expr,
     sawtooth_potential,
 )
 from scqubits.core.dense_matrix_helpers import (
@@ -75,6 +73,7 @@ from scqubits.core.discretized_phi_operators import (
     _sin_phi,
 )
 from scqubits.core.namedslots_array import NamedSlotsNdarray
+from scqubits.core.sympy_helpers import _generate_symbols_list, round_symbolic_expr
 from scqubits.io_utils.fileio import IOData
 from scqubits.io_utils.fileio_serializers import dict_serialize
 from scqubits.utils.misc import (

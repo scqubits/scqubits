@@ -28,11 +28,16 @@ from scipy.sparse import csc_matrix
 from scqubits.core import circuit_input
 from scqubits.core import discretization as discretization
 
-# Public deprecation shim — `matrix_power_sparse` was previously defined
-# here. It now lives in `dense_matrix_helpers`. Re-export so existing
-# downstream `from scqubits.core.circuit_utils import matrix_power_sparse`
-# imports keep working.
+# Public deprecation shims — these symbols were previously defined here
+# and have moved to dedicated modules during the B1 split. Re-exports
+# keep existing downstream
+# `from scqubits.core.circuit_utils import <name>` imports working.
 from scqubits.core.dense_matrix_helpers import matrix_power_sparse  # noqa: F401
+from scqubits.core.sympy_helpers import (  # noqa: F401
+    is_potential_term,
+    keep_terms_for_subsystem,
+    round_symbolic_expr,
+)
 from scqubits.utils.misc import (
     Qobj_to_scipy_csc_matrix,
     flatten_list_recursive,
@@ -146,39 +151,6 @@ def get_trailing_number(input_str: str) -> int:
     return int(match.group())
 
 
-def _generate_symbols_list(
-    var_str: str, iterable_list: list[int] | ndarray
-) -> list[sm.Symbol]:
-    """Return symbols whose names are ``var_str + str(iterable)``.
-
-    Parameters
-    ----------
-    var_str:
-        name of the variable which needs to be generated
-    iterable_list:
-        The list of indices which generates the symbols
-    """
-    return [sm.symbols(var_str + str(iterable)) for iterable in iterable_list]
-
-
-def is_potential_term(term: sm.Expr) -> bool:
-    """Determines if a given sympy expression term is part of the potential.
-
-    Parameters
-    ----------
-    term:
-        a single term as a Sympy expression
-
-    Returns
-    -------
-    ``True`` if the term is part of the potential of this instance's Hamiltonian.
-    """
-    for symbol in term.free_symbols:
-        if "θ" in symbol.name or "Φ" in symbol.name:
-            return True
-    return False
-
-
 def example_circuit(qubit: str) -> str:
     """Return example input strings for some of the popular qubits.
 
@@ -288,41 +260,6 @@ def hierarchical_diagonalization_func_factory(symbol_name: str) -> Callable:
     return operator_func
 
 
-def keep_terms_for_subsystem(
-    sym_expr: sm.Expr, subsys: "Subsystem", substitute_zero: bool = False
-) -> sm.Expr:
-    """Drop terms from ``sym_expr`` not involving ``subsys`` variables.
-
-    If ``substitute_zero`` is ``True``, every free symbol in ``sym_expr`` is
-    substituted with zero and the resulting expression is returned.
-
-    Parameters
-    ----------
-    sym_expr:
-        symbolic expression to filter
-    subsys:
-        subsystem whose ``dynamic_var_indices`` determine the terms to keep
-    substitute_zero:
-        if ``True``, substitute zero for all free symbols and return that
-
-    Returns
-    -------
-    Filtered symbolic expression.
-    """
-    if substitute_zero:
-        for var_sym in sym_expr.free_symbols:
-            sym_expr = sym_expr.subs(var_sym, 0)
-        return sym_expr
-    terms = sym_expr.as_ordered_terms()
-    for term in terms:
-        var_indices = [
-            get_trailing_number(sym_var.name) for sym_var in list(term.free_symbols)
-        ]
-        if len(set(var_indices) & set(subsys.dynamic_var_indices)) == 0:
-            sym_expr = sym_expr - term
-    return sym_expr
-
-
 def operator_func_factory(
     inner_op: Callable, index: int, op_type: str | None = None
 ) -> Callable:
@@ -388,30 +325,6 @@ def operator_func_factory(
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     return operator_func
-
-
-def round_symbolic_expr(expr: sm.Expr, number_of_digits: int) -> sm.Expr:
-    """Round all floating-point coefficients in a Sympy expression.
-
-    The expression is first expanded; every :class:`sympy.Float` encountered
-    in the resulting tree is replaced by its rounded value.
-
-    Parameters
-    ----------
-    expr:
-        Sympy expression to round
-    number_of_digits:
-        number of decimal digits to round to
-
-    Returns
-    -------
-    Rounded Sympy expression.
-    """
-    rounded_expr = expr.expand()
-    for term in sm.preorder_traversal(expr.expand()):
-        if isinstance(term, sm.Float):
-            rounded_expr = rounded_expr.subs(term, round(term, number_of_digits))
-    return rounded_expr
 
 
 def yaml_like_out_with_pp(circuit_yaml: str) -> list[list]:

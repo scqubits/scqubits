@@ -29,11 +29,8 @@ from scqubits.core.charge_basis_operators import (
     _sin_theta,
 )
 from scqubits.core.circuit_utils import (
-    _generate_symbols_list,
     example_circuit,
     get_trailing_number,
-    is_potential_term,
-    round_symbolic_expr,
     sawtooth_operator,
     sawtooth_potential,
     truncation_template,
@@ -51,6 +48,11 @@ from scqubits.core.discretized_phi_operators import (
     _identity_phi,
     _phi_operator,
     _sin_phi,
+)
+from scqubits.core.sympy_helpers import (
+    _generate_symbols_list,
+    is_potential_term,
+    round_symbolic_expr,
 )
 
 
