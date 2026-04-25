@@ -12,12 +12,14 @@
 ############################################################################
 
 import os
+
 import numpy as np
-import qutip as qt
 import pytest
-from scqubits.io_utils.fileio import read
+import qutip as qt
 
 import scqubits as scq
+
+from scqubits.io_utils.fileio import read
 
 TESTDIR, _ = os.path.split(scq.__file__)
 TESTDIR = os.path.join(TESTDIR, "tests", "")
@@ -340,3 +342,45 @@ class TestCircuit:
             expectation_vals,
             ref_expectation_vals,
         )
+
+
+class TestConfigureError:
+    """Pin behavior of ``Circuit.configure`` on invalid input.
+
+    On failure, the prior configuration is restored and a
+    :class:`~scqubits.core.circuit.ConfigureError` is raised with the
+    triggering exception preserved as ``__cause__``.
+    """
+
+    @staticmethod
+    def _make_zero_pi():
+        zp_yaml = """branches:
+        - ["JJ", 1, 2, 10, 20]
+        - ["JJ", 3, 4, 10, 20]
+        - ["L", 2, 3, 0.008]
+        - ["L", 4, 1, 0.008]
+        - ["C", 1, 3, 0.02]
+        - ["C", 2, 4, 0.02]
+        """
+        return scq.Circuit(zp_yaml, from_file=False, ext_basis="discretized")
+
+    def test_invalid_hierarchy_raises_configure_error(self):
+        from scqubits.core.circuit import ConfigureError
+
+        circ = self._make_zero_pi()
+        # system_hierarchy without subsystem_trunc_dims triggers the
+        # internal Exception in _configure.
+        with pytest.raises(ConfigureError) as excinfo:
+            circ.configure(system_hierarchy=[[1, 3], [2]])
+        assert excinfo.value.__cause__ is not None
+
+    def test_prior_configuration_is_restored_on_failure(self):
+        from scqubits.core.circuit import ConfigureError
+
+        circ = self._make_zero_pi()
+        prior_hierarchy = circ.system_hierarchy
+        prior_trunc_dims = circ.subsystem_trunc_dims
+        with pytest.raises(ConfigureError):
+            circ.configure(system_hierarchy=[[1, 3], [2]])
+        assert circ.system_hierarchy == prior_hierarchy
+        assert circ.subsystem_trunc_dims == prior_trunc_dims

@@ -12,13 +12,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import re
 import warnings
+
+from collections.abc import Callable
 from typing import Any, get_type_hints
 
 import numpy as np
 import sympy as sm
+
 from numpy import ndarray
 from sympy import latex
 
@@ -29,11 +31,15 @@ except ImportError:
 else:
     _HAS_IPYTHON = True
 
-import scqubits.core.discretization as discretization
 import scqubits.core.central_dispatch as dispatch
+import scqubits.core.discretization as discretization
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 
+from scqubits.core.circuit_noise import NoisyCircuit
+from scqubits.core.circuit_plotting import CircuitPlot
+from scqubits.core.circuit_routines import CircuitRoutines
+from scqubits.core.circuit_sym_methods import CircuitSymMethods
 from scqubits.core.circuit_utils import (
     get_trailing_number,
 )
@@ -45,10 +51,9 @@ from scqubits.utils.misc import (
     number_of_lists_in_list,
 )
 
-from scqubits.core.circuit_routines import CircuitRoutines
-from scqubits.core.circuit_plotting import CircuitPlot
-from scqubits.core.circuit_sym_methods import CircuitSymMethods
-from scqubits.core.circuit_noise import NoisyCircuit
+
+class ConfigureError(RuntimeError):
+    """Raised when ``Circuit.configure`` fails; the previous configuration is restored."""
 
 
 class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot):
@@ -821,7 +826,7 @@ class Circuit(  # type: ignore[misc]
                     ext_basis=ext_basis,
                     subsys_dict=subsys_dict,
                 )
-        except:
+        except Exception as exc:
             # resetting the necessary attributes
             self.system_hierarchy = old_system_hierarchy
             self.subsystem_trunc_dims = old_subsystem_trunc_dims
@@ -847,7 +852,9 @@ class Circuit(  # type: ignore[misc]
                     ext_basis=old_ext_basis,
                     subsys_dict=old_subsys_dict,
                 )
-            raise Exception("Configure failed due to incorrect parameters.")
+            raise ConfigureError(
+                "Configure failed; previous configuration restored."
+            ) from exc
 
     def _read_symbolic_hamiltonian(
         self, symbolic_hamiltonian: sm.Expr
