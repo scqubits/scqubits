@@ -251,21 +251,24 @@ branch_metadata.py (no scqubits.core deps)
 | A5 | Extract `_import_from_symbolic_circuit` covering the 18-attribute copy; call from `from_yaml` and `_configure` | `circuit.py` | low | DRY | +8 / -38 | – |
 | A6 | Create `branch_metadata.py`; move `_junction_order` and `_capacitance_variable_for_branch`; update all callers; remove the lazy import in `circuit_input.find_jj_order` | `branch_metadata.py` (new), `circuit_input.py`, `circuit_utils.py`, `symbolic_circuit.py`, `symbolic_circuit_graph.py`, `tests/test_circuit_utils.py` | low | Dependency direction | +35 / -35 | – |
 | A7 | Add `_diag_from_function(grid, values_fn)` helper; rewrite `_phi_operator`, `_cos_phi`, `_sin_phi` to use it (`_identity_phi` excluded — uses `sparse.identity` directly) | `circuit_utils.py` | low | DRY | +5 / -16 | – |
-| A8 | Trim multi-paragraph docstrings on the touched methods to one-line summaries (only those that already read as a Claude work narrative) | `circuit_routines.py`, `circuit.py`, `circuit_utils.py` | low | Comments don't fix bad code (Ch. 4) | +0 / -∼20 | A1–A7 |
+| A8 | **No-op / narrowed.** Originally framed as "trim multi-paragraph docstrings to one-liners." On inspection no methods touched in A1–A7 carry genuine work-narrative docstrings — the only candidates were three duplicated factory-closure docstrings documenting the `energy_esys` parameter. Those are real parameter spec, not narration; gutting would be a regression. | – | n/a | – | 0 | A1–A7 |
 
-**Estimated cumulative Δ for Batch A: ≈ −105 lines** (revised down from
-the original −120 estimate after A7 scope was trimmed and A6 corrected to
-touch 5 files). Still satisfies the "net negative" requirement.
+**Estimated cumulative Δ for Batch A: ≈ −105 lines.** Actual outcome:
+**−83 lines** measured on production source code only
+(`scqubits/core/{circuit,circuit_input,circuit_routines,circuit_utils,symbolic_circuit,symbolic_circuit_graph}.py`),
+satisfying the "net negative" requirement.
 
 ## Sequencing
 
-### Batch A — execute this session **after user approval**
+### Batch A — executed
 
-A1 → A2 → A3 → A4 → A5 → A6 → A7 → A8
+A1 → A2 → A3 → A4 → A5 → A6 → A7 (→ A8 no-op).
 
-Each is its own commit, in this order. Dependencies are limited
-(A3 ⇐ A2; A8 logically follows A1–A7); other items are independent and
-could run in any order — sequential execution is for ease of bisect/revert.
+Each is its own commit. Plus two follow-up commits:
+(i) drop leading `_` from upper-case constants `PROPERTY_SETTER_BY_TYPE`
+and `SYMBOLIC_CIRCUIT_ATTRIBUTES`,
+(ii) drop a now-unused `# type: ignore[return-value]` in
+`_diag_from_function` after A7 made it redundant.
 
 ### Batch B — plan only, do not execute
 
@@ -308,6 +311,35 @@ could run in any order — sequential execution is for ease of bisect/revert.
   per-branch methods in `circuit_noise.py` should be replaced with
   explicit `_noise_method_for(channel, branch)` dispatched through a
   registry.
+
+### Batch C additions surfaced by radon / CodeFactor (added during Batch A wrap-up)
+
+Quality checkers (CodeFactor.io connected to the repo, plus local
+`radon cc`) flagged hotspots not on the original list:
+
+- **C4.** `symbolic_circuit_graph.SymbolicCircuitGraph._spanning_tree` —
+  cyclomatic complexity 58 (radon F). Highest-complexity function in
+  the entire circuit module. Decompose into smaller predicates and a
+  driver loop.
+- **C5.** `symbolic_circuit_graph.SymbolicCircuitGraph.variable_transformation_matrix`
+  — complexity 53 (F). Sibling smell to C4; same playbook.
+- **C6.** `symbolic_circuit_graph.SymbolicCircuitGraph._independent_modes`
+  — complexity 36 (E).
+- **C7.** `symbolic_circuit_graph.SymbolicCircuitGraph.check_transformation_matrix`
+  — complexity 33 (E).
+- **C8.** `circuit.Circuit._configure_sym_hamiltonian` — complexity 32
+  (E). Sibling of `_configure` (39); the original plan flagged
+  `_configure` but missed this parallel one. Same DRY treatment as A5
+  / future B-style decomposition.
+- **C9.** `circuit_utils.assemble_circuit` — complexity 28 (D). Will
+  be touched anyway by B1's split of `circuit_utils.py`; flag here
+  for explicit decomposition.
+
+CodeFactor.io overall: grade A, 32 open issues across 93 files (95.7%
+A, 4.3% B). Flagged issue types: *Complexity per Method*, *Lines of
+Code per Method*, *Lines of code that are similar to other code*
+(duplication). No surprises beyond what radon shows; the items above
+constitute the actionable subset.
 
 ## Test-coverage assessment
 
