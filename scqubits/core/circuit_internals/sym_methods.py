@@ -1069,30 +1069,31 @@ class CircuitSymMethods(ABC):
                 + var_str_harmonic
             )
         )
-        # symbolic parameters
-        if len(self.symbolic_params) > 0:
-            sym_params_str = "Symbolic parameters (symbol, default value):  "
-            for sym, val in self.symbolic_params.items():
-                sym_params_str += f"$({sym.name}, {val})$, "
-            display(Latex(sym_params_str))
-        if len(self.external_fluxes) > 0:
-            sym_params_str = "External fluxes (symbol, default value):  "
-            for sym in self.external_fluxes:
-                sym_params_str += f"$({sym.name}, {getattr(self, sym.name)})$, "
-            display(Latex(sym_params_str))
-        if len(self.offset_charges) > 0:
-            sym_params_str = "Offset charges (symbol, default value):  "
-            for sym in self.offset_charges:
-                sym_params_str += f"$({sym.name}, {getattr(self, sym.name)})$, "
-            display(Latex(sym_params_str))
-        if len(self.free_charges) > 0:
-            sym_params_str = "Free charges (symbol, default value):  "
-            for sym in self.free_charges:
-                sym_params_str += f"$({sym.name}, {getattr(self, sym.name)})$, "
-            display(Latex(sym_params_str))
+        attr_value = lambda sym: getattr(self, sym.name)
+        self._display_symbol_pairs(
+            "Symbolic parameters", self.symbolic_params, self.symbolic_params.get
+        )
+        self._display_symbol_pairs("External fluxes", self.external_fluxes, attr_value)
+        self._display_symbol_pairs("Offset charges", self.offset_charges, attr_value)
+        self._display_symbol_pairs("Free charges", self.free_charges, attr_value)
         if self.hierarchical_diagonalization:
             display(Latex(f"System hierarchy: {self.system_hierarchy}"))
             display(Latex(f"Truncated Dimensions: {self.subsystem_trunc_dims}"))
+
+    def _display_symbol_pairs(
+        self, label: str, symbols, value_fn: Callable[..., Any]
+    ) -> None:
+        """Display ``label`` followed by ``(symbol, value_fn(symbol))`` pairs.
+
+        No-op when ``symbols`` is empty. Used by ``_repr_latex_`` to render the
+        circuit's symbolic parameters, external fluxes, offset/free charges.
+        """
+        if not symbols:
+            return
+        line = f"{label} (symbol, default value):  "
+        for sym in symbols:
+            line += f"$({sym.name}, {value_fn(sym)})$, "
+        display(Latex(line))
 
     def _make_expr_human_readable(self, expr: sm.Expr, float_round: int = 6) -> sm.Expr:
         """Method returns a user readable symbolic expression for the current instance.
