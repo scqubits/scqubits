@@ -1,4 +1,4 @@
-# circuit.py
+# routines.py
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
 # Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
@@ -90,6 +90,10 @@ from scqubits.utils.spectrum_utils import (
     identity_wrap,
     order_eigensystem,
 )
+
+__all__ = [
+    "CircuitRoutines",
+]
 
 
 @contextmanager

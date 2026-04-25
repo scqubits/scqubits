@@ -1,4 +1,4 @@
-# circuit_noise.py
+# noise.py
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
 # Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
@@ -31,6 +31,10 @@ import sympy as sm
 
 from scqubits.core.symbolic_circuit import Branch
 
+__all__ = [
+    "NoisyCircuit",
+]
+
 
 class NoisyCircuit(NoisySystem, ABC):
     """Noisy-quantum-circuit mixin extending :class:`NoisySystem`.
@@ -51,7 +55,7 @@ class NoisyCircuit(NoisySystem, ABC):
     models for different types of quantum circuits.
     """
 
-    # class-level annotations for attributes provided by subclasses (see circuit_routines.py)
+    # class-level annotations for attributes provided by subclasses (see circuit_internals.routines)
     transformation_matrix: Any
     symbolic_circuit: Any
     is_grounded: bool

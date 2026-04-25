@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """One-shot migration: move circuit *support* files into
-`scqubits/core/_circuit/` (Option B).
+`scqubits/core/circuit_internals/` (Option B).
 
 Public entry points stay at `scqubits/core/`:
     - circuit.py              (Circuit, Subsystem, CircuitABC, ConfigureError)
     - symbolic_circuit.py     (SymbolicCircuit)
     - symbolic_circuit_graph.py (Node, Branch, Coupler, SymbolicCircuitGraph)
 
-Support files move to `scqubits/core/_circuit/`. Long-standing public
+Support files move to `scqubits/core/circuit_internals/`. Long-standing public
 modules (the six legacy `circuit_*.py` files plus `symbolic_circuit.py`'s
 position is unchanged) get backward-compatibility shims at their old
 paths. The eight modules introduced in B1 (branch_metadata,
@@ -38,24 +38,24 @@ SQ = REPO_ROOT / "scqubits"
 # (old_path_relative_to_scqubits, new_path_relative_to_scqubits)
 MOVES = [
     # Long-standing support files (B0 / pre-refactor): get shims at old paths.
-    ("core/circuit_input.py", "core/_circuit/input.py"),
-    ("core/circuit_noise.py", "core/_circuit/noise.py"),
-    ("core/circuit_plotting.py", "core/_circuit/plotting.py"),
-    ("core/circuit_routines.py", "core/_circuit/routines.py"),
-    ("core/circuit_sym_methods.py", "core/_circuit/sym_methods.py"),
-    ("core/circuit_utils.py", "core/_circuit/utils.py"),
+    ("core/circuit_input.py", "core/circuit_internals/input.py"),
+    ("core/circuit_noise.py", "core/circuit_internals/noise.py"),
+    ("core/circuit_plotting.py", "core/circuit_internals/plotting.py"),
+    ("core/circuit_routines.py", "core/circuit_internals/routines.py"),
+    ("core/circuit_sym_methods.py", "core/circuit_internals/sym_methods.py"),
+    ("core/circuit_utils.py", "core/circuit_internals/utils.py"),
     # Files introduced during B1 (recent — no downstream users): no shim.
-    ("core/branch_metadata.py", "core/_circuit/branch_metadata.py"),
-    ("core/charge_basis_operators.py", "core/_circuit/charge_basis_operators.py"),
+    ("core/branch_metadata.py", "core/circuit_internals/branch_metadata.py"),
+    ("core/charge_basis_operators.py", "core/circuit_internals/charge_basis_operators.py"),
     (
         "core/discretized_phi_operators.py",
-        "core/_circuit/discretized_phi_operators.py",
+        "core/circuit_internals/discretized_phi_operators.py",
     ),
-    ("core/matrix_helpers.py", "core/_circuit/matrix_helpers.py"),
-    ("core/operator_factories.py", "core/_circuit/operator_factories.py"),
-    ("core/sympy_helpers.py", "core/_circuit/sympy_helpers.py"),
-    ("core/sawtooth.py", "core/_circuit/sawtooth.py"),
-    ("core/circuit_yaml_assembly.py", "core/_circuit/yaml_assembly.py"),
+    ("core/matrix_helpers.py", "core/circuit_internals/matrix_helpers.py"),
+    ("core/operator_factories.py", "core/circuit_internals/operator_factories.py"),
+    ("core/sympy_helpers.py", "core/circuit_internals/sympy_helpers.py"),
+    ("core/sawtooth.py", "core/circuit_internals/sawtooth.py"),
+    ("core/circuit_yaml_assembly.py", "core/circuit_internals/yaml_assembly.py"),
 ]
 
 # Long-standing files that need a shim at the OLD path.
@@ -88,7 +88,7 @@ SKIP_DIRS = {".git", "build", "dist", ".venv", "venv", "__pycache__"}
 
 def git_mv_all() -> None:
     """Move each file via `git mv`."""
-    pkg_dir = SQ / "core" / "_circuit"
+    pkg_dir = SQ / "core" / "circuit_internals"
     pkg_dir.mkdir(parents=True, exist_ok=True)
 
     for old_rel, new_rel in MOVES:
@@ -172,16 +172,15 @@ PACKAGE_INIT_CONTENT = '''"""Internal sub-package for circuit support modules.
 
 Public entry points (``Circuit``, ``Subsystem``, ``SymbolicCircuit`` etc.)
 remain at ``scqubits.core.circuit`` / ``scqubits.core.symbolic_circuit``.
-The leading underscore on this package name signals that the modules
-within are not part of the supported public API and may be reorganised
-without notice.
+The ``_internals`` suffix signals that the modules within are not part
+of the supported public API and may be reorganised without notice.
 """
 '''
 
 
 def write_package_init() -> None:
-    """Write `scqubits/core/_circuit/__init__.py`."""
-    init_path = SQ / "core" / "_circuit" / "__init__.py"
+    """Write `scqubits/core/circuit_internals/__init__.py`."""
+    init_path = SQ / "core" / "circuit_internals" / "__init__.py"
     init_path.write_text(PACKAGE_INIT_CONTENT, encoding="utf-8")
     subprocess.check_call(
         ["git", "add", str(init_path)], cwd=str(REPO_ROOT)
@@ -192,7 +191,7 @@ def write_package_init() -> None:
 def main() -> int:
     print("[1/4] git mv'ing files...")
     git_mv_all()
-    print("[2/4] writing _circuit package __init__.py...")
+    print("[2/4] writing circuit_internals package __init__.py...")
     write_package_init()
     print("[3/4] rewriting imports across the tree...")
     rewrite_imports()

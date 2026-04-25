@@ -11,7 +11,7 @@
 ############################################################################
 """Mixed dense/sparse matrix helpers used as callable replacements when the
 circuit's symbolic Hamiltonian is evaluated by
-``_hamiltonian_for_harmonic_extended_vars`` (see ``circuit_routines.py``).
+``_hamiltonian_for_harmonic_extended_vars`` (see ``circuit_internals.routines``).
 
 Five helpers populate the ``replacement_dict`` passed to :func:`eval`:
 

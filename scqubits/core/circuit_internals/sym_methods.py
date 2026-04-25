@@ -27,10 +27,18 @@ except ImportError:
 else:
     _HAS_IPYTHON = True
 
+
+__all__ = [
+    "CircuitSymMethods",
+]
+
 from abc import ABC
 
 from scqubits.core.circuit_internals.utils import get_trailing_number
-from scqubits.core.circuit_internals.sympy_helpers import is_potential_term, round_symbolic_expr
+from scqubits.core.circuit_internals.sympy_helpers import (
+    is_potential_term,
+    round_symbolic_expr,
+)
 from scqubits.utils.misc import (
     check_sync_status_circuit,
     flatten_list_recursive,

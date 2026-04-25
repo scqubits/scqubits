@@ -1,4 +1,4 @@
-# circuit-utils.py
+# utils.py
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
 # Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
@@ -37,13 +37,26 @@ from scqubits.core.circuit_internals.yaml_assembly import (  # noqa: F401
     assemble_circuit,
     assemble_transformation_matrix,
 )
-from scqubits.core.circuit_internals.sawtooth import sawtooth_operator, sawtooth_potential  # noqa: F401
+from scqubits.core.circuit_internals.sawtooth import (
+    sawtooth_operator,
+    sawtooth_potential,
+)  # noqa: F401
 from scqubits.utils.misc import (
     Qobj_to_scipy_csc_matrix,
     flatten_list_recursive,
     is_string_float,
     unique_elements_in_list,
 )
+
+__all__ = [
+    "truncation_template",
+    "get_trailing_number",
+    "example_circuit",
+    "assemble_circuit",
+    "assemble_transformation_matrix",
+    "sawtooth_operator",
+    "sawtooth_potential",
+]
 
 if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem

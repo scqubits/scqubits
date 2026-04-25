@@ -29,6 +29,10 @@ from scqubits.utils.misc import (
 from scqubits.utils.plot_utils import _process_options
 from abc import ABC
 
+__all__ = [
+    "CircuitPlot",
+]
+
 
 class CircuitPlot(ABC):
     """Mixin providing wave-function and potential plotting for circuit subsystems."""

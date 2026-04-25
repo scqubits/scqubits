@@ -13,7 +13,7 @@
 the symbolic / numerical circuit machinery.
 
 Kept dependency-free (no other ``scqubits.core`` imports) so it can be
-imported by ``circuit_input.py`` and ``circuit_utils.py`` without
+imported by ``circuit_internals.input`` and ``circuit_internals.utils`` without
 introducing an import cycle.
 """
 

@@ -2,7 +2,6 @@
 
 Public entry points (``Circuit``, ``Subsystem``, ``SymbolicCircuit`` etc.)
 remain at ``scqubits.core.circuit`` / ``scqubits.core.symbolic_circuit``.
-The leading underscore on this package name signals that the modules
-within are not part of the supported public API and may be reorganised
-without notice.
+The ``_internals`` suffix signals that the modules within are not part
+of the supported public API and may be reorganised without notice.
 """
