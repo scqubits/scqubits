@@ -45,9 +45,13 @@ executed in this session.** Batches B and C are documented for follow-up.
 
 ## Verified findings
 
-Each finding was verified against `main` at commit `c8efe5da`. Line numbers
+Each finding was verified against `main` at commit `1755e27b`. Line numbers
 reflect current code. Where the user-prompt's pre-identified description
 differed from the actual code, the discrepancy is flagged inline.
+
+**Note on revisions:** the original draft was independently reviewed; three
+findings (A6 scope, A7 scope, finding #3 wording) were corrected.
+Documented inline.
 
 1. **`circuit.py:418` — `Circuit.__init__` is a kwarg dispatcher.** Validates
    the mutually-exclusive `input_string` / `symbolic_hamiltonian` pair, then
@@ -59,13 +63,23 @@ differed from the actual code, the discrepancy is flagged inline.
    content." Docstring says "deprecated and will not be supported in future
    releases" but no `DeprecationWarning` is emitted. **Verified.**
 
-3. **`circuit.py:824` — bare `except:` silently swallows all errors.**
-   Pre-prompt description said "restore `old_*` and re-raise a generic
-   `Exception`." **Reality is worse:** the except block restores `old_*` and
-   re-calls `_configure` / `_configure_sym_hamiltonian` with old values, and
-   **never raises**. If the rollback itself fails, the original error is
-   gone. Additionally, `hasattr(self, "symbolic_circuit")` is checked **four
-   times** in this single method (lines 788, 798, 828, 832).
+3. **`circuit.py:824` — bare `except:` followed by an opaque re-raise.**
+   The except block restores `old_*`, re-calls
+   `_configure` / `_configure_sym_hamiltonian` with old values, and at
+   `circuit.py:850` raises a fresh
+   `Exception("Configure failed due to incorrect parameters.")`. Both the
+   original error type and the original cause are discarded (no
+   `raise ... from e`). The pre-prompt's description matches the structure
+   but the original draft of this plan claimed "never raises" — that was
+   wrong; line 850 does raise, just badly. Additionally,
+   `hasattr(self, "symbolic_circuit")` is checked **four times** in this
+   single method (lines 788, 798, 828, 832).
+
+   The behavior change introduced by A1 is therefore narrower than it
+   appeared at first reading: today raises a generic `Exception` after
+   silent rollback; A1 raises a typed exception with `from e` after the
+   same rollback. Callers that pattern-match on `Exception` still match;
+   callers that introspect `.__cause__` get more information than before.
 
 4. **`circuit.py:1065` — `_configure` is 224 lines** (1065–1288). Roughly 15
    responsibilities run in sequence: rebuild `symbolic_circuit` if matrices
@@ -101,13 +115,22 @@ differed from the actual code, the discrepancy is flagged inline.
    `param_vars` variant has additional pre-block work
    (`_mark_all_subsystems_as_affected`); the trailing 5 lines are identical.
 
-9. **Import cycle `circuit_input ↔ circuit_utils`** masked by a
-   function-local lazy import. `circuit_utils.py:33` does
-   `from scqubits.core import circuit_input` at module top.
-   `circuit_input.py:141` does
-   `from scqubits.core.circuit_utils import _junction_order` inside
-   `find_jj_order`. Resolve by extracting `_junction_order` and
-   `_capacitance_variable_for_branch` to a tiny `branch_types.py`.
+9. **Import dependency masked by a function-local lazy import.**
+   `circuit_utils.py:33` imports `circuit_input` at module top (used by
+   `assemble_circuit` at lines 735–740 for `remove_comments`,
+   `remove_branchline`, `strip_empty_lines`, `BRANCHES.parse_string`).
+   `circuit_input.py:141` lazy-imports `_junction_order` from
+   `circuit_utils` inside `find_jj_order` to avoid the cycle. After A6 the
+   cycle becomes one-way (`circuit_utils → circuit_input` only) and the
+   lazy import disappears. The `circuit_utils → circuit_input` direction
+   remains and is fine.
+
+   `_junction_order` and `_capacitance_variable_for_branch` are also
+   imported by `symbolic_circuit_graph.py:17–18` and
+   `symbolic_circuit.py:28–29`, plus `tests/test_circuit_utils.py`. A6
+   touches **5 files**, not 3 (see the corrected table row below).
+   New module renamed `branch_metadata.py` to avoid collision with the
+   `BRANCH_TYPES` dict in `circuit_input.py:50`.
 
 10. **`circuit_utils.py` — 1,054 lines spanning ~11 distinct responsibilities:**
     - branch-type metadata (`_junction_order`,
@@ -133,9 +156,9 @@ differed from the actual code, the discrepancy is flagged inline.
 
     Split per responsibility (Batch B).
 
-11. **Discretized-phi operator builders share an identical 5-line pattern**
-    (`circuit_utils.py:201–218`, `:251–268`, `:271–288`, plus the simpler
-    `:185–198` for identity). Each:
+11. **Three discretized-phi operator builders share an identical 5-line
+    pattern** (`circuit_utils.py:201–218` `_phi_operator`, `:251–268`
+    `_cos_phi`, `:271–288` `_sin_phi`). Each:
     ```
     pt_count = grid.pt_count
     matrix = sparse.dia_matrix((pt_count, pt_count))
@@ -144,6 +167,9 @@ differed from the actual code, the discrepancy is flagged inline.
     return matrix.tocsc()
     ```
     Collapsible to a `_diag_from_function(grid, values_fn)` helper.
+    `_identity_phi` (`circuit_utils.py:185–198`) does *not* fit this
+    pattern — it uses `sparse.identity(pt_count, format="csc")` directly
+    and is excluded from A7's scope.
 
 12. **Other long methods worth flagging for Batch B/C:**
     - `symbolic_circuit.py:320` — `configure`, 116 lines (320–435).
@@ -189,16 +215,23 @@ empty `CircuitABC` could absorb the shared bases (deferred to Batch B).
 The shape of the diagram is unchanged. The deltas are internal:
 
 ```
-branch_types.py (no scqubits.core deps)
-    ▲   ▲
-    │   │
-    │   └─── circuit_input.py
-    │
-    └─────── circuit_utils.py
+branch_metadata.py (no scqubits.core deps)
+    ▲   ▲   ▲   ▲
+    │   │   │   │
+    │   │   │   └── tests/test_circuit_utils.py
+    │   │   └────── symbolic_circuit_graph.py
+    │   └────────── symbolic_circuit.py
+    │   └────────── circuit_input.py
+    └────────────── circuit_utils.py    (still imports circuit_input
+                                         for assemble_circuit; that
+                                         direction stays)
 ```
 
-- New module `branch_types.py` breaks the
-  `circuit_input ↔ circuit_utils` cycle.
+- New module `branch_metadata.py` converts the
+  `circuit_input ↔ circuit_utils` cycle into a one-way edge
+  (`circuit_utils → circuit_input` survives — `assemble_circuit` still
+  calls `remove_comments` etc.) and lets the lazy import in
+  `circuit_input.find_jj_order` go away.
 - `_make_property` body shrinks from 73 → ~30 lines via context manager +
   lookup table.
 - `_set_property_and_update_*` trio shares one extracted helper.
@@ -211,17 +244,18 @@ branch_types.py (no scqubits.core deps)
 
 | ID | Refactor | Files touched | Risk | Clean-Code principle | Δ lines | Depends on |
 |---|---|---|---|---|---|---|
-| A1 | Replace bare `except:` in `Circuit.configure` with typed handler that re-raises and uses `raise ... from e` | `circuit.py` | low | Error handling (Ch. 7) | +5 / -0 | – |
+| A1 | Replace bare `except:` and the generic `raise Exception(...)` in `Circuit.configure` with a typed `ConfigureError(...) from e` and narrow the catch to `Exception` | `circuit.py` | low | Error handling (Ch. 7) | +6 / -2 | – |
 | A2 | Extract `_dispatch_suspended()` `@contextmanager` and replace 3 inline copies in `_make_property` | `circuit_routines.py` | low | DRY | +8 / -15 | – |
 | A3 | Replace 3-branch `if/elif` in `_make_property` with `{property_update_type: setter_method}` lookup using A2 | `circuit_routines.py` | low | Replace conditional with table; SRP | +5 / -28 | A2 |
 | A4 | Extract `_propagate_param_to_affected_subsystems` helper used by all three `_set_property_and_update_*` | `circuit_routines.py` | low | DRY | +8 / -15 | – |
 | A5 | Extract `_import_from_symbolic_circuit` covering the 18-attribute copy; call from `from_yaml` and `_configure` | `circuit.py` | low | DRY | +8 / -38 | – |
-| A6 | Create `branch_types.py`; move `_junction_order` and `_capacitance_variable_for_branch`; remove the function-local lazy import in `circuit_input.find_jj_order` | `branch_types.py` (new), `circuit_input.py`, `circuit_utils.py` | low | Dependency direction | +30 / -30 | – |
-| A7 | Add `_diag_from_function(grid, values_fn)` helper; rewrite `_phi_operator`, `_cos_phi`, `_sin_phi`, `_identity_phi` to use it | `circuit_utils.py` | low | DRY | +6 / -22 | – |
+| A6 | Create `branch_metadata.py`; move `_junction_order` and `_capacitance_variable_for_branch`; update all callers; remove the lazy import in `circuit_input.find_jj_order` | `branch_metadata.py` (new), `circuit_input.py`, `circuit_utils.py`, `symbolic_circuit.py`, `symbolic_circuit_graph.py`, `tests/test_circuit_utils.py` | low | Dependency direction | +35 / -35 | – |
+| A7 | Add `_diag_from_function(grid, values_fn)` helper; rewrite `_phi_operator`, `_cos_phi`, `_sin_phi` to use it (`_identity_phi` excluded — uses `sparse.identity` directly) | `circuit_utils.py` | low | DRY | +5 / -16 | – |
 | A8 | Trim multi-paragraph docstrings on the touched methods to one-line summaries (only those that already read as a Claude work narrative) | `circuit_routines.py`, `circuit.py`, `circuit_utils.py` | low | Comments don't fix bad code (Ch. 4) | +0 / -∼20 | A1–A7 |
 
-**Estimated cumulative Δ for Batch A: ≈ −120 lines**, satisfying the
-"net negative" requirement.
+**Estimated cumulative Δ for Batch A: ≈ −105 lines** (revised down from
+the original −120 estimate after A7 scope was trimmed and A6 corrected to
+touch 5 files). Still satisfies the "net negative" requirement.
 
 ## Sequencing
 
@@ -294,8 +328,11 @@ Per-refactor characterization tests (added **before** the corresponding
 refactor when below ~70%):
 
 - **A1** — `test_circuit.py`: configure with a deliberately invalid
-  `transformation_matrix`, assert that the original exception type
-  propagates (currently *would not* — this test pins post-A1 behavior).
+  `transformation_matrix`, assert that the new typed exception
+  (`ConfigureError`) carries the original error as `.__cause__`. Today
+  `Exception` is raised with no chain, so this test pins the post-A1
+  behavior (more informative on failure; same pattern-matching surface
+  for callers that use `except Exception`).
 - **A2/A3** — Unit test that calls a `_make_property`-created setter while
   `settings.DISPATCH_ENABLED = True`, asserts the central-dispatch flag is
   restored after the setter returns. Pins observable behavior independent
