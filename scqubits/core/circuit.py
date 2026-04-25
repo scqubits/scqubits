@@ -778,11 +778,13 @@ class Circuit(  # type: ignore[misc]
 
         Raises
         ------
-        Exception
-            When system_hierarchy is set and subsystem_trunc_dims is not set.
-        Exception
-            When closure_branches is set and the Circuit instance is initialized
-            with the setting ``use_dynamic_flux_grouping=True``.
+        ConfigureError
+            When configuration fails — for example when ``system_hierarchy``
+            is set without ``subsystem_trunc_dims``, or when
+            ``closure_branches`` is set on an instance initialized with
+            ``use_dynamic_flux_grouping=True``. The triggering exception is
+            preserved as ``__cause__``; prior configuration is restored
+            before the error is raised.
 
         Notes
         -----

@@ -159,7 +159,7 @@ def _identity_phi(grid: discretization.Grid1d) -> csc_matrix:
 def _diag_from_function(
     grid: discretization.Grid1d, values_fn: Callable[[ndarray], ndarray]
 ) -> csc_matrix:
-    """Return a sparse CSC diagonal operator with diagonal ``values_fn(grid)``."""
+    """Return a sparse CSC diagonal operator whose diagonal is ``values_fn(grid.make_linspace())``."""
     pt_count = grid.pt_count
     matrix = sparse.dia_matrix((pt_count, pt_count))
     matrix.setdiag(values_fn(grid.make_linspace()))
