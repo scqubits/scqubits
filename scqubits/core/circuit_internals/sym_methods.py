@@ -1185,6 +1185,27 @@ class CircuitSymMethods(ABC):
             print(potential)
         return None
 
+    def _potential_energy_symbols(self) -> list[sm.Symbol]:
+        """Return the symbols that contribute to the potential energy.
+
+        External fluxes plus a ``θ<idx>`` symbol per extended/periodic variable.
+        """
+        theta = lambda idx: sm.symbols("θ" + str(idx))
+        return (
+            self.external_fluxes
+            + [theta(idx) for idx in self.var_categories["extended"]]
+            + [theta(idx) for idx in self.var_categories["periodic"]]
+        )
+
+    def _kinetic_part(self, expr: sm.Expr) -> sm.Expr:
+        """Return the sum of terms in ``expr`` whose free symbols are all kinetic."""
+        pot_symbols = self._potential_energy_symbols()
+        kinetic = 0 * sm.Symbol("x")
+        for term in expr.args:
+            if term.free_symbols.isdisjoint(pot_symbols):
+                kinetic = sm.Add(kinetic, term)
+        return kinetic
+
     def sym_hamiltonian(
         self,
         subsystem_index: int | None = None,
@@ -1224,22 +1245,7 @@ class CircuitSymMethods(ABC):
                 self.subsystems[subsystem_index].potential_symbolic.expand(),
                 float_round=float_round,
             )
-            # obtain the KE of hamiltonian
-            pot_symbols = (
-                self.external_fluxes
-                + [
-                    sm.symbols("θ" + str(idx))
-                    for idx in self.var_categories["extended"]
-                ]
-                + [
-                    sm.symbols("θ" + str(idx))
-                    for idx in self.var_categories["periodic"]
-                ]
-            )
-            sym_hamiltonian_KE = 0 * sm.Symbol("x")
-            for term in sym_hamiltonian.args:
-                if term.free_symbols.isdisjoint(pot_symbols):
-                    sym_hamiltonian_KE = sm.Add(sym_hamiltonian_KE, term)
+            sym_hamiltonian_KE = self._kinetic_part(sym_hamiltonian)
 
             # add a symbolic 2pi
             for external_flux in self.external_fluxes:
@@ -1275,21 +1281,7 @@ class CircuitSymMethods(ABC):
                 sym_hamiltonian = sym_hamiltonian.subs(
                     free_charge, getattr(self, free_charge.name)
                 )
-            pot_symbols = (
-                self.external_fluxes
-                + [
-                    sm.symbols("θ" + str(idx))
-                    for idx in self.var_categories["extended"]
-                ]
-                + [
-                    sm.symbols("θ" + str(idx))
-                    for idx in self.var_categories["periodic"]
-                ]
-            )
-            sym_hamiltonian_KE = 0 * sm.Symbol("x")
-            for term in sym_hamiltonian.args:
-                if term.free_symbols.isdisjoint(pot_symbols):
-                    sym_hamiltonian_KE = sm.Add(sym_hamiltonian_KE, term)
+            sym_hamiltonian_KE = self._kinetic_part(sym_hamiltonian)
             sym_hamiltonian_PE = self._make_expr_human_readable(
                 self.potential_symbolic.expand(), float_round=float_round
             )
