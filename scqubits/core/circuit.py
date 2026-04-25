@@ -744,6 +744,47 @@ class Circuit(  # type: ignore[misc]
                 continue
             setattr(self, attr, getattr(self.symbolic_circuit, attr))
 
+    def _install_var_properties(self) -> None:
+        """Create instance properties for cutoffs, params, fluxes and charges.
+
+        Reads from ``self.var_categories``, ``self.symbolic_params``,
+        ``self.external_fluxes``, ``self.offset_charges``, ``self.free_charges``
+        and creates a :class:`~scqubits.core.descriptors.WatchedProperty` for
+        each (idempotent — properties already present are left untouched).
+        Also populates ``self.cutoff_names``, ``self.dynamic_var_indices``, and
+        default entries in ``self.discretized_phi_range``.
+        """
+        self.cutoff_names = []
+        for var_index in self.var_categories.get("periodic", []):
+            if not hasattr(self, f"_cutoff_n_{var_index}"):
+                self._make_property(f"cutoff_n_{var_index}", 5, "update_cutoffs")
+            self.cutoff_names.append(f"cutoff_n_{var_index}")
+        for var_index in self.var_categories.get("extended", []):
+            if not hasattr(self, f"_cutoff_ext_{var_index}"):
+                self._make_property(f"cutoff_ext_{var_index}", 30, "update_cutoffs")
+            self.cutoff_names.append(f"cutoff_ext_{var_index}")
+
+        self.dynamic_var_indices = (
+            self.var_categories["periodic"] + self.var_categories["extended"]
+        )
+
+        for param in self.symbolic_params:
+            if not hasattr(self, param.name):
+                self._make_property(
+                    param.name, self.symbolic_params[param], "update_param_vars"
+                )
+        for var_index in self.var_categories["extended"]:
+            if var_index not in self.discretized_phi_range:
+                self.discretized_phi_range[var_index] = (-6 * np.pi, 6 * np.pi)
+        for flux in self.external_fluxes:
+            if not hasattr(self, flux.name):
+                self._make_property(flux.name, 0.0, "update_external_flux_or_charge")
+        for charge_var in self.offset_charges + self.free_charges:
+            if not hasattr(self, charge_var.name):
+                self._make_property(
+                    charge_var.name, 0.0, "update_external_flux_or_charge"
+                )
+
     def _find_branch(
         self, node_id_1: int, node_id_2: int, branch_type: str, branch_params: dict
     ):
@@ -1057,50 +1098,7 @@ class Circuit(  # type: ignore[misc]
             self.var_categories,
         ) = self._read_symbolic_hamiltonian(self.hamiltonian_symbolic)
 
-        # initiating the class properties
-        self.cutoff_names = []
-        for var_type in self.var_categories.keys():
-            if var_type == "periodic":
-                for idx, var_index in enumerate(self.var_categories["periodic"]):
-                    if not hasattr(self, f"_cutoff_n_{var_index}"):
-                        self._make_property(
-                            f"cutoff_n_{var_index}", 5, "update_cutoffs"
-                        )
-                    self.cutoff_names.append(f"cutoff_n_{var_index}")
-            if var_type == "extended":
-                for idx, var_index in enumerate(self.var_categories["extended"]):
-                    if not hasattr(self, f"_cutoff_ext_{var_index}"):
-                        self._make_property(
-                            f"cutoff_ext_{var_index}", 30, "update_cutoffs"
-                        )
-                    self.cutoff_names.append(f"cutoff_ext_{var_index}")
-
-        self.dynamic_var_indices = (
-            self.var_categories["periodic"] + self.var_categories["extended"]
-        )
-
-        # default values for the parameters
-        for idx, param in enumerate(self.symbolic_params):
-            if not hasattr(self, param.name):
-                self._make_property(
-                    param.name, self.symbolic_params[param], "update_param_vars"
-                )
-        # setting the ranges for flux ranges used for discrete phi vars
-        for var_index in self.var_categories["extended"]:
-            if var_index not in self.discretized_phi_range:
-                self.discretized_phi_range[var_index] = (-6 * np.pi, 6 * np.pi)
-        # external flux vars
-        for flux in self.external_fluxes:
-            # setting the default to zero external flux
-            if not hasattr(self, flux.name):
-                self._make_property(flux.name, 0.0, "update_external_flux_or_charge")
-        # offset charges
-        for charge_var in self.offset_charges + self.free_charges:
-            # default to zero offset charge
-            if not hasattr(self, charge_var.name):
-                self._make_property(
-                    charge_var.name, 0.0, "update_external_flux_or_charge"
-                )
+        self._install_var_properties()
 
         self.potential_symbolic = self._generate_sym_potential()
 
@@ -1251,50 +1249,7 @@ class Circuit(  # type: ignore[misc]
 
         self._import_from_symbolic_circuit()
 
-        # initiating the class properties
-        self.cutoff_names = []
-        for var_type in self.var_categories.keys():
-            if var_type == "periodic":
-                for idx, var_index in enumerate(self.var_categories["periodic"]):
-                    if not hasattr(self, f"_cutoff_n_{var_index}"):
-                        self._make_property(
-                            f"cutoff_n_{var_index}", 5, "update_cutoffs"
-                        )
-                    self.cutoff_names.append(f"cutoff_n_{var_index}")
-            if var_type == "extended":
-                for idx, var_index in enumerate(self.var_categories["extended"]):
-                    if not hasattr(self, f"_cutoff_ext_{var_index}"):
-                        self._make_property(
-                            f"cutoff_ext_{var_index}", 30, "update_cutoffs"
-                        )
-                    self.cutoff_names.append(f"cutoff_ext_{var_index}")
-
-        self.dynamic_var_indices = (
-            self.var_categories["periodic"] + self.var_categories["extended"]
-        )
-
-        # default values for the parameters
-        for idx, param in enumerate(self.symbolic_params):
-            if not hasattr(self, param.name):
-                self._make_property(
-                    param.name, self.symbolic_params[param], "update_param_vars"
-                )
-        # setting the ranges for flux ranges used for discrete phi vars
-        for var_index in self.var_categories["extended"]:
-            if var_index not in self.discretized_phi_range:
-                self.discretized_phi_range[var_index] = (-6 * np.pi, 6 * np.pi)
-        # external flux vars
-        for flux in self.external_fluxes:
-            # setting the default to zero external flux
-            if not hasattr(self, flux.name):
-                self._make_property(flux.name, 0.0, "update_external_flux_or_charge")
-        # offset and free charges
-        for charge_var in self.offset_charges + self.free_charges:
-            # default to zero offset charge
-            if not hasattr(self, charge_var.name):
-                self._make_property(
-                    charge_var.name, 0.0, "update_external_flux_or_charge"
-                )
+        self._install_var_properties()
 
         # changing the matrix type if necessary
         if (
