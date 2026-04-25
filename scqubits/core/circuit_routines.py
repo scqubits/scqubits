@@ -668,6 +668,17 @@ class CircuitRoutines(ABC):
         for subsys in self.subsystems:
             subsys._mark_all_subsystems_as_affected()
 
+    def _propagate_param_to_affected_subsystems(
+        self, param_name: str, value: Any
+    ) -> None:
+        """Forward ``param_name = value`` to every subsystem that owns the attribute."""
+        if not self.hierarchical_diagonalization:
+            return
+        for subsys_idx, subsys in enumerate(self.subsystems):
+            if hasattr(subsys, param_name):
+                self._store_updated_subsystem_index(subsys_idx)
+                setattr(subsys, param_name, value)
+
     def _set_property_and_update_param_vars(
         self, param_name: str, value: float
     ) -> None:
@@ -698,14 +709,13 @@ class CircuitRoutines(ABC):
             # set the oscillator parameters, for the extended variables (taking the coefficient of Q^2 and theta^2)
             self._set_harmonic_basis_osc_params()
 
-        # update all subsystem instances
-        if self.hierarchical_diagonalization:
-            if isinstance(self, circuit.Circuit) and _user_changed_parameter:
-                self._mark_all_subsystems_as_affected()
-            for subsys_idx, subsys in enumerate(self.subsystems):
-                if hasattr(subsys, param_name):
-                    self._store_updated_subsystem_index(subsys_idx)
-                    setattr(subsys, param_name, value)
+        if (
+            self.hierarchical_diagonalization
+            and isinstance(self, circuit.Circuit)
+            and _user_changed_parameter
+        ):
+            self._mark_all_subsystems_as_affected()
+        self._propagate_param_to_affected_subsystems(param_name, value)
 
     def _set_property_and_update_ext_flux_or_charge(
         self, param_name: str, value: float
@@ -731,12 +741,7 @@ class CircuitRoutines(ABC):
         if self.is_purely_harmonic and self.ext_basis == "harmonic":
             self._set_operators()
 
-        # update all subsystem instances
-        if self.hierarchical_diagonalization:
-            for subsys_idx, subsys in enumerate(self.subsystems):
-                if hasattr(subsys, param_name):
-                    self._store_updated_subsystem_index(subsys_idx)
-                    setattr(subsys, param_name, value)
+        self._propagate_param_to_affected_subsystems(param_name, value)
 
     def _set_property_and_update_cutoffs(self, param_name: str, value: int) -> None:
         """Setter method to set cutoffs which are instance properties.
@@ -755,12 +760,7 @@ class CircuitRoutines(ABC):
 
         setattr(self, f"_{param_name}", value)
 
-        # set operators and rebuild the HilbertSpace object
-        if self.hierarchical_diagonalization:
-            for subsys_idx, subsys in enumerate(self.subsystems):
-                if hasattr(subsys, param_name):
-                    self._store_updated_subsystem_index(subsys_idx)
-                    setattr(subsys, param_name, value)
+        self._propagate_param_to_affected_subsystems(param_name, value)
 
     def _make_property(
         self,
