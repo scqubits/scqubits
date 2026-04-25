@@ -36,11 +36,11 @@ import scqubits.core.discretization as discretization
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 
-from scqubits.core.circuit_noise import NoisyCircuit
-from scqubits.core.circuit_plotting import CircuitPlot
-from scqubits.core.circuit_routines import CircuitRoutines
-from scqubits.core.circuit_sym_methods import CircuitSymMethods
-from scqubits.core.circuit_utils import (
+from scqubits.core.circuit_internals.noise import NoisyCircuit
+from scqubits.core.circuit_internals.plotting import CircuitPlot
+from scqubits.core.circuit_internals.routines import CircuitRoutines
+from scqubits.core.circuit_internals.sym_methods import CircuitSymMethods
+from scqubits.core.circuit_internals.utils import (
     get_trailing_number,
 )
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit

@@ -29,25 +29,25 @@ from sympy import Symbol, symbols
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 
-from scqubits.core.branch_metadata import (
+from scqubits.core.circuit_internals.branch_metadata import (
     _capacitance_variable_for_branch,
     _junction_order,
 )
-from scqubits.core.circuit_input import (
+from scqubits.core.circuit_internals.input import (
     parse_code_line,
     process_param,
     remove_branchline,
     remove_comments,
     strip_empty_lines,
 )
-from scqubits.core.circuit_utils import get_trailing_number
+from scqubits.core.circuit_internals.utils import get_trailing_number
 from scqubits.core.symbolic_circuit_graph import (
     Branch,
     Coupler,
     Node,
     SymbolicCircuitGraph,
 )
-from scqubits.core.sympy_helpers import round_symbolic_expr
+from scqubits.core.circuit_internals.sympy_helpers import round_symbolic_expr
 from scqubits.utils.misc import (
     flatten_list_recursive,
     unique_elements_in_list,

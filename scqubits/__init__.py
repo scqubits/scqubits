@@ -69,7 +69,7 @@ from scqubits.core.diag import (
 # Import of custom-circuit modules needs to take place after other imports to
 # avoid circular import issues
 from scqubits.core.circuit import Circuit
-from scqubits.core.circuit_utils import truncation_template
+from scqubits.core.circuit_internals.utils import truncation_template
 from scqubits.core.symbolic_circuit import SymbolicCircuit
 
 # GUI — graceful fallback when the optional `ipyvuetify` dependency is missing.
@@ -110,8 +110,8 @@ from scqubits.utils.spectrum_utils import identity_wrap
 # ordering — do not remove.
 # isort: off
 from scqubits.core.circuit import Circuit
-from scqubits.core.circuit_utils import truncation_template
-from scqubits.core.circuit_yaml_assembly import (
+from scqubits.core.circuit_internals.utils import truncation_template
+from scqubits.core.circuit_internals.yaml_assembly import (
     assemble_circuit,
     assemble_transformation_matrix,
 )

@@ -105,7 +105,7 @@ def keep_terms_for_subsystem(
     Filtered symbolic expression.
     """
     # Local import to avoid a top-level dep on circuit_utils for one helper.
-    from scqubits.core.circuit_utils import get_trailing_number
+    from scqubits.core.circuit_internals.utils import get_trailing_number
 
     if substitute_zero:
         for var_sym in sym_expr.free_symbols:

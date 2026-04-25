@@ -16,11 +16,11 @@ import scipy.sparse as sparse
 import sympy as sm
 
 from scqubits.core import discretization
-from scqubits.core.branch_metadata import (
+from scqubits.core.circuit_internals.branch_metadata import (
     _capacitance_variable_for_branch,
     _junction_order,
 )
-from scqubits.core.charge_basis_operators import (
+from scqubits.core.circuit_internals.charge_basis_operators import (
     _cos_theta,
     _exp_i_theta_operator,
     _exp_i_theta_operator_conjugate,
@@ -28,27 +28,27 @@ from scqubits.core.charge_basis_operators import (
     _n_theta_operator,
     _sin_theta,
 )
-from scqubits.core.circuit_utils import (
+from scqubits.core.circuit_internals.utils import (
     example_circuit,
     get_trailing_number,
     truncation_template,
 )
-from scqubits.core.sawtooth import sawtooth_operator, sawtooth_potential
-from scqubits.core.discretized_phi_operators import (
+from scqubits.core.circuit_internals.sawtooth import sawtooth_operator, sawtooth_potential
+from scqubits.core.circuit_internals.discretized_phi_operators import (
     _cos_phi,
     _i_d_dphi_operator,
     _identity_phi,
     _phi_operator,
     _sin_phi,
 )
-from scqubits.core.matrix_helpers import (
+from scqubits.core.circuit_internals.matrix_helpers import (
     _cos_dia,
     _cos_dia_dense,
     _sin_dia,
     _sin_dia_dense,
     matrix_power_sparse,
 )
-from scqubits.core.sympy_helpers import (
+from scqubits.core.circuit_internals.sympy_helpers import (
     _generate_symbols_list,
     is_potential_term,
     round_symbolic_expr,

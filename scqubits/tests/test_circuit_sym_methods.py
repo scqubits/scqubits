@@ -14,7 +14,7 @@
 import pytest
 import sympy as sm
 
-from scqubits.core.circuit_sym_methods import CircuitSymMethods
+from scqubits.core.circuit_internals.sym_methods import CircuitSymMethods
 
 
 class TestContainsTrigonometricTerms:
