@@ -29,19 +29,21 @@ from scqubits.core.charge_basis_operators import (
     _sin_theta,
 )
 from scqubits.core.circuit_utils import (
-    _cos_dia,
-    _cos_dia_dense,
     _generate_symbols_list,
-    _sin_dia,
-    _sin_dia_dense,
     example_circuit,
     get_trailing_number,
     is_potential_term,
-    matrix_power_sparse,
     round_symbolic_expr,
     sawtooth_operator,
     sawtooth_potential,
     truncation_template,
+)
+from scqubits.core.dense_matrix_helpers import (
+    _cos_dia,
+    _cos_dia_dense,
+    _sin_dia,
+    _sin_dia_dense,
+    matrix_power_sparse,
 )
 from scqubits.core.discretized_phi_operators import (
     _cos_phi,

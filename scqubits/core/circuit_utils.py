@@ -27,6 +27,12 @@ from scipy.sparse import csc_matrix
 
 from scqubits.core import circuit_input
 from scqubits.core import discretization as discretization
+
+# Public deprecation shim — `matrix_power_sparse` was previously defined
+# here. It now lives in `dense_matrix_helpers`. Re-export so existing
+# downstream `from scqubits.core.circuit_utils import matrix_power_sparse`
+# imports keep working.
+from scqubits.core.dense_matrix_helpers import matrix_power_sparse  # noqa: F401
 from scqubits.utils.misc import (
     Qobj_to_scipy_csc_matrix,
     flatten_list_recursive,
@@ -382,68 +388,6 @@ def operator_func_factory(
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     return operator_func
-
-
-def _cos_dia(x: csc_matrix) -> csc_matrix:
-    """Return a sparse diagonal matrix containing ``cos(x.diagonal())``.
-
-    Parameters
-    ----------
-    x:
-        input sparse matrix whose diagonal is used
-    """
-    return sparse.diags(np.cos(x.diagonal())).tocsc()  # type: ignore[return-value]
-
-
-def _sin_dia(x: csc_matrix) -> csc_matrix:
-    """Return a sparse diagonal matrix containing ``sin(x.diagonal())``.
-
-    Parameters
-    ----------
-    x:
-        input sparse matrix whose diagonal is used
-    """
-    return sparse.diags(np.sin(x.diagonal())).tocsc()  # type: ignore[return-value]
-
-
-def _sin_dia_dense(x: ndarray) -> ndarray:
-    """Compute the sine of a dense diagonal matrix.
-
-    Parameters
-    ----------
-    x:
-        input dense diagonal matrix whose diagonal is used
-    """
-    return np.diag(np.sin(x.diagonal()))
-
-
-def _cos_dia_dense(x: ndarray) -> ndarray:
-    """Compute the cosine of a dense diagonal matrix.
-
-    Parameters
-    ----------
-    x:
-        input dense diagonal matrix whose diagonal is used
-    """
-    return np.diag(np.cos(x.diagonal()))
-
-
-def matrix_power_sparse(dense_mat: ndarray, n: int) -> csc_matrix:
-    """Return the ``n``-th matrix power of ``dense_mat`` computed in sparse form.
-
-    Parameters
-    ----------
-    dense_mat:
-        dense input matrix, converted internally to :class:`scipy.sparse.csc_matrix`
-    n:
-        non-negative integer exponent
-
-    Returns
-    -------
-    Sparse matrix :math:`(\\text{dense\\_mat})^n`.
-    """
-    sparse_mat = sparse.csc_matrix(dense_mat)
-    return sparse_mat**n
 
 
 def round_symbolic_expr(expr: sm.Expr, number_of_digits: int) -> sm.Expr:
