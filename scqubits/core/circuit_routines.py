@@ -12,36 +12,40 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import functools
 import operator as builtin_op
 import re
+
+from collections.abc import Callable
+from contextlib import contextmanager
 from types import MethodType
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem
 
+from abc import ABC
+
+import dill
 import numpy as np
 import qutip as qt
 import scipy as sp
 import sympy as sm
-import dill
+
 from numpy import ndarray
 from scipy import sparse
 from scipy.sparse import csc_matrix
 
+import scqubits.core.circuit as circuit
+import scqubits.core.diag as diag
 import scqubits.core.discretization as discretization
-from scqubits.core.namedslots_array import NamedSlotsNdarray
-from scqubits.core import descriptors
-import scqubits.utils.spectrum_utils as utils
 import scqubits.core.qubit_base as base
+import scqubits.utils.spectrum_utils as utils
+
 from scqubits import HilbertSpace, settings
-from scqubits.io_utils.fileio_serializers import dict_serialize
-from scqubits.io_utils.fileio import IOData
+from scqubits.core import descriptors
 from scqubits.core import operators as op
 from scqubits.core.circuit_utils import (
-    sawtooth_potential,
     _cos_dia,
     _cos_dia_dense,
     _cos_phi,
@@ -62,21 +66,33 @@ from scqubits.core.circuit_utils import (
     matrix_power_sparse,
     operator_func_factory,
     round_symbolic_expr,
+    sawtooth_potential,
 )
+from scqubits.core.namedslots_array import NamedSlotsNdarray
+from scqubits.io_utils.fileio import IOData
+from scqubits.io_utils.fileio_serializers import dict_serialize
 from scqubits.utils.misc import (
-    flatten_list_recursive,
-    check_sync_status_circuit,
-    unique_elements_in_list,
     Qobj_to_scipy_csc_matrix,
+    check_sync_status_circuit,
+    flatten_list_recursive,
+    unique_elements_in_list,
 )
 from scqubits.utils.spectrum_utils import (
     convert_matrix_to_qobj,
     identity_wrap,
     order_eigensystem,
 )
-import scqubits.core.circuit as circuit
-import scqubits.core.diag as diag
-from abc import ABC
+
+
+@contextmanager
+def _dispatch_suspended():
+    """Temporarily disable :data:`settings.DISPATCH_ENABLED`, restoring on exit."""
+    old_status = settings.DISPATCH_ENABLED
+    settings.DISPATCH_ENABLED = False
+    try:
+        yield
+    finally:
+        settings.DISPATCH_ENABLED = old_status
 
 
 class CircuitRoutines(ABC):
@@ -771,32 +787,20 @@ class CircuitRoutines(ABC):
         if property_update_type == "update_param_vars":
 
             def setter(obj, value, name=attrib_name):
-                old_dispatch_status = settings.DISPATCH_ENABLED
-                if old_dispatch_status:
-                    settings.DISPATCH_ENABLED = False
-                obj._set_property_and_update_param_vars(name, value)
-                if old_dispatch_status:
-                    settings.DISPATCH_ENABLED = True
+                with _dispatch_suspended():
+                    obj._set_property_and_update_param_vars(name, value)
 
         elif property_update_type == "update_external_flux_or_charge":
 
             def setter(obj, value, name=attrib_name):
-                old_dispatch_status = settings.DISPATCH_ENABLED
-                if old_dispatch_status:
-                    settings.DISPATCH_ENABLED = False
-                obj._set_property_and_update_ext_flux_or_charge(name, value)
-                if old_dispatch_status:
-                    settings.DISPATCH_ENABLED = True
+                with _dispatch_suspended():
+                    obj._set_property_and_update_ext_flux_or_charge(name, value)
 
         elif property_update_type == "update_cutoffs":
 
             def setter(obj, value, name=attrib_name):
-                old_dispatch_status = settings.DISPATCH_ENABLED
-                if old_dispatch_status:
-                    settings.DISPATCH_ENABLED = False
-                obj._set_property_and_update_cutoffs(name, value)
-                if old_dispatch_status:
-                    settings.DISPATCH_ENABLED = True
+                with _dispatch_suspended():
+                    obj._set_property_and_update_cutoffs(name, value)
 
         if use_central_dispatch:
             setattr(
