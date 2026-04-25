@@ -106,13 +106,17 @@ from scqubits.utils.misc import about, cite
 from scqubits.utils.spectrum_utils import identity_wrap
 
 # Import of custom-circuit modules needs to take place after other imports to
-# avoid circular import issues
+# avoid circular import issues. The isort markers below preserve this
+# ordering — do not remove.
+# isort: off
 from scqubits.core.circuit import Circuit
-from scqubits.core.circuit_utils import (
-    truncation_template,
+from scqubits.core.circuit_utils import truncation_template
+from scqubits.core.circuit_yaml_assembly import (
     assemble_circuit,
     assemble_transformation_matrix,
 )
+
+# isort: on
 
 # version
 try:
