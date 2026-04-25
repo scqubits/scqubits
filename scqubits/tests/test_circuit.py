@@ -390,3 +390,35 @@ class TestConfigureError:
         assert np.array_equal(circ.transformation_matrix, prior_transformation_matrix)
         assert list(circ.closure_branches) == prior_closure_branches
         assert circ.ext_basis == prior_ext_basis
+
+
+class TestNamedConstructors:
+    """`Circuit.from_yaml_file` / `Circuit.from_yaml_string` are named
+    alternatives to the legacy ``Circuit(input_string, from_file=...)`` form.
+    """
+
+    YAML = """branches:
+    - ["JJ", 1, 2, 10, 20]
+    - ["JJ", 3, 4, 10, 20]
+    - ["L", 2, 3, 0.008]
+    - ["L", 4, 1, 0.008]
+    - ["C", 1, 3, 0.02]
+    - ["C", 2, 4, 0.02]
+    """
+
+    def test_from_yaml_string_matches_legacy_form(self):
+        legacy = scq.Circuit(self.YAML, from_file=False, ext_basis="discretized")
+        new = scq.Circuit.from_yaml_string(self.YAML, ext_basis="discretized")
+        assert isinstance(new, scq.Circuit)
+        assert new.ext_basis == legacy.ext_basis
+        assert new.is_purely_harmonic == legacy.is_purely_harmonic
+        assert new.var_categories == legacy.var_categories
+
+    def test_from_yaml_file_matches_legacy_form(self, tmp_path):
+        path = tmp_path / "zp.yaml"
+        path.write_text(self.YAML)
+        legacy = scq.Circuit(str(path), from_file=True, ext_basis="discretized")
+        new = scq.Circuit.from_yaml_file(str(path), ext_basis="discretized")
+        assert isinstance(new, scq.Circuit)
+        assert new.ext_basis == legacy.ext_basis
+        assert new.var_categories == legacy.var_categories

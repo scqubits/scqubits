@@ -480,6 +480,77 @@ class Circuit(  # type: ignore[misc]
                 ext_basis=ext_basis,
             )
 
+    @classmethod
+    def from_yaml_file(
+        cls,
+        path: str,
+        *,
+        basis_completion: str = "heuristic",
+        ext_basis: str = "discretized",
+        use_dynamic_flux_grouping: bool = False,
+        generate_noise_methods: bool = False,
+        initiate_sym_calc: bool = True,
+        truncated_dim: int = 10,
+        evals_method: Callable | str | None = None,
+        evals_method_options: dict | None = None,
+        esys_method: Callable | str | None = None,
+        esys_method_options: dict | None = None,
+    ) -> "Circuit":
+        """Construct a Circuit by reading the YAML circuit definition from ``path``.
+
+        Preferred over the legacy ``Circuit(path)`` form (which conflates a file
+        path and an inline YAML string via the ``from_file: bool`` flag).
+        """
+        return cls(
+            input_string=path,
+            from_file=True,
+            basis_completion=basis_completion,
+            ext_basis=ext_basis,
+            use_dynamic_flux_grouping=use_dynamic_flux_grouping,
+            generate_noise_methods=generate_noise_methods,
+            initiate_sym_calc=initiate_sym_calc,
+            truncated_dim=truncated_dim,
+            evals_method=evals_method,
+            evals_method_options=evals_method_options,
+            esys_method=esys_method,
+            esys_method_options=esys_method_options,
+        )
+
+    @classmethod
+    def from_yaml_string(
+        cls,
+        yaml_string: str,
+        *,
+        basis_completion: str = "heuristic",
+        ext_basis: str = "discretized",
+        use_dynamic_flux_grouping: bool = False,
+        generate_noise_methods: bool = False,
+        initiate_sym_calc: bool = True,
+        truncated_dim: int = 10,
+        evals_method: Callable | str | None = None,
+        evals_method_options: dict | None = None,
+        esys_method: Callable | str | None = None,
+        esys_method_options: dict | None = None,
+    ) -> "Circuit":
+        """Construct a Circuit from a YAML-syntax string.
+
+        Preferred over the legacy ``Circuit(yaml_string, from_file=False)`` form.
+        """
+        return cls(
+            input_string=yaml_string,
+            from_file=False,
+            basis_completion=basis_completion,
+            ext_basis=ext_basis,
+            use_dynamic_flux_grouping=use_dynamic_flux_grouping,
+            generate_noise_methods=generate_noise_methods,
+            initiate_sym_calc=initiate_sym_calc,
+            truncated_dim=truncated_dim,
+            evals_method=evals_method,
+            evals_method_options=evals_method_options,
+            esys_method=esys_method,
+            esys_method_options=esys_method_options,
+        )
+
     def _from_symbolic_hamiltonian(
         self,
         symbolic_hamiltonian: sm.Expr,
