@@ -95,7 +95,7 @@ def _dispatch_suspended():
         settings.DISPATCH_ENABLED = old_status
 
 
-_PROPERTY_SETTER_BY_TYPE: dict[str, str] = {
+PROPERTY_SETTER_BY_TYPE: dict[str, str] = {
     "update_param_vars": "_set_property_and_update_param_vars",
     "update_external_flux_or_charge": "_set_property_and_update_ext_flux_or_charge",
     "update_cutoffs": "_set_property_and_update_cutoffs",
@@ -791,7 +791,7 @@ class CircuitRoutines(ABC):
         def getter(obj, name=attrib_name):
             return getattr(obj, f"_{name}")
 
-        setter_method_name = _PROPERTY_SETTER_BY_TYPE[property_update_type]
+        setter_method_name = PROPERTY_SETTER_BY_TYPE[property_update_type]
 
         def setter(obj, value, name=attrib_name, method=setter_method_name):
             with _dispatch_suspended():

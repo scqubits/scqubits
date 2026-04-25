@@ -635,7 +635,7 @@ class Circuit(  # type: ignore[misc]
         self._frozen = True
         dispatch.CENTRAL_DISPATCH.register("CIRCUIT_UPDATE", self)
 
-    _SYMBOLIC_CIRCUIT_ATTRIBUTES = (
+    SYMBOLIC_CIRCUIT_ATTRIBUTES = (
         "branches",
         "closure_branches",
         "external_fluxes",
@@ -657,8 +657,8 @@ class Circuit(  # type: ignore[misc]
     )
 
     def _import_from_symbolic_circuit(self) -> None:
-        """Copy ``_SYMBOLIC_CIRCUIT_ATTRIBUTES`` from ``self.symbolic_circuit``."""
-        for attr in self._SYMBOLIC_CIRCUIT_ATTRIBUTES:
+        """Copy ``SYMBOLIC_CIRCUIT_ATTRIBUTES`` from ``self.symbolic_circuit``."""
+        for attr in self.SYMBOLIC_CIRCUIT_ATTRIBUTES:
             setattr(self, attr, getattr(self.symbolic_circuit, attr))
 
     def _find_branch(
