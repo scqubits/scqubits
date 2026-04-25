@@ -163,7 +163,7 @@ def _diag_from_function(
     pt_count = grid.pt_count
     matrix = sparse.dia_matrix((pt_count, pt_count))
     matrix.setdiag(values_fn(grid.make_linspace()))
-    return matrix.tocsc()  # type: ignore[return-value]
+    return matrix.tocsc()
 
 
 def _phi_operator(grid: discretization.Grid1d) -> csc_matrix:
