@@ -622,7 +622,12 @@ class Circuit(  # type: ignore[misc]
         self.type_of_matrices = (
             "sparse"  # type of matrices used to construct the operators
         )
-        self._import_from_symbolic_circuit()
+        # is_purely_harmonic is intentionally not copied here: it was absent
+        # on the instance after from_yaml in the pre-refactor code, and the
+        # subsequent self.configure() call (when initiate_sym_calc=True)
+        # imports it via _configure. Preserving the absence in the
+        # initiate_sym_calc=False path avoids a public-API surface change.
+        self._import_from_symbolic_circuit(exclude=("is_purely_harmonic",))
 
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
@@ -656,9 +661,16 @@ class Circuit(  # type: ignore[misc]
         "var_categories",
     )
 
-    def _import_from_symbolic_circuit(self) -> None:
-        """Copy ``_SYMBOLIC_CIRCUIT_ATTRIBUTES`` from ``self.symbolic_circuit``."""
+    def _import_from_symbolic_circuit(self, exclude: tuple[str, ...] = ()) -> None:
+        """Copy ``_SYMBOLIC_CIRCUIT_ATTRIBUTES`` from ``self.symbolic_circuit``.
+
+        Names listed in ``exclude`` are skipped — used by ``from_yaml`` to
+        match the pre-refactor behaviour where a few attributes were copied
+        only later by ``_configure``.
+        """
         for attr in self._SYMBOLIC_CIRCUIT_ATTRIBUTES:
+            if attr in exclude:
+                continue
             setattr(self, attr, getattr(self.symbolic_circuit, attr))
 
     def _find_branch(

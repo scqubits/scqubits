@@ -380,7 +380,13 @@ class TestConfigureError:
         circ = self._make_zero_pi()
         prior_hierarchy = circ.system_hierarchy
         prior_trunc_dims = circ.subsystem_trunc_dims
+        prior_transformation_matrix = circ.transformation_matrix.copy()
+        prior_closure_branches = list(circ.closure_branches)
+        prior_ext_basis = circ.ext_basis
         with pytest.raises(ConfigureError):
             circ.configure(system_hierarchy=[[1, 3], [2]])
         assert circ.system_hierarchy == prior_hierarchy
         assert circ.subsystem_trunc_dims == prior_trunc_dims
+        assert np.array_equal(circ.transformation_matrix, prior_transformation_matrix)
+        assert list(circ.closure_branches) == prior_closure_branches
+        assert circ.ext_basis == prior_ext_basis
