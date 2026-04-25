@@ -95,6 +95,13 @@ def _dispatch_suspended():
         settings.DISPATCH_ENABLED = old_status
 
 
+_PROPERTY_SETTER_BY_TYPE: dict[str, str] = {
+    "update_param_vars": "_set_property_and_update_param_vars",
+    "update_external_flux_or_charge": "_set_property_and_update_ext_flux_or_charge",
+    "update_cutoffs": "_set_property_and_update_cutoffs",
+}
+
+
 class CircuitRoutines(ABC):
     """Mixin/ABC providing shared routines for :class:`Circuit` and :class:`Subsystem`.
 
@@ -784,23 +791,11 @@ class CircuitRoutines(ABC):
         def getter(obj, name=attrib_name):
             return getattr(obj, f"_{name}")
 
-        if property_update_type == "update_param_vars":
+        setter_method_name = _PROPERTY_SETTER_BY_TYPE[property_update_type]
 
-            def setter(obj, value, name=attrib_name):
-                with _dispatch_suspended():
-                    obj._set_property_and_update_param_vars(name, value)
-
-        elif property_update_type == "update_external_flux_or_charge":
-
-            def setter(obj, value, name=attrib_name):
-                with _dispatch_suspended():
-                    obj._set_property_and_update_ext_flux_or_charge(name, value)
-
-        elif property_update_type == "update_cutoffs":
-
-            def setter(obj, value, name=attrib_name):
-                with _dispatch_suspended():
-                    obj._set_property_and_update_cutoffs(name, value)
+        def setter(obj, value, name=attrib_name, method=setter_method_name):
+            with _dispatch_suspended():
+                getattr(obj, method)(name, value)
 
         if use_central_dispatch:
             setattr(
