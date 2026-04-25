@@ -45,21 +45,18 @@ import scqubits.utils.spectrum_utils as utils
 from scqubits import HilbertSpace, settings
 from scqubits.core import descriptors
 from scqubits.core import operators as op
+from scqubits.core.charge_basis_operators import (
+    _cos_theta,
+    _exp_i_theta_operator,
+    _n_theta_operator,
+    _sin_theta,
+)
 from scqubits.core.circuit_utils import (
     _cos_dia,
     _cos_dia_dense,
-    _cos_phi,
-    _cos_theta,
-    _exp_i_theta_operator,
     _generate_symbols_list,
-    _i_d2_dphi2_operator,
-    _i_d_dphi_operator,
-    _n_theta_operator,
-    _phi_operator,
     _sin_dia,
     _sin_dia_dense,
-    _sin_phi,
-    _sin_theta,
     get_trailing_number,
     grid_operator_func_factory,
     hierarchical_diagonalization_func_factory,
@@ -67,6 +64,13 @@ from scqubits.core.circuit_utils import (
     operator_func_factory,
     round_symbolic_expr,
     sawtooth_potential,
+)
+from scqubits.core.discretized_phi_operators import (
+    _cos_phi,
+    _i_d2_dphi2_operator,
+    _i_d_dphi_operator,
+    _phi_operator,
+    _sin_phi,
 )
 from scqubits.core.namedslots_array import NamedSlotsNdarray
 from scqubits.io_utils.fileio import IOData

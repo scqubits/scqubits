@@ -27,28 +27,6 @@ from scipy.sparse import csc_matrix
 
 from scqubits.core import circuit_input
 from scqubits.core import discretization as discretization
-
-# Re-exported for backward compatibility — the basis-operator helpers
-# now live in their own modules (B1 split). Existing
-# `from scqubits.core.circuit_utils import _phi_operator` imports
-# continue to work via these re-exports.
-from scqubits.core.charge_basis_operators import (  # noqa: F401
-    _cos_theta,
-    _exp_i_theta_operator,
-    _exp_i_theta_operator_conjugate,
-    _identity_theta,
-    _n_theta_operator,
-    _sin_theta,
-)
-from scqubits.core.discretized_phi_operators import (  # noqa: F401
-    _cos_phi,
-    _diag_from_function,
-    _i_d2_dphi2_operator,
-    _i_d_dphi_operator,
-    _identity_phi,
-    _phi_operator,
-    _sin_phi,
-)
 from scqubits.utils.misc import (
     Qobj_to_scipy_csc_matrix,
     flatten_list_recursive,

@@ -20,23 +20,20 @@ from scqubits.core.branch_metadata import (
     _capacitance_variable_for_branch,
     _junction_order,
 )
-from scqubits.core.circuit_utils import (
-    _cos_dia,
-    _cos_dia_dense,
-    _cos_phi,
+from scqubits.core.charge_basis_operators import (
     _cos_theta,
     _exp_i_theta_operator,
     _exp_i_theta_operator_conjugate,
-    _generate_symbols_list,
-    _i_d_dphi_operator,
-    _identity_phi,
     _identity_theta,
     _n_theta_operator,
-    _phi_operator,
+    _sin_theta,
+)
+from scqubits.core.circuit_utils import (
+    _cos_dia,
+    _cos_dia_dense,
+    _generate_symbols_list,
     _sin_dia,
     _sin_dia_dense,
-    _sin_phi,
-    _sin_theta,
     example_circuit,
     get_trailing_number,
     is_potential_term,
@@ -45,6 +42,13 @@ from scqubits.core.circuit_utils import (
     sawtooth_operator,
     sawtooth_potential,
     truncation_template,
+)
+from scqubits.core.discretized_phi_operators import (
+    _cos_phi,
+    _i_d_dphi_operator,
+    _identity_phi,
+    _phi_operator,
+    _sin_phi,
 )
 
 
