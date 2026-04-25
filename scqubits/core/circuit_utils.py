@@ -156,24 +156,19 @@ def _identity_phi(grid: discretization.Grid1d) -> csc_matrix:
     return sparse.identity(pt_count, format="csc")  # type: ignore[return-value]
 
 
-def _phi_operator(grid: discretization.Grid1d) -> csc_matrix:
-    """Return phi operator in the discretized_phi basis.
-
-    Parameters
-    ----------
-    grid:
-        Grid used to generate the phi operator
-
-    Returns
-    -------
-    phi operator in the discretized phi basis
-    """
+def _diag_from_function(
+    grid: discretization.Grid1d, values_fn: Callable[[ndarray], ndarray]
+) -> csc_matrix:
+    """Return a sparse CSC diagonal operator with diagonal ``values_fn(grid)``."""
     pt_count = grid.pt_count
+    matrix = sparse.dia_matrix((pt_count, pt_count))
+    matrix.setdiag(values_fn(grid.make_linspace()))
+    return matrix.tocsc()  # type: ignore[return-value]
 
-    phi_matrix = sparse.dia_matrix((pt_count, pt_count))
-    diag_elements = grid.make_linspace()
-    phi_matrix.setdiag(diag_elements)
-    return phi_matrix.tocsc()
+
+def _phi_operator(grid: discretization.Grid1d) -> csc_matrix:
+    """Return the phi operator in the discretized_phi basis."""
+    return _diag_from_function(grid, lambda x: x)
 
 
 def _i_d_dphi_operator(grid: discretization.Grid1d) -> csc_matrix:
@@ -207,43 +202,13 @@ def _i_d2_dphi2_operator(grid: discretization.Grid1d) -> csc_matrix:
 
 
 def _cos_phi(grid: discretization.Grid1d) -> csc_matrix:
-    """Return cos operator in the discretized_phi basis.
-
-    Parameters
-    ----------
-    grid:
-        Grid used to generate the identity operator
-
-    Returns
-    -------
-    cos operator in the discretized phi basis
-    """
-    pt_count = grid.pt_count
-
-    cos_op = sparse.dia_matrix((pt_count, pt_count))
-    diag_elements = np.cos(grid.make_linspace())
-    cos_op.setdiag(diag_elements)
-    return cos_op.tocsc()
+    """Return the cos operator in the discretized_phi basis."""
+    return _diag_from_function(grid, np.cos)
 
 
 def _sin_phi(grid: discretization.Grid1d) -> csc_matrix:
-    """Return sin operator in the discretized_phi basis.
-
-    Parameters
-    ----------
-    grid:
-        Grid used to generate the identity operator
-
-    Returns
-    -------
-    sin operator in the discretized phi basis
-    """
-    pt_count = grid.pt_count
-
-    sin_op = sparse.dia_matrix((pt_count, pt_count))
-    diag_elements = np.sin(grid.make_linspace())
-    sin_op.setdiag(diag_elements)
-    return sin_op.tocsc()
+    """Return the sin operator in the discretized_phi basis."""
+    return _diag_from_function(grid, np.sin)
 
 
 def _identity_theta(ncut: int) -> csc_matrix:
