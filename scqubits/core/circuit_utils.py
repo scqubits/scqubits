@@ -13,55 +13,29 @@
 from __future__ import annotations
 
 import re
+
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import numpy as np
 import scipy as sp
 import sympy as sm
+
 from numpy import ndarray
 from scipy import sparse
 from scipy.sparse import csc_matrix
 
+from scqubits.core import circuit_input
 from scqubits.core import discretization as discretization
 from scqubits.utils.misc import (
+    Qobj_to_scipy_csc_matrix,
     flatten_list_recursive,
     is_string_float,
     unique_elements_in_list,
-    Qobj_to_scipy_csc_matrix,
 )
-from scqubits.core import circuit_input
 
 if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem
-
-
-def _junction_order(branch_type: str) -> int:
-    """Return the order of a JJ branch.
-
-    For order :math:`n`, the energy is given by
-    :math:`\\cos(\\varphi) + \\cos(2\\varphi) + \\cdots + \\cos(n\\varphi)`.
-
-    Parameters
-    ----------
-    branch_type:
-        branch type string (expected to contain ``"JJ"``)
-
-    Returns
-    -------
-    Order of the Josephson junction. Raises :class:`ValueError` when the branch
-    type does not correspond to a Josephson junction.
-    """
-    if "JJ" not in branch_type:
-        raise ValueError("The branch is not a JJ branch")
-    if len(branch_type) > 2:
-        if (
-            branch_type[2] == "s"
-        ):  # adding "JJs" which is a junction with sawtooth current phase relationship
-            return 1
-        return int(branch_type[2:])
-    else:
-        return 1
 
 
 def sawtooth_operator(x: ndarray | csc_matrix):
@@ -109,22 +83,6 @@ def sawtooth_potential(phi_pts: ndarray):
     for idx in range(1, N + 1):
         V += (skewness + 1) * (-skewness) ** (idx - 1) * np.cos(idx * phi_pts) / idx**2
     return -V
-
-
-def _capacitance_variable_for_branch(branch_type: str) -> str:
-    """Return the parameter name that stores the capacitance of the branch.
-
-    Parameters
-    ----------
-    branch_type:
-        branch type string (expected to contain ``"C"`` or ``"JJ"``)
-    """
-    if "C" in branch_type:
-        return "EC"
-    elif "JJ" in branch_type:
-        return "ECJ"
-    else:
-        raise ValueError("Branch type is not a capacitor or a JJ")
 
 
 def truncation_template(

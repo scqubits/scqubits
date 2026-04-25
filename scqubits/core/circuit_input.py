@@ -1,15 +1,18 @@
 from __future__ import annotations
 
-import pyparsing as pp
 import os
 
 from collections.abc import Sequence
 
-from scqubits.utils.misc import is_string_float
-from pyparsing import Group, Opt, Or, Literal, Suppress
 import numpy as np
+import pyparsing as pp
 import scipy as sp
 import sympy as sm
+
+from pyparsing import Group, Literal, Opt, Or, Suppress
+
+from scqubits.core.branch_metadata import _junction_order
+from scqubits.utils.misc import is_string_float
 
 # *****************************************************************
 #  OUR GRAMMAR DEFINITIONS
@@ -138,8 +141,6 @@ def find_jj_order(str_result: str, location: int, tokens: pp.ParseResults):
     The parse result containing the integer junction order extracted from the
     branch specification.
     """
-    from scqubits.core.circuit_utils import _junction_order
-
     JJ_TYPE = BEG + BRANCH_TYPES["JJ"]
     JJ_TYPE.add_parse_action(lambda tokens: _junction_order(tokens[0]))
     return JJ_TYPE.parse_string(str_result)

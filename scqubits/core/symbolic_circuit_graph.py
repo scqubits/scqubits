@@ -3,41 +3,42 @@ from __future__ import annotations
 import copy
 import itertools
 import warnings
+
+from abc import ABC
+from itertools import chain
 from typing import Any
 
 import numpy as np
-from numpy import ndarray
+import pyparsing as pp
 import scipy as sp
 import sympy
 import sympy as sm
-from sympy import symbols, Symbol
 
-from scqubits.core.circuit_utils import (
-    round_symbolic_expr,
-    _capacitance_variable_for_branch,
-    _junction_order,
-    get_trailing_number,
-)
+from numpy import ndarray
+from sympy import Symbol, symbols
 
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
-from itertools import chain
 
+from scqubits.core.branch_metadata import (
+    _capacitance_variable_for_branch,
+    _junction_order,
+)
+from scqubits.core.circuit_input import (
+    parse_code_line,
+    process_param,
+    remove_branchline,
+    remove_comments,
+    strip_empty_lines,
+)
+from scqubits.core.circuit_utils import (
+    get_trailing_number,
+    round_symbolic_expr,
+)
 from scqubits.utils.misc import (
     flatten_list_recursive,
     unique_elements_in_list,
 )
-import pyparsing as pp
-
-from scqubits.core.circuit_input import (
-    remove_comments,
-    remove_branchline,
-    strip_empty_lines,
-    parse_code_line,
-    process_param,
-)
-
-from abc import ABC
 
 
 class Node:

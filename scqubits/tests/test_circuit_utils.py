@@ -16,8 +16,11 @@ import scipy.sparse as sparse
 import sympy as sm
 
 from scqubits.core import discretization
-from scqubits.core.circuit_utils import (
+from scqubits.core.branch_metadata import (
     _capacitance_variable_for_branch,
+    _junction_order,
+)
+from scqubits.core.circuit_utils import (
     _cos_dia,
     _cos_dia_dense,
     _cos_phi,
@@ -28,7 +31,6 @@ from scqubits.core.circuit_utils import (
     _i_d_dphi_operator,
     _identity_phi,
     _identity_theta,
-    _junction_order,
     _n_theta_operator,
     _phi_operator,
     _sin_dia,
