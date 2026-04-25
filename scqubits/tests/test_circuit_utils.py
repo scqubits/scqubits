@@ -31,10 +31,9 @@ from scqubits.core.charge_basis_operators import (
 from scqubits.core.circuit_utils import (
     example_circuit,
     get_trailing_number,
-    sawtooth_operator,
-    sawtooth_potential,
     truncation_template,
 )
+from scqubits.core.sawtooth import sawtooth_operator, sawtooth_potential
 from scqubits.core.discretized_phi_operators import (
     _cos_phi,
     _i_d_dphi_operator,

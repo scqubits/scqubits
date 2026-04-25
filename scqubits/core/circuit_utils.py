@@ -28,14 +28,16 @@ from scipy.sparse import csc_matrix
 from scqubits.core import circuit_input
 from scqubits.core import discretization as discretization
 
-# Public deprecation shim — `assemble_circuit` and
-# `assemble_transformation_matrix` are advertised in `scqubits/__init__.py`
-# and may also be imported as `scqubits.core.circuit_utils.<name>` by
-# downstream code. Their definitions now live in `circuit_yaml_assembly`.
+# Public deprecation shims — these symbols are documented public API
+# (`assemble_*` are advertised in `scqubits/__init__.py`; `sawtooth_*`
+# describe a published junction model) and may also be imported as
+# `scqubits.core.circuit_utils.<name>` by downstream code. Their
+# definitions now live in dedicated modules.
 from scqubits.core.circuit_yaml_assembly import (  # noqa: F401
     assemble_circuit,
     assemble_transformation_matrix,
 )
+from scqubits.core.sawtooth import sawtooth_operator, sawtooth_potential  # noqa: F401
 from scqubits.utils.misc import (
     Qobj_to_scipy_csc_matrix,
     flatten_list_recursive,
@@ -45,53 +47,6 @@ from scqubits.utils.misc import (
 
 if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem
-
-
-def sawtooth_operator(x: ndarray | csc_matrix):
-    """Apply :func:`sawtooth_potential` to the diagonal of ``x``.
-
-    Parameters
-    ----------
-    x:
-        argument of the sawtooth operator in the Hamiltonian
-    """
-    diagonal_elements = sawtooth_potential(x.diagonal())
-
-    operator = sp.sparse.dia_matrix(
-        (diagonal_elements, 0), shape=(len(diagonal_elements), len(diagonal_elements))
-    )
-    return operator.tocsc()
-
-
-# def sawtooth_potential(x: float) -> float:
-#     """
-#     Is the function which returns the potential of a sawtooth junction,
-#     i.e. a junction with a sawtooth current phase relationship, only in the discretized phi basis.
-#     """
-#     x_rel = (x - np.pi) % (2*np.pi) - np.pi
-#     return (x_rel)**2/(np.pi)**2 # normalized to have a maximum of 1
-
-
-def sawtooth_potential(phi_pts: ndarray):
-    """Return the sawtooth-junction potential evaluated at ``phi_pts``.
-
-    The potential is computed from a truncated Fourier series with skewness
-    parameter :math:`s=0.99` and ``N=1000`` terms:
-    :math:`V(\\varphi) = -\\sum_{k=1}^{N} (s+1)(-s)^{k-1}
-    \\cos(k\\varphi)/k^2`.
-
-    Parameters
-    ----------
-    phi_pts:
-        phase values at which the potential is evaluated
-    """
-    # definition from Andras
-    skewness = 0.99
-    N = 1000
-    V = np.zeros_like(phi_pts)
-    for idx in range(1, N + 1):
-        V += (skewness + 1) * (-skewness) ** (idx - 1) * np.cos(idx * phi_pts) / idx**2
-    return -V
 
 
 def truncation_template(

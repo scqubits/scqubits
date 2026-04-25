@@ -19,10 +19,8 @@ import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 from scqubits import get_units
 from scqubits.io_utils.fileio_serializers import dict_serialize
-from scqubits.core.circuit_utils import (
-    sawtooth_potential,
-    get_trailing_number,
-)
+from scqubits.core.circuit_utils import get_trailing_number
+from scqubits.core.sawtooth import sawtooth_potential
 from scqubits.utils.misc import (
     flatten_list_recursive,
     list_intersection,

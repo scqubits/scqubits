@@ -51,7 +51,8 @@ from scqubits.core.charge_basis_operators import (
     _n_theta_operator,
     _sin_theta,
 )
-from scqubits.core.circuit_utils import get_trailing_number, sawtooth_potential
+from scqubits.core.circuit_utils import get_trailing_number
+from scqubits.core.sawtooth import sawtooth_potential
 from scqubits.core.discretized_phi_operators import (
     _cos_phi,
     _i_d2_dphi2_operator,
