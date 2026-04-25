@@ -27,6 +27,20 @@ from scipy.sparse import csc_matrix
 
 from scqubits.core import circuit_input
 from scqubits.core import discretization as discretization
+
+# Re-exported for backward compatibility — the discretized-phi operators
+# now live in `scqubits.core.discretized_phi_operators`. Existing
+# `from scqubits.core.circuit_utils import _phi_operator` imports
+# continue to work via this re-export.
+from scqubits.core.discretized_phi_operators import (  # noqa: F401
+    _cos_phi,
+    _diag_from_function,
+    _i_d2_dphi2_operator,
+    _i_d_dphi_operator,
+    _identity_phi,
+    _phi_operator,
+    _sin_phi,
+)
 from scqubits.utils.misc import (
     Qobj_to_scipy_csc_matrix,
     flatten_list_recursive,
@@ -138,77 +152,6 @@ def get_trailing_number(input_str: str) -> int:
     if match is None:
         raise ValueError(f"get_trailing_number: {input_str!r} has no trailing digits")
     return int(match.group())
-
-
-def _identity_phi(grid: discretization.Grid1d) -> csc_matrix:
-    """Return identity operator in the discretized_phi basis.
-
-    Parameters
-    ----------
-    grid:
-        Grid used to generate the identity operator
-
-    Returns
-    -------
-    identity operator in the discretized phi basis
-    """
-    pt_count = grid.pt_count
-    return sparse.identity(pt_count, format="csc")  # type: ignore[return-value]
-
-
-def _diag_from_function(
-    grid: discretization.Grid1d, values_fn: Callable[[ndarray], ndarray]
-) -> csc_matrix:
-    """Return a sparse CSC diagonal operator whose diagonal is ``values_fn(grid.make_linspace())``."""
-    pt_count = grid.pt_count
-    matrix = sparse.dia_matrix((pt_count, pt_count))
-    matrix.setdiag(values_fn(grid.make_linspace()))
-    return matrix.tocsc()
-
-
-def _phi_operator(grid: discretization.Grid1d) -> csc_matrix:
-    """Return the phi operator in the discretized_phi basis."""
-    return _diag_from_function(grid, lambda x: x)
-
-
-def _i_d_dphi_operator(grid: discretization.Grid1d) -> csc_matrix:
-    """Return i*d/dphi operator in the discretized_phi basis.
-
-    Parameters
-    ----------
-    grid:
-        Grid used to generate the identity operator
-
-    Returns
-    -------
-    i*d/dphi operator in the discretized phi basis
-    """
-    return grid.first_derivative_matrix(prefactor=-1j)
-
-
-def _i_d2_dphi2_operator(grid: discretization.Grid1d) -> csc_matrix:
-    """Return i*d2/dphi2 operator in the discretized_phi basis.
-
-    Parameters
-    ----------
-    grid:
-        Grid used to generate the identity operator
-
-    Returns
-    -------
-    i*d2/dphi2 operator in the discretized phi basis
-    """
-    return grid.second_derivative_matrix(prefactor=-1.0)
-
-
-def _cos_phi(grid: discretization.Grid1d) -> csc_matrix:
-    """Return the cos operator in the discretized_phi basis."""
-    return _diag_from_function(grid, np.cos)
-
-
-def _sin_phi(grid: discretization.Grid1d) -> csc_matrix:
-    """Return the sin operator in the discretized_phi basis."""
-    return _diag_from_function(grid, np.sin)
 
 
 def _identity_theta(ncut: int) -> csc_matrix:
