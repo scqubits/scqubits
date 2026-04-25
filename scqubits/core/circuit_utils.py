@@ -28,10 +28,18 @@ from scipy.sparse import csc_matrix
 from scqubits.core import circuit_input
 from scqubits.core import discretization as discretization
 
-# Re-exported for backward compatibility — the discretized-phi operators
-# now live in `scqubits.core.discretized_phi_operators`. Existing
+# Re-exported for backward compatibility — the basis-operator helpers
+# now live in their own modules (B1 split). Existing
 # `from scqubits.core.circuit_utils import _phi_operator` imports
-# continue to work via this re-export.
+# continue to work via these re-exports.
+from scqubits.core.charge_basis_operators import (  # noqa: F401
+    _cos_theta,
+    _exp_i_theta_operator,
+    _exp_i_theta_operator_conjugate,
+    _identity_theta,
+    _n_theta_operator,
+    _sin_theta,
+)
 from scqubits.core.discretized_phi_operators import (  # noqa: F401
     _cos_phi,
     _diag_from_function,
@@ -152,98 +160,6 @@ def get_trailing_number(input_str: str) -> int:
     if match is None:
         raise ValueError(f"get_trailing_number: {input_str!r} has no trailing digits")
     return int(match.group())
-
-
-def _identity_theta(ncut: int) -> csc_matrix:
-    """Return the identity operator in the charge basis.
-
-    Parameters
-    ----------
-    ncut:
-        charge basis cutoff, ``n = -ncut, ..., ncut``
-    """
-    dim_theta = 2 * ncut + 1
-    return sparse.identity(dim_theta, format="csc")  # type: ignore[return-value]
-
-
-def _n_theta_operator(ncut: int) -> csc_matrix:
-    """Return the charge operator :math:`n` in the charge basis.
-
-    Parameters
-    ----------
-    ncut:
-        charge basis cutoff, ``n = -ncut, ..., ncut``
-    """
-    dim_theta = 2 * ncut + 1
-    diag_elements = np.arange(-ncut, ncut + 1)
-    n_theta_matrix = sparse.dia_matrix(  # type: ignore[type-var]
-        (diag_elements, [0]), shape=(dim_theta, dim_theta)
-    ).tocsc()  # type: ignore[misc]
-    return n_theta_matrix  # type: ignore[return-value]
-
-
-def _exp_i_theta_operator(ncut: int, prefactor: int = 1) -> csc_matrix:
-    r"""Operator :math:`\cos(\theta)`, acting only on the :math:`\theta` Hilbert subspace.
-
-    Parameters
-    ----------
-    ncut:
-        charge basis cutoff, ``n = -ncut, ..., ncut``
-    prefactor:
-        integer prefactor multiplying :math:`\theta` in the exponent
-    """
-    # if type(prefactor) != int:
-    #     raise ValueError("Prefactor must be an integer")
-    dim_theta = 2 * ncut + 1
-    matrix = sparse.dia_matrix(  # type: ignore[type-var]
-        (np.ones(dim_theta), [-prefactor]),
-        shape=(dim_theta, dim_theta),
-    ).tocsc()  # type: ignore[misc]
-    return matrix  # type: ignore[return-value]
-
-
-def _exp_i_theta_operator_conjugate(ncut: int) -> csc_matrix:
-    r"""Operator :math:`\cos(\theta)`, acting only on the :math:`\theta` Hilbert subspace.
-
-    Parameters
-    ----------
-    ncut:
-        charge basis cutoff, ``n = -ncut, ..., ncut``
-    """
-    dim_theta = 2 * ncut + 1
-    matrix = sparse.dia_matrix(  # type: ignore[type-var]
-        (np.ones(dim_theta), [1]),
-        shape=(dim_theta, dim_theta),
-    ).tocsc()  # type: ignore[misc]
-    return matrix  # type: ignore[return-value]
-
-
-def _cos_theta(ncut: int) -> csc_matrix:
-    """Return the operator :math:`\\cos \\varphi` in the charge basis.
-
-    Parameters
-    ----------
-    ncut:
-        charge basis cutoff, ``n = -ncut, ..., ncut``
-    """
-    cos_op = 0.5 * (_exp_i_theta_operator(ncut) + _exp_i_theta_operator_conjugate(ncut))
-    return cos_op
-
-
-def _sin_theta(ncut: int) -> csc_matrix:
-    """Return the operator :math:`\\sin \\varphi` in the charge basis.
-
-    Parameters
-    ----------
-    ncut:
-        charge basis cutoff, ``n = -ncut, ..., ncut``
-    """
-    sin_op = (
-        -1j
-        * 0.5
-        * (_exp_i_theta_operator(ncut) - _exp_i_theta_operator_conjugate(ncut))
-    )
-    return sin_op
 
 
 def _generate_symbols_list(
