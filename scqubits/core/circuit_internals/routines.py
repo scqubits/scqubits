@@ -73,7 +73,10 @@ from scqubits.core.circuit_internals.operator_factories import (
     hierarchical_diagonalization_func_factory,
     operator_func_factory,
 )
-from scqubits.core.circuit_internals.sympy_helpers import _generate_symbols_list, round_symbolic_expr
+from scqubits.core.circuit_internals.sympy_helpers import (
+    _generate_symbols_list,
+    round_symbolic_expr,
+)
 from scqubits.io_utils.fileio import IOData
 from scqubits.io_utils.fileio_serializers import dict_serialize
 from scqubits.utils.misc import (
@@ -1699,106 +1702,129 @@ class CircuitRoutines(ABC):
 
     def _generate_operator_methods(self) -> dict[str, Callable]:
         """Build the dict of operator functions to attach to a :class:`Circuit`."""
-        periodic_vars = self.vars["periodic"]
-        extended_vars = self.vars["extended"]
+        return {
+            **self._build_periodic_operator_methods(),
+            **self._build_extended_operator_methods(),
+            "I_operator": CircuitRoutines._identity,
+        }
 
-        # constructing the operators for extended variables
-        extended_operators = {}
-
+    def _build_extended_operator_methods(self) -> dict[str, Callable]:
+        """Dispatch to the basis-appropriate builder for extended-variable operators."""
         if self.hierarchical_diagonalization:
-            for var_type in extended_vars:
-                for sym_variable in extended_vars[var_type]:
-                    op_name = sym_variable.name + "_operator"
-                    extended_operators[op_name] = (
-                        hierarchical_diagonalization_func_factory(sym_variable.name)
-                    )
+            return self._extended_operators_hierarchical()
+        if self.ext_basis == "discretized":
+            return self._extended_operators_discretized()
+        if self.ext_basis == "harmonic":
+            if self.is_purely_harmonic:
+                return self._extended_operators_purely_harmonic()
+            return self._extended_operators_harmonic()
+        return {}
 
-        elif self.ext_basis == "discretized":
-            nonwrapped_ops: dict[str, Callable[..., Any]] = {
-                "position": _phi_operator,
-                "cos": _cos_phi,
-                "sin": _sin_phi,
-                "momentum": _i_d_dphi_operator,
-                "momentum_squared": _i_d2_dphi2_operator,
-            }
-            for short_op_name in nonwrapped_ops.keys():
-                for sym_variable in extended_vars[short_op_name]:
-                    index = int(get_trailing_number(sym_variable.name))
-                    op_func = nonwrapped_ops[short_op_name]
-                    op_name = sym_variable.name + "_operator"
-                    extended_operators[op_name] = grid_operator_func_factory(
-                        op_func, index
-                    )
+    def _build_periodic_operator_methods(self) -> dict[str, Callable]:
+        """Dispatch for periodic-variable operators."""
+        if self.hierarchical_diagonalization:
+            return self._periodic_operators_hierarchical()
+        return self._periodic_operators_charge_basis()
 
-        elif self.ext_basis == "harmonic":
-            self._set_harmonic_basis_osc_params()
-            nonwrapped_ops_h: dict[str, Callable[..., Any] | None] = {
-                "creation": op.creation_sparse,
-                "annihilation": op.annihilation_sparse,
-                "number": op.number_sparse,
-                "position": None,  # need to set for each variable separately
-                "sin": None,
-                "cos": None,
-                "momentum": None,
-            }
-            nonwrapped_ops = nonwrapped_ops_h  # type: ignore[assignment]
+    def _extended_operators_hierarchical(self) -> dict[str, Callable]:
+        """Extended-variable operators when hierarchical diagonalization is active."""
+        extended_vars = self.vars["extended"]
+        return {
+            sym_variable.name
+            + "_operator": hierarchical_diagonalization_func_factory(sym_variable.name)
+            for var_type in extended_vars
+            for sym_variable in extended_vars[var_type]
+        }
 
-            for list_idx, var_index in enumerate(self.var_categories["extended"]):
-                if self.is_purely_harmonic and self.ext_basis == "harmonic":
-                    for short_op_name in [
-                        "position",
-                        "momentum",
-                        "number",
-                        "annihilation",
-                        "creation",
-                    ]:
-                        sym_variable = extended_vars[short_op_name][list_idx]
-                        op_func = self._purely_harmonic_operator_func_factory(
-                            sym_variable.name
-                        )
-                        op_name = sym_variable.name + "_operator"
-                        extended_operators[op_name] = op_func
+    def _extended_operators_discretized(self) -> dict[str, Callable]:
+        """Extended-variable operators in the discretized-phi basis."""
+        nonwrapped_ops: dict[str, Callable[..., Any]] = {
+            "position": _phi_operator,
+            "cos": _cos_phi,
+            "sin": _sin_phi,
+            "momentum": _i_d_dphi_operator,
+            "momentum_squared": _i_d2_dphi2_operator,
+        }
+        extended_vars = self.vars["extended"]
+        return {
+            sym_variable.name
+            + "_operator": grid_operator_func_factory(
+                op_func, int(get_trailing_number(sym_variable.name))
+            )
+            for short_op_name, op_func in nonwrapped_ops.items()
+            for sym_variable in extended_vars[short_op_name]
+        }
 
-                else:
-                    nonwrapped_ops["position"] = op.a_plus_adag_sparse
-                    nonwrapped_ops["sin"] = op.sin_theta_harmonic
-                    nonwrapped_ops["cos"] = op.cos_theta_harmonic
-                    nonwrapped_ops["momentum"] = op.iadag_minus_ia_sparse
+    def _extended_operators_harmonic(self) -> dict[str, Callable]:
+        """Extended-variable operators in the (non-purely-harmonic) harmonic basis."""
+        self._set_harmonic_basis_osc_params()
+        nonwrapped_ops: dict[str, Callable[..., Any]] = {
+            "creation": op.creation_sparse,
+            "annihilation": op.annihilation_sparse,
+            "number": op.number_sparse,
+            "position": op.a_plus_adag_sparse,
+            "sin": op.sin_theta_harmonic,
+            "cos": op.cos_theta_harmonic,
+            "momentum": op.iadag_minus_ia_sparse,
+        }
+        extended_vars = self.vars["extended"]
+        operators: dict[str, Callable] = {}
+        for list_idx, var_index in enumerate(self.var_categories["extended"]):
+            for short_op_name, op_func in nonwrapped_ops.items():
+                sym_variable = extended_vars[short_op_name][list_idx]
+                operators[sym_variable.name + "_operator"] = operator_func_factory(
+                    op_func, var_index, op_type=short_op_name
+                )
+        return operators
 
-                    for short_op_name in nonwrapped_ops.keys():
-                        op_func = nonwrapped_ops[short_op_name]
-                        # None values set at dict construction above have all been
-                        # overwritten in the preceding four lines.
-                        assert op_func is not None
-                        sym_variable = extended_vars[short_op_name][list_idx]
-                        op_name = sym_variable.name + "_operator"
-                        extended_operators[op_name] = operator_func_factory(
-                            op_func, var_index, op_type=short_op_name
-                        )
+    def _extended_operators_purely_harmonic(self) -> dict[str, Callable]:
+        """Extended-variable operators when the system is purely harmonic."""
+        self._set_harmonic_basis_osc_params()
+        extended_vars = self.vars["extended"]
+        operators: dict[str, Callable] = {}
+        for list_idx, _var_index in enumerate(self.var_categories["extended"]):
+            for short_op_name in (
+                "position",
+                "momentum",
+                "number",
+                "annihilation",
+                "creation",
+            ):
+                sym_variable = extended_vars[short_op_name][list_idx]
+                operators[sym_variable.name + "_operator"] = (
+                    self._purely_harmonic_operator_func_factory(sym_variable.name)
+                )
+        return operators
 
-        # constructing the operators for periodic variables
-        periodic_operators = {}
-        nonwrapped_ops = {
+    @staticmethod
+    def _periodic_op_table() -> dict[str, Callable[..., Any]]:
+        """Return the (op-name -> bare-operator-function) table for periodic vars."""
+        return {
             "sin": _sin_theta,
             "cos": _cos_theta,
             "number": _n_theta_operator,
         }
-        for short_op_name, op_func in nonwrapped_ops.items():
-            for sym_variable in periodic_vars[short_op_name]:
-                var_index = get_trailing_number(sym_variable.name)
-                op_name = sym_variable.name + "_operator"
-                if self.hierarchical_diagonalization:
-                    periodic_operators[op_name] = (
-                        hierarchical_diagonalization_func_factory(sym_variable.name)
-                    )
-                else:
-                    periodic_operators[op_name] = operator_func_factory(
-                        op_func, var_index
-                    )
+
+    def _periodic_operators_hierarchical(self) -> dict[str, Callable]:
+        """Periodic-variable operators when hierarchical diagonalization is active."""
+        periodic_vars = self.vars["periodic"]
         return {
-            **periodic_operators,
-            **extended_operators,
-            "I_operator": CircuitRoutines._identity,
+            sym_variable.name
+            + "_operator": hierarchical_diagonalization_func_factory(sym_variable.name)
+            for short_op_name in self._periodic_op_table()
+            for sym_variable in periodic_vars[short_op_name]
+        }
+
+    def _periodic_operators_charge_basis(self) -> dict[str, Callable]:
+        """Periodic-variable operators in the charge basis."""
+        periodic_vars = self.vars["periodic"]
+        return {
+            sym_variable.name
+            + "_operator": operator_func_factory(
+                op_func, get_trailing_number(sym_variable.name)
+            )
+            for short_op_name, op_func in self._periodic_op_table().items()
+            for sym_variable in periodic_vars[short_op_name]
         }
 
     # #################################################################
