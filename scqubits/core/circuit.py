@@ -622,28 +622,7 @@ class Circuit(  # type: ignore[misc]
         self.type_of_matrices = (
             "sparse"  # type of matrices used to construct the operators
         )
-        # copying all the required attributes
-        required_attributes = [
-            "branches",
-            "closure_branches",
-            "external_fluxes",
-            "ground_node",
-            "hamiltonian_symbolic",
-            "input_string",
-            "is_grounded",
-            "lagrangian_node_vars",
-            "lagrangian_symbolic",
-            "nodes",
-            "offset_charges",
-            "free_charges",
-            "potential_symbolic",
-            "potential_node_vars",
-            "symbolic_params",
-            "transformation_matrix",
-            "var_categories",
-        ]
-        for attr in required_attributes:
-            setattr(self, attr, getattr(self.symbolic_circuit, attr))
+        self._import_from_symbolic_circuit()
 
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
@@ -655,6 +634,32 @@ class Circuit(  # type: ignore[misc]
             self.generate_noise_methods()
         self._frozen = True
         dispatch.CENTRAL_DISPATCH.register("CIRCUIT_UPDATE", self)
+
+    _SYMBOLIC_CIRCUIT_ATTRIBUTES = (
+        "branches",
+        "closure_branches",
+        "external_fluxes",
+        "ground_node",
+        "hamiltonian_symbolic",
+        "input_string",
+        "is_grounded",
+        "is_purely_harmonic",
+        "lagrangian_node_vars",
+        "lagrangian_symbolic",
+        "nodes",
+        "offset_charges",
+        "free_charges",
+        "potential_symbolic",
+        "potential_node_vars",
+        "symbolic_params",
+        "transformation_matrix",
+        "var_categories",
+    )
+
+    def _import_from_symbolic_circuit(self) -> None:
+        """Copy ``_SYMBOLIC_CIRCUIT_ATTRIBUTES`` from ``self.symbolic_circuit``."""
+        for attr in self._SYMBOLIC_CIRCUIT_ATTRIBUTES:
+            setattr(self, attr, getattr(self.symbolic_circuit, attr))
 
     def _find_branch(
         self, node_id_1: int, node_id_2: int, branch_type: str, branch_params: dict
@@ -1159,29 +1164,7 @@ class Circuit(  # type: ignore[misc]
             True if system_hierarchy is not None else False
         )
 
-        # copying all the required attributes
-        required_attributes = [
-            "branches",
-            "closure_branches",
-            "external_fluxes",
-            "ground_node",
-            "hamiltonian_symbolic",
-            "input_string",
-            "is_grounded",
-            "lagrangian_node_vars",
-            "lagrangian_symbolic",
-            "nodes",
-            "offset_charges",
-            "free_charges",
-            "potential_symbolic",
-            "potential_node_vars",
-            "symbolic_params",
-            "transformation_matrix",
-            "var_categories",
-            "is_purely_harmonic",
-        ]
-        for attr in required_attributes:
-            setattr(self, attr, getattr(self.symbolic_circuit, attr))
+        self._import_from_symbolic_circuit()
 
         # initiating the class properties
         self.cutoff_names = []
