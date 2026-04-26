@@ -68,6 +68,16 @@ class Node:
         """Return a developer-readable representation of the node."""
         return "Node({})".format(self.index)
 
+    def __eq__(self, other: object) -> bool:
+        """Two nodes are equal iff they share the same ``index``."""
+        if not isinstance(other, Node):
+            return NotImplemented
+        return self.index == other.index
+
+    def __hash__(self) -> int:
+        """Hash by ``index`` so equal nodes hash equal; required for set/dict use."""
+        return hash(self.index)
+
     def connected_nodes(self, branch_type: str) -> list["Node"]:
         """Return all nodes directly connected to this node by branches.
 
@@ -86,7 +96,7 @@ class Node:
                 branch for branch in self.branches if branch.type == branch_type
             ]
         for branch in branch_list:
-            if branch.nodes[0].index == self.index:
+            if branch.nodes[0] == self:
                 result.append(branch.nodes[1])
             else:
                 result.append(branch.nodes[0])
@@ -176,6 +186,22 @@ class Branch:
     def __repr__(self) -> str:
         """Return a developer-readable representation of the branch."""
         return f"Branch({self.type}, {self.nodes[0].index}, {self.nodes[1].index}, index: {self.index})"
+
+    def __eq__(self, other: object) -> bool:
+        """Two branches are equal iff they share the same ``index``.
+
+        This makes membership / containment checks across deep-copies of
+        the circuit graph (e.g. inside ``_spanning_tree``) behave by
+        circuit-topology identity rather than Python object identity.
+        Use ``is`` / ``is not`` when you need actual object identity.
+        """
+        if not isinstance(other, Branch):
+            return NotImplemented
+        return self.index == other.index
+
+    def __hash__(self) -> int:
+        """Hash by ``index`` so equal branches hash equal; required for set/dict use."""
+        return hash(self.index)
 
     def _set_parameters(self, parameters: list[float | Symbol | int]) -> None:
         """Populate :attr:`parameters` from the given raw parameter list.
@@ -480,19 +506,17 @@ class SymbolicCircuitGraph(ABC):
     closure_branches: list[Branch | dict[Branch, float]]
     external_fluxes: list[Symbol]
 
-    def _branch_from_self_by_index(self, branch: Branch) -> Branch | None:
-        """Return ``self``'s branch with the same ``.index`` as ``branch``, if any."""
-        for candidate in self.branches:
-            if candidate.index == branch.index:
-                return candidate
-        return None
+    def _own_branch(self, branch: Branch) -> Branch | None:
+        """Return the branch on ``self`` equal to ``branch`` (i.e. with the same ``.index``).
 
-    def _node_from_self_by_index(self, node: Node) -> Node | None:
-        """Return ``self``'s node with the same ``.index`` as ``node``, if any."""
-        for candidate in self.nodes:
-            if candidate.index == node.index:
-                return candidate
-        return None
+        Lets the spanning-tree construction work on a deepcopy and then
+        remap results back to ``self``'s actual Branch objects.
+        """
+        return next((b for b in self.branches if b == branch), None)
+
+    def _own_node(self, node: Node) -> Node | None:
+        """Return the node on ``self`` equal to ``node`` (i.e. with the same ``.index``)."""
+        return next((n for n in self.nodes if n == node), None)
 
     def _remap_spanning_tree_to_self(
         self,
@@ -504,24 +528,22 @@ class SymbolicCircuitGraph(ABC):
         """Replace branches/nodes from a working circuit copy with their counterparts on ``self``.
 
         The spanning-tree construction in ``_spanning_tree`` operates on a
-        ``copy.deepcopy(self)``; this helper walks the four output lists in
-        place and substitutes each branch / node with the matching one from
-        ``self`` (matched by ``.index``).
+        ``copy.deepcopy(self)``; this helper walks the four output lists
+        and substitutes each branch / node with its matching one on
+        ``self`` (``Branch`` and ``Node`` define ``__eq__`` by ``.index``).
         """
         for tree_idx in range(len(list_of_trees)):
             list_of_trees[tree_idx] = [
-                self._branch_from_self_by_index(b) for b in list_of_trees[tree_idx]
+                self._own_branch(b) for b in list_of_trees[tree_idx]
             ]
             loop_branches_for_trees[tree_idx] = [
-                self._branch_from_self_by_index(b)
-                for b in loop_branches_for_trees[tree_idx]
+                self._own_branch(b) for b in loop_branches_for_trees[tree_idx]
             ]
             closure_branches_for_trees[tree_idx] = [
-                self._branch_from_self_by_index(b)
-                for b in closure_branches_for_trees[tree_idx]
+                self._own_branch(b) for b in closure_branches_for_trees[tree_idx]
             ]
             node_sets_for_trees[tree_idx] = [
-                [self._node_from_self_by_index(n) for n in node_set]
+                [self._own_node(n) for n in node_set]
                 for node_set in node_sets_for_trees[tree_idx]
             ]
 
@@ -929,7 +951,7 @@ class SymbolicCircuitGraph(ABC):
                         ancestor_nodes_list.append(second_node)
                         branch_path_to_root.append(branch)
                         current_node = second_node
-                        if current_node.index == root_node.index:
+                        if current_node == root_node:
                             break
             if root_node in ancestor_nodes_list:
                 break
