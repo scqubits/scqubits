@@ -548,7 +548,7 @@ class SymbolicCircuitGraph(ABC):
             ]
 
     @staticmethod
-    def _remove_capacitive_branches(circ) -> None:
+    def _remove_capacitive_branches(circ: "SymbolicCircuitGraph") -> None:
         """Drop every capacitor branch from ``circ`` and detach it from its nodes.
 
         Mutates ``circ`` in place. Used by ``_spanning_tree`` when
@@ -562,7 +562,7 @@ class SymbolicCircuitGraph(ABC):
             circ.branches.remove(c_branch)
 
     @staticmethod
-    def _prune_floating_nodes(circ) -> None:
+    def _prune_floating_nodes(circ: "SymbolicCircuitGraph") -> None:
         """Iteratively remove nodes (and their unique branch, if any) that aren't part of a loop.
 
         A node with zero branches is dropped outright. A node with exactly
@@ -594,7 +594,9 @@ class SymbolicCircuitGraph(ABC):
                 break
 
     @staticmethod
-    def _build_node_sets_for_trees(circ) -> list[list[list[Node]]]:
+    def _build_node_sets_for_trees(
+        circ: "SymbolicCircuitGraph",
+    ) -> list[list[list[Node]]]:
         """BFS-layer the nodes of ``circ`` into per-tree, per-generation node sets.
 
         Returns one list of generation-layered node sets per connected
@@ -612,6 +614,7 @@ class SymbolicCircuitGraph(ABC):
         """
         node_sets_for_trees: list[list[list[Node]]] = []
         if circ.is_grounded:
+            assert circ.ground_node is not None  # is_grounded => ground_node set
             initial_layer: list[Node] = [circ.ground_node]
         else:
             initial_layer = [circ.nodes[0]]
