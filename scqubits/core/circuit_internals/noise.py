@@ -86,7 +86,7 @@ class NoisyCircuit(NoisySystem, ABC):
         Returns ``None`` if the branch does not carry a quality factor.
         """
         key = "Q_" + ("ind" if branch.type == "L" else "cap")
-        if key in branch.aux_params.keys():
+        if key in branch.aux_params:
             Q_str = branch.aux_params[key]
             if not is_string_float(Q_str):  # type: ignore[arg-type]
 
