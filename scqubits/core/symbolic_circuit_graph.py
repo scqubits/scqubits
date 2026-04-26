@@ -593,6 +593,71 @@ class SymbolicCircuitGraph(ABC):
             if num_float_nodes == 0:
                 break
 
+    @staticmethod
+    def _build_node_sets_for_trees(circ) -> list[list[list[Node]]]:
+        """BFS-layer the nodes of ``circ`` into per-tree, per-generation node sets.
+
+        Returns one list of generation-layered node sets per connected
+        component (each component is a separate "tree" in the
+        spanning-tree sense; multiple components arise when capacitive
+        branches are removed and the circuit splits into disjoint
+        capacitive islands).
+
+        Each layer holds the nodes one BFS step further from the root
+        than the previous layer. Layers within a component are sorted by
+        ``Node.index`` for deterministic output.
+
+        Caller must ensure ``circ.nodes`` does not include the ground
+        node when ``circ.is_grounded``.
+        """
+        node_sets_for_trees: list[list[list[Node]]] = []
+        if circ.is_grounded:
+            initial_layer: list[Node] = [circ.ground_node]
+        else:
+            initial_layer = [circ.nodes[0]]
+        node_sets_for_trees.append([initial_layer])
+
+        # ground node lives outside circ.nodes when grounded; count it
+        # explicitly so the BFS termination check covers it
+        num_nodes = len(circ.nodes) + (1 if circ.is_grounded else 0)
+
+        node_set_index = 0
+        tree_index = 0
+        while len(flatten_list_recursive(node_sets_for_trees)) < num_nodes:
+            current_layer = node_sets_for_trees[tree_index][node_set_index]
+
+            neighbours: list[Node] = []
+            for node in current_layer:
+                neighbours += node.connected_nodes("all")
+
+            already_seen = flatten_list_recursive(
+                node_sets_for_trees[tree_index][: node_set_index + 1]
+            )
+            next_layer = [
+                n for n in unique_elements_in_list(neighbours) if n not in already_seen
+            ]
+            if next_layer:
+                next_layer.sort(key=lambda node: node.index)
+
+            if not next_layer:
+                # current component exhausted; start a new tree on the
+                # next un-visited node (handles disjoint capacitive islands)
+                node_sets_for_trees.append([])
+                for node in circ.nodes:
+                    if node not in flatten_list_recursive(
+                        node_sets_for_trees[tree_index]
+                    ):
+                        tree_index += 1
+                        node_sets_for_trees[tree_index].append([node])
+                        node_set_index = 0
+                        break
+                continue
+
+            node_sets_for_trees[tree_index].append(next_layer)
+            node_set_index += 1
+
+        return node_sets_for_trees
+
     def _spanning_tree(
         self,
         consider_capacitive_loops: bool = False,
@@ -660,81 +725,26 @@ class SymbolicCircuitGraph(ABC):
                 "node_sets_for_trees": [],
                 "closure_branches_for_trees": [],
             }
-        # *****************************************************************************
 
-        # **************** Constructing the node_sets ***************
-        node_sets_for_trees: list[list[list[Node]]] = (
-            []
-        )  # seperate node sets for separate trees
-        if circ_copy.is_grounded:
-            node_sets = [[circ_copy.ground_node]]
-        else:
-            node_sets = [
-                [circ_copy.nodes[0]]
-            ]  # starting with the first set that has the first node as the only element
-        node_sets_for_trees.append(node_sets)  # type: ignore[arg-type]
-
-        num_nodes = len(circ_copy.nodes)
-        # this needs to be done as the ground node is not included in self.nodes
-        if circ_copy.is_grounded:
-            num_nodes += 1
-
-        # finding all the sets of nodes and filling node_sets
-        node_set_index = 0
-        tree_index = 0
-        while (
-            len(flatten_list_recursive(node_sets_for_trees))
-            < num_nodes  # checking to see if all the nodes are present in node_sets
-        ):
-            node_set = []
-
-            for node in node_sets_for_trees[tree_index][node_set_index]:
-                node_set += node.connected_nodes("all")
-
-            node_set = [
-                x
-                for x in unique_elements_in_list(node_set)
-                if x
-                not in flatten_list_recursive(
-                    node_sets_for_trees[tree_index][: node_set_index + 1]
-                )
-            ]
-            if node_set:
-                node_set.sort(key=lambda node: node.index)
-
-            # code to handle two different capacitive islands in the circuit.
-            if node_set == []:
-                node_sets_for_trees.append([])
-                for node in circ_copy.nodes:
-                    if node not in flatten_list_recursive(
-                        node_sets_for_trees[tree_index]
-                    ):
-                        tree_index += 1
-                        node_sets_for_trees[tree_index].append([node])
-                        node_set_index = 0
-                        break
-                continue
-
-            node_sets_for_trees[tree_index].append(node_set)
-            node_set_index += 1
-        # ***************************
+        node_sets_for_trees = self._build_node_sets_for_trees(circ_copy)
 
         # **************** constructing the spanning tree ##########
         def connecting_branches(n1: Node, n2: Node):
             return [branch for branch in n1.branches if branch in n2.branches]
 
         list_of_trees = []
-        for node_sets in node_sets_for_trees:  # type: ignore[assignment]
-            tree = []  # tree having branches of the instance that is copied
+        for node_sets in node_sets_for_trees:
+            tree: list[Branch] = []
 
             # find the branch connecting this node to another node in a previous node set.
-            for index, node_set in enumerate(node_sets):  # type: ignore[assignment]
+            for index, node_set in enumerate(node_sets):
                 if index == 0:
                     continue
                 for node in node_set:
                     for prev_node in node_sets[index - 1]:
-                        if len(connecting_branches(node, prev_node)) != 0:  # type: ignore[arg-type]
-                            tree.append(connecting_branches(node, prev_node)[0])  # type: ignore[arg-type]
+                        connecting = connecting_branches(node, prev_node)
+                        if connecting:
+                            tree.append(connecting[0])
                             break
             list_of_trees.append(tree)
 
