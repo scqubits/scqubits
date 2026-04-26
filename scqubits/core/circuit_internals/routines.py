@@ -1517,13 +1517,18 @@ class CircuitRoutines(ABC):
         return saw_potential_matrix
 
     @staticmethod
-    def _extract_trig_argument(term: sm.Expr) -> sm.Expr:
-        """Return the inner expression of the ``cos``/``sin`` factor in ``term``.
+    def _extract_junction_phase(term: sm.Expr) -> sm.Expr:
+        """Return the Josephson phase expression inside the ``cos``/``sin`` factor of ``term``.
 
         ``term`` is expected to be a single product (one summand of an ordered
-        sum) that contains exactly one ``cos`` or ``sin`` factor.  The leading
-        ``1.0 *`` ensures sympy splits a bare ``cos(...)`` into a product so
-        ``.args`` always yields the trig factor as one of its arguments.
+        sum) that contains exactly one ``cos`` or ``sin`` factor — i.e. a
+        Josephson-junction contribution to the potential, ``E_J cos(phi)`` or
+        a derivative ``sin(phi)``.  The returned expression is the ``phi``
+        argument: a linear combination of node-flux symbols.
+
+        The leading ``1.0 *`` ensures sympy splits a bare ``cos(...)`` into a
+        product so ``.args`` always yields the trig factor as one of its
+        arguments.
         """
         return [
             arg.args[0]
@@ -1532,12 +1537,12 @@ class CircuitRoutines(ABC):
         ][0]
 
     @staticmethod
-    def _term_is_cos(term: sm.Expr) -> bool:
+    def _term_has_cos_factor(term: sm.Expr) -> bool:
         """Return ``True`` when ``term`` contains a ``cos`` factor."""
         return any(arg.has(sm.cos) for arg in (1.0 * term).args)
 
     @staticmethod
-    def _term_is_sin(term: sm.Expr) -> bool:
+    def _term_has_sin_factor(term: sm.Expr) -> bool:
         """Return ``True`` when ``term`` contains a ``sin`` factor."""
         return any(arg.has(sm.sin) for arg in (1.0 * term).args)
 
@@ -1551,16 +1556,22 @@ class CircuitRoutines(ABC):
         """Build ``sin`` from the matrix exponential ``op = exp(i * arg)``."""
         return (op - op.dag()) * 0.5 * (-1j)
 
-    def _build_cos_argument_operator_list(
+    def _build_junction_phase_operator_list(
         self,
-        cos_argument_expr: sm.Expr,
+        junction_phase_expr: sm.Expr,
         var_indices: list[int],
         bare_esys: dict[int, tuple] | None,
     ) -> list[qt.Qobj]:
-        """Build per-variable ``exp(i * prefactor * var)`` operators for the trig argument."""
+        """Build the per-variable ``exp(i * prefactor * var)`` operators that compose the JJ ``cos``/``sin``.
+
+        Each Josephson term ``cos(sum_k a_k phi_k)`` is realised as a product
+        ``prod_k exp(i a_k phi_k)`` (combined with the dagger via
+        :meth:`_assemble_cos_term` / :meth:`_assemble_sin_term`); this helper
+        returns that list of per-variable factors.
+        """
         operator_list = []
-        for idx, var_symbol in enumerate(cos_argument_expr.free_symbols):
-            prefactor = float(cos_argument_expr.coeff(var_symbol))
+        for idx, var_symbol in enumerate(junction_phase_expr.free_symbols):
+            prefactor = float(junction_phase_expr.coeff(var_symbol))
             child_circuit = self.return_root_child(var_indices[idx])
             operator_bare = child_circuit._kron_operator(
                 self.exp_i_operator(var_symbol, prefactor), var_indices[idx]
@@ -1604,30 +1615,30 @@ class CircuitRoutines(ABC):
 
         for term in junction_potential.as_ordered_terms():
             coefficient = float(list(term.as_coefficients_dict().values())[0])
-            cos_argument_expr = self._extract_trig_argument(term)
+            junction_phase_expr = self._extract_junction_phase(term)
 
             var_indices = [
                 get_trailing_number(var_symbol.name)
-                for var_symbol in cos_argument_expr.free_symbols
+                for var_symbol in junction_phase_expr.free_symbols
             ]
 
-            # strip constant offsets from the trig argument and absorb the
+            # strip constant offsets from the junction phase and absorb the
             # resulting global phase into the term's coefficient
-            for summand in cos_argument_expr.as_ordered_terms():
+            for summand in junction_phase_expr.as_ordered_terms():
                 if not summand.free_symbols:
-                    cos_argument_expr -= summand
+                    junction_phase_expr -= summand
                     coefficient *= np.exp(float(summand) * 1j)
 
-            operator_list = self._build_cos_argument_operator_list(
-                cos_argument_expr, var_indices, bare_esys
+            operator_list = self._build_junction_phase_operator_list(
+                junction_phase_expr, var_indices, bare_esys
             )
             term_operator = coefficient * functools.reduce(
                 builtin_op.mul,
                 operator_list,
             )
-            if self._term_is_cos(term):
+            if self._term_has_cos_factor(term):
                 junction_potential_matrix += self._assemble_cos_term(term_operator)
-            elif self._term_is_sin(term):
+            elif self._term_has_sin_factor(term):
                 junction_potential_matrix += self._assemble_sin_term(term_operator)
         return junction_potential_matrix
 
