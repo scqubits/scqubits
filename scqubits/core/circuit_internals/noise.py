@@ -12,24 +12,24 @@
 
 from __future__ import annotations
 
-from abc import ABC
-from typing import Any
-from numpy import ndarray
-import numpy as np
-import qutip as qt
-import re
 import copy
+import re
 
-from scqubits.core.noise import NOISE_PARAMS, NoisySystem
-from scqubits.core.circuit_internals.utils import get_trailing_number
-from scqubits.utils.misc import is_string_float, Qobj_to_scipy_csc_matrix
-
+from abc import ABC
 from collections.abc import Callable
 from types import MethodType
+from typing import Any
 
+import numpy as np
+import qutip as qt
 import sympy as sm
 
+from numpy import ndarray
+
+from scqubits.core.circuit_internals.utils import get_trailing_number
+from scqubits.core.noise import NOISE_PARAMS, NoisySystem
 from scqubits.core.symbolic_circuit import Branch
+from scqubits.utils.misc import Qobj_to_scipy_csc_matrix, is_string_float
 
 __all__ = [
     "NoisyCircuit",

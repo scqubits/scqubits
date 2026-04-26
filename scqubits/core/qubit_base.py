@@ -23,16 +23,16 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Literal,
-    overload,
-    TypeVar,
     Type,
+    TypeVar,
+    overload,
 )
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy as sp
 import qutip as qt
+import scipy as sp
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure

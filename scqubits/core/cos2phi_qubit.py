@@ -12,10 +12,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import math
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from typing import Any
 
 import numpy as np

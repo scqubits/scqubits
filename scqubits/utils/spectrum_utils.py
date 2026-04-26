@@ -12,9 +12,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import cmath
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -23,7 +23,7 @@ import scipy as sp
 
 from numpy import ndarray
 from qutip import Qobj
-from scipy.sparse import csc_matrix, dia_matrix, csr_matrix
+from scipy.sparse import csc_matrix, csr_matrix, dia_matrix
 
 import scqubits.settings as settings
 
@@ -32,8 +32,8 @@ if TYPE_CHECKING:
     from scqubits.core.qubit_base import QubitBaseClass
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
-from scqubits.utils.typedefs import QuantumSys
 from scqubits.utils.misc import Qobj_to_scipy_csc_matrix
+from scqubits.utils.typedefs import QuantumSys
 
 
 def eigsh_safe(*args, **kwargs):

@@ -12,9 +12,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import copy
-import dill
 import functools
 import inspect
 import itertools
@@ -22,9 +20,12 @@ import warnings
 
 from abc import ABC
 from collections import OrderedDict
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Literal, overload
 
+import dill
 import numpy as np
+
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
@@ -39,6 +40,7 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.plotting as plot
+
 from scqubits import settings as settings
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.namedslots_array import (

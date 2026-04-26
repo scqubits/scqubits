@@ -18,13 +18,14 @@ from typing import TYPE_CHECKING, Any
 
 import matplotlib
 import matplotlib.pyplot as plt
+
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 import scqubits as scq
-
 import scqubits.ui.gui_custom_widgets as ui
 import scqubits.ui.gui_defaults as gui_defaults
+
 from scqubits.core.param_sweep import ParameterSlice
 from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass
 from scqubits.explorer import explorer_panels as panels
@@ -37,7 +38,6 @@ from scqubits.ui.gui_defaults import (
     mode_dropdown_dict,
     supported_panels,
 )
-
 from scqubits.utils import misc as utils
 from scqubits.utils.misc import _HAS_WIDGET_BACKEND
 
@@ -54,6 +54,7 @@ else:
 try:
     import ipyvuetify as v
     import ipywidgets
+
     from scqubits.ui.gui_custom_widgets import flex_row
 except ImportError:
     _HAS_IPYVUETIFY = False

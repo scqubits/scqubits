@@ -12,12 +12,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator
 import cmath
 import numbers
 import warnings
 
 from collections import OrderedDict
+from collections.abc import Iterable, Iterator
 from typing import Any, Literal
 
 import numpy as np

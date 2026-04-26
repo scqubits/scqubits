@@ -25,13 +25,16 @@ import warnings
 
 from typing import TYPE_CHECKING
 
+# diagonalization namespace (DIAG_METHODS already imported above)
+import scqubits.core.diag as diag
+
 from scqubits import settings
 
 # core
 from scqubits.core.central_dispatch import CentralDispatch
 from scqubits.core.cos2phi_qubit import Cos2PhiQubit
-from scqubits.core.discretization import Grid1d
 from scqubits.core.diag import DIAG_METHODS
+from scqubits.core.discretization import Grid1d
 from scqubits.core.flux_qubit import FluxQubit
 from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.generic_qubit import GenericQubit
@@ -59,18 +62,6 @@ from scqubits.core.zeropi_full import FullZeroPi
 
 # file IO
 from scqubits.io_utils.fileio import read, write
-
-# diagonalization
-import scqubits.core.diag as diag
-from scqubits.core.diag import (
-    DIAG_METHODS,
-)
-
-# Import of custom-circuit modules needs to take place after other imports to
-# avoid circular import issues
-from scqubits.core.circuit import Circuit
-from scqubits.core.circuit_internals.utils import truncation_template
-from scqubits.core.symbolic_circuit import SymbolicCircuit
 
 # GUI — graceful fallback when the optional `ipyvuetify` dependency is missing.
 # At type-check time, mypy always sees the real classes; at runtime, the
@@ -130,6 +121,7 @@ except ImportError:
 
 # build a public API list by finding all names not starting with underscore
 import scqubits as _scq
+
 from scqubits.utils.misc import inspect_public_API as _inspect_public_API
 
 __all__ = _inspect_public_API(

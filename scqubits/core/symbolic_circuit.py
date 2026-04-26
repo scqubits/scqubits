@@ -40,6 +40,7 @@ from scqubits.core.circuit_internals.input import (
     remove_comments,
     strip_empty_lines,
 )
+from scqubits.core.circuit_internals.sympy_helpers import round_symbolic_expr
 from scqubits.core.circuit_internals.utils import get_trailing_number
 from scqubits.core.symbolic_circuit_graph import (
     Branch,
@@ -47,7 +48,6 @@ from scqubits.core.symbolic_circuit_graph import (
     Node,
     SymbolicCircuitGraph,
 )
-from scqubits.core.circuit_internals.sympy_helpers import round_symbolic_expr
 from scqubits.utils.misc import (
     flatten_list_recursive,
     unique_elements_in_list,

@@ -12,18 +12,18 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import math
 import warnings
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from typing import Any, cast
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy as sp
 import qutip as qt
+import scipy as sp
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -35,10 +35,10 @@ from sympy import csc, sec
 import scqubits.core.units as units
 import scqubits.settings as settings
 import scqubits.utils.plotting as plotting
-from scqubits.utils.misc import Qobj_to_scipy_csc_matrix
 
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import matplotlib_settings
+from scqubits.utils.misc import Qobj_to_scipy_csc_matrix
 
 # flag that lets us show a warning about the default t1 behavior
 # (i.e., total=True setting) only once. Using the standard warnings

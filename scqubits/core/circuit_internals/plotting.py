@@ -5,8 +5,11 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem
 
+from abc import ABC
+
 import numpy as np
 import sympy as sm
+
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -17,17 +20,17 @@ import scqubits.core.oscillator as osc
 import scqubits.core.storage as storage
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
+
 from scqubits import get_units
-from scqubits.io_utils.fileio_serializers import dict_serialize
-from scqubits.core.circuit_internals.utils import get_trailing_number
 from scqubits.core.circuit_internals.sawtooth import sawtooth_potential
+from scqubits.core.circuit_internals.utils import get_trailing_number
+from scqubits.io_utils.fileio_serializers import dict_serialize
 from scqubits.utils.misc import (
     flatten_list_recursive,
     list_intersection,
     unique_elements_in_list,
 )
 from scqubits.utils.plot_utils import _process_options
-from abc import ABC
 
 __all__ = [
     "CircuitPlot",

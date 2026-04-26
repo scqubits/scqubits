@@ -51,8 +51,6 @@ from scqubits.core.circuit_internals.charge_basis_operators import (
     _n_theta_operator,
     _sin_theta,
 )
-from scqubits.core.circuit_internals.utils import get_trailing_number
-from scqubits.core.circuit_internals.sawtooth import sawtooth_potential
 from scqubits.core.circuit_internals.discretized_phi_operators import (
     _cos_phi,
     _i_d2_dphi2_operator,
@@ -67,16 +65,18 @@ from scqubits.core.circuit_internals.matrix_helpers import (
     _sin_dia_dense,
     matrix_power_sparse,
 )
-from scqubits.core.namedslots_array import NamedSlotsNdarray
 from scqubits.core.circuit_internals.operator_factories import (
     grid_operator_func_factory,
     hierarchical_diagonalization_func_factory,
     operator_func_factory,
 )
+from scqubits.core.circuit_internals.sawtooth import sawtooth_potential
 from scqubits.core.circuit_internals.sympy_helpers import (
     _generate_symbols_list,
     round_symbolic_expr,
 )
+from scqubits.core.circuit_internals.utils import get_trailing_number
+from scqubits.core.namedslots_array import NamedSlotsNdarray
 from scqubits.io_utils.fileio import IOData
 from scqubits.io_utils.fileio_serializers import dict_serialize
 from scqubits.utils.misc import (

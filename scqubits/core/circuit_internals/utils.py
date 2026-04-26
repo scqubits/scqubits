@@ -27,6 +27,10 @@ from scipy.sparse import csc_matrix
 
 from scqubits.core import circuit_input
 from scqubits.core import discretization as discretization
+from scqubits.core.circuit_internals.sawtooth import (  # noqa: F401
+    sawtooth_operator,
+    sawtooth_potential,
+)
 
 # Public deprecation shims — these symbols are documented public API
 # (`assemble_*` are advertised in `scqubits/__init__.py`; `sawtooth_*`
@@ -37,10 +41,6 @@ from scqubits.core.circuit_internals.yaml_assembly import (  # noqa: F401
     assemble_circuit,
     assemble_transformation_matrix,
 )
-from scqubits.core.circuit_internals.sawtooth import (
-    sawtooth_operator,
-    sawtooth_potential,
-)  # noqa: F401
 from scqubits.utils.misc import (
     Qobj_to_scipy_csc_matrix,
     flatten_list_recursive,

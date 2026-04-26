@@ -36,6 +36,7 @@ else:
 try:
     import ipyvuetify as v
     import ipywidgets
+
     from scqubits.ui.gui_custom_widgets import flex_row
 except ImportError:
     _HAS_IPYVUETIFY = False

@@ -11,11 +11,11 @@
 ############################################################################
 from __future__ import annotations
 
-from collections.abc import Callable
 import functools
 import operator
 import os
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 import matplotlib as mpl

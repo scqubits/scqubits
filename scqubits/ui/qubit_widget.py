@@ -21,6 +21,7 @@ import scqubits.utils.misc as utils
 try:
     import ipyvuetify
     import ipywidgets
+
     from scqubits.ui.gui_custom_widgets import ValidatedNumberField
 except ImportError:
     _HAS_IPYVUETIFY = False
