@@ -74,6 +74,10 @@ DEFAULT_PLOTTING_PHI_GRID_POINTS = 200
 ExtBasisChoice = Literal["discretized", "harmonic"]
 
 
+# Sentinel: caller did not pass ``from_file`` explicitly.
+_FROM_FILE_UNSET: Any = object()
+
+
 class ConfigureError(RuntimeError):
     """Raised when ``Circuit.configure`` fails; the previous configuration is restored."""
 
@@ -445,7 +449,7 @@ class Circuit(  # type: ignore[misc]
     def __init__(
         self,
         input_string: str | None = None,
-        from_file: bool = True,
+        from_file: Any = _FROM_FILE_UNSET,
         basis_completion: str = "heuristic",
         ext_basis: ExtBasisChoice = "discretized",
         use_dynamic_flux_grouping: bool = False,
@@ -459,6 +463,16 @@ class Circuit(  # type: ignore[misc]
         esys_method: Callable | str | None = None,
         esys_method_options: dict | None = None,
     ):
+        if from_file is _FROM_FILE_UNSET:
+            from_file = True  # historic default
+        else:
+            warnings.warn(
+                "The `from_file` boolean flag is deprecated; use "
+                "`Circuit.from_yaml_file(path, ...)` or "
+                "`Circuit.from_yaml_string(yaml_string, ...)` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         # switch used in protecting the class from erroneous addition of new attributes
         object.__setattr__(self, "_frozen", False)
         base.QubitBaseClass.__init__(
@@ -478,16 +492,18 @@ class Circuit(  # type: ignore[misc]
                 "Circuit instance must be initialized with either input_string or a symbolic hamiltonian."
             )
         if input_string:
-            self.from_yaml(
-                input_string=input_string,
-                from_file=from_file,
-                basis_completion=basis_completion,
-                ext_basis=ext_basis,
-                use_dynamic_flux_grouping=use_dynamic_flux_grouping,
-                generate_noise_methods=generate_noise_methods,
-                initiate_sym_calc=initiate_sym_calc,
-                truncated_dim=truncated_dim,
-            )
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                self.from_yaml(
+                    input_string=input_string,
+                    from_file=from_file,
+                    basis_completion=basis_completion,
+                    ext_basis=ext_basis,
+                    use_dynamic_flux_grouping=use_dynamic_flux_grouping,
+                    generate_noise_methods=generate_noise_methods,
+                    initiate_sym_calc=initiate_sym_calc,
+                    truncated_dim=truncated_dim,
+                )
 
         elif symbolic_hamiltonian:
             if use_dynamic_flux_grouping or generate_noise_methods:
@@ -523,20 +539,22 @@ class Circuit(  # type: ignore[misc]
         Preferred over the legacy ``Circuit(path)`` form (which conflates a file
         path and an inline YAML string via the ``from_file: bool`` flag).
         """
-        return cls(
-            input_string=path,
-            from_file=True,
-            basis_completion=basis_completion,
-            ext_basis=ext_basis,
-            use_dynamic_flux_grouping=use_dynamic_flux_grouping,
-            generate_noise_methods=generate_noise_methods,
-            initiate_sym_calc=initiate_sym_calc,
-            truncated_dim=truncated_dim,
-            evals_method=evals_method,
-            evals_method_options=evals_method_options,
-            esys_method=esys_method,
-            esys_method_options=esys_method_options,
-        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            return cls(
+                input_string=path,
+                from_file=True,
+                basis_completion=basis_completion,
+                ext_basis=ext_basis,
+                use_dynamic_flux_grouping=use_dynamic_flux_grouping,
+                generate_noise_methods=generate_noise_methods,
+                initiate_sym_calc=initiate_sym_calc,
+                truncated_dim=truncated_dim,
+                evals_method=evals_method,
+                evals_method_options=evals_method_options,
+                esys_method=esys_method,
+                esys_method_options=esys_method_options,
+            )
 
     @classmethod
     def from_yaml_string(
@@ -558,20 +576,22 @@ class Circuit(  # type: ignore[misc]
 
         Preferred over the legacy ``Circuit(yaml_string, from_file=False)`` form.
         """
-        return cls(
-            input_string=yaml_string,
-            from_file=False,
-            basis_completion=basis_completion,
-            ext_basis=ext_basis,
-            use_dynamic_flux_grouping=use_dynamic_flux_grouping,
-            generate_noise_methods=generate_noise_methods,
-            initiate_sym_calc=initiate_sym_calc,
-            truncated_dim=truncated_dim,
-            evals_method=evals_method,
-            evals_method_options=evals_method_options,
-            esys_method=esys_method,
-            esys_method_options=esys_method_options,
-        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            return cls(
+                input_string=yaml_string,
+                from_file=False,
+                basis_completion=basis_completion,
+                ext_basis=ext_basis,
+                use_dynamic_flux_grouping=use_dynamic_flux_grouping,
+                generate_noise_methods=generate_noise_methods,
+                initiate_sym_calc=initiate_sym_calc,
+                truncated_dim=truncated_dim,
+                evals_method=evals_method,
+                evals_method_options=evals_method_options,
+                esys_method=esys_method,
+                esys_method_options=esys_method_options,
+            )
 
     def _from_symbolic_hamiltonian(
         self,
@@ -684,6 +704,13 @@ class Circuit(  # type: ignore[misc]
             when ``True``, generate per-channel noise methods on the instance after
             initialization; by default ``False``.
         """
+        warnings.warn(
+            "`Circuit.from_yaml` is deprecated; use "
+            "`Circuit.from_yaml_file(path, ...)` or "
+            "`Circuit.from_yaml_string(yaml_string, ...)`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if basis_completion not in ["heuristic", "canonical"]:
             raise ValueError(
                 "Invalid choice for basis_completion: must be 'heuristic' or "

@@ -25,6 +25,9 @@ TESTDIR, _ = os.path.split(scq.__file__)
 TESTDIR = os.path.join(TESTDIR, "tests", "")
 DATADIR = os.path.join(TESTDIR, "data", "")
 
+# Tests below exercise the legacy ``from_file`` flag and ``Circuit.from_yaml``.
+pytestmark = pytest.mark.filterwarnings("ignore::DeprecationWarning")
+
 
 @pytest.mark.usefixtures("num_cpus")
 class TestCircuit:
