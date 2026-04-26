@@ -1,5 +1,57 @@
 # Refactoring Plan — `circuit` module (Clean Code pass)
 
+## Progress (updated continuously as the branch advances)
+
+The plan below described the original Batch A scope. The branch has gone
+considerably further. Summary of what has actually shipped on
+`refactor/circuit-module-clean-code`:
+
+- **Batch A** (A1–A8) — complete.
+- **Batch B1** (split `circuit_utils.py` along the 11 responsibility
+  groups) — complete; moved support files into a new
+  `scqubits/core/circuit_internals/` subpackage and left thin shim
+  files at the legacy `scqubits/core/circuit_*.py` paths for
+  backward-compat.
+- **Batch B2** (named constructors `Circuit.from_yaml_file` /
+  `Circuit.from_yaml_string`) — complete; `from_file: bool` flag now
+  emits `DeprecationWarning` when set explicitly.
+- **Batch B3** (polymorphic dispatch in `_generate_operator_methods`)
+  — complete.
+- **Batch C8** (parallel cleanup of `_configure_sym_hamiltonian` to
+  match `_configure`'s extracted helper) — complete via
+  `_install_var_properties`. Both `_configure`-family methods now
+  share the property-setup phase.
+- Pythonic cleanup pass:
+  generic `Exception` → specific types (24 sites);
+  `len(X) > 0` → truthy idiom (12 sites);
+  `for k in dict.keys()` → `for k in dict` (4 sites);
+  named module-level constants for cutoffs / `2π` ranges / sawtooth
+  parameters; `Literal` typing for `ext_basis`, `var_categories` keys,
+  and `property_update_type`.
+- C-grade complexity reductions: `_repr_latex_` 19→11,
+  `sym_hamiltonian` 18→10, `potential_energy` 19→10, `plot_potential`
+  15→9, `_replace_mat_mul_operator` 13→4, `_evaluate_matrix_cosine_terms`
+  17→11, `_configure` 39→24.
+- `return_expr: bool` flag retired across `sym_potential`,
+  `sym_hamiltonian`, `sym_interaction`, and `sym_lagrangian` — each now
+  has a sibling `..._expr` method; the legacy form delegates with a
+  `DeprecationWarning`.
+
+Verification at every step: full `pytest --pyargs scqubits` and
+`mypy scqubits/` clean. As of this update, the branch is 45 commits
+ahead of `main`.
+
+Items deliberately **NOT done** in this branch:
+- The F-grade methods in `symbolic_circuit_graph.py`
+  (`_spanning_tree` complexity 58, `variable_transformation_matrix` 53)
+  — high effort, domain-heavy graph algorithms.
+- `B5` (replace `eval(H_LC_str, replacement_dict)` with
+  `sympy.lambdify`) — non-trivial because the eval-driven dispatch
+  injects matrix-aware callables for `cos` / `sin` / `matrix_power`.
+- `_frozen` initialisation locking left as the existing
+  `object.__setattr__(self, "_frozen", False)` … `self._frozen = True`
+  pattern; could be tightened into a `@contextmanager` helper.
+
 ## Context
 
 The `circuit` family in `scqubits/core/` (≈12,500 lines across 9 files) carries
