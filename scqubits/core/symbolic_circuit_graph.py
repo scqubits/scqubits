@@ -104,7 +104,7 @@ class Node:
 
     def is_ground(self) -> bool:
         """Return a bool if the node is a ground node (Node with index set to 0)."""
-        return True if self.index == 0 else False
+        return self.index == 0
 
     def __deepcopy__(self, memo: dict[int, Any]) -> "Node":
         """Return a deep copy of the node, recursing into all instance attributes.
@@ -1210,7 +1210,7 @@ class SymbolicCircuitGraph(ABC):
             branch, sym_params = make_branch(nodes_list, *parsed_branch)
             for sym_param in sym_params:
                 if sym_param in branch_var_dict and sym_params[sym_param]:
-                    raise Exception(
+                    raise ValueError(
                         f"Symbol {sym_param} has already been assigned a value."
                     )
                 if sym_params[sym_param]:
@@ -1224,7 +1224,7 @@ class SymbolicCircuitGraph(ABC):
             coupler, sym_params = make_coupler(branches_list, *parsed_branch)
             for sym_param in sym_params:
                 if sym_param in branch_var_dict and sym_params[sym_param]:
-                    raise Exception(
+                    raise ValueError(
                         f"Symbol {sym_param} has already been assigned a value."
                     )
                 if sym_params[sym_param]:
@@ -1425,7 +1425,7 @@ class SymbolicCircuitGraph(ABC):
         """
         # basic check to see if the matrix is invertible
         if np.linalg.det(transformation_matrix) == 0:
-            raise Exception("The transformation matrix provided is not invertible.")
+            raise ValueError("The transformation matrix provided is not invertible.")
 
         # find all the different types of modes present in the circuit.
 
@@ -1555,7 +1555,7 @@ class SymbolicCircuitGraph(ABC):
                     + "\n"
                 )
         if not self.is_grounded and not sigma_mode_found:
-            raise Exception(
+            raise ValueError(
                 "This circuit is not grounded, and so has a sigma mode. This transformation does not have a sigma mode."
             )
 

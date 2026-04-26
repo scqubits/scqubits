@@ -279,7 +279,7 @@ class Subsystem(  # type: ignore[misc]
             for var in self.parent.symbolic_params
             if var in self.hamiltonian_symbolic.free_symbols
         }
-        for idx, param in enumerate(self.symbolic_params):
+        for param in self.symbolic_params:
             self._make_property(
                 param.name, getattr(self.parent, param.name), "update_param_vars"
             )
@@ -904,7 +904,7 @@ class Circuit(  # type: ignore[misc]
             ]
             + ["cutoff_names"]
         )
-        attrib_keys = list(self.__dict__.keys()).copy()
+        attrib_keys = list(self.__dict__)
         for attrib in attrib_keys:
             if attrib[1:] not in necessary_attrib_names:
                 if (
