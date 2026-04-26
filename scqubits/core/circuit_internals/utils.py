@@ -10,43 +10,35 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+"""Small holdouts from the original ``circuit_utils.py`` junk drawer.
+
+Two real residents remain:
+
+* :func:`truncation_template` — public-API helper for hierarchical
+  diagonalization, advertised as ``scqubits.truncation_template``;
+* :func:`get_trailing_number` — string-parsing helper used in ~55 places
+  across ``scqubits.core``.
+
+The remaining names listed in :data:`__all__` are re-exports kept here so
+that ``from scqubits.core.circuit_utils import <name>`` (the legacy
+public path) continues to work — see the four-line shim at
+``scqubits/core/circuit_utils.py``.
+"""
+
 from __future__ import annotations
 
 import re
 
-from collections.abc import Callable
-from typing import TYPE_CHECKING
-
-import numpy as np
-import scipy as sp
-import sympy as sm
-
-from numpy import ndarray
-from scipy import sparse
-from scipy.sparse import csc_matrix
-
-from scqubits.core import circuit_input
-from scqubits.core import discretization as discretization
+from scqubits.core.circuit_internals.input import example_circuit  # noqa: F401
 from scqubits.core.circuit_internals.sawtooth import (  # noqa: F401
     sawtooth_operator,
     sawtooth_potential,
 )
-
-# Public deprecation shims — these symbols are documented public API
-# (`assemble_*` are advertised in `scqubits/__init__.py`; `sawtooth_*`
-# describe a published junction model) and may also be imported as
-# `scqubits.core.circuit_utils.<name>` by downstream code. Their
-# definitions now live in dedicated modules.
 from scqubits.core.circuit_internals.yaml_assembly import (  # noqa: F401
     assemble_circuit,
     assemble_transformation_matrix,
 )
-from scqubits.utils.misc import (
-    Qobj_to_scipy_csc_matrix,
-    flatten_list_recursive,
-    is_string_float,
-    unique_elements_in_list,
-)
+from scqubits.utils.misc import flatten_list_recursive
 
 __all__ = [
     "truncation_template",
@@ -57,9 +49,6 @@ __all__ = [
     "sawtooth_operator",
     "sawtooth_potential",
 ]
-
-if TYPE_CHECKING:
-    from scqubits.core.circuit import Subsystem
 
 
 def truncation_template(
@@ -115,32 +104,3 @@ def get_trailing_number(input_str: str) -> int:
     if match is None:
         raise ValueError(f"get_trailing_number: {input_str!r} has no trailing digits")
     return int(match.group())
-
-
-def example_circuit(qubit: str) -> str:
-    """Return example input strings for some of the popular qubits.
-
-    The input strings are intended for ``AnalyzeQCircuit`` and
-    ``CustomQCircuit``.
-
-    Parameters
-    ----------
-    qubit:
-        "fluxonium" or "transmon" or "zero_pi" or "cos2phi" choosing the respective
-        example input strings.
-    """
-
-    # example input strings for popular qubits
-    inputs_by_qubit_name = dict(
-        fluxonium="nodes: 2\nbranches:\nJJ	1,2	Ej	Ecj\nL	1,2	El\nC	1,2	Ec",
-        transmon="nodes: 2\nbranches:\nC\t1,2\tEc\nJJ\t1,2\tEj\tEcj\n",
-        cos2phi="nodes: 4\nbranches:\nC\t1,3\tEc\nJJ\t1,2\tEj\tEcj\nJJ\t3, "
-        "4\tEj\tEcj\nL\t1,4\tEl\nL\t2,3\tEl\n\n",
-        zero_pi="nodes: 4\nbranches:\nJJ\t1,2\tEj\tEcj\nL\t2,3\tEl\nJJ\t3,"
-        "4\tEj\tEcj\nL\t4,1\tEl\nC\t1,3\tEc\nC\t2,4\tEc\n",
-    )
-
-    if qubit in inputs_by_qubit_name:
-        return inputs_by_qubit_name[qubit]
-    else:
-        raise AttributeError("Qubit not available or invalid input.")

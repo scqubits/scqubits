@@ -35,6 +35,7 @@ from scqubits.core.circuit_internals.discretized_phi_operators import (
     _phi_operator,
     _sin_phi,
 )
+from scqubits.core.circuit_internals.input import example_circuit
 from scqubits.core.circuit_internals.matrix_helpers import (
     _cos_dia,
     _cos_dia_dense,
@@ -52,7 +53,6 @@ from scqubits.core.circuit_internals.sympy_helpers import (
     round_symbolic_expr,
 )
 from scqubits.core.circuit_internals.utils import (
-    example_circuit,
     get_trailing_number,
     truncation_template,
 )

@@ -47,6 +47,7 @@ __all__ = [
     "parse_code_line",
     "convert_value_to_GHz",
     "process_param",
+    "example_circuit",
 ]
 
 # *****************************************************************
@@ -421,3 +422,34 @@ def process_param(  # type: ignore[return]
                 else pattern[2 * idx + 1]
             )
         return aux_params
+
+
+_EXAMPLE_CIRCUITS_BY_QUBIT_NAME: dict[str, str] = {
+    "fluxonium": "nodes: 2\nbranches:\nJJ\t1,2\tEj\tEcj\nL\t1,2\tEl\nC\t1,2\tEc",
+    "transmon": "nodes: 2\nbranches:\nC\t1,2\tEc\nJJ\t1,2\tEj\tEcj\n",
+    "cos2phi": (
+        "nodes: 4\nbranches:\nC\t1,3\tEc\nJJ\t1,2\tEj\tEcj\n"
+        "JJ\t3, 4\tEj\tEcj\nL\t1,4\tEl\nL\t2,3\tEl\n\n"
+    ),
+    "zero_pi": (
+        "nodes: 4\nbranches:\nJJ\t1,2\tEj\tEcj\nL\t2,3\tEl\n"
+        "JJ\t3,4\tEj\tEcj\nL\t4,1\tEl\nC\t1,3\tEc\nC\t2,4\tEc\n"
+    ),
+}
+
+
+def example_circuit(qubit: str) -> str:
+    """Return an example YAML-style circuit-input string for a named qubit.
+
+    Used by tests and tutorials as a quick way to obtain a parseable
+    input string without having to type one out by hand.
+
+    Parameters
+    ----------
+    qubit:
+        one of ``"fluxonium"``, ``"transmon"``, ``"zero_pi"``,
+        ``"cos2phi"``.
+    """
+    if qubit in _EXAMPLE_CIRCUITS_BY_QUBIT_NAME:
+        return _EXAMPLE_CIRCUITS_BY_QUBIT_NAME[qubit]
+    raise AttributeError("Qubit not available or invalid input.")
