@@ -506,16 +506,16 @@ class SymbolicCircuitGraph(ABC):
     closure_branches: list[Branch | dict[Branch, float]]
     external_fluxes: list[Symbol]
 
-    def _own_branch(self, branch: Branch) -> Branch | None:
-        """Return the branch on ``self`` equal to ``branch`` (i.e. with the same ``.index``).
+    def _local_copy_of_branch(self, branch: Branch) -> Branch | None:
+        """Return ``self``'s branch matching ``branch`` (equal ``.index``), or ``None``.
 
         Lets the spanning-tree construction work on a deepcopy and then
-        remap results back to ``self``'s actual Branch objects.
+        remap results back to ``self``'s actual ``Branch`` objects.
         """
         return next((b for b in self.branches if b == branch), None)
 
-    def _own_node(self, node: Node) -> Node | None:
-        """Return the node on ``self`` equal to ``node`` (i.e. with the same ``.index``)."""
+    def _local_copy_of_node(self, node: Node) -> Node | None:
+        """Return ``self``'s node matching ``node`` (equal ``.index``), or ``None``."""
         return next((n for n in self.nodes if n == node), None)
 
     def _remap_spanning_tree_to_self(
@@ -534,16 +534,17 @@ class SymbolicCircuitGraph(ABC):
         """
         for tree_idx in range(len(list_of_trees)):
             list_of_trees[tree_idx] = [
-                self._own_branch(b) for b in list_of_trees[tree_idx]
+                self._local_copy_of_branch(b) for b in list_of_trees[tree_idx]
             ]
             loop_branches_for_trees[tree_idx] = [
-                self._own_branch(b) for b in loop_branches_for_trees[tree_idx]
+                self._local_copy_of_branch(b) for b in loop_branches_for_trees[tree_idx]
             ]
             closure_branches_for_trees[tree_idx] = [
-                self._own_branch(b) for b in closure_branches_for_trees[tree_idx]
+                self._local_copy_of_branch(b)
+                for b in closure_branches_for_trees[tree_idx]
             ]
             node_sets_for_trees[tree_idx] = [
-                [self._own_node(n) for n in node_set]
+                [self._local_copy_of_node(n) for n in node_set]
                 for node_set in node_sets_for_trees[tree_idx]
             ]
 

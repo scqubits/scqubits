@@ -121,6 +121,15 @@ _PROPERTY_SETTER_BY_TYPE: dict[PropertyUpdateType, str] = {
     "update_cutoffs": "_set_property_and_update_cutoffs",
 }
 
+# Lookup of bare-operator factories (functions that build a sparse matrix
+# given a basis size) keyed by the short operator-name used in the symbolic
+# variable categories. Periodic variables live in the charge basis.
+_PERIODIC_OP_FUNCS: dict[str, Callable[..., Any]] = {
+    "sin": _sin_theta,
+    "cos": _cos_theta,
+    "number": _n_theta_operator,
+}
+
 
 class CircuitRoutines(ABC):
     """Mixin/ABC providing shared routines for :class:`Circuit` and :class:`Subsystem`.
@@ -1778,22 +1787,22 @@ class CircuitRoutines(ABC):
     def _build_extended_operator_methods(self) -> dict[str, Callable]:
         """Dispatch to the basis-appropriate builder for extended-variable operators."""
         if self.hierarchical_diagonalization:
-            return self._extended_operators_hierarchical()
+            return self._build_extended_operators_hierarchical()
         if self.ext_basis == "discretized":
-            return self._extended_operators_discretized()
+            return self._build_extended_operators_discretized()
         if self.ext_basis == "harmonic":
             if self.is_purely_harmonic:
-                return self._extended_operators_purely_harmonic()
-            return self._extended_operators_harmonic()
+                return self._build_extended_operators_purely_harmonic()
+            return self._build_extended_operators_harmonic()
         return {}
 
     def _build_periodic_operator_methods(self) -> dict[str, Callable]:
         """Dispatch for periodic-variable operators."""
         if self.hierarchical_diagonalization:
-            return self._periodic_operators_hierarchical()
-        return self._periodic_operators_charge_basis()
+            return self._build_periodic_operators_hierarchical()
+        return self._build_periodic_operators_charge_basis()
 
-    def _extended_operators_hierarchical(self) -> dict[str, Callable]:
+    def _build_extended_operators_hierarchical(self) -> dict[str, Callable]:
         """Extended-variable operators when hierarchical diagonalization is active."""
         extended_vars = self.vars["extended"]
         return {
@@ -1803,7 +1812,7 @@ class CircuitRoutines(ABC):
             for sym_variable in extended_vars[var_type]
         }
 
-    def _extended_operators_discretized(self) -> dict[str, Callable]:
+    def _build_extended_operators_discretized(self) -> dict[str, Callable]:
         """Extended-variable operators in the discretized-phi basis."""
         nonwrapped_ops: dict[str, Callable[..., Any]] = {
             "position": _phi_operator,
@@ -1822,7 +1831,7 @@ class CircuitRoutines(ABC):
             for sym_variable in extended_vars[short_op_name]
         }
 
-    def _extended_operators_harmonic(self) -> dict[str, Callable]:
+    def _build_extended_operators_harmonic(self) -> dict[str, Callable]:
         """Extended-variable operators in the (non-purely-harmonic) harmonic basis."""
         self._set_harmonic_basis_osc_params()
         nonwrapped_ops: dict[str, Callable[..., Any]] = {
@@ -1844,7 +1853,7 @@ class CircuitRoutines(ABC):
                 )
         return operators
 
-    def _extended_operators_purely_harmonic(self) -> dict[str, Callable]:
+    def _build_extended_operators_purely_harmonic(self) -> dict[str, Callable]:
         """Extended-variable operators when the system is purely harmonic."""
         self._set_harmonic_basis_osc_params()
         extended_vars = self.vars["extended"]
@@ -1863,26 +1872,17 @@ class CircuitRoutines(ABC):
                 )
         return operators
 
-    @staticmethod
-    def _periodic_op_table() -> dict[str, Callable[..., Any]]:
-        """Return the (op-name -> bare-operator-function) table for periodic vars."""
-        return {
-            "sin": _sin_theta,
-            "cos": _cos_theta,
-            "number": _n_theta_operator,
-        }
-
-    def _periodic_operators_hierarchical(self) -> dict[str, Callable]:
+    def _build_periodic_operators_hierarchical(self) -> dict[str, Callable]:
         """Periodic-variable operators when hierarchical diagonalization is active."""
         periodic_vars = self.vars["periodic"]
         return {
             sym_variable.name
             + "_operator": hierarchical_diagonalization_func_factory(sym_variable.name)
-            for short_op_name in self._periodic_op_table()
+            for short_op_name in _PERIODIC_OP_FUNCS
             for sym_variable in periodic_vars[short_op_name]
         }
 
-    def _periodic_operators_charge_basis(self) -> dict[str, Callable]:
+    def _build_periodic_operators_charge_basis(self) -> dict[str, Callable]:
         """Periodic-variable operators in the charge basis."""
         periodic_vars = self.vars["periodic"]
         return {
@@ -1890,7 +1890,7 @@ class CircuitRoutines(ABC):
             + "_operator": operator_func_factory(
                 op_func, get_trailing_number(sym_variable.name)
             )
-            for short_op_name, op_func in self._periodic_op_table().items()
+            for short_op_name, op_func in _PERIODIC_OP_FUNCS.items()
             for sym_variable in periodic_vars[short_op_name]
         }
 
