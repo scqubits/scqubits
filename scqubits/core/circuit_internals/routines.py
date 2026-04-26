@@ -264,7 +264,7 @@ class CircuitRoutines(ABC):
             (normal-mode frequencies, eigenvectors and oscillator lengths).
         """
         if not self.is_purely_harmonic:
-            raise Exception("The Subsystem Hamiltonian is not purely harmonic.")
+            raise ValueError("The Subsystem Hamiltonian is not purely harmonic.")
         num_oscs = len(self.var_categories["extended"])
         # Construct capacitance and inductance matrices from the symbolic hamiltonian
         EC = np.zeros([num_oscs, num_oscs])
@@ -393,13 +393,13 @@ class CircuitRoutines(ABC):
             value to assign
         """
         if self._frozen and name in self._read_only_attributes:
-            raise Exception(
+            raise AttributeError(
                 f"{name} is a read only attribute. Please use configure method to change this property of Circuit/Subsystem instance."
             )
         if not self._frozen or name in dir(self):
             super().__setattr__(name, value)
         else:
-            raise Exception(f"Creating new attributes is disabled: [{name}, {value}].")
+            raise AttributeError(f"Creating new attributes is disabled: [{name}, {value}].")
 
     def __reduce__(self):
         """Custom ``__reduce__`` for pickling, also preserving dynamic properties."""
@@ -534,7 +534,7 @@ class CircuitRoutines(ABC):
             position of the modified subsystem in :attr:`subsystems`.
         """
         if not self.hierarchical_diagonalization:
-            raise Exception(f"{self} has no subsystems.")
+            raise RuntimeError(f"{self} has no subsystems.")
         if index not in self.affected_subsystem_indices:
             self.affected_subsystem_indices.append(index)
 
@@ -636,7 +636,7 @@ class CircuitRoutines(ABC):
     def _update_bare_esys(self):
         """Recompute bare eigensystems for affected subsystems and reset flags."""
         if not self.hierarchical_diagonalization:
-            raise Exception(
+            raise RuntimeError(
                 "Hierarchical diagonalization is not used in the current instance of Subsystem/Circuit."
             )
         _ = self.hilbert_space.generate_bare_esys(
@@ -853,7 +853,7 @@ class CircuitRoutines(ABC):
 
         for var_index in var_indices:
             if var_index not in self.var_categories["extended"]:
-                raise Exception(
+                raise ValueError(
                     f"Variable with index {var_index} is not an extended variable."
                 )
             self.discretized_phi_range[var_index] = phi_range
@@ -930,7 +930,7 @@ class CircuitRoutines(ABC):
                     # find the subsystem position of the parent system
                     subsystem_position += f"of subsystem {grandparent.get_subsystem_index(parent.dynamic_var_indices[0])} "
                     parent = grandparent
-                raise Exception(
+                raise ValueError(
                     f"The truncation index for {subsystem_position} exceeds the maximum"
                     f" size of {subsystem.hilbertdim() - 1}."
                 )
@@ -938,7 +938,7 @@ class CircuitRoutines(ABC):
                 isinstance(subsystem.truncated_dim, int)
                 and (subsystem.truncated_dim > 0)
             ):
-                raise Exception(
+                raise ValueError(
                     "Invalid value encountered in subsystem_trunc_dims. "
                     "Truncated dimension must be a positive integer."
                 )
@@ -1088,7 +1088,7 @@ class CircuitRoutines(ABC):
         for index, system_hierarchy in enumerate(self.system_hierarchy):
             if var_index in flatten_list_recursive(system_hierarchy):
                 return index
-        raise Exception(
+        raise ValueError(
             f"The var_index={var_index} could not be identified with any subsystem."
         )
 

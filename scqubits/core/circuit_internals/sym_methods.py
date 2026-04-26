@@ -515,7 +515,7 @@ class CircuitSymMethods(ABC):
             for sym in factor.free_symbols
         ]
         if len(set(index_subsystem)) > 1:
-            raise Exception(
+            raise ValueError(
                 "Sawtooth function terms must belong to the same subsystem."
             )
         operator = index_subsystem[0]._evaluate_matrix_sawtooth_terms(factor)
@@ -924,7 +924,7 @@ class CircuitSymMethods(ABC):
                     extra_sym not in self.hamiltonian_symbolic.free_symbols
                     and extra_sym not in free_var_symbols
                 ):
-                    raise Exception(f"{extra_sym.name} is unknown.")
+                    raise ValueError(f"{extra_sym.name} is unknown.")
         else:
             extra_terms_sym = 0
 
@@ -1230,7 +1230,7 @@ class CircuitSymMethods(ABC):
         """
         if subsystem_index is not None:
             if not self.hierarchical_diagonalization:
-                raise Exception(
+                raise RuntimeError(
                     "Hierarchical diagonalization was not enabled. Hence there "
                     "are no identified subsystems addressable by "
                     "subsystem_index."
@@ -1400,7 +1400,7 @@ class CircuitSymMethods(ABC):
         is rendered via LaTeX in IPython, plain-printed otherwise.
         """
         if not hasattr(self, "symbolic_circuit"):
-            raise Exception(
+            raise RuntimeError(
                 f"{self._id_str} instance is not generated from a SymbolicCircuit instance, and hence does not have any associated branches."
             )
         trans_mat = np.linalg.inv(self.transformation_matrix.T)

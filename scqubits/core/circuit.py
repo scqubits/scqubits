@@ -448,11 +448,11 @@ class Circuit(  # type: ignore[misc]
             esys_method_options=esys_method_options,
         )
         if symbolic_hamiltonian and input_string:
-            raise Exception(
+            raise ValueError(
                 "Circuit instance cannot be initialized with both input_string and a symbolic hamiltonian."
             )
         if not symbolic_hamiltonian and not input_string:
-            raise Exception(
+            raise ValueError(
                 "Circuit instance must be initialized with either input_string or a symbolic hamiltonian."
             )
         if input_string:
@@ -469,7 +469,7 @@ class Circuit(  # type: ignore[misc]
 
         elif symbolic_hamiltonian:
             if use_dynamic_flux_grouping or generate_noise_methods:
-                raise Exception(
+                raise ValueError(
                     "Circuit instance initialized using symbolic Hamiltonian cannot be configured with closure_branches, use_dynamic_flux_grouping, transformation_matrix or generate_noise_methods."
                 )
             self._from_symbolic_hamiltonian(
@@ -661,7 +661,7 @@ class Circuit(  # type: ignore[misc]
             initialization; by default ``False``.
         """
         if basis_completion not in ["heuristic", "canonical"]:
-            raise Exception(
+            raise ValueError(
                 "Invalid choice for basis_completion: must be 'heuristic' or "
                 "'canonical'."
             )
@@ -948,7 +948,7 @@ class Circuit(  # type: ignore[misc]
                     or use_dynamic_flux_grouping
                     or generate_noise_methods
                 ):
-                    raise Exception(
+                    raise ValueError(
                         "Circuit instance initialized using symbolic Hamiltonian cannot be configured with closure_branches, use_dynamic_flux_grouping, transformation_matrix or generate_noise_methods."
                     )
                 self._configure_sym_hamiltonian(
@@ -1133,7 +1133,7 @@ class Circuit(  # type: ignore[misc]
             self.operators_by_name = None
             self.system_hierarchy = system_hierarchy
             if subsystem_trunc_dims is None:
-                raise Exception(
+                raise ValueError(
                     "The truncated dimensions attribute for hierarchical "
                     "diagonalization is not set."
                 )
@@ -1294,7 +1294,7 @@ class Circuit(  # type: ignore[misc]
             self.operators_by_name = None
             self.system_hierarchy = system_hierarchy
             if subsystem_trunc_dims is None:
-                raise Exception(
+                raise ValueError(
                     "The truncated dimensions attribute for hierarchical "
                     "diagonalization is not set."
                 )
@@ -1320,7 +1320,7 @@ class Circuit(  # type: ignore[misc]
     def supported_noise_channels(self) -> list[str]:  # type: ignore[override]
         """Return a list of supported noise channels."""
         if not hasattr(self, "_noise_methods_generated"):
-            raise Exception(
+            raise RuntimeError(
                 "Noise methods are not generated, please use configure() with generate_noise_methods=True to generate them."
             )
         return [
@@ -1338,7 +1338,7 @@ class Circuit(  # type: ignore[misc]
         (effective) noise channels rather than per-branch contributions.
         """
         if not hasattr(self, "_noise_methods_generated"):
-            raise Exception(
+            raise RuntimeError(
                 "Noise methods are not generated, please use configure() with generate_noise_methods=True to generate them."
             )
         return [
@@ -1524,11 +1524,11 @@ class Circuit(  # type: ignore[misc]
         for subsystem_index in osc_index_list:
             subsystem = self.subsystems[subsystem_index]
             if not subsystem.is_purely_harmonic:
-                raise Exception(
+                raise ValueError(
                     f"the subsystem {subsystem_index} is not purely harmonic"
                 )
             elif len(subsystem.var_categories["extended"]) != 1:
-                raise Exception(
+                raise ValueError(
                     "the subsystem has more than one harmonic oscillator mode"
                 )
             else:
