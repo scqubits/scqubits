@@ -136,7 +136,7 @@ class CircuitPlot(ABC):
             ]
             wf_new_basis = wf_new_basis.reshape(flatten_list_recursive(wf_shape))
             for sub_subsys_index, sub_subsys in enumerate(subsystem.subsystems):
-                if len(set(relevant_indices) & set(sub_subsys.dynamic_var_indices)) > 0:
+                if set(relevant_indices) & set(sub_subsys.dynamic_var_indices):
                     wf_new_basis = self._recursive_basis_change(
                         wf_new_basis,
                         wf_dim + sub_subsys_index,
@@ -144,7 +144,7 @@ class CircuitPlot(ABC):
                         relevant_indices=relevant_indices,
                     )
         else:
-            if len(set(relevant_indices) & set(subsystem.dynamic_var_indices)) > 0:
+            if set(relevant_indices) & set(subsystem.dynamic_var_indices):
                 wf_shape = list(wf_new_basis.shape)
                 wf_shape[wf_dim] = [
                     (
@@ -526,21 +526,21 @@ class CircuitPlot(ABC):
             if not dims_to_be_summed:
                 return np.abs(wf_ext_basis)
             else:
-                raise AttributeError(
+                raise ValueError(
                     "Cannot plot the absolute value of the wave function in more than 2 dimensions."
                 )
         elif mode == "real":
             if not dims_to_be_summed:
                 return np.real(wf_ext_basis)
             else:
-                raise AttributeError(
+                raise ValueError(
                     "Cannot plot the real part of the wave function in more than 2 dimensions."
                 )
         elif mode == "imag":
             if not dims_to_be_summed:
                 return np.imag(wf_ext_basis)
             else:
-                raise AttributeError(
+                raise ValueError(
                     "Cannot plot the imaginary part of the wave function in more than 2 dimensions."
                 )
 
@@ -598,7 +598,7 @@ class CircuitPlot(ABC):
         ``(Figure, Axes)`` tuple for further editing.
         """
         if len(var_indices) > 2:
-            raise AttributeError(
+            raise ValueError(
                 "Cannot plot wave function in more than 2 dimensions. The number of "
                 "dimensions should be less than 2."
             )
@@ -879,7 +879,7 @@ class CircuitPlot(ABC):
             if isinstance(kwargs[var_name], (np.ndarray, int, float)):
                 parameters[var_name] = kwargs[var_name]
             else:
-                raise AttributeError(
+                raise TypeError(
                     "Only float, int or Numpy ndarray assignments are allowed."
                 )
 
@@ -888,7 +888,7 @@ class CircuitPlot(ABC):
             if val is not None:
                 continue
             if var_name in theta_keys:
-                raise AttributeError(var_name + " is not set.")
+                raise ValueError(var_name + " is not set.")
             parameters[var_name] = getattr(self, var_name)
 
         self._build_sweep_vars(kwargs, parameters)
@@ -928,7 +928,7 @@ class CircuitPlot(ABC):
         sweep_vars = self._build_sweep_vars(kwargs, parameters)
 
         if len(sweep_vars) > 2:
-            raise AttributeError(
+            raise ValueError(
                 "Cannot plot with a dimension greater than 3; Only give a maximum of "
                 "two grid inputs"
             )
@@ -940,9 +940,7 @@ class CircuitPlot(ABC):
         if len(sweep_vars) == 1:
             axes.plot(*(list(sweep_vars.values()) + [potential_energies]))
             axes.set_xlabel(
-                r"$\theta_{{{}}}$".format(
-                    get_trailing_number(list(sweep_vars.keys())[0])
-                )
+                r"$\theta_{{{}}}$".format(get_trailing_number(next(iter(sweep_vars))))
             )
             axes.set_ylabel("Potential energy in " + get_units())
 
@@ -950,9 +948,7 @@ class CircuitPlot(ABC):
             contourset = axes.contourf(
                 *(list(sweep_vars.values()) + [potential_energies])
             )
-            var_indices = [
-                get_trailing_number(var_name) for var_name in list(sweep_vars.keys())
-            ]
+            var_indices = [get_trailing_number(var_name) for var_name in sweep_vars]
             axes.set_xlabel(r"$\theta_{{{}}}$".format(var_indices[0]))
             axes.set_ylabel(r"$\theta_{{{}}}$".format(var_indices[1]))
             cbar = plt.colorbar(contourset, ax=axes)
