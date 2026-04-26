@@ -1270,7 +1270,7 @@ class CircuitRoutines(ABC):
             "cutoff_ext": [],
         }
 
-        for cutoff_type in cutoffs_dict.keys():
+        for cutoff_type in cutoffs_dict:
             attr_list = [x for x in self.cutoff_names if cutoff_type in x]
 
             if attr_list:
@@ -1283,7 +1283,7 @@ class CircuitRoutines(ABC):
         """Yield per-degree-of-freedom Hilbert-space dimensions for this instance."""
         if not self.hierarchical_diagonalization:
             cutoff_dict = self.get_cutoffs()
-            for cutoff_name in cutoff_dict.keys():
+            for cutoff_name in cutoff_dict:
                 for cutoff in cutoff_dict[cutoff_name]:
                     if "cutoff_n" in cutoff_name:
                         yield 2 * cutoff + 1

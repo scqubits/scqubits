@@ -610,7 +610,7 @@ class CircuitSymMethods(ABC):
             hamiltonian.coeff(f"θ{var_index}").subs(
                 [(f"θ{i}", 0) for i in self.var_categories["extended"]]
             )
-            for var_index in flux_shift_vars.keys()
+            for var_index in flux_shift_vars
         ]  # finding the coefficients of the linear terms
 
         A, b = sm.linear_eq_to_matrix(

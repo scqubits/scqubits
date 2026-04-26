@@ -185,7 +185,7 @@ class Subsystem(  # type: ignore[misc]
             ]
 
         self.cutoff_names: list[str] = []
-        for var_type in self.var_categories.keys():
+        for var_type in self.var_categories:
             if var_type == "periodic":
                 for var_index in self.var_categories["periodic"]:
                     self.cutoff_names.append(f"cutoff_n_{var_index}")
