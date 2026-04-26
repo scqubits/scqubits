@@ -480,6 +480,51 @@ class SymbolicCircuitGraph(ABC):
     closure_branches: list[Branch | dict[Branch, float]]
     external_fluxes: list[Symbol]
 
+    def _branch_from_self_by_index(self, branch: Branch) -> Branch | None:
+        """Return ``self``'s branch with the same ``.index`` as ``branch``, if any."""
+        for candidate in self.branches:
+            if candidate.index == branch.index:
+                return candidate
+        return None
+
+    def _node_from_self_by_index(self, node: Node) -> Node | None:
+        """Return ``self``'s node with the same ``.index`` as ``node``, if any."""
+        for candidate in self.nodes:
+            if candidate.index == node.index:
+                return candidate
+        return None
+
+    def _remap_spanning_tree_to_self(
+        self,
+        list_of_trees: list,
+        loop_branches_for_trees: list,
+        closure_branches_for_trees: list,
+        node_sets_for_trees: list,
+    ) -> None:
+        """Replace branches/nodes from a working circuit copy with their counterparts on ``self``.
+
+        The spanning-tree construction in ``_spanning_tree`` operates on a
+        ``copy.deepcopy(self)``; this helper walks the four output lists in
+        place and substitutes each branch / node with the matching one from
+        ``self`` (matched by ``.index``).
+        """
+        for tree_idx in range(len(list_of_trees)):
+            list_of_trees[tree_idx] = [
+                self._branch_from_self_by_index(b) for b in list_of_trees[tree_idx]
+            ]
+            loop_branches_for_trees[tree_idx] = [
+                self._branch_from_self_by_index(b)
+                for b in loop_branches_for_trees[tree_idx]
+            ]
+            closure_branches_for_trees[tree_idx] = [
+                self._branch_from_self_by_index(b)
+                for b in closure_branches_for_trees[tree_idx]
+            ]
+            node_sets_for_trees[tree_idx] = [
+                [self._node_from_self_by_index(n) for n in node_set]
+                for node_set in node_sets_for_trees[tree_idx]
+            ]
+
     @staticmethod
     def _remove_capacitive_branches(circ) -> None:
         """Drop every capacitor branch from ``circ`` and detach it from its nodes.
@@ -656,19 +701,6 @@ class SymbolicCircuitGraph(ABC):
         def connecting_branches(n1: Node, n2: Node):
             return [branch for branch in n1.branches if branch in n2.branches]
 
-        def is_same_branch(branch_1: Branch, branch_2: Branch):
-            return branch_1.index == branch_2.index
-
-        def fetch_same_branch_from_circ(branch: Branch, circ):
-            for b in circ.branches:
-                if is_same_branch(b, branch):
-                    return b
-
-        def fetch_same_node_from_circ(node: Node, circ):
-            for n in circ.nodes:
-                if n.index == node.index:
-                    return n
-
         list_of_trees = []
         for node_sets in node_sets_for_trees:  # type: ignore[assignment]
             tree = []  # tree having branches of the instance that is copied
@@ -700,23 +732,12 @@ class SymbolicCircuitGraph(ABC):
                     closure_branches_for_trees[tree_idx].append(branch)
             loop_branches_for_trees.append(loop_branches)
 
-        # get branches from the original circuit
-        for tree_idx, tree in enumerate(list_of_trees):
-            list_of_trees[tree_idx] = [
-                fetch_same_branch_from_circ(branch, self) for branch in tree
-            ]
-            loop_branches_for_trees[tree_idx] = [
-                fetch_same_branch_from_circ(branch, self)
-                for branch in loop_branches_for_trees[tree_idx]
-            ]
-            closure_branches_for_trees[tree_idx] = [
-                fetch_same_branch_from_circ(branch, self)
-                for branch in closure_branches_for_trees[tree_idx]
-            ]
-            node_sets_for_trees[tree_idx] = [
-                [fetch_same_node_from_circ(node, self) for node in node_set]
-                for node_set in node_sets_for_trees[tree_idx]
-            ]
+        self._remap_spanning_tree_to_self(
+            list_of_trees,
+            loop_branches_for_trees,
+            closure_branches_for_trees,
+            node_sets_for_trees,
+        )
 
         # if the closure branches are manually set, then the spanning tree would be all
         # the superconducting loop branches except the closure branches
