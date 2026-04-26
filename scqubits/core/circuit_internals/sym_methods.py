@@ -4,6 +4,7 @@ import functools
 import itertools
 import operator as builtin_op
 import re
+import warnings
 
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
@@ -1028,9 +1029,7 @@ class CircuitSymMethods(ABC):
         if not _HAS_IPYTHON:
             return self._id_str
         # Hamiltonian string
-        H_latex_str = (
-            "$H=" + sm.printing.latex(self.sym_hamiltonian(return_expr=True)) + "$"
-        )
+        H_latex_str = "$H=" + sm.printing.latex(self.sym_hamiltonian_expr()) + "$"
         # describe the variables
         cutoffs_dict = self.cutoffs_dict()
         var_str = "Operators (flux, charge) - cutoff: "
@@ -1148,20 +1147,13 @@ class CircuitSymMethods(ABC):
             expr_modified = expr_modified.replace(1.0 * ext_flux_var, ext_flux_var)
         return expr_modified
 
-    def sym_potential(
-        self, float_round: int = 6, print_latex: bool = False, return_expr: bool = False
-    ) -> sm.Expr | None:
-        """Method prints a user readable symbolic potential for the current instance.
+    def sym_potential_expr(self, float_round: int = 6) -> sm.Expr:
+        """Return the symbolic potential for the current instance.
 
         Parameters
         ----------
         float_round:
             Number of digits after the decimal to which floats are rounded
-        print_latex:
-            if set to True, the expression is additionally printed as LaTeX code
-        return_expr:
-                if set to True, all printing is suppressed and the function will silently
-                return the sympy expression
         """
         potential = self._make_expr_human_readable(
             self.potential_symbolic, float_round=float_round
@@ -1174,9 +1166,34 @@ class CircuitSymMethods(ABC):
                     "(2π" + "Φ_{" + str(get_trailing_number(str(external_flux))) + "})"
                 ),
             )
+        return potential
 
+    def sym_potential(
+        self, float_round: int = 6, print_latex: bool = False, return_expr: bool = False
+    ) -> sm.Expr | None:
+        """Method prints a user readable symbolic potential for the current instance.
+
+        Parameters
+        ----------
+        float_round:
+            Number of digits after the decimal to which floats are rounded
+        print_latex:
+            if set to True, the expression is additionally printed as LaTeX code
+        return_expr:
+            deprecated; use :meth:`sym_potential_expr` instead. If ``True``, a
+            ``DeprecationWarning`` is emitted and the sympy expression is
+            returned without printing.
+        """
         if return_expr:
-            return potential
+            warnings.warn(
+                "The `return_expr=True` flag is deprecated; "
+                "use `sym_potential_expr(...)` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return self.sym_potential_expr(float_round=float_round)
+
+        potential = self.sym_potential_expr(float_round=float_round)
         if print_latex:
             print(latex(potential))
         if _HAS_IPYTHON:
@@ -1206,14 +1223,12 @@ class CircuitSymMethods(ABC):
                 kinetic = sm.Add(kinetic, term)
         return kinetic
 
-    def sym_hamiltonian(
+    def sym_hamiltonian_expr(
         self,
         subsystem_index: int | None = None,
         float_round: int = 6,
-        print_latex: bool = False,
-        return_expr: bool = False,
-    ) -> sm.Expr | None:
-        """Prints a user readable symbolic Hamiltonian for the current instance.
+    ) -> sm.Expr:
+        """Return the symbolic Hamiltonian for the current instance.
 
         Parameters
         ----------
@@ -1222,11 +1237,6 @@ class CircuitSymMethods(ABC):
             returned.
         float_round:
             Number of digits after the decimal to which floats are rounded
-        print_latex:
-            if set to True, the expression is additionally printed as LaTeX code
-        return_expr:
-            if set to True, all printing is suppressed and the function will silently
-            return the sympy expression
         """
         if subsystem_index is not None:
             if not self.hierarchical_diagonalization:
@@ -1301,8 +1311,45 @@ class CircuitSymMethods(ABC):
             sym_hamiltonian = sm.Add(
                 sym_hamiltonian_KE, sym_hamiltonian_PE, evaluate=False
             )
+        return sym_hamiltonian
+
+    def sym_hamiltonian(
+        self,
+        subsystem_index: int | None = None,
+        float_round: int = 6,
+        print_latex: bool = False,
+        return_expr: bool = False,
+    ) -> sm.Expr | None:
+        """Prints a user readable symbolic Hamiltonian for the current instance.
+
+        Parameters
+        ----------
+        subsystem_index:
+            when set to an index, the Hamiltonian for the corresponding subsystem is
+            returned.
+        float_round:
+            Number of digits after the decimal to which floats are rounded
+        print_latex:
+            if set to True, the expression is additionally printed as LaTeX code
+        return_expr:
+            deprecated; use :meth:`sym_hamiltonian_expr` instead. If ``True``, a
+            ``DeprecationWarning`` is emitted and the sympy expression is
+            returned without printing.
+        """
         if return_expr:
-            return sym_hamiltonian
+            warnings.warn(
+                "The `return_expr=True` flag is deprecated; "
+                "use `sym_hamiltonian_expr(...)` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return self.sym_hamiltonian_expr(
+                subsystem_index=subsystem_index, float_round=float_round
+            )
+
+        sym_hamiltonian = self.sym_hamiltonian_expr(
+            subsystem_index=subsystem_index, float_round=float_round
+        )
         if print_latex:
             print(latex(sym_hamiltonian))
         if _HAS_IPYTHON:
@@ -1311,16 +1358,15 @@ class CircuitSymMethods(ABC):
             print(sym_hamiltonian)
         return None
 
-    def sym_interaction(
+    def sym_interaction_expr(
         self,
         subsystem_indices: tuple[int],
         float_round: int = 6,
-        print_latex: bool = False,
-        return_expr: bool = False,
-    ) -> sm.Expr | None:
-        """Print the interaction between any set of subsystems for the current instance.
-        It would print the interaction terms having operators from all the subsystems
-        mentioned in the tuple.
+    ) -> sm.Expr:
+        """Return the symbolic interaction between the given subsystems.
+
+        The returned expression collects interaction terms that have operators
+        from all of the subsystems listed in ``subsystem_indices``.
 
         Parameters
         ----------
@@ -1328,11 +1374,6 @@ class CircuitSymMethods(ABC):
             Tuple of subsystem indices
         float_round:
             Number of digits after the decimal to which floats are rounded
-        print_latex:
-            if set to True, the expression is additionally printed as LaTeX code
-        return_expr:
-            if set to True, all printing is suppressed and the function will silently
-            return the sympy expression
         """
         interaction = sm.symbols("x") * 0
         for subsys_index_pair in itertools.combinations(subsystem_indices, 2):
@@ -1368,8 +1409,46 @@ class CircuitSymMethods(ABC):
                     "(2π" + "Φ_{" + str(get_trailing_number(str(external_flux))) + "})"
                 ),
             )
+        return interaction
+
+    def sym_interaction(
+        self,
+        subsystem_indices: tuple[int],
+        float_round: int = 6,
+        print_latex: bool = False,
+        return_expr: bool = False,
+    ) -> sm.Expr | None:
+        """Print the interaction between any set of subsystems for the current instance.
+        It would print the interaction terms having operators from all the subsystems
+        mentioned in the tuple.
+
+        Parameters
+        ----------
+        subsystem_indices:
+            Tuple of subsystem indices
+        float_round:
+            Number of digits after the decimal to which floats are rounded
+        print_latex:
+            if set to True, the expression is additionally printed as LaTeX code
+        return_expr:
+            deprecated; use :meth:`sym_interaction_expr` instead. If ``True``, a
+            ``DeprecationWarning`` is emitted and the sympy expression is
+            returned without printing.
+        """
         if return_expr:
-            return interaction
+            warnings.warn(
+                "The `return_expr=True` flag is deprecated; "
+                "use `sym_interaction_expr(...)` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return self.sym_interaction_expr(
+                subsystem_indices=subsystem_indices, float_round=float_round
+            )
+
+        interaction = self.sym_interaction_expr(
+            subsystem_indices=subsystem_indices, float_round=float_round
+        )
         if print_latex:
             print(latex(interaction))
         if _HAS_IPYTHON:
