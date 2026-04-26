@@ -824,6 +824,38 @@ class CircuitPlot(ABC):
     # ****************************************************************
     # ************* Functions for plotting potential *****************
     # ****************************************************************
+    def _potential_parameter_template(self) -> dict:
+        """Return a None-valued dict keyed by every parameter the potential needs.
+
+        The keys are ``θ<index>`` for each extended/periodic variable, plus
+        the names of all external fluxes and symbolic parameters.
+        """
+        var_categories = (
+            self.var_categories["extended"] + self.var_categories["periodic"]
+        )
+        return dict.fromkeys(
+            [f"θ{index}" for index in var_categories]
+            + [var.name for var in self.external_fluxes]
+            + [var.name for var in self.symbolic_params]
+        )
+
+    @staticmethod
+    def _build_sweep_vars(kwargs: dict, parameters: dict) -> dict:
+        """Collect the ``ndarray``-valued entries of ``kwargs`` into a sweep dict.
+
+        When more than one is present, meshgrid them and write the resulting
+        broadcast arrays back into ``parameters``. Returns the (post-mesh)
+        sweep dict.
+        """
+        sweep_vars = {
+            name: val for name, val in kwargs.items() if isinstance(val, np.ndarray)
+        }
+        if len(sweep_vars) > 1:
+            sweep_vars.update(zip(sweep_vars, np.meshgrid(*list(sweep_vars.values()))))
+            for var_name in sweep_vars:
+                parameters[var_name] = sweep_vars[var_name]
+        return sweep_vars
+
     def potential_energy(self, **kwargs) -> ndarray:
         r"""Return the circuit potential evaluated on a user-specified grid.
 
@@ -836,56 +868,30 @@ class CircuitPlot(ABC):
         θ<index>:
             value(s) for variable :math:`\theta_i` in the potential
         """
-        periodic_indices = self.var_categories["periodic"]
-        discretized_ext_indices = self.var_categories["extended"]
-        var_categories = discretized_ext_indices + periodic_indices
-
         # substituting the parameters
         potential_sym = self.potential_symbolic.subs("I", 1)
         for ext_flux in self.external_fluxes:
             potential_sym = potential_sym.subs(ext_flux, ext_flux * 2 * np.pi)
 
-        # constructing the grids
-        parameters = dict.fromkeys(
-            [f"θ{index}" for index in var_categories]
-            + [var.name for var in self.external_fluxes]
-            + [var.name for var in self.symbolic_params]
-        )
+        parameters = self._potential_parameter_template()
 
         for var_name in kwargs:
-            if isinstance(kwargs[var_name], np.ndarray):
-                parameters[var_name] = kwargs[var_name]
-            elif isinstance(kwargs[var_name], (int, float)):
+            if isinstance(kwargs[var_name], (np.ndarray, int, float)):
                 parameters[var_name] = kwargs[var_name]
             else:
                 raise AttributeError(
                     "Only float, int or Numpy ndarray assignments are allowed."
                 )
 
-        for var_name in parameters.keys():
-            if parameters[var_name] is None:
-                if var_name in [
-                    var.name
-                    for var in list(self.symbolic_params.keys()) + self.external_fluxes
-                ]:
-                    parameters[var_name] = getattr(self, var_name)
-                elif var_name in [f"θ{index}" for index in var_categories]:
-                    raise AttributeError(var_name + " is not set.")
+        theta_keys = [k for k in parameters if k.startswith("θ") and k[1:].isdigit()]
+        for var_name, val in parameters.items():
+            if val is not None:
+                continue
+            if var_name in theta_keys:
+                raise AttributeError(var_name + " is not set.")
+            parameters[var_name] = getattr(self, var_name)
 
-        # creating a meshgrid for multiple dimensions
-        sweep_vars = {}
-        for var_name in kwargs:
-            if isinstance(kwargs[var_name], np.ndarray):
-                sweep_vars[var_name] = kwargs[var_name]
-        if len(sweep_vars) > 1:
-            sweep_vars.update(
-                zip(
-                    sweep_vars,
-                    np.meshgrid(*[grid for grid in sweep_vars.values()]),
-                )
-            )
-            for var_name in sweep_vars:
-                parameters[var_name] = sweep_vars[var_name]
+        self._build_sweep_vars(kwargs, parameters)
 
         potential_func = sm.lambdify(
             parameters.keys(), potential_sym, [{"saw": sawtooth_potential}, "numpy"]
@@ -910,33 +916,16 @@ class CircuitPlot(ABC):
         ``(Figure, Axes)`` tuple for further editing.
         """
 
-        periodic_indices = self.var_categories["periodic"]
-        discretized_ext_indices = self.var_categories["extended"]
-        var_categories = discretized_ext_indices + periodic_indices
-
-        # constructing the grids
-        parameters = dict.fromkeys(
-            [f"θ{index}" for index in var_categories]
-            + [var.name for var in self.external_fluxes]
-            + [var.name for var in self.symbolic_params]
-        )
+        parameters = self._potential_parameter_template()
 
         # filtering the plotting options
-        plot_kwargs = {}
-        list_of_keys = list(kwargs.keys())
-        for key in list_of_keys:
-            if key not in parameters:
-                plot_kwargs[key] = kwargs[key]
-                del kwargs[key]
+        plot_kwargs = {
+            key: kwargs[key] for key in list(kwargs) if key not in parameters
+        }
+        for key in plot_kwargs:
+            del kwargs[key]
 
-        sweep_vars = {}
-        for var_name in kwargs:
-            if isinstance(kwargs[var_name], np.ndarray):
-                sweep_vars[var_name] = kwargs[var_name]
-        if len(sweep_vars) > 1:
-            sweep_vars.update(zip(sweep_vars, np.meshgrid(*list(sweep_vars.values()))))
-            for var_name in sweep_vars:
-                parameters[var_name] = sweep_vars[var_name]
+        sweep_vars = self._build_sweep_vars(kwargs, parameters)
 
         if len(sweep_vars) > 2:
             raise AttributeError(
