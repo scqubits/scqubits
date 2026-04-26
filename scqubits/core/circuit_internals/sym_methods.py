@@ -209,7 +209,7 @@ class CircuitSymMethods(ABC):
             extended_charge_variable_index,
             phase_variable_index,
         ) = self._find_and_categorize_variable_indices(hamiltonian)
-        if len(periodic_charge_variable_index) > 0:
+        if periodic_charge_variable_index:
             return False
         # if the hamiltonian has any DoF where only its charge or flux operator is present, return False
         if extended_charge_variable_index != phase_variable_index:
@@ -322,7 +322,7 @@ class CircuitSymMethods(ABC):
             interaction_sym.append(H_int)
             hamiltonian -= H_sys + H_int
 
-        if len(constants) > 0:
+        if constants:
             systems_sym[0] += sum(constants)
 
         return systems_sym, interaction_sym
@@ -1034,7 +1034,7 @@ class CircuitSymMethods(ABC):
         # describe the variables
         cutoffs_dict = self.cutoffs_dict()
         var_str = "Operators (flux, charge) - cutoff: "
-        if len(self.var_categories["periodic"]) > 0:
+        if self.var_categories["periodic"]:
             var_str += "  \n Discrete Charge Basis:  "
             for var_index in self.var_categories["periodic"]:
                 var_str += (

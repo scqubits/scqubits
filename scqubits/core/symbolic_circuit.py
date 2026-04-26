@@ -158,7 +158,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
 
     def _is_any_branch_parameter_symbolic(self) -> bool:
         """Return ``True`` if any branch parameter is symbolic."""
-        return True if len(self.symbolic_params) > 0 else False
+        return True if self.symbolic_params else False
 
     @staticmethod
     def _gram_schmidt(initial_vecs: ndarray, metric: ndarray) -> ndarray:
@@ -1082,7 +1082,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
             potential_θ = potential_θ.subs(symbols(f"φ{index + 1}"), φ_vars_θ[index])
 
         # eliminating the frozen variables
-        if len(self.var_categories["frozen"]) > 0:
+        if self.var_categories["frozen"]:
             frozen_eom_list = []
             for frozen_var_index in self.var_categories["frozen"]:
                 frozen_eom_list.append(

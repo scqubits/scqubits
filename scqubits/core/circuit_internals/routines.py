@@ -399,7 +399,9 @@ class CircuitRoutines(ABC):
         if not self._frozen or name in dir(self):
             super().__setattr__(name, value)
         else:
-            raise AttributeError(f"Creating new attributes is disabled: [{name}, {value}].")
+            raise AttributeError(
+                f"Creating new attributes is disabled: [{name}, {value}]."
+            )
 
     def __reduce__(self):
         """Custom ``__reduce__`` for pickling, also preserving dynamic properties."""
@@ -1271,7 +1273,7 @@ class CircuitRoutines(ABC):
         for cutoff_type in cutoffs_dict.keys():
             attr_list = [x for x in self.cutoff_names if cutoff_type in x]
 
-            if len(attr_list) > 0:
+            if attr_list:
                 attr_list.sort()
                 cutoffs_dict[cutoff_type] = [getattr(self, attr) for attr in attr_list]
 
@@ -1547,7 +1549,7 @@ class CircuitRoutines(ABC):
 
             # removing any constant terms
             for term in cos_argument_expr.as_ordered_terms():
-                if len(term.free_symbols) == 0:
+                if not term.free_symbols:
                     cos_argument_expr -= term
                     coefficient *= np.exp(float(term) * 1j)
 

@@ -291,14 +291,14 @@ class CircuitPlot(ABC):
             return self.dynamic_var_indices.index(var_index)
         for subsys in self.subsystems:
             intersection = list_intersection(subsys.dynamic_var_indices, wf_var_indices)
-            if len(intersection) > 0 and var_index not in intersection:
+            if intersection and var_index not in intersection:
                 if subsys.hierarchical_diagonalization:
                     wf_dim += subsys._get_var_dim_for_reshaped_wf(
                         wf_var_indices, var_index
                     )
                 else:
                     wf_dim += len(subsys.dynamic_var_indices)
-            elif len(intersection) > 0 and var_index in intersection:
+            elif intersection and var_index in intersection:
                 if subsys.hierarchical_diagonalization:
                     wf_dim += subsys._get_var_dim_for_reshaped_wf(
                         wf_var_indices, var_index
@@ -523,21 +523,21 @@ class CircuitPlot(ABC):
             )
             return wf_plot
         if mode == "abs":
-            if len(dims_to_be_summed) == 0:
+            if not dims_to_be_summed:
                 return np.abs(wf_ext_basis)
             else:
                 raise AttributeError(
                     "Cannot plot the absolute value of the wave function in more than 2 dimensions."
                 )
         elif mode == "real":
-            if len(dims_to_be_summed) == 0:
+            if not dims_to_be_summed:
                 return np.real(wf_ext_basis)
             else:
                 raise AttributeError(
                     "Cannot plot the real part of the wave function in more than 2 dimensions."
                 )
         elif mode == "imag":
-            if len(dims_to_be_summed) == 0:
+            if not dims_to_be_summed:
                 return np.imag(wf_ext_basis)
             else:
                 raise AttributeError(
