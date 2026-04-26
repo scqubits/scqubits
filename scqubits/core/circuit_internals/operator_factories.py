@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem
 
 
-def grid_operator_func_factory(inner_op: Callable, index: int) -> Callable:
+def make_grid_operator_method(inner_op: Callable, index: int) -> Callable:
     """Build an operator method for a discretized-grid variable.
 
     Wraps ``inner_op`` so that, when called as a method on a
@@ -64,7 +64,7 @@ def grid_operator_func_factory(inner_op: Callable, index: int) -> Callable:
     return operator_func
 
 
-def hierarchical_diagonalization_func_factory(symbol_name: str) -> Callable:
+def make_hd_lookup_method(symbol_name: str) -> Callable:
     """Build an operator method for a hierarchically diagonalized variable.
 
     The returned method retrieves the operator with name ``symbol_name`` from
@@ -111,7 +111,7 @@ def hierarchical_diagonalization_func_factory(symbol_name: str) -> Callable:
     return operator_func
 
 
-def operator_func_factory(
+def make_basis_operator_method(
     inner_op: Callable, index: int, op_type: str | None = None
 ) -> Callable:
     """Build an operator method for periodic or harmonic-basis variables.

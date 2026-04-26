@@ -712,12 +712,12 @@ class CircuitSymMethods(ABC):
 
     def _render_term_harmonic(self, term: sm.Expr) -> str:
         """Harmonic-basis rendering: ``X**n`` -> ``matrix_power(X, n)`` and ``*`` -> ``@``."""
-        term_string = self._rewrite_power_calls_harmonic(str(term))
+        term_string = self._rewrite_powers_as_matrix_power(str(term))
         if len(term.free_symbols) > 1:
             term_string = re.sub(r"(?<=[^*])\*(?!\*)", "@", term_string, re.MULTILINE)
         return term_string
 
-    def _rewrite_power_calls_harmonic(self, term_string: str) -> str:
+    def _rewrite_powers_as_matrix_power(self, term_string: str) -> str:
         """Rewrite ``X**n`` to ``matrix_power(X,n)`` for extended-variable operators."""
         if "**" not in term_string:
             return term_string

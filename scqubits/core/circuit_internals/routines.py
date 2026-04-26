@@ -66,9 +66,9 @@ from scqubits.core.circuit_internals.matrix_helpers import (
     matrix_power_sparse,
 )
 from scqubits.core.circuit_internals.operator_factories import (
-    grid_operator_func_factory,
-    hierarchical_diagonalization_func_factory,
-    operator_func_factory,
+    make_grid_operator_method,
+    make_hd_lookup_method,
+    make_basis_operator_method,
 )
 from scqubits.core.circuit_internals.sawtooth import sawtooth_potential
 from scqubits.core.circuit_internals.sympy_helpers import (
@@ -1687,7 +1687,7 @@ class CircuitRoutines(ABC):
         self.osc_lengths = osc_lengths
         self.osc_freqs = osc_freqs
 
-    def _purely_harmonic_operator_func_factory(self, operator_name: str):
+    def _make_purely_harmonic_operator_method(self, operator_name: str):
         """Build the operator method ``<operator_name>_operator`` for a harmonic system.
 
         Parameters
@@ -1806,8 +1806,7 @@ class CircuitRoutines(ABC):
         """Extended-variable operators when hierarchical diagonalization is active."""
         extended_vars = self.vars["extended"]
         return {
-            sym_variable.name
-            + "_operator": hierarchical_diagonalization_func_factory(sym_variable.name)
+            sym_variable.name + "_operator": make_hd_lookup_method(sym_variable.name)
             for var_type in extended_vars
             for sym_variable in extended_vars[var_type]
         }
@@ -1824,7 +1823,7 @@ class CircuitRoutines(ABC):
         extended_vars = self.vars["extended"]
         return {
             sym_variable.name
-            + "_operator": grid_operator_func_factory(
+            + "_operator": make_grid_operator_method(
                 op_func, int(get_trailing_number(sym_variable.name))
             )
             for short_op_name, op_func in nonwrapped_ops.items()
@@ -1848,7 +1847,7 @@ class CircuitRoutines(ABC):
         for list_idx, var_index in enumerate(self.var_categories["extended"]):
             for short_op_name, op_func in nonwrapped_ops.items():
                 sym_variable = extended_vars[short_op_name][list_idx]
-                operators[sym_variable.name + "_operator"] = operator_func_factory(
+                operators[sym_variable.name + "_operator"] = make_basis_operator_method(
                     op_func, var_index, op_type=short_op_name
                 )
         return operators
@@ -1868,7 +1867,7 @@ class CircuitRoutines(ABC):
             ):
                 sym_variable = extended_vars[short_op_name][list_idx]
                 operators[sym_variable.name + "_operator"] = (
-                    self._purely_harmonic_operator_func_factory(sym_variable.name)
+                    self._make_purely_harmonic_operator_method(sym_variable.name)
                 )
         return operators
 
@@ -1876,8 +1875,7 @@ class CircuitRoutines(ABC):
         """Periodic-variable operators when hierarchical diagonalization is active."""
         periodic_vars = self.vars["periodic"]
         return {
-            sym_variable.name
-            + "_operator": hierarchical_diagonalization_func_factory(sym_variable.name)
+            sym_variable.name + "_operator": make_hd_lookup_method(sym_variable.name)
             for short_op_name in _PERIODIC_OP_FUNCS
             for sym_variable in periodic_vars[short_op_name]
         }
@@ -1887,7 +1885,7 @@ class CircuitRoutines(ABC):
         periodic_vars = self.vars["periodic"]
         return {
             sym_variable.name
-            + "_operator": operator_func_factory(
+            + "_operator": make_basis_operator_method(
                 op_func, get_trailing_number(sym_variable.name)
             )
             for short_op_name, op_func in _PERIODIC_OP_FUNCS.items()

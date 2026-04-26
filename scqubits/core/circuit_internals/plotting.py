@@ -102,12 +102,12 @@ class CircuitPlot(ABC):
     # ****************************************************************
     # ************* Cutoff accessors (used by both wf and potential) *
     # ****************************************************************
-    def _cutoff_n(self, var_index: int) -> int:
-        """Return the charge-basis cutoff ``cutoff_n_<var_index>``."""
+    def _charge_cutoff(self, var_index: int) -> int:
+        """Return the periodic-variable cutoff ``cutoff_n_<var_index>`` in the charge basis."""
         return getattr(self, f"cutoff_n_{var_index}")
 
-    def _cutoff_ext(self, var_index: int) -> int:
-        """Return the extended-basis cutoff ``cutoff_ext_<var_index>``."""
+    def _extended_cutoff(self, var_index: int) -> int:
+        """Return the extended-variable cutoff ``cutoff_ext_<var_index>``."""
         return getattr(self, f"cutoff_ext_{var_index}")
 
     @staticmethod
@@ -217,7 +217,7 @@ class CircuitPlot(ABC):
                     grid_n.make_linspace(),
                     abs(self.get_osc_param(var_index, which_param="length")),
                 )
-                for n in range(self._cutoff_ext(var_index))
+                for n in range(self._extended_cutoff(var_index))
             ]
         )
         wf_sublist = [idx for idx, _ in enumerate(wf_original_basis.shape)]
@@ -257,7 +257,7 @@ class CircuitPlot(ABC):
                     grid_phi.make_linspace(),
                     abs(self.get_osc_param(var_index, which_param="length")),
                 )
-                for n in range(self._cutoff_ext(var_index))
+                for n in range(self._extended_cutoff(var_index))
             ]
         )
         wf_sublist = [idx for idx, _ in enumerate(wf_original_basis.shape)]
@@ -294,8 +294,8 @@ class CircuitPlot(ABC):
             [
                 np.exp(n * grid_phi.make_linspace() * 1j)
                 for n in range(
-                    -self._cutoff_n(var_index),
-                    self._cutoff_n(var_index) + 1,
+                    -self._charge_cutoff(var_index),
+                    self._charge_cutoff(var_index) + 1,
                 )
             ]
         )
@@ -715,7 +715,7 @@ class CircuitPlot(ABC):
             if not change_discrete_charge_to_phi and (
                 var_indices[index_order] in self.var_categories["periodic"]
             ):
-                cutoff_n = self._cutoff_n(var_indices[index_order])
+                cutoff_n = self._charge_cutoff(var_indices[index_order])
                 grids.append([-cutoff_n, cutoff_n, 2 * cutoff_n + 1])
                 labels.append(r"$n_{{{}}}$".format(str(var_indices[index_order])))
             else:
@@ -743,11 +743,15 @@ class CircuitPlot(ABC):
         if not change_discrete_charge_to_phi:
             if var_indices[0] in self.var_categories["periodic"]:
                 self._set_charge_axis_locator(
-                    axes.yaxis, self._cutoff_n(var_indices[0]), max_visible_cutoff=6
+                    axes.yaxis,
+                    self._charge_cutoff(var_indices[0]),
+                    max_visible_cutoff=6,
                 )
             if var_indices[1] in self.var_categories["periodic"]:
                 self._set_charge_axis_locator(
-                    axes.xaxis, self._cutoff_n(var_indices[1]), max_visible_cutoff=15
+                    axes.xaxis,
+                    self._charge_cutoff(var_indices[1]),
+                    max_visible_cutoff=15,
                 )
 
         return fig, axes
@@ -797,7 +801,7 @@ class CircuitPlot(ABC):
                 **defaults.wavefunction1d_discrete("abs_sqr"),
                 **kwargs,
             }
-            cutoff_n = self._cutoff_n(var_index)
+            cutoff_n = self._charge_cutoff(var_index)
             wavefunc.basis_labels = np.arange(-cutoff_n, cutoff_n + 1)
             fig, axes = plot.wavefunction1d_discrete(wavefunc, **kwargs)
             # changing the tick frequency for axes
