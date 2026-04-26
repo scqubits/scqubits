@@ -67,7 +67,7 @@ from scqubits.core.circuit_internals.matrix_helpers import (
 )
 from scqubits.core.circuit_internals.operator_factories import (
     make_grid_operator_method,
-    make_hd_lookup_method,
+    make_hierarchical_diag_method,
     make_basis_operator_method,
 )
 from scqubits.core.circuit_internals.sawtooth import sawtooth_potential
@@ -1574,7 +1574,8 @@ class CircuitRoutines(SubsystemTreeMixin, ABC):
         """Extended-variable operators when hierarchical diagonalization is active."""
         extended_vars = self.vars["extended"]
         return {
-            sym_variable.name + "_operator": make_hd_lookup_method(sym_variable.name)
+            sym_variable.name
+            + "_operator": make_hierarchical_diag_method(sym_variable.name)
             for var_type in extended_vars
             for sym_variable in extended_vars[var_type]
         }
@@ -1643,7 +1644,8 @@ class CircuitRoutines(SubsystemTreeMixin, ABC):
         """Periodic-variable operators when hierarchical diagonalization is active."""
         periodic_vars = self.vars["periodic"]
         return {
-            sym_variable.name + "_operator": make_hd_lookup_method(sym_variable.name)
+            sym_variable.name
+            + "_operator": make_hierarchical_diag_method(sym_variable.name)
             for short_op_name in _PERIODIC_OP_FUNCS
             for sym_variable in periodic_vars[short_op_name]
         }

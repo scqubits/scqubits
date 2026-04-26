@@ -615,7 +615,11 @@ class SymbolicCircuitGraph(ABC):
         """
         node_sets_for_trees: list[list[list[Node]]] = []
         if circ.is_grounded:
-            assert circ.ground_node is not None  # is_grounded => ground_node set
+            if circ.ground_node is None:
+                raise ValueError(
+                    "Inconsistent circuit state: is_grounded=True but "
+                    "ground_node is None."
+                )
             initial_layer: list[Node] = [circ.ground_node]
         else:
             initial_layer = [circ.nodes[0]]

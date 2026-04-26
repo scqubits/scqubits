@@ -64,7 +64,7 @@ def make_grid_operator_method(inner_op: Callable, index: int) -> Callable:
     return operator_func
 
 
-def make_hd_lookup_method(symbol_name: str) -> Callable:
+def make_hierarchical_diag_method(symbol_name: str) -> Callable:
     """Build an operator method for a hierarchically diagonalized variable.
 
     The returned method retrieves the operator with name ``symbol_name`` from
