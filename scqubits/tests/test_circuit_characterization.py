@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import os
 import warnings
+
 from pathlib import Path
 
 import numpy as np
@@ -118,6 +119,7 @@ CIRCUIT_BUILDERS = {
 # Golden helpers
 # ----------------------------------------------------------------------
 
+
 def _golden_path(name: str, kind: str) -> Path:
     return GOLDENS_DIR / f"{name}__{kind}.npy"
 
@@ -162,6 +164,7 @@ def _check_or_save(name: str, kind: str, value: np.ndarray, *, rtol: float):
 # Numerical golden tests
 # ----------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("name", list(CIRCUIT_BUILDERS))
 def test_hamiltonian_unchanged(name):
     """The numerical Hamiltonian matches the committed golden."""
@@ -191,6 +194,7 @@ def test_eigenvals_unchanged(name):
 # Lifecycle / dispatch tests
 # ----------------------------------------------------------------------
 
+
 class TestParameterDispatch:
     """Mutating a parameter must invalidate cached state and update eigenvals.
 
@@ -206,9 +210,9 @@ class TestParameterDispatch:
         evals_at_03 = qubit.eigenvals(evals_count=4).copy()
         qubit.Φ1 = 0.5
         evals_at_05 = qubit.eigenvals(evals_count=4)
-        assert not np.allclose(evals_at_03, evals_at_05), (
-            "external-flux mutation did not invalidate cached eigenvals"
-        )
+        assert not np.allclose(
+            evals_at_03, evals_at_05
+        ), "external-flux mutation did not invalidate cached eigenvals"
 
     def test_param_mutation_changes_hamiltonian(self):
         with warnings.catch_warnings():
@@ -217,9 +221,9 @@ class TestParameterDispatch:
         H_at_15 = _hamiltonian_array(qubit).copy()
         qubit.EJ = 25.0
         H_at_25 = _hamiltonian_array(qubit)
-        assert not np.allclose(H_at_15, H_at_25), (
-            "EJ mutation did not invalidate cached Hamiltonian"
-        )
+        assert not np.allclose(
+            H_at_15, H_at_25
+        ), "EJ mutation did not invalidate cached Hamiltonian"
 
     def test_cutoff_mutation_changes_hilbertdim(self):
         with warnings.catch_warnings():
@@ -228,9 +232,9 @@ class TestParameterDispatch:
         dim_before = qubit.hilbertdim()
         qubit.cutoff_n_1 = 30
         dim_after = qubit.hilbertdim()
-        assert dim_after != dim_before, (
-            "cutoff mutation did not change Hilbert dimension"
-        )
+        assert (
+            dim_after != dim_before
+        ), "cutoff mutation did not change Hilbert dimension"
 
     def test_hd_parent_cutoff_propagates_to_owning_subsystem(self):
         """Mutating a parent cutoff updates the cutoff on the subsystem that
@@ -244,9 +248,9 @@ class TestParameterDispatch:
         assert owning.cutoff_ext_2 == qubit.cutoff_ext_2
         new_cutoff = qubit.cutoff_ext_2 * 2
         qubit.cutoff_ext_2 = new_cutoff
-        assert owning.cutoff_ext_2 == new_cutoff, (
-            "parent cutoff_ext_2 mutation did not reach the owning subsystem"
-        )
+        assert (
+            owning.cutoff_ext_2 == new_cutoff
+        ), "parent cutoff_ext_2 mutation did not reach the owning subsystem"
 
     def test_hd_parent_flux_propagates_to_owning_subsystems(self):
         """Mutating a parent external flux updates the same flux attribute on
@@ -260,14 +264,15 @@ class TestParameterDispatch:
         flux_name = qubit.external_fluxes[0].name
         # only subsystems whose own external_fluxes include this flux carry it
         carriers = [
-            s for s in qubit.subsystems
+            s
+            for s in qubit.subsystems
             if any(f.name == flux_name for f in s.external_fluxes)
         ]
-        assert carriers, (
-            "fixture invariant broken: no subsystem carries the parent flux"
-        )
+        assert (
+            carriers
+        ), "fixture invariant broken: no subsystem carries the parent flux"
         setattr(qubit, flux_name, 0.42)
         for subsys in carriers:
-            assert getattr(subsys, flux_name) == 0.42, (
-                f"subsystem {subsys} did not receive parent's {flux_name} update"
-            )
+            assert (
+                getattr(subsys, flux_name) == 0.42
+            ), f"subsystem {subsys} did not receive parent's {flux_name} update"
