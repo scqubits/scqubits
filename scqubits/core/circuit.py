@@ -1449,26 +1449,13 @@ class Circuit(  # type: ignore[misc]
         else:
             print(var_eqns)
 
-    def sym_lagrangian(
-        self,
-        vars_type: str = "node",
-        print_latex: bool = False,
-        return_expr: bool = False,
-    ) -> sm.Expr | None:
-        """Return or print a user-readable symbolic Lagrangian.
-
-        Provides a Lagrangian for the current instance, in either node-variable
-        or new-variable form.
+    def sym_lagrangian_expr(self, vars_type: str = "node") -> sm.Expr:
+        """Return the symbolic Lagrangian for the current instance.
 
         Parameters
         ----------
         vars_type:
-            "node" or "new", fixes the kind of lagrangian requested, by default "node"
-        print_latex:
-            if set to True, the expression is additionally printed as LaTeX code
-        return_expr:
-            if set to True, all printing is suppressed and the function will silently
-            return the sympy expression
+            ``"node"`` or ``"new"``, fixes the kind of Lagrangian requested.
         """
         if vars_type == "node":
             lagrangian = self.lagrangian_node_vars  # type: ignore[attr-defined]
@@ -1480,8 +1467,6 @@ class Circuit(  # type: ignore[misc]
                     sm.symbols(f"vφ{var_index}"),
                     sm.symbols("\\dot{φ_" + str(var_index) + "}"),
                 )
-            # break down the lagrangian into kinetic and potential part, and rejoin
-            # with evaluate=False to force the kinetic terms together and appear first
             sym_lagrangian_PE_node_vars = self.potential_node_vars  # type: ignore[attr-defined]
             for external_flux in self.external_fluxes:
                 sym_lagrangian_PE_node_vars = sym_lagrangian_PE_node_vars.replace(
@@ -1493,22 +1478,19 @@ class Circuit(  # type: ignore[misc]
                         + "})"
                     ),
                 )
-            lagrangian = sm.Add(
+            return sm.Add(
                 (self._make_expr_human_readable(lagrangian + self.potential_node_vars)),  # type: ignore[attr-defined]
                 (self._make_expr_human_readable(-sym_lagrangian_PE_node_vars)),
                 evaluate=False,
             )
 
-        elif vars_type == "new":
+        if vars_type == "new":
             lagrangian = self.lagrangian_symbolic  # type: ignore[attr-defined]
-            # replace v\theta with \theta_dot
             for var_index in self.dynamic_var_indices:
                 lagrangian = lagrangian.replace(
                     sm.symbols(f"vθ{var_index}"),
                     sm.symbols("\\dot{θ_" + str(var_index) + "}"),
                 )
-            # break down the lagrangian into kinetic and potential part, and rejoin
-            # with evaluate=False to force the kinetic terms together and appear first
             sym_lagrangian_PE_new = self.potential_symbolic.expand()
             for external_flux in self.external_fluxes:
                 sym_lagrangian_PE_new = sym_lagrangian_PE_new.replace(
@@ -1520,7 +1502,7 @@ class Circuit(  # type: ignore[misc]
                         + "})"
                     ),
                 )
-            lagrangian = sm.Add(
+            return sm.Add(
                 (
                     self._make_expr_human_readable(
                         lagrangian + self.potential_symbolic.expand()
@@ -1529,8 +1511,38 @@ class Circuit(  # type: ignore[misc]
                 (self._make_expr_human_readable(-sym_lagrangian_PE_new)),
                 evaluate=False,
             )
+
+        raise ValueError(f"vars_type must be 'node' or 'new', got {vars_type!r}")
+
+    def sym_lagrangian(
+        self,
+        vars_type: str = "node",
+        print_latex: bool = False,
+        return_expr: bool = False,
+    ) -> sm.Expr | None:
+        """Print a user-readable symbolic Lagrangian for the current instance.
+
+        Parameters
+        ----------
+        vars_type:
+            ``"node"`` or ``"new"``, fixes the kind of Lagrangian requested.
+        print_latex:
+            if ``True``, also print the LaTeX source.
+        return_expr:
+            deprecated; use :meth:`sym_lagrangian_expr` instead. When ``True``,
+            a ``DeprecationWarning`` is emitted and the sympy expression is
+            returned without printing.
+        """
         if return_expr:
-            return lagrangian
+            warnings.warn(
+                "The `return_expr=True` flag is deprecated; "
+                "use `sym_lagrangian_expr(...)` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return self.sym_lagrangian_expr(vars_type=vars_type)
+
+        lagrangian = self.sym_lagrangian_expr(vars_type=vars_type)
         if print_latex:
             print(latex(lagrangian))
         if _HAS_IPYTHON:
