@@ -480,6 +480,52 @@ class SymbolicCircuitGraph(ABC):
     closure_branches: list[Branch | dict[Branch, float]]
     external_fluxes: list[Symbol]
 
+    @staticmethod
+    def _remove_capacitive_branches(circ) -> None:
+        """Drop every capacitor branch from ``circ`` and detach it from its nodes.
+
+        Mutates ``circ`` in place. Used by ``_spanning_tree`` when
+        capacitive loops are NOT being considered, so the spanning-tree
+        construction sees only inductive / Josephson branches.
+        """
+        capacitive = [b for b in list(circ.branches) if b.type == "C"]
+        for c_branch in capacitive:
+            for node in c_branch.nodes:
+                node.branches = [b for b in node.branches if b is not c_branch]
+            circ.branches.remove(c_branch)
+
+    @staticmethod
+    def _prune_floating_nodes(circ) -> None:
+        """Iteratively remove nodes (and their unique branch, if any) that aren't part of a loop.
+
+        A node with zero branches is dropped outright. A node with exactly
+        one branch is a leaf of the graph: its branch can't appear in any
+        loop, so the node-and-branch pair is removed and the neighbour's
+        branch list is updated. Repeats until no floating nodes remain.
+
+        Mutates ``circ`` in place.
+        """
+        while True:
+            num_float_nodes = 0
+            for node in list(circ.nodes):
+                if not node.branches:
+                    circ.nodes.remove(node)
+                    num_float_nodes += 1
+                    continue
+                if len(node.branches) == 1:
+                    leaf_branch = node.branches[0]
+                    circ.branches.remove(leaf_branch)
+                    for neighbour in leaf_branch.nodes:
+                        if neighbour is not node:
+                            neighbour.branches = [
+                                b for b in neighbour.branches if b is not leaf_branch
+                            ]
+                            num_float_nodes += 1
+                        else:
+                            circ.nodes.remove(node)
+            if num_float_nodes == 0:
+                break
+
     def _spanning_tree(
         self,
         consider_capacitive_loops: bool = False,
@@ -536,47 +582,11 @@ class SymbolicCircuitGraph(ABC):
         if circ_copy.ground_node:
             circ_copy.nodes.remove(circ_copy.ground_node)
 
-        # **************** removing all the capacitive branches and updating the nodes *
-        # identifying capacitive branches
-        branches_to_be_removed = []
         if not consider_capacitive_loops:
-            branches_to_be_removed = [
-                branch for branch in list(circ_copy.branches) if branch.type == "C"
-            ]
-        for c_branch in branches_to_be_removed:
-            for (
-                node
-            ) in (
-                c_branch.nodes
-            ):  # updating the branches attribute for each node that this branch
-                # connects
-                node.branches = [b for b in node.branches if b is not c_branch]
-            circ_copy.branches.remove(c_branch)  # removing the branch
+            self._remove_capacitive_branches(circ_copy)
+        self._prune_floating_nodes(circ_copy)
 
-        num_float_nodes = 1
-        while num_float_nodes > 0:  # breaks when no floating nodes are detected
-            num_float_nodes = 0  # setting
-            for node in circ_copy.nodes:
-                if len(node.branches) == 0:
-                    circ_copy.nodes.remove(node)
-                    num_float_nodes += 1
-                    continue
-                if len(node.branches) == 1:
-                    branches_connected_to_node = node.branches[0]
-                    circ_copy.branches.remove(branches_connected_to_node)
-                    for new_node in branches_connected_to_node.nodes:
-                        if new_node != node:
-                            new_node.branches = [
-                                i
-                                for i in new_node.branches
-                                if i is not branches_connected_to_node
-                            ]
-                            num_float_nodes += 1
-                            continue
-                        else:
-                            circ_copy.nodes.remove(node)
-
-        if circ_copy.nodes == []:
+        if not circ_copy.nodes:
             return {
                 "list_of_trees": [],
                 "loop_branches_for_trees": [],
