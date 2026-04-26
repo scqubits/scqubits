@@ -1506,6 +1506,64 @@ class CircuitRoutines(ABC):
 
         return saw_potential_matrix
 
+    @staticmethod
+    def _extract_trig_argument(term: sm.Expr) -> sm.Expr:
+        """Return the inner expression of the ``cos``/``sin`` factor in ``term``.
+
+        ``term`` is expected to be a single product (one summand of an ordered
+        sum) that contains exactly one ``cos`` or ``sin`` factor.  The leading
+        ``1.0 *`` ensures sympy splits a bare ``cos(...)`` into a product so
+        ``.args`` always yields the trig factor as one of its arguments.
+        """
+        return [
+            arg.args[0]
+            for arg in (1.0 * term).args
+            if arg.has(sm.cos) or arg.has(sm.sin)
+        ][0]
+
+    @staticmethod
+    def _term_is_cos(term: sm.Expr) -> bool:
+        """Return ``True`` when ``term`` contains a ``cos`` factor."""
+        return any(arg.has(sm.cos) for arg in (1.0 * term).args)
+
+    @staticmethod
+    def _term_is_sin(term: sm.Expr) -> bool:
+        """Return ``True`` when ``term`` contains a ``sin`` factor."""
+        return any(arg.has(sm.sin) for arg in (1.0 * term).args)
+
+    @staticmethod
+    def _assemble_cos_term(op: qt.Qobj) -> qt.Qobj:
+        """Build ``cos`` from the matrix exponential ``op = exp(i * arg)``."""
+        return (op + op.dag()) * 0.5
+
+    @staticmethod
+    def _assemble_sin_term(op: qt.Qobj) -> qt.Qobj:
+        """Build ``sin`` from the matrix exponential ``op = exp(i * arg)``."""
+        return (op - op.dag()) * 0.5 * (-1j)
+
+    def _build_cos_argument_operator_list(
+        self,
+        cos_argument_expr: sm.Expr,
+        var_indices: list[int],
+        bare_esys: dict[int, tuple] | None,
+    ) -> list[qt.Qobj]:
+        """Build per-variable ``exp(i * prefactor * var)`` operators for the trig argument."""
+        operator_list = []
+        for idx, var_symbol in enumerate(cos_argument_expr.free_symbols):
+            prefactor = float(cos_argument_expr.coeff(var_symbol))
+            child_circuit = self.return_root_child(var_indices[idx])
+            operator_bare = child_circuit._kron_operator(
+                self.exp_i_operator(var_symbol, prefactor), var_indices[idx]
+            )
+            operator_list.append(
+                self.identity_wrap_for_hd(
+                    operator_bare,
+                    child_circuit,
+                    bare_esys=bare_esys,
+                )
+            )
+        return operator_list
+
     def _evaluate_matrix_cosine_terms(
         self, junction_potential: sm.Expr, bare_esys: dict[int, tuple] | None = None
     ) -> qt.Qobj:
@@ -1534,51 +1592,33 @@ class CircuitRoutines(ABC):
         ):
             return junction_potential_matrix
 
-        for cos_term in junction_potential.as_ordered_terms():
-            coefficient = float(list(cos_term.as_coefficients_dict().values())[0])
-            cos_argument_expr = [
-                arg.args[0]
-                for arg in (1.0 * cos_term).args
-                if (arg.has(sm.cos) or arg.has(sm.sin))
-            ][0]
+        for term in junction_potential.as_ordered_terms():
+            coefficient = float(list(term.as_coefficients_dict().values())[0])
+            cos_argument_expr = self._extract_trig_argument(term)
 
             var_indices = [
                 get_trailing_number(var_symbol.name)
                 for var_symbol in cos_argument_expr.free_symbols
             ]
 
-            # removing any constant terms
-            for term in cos_argument_expr.as_ordered_terms():
-                if not term.free_symbols:
-                    cos_argument_expr -= term
-                    coefficient *= np.exp(float(term) * 1j)
+            # strip constant offsets from the trig argument and absorb the
+            # resulting global phase into the term's coefficient
+            for summand in cos_argument_expr.as_ordered_terms():
+                if not summand.free_symbols:
+                    cos_argument_expr -= summand
+                    coefficient *= np.exp(float(summand) * 1j)
 
-            operator_list = []
-            for idx, var_symbol in enumerate(cos_argument_expr.free_symbols):
-                prefactor = float(cos_argument_expr.coeff(var_symbol))
-                child_circuit = self.return_root_child(var_indices[idx])
-                operator_bare = child_circuit._kron_operator(
-                    self.exp_i_operator(var_symbol, prefactor), var_indices[idx]
-                )
-                operator_list.append(
-                    self.identity_wrap_for_hd(
-                        operator_bare,
-                        child_circuit,
-                        bare_esys=bare_esys,
-                    )
-                )
-            cos_term_operator = coefficient * functools.reduce(
+            operator_list = self._build_cos_argument_operator_list(
+                cos_argument_expr, var_indices, bare_esys
+            )
+            term_operator = coefficient * functools.reduce(
                 builtin_op.mul,
                 operator_list,
             )
-            if any([arg.has(sm.cos) for arg in (1.0 * cos_term).args]):
-                junction_potential_matrix += (
-                    cos_term_operator + cos_term_operator.dag()
-                ) * 0.5
-            elif any([arg.has(sm.sin) for arg in (1.0 * cos_term).args]):
-                junction_potential_matrix += (
-                    (cos_term_operator - cos_term_operator.dag()) * 0.5 * (-1j)
-                )
+            if self._term_is_cos(term):
+                junction_potential_matrix += self._assemble_cos_term(term_operator)
+            elif self._term_is_sin(term):
+                junction_potential_matrix += self._assemble_sin_term(term_operator)
         return junction_potential_matrix
 
     def _set_harmonic_basis_osc_params(self, hamiltonian: sm.Expr | None = None):
