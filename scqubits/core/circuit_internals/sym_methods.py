@@ -676,13 +676,12 @@ class CircuitSymMethods(ABC):
             & set([get_trailing_number(str(i)) for i in term.free_symbols])
         ) and "*" in str(term)
 
-    def _replace_mat_mul_operator(self, term: sm.Expr):
+    def _replace_mat_mul_operator(self, term: sm.Expr) -> str:
         """Render `term` as a string using matrix-multiplication semantics.
 
-        For the discretized basis, ``*`` between charge operators is rewritten
-        as ``@``. For the harmonic basis, ``X**n`` on extended-variable
-        operators becomes ``matrix_power(X, n)`` and remaining inter-operator
-        ``*`` becomes ``@``.
+        Dispatches to the per-basis renderer (``discretized`` or ``harmonic``)
+        if matrix-multiplication replacement is needed; otherwise returns
+        ``str(term)`` unchanged.
 
         Parameters
         ----------
@@ -691,45 +690,46 @@ class CircuitSymMethods(ABC):
         """
         if not self._is_mat_mul_replacement_necessary(term):
             return str(term)
-
         if self.ext_basis == "discretized":
-            term_string = str(term)
-            term_var_categories = [
-                get_trailing_number(str(i)) for i in term.free_symbols
-            ]
-            if len(set(term_var_categories) & set(self.var_categories["extended"])) > 1:
-                if all(["Q" in var.name for var in term.free_symbols]):
-                    term_string = str(term).replace(
-                        "*", "@"
-                    )  # replacing all the * with @
+            return self._render_term_discretized(term)
+        if self.ext_basis == "harmonic":
+            return self._render_term_harmonic(term)
+        return str(term)
 
-        elif self.ext_basis == "harmonic":
-            # replace ** with np.matrix_power
-            if "**" in str(term):
-                operators = [
-                    match.replace("**", "")
-                    for match in re.findall(r"[^*]+\*{2}", str(term), re.MULTILINE)
-                ]
-                exponents = re.findall(r"(?<=\*{2})\d", str(term), re.MULTILINE)
+    def _render_term_discretized(self, term: sm.Expr) -> str:
+        """Discretized-basis rendering: replace ``*`` with ``@`` between Q operators."""
+        term_var_categories = [get_trailing_number(str(i)) for i in term.free_symbols]
+        multiple_extended = (
+            len(set(term_var_categories) & set(self.var_categories["extended"])) > 1
+        )
+        all_charge = all("Q" in var.name for var in term.free_symbols)
+        if multiple_extended and all_charge:
+            return str(term).replace("*", "@")
+        return str(term)
 
-                new_string_list = []
-                for idx, operator in enumerate(operators):
-                    if get_trailing_number(operator) in self.var_categories["extended"]:
-                        new_string_list.append(
-                            f"matrix_power({operator},{exponents[idx]})"
-                        )
-                    else:
-                        new_string_list.append(operator + "**" + exponents[idx])
-                term_string = "*".join(new_string_list)
-            else:
-                term_string = str(term)
-
-            # replace * with @ in the entire term
-            if len(term.free_symbols) > 1:
-                term_string = re.sub(
-                    r"(?<=[^*])\*(?!\*)", "@", term_string, re.MULTILINE
-                )
+    def _render_term_harmonic(self, term: sm.Expr) -> str:
+        """Harmonic-basis rendering: ``X**n`` -> ``matrix_power(X, n)`` and ``*`` -> ``@``."""
+        term_string = self._rewrite_power_calls_harmonic(str(term))
+        if len(term.free_symbols) > 1:
+            term_string = re.sub(r"(?<=[^*])\*(?!\*)", "@", term_string, re.MULTILINE)
         return term_string
+
+    def _rewrite_power_calls_harmonic(self, term_string: str) -> str:
+        """Rewrite ``X**n`` to ``matrix_power(X,n)`` for extended-variable operators."""
+        if "**" not in term_string:
+            return term_string
+        operators = [
+            match.replace("**", "")
+            for match in re.findall(r"[^*]+\*{2}", term_string, re.MULTILINE)
+        ]
+        exponents = re.findall(r"(?<=\*{2})\d", term_string, re.MULTILINE)
+        parts = []
+        for op, exp in zip(operators, exponents):
+            if get_trailing_number(op) in self.var_categories["extended"]:
+                parts.append(f"matrix_power({op},{exp})")
+            else:
+                parts.append(f"{op}**{exp}")
+        return "*".join(parts)
 
     def _generate_hamiltonian_sym_for_numerics(
         self,
