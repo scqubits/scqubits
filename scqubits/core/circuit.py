@@ -16,7 +16,7 @@ import re
 import warnings
 
 from collections.abc import Callable
-from typing import Any, get_type_hints
+from typing import Any, Literal, get_type_hints
 
 import numpy as np
 import sympy as sm
@@ -50,6 +50,28 @@ from scqubits.utils.misc import (
     is_string_float,
     number_of_lists_in_list,
 )
+
+# Default cutoff for the charge (``n``) basis used for periodic variables.
+# The basis spans ``n = -DEFAULT_PERIODIC_CUTOFF, ..., DEFAULT_PERIODIC_CUTOFF``.
+DEFAULT_PERIODIC_CUTOFF = 5
+
+# Default cutoff for the discretized-phi or harmonic-oscillator basis used
+# for extended variables (number of grid points / oscillator levels).
+DEFAULT_EXTENDED_CUTOFF = 30
+
+# Default half-range of the discretized-phi grid for an extended variable.
+# The grid spans ``(-DISCRETIZED_PHI_HALF_RANGE, +DISCRETIZED_PHI_HALF_RANGE)``.
+DISCRETIZED_PHI_HALF_RANGE = 6 * np.pi
+
+# Number of grid points used by the default phi grid (for plotting / fallback).
+DEFAULT_PLOTTING_PHI_GRID_POINTS = 200
+
+
+# Type alias for the ``ext_basis`` argument passed to single-variable contexts.
+# ``Circuit.configure`` and ``Circuit._configure[_sym_hamiltonian]`` accept a
+# nested-list form for hierarchical-diagonalization configuration; that's
+# typed separately as ``str | list[str] | None`` at those call sites.
+ExtBasisChoice = Literal["discretized", "harmonic"]
 
 
 class ConfigureError(RuntimeError):
@@ -136,7 +158,7 @@ class Subsystem(  # type: ignore[misc]
         self,
         parent: "Subsystem",
         hamiltonian_symbolic: sm.Expr,
-        ext_basis: str | list,
+        ext_basis: ExtBasisChoice | list,
         system_hierarchy: list | None = None,
         subsystem_trunc_dims: list | None = None,
         truncated_dim: int = 10,
@@ -425,7 +447,7 @@ class Circuit(  # type: ignore[misc]
         input_string: str | None = None,
         from_file: bool = True,
         basis_completion: str = "heuristic",
-        ext_basis: str = "discretized",
+        ext_basis: ExtBasisChoice = "discretized",
         use_dynamic_flux_grouping: bool = False,
         generate_noise_methods: bool = False,
         initiate_sym_calc: bool = True,
@@ -486,7 +508,7 @@ class Circuit(  # type: ignore[misc]
         path: str,
         *,
         basis_completion: str = "heuristic",
-        ext_basis: str = "discretized",
+        ext_basis: ExtBasisChoice = "discretized",
         use_dynamic_flux_grouping: bool = False,
         generate_noise_methods: bool = False,
         initiate_sym_calc: bool = True,
@@ -522,7 +544,7 @@ class Circuit(  # type: ignore[misc]
         yaml_string: str,
         *,
         basis_completion: str = "heuristic",
-        ext_basis: str = "discretized",
+        ext_basis: ExtBasisChoice = "discretized",
         use_dynamic_flux_grouping: bool = False,
         generate_noise_methods: bool = False,
         initiate_sym_calc: bool = True,
@@ -557,7 +579,7 @@ class Circuit(  # type: ignore[misc]
         symbolic_param_dict: dict[str, float],
         initiate_sym_calc: bool,
         truncated_dim: int,
-        ext_basis: str,
+        ext_basis: ExtBasisChoice,
     ):
         """Initialize the :class:`Circuit` instance from a symbolic Hamiltonian.
 
@@ -599,7 +621,9 @@ class Circuit(  # type: ignore[misc]
 
         # setting default grids for plotting
         self._default_grid_phi: discretization.Grid1d = discretization.Grid1d(
-            -6 * np.pi, 6 * np.pi, 200
+            -DISCRETIZED_PHI_HALF_RANGE,
+            DISCRETIZED_PHI_HALF_RANGE,
+            DEFAULT_PLOTTING_PHI_GRID_POINTS,
         )
 
         self.type_of_matrices: str = (
@@ -619,7 +643,7 @@ class Circuit(  # type: ignore[misc]
         input_string: str,
         from_file: bool = True,
         basis_completion: str = "heuristic",
-        ext_basis: str = "discretized",
+        ext_basis: ExtBasisChoice = "discretized",
         use_dynamic_flux_grouping: bool = False,
         generate_noise_methods: bool = False,
         initiate_sym_calc: bool = True,
@@ -688,7 +712,11 @@ class Circuit(  # type: ignore[misc]
         self.cutoff_names = []
 
         # setting default grids for plotting
-        self._default_grid_phi = discretization.Grid1d(-6 * np.pi, 6 * np.pi, 200)
+        self._default_grid_phi = discretization.Grid1d(
+            -DISCRETIZED_PHI_HALF_RANGE,
+            DISCRETIZED_PHI_HALF_RANGE,
+            DEFAULT_PLOTTING_PHI_GRID_POINTS,
+        )
 
         self.type_of_matrices = (
             "sparse"  # type of matrices used to construct the operators
@@ -757,11 +785,15 @@ class Circuit(  # type: ignore[misc]
         self.cutoff_names = []
         for var_index in self.var_categories.get("periodic", []):
             if not hasattr(self, f"_cutoff_n_{var_index}"):
-                self._make_property(f"cutoff_n_{var_index}", 5, "update_cutoffs")
+                self._make_property(
+                    f"cutoff_n_{var_index}", DEFAULT_PERIODIC_CUTOFF, "update_cutoffs"
+                )
             self.cutoff_names.append(f"cutoff_n_{var_index}")
         for var_index in self.var_categories.get("extended", []):
             if not hasattr(self, f"_cutoff_ext_{var_index}"):
-                self._make_property(f"cutoff_ext_{var_index}", 30, "update_cutoffs")
+                self._make_property(
+                    f"cutoff_ext_{var_index}", DEFAULT_EXTENDED_CUTOFF, "update_cutoffs"
+                )
             self.cutoff_names.append(f"cutoff_ext_{var_index}")
 
         self.dynamic_var_indices = (
@@ -775,7 +807,10 @@ class Circuit(  # type: ignore[misc]
                 )
         for var_index in self.var_categories["extended"]:
             if var_index not in self.discretized_phi_range:
-                self.discretized_phi_range[var_index] = (-6 * np.pi, 6 * np.pi)
+                self.discretized_phi_range[var_index] = (
+                    -DISCRETIZED_PHI_HALF_RANGE,
+                    DISCRETIZED_PHI_HALF_RANGE,
+                )
         for flux in self.external_fluxes:
             if not hasattr(self, flux.name):
                 self._make_property(flux.name, 0.0, "update_external_flux_or_charge")
@@ -855,7 +890,7 @@ class Circuit(  # type: ignore[misc]
         system_hierarchy: list | None = None,
         subsystem_trunc_dims: list | None = None,
         closure_branches: list[Branch | dict[Branch, float]] | None = None,
-        ext_basis: str | list[str] | None = None,
+        ext_basis: ExtBasisChoice | list[str] | None = None,
         use_dynamic_flux_grouping: bool | None = None,
         generate_noise_methods: bool = False,
         subsys_dict: dict[str, Any] | None = None,
@@ -1042,7 +1077,7 @@ class Circuit(  # type: ignore[misc]
         system_hierarchy: list | None = None,
         subsystem_trunc_dims: list | None = None,
         subsys_dict: dict[str, Any] | None = None,
-        ext_basis: str | list[str] | None = None,
+        ext_basis: ExtBasisChoice | list[str] | None = None,
     ):
         """Re-initialize a symbolic-Hamiltonian circuit's hierarchical settings.
 
@@ -1163,7 +1198,7 @@ class Circuit(  # type: ignore[misc]
         system_hierarchy: list | None = None,
         subsystem_trunc_dims: list | None = None,
         closure_branches: list[Branch | dict[Branch, float]] | None = None,
-        ext_basis: str | list[str] | None = None,
+        ext_basis: ExtBasisChoice | list[str] | None = None,
         use_dynamic_flux_grouping: bool | None = None,
         subsys_dict: dict[str, Any] | None = None,
         generate_noise_methods: bool = False,

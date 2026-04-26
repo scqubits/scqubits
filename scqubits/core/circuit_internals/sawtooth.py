@@ -21,12 +21,21 @@ import scipy as sp
 from numpy import ndarray
 from scipy.sparse import csc_matrix
 
+# Skewness ``s`` of the sawtooth current-phase relationship. Values close to
+# 1 produce a sharp sawtooth shape; ``0.99`` is the original parameter from
+# Andras's definition.
+SAWTOOTH_SKEWNESS = 0.99
+
+# Number of terms retained in the Fourier-series truncation.
+SAWTOOTH_FOURIER_TERMS = 1000
+
 
 def sawtooth_potential(phi_pts: ndarray):
     """Return the sawtooth-junction potential evaluated at ``phi_pts``.
 
     The potential is computed from a truncated Fourier series with skewness
-    parameter :math:`s=0.99` and ``N=1000`` terms:
+    parameter :data:`SAWTOOTH_SKEWNESS` and :data:`SAWTOOTH_FOURIER_TERMS`
+    terms:
     :math:`V(\\varphi) = -\\sum_{k=1}^{N} (s+1)(-s)^{k-1}
     \\cos(k\\varphi)/k^2`.
 
@@ -35,12 +44,10 @@ def sawtooth_potential(phi_pts: ndarray):
     phi_pts:
         phase values at which the potential is evaluated
     """
-    # definition from Andras
-    skewness = 0.99
-    N = 1000
+    s = SAWTOOTH_SKEWNESS
     V = np.zeros_like(phi_pts)
-    for idx in range(1, N + 1):
-        V += (skewness + 1) * (-skewness) ** (idx - 1) * np.cos(idx * phi_pts) / idx**2
+    for idx in range(1, SAWTOOTH_FOURIER_TERMS + 1):
+        V += (s + 1) * (-s) ** (idx - 1) * np.cos(idx * phi_pts) / idx**2
     return -V
 
 
