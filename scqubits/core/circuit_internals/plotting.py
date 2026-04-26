@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem
@@ -43,7 +43,9 @@ class CircuitPlot(ABC):
     # mixin's references to them without affecting runtime behavior.
     if TYPE_CHECKING:
         dynamic_var_indices: list[int]
-        var_categories: dict[str, list[int]]
+        var_categories: dict[
+            Literal["periodic", "extended", "free", "frozen", "sigma"], list[int]
+        ]
         cutoff_names: list[str]
         ext_basis: str
         hierarchical_diagonalization: bool

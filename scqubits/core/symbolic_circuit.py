@@ -16,7 +16,7 @@ import itertools
 import warnings
 
 from itertools import chain
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import scipy as sp
@@ -117,7 +117,9 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         # attributes set by methods
         self.transformation_matrix: ndarray
 
-        self.var_categories: dict[str, list[int]] = {}
+        self.var_categories: dict[
+            Literal["periodic", "extended", "free", "frozen", "sigma"], list[int]
+        ] = {}
         self.external_fluxes: list[Symbol] = []
         self.closure_branches: list[Branch | dict[Branch, float]] = []
 

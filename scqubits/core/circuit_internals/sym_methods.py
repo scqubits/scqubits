@@ -7,7 +7,7 @@ import re
 import warnings
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from numpy import ndarray
@@ -62,7 +62,9 @@ class CircuitSymMethods(ABC):
     offset_charges: list[Any]
     free_charges: list[Any]
     symbolic_params: dict[Any, Any]
-    var_categories: dict[str, list[int]]
+    var_categories: dict[
+        Literal["periodic", "extended", "free", "frozen", "sigma"], list[int]
+    ]
     dynamic_var_indices: list[int]
     hierarchical_diagonalization: bool
     ext_basis: Any

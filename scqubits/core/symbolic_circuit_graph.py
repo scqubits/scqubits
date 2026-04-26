@@ -6,7 +6,7 @@ import warnings
 
 from abc import ABC
 from itertools import chain
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import pyparsing as pp
@@ -1343,7 +1343,7 @@ class SymbolicCircuitGraph(ABC):
 
     def check_transformation_matrix(
         self, transformation_matrix: ndarray, enable_warnings: bool = True
-    ) -> dict[str, list[int]]:
+    ) -> dict[Literal["periodic", "extended", "free", "frozen", "sigma"], list[int]]:
         """Identify the different modes in a user-provided transformation matrix.
 
         Parameters
@@ -1405,7 +1405,9 @@ class SymbolicCircuitGraph(ABC):
             if not self._mode_in_subspace(m, modes):
                 modes.append(m)
 
-        var_categories_circuit: dict[str, list] = {
+        var_categories_circuit: dict[
+            Literal["periodic", "extended", "free", "frozen", "sigma"], list
+        ] = {
             "periodic": [],
             "extended": [],
             "free": [],
@@ -1436,7 +1438,9 @@ class SymbolicCircuitGraph(ABC):
 
         user_given_modes = transformation_matrix.transpose()
 
-        var_categories_user: dict[str, list] = {
+        var_categories_user: dict[
+            Literal["periodic", "extended", "free", "frozen", "sigma"], list
+        ] = {
             "periodic": [],
             "extended": [],
             "free": [],
@@ -1468,7 +1472,12 @@ class SymbolicCircuitGraph(ABC):
 
         # comparing the modes in the user defined and the code generated transformation
 
-        mode_types = ["periodic", "extended", "free", "frozen"]
+        mode_types: list[Literal["periodic", "extended", "free", "frozen", "sigma"]] = [
+            "periodic",
+            "extended",
+            "free",
+            "frozen",
+        ]
 
         for mode_type in mode_types:
             num_extra_modes = len(var_categories_circuit[mode_type]) - len(
@@ -1489,7 +1498,12 @@ class SymbolicCircuitGraph(ABC):
 
         return var_categories_user
 
-    def variable_transformation_matrix(self) -> tuple[ndarray, dict[str, list[int]]]:
+    def variable_transformation_matrix(
+        self,
+    ) -> tuple[
+        ndarray,
+        dict[Literal["periodic", "extended", "free", "frozen", "sigma"], list[int]],
+    ]:
         """Construct the variable transformation matrix and variable categories.
 
         Evaluates the boundary conditions and builds the node-to-new-variable
@@ -1622,7 +1636,9 @@ class SymbolicCircuitGraph(ABC):
         new_basis = new_basis[pos_list].T  # type: ignore[call-overload]
 
         # saving the variable identification to a dict
-        var_categories = {
+        var_categories: dict[
+            Literal["periodic", "extended", "free", "frozen", "sigma"], list[int]
+        ] = {
             "periodic": [
                 i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_periodic
             ],

@@ -73,6 +73,10 @@ DEFAULT_PLOTTING_PHI_GRID_POINTS = 200
 # typed separately as ``str | list[str] | None`` at those call sites.
 ExtBasisChoice = Literal["discretized", "harmonic"]
 
+# Type alias for the keys of ``var_categories``: how each variable index is
+# classified once the symbolic circuit's coordinate transformation is fixed.
+VarCategoryKey = Literal["periodic", "extended", "free", "frozen", "sigma"]
+
 
 # Sentinel: caller did not pass ``from_file`` explicitly.
 _FROM_FILE_UNSET: Any = object()
@@ -135,7 +139,7 @@ class Subsystem(  # type: ignore[misc]
         list of offset charge variables
     free_charges: list[Sympy.Symbol]
         list of free charge variables
-    var_categories: dict[str, list[int]]
+    var_categories: dict[VarCategoryKey, list[int]]
         dictionary with keys "periodic", "extended", "free", "frozen" and values as
         the indices of the respective variable types
     cutoff_names: list[str]
@@ -202,7 +206,7 @@ class Subsystem(  # type: ignore[misc]
             [self.system_hierarchy]
         )
 
-        self.var_categories: dict[str, list[int]] = {}
+        self.var_categories: dict[VarCategoryKey, list[int]] = {}
         for var_type in self.parent.var_categories:
             self.var_categories[var_type] = [
                 var_index
@@ -421,7 +425,7 @@ class Circuit(  # type: ignore[misc]
         list of offset charge variables
     free_charges: list[sm.Symbol]
         list of free charge variables
-    var_categories: dict[str, list[int]]
+    var_categories: dict[VarCategoryKey, list[int]]
         dictionary with keys "periodic", "extended", "free", "frozen" and values as
         the indices of the respective variable types
     cutoff_names: list[str]
@@ -1051,7 +1055,9 @@ class Circuit(  # type: ignore[misc]
 
     def _read_symbolic_hamiltonian(
         self, symbolic_hamiltonian: sm.Expr
-    ) -> tuple[list[sm.Expr], list[sm.Expr], list[sm.Expr], dict[str, list[int]]]:
+    ) -> tuple[
+        list[sm.Expr], list[sm.Expr], list[sm.Expr], dict[VarCategoryKey, list[int]]
+    ]:
         """Extract flux, charge, and variable-category metadata.
 
         Extracts the metadata from the supplied symbolic Hamiltonian.
@@ -1075,7 +1081,7 @@ class Circuit(  # type: ignore[misc]
         external_fluxes = []
         offset_charges = []
         free_charges = []
-        var_categories: dict[str, list[int]] = {
+        var_categories: dict[VarCategoryKey, list[int]] = {
             "periodic": [],
             "extended": [],
             "free": [],

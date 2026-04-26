@@ -19,7 +19,7 @@ import re
 from collections.abc import Callable
 from contextlib import contextmanager
 from types import MethodType
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem
@@ -107,7 +107,15 @@ def _dispatch_suspended():
         settings.DISPATCH_ENABLED = old_status
 
 
-_PROPERTY_SETTER_BY_TYPE: dict[str, str] = {
+# Type alias for the kinds of WatchedProperty updates `_make_property` knows
+# how to install on Circuit/Subsystem instances.
+PropertyUpdateType = Literal[
+    "update_param_vars",
+    "update_external_flux_or_charge",
+    "update_cutoffs",
+]
+
+_PROPERTY_SETTER_BY_TYPE: dict[PropertyUpdateType, str] = {
     "update_param_vars": "_set_property_and_update_param_vars",
     "update_external_flux_or_charge": "_set_property_and_update_ext_flux_or_charge",
     "update_cutoffs": "_set_property_and_update_cutoffs",
@@ -128,7 +136,9 @@ class CircuitRoutines(ABC):
     # Declared here so mypy can resolve cross-subclass access patterns in shared
     # methods defined on this ABC.
     hierarchical_diagonalization: bool
-    var_categories: dict[str, list[int]]
+    var_categories: dict[
+        Literal["periodic", "extended", "free", "frozen", "sigma"], list[int]
+    ]
     dynamic_var_indices: list[int]
     external_fluxes: list[Any]
     symbolic_params: dict[Any, Any]
@@ -784,7 +794,7 @@ class CircuitRoutines(ABC):
         self,
         attrib_name: str,
         init_val: int | float,
-        property_update_type: str,
+        property_update_type: PropertyUpdateType,
         use_central_dispatch: bool = True,
     ) -> None:
         """Create a class-level property with a name- and update-type-aware setter.
