@@ -1599,6 +1599,95 @@ class SymbolicCircuitGraph(ABC):
 
         return var_categories_user
 
+    def _complete_basis_with_standard_vectors(
+        self, modes: list[ndarray]
+    ) -> list[ndarray]:
+        """Extend ``modes`` to a full basis using a standard-basis completion.
+
+        Adds vectors from a "standard basis" until the resulting matrix has
+        rank ``len(self.nodes) - self.is_grounded``.  The standard basis
+        depends on :attr:`basis_completion`:
+
+        * ``"heuristic"`` (default): start from the all-ones vector and
+          greedily fill from permutations of an "almost-ones" reference
+          vector, accepting each candidate that increases the rank.
+        * ``"canonical"``: use the identity matrix.
+
+        Returns the completed basis as a list of ndarray rows; conversion
+        to a 2-D ndarray is left to the caller.
+        """
+        standard_basis: ndarray
+        if self.basis_completion == "heuristic":
+            node_count = len(self.nodes) - self.is_grounded
+            heuristic_basis: list = [np.ones(node_count)]
+
+            vector_ref = np.zeros(node_count)
+            if node_count > 2:
+                vector_ref[: node_count - 2] = 1
+            else:
+                vector_ref[: node_count - 1] = 1
+
+            vector_set = (
+                permutation
+                for permutation in itertools.permutations(vector_ref, node_count)
+            )
+            while np.linalg.matrix_rank(np.array(heuristic_basis)) < node_count:
+                a = next(vector_set)
+                mat = np.array(heuristic_basis + [a])
+                if np.linalg.matrix_rank(mat) == len(mat):
+                    heuristic_basis = heuristic_basis + [list(a)]
+            standard_basis = np.array(heuristic_basis)
+        elif self.basis_completion == "canonical":
+            standard_basis = np.identity(len(self.nodes) - self.is_grounded)
+        else:
+            raise ValueError(
+                f"Unknown basis_completion {self.basis_completion!r}; "
+                f"expected 'heuristic' or 'canonical'."
+            )
+
+        new_basis = modes.copy()
+        for m in standard_basis:
+            mat = np.array([i for i in new_basis] + [m])
+            if np.linalg.matrix_rank(mat) == len(mat):
+                new_basis.append(m)
+        return new_basis
+
+    @staticmethod
+    def _build_var_categories_from_positions(
+        pos_list: list[int],
+        pos_periodic: list[int],
+        pos_rest: list[int],
+        pos_free: list[int],
+        pos_frozen: list[int],
+        pos_Σ: list[int],
+        is_grounded: bool,
+    ) -> dict[Literal["periodic", "extended", "free", "frozen", "sigma"], list[int]]:
+        """Translate the ``pos_*`` index buckets into the ``var_categories`` dict.
+
+        Each output index is the 1-based position of the variable inside
+        ``pos_list`` (the row order of the transformation matrix).  The
+        ``"sigma"`` bucket is non-empty only for non-grounded circuits, in
+        which case it contains the single position whose ``pos_list``
+        entry equals ``pos_Σ[0]``.
+        """
+        return {
+            "periodic": [
+                i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_periodic
+            ],
+            "extended": [
+                i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_rest
+            ],
+            "free": [i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_free],
+            "frozen": [
+                i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_frozen
+            ],
+            "sigma": (
+                [i + 1 for i in range(len(pos_list)) if pos_list[i] == pos_Σ[0]]
+                if not is_grounded
+                else []
+            ),
+        }
+
     def variable_transformation_matrix(
         self,
     ) -> tuple[
@@ -1642,42 +1731,9 @@ class SymbolicCircuitGraph(ABC):
             if np.linalg.matrix_rank(mat) == len(mat):
                 modes.append(m)
 
-        # ********** Completing the Basis ****************
-        # step 4: construct the new set of basis vectors
-
-        # constructing a standard basis
-        if self.basis_completion == "heuristic":
-            node_count = len(self.nodes) - self.is_grounded
-            standard_basis = [np.ones(node_count)]
-
-            vector_ref = np.zeros(node_count)
-            if node_count > 2:
-                vector_ref[: node_count - 2] = 1
-            else:
-                vector_ref[: node_count - 1] = 1
-
-            vector_set = (
-                permutation
-                for permutation in itertools.permutations(vector_ref, node_count)
-            )  # making a generator
-            while np.linalg.matrix_rank(np.array(standard_basis)) < node_count:
-                a = next(vector_set)
-                mat = np.array(standard_basis + [a])
-                if np.linalg.matrix_rank(mat) == len(mat):
-                    standard_basis = standard_basis + [list(a)]  # type: ignore[list-item]
-
-            standard_basis = np.array(standard_basis)  # type: ignore[assignment]
-
-        elif self.basis_completion == "canonical":
-            standard_basis = np.identity(len(self.nodes) - self.is_grounded)  # type: ignore[assignment]
-
-        new_basis = modes.copy()
-
-        for m in standard_basis:  # completing the basis
-            mat = np.array([i for i in new_basis] + [m])
-            if np.linalg.matrix_rank(mat) == len(mat):
-                new_basis.append(m)
-
+        # step 4: extend the modes list to a full basis using the standard
+        # basis chosen by self.basis_completion ("heuristic" or "canonical")
+        new_basis = self._complete_basis_with_standard_vectors(modes)
         new_basis = np.array(new_basis)  # type: ignore[assignment]
 
         # sorting the basis so that the free, periodic and frozen variables occur at
@@ -1720,25 +1776,14 @@ class SymbolicCircuitGraph(ABC):
         # transforming the new_basis matrix
         new_basis = new_basis[pos_list].T  # type: ignore[call-overload]
 
-        # saving the variable identification to a dict
-        var_categories: dict[
-            Literal["periodic", "extended", "free", "frozen", "sigma"], list[int]
-        ] = {
-            "periodic": [
-                i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_periodic
-            ],
-            "extended": [
-                i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_rest
-            ],
-            "free": [i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_free],
-            "frozen": [
-                i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_frozen
-            ],
-            "sigma": (
-                [i + 1 for i in range(len(pos_list)) if pos_list[i] == pos_Σ[0]]
-                if not self.is_grounded
-                else []
-            ),
-        }
+        var_categories = self._build_var_categories_from_positions(
+            pos_list,
+            pos_periodic,
+            pos_rest,
+            pos_free,
+            pos_frozen,
+            pos_Σ,
+            self.is_grounded,
+        )
 
         return np.array(new_basis), var_categories
