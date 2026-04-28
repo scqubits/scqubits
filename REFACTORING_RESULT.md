@@ -15,6 +15,9 @@ Scope: ~12 500 lines of post-2022 hierarchical-circuit machinery in `scqubits/co
 | `circuit.py`                                 | 1 526 lines       | 1 636 lines       | +110 (added named constructors, typed sentinels, error class) |
 | New mixin modules from `routines.py` split   | —                 | `subsystem_tree.py` (327), `hamiltonian_assembly.py` (1 364), `lifecycle.py` (528) | +2 219 lines split out |
 | Top complexity in `symbolic_circuit_graph.py`<br>(radon CC of `_spanning_tree`) | 58 (F) | 28 (D) | −30 |
+| `variable_transformation_matrix` cyclomatic complexity (radon) | 53 (F) | 25 (D) | −28 |
+| `_independent_modes` cyclomatic complexity (radon) | 36 (E) | 25 (D) | −11 |
+| `check_transformation_matrix` cyclomatic complexity (radon) | 33 (E) | drops out of file's top-8 | — |
 | `Circuit._configure` cyclomatic complexity   | 39 (E)            | 24 (D)            | −15        |
 | Generic `raise Exception(...)` survivors     | 24                | 0                 | −24        |
 | Lines deleted vs. inserted (vs. `main`)      | —                 | +7 237 / −4 541   | net +2 696 (mostly docstrings, TYPE_CHECKING annotations, characterization-test goldens) |
@@ -211,19 +214,31 @@ There are none. The branch is a behaviour-preserving refactor:
 
 ## Deferred work
 
-Two items were identified during the refactor and deliberately deferred:
+None remaining. Both items previously listed here have been resolved:
 
-1. **`symbolic_circuit_graph.py` complexity.** Three F/E-grade methods
-   remain: `variable_transformation_matrix` (radon CC 53),
-   `_independent_modes` (36), `check_transformation_matrix` (33). Each
-   is dense graph-algorithm code from the cited 2022 paper; reducing
-   complexity requires reading the math carefully and is genuinely
-   higher-risk than the routines-side mixin extractions. The
-   characterization-test goldens added in this branch would also
-   protect future work here.
-2. **`utils.py` final cleanup.** `truncation_template` could move into
-   one of the new mixin modules near `_generate_subsystems` for
-   topical coherence. `get_trailing_number` could move to `input.py`
-   (string parsing) but is used in 55 sites across 10 files, so the
-   import-path churn was judged not worth the small organizational
-   win.
+- **`symbolic_circuit_graph.py` complexity** — `variable_transformation_matrix`,
+  `_independent_modes`, and `check_transformation_matrix` were
+  all reduced from F/E-grade to D-grade through five careful
+  helper extractions (`_canonical_modes_periodic_frozen_free_with_sigma`,
+  `_classify_modes_into_categories`, `_warn_unmatched_mode_counts`,
+  `_max_connected_branch_subgraphs`, `_mark_nodes_by_subgraph`,
+  `_complete_basis_with_standard_vectors`,
+  `_build_var_categories_from_positions`). The reviewer-flagged
+  cascade-exclusion logic in `variable_transformation_matrix` was
+  deliberately left in place; complexity reduction came from
+  extracting the surrounding mechanical sub-phases. Bit-identical
+  numerics verified against the characterization-test goldens at
+  every step.
+
+- **`utils.py` cleanup** — considered and left as-is. The current
+  106-line file holds two small utility functions
+  (`truncation_template`, `get_trailing_number`) plus four
+  back-compat re-exports for documented public functions
+  (`example_circuit`, `sawtooth_*`, `assemble_*`). Moving
+  `truncation_template` into a mixin module would mix free
+  functions into a class-only file and require a re-export shim
+  in `utils.py` anyway (because the legacy public path
+  `scqubits.core.circuit_utils.truncation_template` must keep
+  working) — net zero gain. The original "junk drawer" criticism
+  applied to the 1 054-line predecessor; the current file is a
+  legitimate utilities module.
