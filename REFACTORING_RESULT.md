@@ -8,21 +8,22 @@ Scope: ~12 500 lines of post-2022 hierarchical-circuit machinery in `scqubits/co
 
 | Metric                                      | `main`            | After             | Δ           |
 |--------------------------------------------- |-------------------|-------------------|-------------|
-| Files in the circuit module                  | 9 flat in `core/` | 19 (3 + 16 in `circuit_internals/`) | restructured |
-| `circuit_routines.py` → `routines.py`        | 2 348 lines       | 2 217 lines       | −131 (−6 %) |
+| Files in the circuit module                  | 9 flat in `core/` | 21 (3 top-level + 18 in `circuit_internals/`) | restructured |
+| `circuit_routines.py` → `routines.py`        | 2 348 lines       | 655 lines         | −1 693 (−72 %) |
 | `circuit_sym_methods.py` → `sym_methods.py`  | 1 429 lines       | 1 511 lines       | +82 (added docstrings, helper extractions) |
 | `circuit_utils.py` (junk drawer, 11 themes)  | 1 054 lines       | 106 lines (`utils.py`) + 7 dedicated modules | split |
 | `circuit.py`                                 | 1 526 lines       | 1 636 lines       | +110 (added named constructors, typed sentinels, error class) |
+| New mixin modules from `routines.py` split   | —                 | `subsystem_tree.py` (327), `hamiltonian_assembly.py` (1 364), `lifecycle.py` (528) | +2 219 lines split out |
 | Top complexity in `symbolic_circuit_graph.py`<br>(radon CC of `_spanning_tree`) | 58 (F) | 28 (D) | −30 |
 | `Circuit._configure` cyclomatic complexity   | 39 (E)            | 24 (D)            | −15        |
 | Generic `raise Exception(...)` survivors     | 24                | 0                 | −24        |
-| Lines deleted vs. inserted (vs. `main`)      | —                 | +4 220 / −2 649   | net +1 571 (mostly docstrings + TYPE_CHECKING annotations) |
-| Test count                                   | 309               | 309               | unchanged  |
-| Tests passing on the branch                  | 309 + 14 skipped  | 309 + 14 skipped  | unchanged  |
+| Lines deleted vs. inserted (vs. `main`)      | —                 | +7 237 / −4 541   | net +2 696 (mostly docstrings, TYPE_CHECKING annotations, characterization-test goldens) |
+| Test count                                   | 309               | 322               | +13 (characterization-test suite) |
+| Tests passing on the branch                  | 309 + 14 skipped  | 322 + 14 skipped  | +13 |
 | `mypy scqubits/`                             | 0 errors          | 0 errors          | unchanged  |
 | Public API breakages                         | —                 | 0                 | —          |
 
-60 commits land on the branch.
+66 commits land on the branch.
 
 ## File layout
 
@@ -101,10 +102,20 @@ There are none. The branch is a behaviour-preserving refactor:
   plus a 106-line residual containing two real helpers and four back-compat
   re-exports. Each new module has a single responsibility (one operator
   basis / one string-parsing job / one assembly task).
-- `CircuitRoutines` mixin had a contiguous 235-line subsystem-tree-construction
-  cluster extracted into a new sibling mixin `SubsystemTreeMixin`
-  (`subsystem_tree.py`). The further split into `HamiltonianAssemblyMixin` and
-  `LifecycleMixin` is documented as deferred future work.
+- `CircuitRoutines` (was 2 447 lines) split into four sibling mixins via
+  multiple inheritance:
+    - `SubsystemTreeMixin` (`subsystem_tree.py`, 327 lines) —
+      hierarchical-diagonalization subsystem construction;
+    - `HamiltonianAssemblyMixin` (`hamiltonian_assembly.py`, 1 364 lines) —
+      operator construction, Hamiltonian assembly, eigensystem computation;
+    - `LifecycleMixin` (`lifecycle.py`, 528 lines) — parameter sync,
+      dispatch handling, `WatchedProperty` installation;
+    - residual `CircuitRoutines` (655 lines) — serialization and
+      Hilbert-space basics (`hilbertdim`, `_kron_operator`, `_identity`, …).
+
+  Final MRO order is
+  `(LifecycleMixin, SubsystemTreeMixin, HamiltonianAssemblyMixin, ABC)`;
+  every method continues to resolve through `self` exactly as before.
 - The 224-line `Circuit._configure` and the parallel 32-complexity
   `_configure_sym_hamiltonian` had ~15 sub-phases extracted into named
   helpers (`_import_from_symbolic_circuit`, `_install_var_properties`,
@@ -200,23 +211,19 @@ There are none. The branch is a behaviour-preserving refactor:
 
 ## Deferred work
 
-The following items were identified during the refactor but deliberately
-deferred:
+Two items were identified during the refactor and deliberately deferred:
 
-1. **Tier 5b — full `routines.py` split.** The remaining ~600-line lifecycle
-   cluster (parameter sync, `_make_property`, `update`, `receive`, …) and
-   ~800-line Hamiltonian-assembly cluster (operator construction,
-   `_evaluate_matrix_cosine_terms`, `hamiltonian`, `_evals_calc`, …) can
-   each move into a sibling mixin. The clusters cross-reference each other
-   and the residual core more than the subsystem-tree did, so the safe path
-   is to add characterization tests around the boundary first.
-2. **`symbolic_circuit_graph.py` complexity.** Three F/E-grade methods remain:
-   `variable_transformation_matrix` (53), `_independent_modes` (36),
-   `check_transformation_matrix` (33). Each is dense graph-algorithm code
-   from the cited 2022 paper; reducing complexity requires the
-   "characterization tests first, then mechanical extractions only" pattern
-   and was scoped out of this branch.
-3. **`utils.py` final cleanup.** `truncation_template` will move to
-   `routines.py` (or its eventual successor mixin) once Tier 5b lands.
-   `get_trailing_number` could move to `input.py` (string parsing) but is
-   used in 55 sites, so the rename was judged not worth the blast radius.
+1. **`symbolic_circuit_graph.py` complexity.** Three F/E-grade methods
+   remain: `variable_transformation_matrix` (radon CC 53),
+   `_independent_modes` (36), `check_transformation_matrix` (33). Each
+   is dense graph-algorithm code from the cited 2022 paper; reducing
+   complexity requires reading the math carefully and is genuinely
+   higher-risk than the routines-side mixin extractions. The
+   characterization-test goldens added in this branch would also
+   protect future work here.
+2. **`utils.py` final cleanup.** `truncation_template` could move into
+   one of the new mixin modules near `_generate_subsystems` for
+   topical coherence. `get_trailing_number` could move to `input.py`
+   (string parsing) but is used in 55 sites across 10 files, so the
+   import-path churn was judged not worth the small organizational
+   win.
