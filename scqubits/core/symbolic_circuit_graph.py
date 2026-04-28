@@ -1412,6 +1412,109 @@ class SymbolicCircuitGraph(ABC):
         matrix = np.vstack([subspace, np.array(mode)])
         return np.linalg.matrix_rank(matrix) == len(subspace)
 
+    def _canonical_modes_periodic_frozen_free_with_sigma(
+        self,
+    ) -> tuple[list, list, list, list[int]]:
+        """Compute periodic / frozen / free mode bases plus the Σ vector.
+
+        Shared prelude for :meth:`check_transformation_matrix` and
+        :meth:`variable_transformation_matrix`.  The returned
+        ``frozen_modes`` already includes Σ when the circuit is
+        non-grounded (with the leading frozen vector dropped if Σ is
+        not linearly independent of the existing frozen basis).
+
+        Returns
+        -------
+        ``(periodic_modes, frozen_modes_with_sigma, free_modes, Σ)``
+        """
+        periodic_modes = self._independent_modes(
+            [branch for branch in self.branches if branch.type == "L"]
+        )
+        frozen_modes = self._independent_modes(
+            [branch for branch in self.branches if branch.type != "L"],
+            single_nodes=True,
+        )
+        free_modes = self._independent_modes(
+            [branch for branch in self.branches if branch.type != "C"]
+        )
+
+        Σ = [1] * (len(self.nodes) - self.is_grounded)
+        if not self.is_grounded:
+            mat = np.array(frozen_modes + [Σ])
+            if np.linalg.matrix_rank(mat) < len(frozen_modes) + 1:
+                frozen_modes = frozen_modes[1:] + [Σ]
+            else:
+                frozen_modes.append(Σ)
+
+        return periodic_modes, frozen_modes, free_modes, Σ
+
+    def _classify_modes_into_categories(
+        self,
+        modes,
+        Σ: list[int],
+        frozen_modes: list,
+        free_modes: list,
+        periodic_modes: list,
+        *,
+        track_sigma: bool,
+    ) -> dict[Literal["periodic", "extended", "free", "frozen", "sigma"], list[int]]:
+        """Classify modes into ``periodic`` / ``extended`` / ``free`` / ``frozen``
+        (and optionally ``sigma``).
+
+        Each mode is checked against the canonical subspaces in
+        precedence order ``Σ → frozen → free → periodic → extended``.
+        When ``track_sigma=True`` and the circuit is non-grounded, a
+        mode lying in the Σ subspace is recorded in the ``"sigma"``
+        bucket; otherwise it is silently skipped (matching the original
+        behaviour for the auto-generated basis vs. the user-provided
+        transformation respectively).
+
+        Returns indices are 1-based to mirror the legacy convention.
+        """
+        categories: dict[
+            Literal["periodic", "extended", "free", "frozen", "sigma"], list[int]
+        ] = {"periodic": [], "extended": [], "free": [], "frozen": []}
+        if track_sigma:
+            categories["sigma"] = []
+
+        for x, mode in enumerate(modes):
+            if self._mode_in_subspace(Σ, [mode]) and not self.is_grounded:
+                if track_sigma:
+                    categories["sigma"].append(x + 1)
+                continue
+            if self._mode_in_subspace(mode, frozen_modes):
+                categories["frozen"].append(x + 1)
+            elif self._mode_in_subspace(mode, free_modes):
+                categories["free"].append(x + 1)
+            elif self._mode_in_subspace(mode, periodic_modes):
+                categories["periodic"].append(x + 1)
+            else:
+                categories["extended"].append(x + 1)
+        return categories
+
+    @staticmethod
+    def _warn_unmatched_mode_counts(
+        circuit_cats: dict[
+            Literal["periodic", "extended", "free", "frozen", "sigma"], list[int]
+        ],
+        user_cats: dict[
+            Literal["periodic", "extended", "free", "frozen", "sigma"], list[int]
+        ],
+        enable_warnings: bool,
+    ) -> None:
+        """Warn when the user-supplied transformation has fewer modes of any kind
+        than the canonical (auto-generated) basis."""
+        for mode_type in ("periodic", "extended", "free", "frozen"):
+            num_extra_modes = len(circuit_cats[mode_type]) - len(user_cats[mode_type])
+            if num_extra_modes > 0 and enable_warnings:
+                warnings.warn(
+                    "Number of extra "
+                    + mode_type
+                    + " modes found: "
+                    + str(num_extra_modes)
+                    + "\n"
+                )
+
     def check_transformation_matrix(
         self, transformation_matrix: ndarray, enable_warnings: bool = True
     ) -> dict[Literal["periodic", "extended", "free", "frozen", "sigma"], list[int]]:
@@ -1431,137 +1534,54 @@ class SymbolicCircuitGraph(ABC):
         Dictionary of lists classifying the variable indices, where the
         indices correspond to the rows of the transformation matrix.
         """
-        # basic check to see if the matrix is invertible
         if np.linalg.det(transformation_matrix) == 0:
             raise ValueError("The transformation matrix provided is not invertible.")
 
-        # find all the different types of modes present in the circuit.
+        periodic_modes, frozen_modes, free_modes, Σ = (
+            self._canonical_modes_periodic_frozen_free_with_sigma()
+        )
 
-        # *************************** Finding the Periodic Modes **********************
-        selected_branches = [branch for branch in self.branches if branch.type == "L"]
-        periodic_modes = self._independent_modes(selected_branches)
+        # LC modes use the default basisvec_entries=[1, 0] here (the
+        # variable_transformation_matrix variant uses [-1, 1] instead).
+        LC_modes = self._independent_modes(
+            [branch for branch in self.branches if "JJ" in branch.type],
+            single_nodes=False,
+        )
 
-        # *************************** Finding the frozen modes **********************
-        selected_branches = [branch for branch in self.branches if branch.type != "L"]
-        frozen_modes = self._independent_modes(selected_branches, single_nodes=True)
-
-        # *************************** Finding the Cyclic Modes ****************
-        selected_branches = [branch for branch in self.branches if branch.type != "C"]
-        free_modes = self._independent_modes(selected_branches)
-
-        # ***************************# Finding the LC Modes ****************
-        selected_branches = [branch for branch in self.branches if "JJ" in branch.type]
-        LC_modes = self._independent_modes(selected_branches, single_nodes=False)
-
-        # ******************* including the Σ mode ****************
-        Σ = [1] * (len(self.nodes) - self.is_grounded)
-        if not self.is_grounded:  # only append if the circuit is not grounded
-            mat = np.array(frozen_modes + [Σ])
-            # check to see if the vectors are still independent
-            if np.linalg.matrix_rank(mat) < len(frozen_modes) + 1:
-                frozen_modes = frozen_modes[1:] + [Σ]
-            else:
-                frozen_modes.append(Σ)
-
-        # *********** Adding periodic, free and extended modes to frozen ************
-        modes: list[ndarray] = []  # starting with the frozen modes
-
-        for m in (
-            frozen_modes + free_modes + periodic_modes + LC_modes  # + extended_modes
-        ):  # This order is important
+        # Build the canonical mode basis by adding (in this order)
+        # frozen, free, periodic, then LC modes that are not yet in the
+        # span. The double-pass over LC_modes mirrors the original code.
+        modes: list[ndarray] = []
+        for m in frozen_modes + free_modes + periodic_modes + LC_modes:
+            if not self._mode_in_subspace(m, modes):
+                modes.append(m)
+        for m in LC_modes:
             if not self._mode_in_subspace(m, modes):
                 modes.append(m)
 
-        for m in LC_modes:  # adding the LC modes to the basis
-            if not self._mode_in_subspace(m, modes):
-                modes.append(m)
-
-        var_categories_circuit: dict[
-            Literal["periodic", "extended", "free", "frozen", "sigma"], list
-        ] = {
-            "periodic": [],
-            "extended": [],
-            "free": [],
-            "frozen": [],
-        }
-
-        for x, mode in enumerate(modes):
-            # calculate the number of periodic modes
-            if self._mode_in_subspace(Σ, [mode]) and not self.is_grounded:
-                continue
-
-            if self._mode_in_subspace(mode, frozen_modes):
-                var_categories_circuit["frozen"].append(x + 1)
-                continue
-
-            if self._mode_in_subspace(mode, free_modes):
-                var_categories_circuit["free"].append(x + 1)
-                continue
-
-            if self._mode_in_subspace(mode, periodic_modes):
-                var_categories_circuit["periodic"].append(x + 1)
-                continue
-
-            # Any mode which survived the above conditionals is an extended mode
-            var_categories_circuit["extended"].append(x + 1)
-
-        # Classifying the modes given in the transformation by the user
+        var_categories_circuit = self._classify_modes_into_categories(
+            modes,
+            Σ,
+            frozen_modes,
+            free_modes,
+            periodic_modes,
+            track_sigma=False,
+        )
 
         user_given_modes = transformation_matrix.transpose()
+        var_categories_user = self._classify_modes_into_categories(
+            user_given_modes,
+            Σ,
+            frozen_modes,
+            free_modes,
+            periodic_modes,
+            track_sigma=True,
+        )
+        sigma_mode_found = bool(var_categories_user["sigma"])
 
-        var_categories_user: dict[
-            Literal["periodic", "extended", "free", "frozen", "sigma"], list
-        ] = {
-            "periodic": [],
-            "extended": [],
-            "free": [],
-            "frozen": [],
-            "sigma": [],
-        }
-        sigma_mode_found = False
-        for x, mode in enumerate(user_given_modes):
-            # calculate the number of periodic modes
-            if self._mode_in_subspace(Σ, [mode]) and not self.is_grounded:
-                sigma_mode_found = True
-                var_categories_user["sigma"].append(x + 1)
-                continue
-
-            if self._mode_in_subspace(mode, frozen_modes):
-                var_categories_user["frozen"].append(x + 1)
-                continue
-
-            if self._mode_in_subspace(mode, free_modes):
-                var_categories_user["free"].append(x + 1)
-                continue
-
-            if self._mode_in_subspace(mode, periodic_modes):
-                var_categories_user["periodic"].append(x + 1)
-                continue
-
-            # Any mode which survived the above conditionals is an extended mode
-            var_categories_user["extended"].append(x + 1)
-
-        # comparing the modes in the user defined and the code generated transformation
-
-        mode_types: list[Literal["periodic", "extended", "free", "frozen", "sigma"]] = [
-            "periodic",
-            "extended",
-            "free",
-            "frozen",
-        ]
-
-        for mode_type in mode_types:
-            num_extra_modes = len(var_categories_circuit[mode_type]) - len(
-                var_categories_user[mode_type]
-            )
-            if num_extra_modes > 0 and enable_warnings:
-                warnings.warn(
-                    "Number of extra "
-                    + mode_type
-                    + " modes found: "
-                    + str(num_extra_modes)
-                    + "\n"
-                )
+        self._warn_unmatched_mode_counts(
+            var_categories_circuit, var_categories_user, enable_warnings
+        )
         if not self.is_grounded and not sigma_mode_found:
             raise ValueError(
                 "This circuit is not grounded, and so has a sigma mode. This transformation does not have a sigma mode."
@@ -1590,32 +1610,16 @@ class SymbolicCircuitGraph(ABC):
         free, frozen, sigma) for each variable index.
         """
 
-        # ****************  Finding the Periodic Modes ****************
-        selected_branches = [branch for branch in self.branches if branch.type == "L"]
-        periodic_modes = self._independent_modes(selected_branches)
+        periodic_modes, frozen_modes, free_modes, Σ = (
+            self._canonical_modes_periodic_frozen_free_with_sigma()
+        )
 
-        # ****************  Finding the frozen modes ****************
-        selected_branches = [branch for branch in self.branches if branch.type != "L"]
-        frozen_modes = self._independent_modes(selected_branches, single_nodes=True)
-
-        # **************** Finding the Cyclic Modes ****************
-        selected_branches = [branch for branch in self.branches if branch.type != "C"]
-        free_modes = self._independent_modes(selected_branches)
-
-        # ****************  including the Σ mode ****************
-        Σ = [1] * (len(self.nodes) - self.is_grounded)
-        if not self.is_grounded:  # only append if the circuit is not grounded
-            mat = np.array(frozen_modes + [Σ])
-            # check to see if the vectors are still independent
-            if np.linalg.matrix_rank(mat) < len(frozen_modes) + 1:
-                frozen_modes = frozen_modes[1:] + [Σ]
-            else:
-                frozen_modes.append(Σ)
-
-        # **************** Finding the LC Modes ****************
-        selected_branches = [branch for branch in self.branches if "JJ" in branch.type]
+        # LC modes use basisvec_entries=[-1, 1] here (the
+        # check_transformation_matrix variant uses the default [1, 0]).
         LC_modes = self._independent_modes(
-            selected_branches, single_nodes=False, basisvec_entries=[-1, 1]
+            [branch for branch in self.branches if "JJ" in branch.type],
+            single_nodes=False,
+            basisvec_entries=[-1, 1],
         )
 
         # **************** Adding frozen, free, periodic , LC and extended modes ****
