@@ -14,21 +14,19 @@
 
 from typing import Any, Optional
 
-# Lazy singleton; not on ``settings`` so user code cannot replace or clear it.
-_cuquantum_workstream: Optional[Any] = None
-
 try:
     from cuquantum.densitymat import WorkStream
-except:
-    WorkStream = None
+    _cuquantum_workstream = WorkStream()
+except ImportError:
+    _cuquantum_workstream = None
+
 
 def set_cuquantum_workstream(workstream: "WorkStream"):
     """Set the cuQuantum density-matrix ``WorkStream`` used by scqubits.
 
     Parameters
     ----------
-    workstream: WorkStream
-        ``cuquantum.densitymat.WorkStream`` instance
+    ################Describe the return object.
 
     Raises
     ------
@@ -36,34 +34,33 @@ def set_cuquantum_workstream(workstream: "WorkStream"):
         If the cuQuantum workstream is already set.
     """
     global _cuquantum_workstream
-    if _cuquantum_workstream is not None:
-        raise RuntimeError("cuQuantum workstream already set. Use get_cuquantum_workstream() to retrieve it.")
+    if _cuquantum_workstream:
+        raise RuntimeError(
+            "cuQuantum workstream already set. Changing the workstream is not supported. "
+            "Use get_cuquantum_workstream() to retrieve the existing workstream."
+        )
     _cuquantum_workstream = workstream
+
 
 def get_cuquantum_workstream() -> "WorkStream":
     """Return the cuQuantum density-matrix ``WorkStream`` used by scqubits.
 
-    The stream is created on first successful call and cached for the process.
-    Read-only access for introspection or advanced use with qutip-cuquantum;
-    do not assign to module attributes to replace it.
+    On successful import of ``cuquantum.densitymat``, a ``WorkStream`` is created when
+    this module loads and reused for the process. Prefer
+    :func:`get_cuquantum_workstream` over reading module attributes directly.
 
     Returns
     -------
-    WorkStream
-        ``cuquantum.densitymat.WorkStream`` instance
+    ################Describe the return object.
 
     Raises
     ------
     ImportError
         If ``cuquantum.densitymat`` cannot be imported.
     """
-    global _cuquantum_workstream
-    if _cuquantum_workstream is not None:
-        return _cuquantum_workstream
-    if WorkStream is None:
+    if _cuquantum_workstream is None:
         raise ImportError(
             "cuDensityMat could not be imported; install the cuquantum "
             "package with CUDA support and qutip-cuquantum."
         )
-    _cuquantum_workstream = WorkStream()
     return _cuquantum_workstream

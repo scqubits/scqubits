@@ -710,7 +710,7 @@ def esys_cuquantum(
         import qutip_cuquantum as qcu
         import cuquantum.densitymat as cudm
     except ImportError as e:
-        raise ImportError(str(e)) from e
+        raise ImportError(str(e)) # from e Does from e provide addtional information? look up where is from allowed
 
     ctx = get_cuquantum_workstream()
 
