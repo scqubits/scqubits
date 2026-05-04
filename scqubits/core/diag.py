@@ -109,7 +109,7 @@ def _cast_matrix(
                 # This could be costly if the data is in a "Dia"
                 # form. In the future we may want to support other
                 # formats as well.
-                m = matrix.to("CSR").as_data()
+                m = matrix.to("CSR").data_as()
         else:
             # In previous versions of qutip data was always in the csr form
             m = matrix.data
