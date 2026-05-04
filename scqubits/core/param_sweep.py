@@ -1803,6 +1803,55 @@ class StoredSweep(
         )
 
 
+def _sweep_generator_call(
+    paramindex_tuple: Tuple[int],
+    *,
+    sweep: "ParameterSweepBase",
+    func: Callable,
+    params: Parameters,
+    kwargs: Dict[str, Any],
+) -> Any:
+    paramvals_tuple = params[paramindex_tuple]
+    return func(
+        sweep,
+        paramindex_tuple=paramindex_tuple,
+        paramvals_tuple=paramvals_tuple,
+        **kwargs,
+    )
+
+
+def _ray_sweep_generator_call(
+    paramindex_tuple: Tuple[int],
+    *,
+    sweep_ref_box: Tuple[Any, ...],
+    func: Callable,
+    params: Parameters,
+    kwargs: Dict[str, Any],
+) -> Any:
+    # Ray worker entry point for custom ParameterSweep data.
+    #
+    # In the non-Ray path, the mapped callable can simply close over `sweep`.
+    # With Ray that would be expensive for large sweeps: `sweep._data` may hold
+    # large arrays such as bare/dressed eigenvalues and eigenvectors, and the
+    # callable is invoked once per parameter point. `sweep_ref_box[0]` is a Ray
+    # ObjectRef to the full sweep object. get_cached_ray_object() fetches it once
+    # per worker process and then reuses the local deserialized copy for later
+    # parameter points handled by that worker.
+    #
+    # Important: this cached sweep is a worker-local copy. The intended use is to
+    # read existing data and return a newly computed value. Mutating
+    # `sweep._data` here will not update the original ParameterSweep in the
+    # driver process or the cached copies in other Ray workers.
+    sweep = cpu_switch.get_cached_ray_object(sweep_ref_box[0])
+    paramvals_tuple = params[paramindex_tuple]
+    return func(
+        sweep,
+        paramindex_tuple=paramindex_tuple,
+        paramvals_tuple=paramvals_tuple,
+        **kwargs,
+    )
+
+
 def generator(sweep: "ParameterSweepBase", func: Callable, **kwargs) -> np.ndarray:
     """Method for computing custom data as a function of the external parameter,
     calculated via the function `func`.
@@ -1828,7 +1877,19 @@ def generator(sweep: "ParameterSweepBase", func: Callable, **kwargs) -> np.ndarr
     )
     total_count = np.prod(reduced_parameters.counts)
 
-    # Ray optimization: put sweep object in shared memory
+    # Initialize Ray before creating object refs in the Ray generator path.
+    target_map = cpu_switch.get_map_method(sweep._num_cpus)
+
+    # Ray optimization: keep the mapped callable from closing over sweep.
+    #
+    # ParameterSweep can be much larger than the single parameter index being
+    # mapped over, because it owns `_data` arrays produced by previous sweeps.
+    # For multiprocessing/pathos, closing over `sweep` is the natural pool.map
+    # style. For Ray, repeatedly embedding that closed-over object in submitted
+    # tasks can serialize the large `_data` payload many times. Instead, put the
+    # sweep into Ray's object store once and pass a small reference through the
+    # task arguments. The worker-side helper above then dereferences and caches
+    # the sweep locally.
     sweep_ref = None
     if settings.MULTIPROC == "ray" and sweep._num_cpus > 1:
         try:
@@ -1838,37 +1899,36 @@ def generator(sweep: "ParameterSweepBase", func: Callable, **kwargs) -> np.ndarr
         except ImportError:
             pass
 
-    def func_effective(paramindex_tuple: Tuple[int], params, **kw) -> Any:
-        paramvals_tuple = params[paramindex_tuple]
-        
-        # Ray optimization: retrieve sweep from shared memory if available
-        sweep_arg = sweep
-        if sweep_ref is not None:
-            import ray
-            sweep_arg = ray.get(sweep_ref)
-
-        return func(
-            sweep_arg,
-            paramindex_tuple=paramindex_tuple,
-            paramvals_tuple=paramvals_tuple,
-            **kw,
-        )
-    
     if hasattr(func, "__name__"):
         func_name = func.__name__
     else:
         func_name = ""
 
-    target_map = cpu_switch.get_map_method(sweep._num_cpus)
+    if sweep_ref is not None:
+        # Use the Ray-specific helper so `func_effective` carries only a small
+        # ObjectRef to `sweep`, not the full ParameterSweep object. The tuple
+        # wrapper keeps Ray from automatically dereferencing the ObjectRef before
+        # the task starts, which lets the worker cache the dereferenced sweep.
+        func_effective = functools.partial(
+            _ray_sweep_generator_call,
+            sweep_ref_box=(sweep_ref,),
+            func=func,
+            params=reduced_parameters,
+            kwargs=kwargs,
+        )
+    else:
+        func_effective = functools.partial(
+            _sweep_generator_call,
+            sweep=sweep,
+            func=func,
+            params=reduced_parameters,
+            kwargs=kwargs,
+        )
 
     data_array = list(
         tqdm(
             target_map(
-                functools.partial(
-                    func_effective,
-                    params=reduced_parameters,
-                    **kwargs,
-                ),
+                func_effective,
                 itertools.product(*reduced_parameters.ranges),
             ),
             total=total_count,
