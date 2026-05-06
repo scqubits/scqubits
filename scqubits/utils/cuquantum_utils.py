@@ -12,21 +12,29 @@
 
 """Process-wide cuQuantum density-matrix runtime resources (workstream, etc.)."""
 
-from typing import Any, Optional
-
 try:
     from cuquantum.densitymat import WorkStream
-    _cuquantum_workstream = WorkStream()
+
+    _HAS_CUQUANTUM = True
 except ImportError:
-    _cuquantum_workstream = None
+    _HAS_CUQUANTUM = False
+
+# Lazy singleton; not on ``settings`` so user code cannot replace or clear it.
+_cuquantum_workstream = None
 
 
-def set_cuquantum_workstream(workstream: "WorkStream"):
+def set_cuquantum_workstream(workstream: "WorkStream") -> None:
     """Set the cuQuantum density-matrix ``WorkStream`` used by scqubits.
+
+    Must be called before the first :func:`get_cuquantum_workstream`; afterwards
+    the workstream is fixed for the process.
 
     Parameters
     ----------
-    ################Describe the return object.
+    workstream
+        A ``cuquantum.densitymat.WorkStream`` instance containing the library
+        handle, CUDA stream, workspace, and configuration parameters. Handles
+        GPU memory allocation and synchronization.
 
     Raises
     ------
@@ -34,10 +42,11 @@ def set_cuquantum_workstream(workstream: "WorkStream"):
         If the cuQuantum workstream is already set.
     """
     global _cuquantum_workstream
-    if _cuquantum_workstream:
+    if _cuquantum_workstream is not None:
         raise RuntimeError(
-            "cuQuantum workstream already set. Changing the workstream is not supported. "
-            "Use get_cuquantum_workstream() to retrieve the existing workstream."
+            "cuQuantum workstream already set. Changing the workstream is not "
+            "supported. Use get_cuquantum_workstream() to retrieve the existing "
+            "workstream."
         )
     _cuquantum_workstream = workstream
 
@@ -45,22 +54,28 @@ def set_cuquantum_workstream(workstream: "WorkStream"):
 def get_cuquantum_workstream() -> "WorkStream":
     """Return the cuQuantum density-matrix ``WorkStream`` used by scqubits.
 
-    On successful import of ``cuquantum.densitymat``, a ``WorkStream`` is created when
-    this module loads and reused for the process. Prefer
-    :func:`get_cuquantum_workstream` over reading module attributes directly.
+    The stream is created on first call and cached for the process. Prefer this
+    accessor over reading module attributes directly.
 
     Returns
     -------
-    ################Describe the return object.
+    WorkStream
+        A ``cuquantum.densitymat.WorkStream`` instance containing the library
+        handle, CUDA stream, workspace, and configuration parameters. Handles GPU
+        memory allocation and synchronization.
 
     Raises
     ------
     ImportError
         If ``cuquantum.densitymat`` cannot be imported.
     """
-    if _cuquantum_workstream is None:
+    global _cuquantum_workstream
+    if _cuquantum_workstream is not None:
+        return _cuquantum_workstream
+    if not _HAS_CUQUANTUM:
         raise ImportError(
             "cuDensityMat could not be imported; install the cuquantum "
             "package with CUDA support and qutip-cuquantum."
         )
+    _cuquantum_workstream = WorkStream()
     return _cuquantum_workstream
