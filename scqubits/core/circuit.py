@@ -719,7 +719,7 @@ class Circuit(
                     ext_basis=ext_basis,
                     subsys_dict=subsys_dict,
                 )
-        except:
+        except Exception as e:
             # resetting the necessary attributes
             self.system_hierarchy = old_system_hierarchy
             self.subsystem_trunc_dims = old_subsystem_trunc_dims
@@ -745,7 +745,7 @@ class Circuit(
                     ext_basis=old_ext_basis,
                     subsys_dict=old_subsys_dict,
                 )
-            raise Exception("Configure failed due to incorrect parameters.")
+            raise Exception(f"Configure failed due to incorrect parameters: {e}")
 
     def _read_symbolic_hamiltonian(
         self, symbolic_hamiltonian: sm.Expr
