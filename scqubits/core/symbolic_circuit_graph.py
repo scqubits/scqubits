@@ -1135,6 +1135,25 @@ class SymbolicCircuitGraph(ABC):
         node_index_list.sort()
         return [Node(idx) for idx in node_index_list]
 
+    @staticmethod
+    def _merge_branch_symbols(branch_var_dict: dict, sym_params: dict) -> None:
+        """Merge ``sym_params`` into ``branch_var_dict``, raising on redefinition.
+
+        A symbol ``S`` is recorded in ``branch_var_dict[S]`` the first time
+        a branch declares it with a non-empty value.  Re-declaring the same
+        symbol with a (different) non-empty value on a later branch is a
+        user error and raises ``ValueError``.  Re-declaring with an empty
+        value is silently allowed (it just references the prior value).
+        """
+        for sym_param, value in sym_params.items():
+            if not value:
+                continue
+            if sym_param in branch_var_dict:
+                raise ValueError(
+                    f"Symbol {sym_param} has already been assigned a value."
+                )
+            branch_var_dict[sym_param] = value
+
     @classmethod
     def from_yaml(
         cls,
@@ -1185,9 +1204,8 @@ class SymbolicCircuitGraph(ABC):
         Instance of :class:`SymbolicCircuit`.
         """
         if from_file:
-            file = open(input_string, "r")
-            circuit_desc = file.read()
-            file.close()
+            with open(input_string, "r") as file:
+                circuit_desc = file.read()
         else:
             circuit_desc = input_string
 
@@ -1206,37 +1224,26 @@ class SymbolicCircuitGraph(ABC):
         node_ids = [node.index for node in nodes_list]
         if min(node_ids) not in [0, 1]:
             raise ValueError("The node indices should start from 0 or 1.")
+
         # parse branches and couplers
-        branches_list = []
-        couplers_list = []
-        branch_var_dict = {}
-        # make individual branches
+        branches_list: list[Branch] = []
+        couplers_list: list[Coupler] = []
+        branch_var_dict: dict = {}
+
         individual_branches = [
             branch for branch in parsed_branches if branch[0] != "ML"
         ]
         for parsed_branch in individual_branches:
             branch, sym_params = make_branch(nodes_list, *parsed_branch)
-            for sym_param in sym_params:
-                if sym_param in branch_var_dict and sym_params[sym_param]:
-                    raise ValueError(
-                        f"Symbol {sym_param} has already been assigned a value."
-                    )
-                if sym_params[sym_param]:
-                    branch_var_dict[sym_param] = sym_params[sym_param]
+            cls._merge_branch_symbols(branch_var_dict, sym_params)
             branches_list.append(branch)
-        # make couplers
+
         coupler_branches = [
             branch for branch in parsed_branches if branch not in individual_branches
         ]
         for parsed_branch in coupler_branches:
             coupler, sym_params = make_coupler(branches_list, *parsed_branch)
-            for sym_param in sym_params:
-                if sym_param in branch_var_dict and sym_params[sym_param]:
-                    raise ValueError(
-                        f"Symbol {sym_param} has already been assigned a value."
-                    )
-                if sym_params[sym_param]:
-                    branch_var_dict[sym_param] = sym_params[sym_param]
+            cls._merge_branch_symbols(branch_var_dict, sym_params)
             couplers_list.append(coupler)
 
         circuit = cls(  # type: ignore[call-arg]

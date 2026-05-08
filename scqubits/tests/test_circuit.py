@@ -425,3 +425,27 @@ class TestNamedConstructors:
         assert isinstance(new, scq.Circuit)
         assert new.ext_basis == legacy.ext_basis
         assert new.var_categories == legacy.var_categories
+
+
+class TestSymbolicCircuitFromYamlResourceHandling:
+    """``SymbolicCircuit.from_yaml(file_path, from_file=True)`` must release
+    the file handle even if a parse error fires below the read.  The
+    pre-refactor code used bare ``open()``/``close()`` and could leak."""
+
+    BAD_YAML = (
+        "branches:\n"
+        "- [JJ, 1, 2, 10, 20]\n"
+        "- [BAD_BRANCH_TYPE, 1, 2, 0.01]\n"
+    )
+
+    def test_file_handle_released_on_parse_error(self, tmp_path):
+        path = tmp_path / "bad.yaml"
+        path.write_text(self.BAD_YAML)
+        from scqubits.core.symbolic_circuit import SymbolicCircuit
+
+        with pytest.raises(Exception):
+            SymbolicCircuit.from_yaml(str(path), from_file=True)
+        # If the handle leaks (Windows-specific), unlink will fail with
+        # PermissionError. The ``with`` block in from_yaml prevents that.
+        path.unlink()
+        assert not path.exists()
