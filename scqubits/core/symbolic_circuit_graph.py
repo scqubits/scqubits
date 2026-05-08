@@ -750,16 +750,53 @@ class SymbolicCircuitGraph(ABC):
             }
 
         node_sets_for_trees = self._build_node_sets_for_trees(circ_copy)
+        list_of_trees = self._construct_initial_tree_per_component(node_sets_for_trees)
+        loop_branches_for_trees, closure_branches_for_trees = (
+            self._loop_branches_and_closures_per_component(
+                circ_copy, list_of_trees, node_sets_for_trees
+            )
+        )
 
-        # **************** constructing the spanning tree ##########
-        def connecting_branches(n1: Node, n2: Node):
+        self._remap_spanning_tree_to_self(
+            list_of_trees,
+            loop_branches_for_trees,
+            closure_branches_for_trees,
+            node_sets_for_trees,
+        )
+
+        list_of_trees, closure_branches_for_trees = self._apply_user_closure_policy(
+            list_of_trees,
+            loop_branches_for_trees,
+            closure_branches_for_trees,
+            use_closure_branches,
+        )
+
+        return {
+            "list_of_trees": list_of_trees,
+            "loop_branches_for_trees": loop_branches_for_trees,
+            "node_sets_for_trees": node_sets_for_trees,
+            "closure_branches_for_trees": closure_branches_for_trees,
+        }
+
+    @staticmethod
+    def _construct_initial_tree_per_component(
+        node_sets_for_trees: list[list[list[Node]]],
+    ) -> list[list[Branch]]:
+        """Greedy spanning-tree per connected component, layer-by-layer.
+
+        For each connected component (one entry of ``node_sets_for_trees``),
+        walk the BFS layers and pick exactly one branch per layer transition
+        — the first branch found connecting any node in the current layer to
+        any node in the previous layer.  Returns one list of branches per
+        component, in tree-construction order.
+        """
+
+        def connecting_branches(n1: Node, n2: Node) -> list[Branch]:
             return [branch for branch in n1.branches if branch in n2.branches]
 
-        list_of_trees = []
+        list_of_trees: list[list[Branch]] = []
         for node_sets in node_sets_for_trees:
             tree: list[Branch] = []
-
-            # find the branch connecting this node to another node in a previous node set.
             for index, node_set in enumerate(node_sets):
                 if index == 0:
                     continue
@@ -770,59 +807,71 @@ class SymbolicCircuitGraph(ABC):
                             tree.append(connecting[0])
                             break
             list_of_trees.append(tree)
+        return list_of_trees
 
-        # as the capacitors are removed to form the spanning tree, and as a result
-        # floating branches as well, the set of all branches which form the
-        # superconducting loops would be in circ_copy.
-        closure_branches_for_trees: list[list[Branch]] = [[] for tree in list_of_trees]
-        loop_branches_for_trees = []
+    @staticmethod
+    def _loop_branches_and_closures_per_component(
+        circ_copy: "SymbolicCircuitGraph",
+        list_of_trees: list[list[Branch]],
+        node_sets_for_trees: list[list[list[Node]]],
+    ) -> tuple[list[list[Branch]], list[list[Branch]]]:
+        """Compute ``(loop_branches, closure_branches)`` per component.
+
+        For each component, the loop branches are the tree branches plus
+        every other branch whose two endpoints both lie inside the
+        component's node set; the closure branches are exactly the
+        non-tree subset of those.  Order: tree branches first (in
+        tree-construction order), then closure candidates (in
+        ``circ_copy.branches`` iteration order) — preserved from the
+        legacy implementation because downstream methods iterate these
+        lists.
+        """
+        loop_branches_for_trees: list[list[Branch]] = []
+        closure_branches_for_trees: list[list[Branch]] = [[] for _ in list_of_trees]
         for tree_idx, tree in enumerate(list_of_trees):
             loop_branches = tree.copy()
             nodes_in_tree = flatten_list_recursive(node_sets_for_trees[tree_idx])
-            for branch in [
-                branch for branch in circ_copy.branches if branch not in tree
-            ]:
-                if len([node for node in branch.nodes if node in nodes_in_tree]) == 2:
+            for branch in circ_copy.branches:
+                if branch in tree:
+                    continue
+                if all(node in nodes_in_tree for node in branch.nodes):
                     loop_branches.append(branch)
                     closure_branches_for_trees[tree_idx].append(branch)
             loop_branches_for_trees.append(loop_branches)
+        return loop_branches_for_trees, closure_branches_for_trees
 
-        self._remap_spanning_tree_to_self(
-            list_of_trees,
-            loop_branches_for_trees,
-            closure_branches_for_trees,
-            node_sets_for_trees,
+    def _apply_user_closure_policy(
+        self,
+        list_of_trees: list[list[Branch]],
+        loop_branches_for_trees: list[list[Branch]],
+        closure_branches_for_trees: list[list[Branch]],
+        use_closure_branches: bool,
+    ) -> tuple[list[list[Branch]], list[list[Branch]]]:
+        """If the user has supplied explicit ``Branch`` closures, override the
+        auto-derived tree/closure split: each component's tree becomes
+        ``loop_branches \\ user_closures`` and its closures become
+        ``loop_branches ∩ user_closures``.
+
+        Otherwise return the auto-derived split unchanged.
+        """
+        user_set_explicit_closures = (
+            self.closure_branches != []
+            and use_closure_branches
+            and np.all([isinstance(elem, Branch) for elem in self.closure_branches])
         )
+        if not user_set_explicit_closures:
+            return list_of_trees, closure_branches_for_trees
 
-        # if the closure branches are manually set, then the spanning tree would be all
-        # the superconducting loop branches except the closure branches
-        if (self.closure_branches != [] and use_closure_branches) and np.all(
-            [isinstance(elem, Branch) for elem in self.closure_branches]
-        ):
-            closure_branches_for_trees = [
-                [] for loop_branches in loop_branches_for_trees
-            ]
-            list_of_trees = []
-            for tree_idx, loop_branches in enumerate(loop_branches_for_trees):
-                list_of_trees.append(
-                    [
-                        branch
-                        for branch in loop_branches
-                        if branch not in self.closure_branches
-                    ]
-                )
-                closure_branches_for_trees[tree_idx] = [
-                    branch
-                    for branch in loop_branches
-                    if branch in self.closure_branches
-                ]
-
-        return {
-            "list_of_trees": list_of_trees,
-            "loop_branches_for_trees": loop_branches_for_trees,
-            "node_sets_for_trees": node_sets_for_trees,
-            "closure_branches_for_trees": closure_branches_for_trees,
-        }
+        user_closures = self.closure_branches
+        new_list_of_trees = [
+            [b for b in loop_branches if b not in user_closures]
+            for loop_branches in loop_branches_for_trees
+        ]
+        new_closures = [
+            [b for b in loop_branches if b in user_closures]
+            for loop_branches in loop_branches_for_trees
+        ]
+        return new_list_of_trees, new_closures
 
     def _closure_branches(
         self, spanning_tree_dict: dict[str, list] | None = None
