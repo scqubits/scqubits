@@ -630,6 +630,63 @@ class TestIndependentModesNoNodeMarkerMutation:
         )
 
 
+class TestFindPathToRootDFSRewrite:
+    """``_find_path_to_root`` is now O(depth) DFS via ``_AdjacencyIndex``,
+    not O(tree_size!) brute-force permutation enumeration.  The
+    spanning-tree path is unique (a tree has no cycles), so the DFS
+    answer is identical to what the legacy permutation search would
+    have returned."""
+
+    YAML = (
+        "branches:\n"
+        "- [JJ, 1, 2, 10, 20]\n"
+        "- [JJ, 3, 4, 10, 20]\n"
+        "- [L, 2, 3, 0.008]\n"
+        "- [L, 4, 1, 0.008]\n"
+        "- [C, 1, 3, 0.02]\n"
+        "- [C, 2, 4, 0.02]\n"
+    )
+
+    def test_path_to_root_for_root_returns_empty(self):
+        """The root node is generation 0 with empty ancestor / branch lists."""
+        from scqubits.core.symbolic_circuit import SymbolicCircuit
+
+        circ = SymbolicCircuit.from_yaml(self.YAML, from_file=False)
+        node_sets = circ.spanning_tree_dict["node_sets_for_trees"]
+        root = node_sets[0][0][0]
+        gen, ancestors, branches, tree_idx = circ._find_path_to_root(root)
+        assert gen == 0
+        assert ancestors == []
+        assert branches == []
+        assert tree_idx == 0
+
+    def test_path_to_root_for_leaf_includes_all_intermediate(self):
+        """For a leaf node, the path includes every ancestor up to the root,
+        in root-to-leaf order."""
+        from scqubits.core.symbolic_circuit import SymbolicCircuit
+
+        circ = SymbolicCircuit.from_yaml(self.YAML, from_file=False)
+        # zero-pi has 4 nodes; pick the one in the deepest layer
+        node_sets = circ.spanning_tree_dict["node_sets_for_trees"][0]
+        deepest = node_sets[-1][0]
+        gen, ancestors, branches, _ = circ._find_path_to_root(deepest)
+        assert gen == len(node_sets) - 1
+        # ancestor list ends just before the leaf, length = generation
+        assert len(ancestors) == gen
+        assert len(branches) == gen
+
+    def test_path_to_root_raises_for_unknown_node(self):
+        """A node not in any spanning tree raises ValueError (the legacy
+        permutation code silently returned stale data)."""
+        from scqubits.core.symbolic_circuit import SymbolicCircuit
+        from scqubits.core.symbolic_circuit_graph import Node
+
+        circ = SymbolicCircuit.from_yaml(self.YAML, from_file=False)
+        bogus = Node(99)
+        with pytest.raises(ValueError, match="not present in any spanning tree"):
+            circ._find_path_to_root(bogus)
+
+
 class TestSymbolicCircuitFromYamlResourceHandling:
     """``SymbolicCircuit.from_yaml(file_path, from_file=True)`` must release
     the file handle even if a parse error fires below the read.  The

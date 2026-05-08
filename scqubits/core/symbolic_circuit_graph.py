@@ -499,6 +499,126 @@ def make_branch(
     )
 
 
+class _AdjacencyIndex:
+    """Per-spanning-tree adjacency index supporting O(depth) path-to-root.
+
+    Built once from the ``list_of_trees`` and ``node_sets_for_trees`` of a
+    :meth:`SymbolicCircuitGraph._spanning_tree` result.  Each component
+    (entry of ``list_of_trees``) gets a parent map computed by BFS from
+    the root (``node_sets[0][0]``).
+
+    The previous ``_find_path_to_root`` implementation enumerated
+    ``itertools.permutations(tree)`` of the spanning-tree branches and
+    tried each permutation until one assembled a valid ancestor chain —
+    O(tree_size!) in the worst case.  Because a spanning tree is acyclic,
+    the path between any two nodes is unique; DFS / BFS finds the same
+    path the brute-force search would have found, in O(depth).
+    """
+
+    __slots__ = (
+        "_node_to_tree_idx",
+        "_node_to_generation",
+        "_parent_in_tree",
+    )
+
+    def __init__(
+        self,
+        list_of_trees: list[list[Branch]],
+        node_sets_for_trees: list[list[list[Node]]],
+    ) -> None:
+        self._node_to_tree_idx: dict[Node, int] = {}
+        self._node_to_generation: dict[Node, int] = {}
+        # parent_in_tree[node] = (parent_node, connecting_branch); root maps to None.
+        self._parent_in_tree: dict[Node, tuple[Node, Branch] | None] = {}
+        for tree_idx, tree in enumerate(list_of_trees):
+            node_sets = node_sets_for_trees[tree_idx]
+            for generation, nodes_in_layer in enumerate(node_sets):
+                for n in nodes_in_layer:
+                    self._node_to_tree_idx[n] = tree_idx
+                    self._node_to_generation[n] = generation
+            if not node_sets:
+                continue
+            root = node_sets[0][0]
+            self._parent_in_tree[root] = None
+            self._build_parent_map_via_bfs(root, tree)
+
+    def _build_parent_map_via_bfs(self, root: Node, tree: list[Branch]) -> None:
+        """BFS from ``root`` over the tree's branches; record each node's
+        parent and connecting branch."""
+        # adjacency: node -> list of (neighbour, branch) pairs, restricted
+        # to the tree's branches
+        adj: dict[Node, list[tuple[Node, Branch]]] = {}
+        for branch in tree:
+            n0, n1 = branch.nodes
+            adj.setdefault(n0, []).append((n1, branch))
+            adj.setdefault(n1, []).append((n0, branch))
+        frontier = [root]
+        seen: set[Node] = {root}
+        while frontier:
+            next_frontier: list[Node] = []
+            for current in frontier:
+                for neighbour, branch in adj.get(current, []):
+                    if neighbour in seen:
+                        continue
+                    self._parent_in_tree[neighbour] = (current, branch)
+                    seen.add(neighbour)
+                    next_frontier.append(neighbour)
+            frontier = next_frontier
+
+    def path_to_root(self, node: Node) -> tuple[int, list[Node], list[Branch], int]:
+        """Return ``(generation, ancestor_nodes, branch_path, tree_idx)``.
+
+        ``ancestor_nodes`` lists the path *up* to but not including the
+        root, in root-to-node order; ``branch_path`` lists the branches
+        traversed in the same direction.  When ``node`` is itself the
+        root, both lists are empty and ``generation == 0``.
+
+        Raises ``ValueError`` if ``node`` is not present in any tree.
+        """
+        if node not in self._node_to_tree_idx:
+            raise ValueError(
+                f"Node {node!r} is not present in any spanning tree of this "
+                f"adjacency index."
+            )
+        tree_idx = self._node_to_tree_idx[node]
+        generation = self._node_to_generation[node]
+
+        ancestors: list[Node] = []
+        branches: list[Branch] = []
+        current = node
+        # Defensive cycle guard (should be unreachable for an actual tree)
+        seen_nodes: set[Node] = {current}
+        while True:
+            parent_link = self._parent_in_tree.get(current)
+            if parent_link is None:
+                break
+            parent, branch = parent_link
+            if parent in seen_nodes:
+                raise RuntimeError(
+                    "Spanning-tree adjacency contained a cycle; this should "
+                    "be impossible for a tree.  Inputs to _AdjacencyIndex "
+                    "are inconsistent."
+                )
+            ancestors.append(parent)
+            branches.append(branch)
+            seen_nodes.add(parent)
+            current = parent
+
+        ancestors.reverse()
+        branches.reverse()
+        return generation, ancestors, branches, tree_idx
+
+    @classmethod
+    def from_spanning_tree_dict(
+        cls, spanning_tree_dict: dict[str, list]
+    ) -> "_AdjacencyIndex":
+        """Convenience constructor from the ``_spanning_tree`` return shape."""
+        return cls(
+            spanning_tree_dict["list_of_trees"],
+            spanning_tree_dict["node_sets_for_trees"],
+        )
+
+
 class SymbolicCircuitGraph(ABC):
     """Mixin providing graph-theoretic helpers for :class:`SymbolicCircuit`.
 
@@ -970,9 +1090,15 @@ class SymbolicCircuitGraph(ABC):
     ) -> tuple[int, list[Node], list[Branch], int]:
         r"""Return spanning-tree path data from the input node to the root.
 
-        The root of the spanning tree is node 0 if there is a physical ground
-        node, otherwise it is node 1. Branches sitting on the boundaries of
-        capacitive islands are not included in the returned branch list.
+        The root of each spanning tree is the first node of the tree's
+        ``node_sets[0]`` (node 0 when grounded, node 1 otherwise).
+        Implemented as O(depth) DFS via :class:`_AdjacencyIndex`; the
+        previous brute-force ``itertools.permutations(tree)`` enumeration
+        was O(tree_size!).
+
+        A spanning tree is by definition acyclic, so the path between any
+        two nodes is unique — DFS finds the same path the permutation
+        search would have returned.
 
         Parameters
         ----------
@@ -987,60 +1113,19 @@ class SymbolicCircuitGraph(ABC):
         -------
         Tuple ``(generation, ancestor_nodes_list, branch_path_to_root,
         tree_idx)`` containing the generation number, the list of ancestor
-        nodes from `node` up to the root, the list of branches on that path,
-        and the index of the tree containing `node`.
+        nodes from ``node`` up to the root, the list of branches on that
+        path, and the index of the tree containing ``node``.
+
+        Raises
+        ------
+        ValueError
+            if ``node`` is not present in any spanning tree of
+            ``spanning_tree_dict`` (the legacy code silently returned
+            stale data in this case).
         """
-        # extract spanning trees node_sets (to determine the generation of the node)
         tree_info_dict = spanning_tree_dict or self.spanning_tree_dict
-        # find out the generation number of the node in the spanning tree
-        for tree_idx, tree in enumerate(tree_info_dict["list_of_trees"]):
-            node_sets = tree_info_dict["node_sets_for_trees"][tree_idx]
-            tree = tree_info_dict["list_of_trees"][tree_idx]
-            # generation number begins from 0
-            for igen, nodes in enumerate(node_sets):
-                nodes_id = [node.index for node in nodes]
-                if node.index in nodes_id:
-                    generation = igen
-                    break
-            # find out the path from the node to the root
-            current_node = node
-            ancestor_nodes_list: list[Node] = []
-            branch_path_to_root: list[Branch] = []
-            root_node = node_sets[0][0]
-            if root_node == node:
-                return (0, [], [], tree_idx)
-
-            tree_perm_gen = (perm for perm in itertools.permutations(tree))
-            while root_node not in ancestor_nodes_list:
-                ancestor_nodes_list = []
-                branch_path_to_root = []
-                current_node = node
-                try:
-                    tree_perm = next(tree_perm_gen)
-                except StopIteration:
-                    break
-                # finding the parent of the current_node, and the branch that links the
-                # parent and current_node
-                for branch in tree_perm:
-                    common_node_list = [
-                        n for n in branch.nodes if n not in [current_node]
-                    ]
-                    if (
-                        len(common_node_list) == 1
-                        and common_node_list[0] not in ancestor_nodes_list
-                    ):
-                        second_node = common_node_list[0]
-                        ancestor_nodes_list.append(second_node)
-                        branch_path_to_root.append(branch)
-                        current_node = second_node
-                        if current_node == root_node:
-                            break
-            if root_node in ancestor_nodes_list:
-                break
-
-        ancestor_nodes_list.reverse()
-        branch_path_to_root.reverse()
-        return generation, ancestor_nodes_list, branch_path_to_root, tree_idx
+        adjacency = _AdjacencyIndex.from_spanning_tree_dict(tree_info_dict)
+        return adjacency.path_to_root(node)
 
     def _find_loop(
         self,
