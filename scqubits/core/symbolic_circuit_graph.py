@@ -1897,15 +1897,29 @@ class SymbolicCircuitGraph(ABC):
             else:
                 vector_ref[: node_count - 1] = 1
 
-            vector_set = (
-                permutation
-                for permutation in itertools.permutations(vector_ref, node_count)
-            )
-            while np.linalg.matrix_rank(np.array(heuristic_basis)) < node_count:
-                a = next(vector_set)
-                mat = np.array(heuristic_basis + [a])
+            # ``vector_ref`` typically has many duplicate entries (e.g.
+            # ``[1]*8 + [0]*2`` for a 10-node circuit), so
+            # ``itertools.permutations`` emits each *distinct* value
+            # ``k! · (n - k)!`` times.  Pre-refactor, every duplicate
+            # was rank-tested again — for a 10-node circuit that meant
+            # ~564 000 SVDs to add 9 vectors.  Dedupe via ``seen`` so
+            # each distinct candidate is rank-tested at most once;
+            # iteration order is preserved so the same vectors are
+            # accepted in the same order as the legacy code.
+            #
+            # Termination check is now a length comparison:
+            # ``heuristic_basis`` only ever gains rank-strict
+            # candidates, so ``len == rank`` is invariant.
+            seen_candidates: set[tuple] = set()
+            for candidate in itertools.permutations(vector_ref, node_count):
+                if len(heuristic_basis) == node_count:
+                    break
+                if candidate in seen_candidates:
+                    continue
+                seen_candidates.add(candidate)
+                mat = np.array(heuristic_basis + [list(candidate)])
                 if np.linalg.matrix_rank(mat) == len(mat):
-                    heuristic_basis = heuristic_basis + [list(a)]
+                    heuristic_basis.append(list(candidate))
             standard_basis = np.array(heuristic_basis)
         elif self.basis_completion == "canonical":
             standard_basis = np.identity(len(self.nodes) - self.is_grounded)

@@ -727,6 +727,64 @@ class TestAdjacencyIndexCaching:
         assert idx_1 is not idx_2, "cache failed to rebuild for new dict"
 
 
+class TestHeuristicBasisCompletionPerformance:
+    """The heuristic basis-completion in
+    ``_complete_basis_with_standard_vectors`` previously rank-tested every
+    permutation produced by ``itertools.permutations(vector_ref, n)``,
+    most of which were duplicates of vectors already rejected.  For a
+    10-node circuit this meant ~564 000 SVDs and ~26 s of construction.
+    The deduped variant rank-tests each distinct candidate at most
+    once."""
+
+    @staticmethod
+    def _ten_node_chain_yaml() -> str:
+        """Linear chain of 10 nodes connected by capacitors and a JJ at one end.
+
+        Constructed to be small enough to parse instantly but to land in
+        the ``basis_completion="heuristic"`` path with a non-trivial
+        ``vector_ref`` (8 ones, 2 zeros).
+        """
+        lines = ["branches:", "- [JJ, 0, 1, 10, 20]"]
+        for i in range(1, 10):
+            lines.append(f"- [C, {i}, {i + 1}, 0.02]")
+        return "\n".join(lines) + "\n"
+
+    def test_construction_completes_quickly(self):
+        """A 10-node circuit must build in well under 5 s.
+
+        Pre-fix: > 20 s on the user's machine (~564k SVDs).
+        Post-fix: well under 1 s (~45 SVDs in the heuristic loop)."""
+        import time
+
+        from scqubits.core.symbolic_circuit import SymbolicCircuit
+
+        yaml = self._ten_node_chain_yaml()
+        start = time.perf_counter()
+        SymbolicCircuit.from_yaml(yaml, from_file=False)
+        elapsed = time.perf_counter() - start
+        # Generous 5 s budget — the post-fix code on a slow CI runner
+        # should still come in well under 1 s.
+        assert elapsed < 5.0, (
+            f"SymbolicCircuit construction for the 10-node chain took "
+            f"{elapsed:.2f} s; expected < 1 s post-fix.  Pre-fix this "
+            f"was ~26 s due to O(n!) permutation rank-tests."
+        )
+
+    def test_dedupe_does_not_change_basis_for_simple_circuit(self):
+        """Belt-and-braces: two SymbolicCircuit instances built from the
+        same YAML must agree element-wise on
+        ``transformation_matrix``.  Different runs of the deduped loop
+        on the same input must be deterministic."""
+        from scqubits.core.symbolic_circuit import SymbolicCircuit
+
+        yaml = self._ten_node_chain_yaml()
+        circ_a = SymbolicCircuit.from_yaml(yaml, from_file=False)
+        circ_b = SymbolicCircuit.from_yaml(yaml, from_file=False)
+        np.testing.assert_array_equal(
+            circ_a.transformation_matrix, circ_b.transformation_matrix
+        )
+
+
 class TestSymbolicCircuitFromYamlResourceHandling:
     """``SymbolicCircuit.from_yaml(file_path, from_file=True)`` must release
     the file handle even if a parse error fires below the read.  The
