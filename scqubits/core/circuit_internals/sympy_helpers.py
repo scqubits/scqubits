@@ -76,11 +76,31 @@ def round_symbolic_expr(expr: sm.Expr, number_of_digits: int) -> sm.Expr:
     -------
     Rounded Sympy expression.
     """
-    rounded_expr = expr.expand()
-    for term in sm.preorder_traversal(expr.expand()):
-        if isinstance(term, sm.Float):
-            rounded_expr = rounded_expr.subs(term, round(term, number_of_digits))
-    return rounded_expr
+    # Expand once, then collect every distinct Float in a single
+    # tree traversal and apply all substitutions in one
+    # ``xreplace(dict)`` call.
+    #
+    # Using ``xreplace`` instead of ``subs`` is the key win: ``subs``
+    # walks the entire pattern-matching machinery (mathematical
+    # equivalence, pattern unification), whereas ``xreplace`` does a
+    # purely structural ``id == id`` lookup-and-substitute pass.
+    # For a literal Float -> Float mapping the two are semantically
+    # equivalent, but ``xreplace`` is an order of magnitude faster.
+    #
+    # Pre-refactor: ``expand()`` called twice, ``subs`` called once
+    # per Float occurrence — for a complex Hamiltonian with N distinct
+    # Floats appearing M times across the tree, that was N full-tree
+    # rewrites (M - N of them no-ops because the Float was already
+    # rounded by an earlier pass).  Now: one expand, one xreplace.
+    expanded = expr.expand()
+    float_substitutions = {
+        term: round(term, number_of_digits)
+        for term in sm.preorder_traversal(expanded)
+        if isinstance(term, sm.Float)
+    }
+    if not float_substitutions:
+        return expanded
+    return expanded.xreplace(float_substitutions)
 
 
 def keep_terms_for_subsystem(
