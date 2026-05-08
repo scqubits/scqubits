@@ -1891,35 +1891,37 @@ class SymbolicCircuitGraph(ABC):
             node_count = len(self.nodes) - self.is_grounded
             heuristic_basis: list = [np.ones(node_count)]
 
-            vector_ref = np.zeros(node_count)
-            if node_count > 2:
-                vector_ref[: node_count - 2] = 1
-            else:
-                vector_ref[: node_count - 1] = 1
-
-            # ``vector_ref`` typically has many duplicate entries (e.g.
-            # ``[1]*8 + [0]*2`` for a 10-node circuit), so
-            # ``itertools.permutations`` emits each *distinct* value
-            # ``k! · (n - k)!`` times.  Pre-refactor, every duplicate
-            # was rank-tested again — for a 10-node circuit that meant
-            # ~564 000 SVDs to add 9 vectors.  Dedupe via ``seen`` so
-            # each distinct candidate is rank-tested at most once;
-            # iteration order is preserved so the same vectors are
-            # accepted in the same order as the legacy code.
+            # ``vector_ref`` is ``[1]*(n-2) + [0]*2`` for ``n > 2`` (or
+            # ``[1]*(n-1) + [0]*1`` for ``n <= 2``).  The legacy
+            # algorithm iterated ``itertools.permutations(vector_ref, n)``
+            # in lex order — but for an input with ``k`` zeros and
+            # ``n - k`` ones, that emits each *distinct* value
+            # ``k! · (n - k)!`` times.  For ``n = 12`` that's ~480 M
+            # iterations to enumerate just 66 distinct vectors.
             #
-            # Termination check is now a length comparison:
+            # Generate the distinct candidates directly via
+            # ``combinations(range(n), zeros_count)`` over the
+            # zero-positions, in the same first-occurrence order
+            # ``itertools.permutations`` would produce.  That order is
+            # ``reversed(combinations(...))``: the legacy code first
+            # emits 0s rightmost (positions (n-2, n-1)), then walks
+            # leftward in lex-decreasing position-tuple order.
+            #
+            # Termination check is a length comparison:
             # ``heuristic_basis`` only ever gains rank-strict
             # candidates, so ``len == rank`` is invariant.
-            seen_candidates: set[tuple] = set()
-            for candidate in itertools.permutations(vector_ref, node_count):
+            zeros_count = 2 if node_count > 2 else 1
+            zero_positions_in_legacy_order = reversed(
+                list(itertools.combinations(range(node_count), zeros_count))
+            )
+            for zero_positions in zero_positions_in_legacy_order:
                 if len(heuristic_basis) == node_count:
                     break
-                if candidate in seen_candidates:
-                    continue
-                seen_candidates.add(candidate)
-                mat = np.array(heuristic_basis + [list(candidate)])
+                zero_set = set(zero_positions)
+                candidate = [0 if i in zero_set else 1 for i in range(node_count)]
+                mat = np.array(heuristic_basis + [candidate])
                 if np.linalg.matrix_rank(mat) == len(mat):
-                    heuristic_basis.append(list(candidate))
+                    heuristic_basis.append(candidate)
             standard_basis = np.array(heuristic_basis)
         elif self.basis_completion == "canonical":
             standard_basis = np.identity(len(self.nodes) - self.is_grounded)
