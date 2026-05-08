@@ -1054,7 +1054,7 @@ class SymbolicCircuitGraph(ABC):
         W = np.zeros([len(self.branches), len(self.nodes) - self.is_grounded])
 
         for closure_brnch_idx, closure_branch in enumerate(closure_branches):
-            loop_branches = self._find_loop(closure_branch)
+            loop_branches = self._find_loop(closure_branch, self.spanning_tree_dict)
             # setting the loop direction from the direction of the closure branch
             R_prev_brnch = 1
             for b_idx, branch in enumerate(loop_branches):
@@ -1104,7 +1104,7 @@ class SymbolicCircuitGraph(ABC):
         return B.round(10) @ self.external_fluxes
 
     def _find_path_to_root(
-        self, node: Node, spanning_tree_dict: dict[str, list] | None = None
+        self, node: Node, spanning_tree_dict: dict[str, list]
     ) -> tuple[int, list[Node], list[Branch], int]:
         r"""Return spanning-tree path data from the input node to the root.
 
@@ -1123,9 +1123,12 @@ class SymbolicCircuitGraph(ABC):
         node:
             input node whose path to the root is sought
         spanning_tree_dict:
-            spanning-tree dictionary as returned by :meth:`_spanning_tree`;
-            if ``None`` (default), the cached :attr:`spanning_tree_dict` is
-            used
+            spanning-tree dictionary as returned by :meth:`_spanning_tree`.
+            Required; pass ``self.spanning_tree_dict`` explicitly when the
+            cached version is wanted.  (The implicit-fallback ``None``
+            default was removed because it could mask staleness — a
+            caller that passed ``None`` by accident would silently use
+            an out-of-date cache and get wrong answers.)
 
         Returns
         -------
@@ -1141,8 +1144,7 @@ class SymbolicCircuitGraph(ABC):
             ``spanning_tree_dict`` (the legacy code silently returned
             stale data in this case).
         """
-        tree_info_dict = spanning_tree_dict or self.spanning_tree_dict
-        adjacency = self._adjacency_for_spanning_tree_dict(tree_info_dict)
+        adjacency = self._adjacency_for_spanning_tree_dict(spanning_tree_dict)
         return adjacency.path_to_root(node)
 
     def _adjacency_for_spanning_tree_dict(
@@ -1168,7 +1170,7 @@ class SymbolicCircuitGraph(ABC):
     def _find_loop(
         self,
         closure_branch: Branch,
-        spanning_tree_dict: dict[str, list] | None = None,
+        spanning_tree_dict: dict[str, list],
     ) -> list["Branch"]:
         r"""Find out the loop that is closed by the closure branch.
 
@@ -1177,22 +1179,21 @@ class SymbolicCircuitGraph(ABC):
         closure_branch:
             input closure branch
         spanning_tree_dict:
-            spanning-tree dictionary as returned by :meth:`_spanning_tree`;
-            if ``None`` (default), the cached :attr:`spanning_tree_dict` is
-            used
+            spanning-tree dictionary as returned by :meth:`_spanning_tree`.
+            Required; pass ``self.spanning_tree_dict`` explicitly when
+            the cached version is wanted.  (Same rationale as
+            :meth:`_find_path_to_root`: the implicit-fallback ``None``
+            default could mask staleness.)
 
         Returns
         -------
         A list of branches that corresponds to the loop closed by the closure branch
         """
-        # find out ancestor nodes, path to root and generation number for each node in the
-        # closure branch
-        tree_info_dict = spanning_tree_dict or self.spanning_tree_dict
-        _, _, path_1, tree_idx_0 = self._find_path_to_root(
-            closure_branch.nodes[0], tree_info_dict
+        _, _, path_1, _ = self._find_path_to_root(
+            closure_branch.nodes[0], spanning_tree_dict
         )
-        _, _, path_2, tree_idx_1 = self._find_path_to_root(
-            closure_branch.nodes[1], tree_info_dict
+        _, _, path_2, _ = self._find_path_to_root(
+            closure_branch.nodes[1], spanning_tree_dict
         )
         # find branches that are not common in the paths, and then add the closure
         # branch to form the loop

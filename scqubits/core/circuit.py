@@ -1580,7 +1580,9 @@ class Circuit(  # type: ignore[misc]
                 self.external_fluxes[list_closure_branches[branch]]
             ): (
                 branch,
-                self.symbolic_circuit._find_loop(branch),
+                self.symbolic_circuit._find_loop(
+                    branch, self.symbolic_circuit.spanning_tree_dict
+                ),
             )
             for branch in list_closure_branches
         }

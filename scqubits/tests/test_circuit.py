@@ -468,9 +468,6 @@ class TestMakeBranchNodeIndexOffset:
             assert {n.index for n in branch.nodes} == {1, 2}
 
 
-
-
-
 class TestVariableTransformationMatrixClassification:
     """``variable_transformation_matrix`` partitions basis rows into
     sigma / free / periodic / frozen / rest with precedence
@@ -479,12 +476,12 @@ class TestVariableTransformationMatrixClassification:
     chain-of-exclusions for any basis layout."""
 
     @staticmethod
-    def _legacy_partition(new_basis, Σ, free_modes, periodic_modes, frozen_modes, is_grounded):
+    def _legacy_partition(
+        new_basis, Σ, free_modes, periodic_modes, frozen_modes, is_grounded
+    ):
         """Reproduces the pre-refactor 5-comprehension cascade for cross-check."""
         if not is_grounded:
-            pos_Σ = [
-                i for i in range(len(new_basis)) if new_basis[i].tolist() == Σ
-            ]
+            pos_Σ = [i for i in range(len(new_basis)) if new_basis[i].tolist() == Σ]
         else:
             pos_Σ = []
         pos_free = [
@@ -519,7 +516,9 @@ class TestVariableTransformationMatrixClassification:
         return pos_Σ, pos_free, pos_periodic, pos_frozen, pos_rest
 
     @staticmethod
-    def _new_partition(new_basis, Σ, free_modes, periodic_modes, frozen_modes, is_grounded):
+    def _new_partition(
+        new_basis, Σ, free_modes, periodic_modes, frozen_modes, is_grounded
+    ):
         """The new single-pass implementation, isolated for testing."""
         mode_to_label: dict[tuple, str] = {}
         for m in frozen_modes:
@@ -581,9 +580,15 @@ class TestVariableTransformationMatrixClassification:
             new_basis = np.array(rows)
             Σ = [1] * n_cols
             # Build random mode lists by sampling rows
-            free_modes = [rows[i] for i in rng.sample(range(n_rows), k=rng.randint(0, 2))]
-            periodic_modes = [rows[i] for i in rng.sample(range(n_rows), k=rng.randint(0, 2))]
-            frozen_modes = [rows[i] for i in rng.sample(range(n_rows), k=rng.randint(0, 2))]
+            free_modes = [
+                rows[i] for i in rng.sample(range(n_rows), k=rng.randint(0, 2))
+            ]
+            periodic_modes = [
+                rows[i] for i in rng.sample(range(n_rows), k=rng.randint(0, 2))
+            ]
+            frozen_modes = [
+                rows[i] for i in rng.sample(range(n_rows), k=rng.randint(0, 2))
+            ]
             for is_grounded in (True, False):
                 legacy = self._legacy_partition(
                     new_basis, Σ, free_modes, periodic_modes, frozen_modes, is_grounded
@@ -618,16 +623,12 @@ class TestIndependentModesNoNodeMarkerMutation:
         circ = SymbolicCircuit.from_yaml(self.YAML, from_file=False)
         markers_before = [n.marker for n in circ.nodes]
         # call with each branch type
-        circ._independent_modes(
-            [b for b in circ.branches if b.type == "L"]
-        )
-        circ._independent_modes(
-            [b for b in circ.branches if b.type != "L"]
-        )
+        circ._independent_modes([b for b in circ.branches if b.type == "L"])
+        circ._independent_modes([b for b in circ.branches if b.type != "L"])
         markers_after = [n.marker for n in circ.nodes]
-        assert markers_before == markers_after, (
-            "_independent_modes leaked Node.marker mutation onto live nodes"
-        )
+        assert (
+            markers_before == markers_after
+        ), "_independent_modes leaked Node.marker mutation onto live nodes"
 
 
 class TestFindPathToRootDFSRewrite:
@@ -654,7 +655,9 @@ class TestFindPathToRootDFSRewrite:
         circ = SymbolicCircuit.from_yaml(self.YAML, from_file=False)
         node_sets = circ.spanning_tree_dict["node_sets_for_trees"]
         root = node_sets[0][0][0]
-        gen, ancestors, branches, tree_idx = circ._find_path_to_root(root)
+        gen, ancestors, branches, tree_idx = circ._find_path_to_root(
+            root, circ.spanning_tree_dict
+        )
         assert gen == 0
         assert ancestors == []
         assert branches == []
@@ -669,7 +672,9 @@ class TestFindPathToRootDFSRewrite:
         # zero-pi has 4 nodes; pick the one in the deepest layer
         node_sets = circ.spanning_tree_dict["node_sets_for_trees"][0]
         deepest = node_sets[-1][0]
-        gen, ancestors, branches, _ = circ._find_path_to_root(deepest)
+        gen, ancestors, branches, _ = circ._find_path_to_root(
+            deepest, circ.spanning_tree_dict
+        )
         assert gen == len(node_sets) - 1
         # ancestor list ends just before the leaf, length = generation
         assert len(ancestors) == gen
@@ -684,7 +689,7 @@ class TestFindPathToRootDFSRewrite:
         circ = SymbolicCircuit.from_yaml(self.YAML, from_file=False)
         bogus = Node(99)
         with pytest.raises(ValueError, match="not present in any spanning tree"):
-            circ._find_path_to_root(bogus)
+            circ._find_path_to_root(bogus, circ.spanning_tree_dict)
 
 
 class TestAdjacencyIndexCaching:
@@ -728,9 +733,7 @@ class TestSymbolicCircuitFromYamlResourceHandling:
     pre-refactor code used bare ``open()``/``close()`` and could leak."""
 
     BAD_YAML = (
-        "branches:\n"
-        "- [JJ, 1, 2, 10, 20]\n"
-        "- [BAD_BRANCH_TYPE, 1, 2, 0.01]\n"
+        "branches:\n" "- [JJ, 1, 2, 10, 20]\n" "- [BAD_BRANCH_TYPE, 1, 2, 0.01]\n"
     )
 
     def test_file_handle_released_on_parse_error(self, tmp_path):
