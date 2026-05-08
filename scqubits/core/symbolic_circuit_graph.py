@@ -782,20 +782,24 @@ class SymbolicCircuitGraph(ABC):
         # explicitly so the BFS termination check covers it
         num_nodes = len(circ.nodes) + (1 if circ.is_grounded else 0)
 
+        # ``visited`` tracks the set of nodes already placed into some
+        # node-set across all components.  Replaces two
+        # ``flatten_list_recursive(...)`` calls per iteration (the
+        # legacy code rebuilt the visited set from the 3-D nested list
+        # on every step — O(n^2) over the whole BFS).
+        visited: set[Node] = {n for n in initial_layer}
+
         node_set_index = 0
         tree_index = 0
-        while len(flatten_list_recursive(node_sets_for_trees)) < num_nodes:
+        while len(visited) < num_nodes:
             current_layer = node_sets_for_trees[tree_index][node_set_index]
 
             neighbours: list[Node] = []
             for node in current_layer:
                 neighbours += node.connected_nodes("all")
 
-            already_seen = flatten_list_recursive(
-                node_sets_for_trees[tree_index][: node_set_index + 1]
-            )
             next_layer = [
-                n for n in unique_elements_in_list(neighbours) if n not in already_seen
+                n for n in unique_elements_in_list(neighbours) if n not in visited
             ]
             if next_layer:
                 next_layer.sort(key=lambda node: node.index)
@@ -805,16 +809,16 @@ class SymbolicCircuitGraph(ABC):
                 # next un-visited node (handles disjoint capacitive islands)
                 node_sets_for_trees.append([])
                 for node in circ.nodes:
-                    if node not in flatten_list_recursive(
-                        node_sets_for_trees[tree_index]
-                    ):
+                    if node not in visited:
                         tree_index += 1
                         node_sets_for_trees[tree_index].append([node])
                         node_set_index = 0
+                        visited.add(node)
                         break
                 continue
 
             node_sets_for_trees[tree_index].append(next_layer)
+            visited.update(next_layer)
             node_set_index += 1
 
         return node_sets_for_trees
