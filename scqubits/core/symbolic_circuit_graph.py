@@ -543,8 +543,15 @@ class _AdjacencyIndex:
             self._build_parent_map_via_bfs(root, tree)
 
     def _build_parent_map_via_bfs(self, root: Node, tree: list[Branch]) -> None:
-        """BFS from ``root`` over the tree's branches; record each node's
-        parent and connecting branch."""
+        """Populate ``self._parent_in_tree`` via BFS from ``root``.
+
+        Builds an adjacency dict from the branches in ``tree``, then walks
+        outward from ``root``.  For every newly-discovered node, records
+        the ``(parent_node, connecting_branch)`` pair under the node's key
+        in ``_parent_in_tree``; ``root`` itself was already mapped to
+        ``None`` by the caller.  Each node is visited exactly once because
+        ``tree`` is acyclic.
+        """
         # adjacency: node -> list of (neighbour, branch) pairs, restricted
         # to the tree's branches
         adj: dict[Node, list[tuple[Node, Branch]]] = {}
@@ -612,7 +619,13 @@ class _AdjacencyIndex:
     def from_spanning_tree_dict(
         cls, spanning_tree_dict: dict[str, list]
     ) -> "_AdjacencyIndex":
-        """Convenience constructor from the ``_spanning_tree`` return shape."""
+        """Build an index from a :meth:`SymbolicCircuitGraph._spanning_tree` result.
+
+        Reads the ``"list_of_trees"`` and ``"node_sets_for_trees"`` keys
+        of the dict and forwards them to ``__init__``.  The other keys
+        (``"loop_branches_for_trees"``, ``"closure_branches_for_trees"``)
+        are not needed by the index.
+        """
         return cls(
             spanning_tree_dict["list_of_trees"],
             spanning_tree_dict["node_sets_for_trees"],
@@ -650,7 +663,12 @@ class SymbolicCircuitGraph(ABC):
         return next((b for b in self.branches if b == branch), None)
 
     def _local_copy_of_node(self, node: Node) -> Node | None:
-        """Return ``self``'s node matching ``node`` (equal ``.index``), or ``None``."""
+        """Return ``self``'s node matching ``node`` (equal ``.index``), or ``None``.
+
+        Sibling of :meth:`_local_copy_of_branch`; used by
+        :meth:`_remap_spanning_tree_to_self` to substitute deepcopy-copied
+        node references with their counterparts on ``self``.
+        """
         return next((n for n in self.nodes if n == node), None)
 
     def _remap_spanning_tree_to_self(
@@ -1575,11 +1593,15 @@ class SymbolicCircuitGraph(ABC):
     def _subgraph_basis_vectors(
         node_branch_set_indices: list[int], basisvec_entries: list[int]
     ) -> list[list[int]]:
-        """One basis vector per non-grounded subgraph.
+        """Build one basis vector per non-grounded max-connected subgraph.
 
-        Each vector is ``[basisvec_entries[0] if marker == k else
-        basisvec_entries[1] for marker in node_branch_set_indices]`` for
-        each unique non-``-1`` marker ``k``.
+        Each subgraph corresponds to a "no-flux-difference" mode: every
+        node in the subgraph has the same generalized flux, so the
+        characteristic vector marks those nodes with ``basisvec_entries[0]``
+        (default ``1``) and all other nodes with ``basisvec_entries[1]``
+        (default ``0``).  Subgraphs whose marker is ``-1`` (touching the
+        ground node) are skipped because they are pinned to ground and
+        contribute no degree of freedom.
         """
         unique_markers = unique_elements_in_list(node_branch_set_indices)
         return [
@@ -1595,9 +1617,14 @@ class SymbolicCircuitGraph(ABC):
     def _single_node_basis_candidates(
         node_branch_set_indices: list[int], basisvec_entries: list[int]
     ) -> list[list[int]]:
-        """One basis-vector candidate per node with marker ``0`` (i.e. not
-        in any subgraph).  The vector has ``basisvec_entries[0]`` in
-        exactly that node's position and ``basisvec_entries[1]`` elsewhere.
+        """Yield candidate basis vectors for nodes outside every subgraph.
+
+        Nodes with marker ``0`` belong to no max-connected branch subgraph
+        (they sit on the boundary of capacitive islands or have no
+        relevant branch).  Each such node contributes a one-hot
+        candidate basis vector that the caller can adopt if it
+        strictly increases the rank of the existing basis.  Returns
+        an empty list when every node is already in some subgraph.
         """
         if 0 not in node_branch_set_indices:
             return []
@@ -1614,8 +1641,12 @@ class SymbolicCircuitGraph(ABC):
 
     @staticmethod
     def _mode_strictly_increases_rank(basis: list[list[int]], mode: list[int]) -> bool:
-        """Return ``True`` iff appending ``mode`` to ``basis`` raises the
-        rank of the resulting matrix by 1.
+        """Return ``True`` iff ``mode`` is linearly independent of ``basis``.
+
+        Used by :meth:`_independent_modes` to decide whether a candidate
+        single-node mode adds a new degree of freedom or is already in the
+        span of the existing basis vectors.  Equivalent to the rank check
+        ``rank(basis ∪ {mode}) == len(basis) + 1``.
         """
         mat = np.array(basis + [mode])
         return np.linalg.matrix_rank(mat) == len(mat)
