@@ -762,22 +762,31 @@ class CircuitSymMethods(ABC):
         )  # applying expand is critical; otherwise the replacement of p^2 with ps2
         # would not succeed
 
+        # Mark squared momentum operators with a separate symbol.  ``replace``
+        # cannot be batched into a dict the way ``subs`` can (sympy's
+        # ``replace`` accepts only one (pattern, value) pair at a time), but
+        # the per-variable cost is small and there are few extended vars.
         if self.ext_basis == "discretized":
-            # marking the squared momentum operators with a separate symbol
             for i in self.var_categories["extended"]:
                 hamiltonian = hamiltonian.replace(
                     sm.symbols(f"Q{i}") ** 2, sm.symbols("Qs" + str(i))
                 )
 
-        # associate an identity matrix with the external flux vars
+        # Build a single substitution dict for the identity-matrix tagging
+        # of external fluxes / offset charges / free charges, then apply it
+        # in one ``xreplace`` pass.  ``xreplace`` is the right tool here:
+        # the substitutions are literal Symbol -> expression, no pattern
+        # matching needed, and the previous code paid for one full-tree
+        # rewrite per variable.
+        identity = sm.symbols("I")
+        flux_factor = identity * 2 * np.pi
+        substitutions: dict[sm.Expr, sm.Expr] = {}
         for ext_flux in self.external_fluxes:
-            hamiltonian = hamiltonian.subs(
-                ext_flux, ext_flux * sm.symbols("I") * 2 * np.pi
-            )
-
-        # associate an identity matrix with offset and free charge vars
+            substitutions[ext_flux] = ext_flux * flux_factor
         for charge_var in self.offset_charges + self.free_charges:
-            hamiltonian = hamiltonian.subs(charge_var, charge_var * sm.symbols("I"))
+            substitutions[charge_var] = charge_var * identity
+        if substitutions:
+            hamiltonian = hamiltonian.xreplace(substitutions)
 
         # finding the cosine terms
         cos_terms = sum(
