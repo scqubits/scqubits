@@ -1763,47 +1763,42 @@ class SymbolicCircuitGraph(ABC):
         # step 4: extend the modes list to a full basis using the standard
         # basis chosen by self.basis_completion ("heuristic" or "canonical")
         new_basis = self._complete_basis_with_standard_vectors(modes)
-        new_basis = np.array(new_basis)  # type: ignore[assignment]
+        new_basis_arr = np.array(new_basis)
 
-        # sorting the basis so that the free, periodic and frozen variables occur at
-        # the beginning.
+        # Classify each basis row in a single pass via a precomputed lookup,
+        # replacing 5 chained O(n^2) comprehensions with O(n).
+        # Precedence (highest priority first): sigma > free > periodic > frozen
+        # > rest. The dict is built in reverse precedence so later entries
+        # overwrite earlier ones.
+        mode_to_label: dict[tuple, str] = {}
+        for m in frozen_modes:
+            mode_to_label[tuple(m)] = "frozen"
+        for m in periodic_modes:
+            mode_to_label[tuple(m)] = "periodic"
+        for m in free_modes:
+            mode_to_label[tuple(m)] = "free"
         if not self.is_grounded:
-            pos_Σ = [i for i in range(len(new_basis)) if new_basis[i].tolist() == Σ]
-        else:
-            pos_Σ = []
+            mode_to_label[tuple(Σ)] = "sigma"
 
-        pos_free = [
-            i
-            for i in range(len(new_basis))
-            if i not in pos_Σ
-            if new_basis[i].tolist() in free_modes
-        ]
-        pos_periodic = [
-            i
-            for i in range(len(new_basis))
-            if i not in pos_Σ
-            if i not in pos_free
-            if new_basis[i].tolist() in periodic_modes
-        ]
-        pos_frozen = [
-            i
-            for i in range(len(new_basis))
-            if i not in pos_Σ
-            if i not in pos_free
-            if i not in pos_periodic
-            if new_basis[i].tolist() in frozen_modes
-        ]
-        pos_rest = [
-            i
-            for i in range(len(new_basis))
-            if i not in pos_Σ
-            if i not in pos_free
-            if i not in pos_periodic
-            if i not in pos_frozen
-        ]
+        buckets: dict[str, list[int]] = {
+            "sigma": [],
+            "free": [],
+            "periodic": [],
+            "frozen": [],
+            "rest": [],
+        }
+        for i, row in enumerate(new_basis_arr):
+            buckets[mode_to_label.get(tuple(row.tolist()), "rest")].append(i)
+
+        pos_Σ = buckets["sigma"]
+        pos_free = buckets["free"]
+        pos_periodic = buckets["periodic"]
+        pos_frozen = buckets["frozen"]
+        pos_rest = buckets["rest"]
         pos_list = pos_periodic + pos_rest + pos_free + pos_frozen + pos_Σ
-        # transforming the new_basis matrix
-        new_basis = new_basis[pos_list].T  # type: ignore[call-overload]
+        # transforming the new_basis matrix into the order
+        # (periodic, extended, free, frozen, sigma)
+        transformation_matrix = new_basis_arr[pos_list].T
 
         var_categories = self._build_var_categories_from_positions(
             pos_list,
@@ -1815,4 +1810,4 @@ class SymbolicCircuitGraph(ABC):
             self.is_grounded,
         )
 
-        return np.array(new_basis), var_categories
+        return np.array(transformation_matrix), var_categories

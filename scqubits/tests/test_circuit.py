@@ -471,6 +471,133 @@ class TestMakeBranchNodeIndexOffset:
 
 
 
+class TestVariableTransformationMatrixClassification:
+    """``variable_transformation_matrix`` partitions basis rows into
+    sigma / free / periodic / frozen / rest with precedence
+    ``sigma > free > periodic > frozen > rest``.  The single-pass
+    dict-lookup must produce the same partition as the legacy
+    chain-of-exclusions for any basis layout."""
+
+    @staticmethod
+    def _legacy_partition(new_basis, Σ, free_modes, periodic_modes, frozen_modes, is_grounded):
+        """Reproduces the pre-refactor 5-comprehension cascade for cross-check."""
+        if not is_grounded:
+            pos_Σ = [
+                i for i in range(len(new_basis)) if new_basis[i].tolist() == Σ
+            ]
+        else:
+            pos_Σ = []
+        pos_free = [
+            i
+            for i in range(len(new_basis))
+            if i not in pos_Σ
+            if new_basis[i].tolist() in free_modes
+        ]
+        pos_periodic = [
+            i
+            for i in range(len(new_basis))
+            if i not in pos_Σ
+            if i not in pos_free
+            if new_basis[i].tolist() in periodic_modes
+        ]
+        pos_frozen = [
+            i
+            for i in range(len(new_basis))
+            if i not in pos_Σ
+            if i not in pos_free
+            if i not in pos_periodic
+            if new_basis[i].tolist() in frozen_modes
+        ]
+        pos_rest = [
+            i
+            for i in range(len(new_basis))
+            if i not in pos_Σ
+            if i not in pos_free
+            if i not in pos_periodic
+            if i not in pos_frozen
+        ]
+        return pos_Σ, pos_free, pos_periodic, pos_frozen, pos_rest
+
+    @staticmethod
+    def _new_partition(new_basis, Σ, free_modes, periodic_modes, frozen_modes, is_grounded):
+        """The new single-pass implementation, isolated for testing."""
+        mode_to_label: dict[tuple, str] = {}
+        for m in frozen_modes:
+            mode_to_label[tuple(m)] = "frozen"
+        for m in periodic_modes:
+            mode_to_label[tuple(m)] = "periodic"
+        for m in free_modes:
+            mode_to_label[tuple(m)] = "free"
+        if not is_grounded:
+            mode_to_label[tuple(Σ)] = "sigma"
+        buckets = {"sigma": [], "free": [], "periodic": [], "frozen": [], "rest": []}
+        for i, row in enumerate(new_basis):
+            buckets[mode_to_label.get(tuple(row.tolist()), "rest")].append(i)
+        return (
+            buckets["sigma"],
+            buckets["free"],
+            buckets["periodic"],
+            buckets["frozen"],
+            buckets["rest"],
+        )
+
+    @pytest.mark.parametrize("is_grounded", [True, False])
+    def test_overlapping_modes_use_correct_precedence(self, is_grounded):
+        """A row in both free and frozen lists must classify as free, not frozen.
+        A row equal to Σ (when not grounded) must classify as sigma even if it
+        also appears in free / periodic / frozen."""
+        new_basis = np.array(
+            [
+                [1, 0, 0, 0],  # only in frozen — frozen
+                [0, 1, 0, 0],  # in free AND frozen — should be free (free > frozen)
+                [0, 0, 1, 0],  # only in periodic — periodic
+                [1, 1, 1, 1],  # equals Σ when not grounded; also in free
+                [0, 0, 0, 1],  # not in any — rest
+            ]
+        )
+        Σ = [1, 1, 1, 1]
+        free_modes = [[0, 1, 0, 0], [1, 1, 1, 1]]
+        periodic_modes = [[0, 0, 1, 0]]
+        frozen_modes = [[1, 0, 0, 0], [0, 1, 0, 0]]
+        legacy = self._legacy_partition(
+            new_basis, Σ, free_modes, periodic_modes, frozen_modes, is_grounded
+        )
+        new = self._new_partition(
+            new_basis, Σ, free_modes, periodic_modes, frozen_modes, is_grounded
+        )
+        assert legacy == new
+
+    def test_matches_legacy_on_random_layouts(self):
+        """Across many random row layouts, the new partition must equal the legacy one."""
+        import random
+
+        rng = random.Random(42)
+        for _ in range(50):
+            n_cols = rng.choice([3, 4, 5, 6])
+            n_rows = n_cols  # square basis
+            rows = []
+            for _ in range(n_rows):
+                rows.append([rng.choice([-1, 0, 1]) for _ in range(n_cols)])
+            new_basis = np.array(rows)
+            Σ = [1] * n_cols
+            # Build random mode lists by sampling rows
+            free_modes = [rows[i] for i in rng.sample(range(n_rows), k=rng.randint(0, 2))]
+            periodic_modes = [rows[i] for i in rng.sample(range(n_rows), k=rng.randint(0, 2))]
+            frozen_modes = [rows[i] for i in rng.sample(range(n_rows), k=rng.randint(0, 2))]
+            for is_grounded in (True, False):
+                legacy = self._legacy_partition(
+                    new_basis, Σ, free_modes, periodic_modes, frozen_modes, is_grounded
+                )
+                new = self._new_partition(
+                    new_basis, Σ, free_modes, periodic_modes, frozen_modes, is_grounded
+                )
+                assert legacy == new, (
+                    f"mismatch: rows={rows}, free={free_modes}, "
+                    f"periodic={periodic_modes}, frozen={frozen_modes}, "
+                    f"is_grounded={is_grounded}"
+                )
+
+
 class TestSymbolicCircuitFromYamlResourceHandling:
     """``SymbolicCircuit.from_yaml(file_path, from_file=True)`` must release
     the file handle even if a parse error fires below the read.  The
