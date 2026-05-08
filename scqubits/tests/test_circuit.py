@@ -687,6 +687,41 @@ class TestFindPathToRootDFSRewrite:
             circ._find_path_to_root(bogus)
 
 
+class TestAdjacencyIndexCaching:
+    """``_adjacency_for_spanning_tree_dict`` reuses a built ``_AdjacencyIndex``
+    across repeated calls with the same spanning-tree dict — important when
+    ``_find_loop`` is invoked many times (e.g. once per closure branch in
+    ``_time_dependent_flux_distribution``)."""
+
+    YAML = (
+        "branches:\n"
+        "- [JJ, 1, 2, 10, 20]\n"
+        "- [JJ, 3, 4, 10, 20]\n"
+        "- [L, 2, 3, 0.008]\n"
+        "- [L, 4, 1, 0.008]\n"
+        "- [C, 1, 3, 0.02]\n"
+        "- [C, 2, 4, 0.02]\n"
+    )
+
+    def test_cache_reused_for_same_dict(self):
+        from scqubits.core.symbolic_circuit import SymbolicCircuit
+
+        circ = SymbolicCircuit.from_yaml(self.YAML, from_file=False)
+        idx_1 = circ._adjacency_for_spanning_tree_dict(circ.spanning_tree_dict)
+        idx_2 = circ._adjacency_for_spanning_tree_dict(circ.spanning_tree_dict)
+        assert idx_1 is idx_2, "cache returned a freshly-built index"
+
+    def test_cache_rebuilds_for_different_dict(self):
+        from scqubits.core.symbolic_circuit import SymbolicCircuit
+
+        circ = SymbolicCircuit.from_yaml(self.YAML, from_file=False)
+        idx_1 = circ._adjacency_for_spanning_tree_dict(circ.spanning_tree_dict)
+        # build a fresh dict (same content, different object identity)
+        fresh = circ._spanning_tree()
+        idx_2 = circ._adjacency_for_spanning_tree_dict(fresh)
+        assert idx_1 is not idx_2, "cache failed to rebuild for new dict"
+
+
 class TestSymbolicCircuitFromYamlResourceHandling:
     """``SymbolicCircuit.from_yaml(file_path, from_file=True)`` must release
     the file handle even if a parse error fires below the read.  The
