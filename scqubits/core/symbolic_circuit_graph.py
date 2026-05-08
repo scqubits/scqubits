@@ -411,6 +411,27 @@ def make_coupler(
     )
 
 
+def _branch_param_dict(branch_type: str, params: list) -> dict[Symbol, float]:
+    """Build the ``{Symbol: numeric default}`` dict for a branch.
+
+    Encodes the per-branch-type convention for parameter naming:
+    ``"C"`` -> {EC}, ``"L"`` -> {EL}, ``"JJ[n]"`` -> {EJ, EJ2, ..., EJn,
+    EC}.  The trailing element of ``params`` is always the
+    junction/branch capacitance for JJ branches.
+    """
+    params_dict: dict[Symbol, float] = {}
+    if "JJ" in branch_type:
+        for idx, param in enumerate(params[:-1]):
+            symbol = sm.symbols(f"EJ{idx + 1}" if idx > 0 else "EJ")
+            params_dict[symbol] = param[0] or param[1]
+        params_dict[sm.symbols("EC")] = params[-1][0] or params[-1][1]
+    elif branch_type == "C":
+        params_dict[sm.symbols("EC")] = params[-1][0] or params[-1][1]
+    elif branch_type == "L":
+        params_dict[sm.symbols("EL")] = params[-1][0] or params[-1][1]
+    return params_dict
+
+
 def make_branch(
     nodes_list: list[Node],
     branch_type: str,
@@ -419,6 +440,8 @@ def make_branch(
     params: list,
     aux_params: pp.ParseResults,
     _branch_count: int,
+    *,
+    node_index_offset: int | None = None,
 ) -> tuple[Branch, dict[Symbol, float]]:
     """Build a :class:`Branch` from parsed pyparsing results.
 
@@ -430,16 +453,23 @@ def make_branch(
         type of branch, e.g. ``"C"``, ``"L"``, or a Josephson type such as
         ``"JJ"``
     idx1:
-        index identifying the first endpoint node within `nodes_list`
-        (interpreted with or without the ground-node offset)
+        node-ID of the first endpoint as it appears in the YAML
     idx2:
-        index identifying the second endpoint node within `nodes_list`
+        node-ID of the second endpoint as it appears in the YAML
     params:
         list of pyparsing parse results for the branch parameters
     aux_params:
         pyparsing parse results for the auxiliary-parameter block
     _branch_count:
         running branch count used as the branch's :attr:`Branch.index`
+    node_index_offset:
+        offset to subtract from ``idx1`` / ``idx2`` to land on the
+        correct position in ``nodes_list``.  Use ``0`` when the YAML
+        is 0-indexed (ground node present at position 0) and ``1``
+        when the YAML is 1-indexed (no ground node, lowest node-ID is
+        1).  When ``None`` (default), the offset is inferred from
+        ``nodes_list`` for backward compatibility — passing it
+        explicitly is the recommended path.
 
     Returns
     -------
@@ -447,30 +477,15 @@ def make_branch(
     :class:`Branch` and ``sym_params_dict`` maps any newly seen symbolic
     parameters to their default numeric values.
     """
-    params_dict = {}
     params = [process_param(param) for param in params]
+    params_dict = _branch_param_dict(branch_type, params)
 
-    if "JJ" in branch_type:
-        for idx, param in enumerate(
-            params[:-1]
-        ):  # getting EJi for all orders i specified
-            params_dict[sm.symbols(f"EJ{idx + 1}" if idx > 0 else "EJ")] = (
-                param[0] or param[1]
-            )
+    if node_index_offset is None:
+        node_index_offset = 0 if any(n.is_ground() for n in nodes_list) else 1
+    node_1 = nodes_list[idx1 - node_index_offset]
+    node_2 = nodes_list[idx2 - node_index_offset]
 
-        params_dict[sm.symbols("EC")] = params[-1][0] or params[-1][1]
-    if branch_type == "C":
-        params_dict[sm.symbols("EC")] = params[-1][0] or params[-1][1]
-    elif branch_type == "L":
-        params_dict[sm.symbols("EL")] = params[-1][0] or params[-1][1]
-
-    # return idx1, idx2, branch_type, list(params_dict.keys()), str(_branch_count), process_param(aux_params)
-    is_grounded = True if any([node.is_ground() for node in nodes_list]) else False
-    node_1 = nodes_list[idx1 if is_grounded else idx1 - 1]
-    node_2 = nodes_list[idx2 if is_grounded else idx2 - 1]
-    sym_params_dict = {
-        param[0]: param[1] for param in params if param[0]
-    }  # dictionary of symbolic params and the default values
+    sym_params_dict = {param[0]: param[1] for param in params if param[0]}
     return (
         Branch(
             node_1,
@@ -1230,11 +1245,18 @@ class SymbolicCircuitGraph(ABC):
         couplers_list: list[Coupler] = []
         branch_var_dict: dict = {}
 
+        # YAML node-IDs are 0-based when a ground node (id 0) is present,
+        # 1-based otherwise; ``_parse_nodes`` already validated that
+        # ``min(node_ids) in {0, 1}`` above.
+        node_index_offset = nodes_list[0].index
+
         individual_branches = [
             branch for branch in parsed_branches if branch[0] != "ML"
         ]
         for parsed_branch in individual_branches:
-            branch, sym_params = make_branch(nodes_list, *parsed_branch)
+            branch, sym_params = make_branch(
+                nodes_list, *parsed_branch, node_index_offset=node_index_offset
+            )
             cls._merge_branch_symbols(branch_var_dict, sym_params)
             branches_list.append(branch)
 

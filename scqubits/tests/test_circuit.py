@@ -427,6 +427,50 @@ class TestNamedConstructors:
         assert new.var_categories == legacy.var_categories
 
 
+class TestMakeBranchNodeIndexOffset:
+    """``make_branch`` accepts an explicit ``node_index_offset`` kwarg.
+
+    The legacy code inferred 0-vs-1-based indexing from ``any(n.is_ground()
+    for n in nodes_list)``.  Explicit passing decouples ``make_branch`` from
+    that whole-list inference; the inference path is preserved as the
+    ``None`` default for backward compatibility.
+    """
+
+    YAML_GROUNDED = (
+        "branches:\n"
+        "- [JJ, 0, 1, 10, 20]\n"
+        "- [L, 0, 1, 0.01]\n"
+        "- [C, 0, 1, 0.02]\n"
+    )
+    YAML_UNGROUNDED = (
+        "branches:\n"
+        "- [JJ, 1, 2, 10, 20]\n"
+        "- [L, 1, 2, 0.01]\n"
+        "- [C, 1, 2, 0.02]\n"
+    )
+
+    def test_yaml_grounded_round_trip(self):
+        """Branches in a 0-indexed circuit connect the declared node IDs."""
+        from scqubits.core.symbolic_circuit import SymbolicCircuit
+
+        circ = SymbolicCircuit.from_yaml(self.YAML_GROUNDED, from_file=False)
+        assert {n.index for n in circ.nodes} == {0, 1}
+        for branch in circ.branches:
+            assert {n.index for n in branch.nodes} == {0, 1}
+
+    def test_yaml_ungrounded_round_trip(self):
+        """Branches in a 1-indexed circuit connect the declared node IDs."""
+        from scqubits.core.symbolic_circuit import SymbolicCircuit
+
+        circ = SymbolicCircuit.from_yaml(self.YAML_UNGROUNDED, from_file=False)
+        assert {n.index for n in circ.nodes} == {1, 2}
+        for branch in circ.branches:
+            assert {n.index for n in branch.nodes} == {1, 2}
+
+
+
+
+
 class TestSymbolicCircuitFromYamlResourceHandling:
     """``SymbolicCircuit.from_yaml(file_path, from_file=True)`` must release
     the file handle even if a parse error fires below the read.  The
