@@ -1363,7 +1363,10 @@ class SymbolicCircuitGraph(ABC):
         """Tag each node's ``.marker`` with its subgraph index (1-based) or -1
         if any node in its subgraph is the ground node.
 
-        Mutates the ``Node`` objects in place.
+        Mutates the ``Node`` objects in place.  Kept as a backward-compat
+        shim for any external code that reads ``Node.marker`` after
+        ``_independent_modes``; the method itself no longer relies on this
+        side effect (see :meth:`_compute_subgraph_membership`).
         """
         for node_set_index, node_set in enumerate(nodes_in_max_connected_branchsets):
             grounded = any(n.is_ground() for n in node_set)
@@ -1372,6 +1375,36 @@ class SymbolicCircuitGraph(ABC):
         for node in all_nodes:
             if node.is_ground():
                 node.marker = -1
+
+    @staticmethod
+    def _compute_subgraph_membership(
+        nodes_in_max_connected_branchsets: list[list[Node]],
+        all_nodes: list[Node],
+    ) -> list[int]:
+        """Return the per-node subgraph index (parallel to ``all_nodes``).
+
+        Pure replacement for the ``Node.marker`` mutation pattern: returns a
+        list ``markers`` such that ``markers[i]`` is
+
+        * ``-1`` if ``all_nodes[i]`` is the ground node, or belongs to a
+          subgraph that contains a ground node;
+        * the 1-based subgraph index if the node belongs to a non-grounded
+          subgraph;
+        * ``0`` if the node belongs to no subgraph in
+          ``nodes_in_max_connected_branchsets``.
+
+        No ``Node`` object is mutated.
+        """
+        node_to_marker: dict[Node, int] = {n: 0 for n in all_nodes}
+        for subgraph_idx, node_set in enumerate(nodes_in_max_connected_branchsets):
+            grounded = any(n.is_ground() for n in node_set)
+            label = -1 if grounded else subgraph_idx + 1
+            for node in node_set:
+                node_to_marker[node] = label
+        for node in all_nodes:
+            if node.is_ground():
+                node_to_marker[node] = -1
+        return [node_to_marker[n] for n in all_nodes]
 
     def _independent_modes(
         self,
@@ -1401,17 +1434,16 @@ class SymbolicCircuitGraph(ABC):
         if basisvec_entries is None:
             basisvec_entries = [1, 0]
 
-        nodes_copy = copy.copy(self.nodes)  # copying self.nodes as it is being modified
-
-        # making sure that the ground node is placed at the end of the list
-        if self.ground_node:
-            nodes_copy.pop(0)  # removing the ground node
-            nodes_copy = nodes_copy + [
-                copy.copy(self.ground_node)
-            ]  # reversing the order of the nodes
-
-        for node in nodes_copy:  # reset the node markers
-            node.marker = 0
+        # Order the nodes with the ground node (if any) at the end.
+        # This is the column ordering of the returned basis vectors;
+        # downstream slicing at L1483 (``basis = [i[:-1] for i in basis]``)
+        # drops the trailing column on the assumption that ground sits there.
+        all_nodes = list(self.nodes)
+        if self.ground_node and self.ground_node in all_nodes:
+            all_nodes.remove(self.ground_node)
+            all_nodes.append(self.ground_node)
+        elif self.ground_node:
+            all_nodes.append(self.ground_node)
 
         # step 2: partition branch_subset into max-connected subgraphs and
         # collect the node set for each
@@ -1423,66 +1455,85 @@ class SymbolicCircuitGraph(ABC):
             for branch_set in max_connected_subgraphs
         ]
 
-        # mark each node with its subgraph index (or -1 for grounded subgraphs)
-        self._mark_nodes_by_subgraph(nodes_in_max_connected_branchsets, nodes_copy)
+        # Compute subgraph membership directly (pure return; no mutation
+        # of ``Node.marker`` on ``self.nodes``).  Indices are parallel
+        # to ``all_nodes`` and follow the convention:
+        #   ``-1``  : node belongs to a subgraph containing the ground
+        #             node (i.e. is connected to ground via the chosen
+        #             branch subset);
+        #   ``0``   : node is not in any of the max-connected subgraphs;
+        #   ``k>0`` : node belongs to subgraph index ``k - 1``.
+        node_branch_set_indices = self._compute_subgraph_membership(
+            nodes_in_max_connected_branchsets, all_nodes
+        )
 
-        node_branch_set_indices = [
-            node.marker for node in nodes_copy
-        ]  # identifies which node belongs to which maximum connected subgraphs;
-        # different numbers on two nodes indicates that they are not connected through
-        # any of the branches in branch_subset. 0 implies the node does not belong to
-        # any of the branches in max connected branch subsets and -1 implies the max
-        # connected branch set is connected to ground.
+        # step 3: build a basis vector per non-grounded subgraph
+        basis = self._subgraph_basis_vectors(node_branch_set_indices, basisvec_entries)
 
-        # step 3: Finding the linearly independent vectors spanning the vector space
-        # represented by branch_set_index
-        basis = []
-
-        unique_branch_set_markers = unique_elements_in_list(node_branch_set_indices)
-        # removing the marker -1 as it is grounded.
-        branch_set_markers_ungrounded = [
-            marker for marker in unique_branch_set_markers if marker != -1
-        ]
-
-        for index in branch_set_markers_ungrounded:
-            basis.append(
-                [
-                    basisvec_entries[0] if i == index else basisvec_entries[1]
-                    for i in node_branch_set_indices
-                ]
-            )
-
-        if single_nodes:  # taking the case where the node_branch_set_index is 0
-            single_node_modes = []
-            if node_branch_set_indices.count(0) > 0:
-                ref_vector = [
-                    basisvec_entries[0] if i == 0 else basisvec_entries[1]
-                    for i in node_branch_set_indices
-                ]
-                positions = [
-                    index
-                    for index, num in enumerate(ref_vector)
-                    if num == basisvec_entries[0]
-                ]
-                for pos in positions:
-                    single_node_modes.append(
-                        [
-                            basisvec_entries[0] if x == pos else basisvec_entries[1]
-                            for x, num in enumerate(node_branch_set_indices)
-                        ]
-                    )
-
-            for mode in single_node_modes:
-                mat = np.array(basis + [mode])
-                if np.linalg.matrix_rank(mat) == len(mat):
+        # step 3b: optionally extend with single-node modes (one per
+        # node not in any subgraph), keeping only those that strictly
+        # increase the rank
+        if single_nodes:
+            for mode in self._single_node_basis_candidates(
+                node_branch_set_indices, basisvec_entries
+            ):
+                if self._mode_strictly_increases_rank(basis, mode):
                     basis.append(mode)
 
-        if (
-            self.is_grounded
-        ):  # if grounded remove the last column and first row corresponding to the
-            basis = [i[:-1] for i in basis]
+        if self.is_grounded:
+            # drop the trailing column corresponding to the ground node
+            basis = [vec[:-1] for vec in basis]
 
         return basis
+
+    @staticmethod
+    def _subgraph_basis_vectors(
+        node_branch_set_indices: list[int], basisvec_entries: list[int]
+    ) -> list[list[int]]:
+        """One basis vector per non-grounded subgraph.
+
+        Each vector is ``[basisvec_entries[0] if marker == k else
+        basisvec_entries[1] for marker in node_branch_set_indices]`` for
+        each unique non-``-1`` marker ``k``.
+        """
+        unique_markers = unique_elements_in_list(node_branch_set_indices)
+        return [
+            [
+                basisvec_entries[0] if marker == k else basisvec_entries[1]
+                for marker in node_branch_set_indices
+            ]
+            for k in unique_markers
+            if k != -1
+        ]
+
+    @staticmethod
+    def _single_node_basis_candidates(
+        node_branch_set_indices: list[int], basisvec_entries: list[int]
+    ) -> list[list[int]]:
+        """One basis-vector candidate per node with marker ``0`` (i.e. not
+        in any subgraph).  The vector has ``basisvec_entries[0]`` in
+        exactly that node's position and ``basisvec_entries[1]`` elsewhere.
+        """
+        if 0 not in node_branch_set_indices:
+            return []
+        unmarked_positions = [
+            i for i, marker in enumerate(node_branch_set_indices) if marker == 0
+        ]
+        return [
+            [
+                basisvec_entries[0] if i == pos else basisvec_entries[1]
+                for i in range(len(node_branch_set_indices))
+            ]
+            for pos in unmarked_positions
+        ]
+
+    @staticmethod
+    def _mode_strictly_increases_rank(basis: list[list[int]], mode: list[int]) -> bool:
+        """Return ``True`` iff appending ``mode`` to ``basis`` raises the
+        rank of the resulting matrix by 1.
+        """
+        mat = np.array(basis + [mode])
+        return np.linalg.matrix_rank(mat) == len(mat)
 
     @staticmethod
     def _mode_in_subspace(mode: ndarray | list, subspace: ndarray | list) -> bool:
