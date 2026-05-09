@@ -1177,7 +1177,23 @@ class HamiltonianAssemblyMixin(ABC):
             return junction_potential_matrix
 
     def _evaluate_hamiltonian(self) -> csc_matrix | ndarray:
-        """Substitute parameter values and return the numerical Hamiltonian matrix."""
+        """Substitute parameter values and return the numerical Hamiltonian matrix.
+
+        General-purpose path used by all non-purely-harmonic circuits.
+        Walks ``self._hamiltonian_sym_for_numerics`` term-by-term via
+        sympy ``subs`` (replacing parameter symbols with their current
+        numerical values and the identity placeholder ``I`` with ``1``)
+        and then delegates to :meth:`_evaluate_symbolic_expr` (defined
+        on :class:`CircuitSymMethods`), which iterates the term
+        coefficients and assembles the matrix from per-variable operator
+        methods.
+
+        Does **not** use ``eval``.  The ``eval``-based assembly path is
+        only taken by :meth:`_hamiltonian_for_purely_harmonic` (for
+        circuits where every extended variable is in the harmonic
+        basis and there are no JJ cosines) — see that method's
+        docstring.
+        """
         hamiltonian = self._hamiltonian_sym_for_numerics
         hamiltonian = hamiltonian.subs(
             [
@@ -1199,6 +1215,18 @@ class HamiltonianAssemblyMixin(ABC):
         self, return_unsorted: bool = False
     ) -> csc_matrix | ndarray:
         """Hamiltonian for purely harmonic systems when ext_basis is set to harmonic.
+
+        Specialised assembly path for circuits where every extended
+        variable lives in the harmonic-oscillator basis and the
+        Hamiltonian contains no Josephson cosine / sine terms.  In
+        that regime the symbolic Hamiltonian is a polynomial in the
+        per-variable position / momentum operators and can be
+        evaluated by building per-variable ``Qobj`` operators in
+        ``operator_dict`` and ``eval()``-ing the stringified
+        expression in that scope.
+
+        This is the **only** circuit-Hamiltonian path that uses
+        ``eval``; the general path is :meth:`_evaluate_hamiltonian`.
 
         Parameters
         ----------

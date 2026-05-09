@@ -7,7 +7,7 @@ familiarity with superconducting-qubit physics at the level of the
 Chitta et al. (2022) paper that the implementation is based on, and
 working knowledge of Python, sympy, qutip, and `scipy.sparse`.
 
-> **Reference paper.** Chitta, Zhao, Huang, Mundhada, Koch,
+> **Reference paper.** Chitta, Zhao, Huang, Mondragon-Shem, Koch,
 > *"Computer-aided quantization and numerical analysis of
 > superconducting circuits,"*
 > *New J. Phys.* **24**, 103020 (2022).
