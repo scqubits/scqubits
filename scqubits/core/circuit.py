@@ -1405,16 +1405,19 @@ class Circuit(  # type: ignore[misc]
         self.update()
 
     def supported_noise_channels(self) -> list[str]:  # type: ignore[override]
-        """Return a list of supported noise channels."""
+        """Return a list of supported noise channels.
+
+        Reads from the explicit noise-channel registry populated by
+        :meth:`generate_noise_methods` (see
+        :meth:`~scqubits.core.circuit_internals.noise.NoisyCircuit.channels`)
+        rather than walking ``self.__dict__`` and matching names by
+        substring.
+        """
         if not hasattr(self, "_noise_methods_generated"):
             raise RuntimeError(
                 "Noise methods are not generated, please use configure() with generate_noise_methods=True to generate them."
             )
-        return [
-            method_name
-            for method_name in self.__dict__
-            if "tphi_1_over_f" in method_name or "t1_" in method_name
-        ]
+        return list(self.channels())
 
     def effective_noise_channels(self):
         """Return the names of effective (combined) noise-channel methods.

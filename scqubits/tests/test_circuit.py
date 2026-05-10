@@ -610,6 +610,53 @@ class TestTypedOperatorAccessor:
         )
 
 
+class TestNoiseChannelsRegistry:
+    """``NoisyCircuit.channels()`` returns the explicit registry built by
+    ``generate_noise_methods`` rather than the ``self.__dict__``-walk that
+    ``supported_noise_channels`` previously relied on. This pins the
+    registry so future generators that fail to register a method will be
+    caught.
+    """
+
+    YAML = (
+        "branches:\n"
+        "- [JJ, 0, 1, EJ=10, ECJ=20]\n"
+        "- [L, 0, 1, EL=0.04]\n"
+        "- [C, 0, 1, EC=2]\n"
+    )
+
+    def _make_fluxonium_with_noise(self):
+        circ = scq.Circuit.from_yaml_string(self.YAML, ext_basis="discretized")
+        circ.cutoff_ext_1 = 30
+        circ.configure(generate_noise_methods=True)
+        return circ
+
+    def test_channels_returns_dict_keyed_by_method_name(self):
+        circ = self._make_fluxonium_with_noise()
+        channels = circ.channels()
+        assert isinstance(channels, dict)
+        # The fluxonium fixture has 1 closure branch (the L branch becomes
+        # the spanning tree's closure for the JJ loop), so at minimum one
+        # ``tphi_1_over_f_flux1`` per-flux + the overall ``tphi_1_over_f_flux``
+        # aggregate must be present, plus some ``t1_*`` entries.
+        assert any(name.startswith("t1_") for name in channels)
+        assert any(name.startswith("tphi_1_over_f") for name in channels)
+
+    def test_supported_noise_channels_matches_registry(self):
+        """``supported_noise_channels()`` is now sourced from the registry,
+        so the returned list must equal ``list(channels())``."""
+        circ = self._make_fluxonium_with_noise()
+        assert sorted(circ.supported_noise_channels()) == sorted(circ.channels())
+
+    def test_channels_returns_a_copy(self):
+        """Mutating the returned dict must not affect the underlying registry."""
+        circ = self._make_fluxonium_with_noise()
+        channels = circ.channels()
+        original_count = len(channels)
+        channels["bogus_channel"] = lambda: None
+        assert len(circ.channels()) == original_count
+
+
 class TestNamedConstructors:
     """`Circuit.from_yaml_file` / `Circuit.from_yaml_string` are named
     alternatives to the legacy ``Circuit(input_string, from_file=...)`` form.

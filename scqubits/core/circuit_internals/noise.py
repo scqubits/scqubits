@@ -463,7 +463,7 @@ class NoisyCircuit(NoisySystem, ABC):
             **methods_noise_rates_from_cc,
         }
         for method_name in noise_methods:
-            setattr(self, method_name, MethodType(noise_methods[method_name], self))
+            self._register_noise_method(method_name, MethodType(noise_methods[method_name], self))
 
     def _generate_overall_tphi_cc(self):
         """Generate the overall ``tphi_1_over_f_cc`` method on the instance.
@@ -561,7 +561,7 @@ class NoisyCircuit(NoisySystem, ABC):
                 return total_rate
             return 1 / total_rate if total_rate != 0 else np.inf
 
-        setattr(self, "tphi_1_over_f_cc", MethodType(tphi_1_over_f_cc, self))
+        self._register_noise_method("tphi_1_over_f_cc", MethodType(tphi_1_over_f_cc, self))
 
     def _generate_overall_tphi_flux(self):
         """Generate the overall ``tphi_1_over_f_flux`` method on the instance.
@@ -662,7 +662,7 @@ class NoisyCircuit(NoisySystem, ABC):
                 return total_rate
             return 1 / total_rate if total_rate != 0 else np.inf
 
-        setattr(self, "tphi_1_over_f_flux", MethodType(tphi_1_over_f_flux, self))
+        self._register_noise_method("tphi_1_over_f_flux", MethodType(tphi_1_over_f_flux, self))
 
     def _generate_overall_tphi_ng(self):
         """Generate the overall ``tphi_1_over_f_ng`` method on the instance.
@@ -766,7 +766,7 @@ class NoisyCircuit(NoisySystem, ABC):
                 return total_rate
             return 1 / total_rate if total_rate != 0 else np.inf
 
-        setattr(self, "tphi_1_over_f_ng", MethodType(tphi_1_over_f_ng, self))
+        self._register_noise_method("tphi_1_over_f_ng", MethodType(tphi_1_over_f_ng, self))
 
     def _t1_flux_bias_line_function_factory(self, noise_op_method: Callable):
         """Build a ``t1_flux_bias_line`` method for a given noise-operator method.
@@ -986,7 +986,7 @@ class NoisyCircuit(NoisySystem, ABC):
             **t1_charge_impedance_methods,
         }
         for method_name in noise_methods:
-            setattr(self, method_name, MethodType(noise_methods[method_name], self))
+            self._register_noise_method(method_name, MethodType(noise_methods[method_name], self))
         # self._data.update(t1_quasiparticle_tunneling_methods)
 
     def _wrapper_t1_quasiparticle_tunneling(self, branch: Branch):
@@ -1553,7 +1553,7 @@ class NoisyCircuit(NoisySystem, ABC):
                 return total_rate
             return 1 / total_rate if total_rate != 0 else np.inf
 
-        setattr(self, "t1_inductive", MethodType(t1_method, self))
+        self._register_noise_method("t1_inductive", MethodType(t1_method, self))
 
     def _generate_overall_t1_capacitive(self):
         """Generate the overall ``t1_capacitive`` method on the instance.
@@ -1654,7 +1654,7 @@ class NoisyCircuit(NoisySystem, ABC):
                 return total_rate
             return 1 / total_rate if total_rate != 0 else np.inf
 
-        setattr(self, "t1_capacitive", MethodType(t1_method, self))
+        self._register_noise_method("t1_capacitive", MethodType(t1_method, self))
 
     def _generate_overall_t1_charge_impedance(self):
         """Generate the overall ``t1_charge_impedance`` method on the instance.
@@ -1751,7 +1751,7 @@ class NoisyCircuit(NoisySystem, ABC):
                 return total_rate
             return 1 / total_rate if total_rate != 0 else np.inf
 
-        setattr(self, "t1_charge_impedance", MethodType(t1_method, self))
+        self._register_noise_method("t1_charge_impedance", MethodType(t1_method, self))
 
     def _generate_overall_t1_flux_bias_line(self):
         """Generate the overall ``t1_flux_bias_line`` method on the instance.
@@ -1854,7 +1854,7 @@ class NoisyCircuit(NoisySystem, ABC):
                 return total_rate
             return 1 / total_rate if total_rate != 0 else np.inf
 
-        setattr(self, "t1_flux_bias_line", MethodType(t1_flux_bias_line, self))
+        self._register_noise_method("t1_flux_bias_line", MethodType(t1_flux_bias_line, self))
 
     def generate_noise_methods(self):
         """Dynamically generate all noise-calculation methods on the instance.
@@ -1906,6 +1906,11 @@ class NoisyCircuit(NoisySystem, ABC):
         instance by adding the noise calculation methods as attributes.
         """
         self._frozen = False
+        # Reset the noise-channel registry on each call so a re-generation
+        # (e.g. after Circuit.configure(generate_noise_methods=True)) starts
+        # from a clean slate. ``_register_noise_method`` populates it as
+        # each per-channel method is bound.
+        self._noise_channels_registry: dict[str, Callable] = {}
         self._generate_methods_d_hamiltonian_d()
         self._generate_tphi_1_over_f_methods()
         self._generate_t1_flux_bias_line_methods()
@@ -1921,3 +1926,42 @@ class NoisyCircuit(NoisySystem, ABC):
         self._generate_overall_t1_quasiparticle_tunneling()
         self._noise_methods_generated = True
         self._frozen = True
+
+    def _register_noise_method(self, name: str, method: Callable) -> None:
+        """Bind ``method`` on the instance as ``name`` and record it in the
+        noise-channels registry.
+
+        Used by every ``_generate_*`` helper instead of a bare ``setattr``
+        so the registry stays in sync with what is actually bound on the
+        instance. The registry is read by :meth:`channels` and via
+        ``Circuit.supported_noise_channels``.
+
+        Parameters
+        ----------
+        name:
+            attribute name to bind on the instance.
+        method:
+            already-bound method object (typically the result of
+            ``types.MethodType(func, self)``).
+        """
+        setattr(self, name, method)
+        self._noise_channels_registry[name] = method
+
+    def channels(self) -> dict[str, Callable]:
+        """Return a copy of the noise-channel registry.
+
+        The returned dict maps each generated noise-method name (e.g.
+        ``"t1_capacitive"``, ``"t1_inductive3"``, ``"tphi_1_over_f_flux1"``)
+        to the bound method object. Use this for static-tooling-friendly
+        introspection of the noise surface, in preference to walking
+        ``self.__dict__`` and pattern-matching on names.
+
+        Returns
+        -------
+        Mapping from noise-channel name to bound callable. Empty if
+        :meth:`generate_noise_methods` has not run yet.
+        """
+        registry = getattr(self, "_noise_channels_registry", None)
+        if registry is None:
+            return {}
+        return dict(registry)

@@ -862,6 +862,17 @@ fluxes). The set of channels is computed dynamically based on the
 circuit's branches and external fluxes — there is **no** static
 `noise_channels` constant.
 
+The dynamically-generated methods are also recorded in an explicit
+registry: `NoisyCircuit.channels()` returns
+`dict[str, Callable]` mapping each generated noise-method name to
+its bound callable. This is the recommended introspection surface
+when you want to enumerate channels without walking ``self.__dict__``
+or matching names by regex. ``supported_noise_channels()`` is now
+sourced from this registry; the registry is populated by
+``_register_noise_method``, which every per-channel generator
+(``_generate_t1_methods``, ``_generate_overall_*``, etc.) calls in
+place of bare ``setattr``.
+
 Channel families:
 
 - **Capacitive losses** — `t1_capacitive` plus per-capacitor variants
