@@ -752,11 +752,6 @@ class Circuit(  # type: ignore[misc]
         self.type_of_matrices = (
             "sparse"  # type of matrices used to construct the operators
         )
-        # is_purely_harmonic is intentionally not copied here: it was absent
-        # on the instance after from_yaml in the pre-refactor code, and the
-        # subsequent self.configure() call (when initiate_sym_calc=True)
-        # imports it via _configure. Preserving the absence in the
-        # initiate_sym_calc=False path avoids a public-API surface change.
         self._import_from_symbolic_circuit(exclude=("is_purely_harmonic",))
 
         # needs to be included to make sure that plot_evals_vs_paramvals works
@@ -776,9 +771,8 @@ class Circuit(  # type: ignore[misc]
         The list of attributes that flow from stage 1 to stage 2 is owned
         by :class:`~scqubits.core.symbolic_circuit.SymbolicCircuit` itself
         — see ``SymbolicCircuit._STAGE2_ATTRIBUTES``. Names listed in
-        ``exclude`` are skipped — used by ``from_yaml`` to match the
-        pre-refactor behaviour where a few attributes were copied only
-        later by ``_configure``.
+        ``exclude`` are skipped, leaving them to be set later (e.g. by
+        ``_configure``).
         """
         for attr in self.symbolic_circuit._STAGE2_ATTRIBUTES:
             if attr in exclude:

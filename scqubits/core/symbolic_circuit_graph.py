@@ -779,10 +779,8 @@ class SymbolicCircuitGraph(ABC):
         num_nodes = len(circ.nodes) + (1 if circ.is_grounded else 0)
 
         # ``visited`` tracks the set of nodes already placed into some
-        # node-set across all components.  Replaces two
-        # ``flatten_list_recursive(...)`` calls per iteration (the
-        # legacy code rebuilt the visited set from the 3-D nested list
-        # on every step — O(n^2) over the whole BFS).
+        # node-set across all components, used by the BFS termination
+        # check below.
         visited: set[Node] = {n for n in initial_layer}
 
         node_set_index = 0
@@ -1866,25 +1864,12 @@ class SymbolicCircuitGraph(ABC):
             node_count = len(self.nodes) - self.is_grounded
             heuristic_basis: list = [np.ones(node_count)]
 
-            # ``vector_ref`` is ``[1]*(n-2) + [0]*2`` for ``n > 2`` (or
-            # ``[1]*(n-1) + [0]*1`` for ``n <= 2``).  The legacy
-            # algorithm iterated ``itertools.permutations(vector_ref, n)``
-            # in lex order — but for an input with ``k`` zeros and
-            # ``n - k`` ones, that emits each *distinct* value
-            # ``k! · (n - k)!`` times.  For ``n = 12`` that's ~480 M
-            # iterations to enumerate just 66 distinct vectors.
-            #
-            # Generate the distinct candidates directly via
-            # ``combinations(range(n), zeros_count)`` over the
-            # zero-positions, in the same first-occurrence order
-            # ``itertools.permutations`` would produce.  That order is
-            # ``reversed(combinations(...))``: the legacy code first
-            # emits 0s rightmost (positions (n-2, n-1)), then walks
-            # leftward in lex-decreasing position-tuple order.
-            #
-            # Termination check is a length comparison:
-            # ``heuristic_basis`` only ever gains rank-strict
-            # candidates, so ``len == rank`` is invariant.
+            # Heuristic basis: candidate vectors are ``n``-tuples of 0
+            # and 1 with a fixed number of zeros (2 for ``n > 2``, 1
+            # otherwise).  ``reversed(combinations(range(n),
+            # zeros_count))`` emits zero-position tuples in
+            # lex-decreasing order, which matches the first-occurrence
+            # order of the candidates each accepted by rank check.
             zeros_count = 2 if node_count > 2 else 1
             zero_positions_in_legacy_order = reversed(
                 list(itertools.combinations(range(node_count), zeros_count))

@@ -1919,10 +1919,6 @@ class NoisyCircuit(NoisySystem, ABC):
         instance by adding the noise calculation methods as attributes.
         """
         self._frozen = False
-        # Reset the noise-channel registry on each call so a re-generation
-        # (e.g. after Circuit.configure(generate_noise_methods=True)) starts
-        # from a clean slate. ``_register_noise_method`` populates it as
-        # each per-channel method is bound.
         self._noise_channels_registry: dict[str, Callable] = {}
         self._generate_methods_d_hamiltonian_d()
         self._generate_tphi_1_over_f_methods()

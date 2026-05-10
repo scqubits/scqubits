@@ -69,11 +69,6 @@ class CircuitProtocol:
         is_child: bool
         is_grounded: bool
         is_purely_harmonic: bool
-        # Kept as ``Any`` rather than ``Subsystem | None`` / ``list[Subsystem]``:
-        # tightening surfaces ~9 latent typing issues at call sites that
-        # pass these to other APIs typed against ``QubitBaseClass`` /
-        # ``Oscillator`` / etc. (e.g. ``identity_wrap``,
-        # ``HilbertSpace.__init__``). Same deferral as ``hilbert_space``.
         parent: Any
         subsystems: list[Any]
         affected_subsystem_indices: list[int]
@@ -106,10 +101,6 @@ class CircuitProtocol:
         # Numerical / configuration state
         # --------------------------------------------------------------
         ext_basis: Any
-        # Kept as ``Any`` rather than ``HilbertSpace`` for now: surfacing
-        # the precise type exposes latent typing issues at call sites
-        # like ``self.hilbert_space["bare_evals"]`` that pre-date this
-        # refactor. Tightening should be a separate workstream.
         hilbert_space: Any
         truncated_dim: int
         type_of_matrices: str

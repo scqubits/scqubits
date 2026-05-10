@@ -799,8 +799,6 @@ class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
         """
         method = getattr(self, f"{name}_operator", None)
         if method is None:
-            # Strip the ``_operator`` suffix so the message lists names
-            # in the same form the caller passes to this method.
             available: list[str] = sorted(
                 op_name.removesuffix("_operator")
                 for op_name in (self.operators_by_name or {})

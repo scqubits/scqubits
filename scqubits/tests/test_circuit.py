@@ -117,12 +117,9 @@ class TestCircuit:
 
     @staticmethod
     def test_symbolic_hamiltonian_rejects_transformation_matrix():
-        """``transformation_matrix=`` is unsupported on the symbolic-Hamiltonian path.
-
-        Regression test for the prior silent-ignore bug: ``Circuit.configure``
-        previously accepted ``transformation_matrix=`` without raising and
-        without applying it. The fix raises ``ValueError`` instead.
-        """
+        """``transformation_matrix=`` is unsupported on the symbolic-Hamiltonian
+        path: ``Circuit.configure`` raises ``ValueError`` rather than
+        silently ignoring the kwarg."""
         import sympy as sm
 
         sym_hamiltonian = sm.parse_expr(
@@ -442,10 +439,8 @@ class TestClearUnnecessaryAttribs:
     def test_registry_clears_arbitrary_dynamic_attribute(self):
         """A name in ``_dynamic_var_attribs`` but not in the necessary set is cleared."""
         circ = self._make_zero_pi()
-        # Inject a name that does not match any of the legacy string
-        # patterns (``"cutoff_n_"``, ``"Φ"``, ``"cutoff_ext_"``,
-        # ``[1:3] == "ng"``). The legacy implementation would not have
-        # cleared this; the registry approach must.
+        # An arbitrary name not matching any common per-variable
+        # attribute pattern -- the registry must still clear it.
         object.__setattr__(circ, "_custom_kind_99", 42)
         circ._dynamic_var_attribs.add("custom_kind_99")
 
@@ -680,6 +675,53 @@ class TestNoiseChannelsRegistry:
         assert len(circ.channels()) == original_count
 
 
+class TestSawtoothCoefficientPerTerm:
+    """``evaluate_matrix_sawtooth_terms`` honours each term's own coefficient.
+
+    Pins linearity of the sawtooth-evaluation pipeline: the matrix
+    obtained from a multi-term ``saw_expr`` must equal the sum of the
+    per-term matrices.
+    """
+
+    YAML = (
+        "branches:\n"
+        "- [JJ, 0, 1, EJ=10, ECJ=20]\n"
+        "- [L, 0, 1, EL=0.04]\n"
+        "- [C, 0, 1, EC=2]\n"
+    )
+
+    def _make_circuit_with_discretized_phi(self):
+        circ = scq.Circuit.from_yaml_string(self.YAML, ext_basis="discretized")
+        circ.cutoff_ext_1 = 20
+        return circ
+
+    def test_multiterm_sawtooth_uses_per_term_coefficient(self):
+        import sympy as sm
+
+        from scqubits.core.circuit_internals import junction_assembly
+
+        circ = self._make_circuit_with_discretized_phi()
+        saw = sm.Function("saw", real=True)
+        theta1 = sm.symbols("θ1")
+
+        a, b = 2.0, 5.0
+        single_a = a * saw(theta1)
+        single_b = b * saw(2 * theta1)
+        combined = single_a + single_b
+
+        m_a = junction_assembly.evaluate_matrix_sawtooth_terms(circ, single_a)
+        m_b = junction_assembly.evaluate_matrix_sawtooth_terms(circ, single_b)
+        m_combined = junction_assembly.evaluate_matrix_sawtooth_terms(circ, combined)
+
+        diff_dense = np.asarray((m_combined - (m_a + m_b)).full())
+        np.testing.assert_allclose(
+            diff_dense,
+            np.zeros_like(diff_dense),
+            atol=1e-12,
+            err_msg="multi-term sawtooth != sum of single-term sawtooths",
+        )
+
+
 class TestNamedConstructors:
     """`Circuit.from_yaml_file` / `Circuit.from_yaml_string` are named
     alternatives to the legacy ``Circuit(input_string, from_file=...)`` form.
@@ -764,7 +806,9 @@ class TestVariableTransformationMatrixClassification:
     def _legacy_partition(
         new_basis, Σ, free_modes, periodic_modes, frozen_modes, is_grounded
     ):
-        """Reproduces the pre-refactor 5-comprehension cascade for cross-check."""
+        """Reference 5-comprehension cascade implementation; used to
+        cross-check that the optimised single-pass partition produces
+        identical output."""
         if not is_grounded:
             pos_Σ = [i for i in range(len(new_basis)) if new_basis[i].tolist() == Σ]
         else:
@@ -1044,8 +1088,7 @@ class TestHeuristicBasisCompletionPerformance:
 
 class TestSymbolicCircuitFromYamlResourceHandling:
     """``SymbolicCircuit.from_yaml(file_path, from_file=True)`` must release
-    the file handle even if a parse error fires below the read.  The
-    pre-refactor code used bare ``open()``/``close()`` and could leak."""
+    the file handle even if a parse error fires below the read."""
 
     BAD_YAML = (
         "branches:\n" "- [JJ, 1, 2, 10, 20]\n" "- [BAD_BRANCH_TYPE, 1, 2, 0.01]\n"

@@ -218,8 +218,6 @@ def test_types_in_docstring_check_silent_on_continuation_with_colon() -> None:
     to start with ``word:`` (e.g. ``or: something``) is NOT a parameter
     declaration -- it's at a deeper indent than the actual parameter
     lines.  DOC002 must skip it.
-
-    Regression test for a real false positive caught by reviewer audit.
     """
     source = textwrap.dedent("""\
         def foo(evals_count: int):

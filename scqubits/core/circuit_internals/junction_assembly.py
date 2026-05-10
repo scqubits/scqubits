@@ -1,30 +1,16 @@
 """Pipeline that converts symbolic Josephson-junction potential terms
 into ``qutip.Qobj`` matrix operators.
 
-This module owns the Josephson-junction (and sawtooth-junction) "matrix
-evaluation" pipeline that ``HamiltonianAssemblyMixin`` previously
-embedded inline. The pipeline takes a symbolic Hamiltonian term
-involving ``cos(...)`` / ``sin(...)`` (or the ``saw(...)`` placeholder
-for sawtooth junctions) and constructs the matrix representation in
-the appropriate Hilbert space.
-
-The split was motivated by the manual review's "Phase 3.1" item: the
-JJ pipeline is conceptually distinct from per-variable operator
-construction (which stays in ``hamiltonian_assembly.py``), and lifting
-it gives the JJ-physics extension recipes a clean home.
-
-Public API: ``evaluate_matrix_cosine_terms`` and
-``evaluate_matrix_sawtooth_terms`` — both take an explicit ``circuit``
-argument that is a ``Subsystem``-or-``Circuit`` instance providing the
-cross-mixin attributes / methods (``hierarchical_diagonalization``,
-``hilbertdim``, ``return_root_child``, ``identity_wrap_for_hd``,
-``_kron_operator``, ``exp_i_operator``, ``_evaluate_symbolic_expr``,
-``subsystems``).
-
-``HamiltonianAssemblyMixin`` exposes thin wrapper methods
-(``_evaluate_matrix_cosine_terms`` and ``_evaluate_matrix_sawtooth_terms``)
-so the existing call surface (``self._evaluate_matrix_cosine_terms(...)``
-from ``CircuitSymMethods``) is preserved.
+The two public entry points -- ``evaluate_matrix_cosine_terms`` and
+``evaluate_matrix_sawtooth_terms`` -- take a symbolic expression
+involving ``cos(...)`` / ``sin(...)`` or the ``saw(...)`` placeholder
+and construct its matrix representation in the appropriate Hilbert
+space.  Each takes an explicit ``circuit`` argument
+(a ``Subsystem``-or-``Circuit`` instance) to access the cross-mixin
+methods needed for per-variable operator construction:
+``hierarchical_diagonalization``, ``hilbertdim``, ``return_root_child``,
+``identity_wrap_for_hd``, ``_kron_operator``, ``exp_i_operator``,
+``_evaluate_symbolic_expr``, and ``subsystems``.
 """
 
 from __future__ import annotations
@@ -225,7 +211,7 @@ def evaluate_matrix_sawtooth_terms(
 
     saw = sm.Function("saw", real=True)
     for saw_term in saw_expr.as_ordered_terms():
-        coefficient = float(list(saw_expr.as_coefficients_dict().values())[0])
+        coefficient = float(list(saw_term.as_coefficients_dict().values())[0])
         saw_argument_expr = [
             arg.args[0] for arg in (1.0 * saw_term).args if (arg.has(saw))
         ][0]
