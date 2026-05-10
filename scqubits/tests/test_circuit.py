@@ -595,8 +595,18 @@ class TestTypedOperatorAccessor:
 
     def test_operator_unknown_name_lists_available(self):
         circ = self._make_transmon()
-        with pytest.raises(AttributeError, match="available operators"):
+        with pytest.raises(AttributeError) as excinfo:
             circ.operator("does_not_exist")
+        message = str(excinfo.value)
+        assert "available operators" in message
+        # The available list must list names in the form the caller would
+        # pass to operator() — i.e. WITHOUT the ``_operator`` suffix —
+        # so a user copy-pasting from the message can use it directly.
+        assert "_operator" not in message.split("available operators:")[1], (
+            f"error message leaks _operator suffix: {message!r}"
+        )
+        # And at least one expected name (n1) should appear.
+        assert "'n1'" in message
 
     def test_operator_energy_esys_kwarg_is_passed_through(self):
         """Passing energy_esys=True must rotate the returned operator into
@@ -642,11 +652,30 @@ class TestNoiseChannelsRegistry:
         assert any(name.startswith("t1_") for name in channels)
         assert any(name.startswith("tphi_1_over_f") for name in channels)
 
-    def test_supported_noise_channels_matches_registry(self):
-        """``supported_noise_channels()`` is now sourced from the registry,
-        so the returned list must equal ``list(channels())``."""
+    def test_supported_noise_channels_matches_legacy_dict_walk(self):
+        """The new registry-driven ``supported_noise_channels()`` must
+        return the same set as the legacy implementation that walked
+        ``self.__dict__`` and substring-matched ``"t1_"`` / ``"tphi_1_over_f"``.
+
+        Without this parity check, a generator that fails to register
+        through ``_register_noise_method`` is silently dropped from
+        ``supported_noise_channels()`` and only an external observer
+        comparing to the legacy behaviour can notice — that's exactly
+        the regression mode the reviewer caught for
+        ``_generate_t1_flux_bias_line_methods`` in 7fa3901f.
+        """
         circ = self._make_fluxonium_with_noise()
-        assert sorted(circ.supported_noise_channels()) == sorted(circ.channels())
+        registry_names = sorted(circ.supported_noise_channels())
+        legacy_names = sorted(
+            method_name
+            for method_name in circ.__dict__
+            if "tphi_1_over_f" in method_name or "t1_" in method_name
+        )
+        assert registry_names == legacy_names, (
+            f"registry ({registry_names}) and legacy dict-walk "
+            f"({legacy_names}) disagree — a generator likely bypassed "
+            f"_register_noise_method"
+        )
 
     def test_channels_returns_a_copy(self):
         """Mutating the returned dict must not affect the underlying registry."""

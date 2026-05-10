@@ -69,6 +69,11 @@ class CircuitProtocol:
         is_child: bool
         is_grounded: bool
         is_purely_harmonic: bool
+        # Kept as ``Any`` rather than ``Subsystem | None`` / ``list[Subsystem]``:
+        # tightening surfaces ~9 latent typing issues at call sites that
+        # pass these to other APIs typed against ``QubitBaseClass`` /
+        # ``Oscillator`` / etc. (e.g. ``identity_wrap``,
+        # ``HilbertSpace.__init__``). Same deferral as ``hilbert_space``.
         parent: Any
         subsystems: list[Any]
         affected_subsystem_indices: list[int]

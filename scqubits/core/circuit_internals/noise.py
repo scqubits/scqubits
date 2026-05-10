@@ -907,8 +907,9 @@ class NoisyCircuit(NoisySystem, ABC):
             )
 
         for method_name in flux_bias_line_methods:
-            setattr(
-                self, method_name, MethodType(flux_bias_line_methods[method_name], self)
+            self._register_noise_method(
+                method_name,
+                MethodType(flux_bias_line_methods[method_name], self),
             )
 
     def _generate_t1_methods(self):
@@ -1936,6 +1937,10 @@ class NoisyCircuit(NoisySystem, ABC):
         instance. The registry is read by :meth:`channels` and via
         ``Circuit.supported_noise_channels``.
 
+        Lazy-inits ``_noise_channels_registry`` so a per-channel
+        generator can be invoked directly (e.g. in a unit test) without
+        having to call :meth:`generate_noise_methods` first.
+
         Parameters
         ----------
         name:
@@ -1944,6 +1949,8 @@ class NoisyCircuit(NoisySystem, ABC):
             already-bound method object (typically the result of
             ``types.MethodType(func, self)``).
         """
+        if not hasattr(self, "_noise_channels_registry"):
+            self._noise_channels_registry = {}
         setattr(self, name, method)
         self._noise_channels_registry[name] = method
 

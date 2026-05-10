@@ -883,6 +883,13 @@ class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
         static tooling because they are bound at runtime via
         ``types.MethodType``.
 
+        On a hierarchically-diagonalised parent the per-variable
+        operator methods are bound on the *subsystems*, not on the
+        parent — call ``self.subsystems[i].operator(name)`` for the
+        bare-basis operator on the owning subsystem, or use
+        :meth:`get_operator_by_name` for the wrapped operator on the
+        parent's full Hilbert space.
+
         Parameters
         ----------
         name:
@@ -902,18 +909,29 @@ class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
 
         Returns
         -------
-        The operator in its basis-dependent native form (a sparse
-        ``csc_matrix``, an ``ndarray``, or a ``qutip.Qobj``).
+        The operator in its basis-dependent native form. ``ext_basis``
+        and the per-variable basis kind determine the concrete type:
+        ``scipy.sparse.csc_matrix`` for periodic charge / discretized
+        extended operators when ``type_of_matrices == "sparse"``,
+        ``numpy.ndarray`` for harmonic-basis operators, or
+        ``qutip.Qobj`` when the basis-specific factory wraps via qutip.
 
         Raises
         ------
         AttributeError
             If no ``<name>_operator`` method is bound on this instance.
-            The error message lists the available operator names.
+            The error message lists the available operator names in
+            the form the caller would pass back to this method
+            (``_operator`` suffix stripped).
         """
         method = getattr(self, f"{name}_operator", None)
         if method is None:
-            available = sorted(self.operators_by_name) if self.operators_by_name else []
+            # Strip the ``_operator`` suffix so the message lists names
+            # in the same form the caller passes to this method.
+            available: list[str] = sorted(
+                op_name.removesuffix("_operator")
+                for op_name in (self.operators_by_name or {})
+            )
             raise AttributeError(
                 f"No operator named {name!r} on {type(self).__name__}; "
                 f"available operators: {available}"
