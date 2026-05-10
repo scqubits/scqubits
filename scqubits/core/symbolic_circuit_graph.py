@@ -1291,8 +1291,8 @@ class SymbolicCircuitGraph(ABC):
 
         Returns
         -------
-        bool
-            Returns True if the branches have a connection, else False
+        ``True`` if the two branch sets share no nodes (are disconnected),
+        ``False`` if they share at least one node.
         """
         node_array1 = np.array([branch.node_ids() for branch in branch_list1]).flatten()
         node_array2 = np.array([branch.node_ids() for branch in branch_list2]).flatten()

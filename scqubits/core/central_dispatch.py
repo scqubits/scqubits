@@ -62,7 +62,7 @@ class CentralDispatch:
 
         Returns
         -------
-        dict
+        Mapping from each registered client to its callback routine for ``event``.
         """
         return self.clients_dict[event]
 

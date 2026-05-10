@@ -64,7 +64,7 @@ def calc_therm_ratio(
 
     Returns
     -------
-    float
+    Dimensionless thermal ratio :math:`\\hbar \\omega / (k_B T)`.
     """
     omega = units.to_standard_units(omega) if not omega_in_standard_units else omega
     return (sp.constants.hbar * omega) / (sp.constants.k * T)
@@ -185,7 +185,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        Figure, Axes
+        Matplotlib ``Figure`` and ``Axes`` (or array of axes) for the
+        rendered plot, suitable for further customisation.
         """
         num_cpus = num_cpus or settings.NUM_CPUS
         common_noise_options = (
@@ -406,7 +407,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        Figure, Axes
+        Matplotlib ``Figure`` and ``Axes`` (or array of axes) for the
+        rendered plot, suitable for further customisation.
         """
         num_cpus = num_cpus or settings.NUM_CPUS
         common_noise_options = (
@@ -560,7 +562,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        Figure, Axes
+        Matplotlib ``Figure`` and ``Axes`` (or array of axes) for the
+        rendered plot, suitable for further customisation.
         """
         num_cpus = num_cpus or settings.NUM_CPUS
         common_noise_options = (
