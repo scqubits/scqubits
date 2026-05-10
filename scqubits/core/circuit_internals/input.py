@@ -1,3 +1,37 @@
+"""YAML grammar and parsing helpers for circuit definitions.
+
+The YAML input describes a circuit as a list of branches under a
+``branches:`` key. Each branch is one row of the form::
+
+    - [ <branch_type>, <node1>, <node2>, <param>, <aux params> ]
+
+or, for two-parameter branches such as JJ::
+
+    - [ <branch_type>, <node1>, <node2>, <param1>, <param2> ]
+
+where ``<branch_type>`` is one of ``"C"`` (capacitance), ``"L"``
+(inductance), ``"JJ"`` / ``"JJ2"`` / ``"JJ<n>"`` (Josephson junctions
+with up to ``n``-th harmonic), ``"JJs"`` (sawtooth-junction model), or
+``"ML"`` (mutual inductance between two ``L`` branches; in that case
+``<node1>`` and ``<node2>`` are *branch indices*, not node IDs).
+
+Each ``<param>`` is one of:
+
+- ``<symbol> = <number>`` — declare a parameter symbol with a default
+  value (e.g. ``EJ=10``, ``EML=0.01``);
+- ``<number>`` — bare numeric literal (e.g. ``10``);
+- ``<symbol>`` — re-use an already-declared symbol.
+
+Numeric values may carry a unit prefix (``GHz``, ``MHz``, ``kHz``,
+``Hz``); see ``convert_value_to_GHz`` for the conversion. Node IDs
+are integers; ``min(node_ids)`` must be either ``0`` (interpreted as
+ground) or ``1`` (no ground).
+
+The pyparsing grammar (``BRANCHES``) and the per-branch patterns
+(``BRANCH_JJ``, ``BRANCH_C``, ``BRANCH_L``, ``BRANCH_EM``) are exposed
+via ``__all__`` for downstream code that wants to extend the parser.
+"""
+
 from __future__ import annotations
 
 import os
@@ -51,20 +85,8 @@ __all__ = [
 ]
 
 # *****************************************************************
-#  OUR GRAMMAR DEFINITIONS
+#  GRAMMAR DEFINITIONS  (see module docstring for the YAML schema)
 # *****************************************************************
-#
-# Pattern for branch definitions in yaml file:
-#      - [ <branch_type>, <node1>, <node2>, <param>, <aux params> ]       or
-#      - [ <branch_type>, <node1>, <node2>, <param1>, <param2> ]
-#
-# where <param>:   <symbol> = <number>
-#                  <number>
-#                  <symbol>
-#
-# The last option is valid only if <symbol> has previously been
-# assigned. Optionally, <number> may be grouped with valid physical
-# unit.
 
 
 # - Ignore in parsing ********************************************

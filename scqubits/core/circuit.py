@@ -1628,7 +1628,9 @@ class Circuit(  # type: ignore[misc]
         Parameters
         ----------
         qbt_index_list:
-            a list of indices of subsystems that are single-mode harmonic oscillators
+            indices of subsystems that should be treated as qubits (i.e.
+            non-purely-harmonic subsystems with a discrete low-energy
+            spectrum) rather than oscillators.
         """
         # identify if each naminated subsystem indeed have a single harmonic oscillator
         qbt_subsys_list = []

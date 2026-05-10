@@ -536,8 +536,21 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
                     )
         return terms
 
-    def _JJs_terms(self):
-        """To add terms for the sawtooth josephson junction."""
+    def _JJs_terms(self) -> sm.Expr | int:
+        r"""Return the sum of sawtooth Josephson terms for all ``JJs`` branches.
+
+        For each sawtooth-junction branch the contribution
+        :math:`E_J\,\mathrm{saw}(\varphi_a - \varphi_b + \varphi_\text{ext})`
+        is added, with appropriate handling of the ground node. The
+        sawtooth function is the placeholder symbol ``saw`` and is
+        evaluated numerically by ``sawtooth_potential`` in
+        ``circuit_internals/sawtooth.py``.
+
+        Returns
+        -------
+        Sum of sawtooth-junction Lagrangian contributions; ``0`` if
+        the circuit contains no ``JJs`` branches.
+        """
         terms = 0
         # looping over all the junction terms
         junction_branches = [branch for branch in self.branches if "JJs" in branch.type]
@@ -571,19 +584,29 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
                 )
         return terms
 
-    def _inductance_inverse_matrix(self, substitute_params: bool = False):
-        """Generate a inductance matrix for the circuit.
+    def _inductance_inverse_matrix(
+        self, substitute_params: bool = False
+    ) -> ndarray | sm.Matrix:
+        """Return the node-basis inverse-inductance (Laplacian) matrix.
+
+        Off-diagonal entry ``[i, j]`` is the sum of ``-EL`` over every
+        ``L``-type branch joining nodes ``i`` and ``j``; the diagonal is
+        chosen so each row sums to zero (graph Laplacian convention).
+        If the circuit is grounded, the ground row and column are
+        dropped, leaving an ``(N-1) × (N-1)`` matrix where ``N`` is the
+        node count including ground.
 
         Parameters
         ----------
         substitute_params:
-            when set to True all the symbolic branch parameters are substituted with
-            their corresponding attributes in float, by default False
+            when ``True`` all symbolic branch parameters are substituted
+            with their current numeric attributes; default ``False``.
 
         Returns
         -------
-        _type_
-            _description_
+        ``ndarray`` when every parameter is numeric or
+        ``substitute_params=True``; otherwise a ``sympy.Matrix`` with
+        the symbolic ``EL`` placeholders preserved.
         """
         branches_with_inductance = [
             branch for branch in self.branches if branch.type == "L"
@@ -625,19 +648,31 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
             L_mat = L_mat[1:, 1:]
         return L_mat
 
-    def _capacitance_matrix(self, substitute_params: bool = False):
-        """Generate a capacitance matrix for the circuit.
+    def _capacitance_matrix(
+        self, substitute_params: bool = False
+    ) -> ndarray | sm.Matrix:
+        """Return the node-basis capacitance matrix derived from ``EC`` values.
+
+        Off-diagonal entry ``[i, j]`` is the sum of ``-1/(8·EC)`` over
+        every capacitive branch (``"C"`` and ``"JJ"``-type) joining
+        nodes ``i`` and ``j``; the diagonal is chosen so each row sums
+        to zero. If the circuit is grounded, the ground row and column
+        are dropped, leaving an ``(N-1) × (N-1)`` matrix where ``N`` is
+        the node count including ground. The factor of ``8`` reflects
+        the convention :math:`E_C = e^2 / (2 C)` — each branch
+        contributes ``C = 1/(8·E_C)`` to the capacitance matrix.
 
         Parameters
         ----------
         substitute_params:
-            when set to True all the symbolic branch parameters are substituted with
-            their corresponding attributes in float, by default False
+            when ``True`` all symbolic branch parameters are substituted
+            with their current numeric attributes; default ``False``.
 
         Returns
         -------
-        _type_
-            _description_
+        ``ndarray`` when every parameter is numeric or
+        ``substitute_params=True``; otherwise a ``sympy.Matrix`` with
+        the symbolic ``EC`` placeholders preserved.
         """
         branches_with_capacitance = [
             branch
