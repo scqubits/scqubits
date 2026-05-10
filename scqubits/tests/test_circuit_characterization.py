@@ -15,6 +15,7 @@
 ############################################################################
 from __future__ import annotations
 
+import json
 import os
 import warnings
 
@@ -70,6 +71,32 @@ COS2PHI_YAML = """branches:
 - [C, 1, 3, EC=2]
 """
 
+# Non-grounded LC + JJ between nodes 1 and 2 — exercises the sigma-mode
+# centre-of-mass allocation that grounded fixtures never trigger.
+UNGROUNDED_YAML = """branches:
+- [JJ, 1, 2, EJ=12, ECJ=18]
+- [L, 1, 2, EL=0.015]
+- [C, 1, 2, EC=3]
+"""
+
+# Mutual-inductance ML coupler between two L branches — exercises the
+# off-diagonal entry in the inductance matrix that no other fixture uses.
+ML_COUPLED_YAML = """branches:
+- [JJ, 0, 1, EJ=10, ECJ=20]
+- [L, 0, 2, EL=0.01]
+- [L, 1, 3, EL2=0.01]
+- [ML, 1, 2, EML=0.003]
+- [C, 0, 3, EC=2]
+"""
+
+# Higher-order Josephson junction (JJ2) — exercises the per-order EJ<k>
+# parameter dict shape and the _junction_order machinery in
+# branch_metadata.py.
+JJ2_YAML = """branches:
+- [JJ2, 0, 1, EJ=8, EJ2=0.5, ECJ=15]
+- [C, 0, 1, EC=2.5]
+"""
+
 
 # Cutoffs deliberately minimised: characterization tests pin behaviour with
 # small reproducible matrices, not production-scale spectra. Keeping the
@@ -107,11 +134,33 @@ def _build_cos2phi():
     return qubit
 
 
+def _build_ungrounded():
+    qubit = scq.Circuit.from_yaml_string(UNGROUNDED_YAML, ext_basis="discretized")
+    qubit.cutoff_ext_1 = 30
+    return qubit
+
+
+def _build_ml_coupled():
+    qubit = scq.Circuit.from_yaml_string(ML_COUPLED_YAML, ext_basis="discretized")
+    qubit.cutoff_n_1 = 5
+    qubit.cutoff_ext_2 = 10
+    return qubit
+
+
+def _build_jj2():
+    qubit = scq.Circuit.from_yaml_string(JJ2_YAML, ext_basis="discretized")
+    qubit.cutoff_n_1 = 11
+    return qubit
+
+
 CIRCUIT_BUILDERS = {
     "transmon": _build_transmon,
     "fluxonium": _build_fluxonium,
     "zero_pi_hd": _build_zero_pi_hd,
     "cos2phi": _build_cos2phi,
+    "ungrounded": _build_ungrounded,
+    "ml_coupled": _build_ml_coupled,
+    "jj2": _build_jj2,
 }
 
 
@@ -140,17 +189,65 @@ def _hamiltonian_array(qubit) -> np.ndarray:
     return np.asarray(H)
 
 
+def _summarize_for_sidecar(kind: str, value: np.ndarray) -> dict:
+    """Produce a human-readable summary of ``value`` for JSON sidecar storage.
+
+    The ``.npy`` files are the authoritative goldens; the ``.json`` sidecars
+    exist so reviewers of numerical-change PRs can see what actually moved
+    (e.g. "lowest eigenvalue 1.234 → 1.232") rather than reading a binary
+    diff. Sidecars are NOT compared during tests — they are written
+    alongside the ``.npy`` whenever the golden is regenerated.
+    """
+    if kind == "evals":
+        evals = np.asarray(value).real
+        return {
+            "kind": "evals",
+            "count": int(evals.size),
+            "values": [round(float(x), 8) for x in evals],
+            "gaps_from_ground": [
+                round(float(x - evals[0]), 8) for x in evals
+            ],
+        }
+    if kind == "hamiltonian":
+        H = np.asarray(value)
+        return {
+            "kind": "hamiltonian",
+            "shape": list(H.shape),
+            "dtype": str(H.dtype),
+            "trace": round(complex(np.trace(H)).real, 8),
+            "frobenius_norm": round(float(np.linalg.norm(H)), 8),
+            "max_abs": round(float(np.max(np.abs(H))), 8),
+            "min_diag": round(float(np.min(np.diag(H).real)), 8),
+            "max_diag": round(float(np.max(np.diag(H).real)), 8),
+        }
+    return {"kind": kind, "shape": list(np.shape(value))}
+
+
+def _write_sidecar(npy_path: Path, kind: str, value: np.ndarray) -> None:
+    sidecar_path = npy_path.with_suffix(".json")
+    sidecar_path.write_text(
+        json.dumps(_summarize_for_sidecar(kind, value), indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
 def _check_or_save(name: str, kind: str, value: np.ndarray, *, rtol: float):
     path = _golden_path(name, kind)
     if REGEN or not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
         np.save(path, value)
+        _write_sidecar(path, kind, value)
         if REGEN:
             pytest.skip(f"regenerated {path.name}")
         else:
             pytest.skip(f"created initial golden {path.name}; rerun to verify")
         return
     expected = np.load(path)
+    # Backfill sidecar if a prior regeneration predates the sidecar feature.
+    # The sidecar is informational only — it is NOT compared, just kept fresh
+    # so reviewers always have a human-readable summary alongside the .npy.
+    if not path.with_suffix(".json").exists():
+        _write_sidecar(path, kind, expected)
     np.testing.assert_allclose(
         value,
         expected,
