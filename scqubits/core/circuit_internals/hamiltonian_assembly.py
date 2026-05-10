@@ -33,8 +33,6 @@ bridge helper ``_operator_from_sym_expr_wrapper`` consumed by
 
 from __future__ import annotations
 
-import functools
-import operator as builtin_op
 import re
 
 from abc import ABC
@@ -69,6 +67,7 @@ from scqubits.core.circuit_internals.discretized_phi_operators import (
     _phi_operator,
     _sin_phi,
 )
+from scqubits.core.circuit_internals import junction_assembly
 from scqubits.core.circuit_internals._protocols import CircuitProtocol
 from scqubits.core.circuit_internals.matrix_helpers import (
     _cos_dia,
@@ -82,7 +81,6 @@ from scqubits.core.circuit_internals.operator_factories import (
     make_grid_operator_method,
     make_hierarchical_diag_method,
 )
-from scqubits.core.circuit_internals.sawtooth import sawtooth_potential
 from scqubits.core.circuit_internals.sympy_helpers import (
     _generate_symbols_list,
     round_symbolic_expr,
@@ -437,6 +435,11 @@ class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
     ) -> qt.Qobj:
         """Evaluate symbolic sawtooth-potential terms to a :class:`qutip.Qobj`.
 
+        Thin wrapper around
+        :func:`~scqubits.core.circuit_internals.junction_assembly.evaluate_matrix_sawtooth_terms`;
+        kept on the mixin so callers (notably ``CircuitSymMethods._evaluate_symbolic_expr``)
+        can continue to invoke ``self._evaluate_matrix_sawtooth_terms(...)``.
+
         Parameters
         ----------
         saw_expr:
@@ -444,109 +447,19 @@ class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
         bare_esys:
             optional precomputed dict of bare eigensystems for subsystems.
         """
-        if self.hierarchical_diagonalization:
-            subsystem_list = self.subsystems
-            identity = qt.tensor(
-                [qt.identity(subsystem.truncated_dim) for subsystem in subsystem_list]
-            )
-        else:
-            identity = qt.identity(self.hilbertdim())
-
-        saw_potential_matrix = identity * 0
-
-        saw = sm.Function("saw", real=True)
-        for saw_term in saw_expr.as_ordered_terms():
-            coefficient = float(list(saw_expr.as_coefficients_dict().values())[0])
-            saw_argument_expr = [
-                arg.args[0] for arg in (1.0 * saw_term).args if (arg.has(saw))
-            ][0]
-
-            saw_argument_operator = self._evaluate_symbolic_expr(
-                saw_argument_expr, bare_esys
-            )
-
-            # since this operator only works for discretized phi basis
-
-            diagonal_elements = sawtooth_potential(saw_argument_operator.diag())
-            saw_potential_matrix += coefficient * qt.qdiags(
-                diagonal_elements, 0, dims=saw_potential_matrix.dims
-            )
-
-        return saw_potential_matrix
-
-    @staticmethod
-    def _extract_junction_phase(term: sm.Expr) -> sm.Expr:
-        """Return the Josephson phase expression inside the ``cos``/``sin`` factor of ``term``.
-
-        ``term`` is expected to be a single product (one summand of an ordered
-        sum) that contains exactly one ``cos`` or ``sin`` factor — i.e. a
-        Josephson-junction contribution to the potential, ``E_J cos(phi)`` or
-        a derivative ``sin(phi)``.  The returned expression is the ``phi``
-        argument: a linear combination of node-flux symbols.
-
-        The leading ``1.0 *`` ensures sympy splits a bare ``cos(...)`` into a
-        product so ``.args`` always yields the trig factor as one of its
-        arguments.
-        """
-        return [
-            arg.args[0]
-            for arg in (1.0 * term).args
-            if arg.has(sm.cos) or arg.has(sm.sin)
-        ][0]
-
-    @staticmethod
-    def _term_has_cos_factor(term: sm.Expr) -> bool:
-        """Return ``True`` when ``term`` contains a ``cos`` factor."""
-        return any(arg.has(sm.cos) for arg in (1.0 * term).args)
-
-    @staticmethod
-    def _term_has_sin_factor(term: sm.Expr) -> bool:
-        """Return ``True`` when ``term`` contains a ``sin`` factor."""
-        return any(arg.has(sm.sin) for arg in (1.0 * term).args)
-
-    @staticmethod
-    def _assemble_cos_term(op: qt.Qobj) -> qt.Qobj:
-        """Build ``cos`` from the matrix exponential ``op = exp(i * arg)``."""
-        return (op + op.dag()) * 0.5
-
-    @staticmethod
-    def _assemble_sin_term(op: qt.Qobj) -> qt.Qobj:
-        """Build ``sin`` from the matrix exponential ``op = exp(i * arg)``."""
-        return (op - op.dag()) * 0.5 * (-1j)
-
-    def _build_junction_phase_operator_list(
-        self,
-        junction_phase_expr: sm.Expr,
-        var_indices: list[int],
-        bare_esys: dict[int, tuple] | None,
-    ) -> list[qt.Qobj]:
-        """Build the per-variable ``exp(i * prefactor * var)`` operators that compose the JJ ``cos``/``sin``.
-
-        Each Josephson term ``cos(sum_k a_k phi_k)`` is realised as a product
-        ``prod_k exp(i a_k phi_k)`` (combined with the dagger via
-        :meth:`_assemble_cos_term` / :meth:`_assemble_sin_term`); this helper
-        returns that list of per-variable factors.
-        """
-        operator_list = []
-        for idx, var_symbol in enumerate(junction_phase_expr.free_symbols):
-            prefactor = float(junction_phase_expr.coeff(var_symbol))
-            child_circuit = self.return_root_child(var_indices[idx])
-            operator_bare = child_circuit._kron_operator(
-                self.exp_i_operator(var_symbol, prefactor), var_indices[idx]
-            )
-            operator_list.append(
-                self.identity_wrap_for_hd(
-                    operator_bare,
-                    child_circuit,
-                    bare_esys=bare_esys,
-                )
-            )
-        return operator_list
+        return junction_assembly.evaluate_matrix_sawtooth_terms(
+            self, saw_expr, bare_esys
+        )
 
     def _evaluate_matrix_cosine_terms(
         self, junction_potential: sm.Expr, bare_esys: dict[int, tuple] | None = None
     ) -> qt.Qobj:
         """Evaluate symbolic Josephson cosine/sine terms to a :class:`qutip.Qobj`.
+
+        Thin wrapper around
+        :func:`~scqubits.core.circuit_internals.junction_assembly.evaluate_matrix_cosine_terms`;
+        kept on the mixin so callers (notably ``CircuitSymMethods._evaluate_symbolic_expr``)
+        can continue to invoke ``self._evaluate_matrix_cosine_terms(...)``.
 
         Parameters
         ----------
@@ -555,50 +468,9 @@ class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
         bare_esys:
             optional precomputed dict of bare eigensystems for subsystems.
         """
-        if self.hierarchical_diagonalization:
-            subsystem_list = self.subsystems
-            identity = qt.tensor(
-                [qt.identity(subsystem.truncated_dim) for subsystem in subsystem_list]
-            )
-        else:
-            identity = qt.identity(self.hilbertdim())
-
-        junction_potential_matrix = identity * 0
-
-        if (
-            isinstance(junction_potential, (int, float))
-            or len(junction_potential.free_symbols) == 0
-        ):
-            return junction_potential_matrix
-
-        for term in junction_potential.as_ordered_terms():
-            coefficient = float(list(term.as_coefficients_dict().values())[0])
-            junction_phase_expr = self._extract_junction_phase(term)
-
-            var_indices = [
-                get_trailing_number(var_symbol.name)
-                for var_symbol in junction_phase_expr.free_symbols
-            ]
-
-            # strip constant offsets from the junction phase and absorb the
-            # resulting global phase into the term's coefficient
-            for summand in junction_phase_expr.as_ordered_terms():
-                if not summand.free_symbols:
-                    junction_phase_expr -= summand
-                    coefficient *= np.exp(float(summand) * 1j)
-
-            operator_list = self._build_junction_phase_operator_list(
-                junction_phase_expr, var_indices, bare_esys
-            )
-            term_operator = coefficient * functools.reduce(
-                builtin_op.mul,
-                operator_list,
-            )
-            if self._term_has_cos_factor(term):
-                junction_potential_matrix += self._assemble_cos_term(term_operator)
-            elif self._term_has_sin_factor(term):
-                junction_potential_matrix += self._assemble_sin_term(term_operator)
-        return junction_potential_matrix
+        return junction_assembly.evaluate_matrix_cosine_terms(
+            self, junction_potential, bare_esys
+        )
 
     def _set_harmonic_basis_osc_params(self, hamiltonian: sm.Expr | None = None):
         """Compute oscillator lengths and frequencies for the extended variables.

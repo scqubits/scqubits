@@ -745,20 +745,27 @@ The bare per-basis primitives are split across:
 #### JJ matrix evaluation
 
 A junction contributes `E_J cos(φ_J)` to the potential, where φ_J is
-a *linear combination* of node-flux variables. The matrix evaluation
-flow in `HamiltonianAssemblyMixin`:
+a *linear combination* of node-flux variables. The full pipeline lives
+in `circuit_internals/junction_assembly.py` as module-level functions
+taking an explicit ``circuit`` argument:
 
-1. `_evaluate_matrix_cosine_terms(junction_potential)` iterates the
-   sympy terms.
-2. For each, `_extract_junction_phase(term)` returns the phase
+1. `evaluate_matrix_cosine_terms(circuit, junction_potential, ...)`
+   iterates the sympy terms.
+2. For each, `extract_junction_phase(term)` returns the phase
    expression inside the `cos` or `sin`.
-3. `_build_junction_phase_operator_list(phase_expr, var_indices,
-   bare_esys)` builds the per-variable `exp(i · prefactor · var)`
-   operators.
-4. `_assemble_cos_term(op)` combines them as `(O + O†)/2`;
-   `_assemble_sin_term(op)` does `−i(O − O†)/2`.
-5. The `_term_has_cos_factor` / `_term_has_sin_factor` predicates
-   pick which assembler to call for each sympy term.
+3. `build_junction_phase_operator_list(circuit, phase_expr,
+   var_indices, bare_esys)` builds the per-variable
+   `exp(i · prefactor · var)` operators.
+4. `assemble_cos_term(op)` combines them as `(O + O†)/2`;
+   `assemble_sin_term(op)` does `−i(O − O†)/2`.
+5. The `term_has_cos_factor` / `term_has_sin_factor` predicates pick
+   which assembler to call for each sympy term.
+
+`HamiltonianAssemblyMixin._evaluate_matrix_cosine_terms` and
+`_evaluate_matrix_sawtooth_terms` are thin instance-method wrappers
+around the `junction_assembly.*` functions, kept on the mixin so
+existing callers (notably ``CircuitSymMethods._evaluate_symbolic_expr``)
+that invoke ``self._evaluate_matrix_cosine_terms(...)`` keep working.
 
 ---
 
@@ -1430,7 +1437,7 @@ managed separately via `self.symbolic_params`.
 | Symbolic→numeric Hamiltonian bridge | `circuit_internals/sym_methods.py` (`_generate_hamiltonian_sym_for_numerics`) |
 | Per-variable operator method generation | `circuit_internals/hamiltonian_assembly.py` (`_set_operators`, `_build_*`) |
 | Operator-method factory closures | `circuit_internals/operator_factories.py` |
-| JJ `cos(φ)` → matrix evaluation | `circuit_internals/hamiltonian_assembly.py` (`_evaluate_matrix_cosine_terms`) |
+| JJ `cos(φ)` → matrix evaluation | `circuit_internals/junction_assembly.py` (`evaluate_matrix_cosine_terms`, `extract_junction_phase`, `assemble_cos_term`, …); `hamiltonian_assembly.py` exposes thin instance-method wrappers |
 | HD subsystem construction | `circuit_internals/subsystem_tree.py` |
 | Parameter sync / dispatch / WatchedProperty | `circuit_internals/lifecycle.py` and `scqubits/core/descriptors.py` |
 | Hilbert-space basics (kron, identity, hilbertdim) | `circuit_internals/routines.py` |
