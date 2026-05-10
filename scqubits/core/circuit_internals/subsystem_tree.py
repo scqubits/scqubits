@@ -38,6 +38,7 @@ import sympy as sm
 import scqubits.core.circuit as circuit
 
 from scqubits import HilbertSpace
+from scqubits.core.circuit_internals._protocols import CircuitProtocol
 from scqubits.utils.misc import flatten_list_recursive
 
 __all__ = [
@@ -45,7 +46,7 @@ __all__ = [
 ]
 
 
-class SubsystemTreeMixin(ABC):
+class SubsystemTreeMixin(ABC, CircuitProtocol):
     """Mixin: subsystem-tree construction for hierarchical diagonalization.
 
     The methods here mutate the parent's ``self.subsystems``,
@@ -53,42 +54,9 @@ class SubsystemTreeMixin(ABC):
     and ``self.hilbert_space``.  They assume the surrounding mixin
     chain (``CircuitSymMethods``, ``CircuitRoutines``) has already
     populated the symbolic Hamiltonian and the helper callables
-    declared below.
+    declared on
+    :class:`~scqubits.core.circuit_internals._protocols.CircuitProtocol`.
     """
-
-    # Cross-mixin attributes / callables resolved by the concrete subclass
-    # (Circuit / Subsystem) at composition time. Declared under
-    # TYPE_CHECKING so mypy understands the references in this mixin
-    # without affecting runtime behaviour.
-    if TYPE_CHECKING:
-        hierarchical_diagonalization: bool
-        is_child: bool
-        parent: Any
-        subsystems: list[Any]
-        system_hierarchy: list[Any]
-        subsystem_trunc_dims: list[Any]
-        subsystem_interactions: dict[int, sm.Expr]
-        subsystem_hamiltonians: dict[int, sm.Expr]
-        hamiltonian_symbolic: sm.Expr
-        external_fluxes: list[sm.Symbol]
-        offset_charges: list[sm.Symbol]
-        free_charges: list[sm.Symbol]
-        symbolic_params: dict[sm.Symbol, float]
-        ext_basis: Any
-        evals_method: Any
-        evals_method_options: Any
-        esys_method: Any
-        esys_method_options: Any
-        hilbert_space: HilbertSpace
-        var_categories: dict[
-            Literal["periodic", "extended", "free", "frozen", "sigma"], list[int]
-        ]
-
-        _sym_subsystem_hamiltonian_and_interactions: Callable[..., Any]
-        _is_expression_purely_harmonic: Callable[..., Any]
-        _operator_from_sym_expr_wrapper: Callable[[sm.Expr], Any]
-
-        def hilbertdim(self) -> int: ...
 
     def _check_truncation_indices(self):
         """Validate that subsystem truncation indices fit within their Hilbert dim."""

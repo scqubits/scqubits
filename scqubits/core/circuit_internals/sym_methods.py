@@ -35,6 +35,7 @@ __all__ = [
 
 from abc import ABC
 
+from scqubits.core.circuit_internals._protocols import CircuitProtocol
 from scqubits.core.circuit_internals.sympy_helpers import (
     is_potential_term,
     round_symbolic_expr,
@@ -48,75 +49,19 @@ from scqubits.utils.misc import (
 )
 
 
-class CircuitSymMethods(ABC):
+class CircuitSymMethods(ABC, CircuitProtocol):
     """Mixin providing symbolic-Hamiltonian utilities shared by circuit classes.
 
     Implements helpers for splitting, simplifying and rendering symbolic
     Hamiltonians, as well as building numerical operators from symbolic
     expressions for use by :class:`Circuit` and :class:`Subsystem`.
+
+    Cross-mixin attributes and methods are inherited from
+    :class:`~scqubits.core.circuit_internals._protocols.CircuitProtocol`,
+    which is the single source of truth for the cross-mixin surface. At
+    runtime ``CircuitProtocol`` is an empty class (its body is gated
+    under ``TYPE_CHECKING``); the inheritance is a no-op.
     """
-
-    # Attributes set by concrete subclasses (Circuit, Subsystem). Declared here so
-    # mypy can resolve cross-subclass attribute access in shared methods.
-    external_fluxes: list[Any]
-    offset_charges: list[Any]
-    free_charges: list[Any]
-    symbolic_params: dict[Any, Any]
-    var_categories: dict[
-        Literal["periodic", "extended", "free", "frozen", "sigma"], list[int]
-    ]
-    dynamic_var_indices: list[int]
-    hierarchical_diagonalization: bool
-    ext_basis: Any
-    hamiltonian_symbolic: Any
-    type_of_matrices: str
-    subsystems: list[Any]
-    system_hierarchy: list[Any]
-    parent: Any
-    vars: dict[str, Any]
-    _hamiltonian_sym_for_numerics: Any
-    _id_str: str
-    potential_symbolic: Any
-    subsystem_interactions: Any
-    get_subsystem_index: Callable[..., Any]
-    transformation_matrix: Any
-    is_grounded: bool
-    closure_branches: list[Any]
-    symbolic_circuit: Any
-    affine_transformation_matrix: Any
-    use_dynamic_flux_grouping: bool
-    discretized_phi_range: dict[int, Any]
-    cutoff_names: list[str]
-    is_purely_harmonic: bool
-
-    # Method stubs declaring methods provided by sibling mixins
-    # (CircuitRoutines) when composed into Subsystem/Circuit. Declared under
-    # TYPE_CHECKING so that mypy resolves shared-method `self.X` references
-    # without affecting runtime behavior.
-    if TYPE_CHECKING:
-
-        def _identity_qobj(self) -> qt.Qobj: ...
-        def _evaluate_matrix_cosine_terms(
-            self,
-            junction_potential: sm.Expr,
-            bare_esys: dict[int, tuple] | None = ...,
-        ) -> qt.Qobj: ...
-        def _evaluate_matrix_sawtooth_terms(
-            self, saw_expr: sm.Expr, bare_esys: dict[int, tuple] | None = ...
-        ) -> qt.Qobj: ...
-        def return_root_child(self, var_index: int) -> "Subsystem": ...
-        def identity_wrap_for_hd(
-            self,
-            operator: csc_matrix | ndarray | None,
-            child_instance: "Subsystem",
-            bare_esys: dict[int, tuple] | None = ...,
-        ) -> qt.Qobj: ...
-        def get_operator_by_name(
-            self,
-            operator_name: str,
-            power: int | None = ...,
-            bare_esys: dict[int, tuple] | None = ...,
-        ) -> qt.Qobj: ...
 
     @staticmethod
     def _contains_trigonometric_terms(hamiltonian: sm.Expr) -> bool:

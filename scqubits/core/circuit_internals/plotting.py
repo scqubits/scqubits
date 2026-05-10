@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem
@@ -22,6 +22,7 @@ import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 
 from scqubits import get_units
+from scqubits.core.circuit_internals._protocols import CircuitProtocol
 from scqubits.core.circuit_internals.sawtooth import sawtooth_potential
 from scqubits.core.circuit_internals.utils import get_trailing_number
 from scqubits.io_utils.fileio_serializers import dict_serialize
@@ -37,67 +38,16 @@ __all__ = [
 ]
 
 
-class CircuitPlot(ABC):
-    """Mixin providing wave-function and potential plotting for circuit subsystems."""
+class CircuitPlot(ABC, CircuitProtocol):
+    """Mixin providing wave-function and potential plotting for circuit subsystems.
 
-    # The following attributes and methods are provided by sibling mixins
-    # (CircuitRoutines, CircuitSymMethods) when composed into Subsystem/Circuit.
-    # They are declared here under TYPE_CHECKING so that mypy understands the
-    # mixin's references to them without affecting runtime behavior.
-    if TYPE_CHECKING:
-        dynamic_var_indices: list[int]
-        var_categories: dict[
-            Literal["periodic", "extended", "free", "frozen", "sigma"], list[int]
-        ]
-        cutoff_names: list[str]
-        ext_basis: str
-        hierarchical_diagonalization: bool
-        subsystems: list["Subsystem"]
-        external_fluxes: list[sm.Symbol]
-        symbolic_params: dict[sm.Symbol, float]
-        potential_symbolic: sm.Expr
-
-        def get_osc_param(self, var_index: int, which_param: str = ...) -> float:
-            """Stub: oscillator parameter for ``var_index`` provided by sibling mixin.
-
-            Parameters
-            ----------
-            var_index:
-                index of the variable whose oscillator parameter is requested.
-            which_param:
-                key identifying which oscillator parameter to retrieve.
-            """
-            ...
-
-        def get_subsystem_index(self, var_index: int) -> int:
-            """Stub: subsystem index for ``var_index`` provided by sibling mixin.
-
-            Parameters
-            ----------
-            var_index:
-                index of the variable whose subsystem index is requested.
-            """
-            ...
-
-        def cutoffs_dict(self) -> dict[int, int]:
-            """Stub: cutoff dictionary provided by sibling mixin."""
-            ...
-
-        def discretized_grids_dict_for_vars(
-            self,
-        ) -> dict[int, discretization.Grid1d]:
-            """Stub: discretized grids dictionary provided by sibling mixin."""
-            ...
-
-        def eigensys(self, evals_count: int = ...) -> tuple[ndarray, ndarray]:
-            """Stub: eigensystem accessor provided by sibling mixin.
-
-            Parameters
-            ----------
-            evals_count:
-                see :meth:`scqubits.core.qubit_base.QubitBaseClass.eigensys`
-            """
-            ...
+    Cross-mixin attributes / methods (``dynamic_var_indices``,
+    ``cutoff_names``, ``cutoffs_dict``, ``get_osc_param``, etc.) are
+    inherited from
+    :class:`~scqubits.core.circuit_internals._protocols.CircuitProtocol`,
+    which is type-only at runtime (its body is gated under
+    ``TYPE_CHECKING``).
+    """
 
     # ****************************************************************
     # ************* Cutoff accessors (used by both wf and potential) *

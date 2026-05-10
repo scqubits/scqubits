@@ -49,6 +49,8 @@ import sympy as sm
 import scqubits.core.circuit as circuit
 import scqubits.settings as settings
 
+from scqubits.core.circuit_internals._protocols import CircuitProtocol
+
 from scqubits.core import descriptors
 from scqubits.utils.misc import (
     check_sync_status_circuit,
@@ -88,73 +90,15 @@ _PROPERTY_SETTER_BY_TYPE: dict[PropertyUpdateType, str] = {
 }
 
 
-class LifecycleMixin(ABC):
+class LifecycleMixin(ABC, CircuitProtocol):
     """Mixin: parameter sync + watched-property dispatch + update pipeline.
 
-    Cross-mixin attributes / callables provided by sibling mixins (the
-    residual ``CircuitRoutines`` and ``CircuitSymMethods``) are
-    declared under ``TYPE_CHECKING`` so mypy can resolve ``self.<x>``
-    references in the methods below without affecting runtime
-    behaviour.
+    Cross-mixin attributes and methods are inherited from
+    :class:`~scqubits.core.circuit_internals._protocols.CircuitProtocol`,
+    which is the single source of truth for the cross-mixin surface. At
+    runtime ``CircuitProtocol`` is an empty class (its body is gated
+    under ``TYPE_CHECKING``); the inheritance is a no-op.
     """
-
-    if TYPE_CHECKING:
-        # State attributes initialised on Circuit / Subsystem instances.
-        hierarchical_diagonalization: bool
-        is_child: bool
-        is_purely_harmonic: bool
-        parent: Any
-        subsystems: list[Any]
-        affected_subsystem_indices: list[int]
-        external_fluxes: list[Any]
-        offset_charges: list[Any]
-        free_charges: list[Any]
-        symbolic_params: dict[Any, Any]
-        symbolic_circuit: Any
-        cutoff_names: list[str]
-        ext_basis: Any
-        var_categories: dict[
-            Literal["periodic", "extended", "free", "frozen", "sigma"], list[int]
-        ]
-        hamiltonian_symbolic: Any
-        potential_symbolic: Any
-        junction_potential: Any
-        hilbert_space: Any
-        subsystem_interactions: Any
-        truncated_dim: int
-        operators_by_name: Any
-        _frozen: bool
-        _bare_eigensystem: Any
-        _out_of_sync: bool
-        _out_of_sync_with_parent: bool
-        _user_changed_parameter: bool
-        _user_changed_parameter_dict: dict[str, Any]
-        _internal_updates_required: bool
-        _operators_by_name: Any
-        _bare_eigensys_for_subsystems: list[Any]
-        _hamiltonian_sym_for_numerics: Any
-        broadcast: Callable[..., Any]
-
-        # Methods provided by sibling mixins.
-        def get_subsystem_index(self, var_index: int) -> int: ...
-        def return_root_child(self, var_index: int) -> Any: ...
-        def _set_vars(self) -> None: ...
-        def _set_operators(self) -> dict[str, Callable]: ...
-        def _generate_subsystems(self, *args: Any, **kwargs: Any) -> None: ...
-        def _update_interactions(self, recursive: bool = ...) -> None: ...
-        def _diagonalize_purely_harmonic_hamiltonian(
-            self, return_osc_dict: bool = ...
-        ) -> Any: ...
-        def _set_harmonic_basis_osc_params(
-            self, hamiltonian: Any | None = ...
-        ) -> Any: ...
-        def generate_bare_esys(self, *args: Any, **kwargs: Any) -> Any: ...
-
-        # CircuitSymMethods callables.
-        _find_and_set_sym_attrs: Callable[..., Any]
-        _generate_sym_potential: Callable[..., Any]
-        _generate_hamiltonian_sym_for_numerics: Callable[..., Any]
-        _sym_subsystem_hamiltonian_and_interactions: Callable[..., Any]
 
     def _sync_parameters_with_parent(self):
         """Method syncs the parameters of the subsystem with the parent instance."""

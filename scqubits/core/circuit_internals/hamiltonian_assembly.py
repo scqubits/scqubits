@@ -69,6 +69,7 @@ from scqubits.core.circuit_internals.discretized_phi_operators import (
     _phi_operator,
     _sin_phi,
 )
+from scqubits.core.circuit_internals._protocols import CircuitProtocol
 from scqubits.core.circuit_internals.matrix_helpers import (
     _cos_dia,
     _cos_dia_dense,
@@ -118,79 +119,15 @@ _PERIODIC_OP_FUNCS: dict[str, Callable[..., Any]] = {
 }
 
 
-class HamiltonianAssemblyMixin(ABC):
+class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
     """Mixin: numerical operator + Hamiltonian + eigensystem assembly.
 
-    Cross-mixin attributes / callables provided by sibling mixins
-    (``SubsystemTreeMixin``, the residual ``CircuitRoutines``,
-    ``CircuitSymMethods``) are declared under ``TYPE_CHECKING`` so mypy
-    can resolve ``self.<x>`` references in the methods below without
-    affecting runtime behaviour.
+    Cross-mixin attributes and methods are inherited from
+    :class:`~scqubits.core.circuit_internals._protocols.CircuitProtocol`,
+    which is the single source of truth for the cross-mixin surface. At
+    runtime ``CircuitProtocol`` is an empty class (its body is gated
+    under ``TYPE_CHECKING``); the inheritance is a no-op.
     """
-
-    if TYPE_CHECKING:
-        # State attributes initialised on Circuit / Subsystem instances.
-        hierarchical_diagonalization: bool
-        is_purely_harmonic: bool
-        is_child: bool
-        type_of_matrices: str
-        ext_basis: Any
-        cutoff_names: list[str]
-        discretized_phi_range: dict[int, Any]
-        dynamic_var_indices: list[int]
-        external_fluxes: list[Any]
-        offset_charges: list[Any]
-        free_charges: list[Any]
-        symbolic_params: dict[Any, Any]
-        var_categories: dict[
-            Literal["periodic", "extended", "free", "frozen", "sigma"], list[int]
-        ]
-        vars: dict[str, Any]
-        hamiltonian_symbolic: Any
-        potential_symbolic: Any
-        subsystems: list[Any]
-        subsystem_interactions: Any
-        system_hierarchy: list[Any]
-        subsystem_trunc_dims: list[Any]
-        parent: Any
-        truncated_dim: int
-        hilbert_space: Any
-        operators_by_name: Any
-        transformation_matrix: Any
-        affine_transformation_matrix: Any
-        use_dynamic_flux_grouping: bool
-        closure_branches: Any
-        evals_method: Any
-        evals_method_options: Any
-        esys_method: Any
-        esys_method_options: Any
-        _hamiltonian_sym_for_numerics: Any
-        _default_grid_phi: Any
-        _id_str: str
-        broadcast: Callable[..., Any]
-
-        # Methods provided by sibling mixins / the residual CircuitRoutines.
-        def hilbertdim(self) -> int: ...
-        def cutoffs_dict(self) -> dict[int, int]: ...
-        def discretized_grids_dict_for_vars(self) -> dict[int, Any]: ...
-        def _kron_operator(self, op: Any, var_index: int) -> Any: ...
-        def _sparsity_adaptive(self, matrix: Any) -> Any: ...
-        def _identity_qobj(self) -> qt.Qobj: ...
-        def _identity(self) -> Any: ...
-        def _get_cutoff_value(self, var_index: int) -> int: ...
-        def get_osc_param(self, var_index: int, which_param: str = ...) -> float: ...
-        def return_root_child(self, var_index: int) -> Any: ...
-        def get_subsystem_index(self, var_index: int) -> int: ...
-        def generate_bare_esys(self, *args: Any, **kwargs: Any) -> Any: ...
-        def get_ext_basis(self) -> str | list[str]: ...
-
-        # CircuitSymMethods callables.
-        _is_expression_purely_harmonic: Callable[..., Any]
-        _generate_hamiltonian_sym_for_numerics: Callable[..., Any]
-        _evaluate_symbolic_expr: Callable[..., Any]
-        _basis_for_var_index: Callable[..., Any]
-        _get_eval_hamiltonian_string: Callable[..., Any]
-        _is_diagonalization_necessary: Callable[..., Any]
 
     def _diagonalize_purely_harmonic_hamiltonian(self, return_osc_dict: bool = False):
         """Decouple harmonic oscillators in purely harmonic Hamiltonians.
