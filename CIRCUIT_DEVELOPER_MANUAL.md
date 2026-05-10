@@ -14,13 +14,6 @@ working knowledge of Python, sympy, qutip, and `scipy.sparse`.
 > Throughout, "the paper" refers to that work; equations and section
 > numbers cited as e.g. "(Eq. 12)" or "(§4.2)" refer to it.
 
-> **How to cross-check claims in this manual.** Every algorithmic and
-> structural claim should be verifiable against the source. When a
-> section names a method or attribute, run `grep` for it in
-> `scqubits/core/`. When a section claims a call sequence, the
-> ground truth is the code, not this prose. If you find a divergence,
-> fix the manual — the code is the source of truth.
-
 ## Table of contents
 
 1. [Scope and module map](#1-scope-and-module-map)
