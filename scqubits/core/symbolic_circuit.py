@@ -1110,7 +1110,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
 
         potential_φ = inductor_terms_φ + JJ_terms_φ
         potential_θ = (
-            potential_φ.copy() if potential_φ != 0 else symbols("x") * 0
+            potential_φ.copy() if isinstance(potential_φ, sm.Expr) else symbols("x") * 0
         )  # copying the potential in terms of the old variables to make substitutions
 
         for index in range(
