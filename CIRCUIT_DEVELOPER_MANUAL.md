@@ -560,6 +560,23 @@ hierarchical diagonalisation. Same mixin chain as `Circuit`, except:
   which is *much* simpler than `Circuit._configure(...)` — it skips
   YAML parsing and graph-construction, taking those from the parent.
 
+> **Why aren't `Subsystem._configure` and `Circuit._configure` unified?**
+> The two methods *look* parallel but their HD-vs-non-HD branches have
+> load-bearing content differences (Circuit calls
+> `_generate_hamiltonian_sym_for_numerics()` where Subsystem just
+> `.copy()`s, because Subsystem's symbolic Hamiltonian was already
+> processed by the parent; Circuit warns on `ext_basis="harmonic"`
+> mismatch where Subsystem inherits silently; Circuit resets
+> `operators_by_name = None` where Subsystem doesn't; etc.).
+> The truly-shared body across both methods is roughly four lines
+> (`_frozen` toggles + `_set_vars()` + `_set_operators()`). A 2026-05-10
+> design-review pass concluded that a template-method extraction would
+> require either two near-identical helpers (re-introducing the
+> duplication) or a flag-soup `_configure_common` whose body is
+> "if circuit_path: ... else: ..." (worse than the current
+> independent methods). Keep them independent; the divergence is
+> intentional, not accidental.
+
 ### 6.3 The `_configure` flow and the rollback contract
 
 `Circuit._configure(...)` is the single point where every observable
@@ -706,9 +723,9 @@ The full naming inventory (per `_build_extended_operators_*`,
 - *Identity*: `I_operator`.
 - *Cross-cutting helper*: `exp_i_operator` — defined on
   `HamiltonianAssemblyMixin` rather than per-variable. Used by
-  `_build_junction_phase_operator_list` (§8 below) when assembling
-  `cos(φ)` / `sin(φ)` matrix elements for a JJ phase that is a
-  linear combination of variables.
+  `junction_assembly.build_junction_phase_operator_list` (§8 below)
+  when assembling `cos(φ)` / `sin(φ)` matrix elements for a JJ phase
+  that is a linear combination of variables.
 
 These methods are built dynamically during `_configure` by
 `_set_operators` and attached via `types.MethodType`. Three factory

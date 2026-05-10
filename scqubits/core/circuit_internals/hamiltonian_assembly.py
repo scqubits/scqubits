@@ -17,8 +17,9 @@ output:
 * per-variable operator methods, dynamically created and bound during
   ``_configure`` (``_set_operators``, ``_generate_operator_methods``, the
   ``_build_*_operators_*`` family, the ``make_*_method`` factories);
-* Josephson cosine/sine evaluation
-  (``_evaluate_matrix_cosine_terms``, ``_extract_junction_phase``, ...);
+* Thin wrappers delegating Josephson cosine/sine evaluation to
+  :mod:`~scqubits.core.circuit_internals.junction_assembly`
+  (``_evaluate_matrix_cosine_terms``, ``_evaluate_matrix_sawtooth_terms``);
 * Hamiltonian assembly
   (``_hamiltonian_for_*``, ``_evaluate_hamiltonian``, ``hamiltonian``);
 * eigenvalue / eigensystem computation
