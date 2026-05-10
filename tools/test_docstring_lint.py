@@ -109,6 +109,10 @@ def test_iter_numpydoc_sections_requires_underline() -> None:
         ("the input integer", False),
         ("see :func:`foo` for details", False),
         ("a length-N list of floats", False),
+        # Regression tests for false positives caught in reviewer audit:
+        ("None when not applicable", False),
+        ("None or empty", False),
+        ("int input value", False),
     ],
 )
 def test_looks_like_a_type(rhs: str, expected: bool) -> None:
@@ -124,6 +128,20 @@ def test_looks_like_a_type(rhs: str, expected: bool) -> None:
         ("the result", False),
         ("List of floats.", False),
         ("a number", False),
+        # Regression tests for false positives caught in reviewer audit:
+        # A single CapWord (not in KNOWN_TYPE_NAMES) is more likely a
+        # description than a custom-class type annotation.
+        ("Length", False),
+        ("Frequency", False),
+        ("Identifier", False),
+        # Multi-word descriptions starting with a CapWord were
+        # previously flagged because every token matched ``[A-Za-z_]``.
+        ("Frequency in GHz, computed from omega", False),
+        ("Hamiltonian, either unchanged in native basis", False),
+        ("eigenvalues, eigenvectors as numpy arrays or in form of a", False),
+        # But genuine type unions / tuples should still be flagged.
+        ("Qobj", True),
+        ("ndarray, ndarray", True),
     ],
 )
 def test_looks_like_bare_type_line(line: str, expected: bool) -> None:
@@ -163,23 +181,72 @@ def test_placeholder_phrase_check_silent_on_clean_docstring() -> None:
 
 
 def test_types_in_docstring_check_flags_param_with_type() -> None:
-    docstring = textwrap.dedent(
+    """DOC002 flags `x : int` only when the signature already annotates `x`."""
+    source = textwrap.dedent(
         """\
-        Summary.
+        def foo(x: int):
+            \"\"\"Summary.
 
-        Parameters
-        ----------
-        x : int
-            description of x
+            Parameters
+            ----------
+            x : int
+                description of x
+            \"\"\"
         """
     )
-    issues = _run_check_on_docstring(TypesInDocstringCheck(), docstring)
-    assert len(issues) == 1
-    _, message, snippet, hint = issues[0]
-    assert "`x`" in message
-    assert "int" in message
-    assert "x : int" in snippet
-    assert "signature" in hint.lower()
+    issues = lint_source(source, "fixture.py")
+    doc002 = [i for i in issues if i.check_id == "DOC002"]
+    assert len(doc002) == 1
+    assert "`x`" in doc002[0].message
+    assert "int" in doc002[0].message
+    assert "x : int" in doc002[0].snippet
+    assert "signature" in doc002[0].hint.lower()
+
+
+def test_types_in_docstring_check_silent_when_signature_has_no_annotation() -> None:
+    """If the signature has no type annotation for `x`, the docstring is the
+    legitimate type source -- DOC002 must NOT flag it."""
+    source = textwrap.dedent(
+        """\
+        def foo(x):
+            \"\"\"Summary.
+
+            Parameters
+            ----------
+            x : int
+                description of x
+            \"\"\"
+        """
+    )
+    issues = [i for i in lint_source(source, "fixture.py") if i.check_id == "DOC002"]
+    assert issues == []
+
+
+def test_types_in_docstring_check_silent_on_continuation_with_colon() -> None:
+    """A continuation line in a previous param's description that happens
+    to start with ``word:`` (e.g. ``or: something``) is NOT a parameter
+    declaration -- it's at a deeper indent than the actual parameter
+    lines.  DOC002 must skip it.
+
+    Regression test for a real false positive caught by reviewer audit.
+    """
+    source = textwrap.dedent(
+        """\
+        def foo(evals_count: int):
+            \"\"\"Compute eigenvalues.
+
+            Parameters
+            ----------
+            evals_count:
+                number of desired eigenvalues; default: -1,
+                signals all eigenvalues
+                or: list of specific eigenvalues to include
+            \"\"\"
+        """
+    )
+    issues = [i for i in lint_source(source, "fixture.py") if i.check_id == "DOC002"]
+    # ``or:`` at a deeper indent than ``evals_count:`` must NOT be flagged.
+    assert issues == []
 
 
 def test_types_in_docstring_check_silent_on_typeless_param() -> None:
@@ -197,34 +264,58 @@ def test_types_in_docstring_check_silent_on_typeless_param() -> None:
 
 
 def test_types_in_docstring_check_flags_returns_with_bare_type() -> None:
-    docstring = textwrap.dedent(
+    """DOC002 flags a bare-type Returns line only when the function has a
+    return annotation (otherwise the docstring is the type source)."""
+    source = textwrap.dedent(
         """\
-        Summary.
+        def foo() -> object:
+            \"\"\"Summary.
 
-        Returns
-        -------
-        ndarray | None
+            Returns
+            -------
+            ndarray | None
+            \"\"\"
         """
     )
-    issues = _run_check_on_docstring(TypesInDocstringCheck(), docstring)
+    issues = [i for i in lint_source(source, "fixture.py") if i.check_id == "DOC002"]
     assert len(issues) == 1
-    _, message, snippet, _ = issues[0]
-    assert "Returns" in message
-    assert snippet == "ndarray | None"
+    assert "Returns" in issues[0].message
+    assert issues[0].snippet == "ndarray | None"
+
+
+def test_types_in_docstring_check_silent_on_returns_when_no_return_annotation() -> None:
+    """If the signature has no `-> ...` return annotation, the docstring's
+    bare-type Returns line is the legitimate type source."""
+    source = textwrap.dedent(
+        """\
+        def foo():
+            \"\"\"Summary.
+
+            Returns
+            -------
+            ndarray | None
+            \"\"\"
+        """
+    )
+    issues = [i for i in lint_source(source, "fixture.py") if i.check_id == "DOC002"]
+    assert issues == []
 
 
 def test_types_in_docstring_check_silent_on_returns_with_description() -> None:
     """``Returns`` section starting with prose (not a type) is fine."""
-    docstring = textwrap.dedent(
+    source = textwrap.dedent(
         """\
-        Summary.
+        def foo() -> object:
+            \"\"\"Summary.
 
-        Returns
-        -------
-        the converted value, or ``None`` if unavailable.
+            Returns
+            -------
+            the converted value, or ``None`` if unavailable.
+            \"\"\"
         """
     )
-    assert _run_check_on_docstring(TypesInDocstringCheck(), docstring) == []
+    issues = [i for i in lint_source(source, "fixture.py") if i.check_id == "DOC002"]
+    assert issues == []
 
 
 def test_work_narrative_check_flags_we_used_to() -> None:
@@ -424,3 +515,128 @@ def test_all_registered_checks_have_required_attrs() -> None:
 def test_check_ids_are_unique() -> None:
     ids = [c.id for c in CHECKS]
     assert len(ids) == len(set(ids)), f"duplicate check ids in CHECKS: {ids}"
+
+
+# ---------------------------------------------------------------------
+# Compare-to-base integration
+# ---------------------------------------------------------------------
+
+
+def _git(repo, *args):
+    """Run ``git`` in ``repo`` (a Path); raise on non-zero exit."""
+    import subprocess
+
+    subprocess.run(
+        ["git", "-C", str(repo), *args],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _make_two_commit_repo(tmp_path, base_text: str, head_text: str):
+    """Create a temp git repo with two commits, return ``(repo, file_path)``."""
+    import subprocess
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-b", "main")
+    _git(repo, "config", "user.email", "test@example.invalid")
+    _git(repo, "config", "user.name", "Test")
+    fpath = repo / "module.py"
+    fpath.write_text(base_text, encoding="utf-8")
+    _git(repo, "add", "module.py")
+    _git(repo, "commit", "-m", "base")
+    fpath.write_text(head_text, encoding="utf-8")
+    _git(repo, "add", "module.py")
+    _git(repo, "commit", "-m", "head")
+    return repo, fpath
+
+
+def test_compare_to_reports_only_new_issues(tmp_path) -> None:
+    """End-to-end compare-to mode: an issue introduced at HEAD should be
+    reported as new; the unchanged base content should produce nothing."""
+    from docstring_lint import lint_against_base
+
+    base_text = textwrap.dedent(
+        """\
+        def clean_func():
+            \"\"\"Clean docstring with no issues.\"\"\"
+        """
+    )
+    head_text = textwrap.dedent(
+        """\
+        def clean_func():
+            \"\"\"Clean docstring with no issues.\"\"\"
+
+
+        def buggy_func():
+            \"\"\"Has _type_ placeholder.\"\"\"
+        """
+    )
+    repo, fpath = _make_two_commit_repo(tmp_path, base_text, head_text)
+    new_issues, removed_issues = lint_against_base(
+        [fpath], "HEAD~1", repo
+    )
+    assert len(new_issues) == 1
+    assert new_issues[0].qualname == "buggy_func"
+    assert new_issues[0].check_id == "DOC001"
+    assert removed_issues == []
+
+
+def test_compare_to_reports_removed_issues(tmp_path) -> None:
+    """An issue present at the base ref but absent at HEAD must show as
+    "removed" (a fix), not as new."""
+    from docstring_lint import lint_against_base
+
+    base_text = textwrap.dedent(
+        """\
+        def buggy_func():
+            \"\"\"Has _type_ placeholder.\"\"\"
+        """
+    )
+    head_text = textwrap.dedent(
+        """\
+        def buggy_func():
+            \"\"\"Clean docstring now.\"\"\"
+        """
+    )
+    repo, fpath = _make_two_commit_repo(tmp_path, base_text, head_text)
+    new_issues, removed_issues = lint_against_base(
+        [fpath], "HEAD~1", repo
+    )
+    assert new_issues == []
+    assert len(removed_issues) == 1
+    assert removed_issues[0].check_id == "DOC001"
+
+
+def test_compare_to_robust_to_line_shifts(tmp_path) -> None:
+    """An issue that exists in both base and HEAD but has shifted to a
+    different line number (because lines were inserted above it) must
+    NOT be reported as new -- the issue key excludes ``line``."""
+    from docstring_lint import lint_against_base
+
+    base_text = textwrap.dedent(
+        """\
+        def buggy_func():
+            \"\"\"Has _type_ placeholder.\"\"\"
+        """
+    )
+    head_text = textwrap.dedent(
+        """\
+        # added comment 1
+        # added comment 2
+        # added comment 3
+
+
+        def buggy_func():
+            \"\"\"Has _type_ placeholder.\"\"\"
+        """
+    )
+    repo, fpath = _make_two_commit_repo(tmp_path, base_text, head_text)
+    new_issues, removed_issues = lint_against_base(
+        [fpath], "HEAD~1", repo
+    )
+    # Same logical issue at a different line -- not "new".
+    assert new_issues == []
+    assert removed_issues == []

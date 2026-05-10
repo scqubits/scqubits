@@ -13,18 +13,22 @@ Rules enforced
 The checks below mirror the project's standing docstring requirements
 (see ``CIRCUIT_DEVELOPER_MANUAL.md`` and the developer's memory rules):
 
-- **DOC001 -- placeholder phrases.**  Strings like ``_type_`` /
-  ``_description_`` / ``<TODO>`` / ``<FIXME>`` are template residue
-  from numpydoc-stub generators and must be filled in.
+- **DOC001 -- placeholder phrases.**  Numpydoc-stub residue strings
+  (the literal underscore-wrapped ``type`` / ``description`` markers
+  some IDEs insert, plus angle-bracketed unresolved-task markers and
+  vague-noun phrases gesturing at output structure) must be filled
+  in or removed.  See :class:`PlaceholderPhraseCheck` for the exact
+  regexes.
 - **DOC002 -- types in docstring Parameters / Returns sections.**  Type
   annotations belong in the function signature, not duplicated into the
   docstring.  In numpydoc Parameters blocks the parameter line should be
   ``name:`` (description on the next indented line); a line of the form
   ``name : type`` or ``name: type`` is flagged.
 - **DOC003 -- work-narrative phrases.**  Docstrings should describe the
-  current contract, not history of how the code got here.  Phrases like
-  ``"we used to"``, ``"this was changed"``, ``"in a prior session"``,
-  ``"see commit"``, ``"by Claude"``, ``"originally this"`` are flagged.
+  current contract, not history of how the code got here.  Phrases that
+  describe prior states, reference specific commits / sessions, or
+  attribute work to particular authors are flagged.  See
+  :data:`_WORK_NARRATIVE_PATTERNS` for the exact list.
 - **DOC004 -- empty numpydoc sections.**  A ``Parameters`` /
   ``Returns`` / ``Raises`` header with no body indicates a stub or a
   bad edit; flagged.
@@ -50,7 +54,7 @@ Comparison mode
 
 ``--compare-to <ref>`` (e.g. ``--compare-to origin/main``) runs the
 checks twice: once on the working-tree files, once on the files at the
-named git ref.  Issues are matched by ``(file, qualname, check_id)`` —
+named git ref.  Issues are matched by ``(file, qualname, check_id)`` --
 not by line number, so cosmetic line shifts don't count as "new".  Only
 issues present at HEAD and absent at the base ref are reported.  An
 issue removed by the diff is silently dropped.
@@ -62,10 +66,10 @@ import argparse
 import ast
 import dataclasses
 import json
+import keyword
 import re
 import subprocess
 import sys
-import tempfile
 
 from collections.abc import Iterable, Iterator
 from pathlib import Path
@@ -109,9 +113,10 @@ class Issue:
         Returns
         -------
         ``(file, qualname, check_id, message)`` tuple.  ``message`` is
-        included because two distinct ``DOC001`` issues on the same
-        function -- say one for ``_type_`` and one for ``_description_``
-        -- should be tracked as different issues.
+        included so distinct ``DOC001`` issues on the same function
+        (one ``type``-marker hit and one ``description``-marker hit,
+        say) are tracked as different issues rather than being
+        coalesced.
         """
         return (self.file, self.qualname, self.check_id, self.message)
 
@@ -232,14 +237,22 @@ class Check:
 
 
 class PlaceholderPhraseCheck(Check):
-    """DOC001 -- flags ``_type_``, ``_description_``, ``<TODO>``, etc."""
+    """DOC001 -- flags numpydoc-stub residue placeholders.
+
+    See ``PATTERNS`` below for the exact set of detected strings.
+    """
 
     id = "DOC001"
     description = "docstring contains placeholder phrase"
-    rule_ref = "memory: feedback_docstring_no_placeholder_phrases.md"
+    rule_ref = "rule: numpydoc-stub placeholders must be filled in or removed"
 
     # (regex, short_label, hint).  ``short_label`` is what appears in
     # the one-line message; ``hint`` is the concrete fix suggestion.
+    # Patterns target template residue produced by numpydoc-stub
+    # generators (PyCharm's "Insert Documentation String", VS Code's
+    # autoDocstring, the ``pyment`` CLI, etc.) -- they leave behind a
+    # consistent set of placeholder strings that the author is
+    # supposed to fill in.
     PATTERNS: tuple[tuple[re.Pattern[str], str, str], ...] = (
         (
             re.compile(r"_type_"),
@@ -266,12 +279,6 @@ class PlaceholderPhraseCheck(Check):
             "Address the FIXME before merging, or convert it to a "
             "documented limitation in a `Notes` section.",
         ),
-        (
-            re.compile(r"return shape", re.IGNORECASE),
-            "vague phrase 'return shape'",
-            "Name the actual returned fields/types/contract instead of "
-            "gesturing at structure with the noun 'shape'.",
-        ),
     )
 
     def run(self, docstring, _node, _qualname):
@@ -296,191 +303,250 @@ _PARAM_TYPE_LINE = re.compile(
 )
 
 
-def _looks_like_bare_type_line(line: str) -> bool:
-    """Return ``True`` if ``line`` is a bare type expression (no description).
+# Set of Python type names (built-ins + scqubits-relevant) that should be
+# recognised as types when they appear bare in a docstring.  Used by both
+# ``_looks_like_a_type`` (Parameters RHS) and ``_looks_like_bare_type_line``
+# (first body line of a Returns section).
+_KNOWN_TYPE_NAMES = frozenset({
+    "int", "str", "float", "bool", "bytes", "list", "dict", "tuple",
+    "set", "frozenset", "None", "Any", "Optional", "Union", "Callable",
+    "Iterator", "Iterable", "Mapping", "Sequence", "Generator",
+    "Type", "Literal", "ClassVar", "TypeVar", "Protocol",
+    "ndarray", "ArrayLike", "DTypeLike",
+    "Qobj", "Symbol", "Expr", "Matrix",
+    "csc_matrix", "csr_matrix", "coo_matrix", "lil_matrix",
+    "Path", "PathLike", "object", "complex",
+})
 
-    Used by ``DOC002`` to detect a ``Returns`` section whose first body
-    line is a type rather than a description.
 
-    Heuristic: the line must (a) be a single identifier or a short
-    type expression involving ``[``, ``|``, ``,``, ``.``, identifiers,
-    and whitespace -- i.e. valid Python type syntax -- and (b) contain
-    no English-prose markers (a comma followed by a space-prefixed word,
-    a period followed by a space, the article ``the``).
+def _is_type_token(tok: str) -> bool:
+    """Return ``True`` if ``tok`` is plausibly a Python type identifier.
+
+    A token qualifies as a type identifier if it's either in the curated
+    ``_KNOWN_TYPE_NAMES`` set or it has the shape of a CapCamelCase
+    class name (starts with an uppercase letter and contains at least
+    one lowercase letter).  All-uppercase tokens (``URL``, ``TODO``)
+    and bare lowercase words not in the known set fail.
     """
-    stripped = line.strip()
-    if not stripped:
+    if not tok:
         return False
-    if " the " in f" {stripped} " or stripped.endswith("."):
-        return False
-    if not re.match(r"^[A-Za-z_][\w.\[\]| ,]*$", stripped):
-        return False
-    # Reject if it contains a sequence that looks like a sentence: two
-    # words in a row that aren't joined by a type separator.
-    tokens = re.split(r"[\s,|]+", stripped)
-    tokens = [t for t in tokens if t]
-    if len(tokens) > 1:
-        for tok in tokens:
-            if not re.match(r"^[A-Za-z_][\w.\[\]]*$", tok):
-                return False
-        # Multi-token bare types only make sense if at least one
-        # separator is `|` (union) or `,` (tuple); otherwise treat as
-        # prose ("returns the matrix").
-        if "|" not in stripped and "," not in stripped:
-            return False
-    return True
+    if tok in _KNOWN_TYPE_NAMES:
+        return True
+    if (
+        re.match(r"^[A-Z][a-zA-Z0-9_]*$", tok)
+        and not tok.isupper()
+        and any(c.islower() for c in tok)
+    ):
+        return True
+    return False
 
 
 def _looks_like_a_type(rhs: str) -> bool:
-    """Heuristic: does the RHS of ``name : RHS`` look like a Python type?
+    """Return ``True`` when the RHS of ``name : RHS`` is a Python type expression.
 
-    True positives we want to flag:
-        ``int``, ``str``, ``float``, ``bool``, ``ndarray``, ``Qobj``,
-        ``dict[str, int]``, ``Optional[Foo]``, ``Foo | None``, ``int = 0``,
-        ``ClassName`` (CapWord), ``ndarray | sympy.Matrix``, ...
-
-    False positives we want to avoid:
-        full sentences, ``"see :func:`foo`"``, ``"the data, by default
-        ``None``"``, ``"length-N list of ..."``.
-
-    The heuristic: trim the RHS, then accept it as "looks like a type"
-    if the *first token* matches a known set of type names, looks like
-    a CapWord, or starts with one of the type-syntax characters (``[``,
-    ``|``, ``"``, ``'``).  Sentences (containing a verb, comma, or "the")
-    fall through.
+    Only flags the RHS if **every** token in it (after splitting on
+    type-syntax separators ``|``, ``[``, ``]``, ``,``, ``.`` and
+    whitespace) is a recognised type identifier.  This rejects benign
+    descriptions that happen to start with a known type name like
+    ``"None when not applicable"`` or ``"int input value"``.
     """
     rhs = rhs.strip()
     if not rhs:
         return False
-
-    # Stop at ", by default" / " = " / " (default ...)" -- the type itself
-    # is the prefix.
-    head = re.split(r",\s+by default|,\s*default[:=]?|\s+=\s+", rhs, maxsplit=1)[0]
-    head = head.strip()
+    # Strip off ``", by default ..."`` / ``" = default"`` suffixes; the
+    # actual type is the head.
+    head = re.split(
+        r",\s+by default|,\s*default[:=]?|\s+=\s+", rhs, maxsplit=1
+    )[0].strip()
     if not head:
         return False
+    # Strip wrapping quotes around forward references like ``"Foo"``.
+    if len(head) >= 2 and head[0] in "\"'" and head[-1] == head[0]:
+        head = head[1:-1].strip()
+    tokens = [t for t in re.split(r"[\s\|\[\],.]+", head) if t]
+    if not tokens:
+        return False
+    return all(_is_type_token(tok) for tok in tokens)
 
-    KNOWN_TYPES = {
-        "int", "str", "float", "bool", "bytes", "list", "dict", "tuple",
-        "set", "frozenset", "None", "Any", "Optional", "Union", "Callable",
-        "Iterator", "Iterable", "Mapping", "Sequence", "Generator",
-        "Type", "Literal", "ClassVar", "TypeVar", "Protocol",
-        "ndarray", "ArrayLike", "DTypeLike",
-        "Qobj", "Symbol", "Expr", "Matrix",
-        "csc_matrix", "csr_matrix", "coo_matrix", "lil_matrix",
-        "Path", "PathLike",
-    }
 
-    first_token = re.match(r"[A-Za-z_][\w.]*", head)
-    if first_token:
-        token = first_token.group(0)
-        # Literal types like "name : int = 5" already stripped above.
-        if token in KNOWN_TYPES:
-            return True
-        # Capitalised single-word identifier -> class name.
-        if (
-            token == head
-            and token[0].isupper()
-            and not token.isupper()  # don't flag "TODO", "URL", etc.
-        ):
-            return True
+def _looks_like_bare_type_line(line: str) -> bool:
+    """Return ``True`` when ``line`` is a bare type expression (Returns context).
 
-    # Type-syntax leading characters.
-    if head[0] in "[|":
-        return True
-    # Quoted forward references.
-    if head[0] in "\"'" and head.endswith(head[0]):
-        inner = head[1:-1]
-        if re.match(r"[A-Za-z_][\w.\[\] |,]*$", inner):
-            return True
-    # Compound expressions with `[`, `|`, `,` (but only if the head also
-    # starts with an identifier-like token already accepted above).
-    return False
+    Stricter than ``_looks_like_a_type`` because a single CapCamelCase
+    word in a Returns section is much more likely to be a description
+    ("Length", "Frequency") than a custom-class type annotation.
+
+    Rules:
+      - Reject if the line ends in ``.`` (sentence).
+      - Reject if longer than 60 characters (real type expressions are
+        short; longer lines are descriptions).
+      - Run ``_looks_like_a_type``.
+      - If only one token survives tokenisation, require it to be in
+        ``_KNOWN_TYPE_NAMES`` (rejects single CapWords like ``Length``).
+    """
+    stripped = line.strip()
+    if not stripped:
+        return False
+    if stripped.endswith("."):
+        return False
+    if len(stripped) > 60:
+        return False
+    if not _looks_like_a_type(stripped):
+        return False
+    tokens = [t for t in re.split(r"[\s\|\[\],.]+", stripped) if t]
+    if len(tokens) == 1 and tokens[0] not in _KNOWN_TYPE_NAMES:
+        return False
+    return True
+
+
+def _annotated_param_names(node: ast.AST) -> set[str]:
+    """Return the set of parameter names that have type annotations on ``node``.
+
+    Returns the empty set for modules, classes, or any node that isn't a
+    function/method.  For a function/method, walks ``args.posonlyargs``,
+    ``args.args``, ``args.kwonlyargs``, ``args.vararg`` (``*args``), and
+    ``args.kwarg`` (``**kwargs``), and includes a name iff its
+    ``annotation`` slot is not ``None``.
+    """
+    if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return set()
+    names: set[str] = set()
+    args = node.args
+    for arg in args.posonlyargs + args.args + args.kwonlyargs:
+        if arg.annotation is not None:
+            names.add(arg.arg)
+    for special in (args.vararg, args.kwarg):
+        if special is not None and special.annotation is not None:
+            names.add(special.arg)
+    return names
+
+
+def _has_return_annotation(node: ast.AST) -> bool:
+    """Return ``True`` iff ``node`` is a function/method with a ``-> ...`` annotation."""
+    return (
+        isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.returns is not None
+    )
 
 
 class TypesInDocstringCheck(Check):
     """DOC002 -- flags type annotations duplicated into the docstring.
 
     Catches both the numpydoc ``name : type`` Parameters form *and* the
-    bare-type-on-first-line Returns form.  Either way the rule is the
-    same: types live in the function signature; the docstring carries
-    description only.
+    bare-type-on-first-line Returns form.  The rule fires only when
+    the function signature *already* carries the annotation -- i.e.
+    when the docstring is duplicating information that the type
+    system already has.  Functions without signature annotations
+    legitimately use the docstring as the type source and are not
+    flagged.
     """
 
     id = "DOC002"
-    description = "type annotation in docstring (belongs in signature)"
-    rule_ref = "memory: feedback_dont_gut_docstrings.md (no-types-in-docstring rule)"
+    description = "type annotation in docstring duplicates the function signature"
+    rule_ref = "rule: types belong in the function signature, not duplicated into the docstring"
 
-    def run(self, docstring, _node, _qualname):
+    def run(self, docstring, node, _qualname):
+        annotated_params = _annotated_param_names(node)
+        has_return_ann = _has_return_annotation(node)
         for section, start_line, body in _iter_numpydoc_sections(docstring):
             if section == "Parameters":
-                yield from self._check_parameters(section, start_line, body)
+                yield from self._check_parameters(
+                    section, start_line, body, annotated_params
+                )
             elif section in ("Returns", "Yields"):
-                yield from self._check_returns(section, start_line, body)
+                if has_return_ann:
+                    yield from self._check_returns(section, start_line, body)
 
-    def _check_parameters(self, section, start_line, body):
-        for offset, line in enumerate(body.splitlines(), start=1):
+    def _check_parameters(self, section, start_line, body, annotated_params):
+        # Indent-aware: only lines at the parameter-declaration indent
+        # are real parameter entries.  More-indented lines are
+        # description continuations (e.g. ``or: list of options`` as a
+        # continuation of a previous param's multi-line description),
+        # which can otherwise produce false positives.
+        body_lines = body.splitlines()
+        param_indent: int | None = None
+        for offset, line in enumerate(body_lines, start=1):
+            if not line.strip():
+                continue
+            indent = len(line) - len(line.lstrip())
+            if param_indent is None:
+                # First non-blank body line sets the parameter-indent
+                # baseline.  Subsequent param lines must match.
+                param_indent = indent
+            if indent != param_indent:
+                continue
             m = _PARAM_TYPE_LINE.match(line)
             if not m:
+                continue
+            param = m.group("name")
+            # Belt-and-suspenders: even if a Python keyword somehow
+            # ended up at the right indent (it shouldn't be a real
+            # parameter name), don't flag it.
+            if keyword.iskeyword(param):
+                continue
+            # Only flag when the signature already carries the
+            # annotation -- otherwise the docstring is legitimately
+            # acting as the type source.
+            if param not in annotated_params:
                 continue
             if not _looks_like_a_type(m.group("rhs")):
                 continue
             line_in_doc = start_line + 1 + offset
-            param = m.group("name")
             type_text = m.group("rhs").strip()
             yield (
                 line_in_doc,
-                f"parameter `{param}` carries type `{type_text}` in docstring",
+                f"parameter `{param}` carries type `{type_text}` in docstring "
+                f"(signature already declares the type)",
                 line.strip(),
-                f"Move `{type_text}` to the `{param}:` parameter "
-                f"annotation in the function signature, then change this "
-                f"line to `{param}:` (description on the next indented "
-                f"line).  Sphinx with napoleon picks up the type from "
-                f"the signature automatically.",
+                f"Move the type out of the docstring: change this line to "
+                f"`{param}:` (description on the next indented line).  "
+                f"The signature's `{param}: {type_text}` annotation is "
+                f"the source of truth; Sphinx with napoleon picks the "
+                f"type up from there automatically.",
             )
 
     def _check_returns(self, section, start_line, body):
-        # First non-blank body line.  If it parses as a bare type
-        # (one identifier, possibly with `[...]`/`|`), it's a type
-        # declaration the signature should own.
+        # Only invoked when the function has a ``-> ...`` annotation,
+        # so a bare-type first line in the section is genuinely
+        # duplicating the signature.  First non-blank body line: if it
+        # parses as a bare type (one identifier, possibly with
+        # ``[...]`` / ``|``), flag it.
         body_lines = body.splitlines()
         for offset, line in enumerate(body_lines, start=1):
             if not line.strip():
                 continue
             stripped = line.strip()
-            # Skip if the line is clearly a description (contains a
-            # space-separated word that isn't part of a type expression).
             if not _looks_like_bare_type_line(stripped):
                 return  # description first -- fine
             line_in_doc = start_line + 1 + offset
             yield (
                 line_in_doc,
-                f"`{section}` section starts with bare type `{stripped}`",
+                f"`{section}` section starts with bare type `{stripped}` "
+                f"(signature already declares the return type)",
                 stripped,
-                f"Move `{stripped}` to the function's `-> ...` return "
-                f"annotation in the signature, and put the description "
-                f"directly under the `{section}` header (no leading type "
-                f"line).  Sphinx with napoleon will surface the type "
-                f"from the signature.",
+                f"Drop the bare-type first line and put the description "
+                f"directly under the `{section}` header.  The signature's "
+                f"`-> {stripped}` annotation is the source of truth; "
+                f"Sphinx with napoleon surfaces the type from there.",
             )
             return
 
 
-# Phrases that indicate the docstring is narrating refactor history rather
-# than describing the current contract.  Case-insensitive, whole-substring
-# match.
+# Phrases that indicate the docstring is narrating change history rather
+# than describing the current contract.  Case-insensitive, word-boundary
+# anchored.  The set is deliberately narrow: each phrase is one that
+# clearly signals a backward-looking statement that belongs in a commit
+# message or PR description, not in a docstring.
 _WORK_NARRATIVE_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
     re.compile(p, re.IGNORECASE)
     for p in (
         r"\bwe used to\b",
         r"\bthis was changed\b",
-        r"\bin a prior (session|refactor)\b",
+        r"\bin a prior refactor\b",
         r"\bsee commit\b",
-        r"\bby [Cc]laude\b",
-        r"\bin this session\b",
         r"\bafter the refactor\b",
-        r"\bpreviously this (function|method|class)\b",
-        r"\boriginally this (function|method|class)\b",
+        r"\bpreviously this (function|method|class|routine)\b",
+        r"\boriginally this (function|method|class|routine)\b",
         r"\bused to (be|live)\b",
         r"\b(was|were) (formerly|previously)\b",
     )
@@ -492,7 +558,7 @@ class WorkNarrativeCheck(Check):
 
     id = "DOC003"
     description = "docstring contains work-narrative / refactor-history phrasing"
-    rule_ref = "memory: feedback_no_narration_comments.md"
+    rule_ref = "rule: docstrings describe the current contract, not change history"
 
     def run(self, docstring, _node, _qualname):
         for offset, line in enumerate(docstring.splitlines(), start=1):
@@ -519,7 +585,7 @@ class EmptyNumpydocSectionCheck(Check):
 
     id = "DOC004"
     description = "numpydoc section header with no content"
-    rule_ref = "memory: feedback_dont_gut_docstrings.md (section-headers-must-stay-intact rule)"
+    rule_ref = "rule: numpydoc section headers must have a body"
 
     SECTIONS_TO_CHECK = ("Parameters", "Returns", "Yields", "Raises")
 
@@ -781,9 +847,9 @@ def _format_text(issues: list[Issue], header: str = "") -> str:
     Each issue is formatted as a 4-line block::
 
         path/to/file.py:42  ERROR  DOC001  in `Class.method`
-          _type_ placeholder (numpydoc-stub residue)
-          > "    _type_"
-          fix: Replace `_type_` with the actual type ...
+          placeholder marker (numpydoc-stub residue)
+          > "    <placeholder>"
+          fix: Replace the placeholder with the actual content, or remove the line.
           (rule: memory: feedback_docstring_no_placeholder_phrases.md)
 
     Issues are sorted by (file, line, check_id, qualname) for stable
@@ -810,11 +876,17 @@ def _format_text(issues: list[Issue], header: str = "") -> str:
         if issue.snippet:
             # Truncate excessively long snippets so the report stays
             # readable; users who want the full context can open the
-            # file at the line shown above.
+            # file at the line shown above.  Use plain double-quote
+            # wrapping rather than ``repr()`` so non-ASCII characters
+            # (Greek letters, mathematical symbols common in scqubits
+            # docstrings) survive intact rather than being rendered
+            # as ``\u`` escape sequences.
             snippet = issue.snippet
             if len(snippet) > 120:
                 snippet = snippet[:117] + "..."
-            out.append(f"  > {snippet!r}")
+            # Replace embedded double quotes so the wrapper stays balanced.
+            snippet_safe = snippet.replace('"', '\\"')
+            out.append(f'  > "{snippet_safe}"')
         if issue.hint:
             # Wrap the hint at ~78 chars for terminal readability.
             wrapped = _wrap(issue.hint, width=78, indent="    ")
