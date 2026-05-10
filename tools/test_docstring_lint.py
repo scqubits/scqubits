@@ -29,7 +29,6 @@ from docstring_lint import (
     lint_source,
 )
 
-
 # ---------------------------------------------------------------------
 # Privacy detection
 # ---------------------------------------------------------------------
@@ -60,8 +59,7 @@ def test_is_private_qualname(qualname: str, expected: bool) -> None:
 
 
 def test_iter_numpydoc_sections_finds_parameters_and_returns() -> None:
-    docstring = textwrap.dedent(
-        """\
+    docstring = textwrap.dedent("""\
         Summary line.
 
         Parameters
@@ -72,8 +70,7 @@ def test_iter_numpydoc_sections_finds_parameters_and_returns() -> None:
         Returns
         -------
         the result
-        """
-    )
+        """)
     sections = list(_iter_numpydoc_sections(docstring))
     names = [s[0] for s in sections]
     assert names == ["Parameters", "Returns"]
@@ -159,16 +156,14 @@ def _run_check_on_docstring(check, docstring: str):
 
 
 def test_placeholder_phrase_check_flags_type_and_description() -> None:
-    docstring = textwrap.dedent(
-        """\
+    docstring = textwrap.dedent("""\
         Summary.
 
         Returns
         -------
         _type_
             _description_
-        """
-    )
+        """)
     issues = _run_check_on_docstring(PlaceholderPhraseCheck(), docstring)
     messages = [m for _, m, _, _ in issues]
     assert any("_type_" in m for m in messages)
@@ -182,8 +177,7 @@ def test_placeholder_phrase_check_silent_on_clean_docstring() -> None:
 
 def test_types_in_docstring_check_flags_param_with_type() -> None:
     """DOC002 flags `x : int` only when the signature already annotates `x`."""
-    source = textwrap.dedent(
-        """\
+    source = textwrap.dedent("""\
         def foo(x: int):
             \"\"\"Summary.
 
@@ -192,8 +186,7 @@ def test_types_in_docstring_check_flags_param_with_type() -> None:
             x : int
                 description of x
             \"\"\"
-        """
-    )
+        """)
     issues = lint_source(source, "fixture.py")
     doc002 = [i for i in issues if i.check_id == "DOC002"]
     assert len(doc002) == 1
@@ -206,8 +199,7 @@ def test_types_in_docstring_check_flags_param_with_type() -> None:
 def test_types_in_docstring_check_silent_when_signature_has_no_annotation() -> None:
     """If the signature has no type annotation for `x`, the docstring is the
     legitimate type source -- DOC002 must NOT flag it."""
-    source = textwrap.dedent(
-        """\
+    source = textwrap.dedent("""\
         def foo(x):
             \"\"\"Summary.
 
@@ -216,8 +208,7 @@ def test_types_in_docstring_check_silent_when_signature_has_no_annotation() -> N
             x : int
                 description of x
             \"\"\"
-        """
-    )
+        """)
     issues = [i for i in lint_source(source, "fixture.py") if i.check_id == "DOC002"]
     assert issues == []
 
@@ -230,8 +221,7 @@ def test_types_in_docstring_check_silent_on_continuation_with_colon() -> None:
 
     Regression test for a real false positive caught by reviewer audit.
     """
-    source = textwrap.dedent(
-        """\
+    source = textwrap.dedent("""\
         def foo(evals_count: int):
             \"\"\"Compute eigenvalues.
 
@@ -242,32 +232,28 @@ def test_types_in_docstring_check_silent_on_continuation_with_colon() -> None:
                 signals all eigenvalues
                 or: list of specific eigenvalues to include
             \"\"\"
-        """
-    )
+        """)
     issues = [i for i in lint_source(source, "fixture.py") if i.check_id == "DOC002"]
     # ``or:`` at a deeper indent than ``evals_count:`` must NOT be flagged.
     assert issues == []
 
 
 def test_types_in_docstring_check_silent_on_typeless_param() -> None:
-    docstring = textwrap.dedent(
-        """\
+    docstring = textwrap.dedent("""\
         Summary.
 
         Parameters
         ----------
         x:
             description of x (no type, on next line)
-        """
-    )
+        """)
     assert _run_check_on_docstring(TypesInDocstringCheck(), docstring) == []
 
 
 def test_types_in_docstring_check_flags_returns_with_bare_type() -> None:
     """DOC002 flags a bare-type Returns line only when the function has a
     return annotation (otherwise the docstring is the type source)."""
-    source = textwrap.dedent(
-        """\
+    source = textwrap.dedent("""\
         def foo() -> object:
             \"\"\"Summary.
 
@@ -275,8 +261,7 @@ def test_types_in_docstring_check_flags_returns_with_bare_type() -> None:
             -------
             ndarray | None
             \"\"\"
-        """
-    )
+        """)
     issues = [i for i in lint_source(source, "fixture.py") if i.check_id == "DOC002"]
     assert len(issues) == 1
     assert "Returns" in issues[0].message
@@ -286,8 +271,7 @@ def test_types_in_docstring_check_flags_returns_with_bare_type() -> None:
 def test_types_in_docstring_check_silent_on_returns_when_no_return_annotation() -> None:
     """If the signature has no `-> ...` return annotation, the docstring's
     bare-type Returns line is the legitimate type source."""
-    source = textwrap.dedent(
-        """\
+    source = textwrap.dedent("""\
         def foo():
             \"\"\"Summary.
 
@@ -295,16 +279,14 @@ def test_types_in_docstring_check_silent_on_returns_when_no_return_annotation() 
             -------
             ndarray | None
             \"\"\"
-        """
-    )
+        """)
     issues = [i for i in lint_source(source, "fixture.py") if i.check_id == "DOC002"]
     assert issues == []
 
 
 def test_types_in_docstring_check_silent_on_returns_with_description() -> None:
     """``Returns`` section starting with prose (not a type) is fine."""
-    source = textwrap.dedent(
-        """\
+    source = textwrap.dedent("""\
         def foo() -> object:
             \"\"\"Summary.
 
@@ -312,8 +294,7 @@ def test_types_in_docstring_check_silent_on_returns_with_description() -> None:
             -------
             the converted value, or ``None`` if unavailable.
             \"\"\"
-        """
-    )
+        """)
     issues = [i for i in lint_source(source, "fixture.py") if i.check_id == "DOC002"]
     assert issues == []
 
@@ -341,8 +322,7 @@ def test_work_narrative_check_silent_on_normal_prose() -> None:
 
 
 def test_empty_numpydoc_section_check_flags_empty_parameters() -> None:
-    docstring = textwrap.dedent(
-        """\
+    docstring = textwrap.dedent("""\
         Summary.
 
         Parameters
@@ -351,8 +331,7 @@ def test_empty_numpydoc_section_check_flags_empty_parameters() -> None:
         Notes
         -----
         Body of notes.
-        """
-    )
+        """)
     issues = _run_check_on_docstring(EmptyNumpydocSectionCheck(), docstring)
     assert len(issues) == 1
     _, message, _, _ = issues[0]
@@ -360,16 +339,14 @@ def test_empty_numpydoc_section_check_flags_empty_parameters() -> None:
 
 
 def test_empty_numpydoc_section_check_silent_on_filled_section() -> None:
-    docstring = textwrap.dedent(
-        """\
+    docstring = textwrap.dedent("""\
         Summary.
 
         Parameters
         ----------
         x:
             description
-        """
-    )
+        """)
     assert _run_check_on_docstring(EmptyNumpydocSectionCheck(), docstring) == []
 
 
@@ -380,12 +357,10 @@ def test_empty_numpydoc_section_check_silent_on_filled_section() -> None:
 
 def test_private_qualname_downgrades_to_warning(tmp_path) -> None:
     """An issue inside a `_`-prefixed function is a warning, not error."""
-    source = textwrap.dedent(
-        """\
+    source = textwrap.dedent("""\
         def _private_helper():
             \"\"\"Has _type_ placeholder.\"\"\"
-        """
-    )
+        """)
     issues = lint_source(source, "fixture.py")
     assert len(issues) == 1
     assert issues[0].severity == "warning"
@@ -393,12 +368,10 @@ def test_private_qualname_downgrades_to_warning(tmp_path) -> None:
 
 
 def test_public_qualname_remains_error(tmp_path) -> None:
-    source = textwrap.dedent(
-        """\
+    source = textwrap.dedent("""\
         def public_helper():
             \"\"\"Has _type_ placeholder.\"\"\"
-        """
-    )
+        """)
     issues = lint_source(source, "fixture.py")
     assert len(issues) == 1
     assert issues[0].severity == "error"
@@ -406,13 +379,11 @@ def test_public_qualname_remains_error(tmp_path) -> None:
 
 def test_private_method_inside_public_class_is_private(tmp_path) -> None:
     """`PublicClass._method` is private (has a `_`-prefixed component)."""
-    source = textwrap.dedent(
-        """\
+    source = textwrap.dedent("""\
         class PublicClass:
             def _internal_method(self):
                 \"\"\"Has _type_ placeholder.\"\"\"
-        """
-    )
+        """)
     issues = lint_source(source, "fixture.py")
     assert len(issues) == 1
     assert issues[0].severity == "warning"
@@ -420,13 +391,11 @@ def test_private_method_inside_public_class_is_private(tmp_path) -> None:
 
 def test_dunder_method_is_public(tmp_path) -> None:
     """`PublicClass.__init__` is public (dunder methods are public)."""
-    source = textwrap.dedent(
-        """\
+    source = textwrap.dedent("""\
         class PublicClass:
             def __init__(self):
                 \"\"\"Has _type_ placeholder.\"\"\"
-        """
-    )
+        """)
     issues = lint_source(source, "fixture.py")
     assert len(issues) == 1
     assert issues[0].severity == "error"
@@ -466,8 +435,7 @@ def test_issue_key_excludes_line_number(tmp_path) -> None:
 
 
 def test_lint_source_end_to_end_finds_expected_issues() -> None:
-    source = textwrap.dedent(
-        """\
+    source = textwrap.dedent("""\
         \"\"\"Module-level docstring (no issues).\"\"\"
 
 
@@ -483,8 +451,7 @@ def test_lint_source_end_to_end_finds_expected_issues() -> None:
 
         def _private_func():
             \"\"\"Has _type_ placeholder.\"\"\"
-        """
-    )
+        """)
     issues = lint_source(source, "fixture.py")
     assert {i.check_id for i in issues} == {"DOC001", "DOC002"}
     # public_func has 1 error (DOC002 type-in-param)
@@ -558,26 +525,20 @@ def test_compare_to_reports_only_new_issues(tmp_path) -> None:
     reported as new; the unchanged base content should produce nothing."""
     from docstring_lint import lint_against_base
 
-    base_text = textwrap.dedent(
-        """\
+    base_text = textwrap.dedent("""\
         def clean_func():
             \"\"\"Clean docstring with no issues.\"\"\"
-        """
-    )
-    head_text = textwrap.dedent(
-        """\
+        """)
+    head_text = textwrap.dedent("""\
         def clean_func():
             \"\"\"Clean docstring with no issues.\"\"\"
 
 
         def buggy_func():
             \"\"\"Has _type_ placeholder.\"\"\"
-        """
-    )
+        """)
     repo, fpath = _make_two_commit_repo(tmp_path, base_text, head_text)
-    new_issues, removed_issues = lint_against_base(
-        [fpath], "HEAD~1", repo
-    )
+    new_issues, removed_issues = lint_against_base([fpath], "HEAD~1", repo)
     assert len(new_issues) == 1
     assert new_issues[0].qualname == "buggy_func"
     assert new_issues[0].check_id == "DOC001"
@@ -589,22 +550,16 @@ def test_compare_to_reports_removed_issues(tmp_path) -> None:
     "removed" (a fix), not as new."""
     from docstring_lint import lint_against_base
 
-    base_text = textwrap.dedent(
-        """\
+    base_text = textwrap.dedent("""\
         def buggy_func():
             \"\"\"Has _type_ placeholder.\"\"\"
-        """
-    )
-    head_text = textwrap.dedent(
-        """\
+        """)
+    head_text = textwrap.dedent("""\
         def buggy_func():
             \"\"\"Clean docstring now.\"\"\"
-        """
-    )
+        """)
     repo, fpath = _make_two_commit_repo(tmp_path, base_text, head_text)
-    new_issues, removed_issues = lint_against_base(
-        [fpath], "HEAD~1", repo
-    )
+    new_issues, removed_issues = lint_against_base([fpath], "HEAD~1", repo)
     assert new_issues == []
     assert len(removed_issues) == 1
     assert removed_issues[0].check_id == "DOC001"
@@ -616,14 +571,11 @@ def test_compare_to_robust_to_line_shifts(tmp_path) -> None:
     NOT be reported as new -- the issue key excludes ``line``."""
     from docstring_lint import lint_against_base
 
-    base_text = textwrap.dedent(
-        """\
+    base_text = textwrap.dedent("""\
         def buggy_func():
             \"\"\"Has _type_ placeholder.\"\"\"
-        """
-    )
-    head_text = textwrap.dedent(
-        """\
+        """)
+    head_text = textwrap.dedent("""\
         # added comment 1
         # added comment 2
         # added comment 3
@@ -631,12 +583,9 @@ def test_compare_to_robust_to_line_shifts(tmp_path) -> None:
 
         def buggy_func():
             \"\"\"Has _type_ placeholder.\"\"\"
-        """
-    )
+        """)
     repo, fpath = _make_two_commit_repo(tmp_path, base_text, head_text)
-    new_issues, removed_issues = lint_against_base(
-        [fpath], "HEAD~1", repo
-    )
+    new_issues, removed_issues = lint_against_base([fpath], "HEAD~1", repo)
     # Same logical issue at a different line -- not "new".
     assert new_issues == []
     assert removed_issues == []

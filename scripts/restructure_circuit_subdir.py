@@ -46,7 +46,10 @@ MOVES = [
     ("core/circuit_utils.py", "core/circuit_internals/utils.py"),
     # Files introduced during B1 (recent — no downstream users): no shim.
     ("core/branch_metadata.py", "core/circuit_internals/branch_metadata.py"),
-    ("core/charge_basis_operators.py", "core/circuit_internals/charge_basis_operators.py"),
+    (
+        "core/charge_basis_operators.py",
+        "core/circuit_internals/charge_basis_operators.py",
+    ),
     (
         "core/discretized_phi_operators.py",
         "core/circuit_internals/discretized_phi_operators.py",
@@ -75,9 +78,7 @@ def _module_path(rel: str) -> str:
 
 
 # Map old dotted path -> new dotted path.
-PATH_MAP: dict[str, str] = {
-    _module_path(old): _module_path(new) for old, new in MOVES
-}
+PATH_MAP: dict[str, str] = {_module_path(old): _module_path(new) for old, new in MOVES}
 
 # Sort longest-first so longer prefixes match before shorter ones.
 SORTED_KEYS = sorted(PATH_MAP, key=len, reverse=True)
@@ -98,9 +99,7 @@ def git_mv_all() -> None:
             print(f"  SKIP (already moved): {old_rel}")
             continue
         new.parent.mkdir(parents=True, exist_ok=True)
-        subprocess.check_call(
-            ["git", "mv", str(old), str(new)], cwd=str(REPO_ROOT)
-        )
+        subprocess.check_call(["git", "mv", str(old), str(new)], cwd=str(REPO_ROOT))
         print(f"  moved: {old_rel} -> {new_rel}")
 
 
@@ -122,13 +121,9 @@ def rewrite_imports() -> None:
         for old in SORTED_KEYS:
             replacement = PATH_MAP[old]
             # `from <old> import` -> `from <new> import`
-            new = re.sub(
-                rf"\bfrom {re.escape(old)}\b", f"from {replacement}", new
-            )
+            new = re.sub(rf"\bfrom {re.escape(old)}\b", f"from {replacement}", new)
             # `import <old>` (with optional ` as ...`) -> `import <new>`
-            new = re.sub(
-                rf"\bimport {re.escape(old)}\b", f"import {replacement}", new
-            )
+            new = re.sub(rf"\bimport {re.escape(old)}\b", f"import {replacement}", new)
         if new != text:
             py.write_text(new, encoding="utf-8")
             rewrite_count += 1
@@ -162,9 +157,7 @@ def write_shims() -> None:
             ),
             encoding="utf-8",
         )
-        subprocess.check_call(
-            ["git", "add", str(old_path)], cwd=str(REPO_ROOT)
-        )
+        subprocess.check_call(["git", "add", str(old_path)], cwd=str(REPO_ROOT))
         print(f"  shim: {old_rel} -> {new_dotted}")
 
 
@@ -182,9 +175,7 @@ def write_package_init() -> None:
     """Write `scqubits/core/circuit_internals/__init__.py`."""
     init_path = SQ / "core" / "circuit_internals" / "__init__.py"
     init_path.write_text(PACKAGE_INIT_CONTENT, encoding="utf-8")
-    subprocess.check_call(
-        ["git", "add", str(init_path)], cwd=str(REPO_ROOT)
-    )
+    subprocess.check_call(["git", "add", str(init_path)], cwd=str(REPO_ROOT))
     print(f"  wrote: {init_path.relative_to(REPO_ROOT)}")
 
 

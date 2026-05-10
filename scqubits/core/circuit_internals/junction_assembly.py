@@ -59,9 +59,7 @@ def extract_junction_phase(term: sm.Expr) -> sm.Expr:
     arguments.
     """
     return [
-        arg.args[0]
-        for arg in (1.0 * term).args
-        if arg.has(sm.cos) or arg.has(sm.sin)
+        arg.args[0] for arg in (1.0 * term).args if arg.has(sm.cos) or arg.has(sm.sin)
     ][0]
 
 

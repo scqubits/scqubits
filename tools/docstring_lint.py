@@ -307,16 +307,50 @@ _PARAM_TYPE_LINE = re.compile(
 # recognised as types when they appear bare in a docstring.  Used by both
 # ``_looks_like_a_type`` (Parameters RHS) and ``_looks_like_bare_type_line``
 # (first body line of a Returns section).
-_KNOWN_TYPE_NAMES = frozenset({
-    "int", "str", "float", "bool", "bytes", "list", "dict", "tuple",
-    "set", "frozenset", "None", "Any", "Optional", "Union", "Callable",
-    "Iterator", "Iterable", "Mapping", "Sequence", "Generator",
-    "Type", "Literal", "ClassVar", "TypeVar", "Protocol",
-    "ndarray", "ArrayLike", "DTypeLike",
-    "Qobj", "Symbol", "Expr", "Matrix",
-    "csc_matrix", "csr_matrix", "coo_matrix", "lil_matrix",
-    "Path", "PathLike", "object", "complex",
-})
+_KNOWN_TYPE_NAMES = frozenset(
+    {
+        "int",
+        "str",
+        "float",
+        "bool",
+        "bytes",
+        "list",
+        "dict",
+        "tuple",
+        "set",
+        "frozenset",
+        "None",
+        "Any",
+        "Optional",
+        "Union",
+        "Callable",
+        "Iterator",
+        "Iterable",
+        "Mapping",
+        "Sequence",
+        "Generator",
+        "Type",
+        "Literal",
+        "ClassVar",
+        "TypeVar",
+        "Protocol",
+        "ndarray",
+        "ArrayLike",
+        "DTypeLike",
+        "Qobj",
+        "Symbol",
+        "Expr",
+        "Matrix",
+        "csc_matrix",
+        "csr_matrix",
+        "coo_matrix",
+        "lil_matrix",
+        "Path",
+        "PathLike",
+        "object",
+        "complex",
+    }
+)
 
 
 def _is_type_token(tok: str) -> bool:
@@ -355,9 +389,9 @@ def _looks_like_a_type(rhs: str) -> bool:
         return False
     # Strip off ``", by default ..."`` / ``" = default"`` suffixes; the
     # actual type is the head.
-    head = re.split(
-        r",\s+by default|,\s*default[:=]?|\s+=\s+", rhs, maxsplit=1
-    )[0].strip()
+    head = re.split(r",\s+by default|,\s*default[:=]?|\s+=\s+", rhs, maxsplit=1)[
+        0
+    ].strip()
     if not head:
         return False
     # Strip wrapping quotes around forward references like ``"Foo"``.
@@ -574,8 +608,8 @@ class WorkNarrativeCheck(Check):
                         "does *now* -- move refactor history to the commit "
                         "message or PR description, and document any "
                         "load-bearing legacy behaviour as a forward-looking "
-                        "Notes paragraph (\"This function preserves X for "
-                        "back-compat.\").",
+                        'Notes paragraph ("This function preserves X for '
+                        'back-compat.").',
                     )
                     break
 
@@ -792,9 +826,7 @@ def _files_at_ref(ref: str, paths: list[Path], repo_root: Path) -> list[str]:
         for p in paths
     ]
     return [
-        f
-        for f in candidates
-        if any(f == r or f.startswith(r + "/") for r in rel_roots)
+        f for f in candidates if any(f == r or f.startswith(r + "/") for r in rel_roots)
     ]
 
 
@@ -861,9 +893,7 @@ def _format_text(issues: list[Issue], header: str = "") -> str:
     if header:
         out.append(header)
         out.append("")
-    for issue in sorted(
-        issues, key=lambda i: (i.file, i.line, i.check_id, i.qualname)
-    ):
+    for issue in sorted(issues, key=lambda i: (i.file, i.line, i.check_id, i.qualname)):
         sev = issue.severity.upper()
         # Pad severity to 7 chars so the check-id column lines up across
         # ERROR/WARNING.

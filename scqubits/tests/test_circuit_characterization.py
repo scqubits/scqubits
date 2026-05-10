@@ -204,9 +204,7 @@ def _summarize_for_sidecar(kind: str, value: np.ndarray) -> dict:
             "kind": "evals",
             "count": int(evals.size),
             "values": [round(float(x), 8) for x in evals],
-            "gaps_from_ground": [
-                round(float(x - evals[0]), 8) for x in evals
-            ],
+            "gaps_from_ground": [round(float(x - evals[0]), 8) for x in evals],
         }
     if kind == "hamiltonian":
         H = np.asarray(value)

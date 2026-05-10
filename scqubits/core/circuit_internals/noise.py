@@ -463,7 +463,9 @@ class NoisyCircuit(NoisySystem, ABC):
             **methods_noise_rates_from_cc,
         }
         for method_name in noise_methods:
-            self._register_noise_method(method_name, MethodType(noise_methods[method_name], self))
+            self._register_noise_method(
+                method_name, MethodType(noise_methods[method_name], self)
+            )
 
     def _generate_overall_tphi_cc(self):
         """Generate the overall ``tphi_1_over_f_cc`` method on the instance.
@@ -561,7 +563,9 @@ class NoisyCircuit(NoisySystem, ABC):
                 return total_rate
             return 1 / total_rate if total_rate != 0 else np.inf
 
-        self._register_noise_method("tphi_1_over_f_cc", MethodType(tphi_1_over_f_cc, self))
+        self._register_noise_method(
+            "tphi_1_over_f_cc", MethodType(tphi_1_over_f_cc, self)
+        )
 
     def _generate_overall_tphi_flux(self):
         """Generate the overall ``tphi_1_over_f_flux`` method on the instance.
@@ -662,7 +666,9 @@ class NoisyCircuit(NoisySystem, ABC):
                 return total_rate
             return 1 / total_rate if total_rate != 0 else np.inf
 
-        self._register_noise_method("tphi_1_over_f_flux", MethodType(tphi_1_over_f_flux, self))
+        self._register_noise_method(
+            "tphi_1_over_f_flux", MethodType(tphi_1_over_f_flux, self)
+        )
 
     def _generate_overall_tphi_ng(self):
         """Generate the overall ``tphi_1_over_f_ng`` method on the instance.
@@ -766,7 +772,9 @@ class NoisyCircuit(NoisySystem, ABC):
                 return total_rate
             return 1 / total_rate if total_rate != 0 else np.inf
 
-        self._register_noise_method("tphi_1_over_f_ng", MethodType(tphi_1_over_f_ng, self))
+        self._register_noise_method(
+            "tphi_1_over_f_ng", MethodType(tphi_1_over_f_ng, self)
+        )
 
     def _t1_flux_bias_line_function_factory(self, noise_op_method: Callable):
         """Build a ``t1_flux_bias_line`` method for a given noise-operator method.
@@ -987,7 +995,9 @@ class NoisyCircuit(NoisySystem, ABC):
             **t1_charge_impedance_methods,
         }
         for method_name in noise_methods:
-            self._register_noise_method(method_name, MethodType(noise_methods[method_name], self))
+            self._register_noise_method(
+                method_name, MethodType(noise_methods[method_name], self)
+            )
         # self._data.update(t1_quasiparticle_tunneling_methods)
 
     def _wrapper_t1_quasiparticle_tunneling(self, branch: Branch):
@@ -1855,7 +1865,9 @@ class NoisyCircuit(NoisySystem, ABC):
                 return total_rate
             return 1 / total_rate if total_rate != 0 else np.inf
 
-        self._register_noise_method("t1_flux_bias_line", MethodType(t1_flux_bias_line, self))
+        self._register_noise_method(
+            "t1_flux_bias_line", MethodType(t1_flux_bias_line, self)
+        )
 
     def generate_noise_methods(self):
         """Dynamically generate all noise-calculation methods on the instance.

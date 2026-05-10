@@ -466,9 +466,9 @@ class TestClearUnnecessaryAttribs:
         circ._clear_unnecessary_attribs()
 
         for name in active_cutoffs:
-            assert hasattr(circ, f"_{name}"), (
-                f"active cutoff {name!r} was wrongly cleared"
-            )
+            assert hasattr(
+                circ, f"_{name}"
+            ), f"active cutoff {name!r} was wrongly cleared"
             assert name in circ._dynamic_var_attribs
 
 
@@ -485,11 +485,7 @@ class TestRecomputationContract:
     the tuple that doesn't make it onto a fresh instance.
     """
 
-    TRANSMON_YAML = (
-        "branches:\n"
-        "- [JJ, 1, 2, EJ=10, ECJ=20]\n"
-        "- [C, 1, 2, EC=2]\n"
-    )
+    TRANSMON_YAML = "branches:\n" "- [JJ, 1, 2, EJ=10, ECJ=20]\n" "- [C, 1, 2, EC=2]\n"
     FLUXONIUM_YAML = (
         "branches:\n"
         "- [JJ, 1, 2, EJ=5.7, ECJ=20]\n"
@@ -551,14 +547,14 @@ class TestRecomputationContract:
         )
         circ = scq.Circuit.from_yaml_string(yaml, ext_basis="discretized")
         for attr in topology_attrs:
-            assert attr in circ.symbolic_circuit._STAGE2_ATTRIBUTES, (
-                f"{attr!r} should be in _STAGE2_ATTRIBUTES"
-            )
+            assert (
+                attr in circ.symbolic_circuit._STAGE2_ATTRIBUTES
+            ), f"{attr!r} should be in _STAGE2_ATTRIBUTES"
             circ_val = getattr(circ, attr)
             sym_val = getattr(circ.symbolic_circuit, attr)
-            assert circ_val is sym_val or circ_val == sym_val, (
-                f"{name}: {attr} value differs between Circuit and symbolic_circuit"
-            )
+            assert (
+                circ_val is sym_val or circ_val == sym_val
+            ), f"{name}: {attr} value differs between Circuit and symbolic_circuit"
 
 
 class TestTypedOperatorAccessor:
@@ -568,11 +564,7 @@ class TestTypedOperatorAccessor:
     IDE / sphinx-autodoc; the typed accessor restores tooling visibility.
     """
 
-    YAML = (
-        "branches:\n"
-        "- [JJ, 0, 1, EJ=10, ECJ=20]\n"
-        "- [C, 0, 1, EC=2]\n"
-    )
+    YAML = "branches:\n" "- [JJ, 0, 1, EJ=10, ECJ=20]\n" "- [C, 0, 1, EC=2]\n"
 
     def _make_transmon(self):
         circ = scq.Circuit.from_yaml_string(self.YAML, ext_basis="discretized")
@@ -591,7 +583,9 @@ class TestTypedOperatorAccessor:
                 np.asarray(via_dynamic.todense()),
             )
         else:
-            np.testing.assert_array_equal(np.asarray(via_typed), np.asarray(via_dynamic))
+            np.testing.assert_array_equal(
+                np.asarray(via_typed), np.asarray(via_dynamic)
+            )
 
     def test_operator_unknown_name_lists_available(self):
         circ = self._make_transmon()
@@ -602,9 +596,9 @@ class TestTypedOperatorAccessor:
         # The available list must list names in the form the caller would
         # pass to operator() — i.e. WITHOUT the ``_operator`` suffix —
         # so a user copy-pasting from the message can use it directly.
-        assert "_operator" not in message.split("available operators:")[1], (
-            f"error message leaks _operator suffix: {message!r}"
-        )
+        assert (
+            "_operator" not in message.split("available operators:")[1]
+        ), f"error message leaks _operator suffix: {message!r}"
         # And at least one expected name (n1) should appear.
         assert "'n1'" in message
 
