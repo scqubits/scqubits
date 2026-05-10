@@ -867,6 +867,59 @@ class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
 
         return {func_name: getattr(self, func_name) for func_name in op_func_by_name}
 
+    def operator(
+        self,
+        name: str,
+        *,
+        energy_esys: bool | tuple[ndarray, ndarray] = False,
+    ) -> Any:
+        """Return the named per-variable operator on this Circuit / Subsystem.
+
+        Typed dispatcher for the dynamic ``<name>_operator`` methods that
+        :meth:`_set_operators` binds during ``_configure``. Use this in
+        preference to ``getattr(qubit, f"{name}_operator")()`` or to
+        calling ``qubit.n1_operator()`` directly when you want
+        ``mypy`` / IDE support — the dynamic methods are invisible to
+        static tooling because they are bound at runtime via
+        ``types.MethodType``.
+
+        Parameters
+        ----------
+        name:
+            Operator name without the ``_operator`` suffix. The naming
+            convention is documented in the developer's manual §8: e.g.
+            ``"n1"`` (charge in periodic basis), ``"θ1"`` (phase),
+            ``"cosθ1"`` / ``"sinθ1"`` (trig of phase), ``"Q1"`` (charge
+            in extended basis), ``"a1"`` / ``"ad1"`` / ``"Nh1"``
+            (annihilation / creation / number in harmonic basis), or
+            ``"I"`` (identity).
+        energy_esys:
+            ``False`` (default) returns the operator in its native
+            basis. ``True`` triggers an :meth:`eigensys` call and
+            returns the operator in the energy eigenbasis. If a
+            precomputed ``(evals, evecs)`` tuple is supplied, uses
+            those instead of recomputing.
+
+        Returns
+        -------
+        The operator in its basis-dependent native form (a sparse
+        ``csc_matrix``, an ``ndarray``, or a ``qutip.Qobj``).
+
+        Raises
+        ------
+        AttributeError
+            If no ``<name>_operator`` method is bound on this instance.
+            The error message lists the available operator names.
+        """
+        method = getattr(self, f"{name}_operator", None)
+        if method is None:
+            available = sorted(self.operators_by_name) if self.operators_by_name else []
+            raise AttributeError(
+                f"No operator named {name!r} on {type(self).__name__}; "
+                f"available operators: {available}"
+            )
+        return method(energy_esys=energy_esys)
+
     def is_subsystem(self, instance: "CircuitRoutines") -> bool:
         """Return ``True`` if ``instance`` shares any variable index with ``self``.
 

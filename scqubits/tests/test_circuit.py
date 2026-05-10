@@ -561,6 +561,55 @@ class TestRecomputationContract:
             )
 
 
+class TestTypedOperatorAccessor:
+    """``Circuit.operator(name, *, energy_esys=...)`` is the typed dispatcher
+    for the dynamic ``<name>_operator`` methods that ``_set_operators`` binds
+    at ``_configure`` time. The dynamic methods are invisible to ``mypy`` /
+    IDE / sphinx-autodoc; the typed accessor restores tooling visibility.
+    """
+
+    YAML = (
+        "branches:\n"
+        "- [JJ, 0, 1, EJ=10, ECJ=20]\n"
+        "- [C, 0, 1, EC=2]\n"
+    )
+
+    def _make_transmon(self):
+        circ = scq.Circuit.from_yaml_string(self.YAML, ext_basis="discretized")
+        circ.cutoff_n_1 = 10
+        return circ
+
+    def test_operator_routes_to_dynamic_method(self):
+        circ = self._make_transmon()
+        # Both call paths must produce an identical native operator.
+        via_typed = circ.operator("n1")
+        via_dynamic = circ.n1_operator()
+        # Sparse / Qobj equality: compare the dense forms.
+        if hasattr(via_typed, "todense"):
+            np.testing.assert_array_equal(
+                np.asarray(via_typed.todense()),
+                np.asarray(via_dynamic.todense()),
+            )
+        else:
+            np.testing.assert_array_equal(np.asarray(via_typed), np.asarray(via_dynamic))
+
+    def test_operator_unknown_name_lists_available(self):
+        circ = self._make_transmon()
+        with pytest.raises(AttributeError, match="available operators"):
+            circ.operator("does_not_exist")
+
+    def test_operator_energy_esys_kwarg_is_passed_through(self):
+        """Passing energy_esys=True must rotate the returned operator into
+        the energy eigenbasis. Compare to the dynamic method called with the
+        same argument to verify the kwarg flows correctly."""
+        circ = self._make_transmon()
+        via_typed = circ.operator("n1", energy_esys=True)
+        via_dynamic = circ.n1_operator(energy_esys=True)
+        np.testing.assert_allclose(
+            np.asarray(via_typed), np.asarray(via_dynamic), rtol=1e-12
+        )
+
+
 class TestNamedConstructors:
     """`Circuit.from_yaml_file` / `Circuit.from_yaml_string` are named
     alternatives to the legacy ``Circuit(input_string, from_file=...)`` form.

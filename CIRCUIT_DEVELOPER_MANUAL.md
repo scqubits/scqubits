@@ -676,7 +676,15 @@ variable, or when `system_hierarchy=None`.
 
 For a circuit with variables 1, 2, 3, the user expects
 `qubit.n1_operator()`, `qubit.θ2_operator()`, `qubit.cosθ1_operator()`,
-and so on. **Note the naming**: no underscore between the prefix
+and so on. These methods are bound dynamically via
+`types.MethodType` in `_set_operators`, so they are invisible to
+`mypy`, IDE autocomplete, and `sphinx-autodoc`. The typed accessor
+`qubit.operator(name, *, energy_esys=False)` (defined on
+`HamiltonianAssemblyMixin`) is the recommended way to access them
+when static-tooling visibility matters: `qubit.operator("n1")` is
+equivalent to `qubit.n1_operator()` but is fully typed.
+
+**Note the naming**: no underscore between the prefix
 letter and the digit, no underscore between `cos`/`sin` and the
 variable. This is enforced by the regex in
 `sym_methods.py`'s `_get_eval_hamiltonian_string`:
@@ -1102,6 +1110,20 @@ After `_configure` runs, the instance has methods of the form
 `energy_esys=True` returns the operator in the energy eigenbasis
 (rotates by `eigensys()`). `energy_esys=(evals, evecs)` lets the
 caller supply a pre-computed eigensystem.
+
+The dynamic methods are bound via `types.MethodType` and are
+therefore invisible to `mypy`, IDE autocomplete, and
+`sphinx-autodoc`. For static-tooling-friendly access, use the typed
+dispatcher:
+
+```python
+qubit.operator("n1")                      # equivalent to qubit.n1_operator()
+qubit.operator("cosθ1", energy_esys=True) # rotated to energy eigenbasis
+```
+
+`Circuit.operator(name, *, energy_esys=...)` raises `AttributeError`
+with a list of available names if ``name`` does not match any bound
+operator method.
 
 ---
 
