@@ -50,9 +50,12 @@ The `circuit` module lives at `scqubits/core/`. Layout:
 
 ```
 scqubits/core/
-├── circuit.py                    public:  Circuit, Subsystem, ConfigureError
-├── symbolic_circuit.py           public:  SymbolicCircuit
-├── symbolic_circuit_graph.py     public:  Node, Branch, Coupler
+├── circuit.py                    top-level: Circuit
+│                                 module-level (scqubits.core.circuit):
+│                                            Subsystem, ConfigureError
+├── symbolic_circuit.py           top-level: SymbolicCircuit
+├── symbolic_circuit_graph.py     module-level (scqubits.core.symbolic_circuit_graph):
+│                                            Node, Branch, Coupler
 │                                 internal: SymbolicCircuitGraph (ABC), _AdjacencyIndex
 │
 ├── circuit_input.py              back-compat shim → circuit_internals.input
@@ -125,13 +128,22 @@ calls `_configure(...)`; see §6.3.
 
 ### 3.1 Symbolic side
 
+```python
+class SymbolicCircuitGraph(ABC):                # symbolic_circuit_graph.py
+    ...
+
+class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
+    # Serializable is the FIRST base — it appears before
+    # SymbolicCircuitGraph in MRO.  symbolic_circuit.py
+    ...
 ```
-              ABC
-               │
-   SymbolicCircuitGraph                ← symbolic_circuit_graph.py
-               │
-     SymbolicCircuit                   ← symbolic_circuit.py
-        (also inherits Serializable)
+
+To check the actual MRO at runtime:
+
+```python
+[c.__name__ for c in scq.SymbolicCircuit.__mro__]
+# → ['SymbolicCircuit', 'Serializable', 'Protocol', 'Generic',
+#    'SymbolicCircuitGraph', 'ABC', 'object']
 ```
 
 `SymbolicCircuitGraph` is a private base class that owns the
@@ -224,7 +236,7 @@ branches:
 - [JJ, 1, 2, EJ=10, ECJ=20]    # Josephson junction; EJ, ECJ in GHz
 - [L, 2, 3, EL=0.04]           # inductance; EL in GHz
 - [C, 1, 3, EC=2]              # capacitance; EC in GHz
-- [ML, 0, 1, M=0.01]           # mutual inductance between branches indexed 0 and 1
+- [ML, 0, 1, EML=0.01]         # mutual inductance between branches indexed 0 and 1
 ```
 
 - **Node IDs** are integers. The validation rule is `min(node_ids) in
@@ -392,6 +404,20 @@ The three canonical mode bases come from three different `B`:
 (Note JJ appears in both the `non-L` and `non-C` subsets — it
 contributes both kinetic and potential energy.)
 
+`_independent_modes` is called from two places with **different**
+`basisvec_entries`, and the distinction is load-bearing:
+
+- `check_transformation_matrix` uses `basisvec_entries=[1, 0]` —
+  one-hot probes, used to test whether a candidate transformation
+  fully classifies every mode.
+- `variable_transformation_matrix` uses `basisvec_entries=[-1, 1]`
+  — bipolar probes, used to actually build the basis vectors that
+  become rows of the transformation matrix.
+
+Both share the same algorithm (max-connected subgraph
+partitioning + per-component basis assembly); only the entry
+values differ.
+
 #### From mode lists to `var_categories`
 
 After building the four mode lists plus the Σ vector (added to
@@ -404,9 +430,14 @@ After building the four mode lists plus the Σ vector (added to
    classification — frozen wins over free wins over periodic wins
    over LC.
 2. **Standard-basis completion.** Extend to a full-rank basis using
-   either the heuristic completion (try permutations of an
-   "almost-ones" vector, in `_complete_basis_with_standard_vectors`)
-   or the canonical identity matrix, per `basis_completion`.
+   either the heuristic completion (in
+   `_complete_basis_with_standard_vectors`) or the canonical
+   identity matrix, per `basis_completion`. The heuristic walks
+   `reversed(itertools.combinations(range(n), zeros_count))` to
+   generate candidate vectors with `zeros_count` zero-positions
+   and the rest ones; this iteration order matches the legacy
+   `itertools.permutations` first-occurrence order, so the resulting
+   basis is byte-equivalent to pre-refactor output.
 3. **Single-pass row classification.** Build a
    `dict[tuple, str]` mapping each accepted basis row to its label
    (precedence: sigma > free > periodic > frozen > rest). Walk the
@@ -449,10 +480,11 @@ Algorithm:
      `basisvec_entries[1]` (default `0`).
    - If `single_nodes=True`, also try one-hot vectors for nodes with
      marker `0`, accepting each that strictly increases rank.
-5. **Drop the trailing column.** `basis = [vec[:-1] for vec in basis]`
-   — unconditional. The trailing column corresponds to the ground
-   node (or the trailing un-grounded ordering); either way it is
-   always dropped.
+5. **Drop the ground-node column when grounded.** If
+   `self.is_grounded`, drop the trailing column corresponding to the
+   ground node: `basis = [vec[:-1] for vec in basis]`. For
+   non-grounded circuits the column is retained — every node
+   degree of freedom contributes to the basis.
 
 ---
 
@@ -479,10 +511,11 @@ graph layer and adds:
   `self.hamiltonian_symbolic`.
 - **External-flux assignment.** The list `external_fluxes:
   list[Symbol]` has one entry per closure branch.
-  `_set_external_fluxes` populates it; the time-dependent
-  flux-distribution map (paper Appendix B) is computed by
+  `_set_external_fluxes` populates it. The companion routine
   `_time_dependent_flux_distribution` (which lives on
-  `SymbolicCircuitGraph`, not `SymbolicCircuit`).
+  `SymbolicCircuitGraph`, not `SymbolicCircuit`) extends Kirchhoff's
+  loop rule (paper §2.1, Eq. 2) to time-dependent external fluxes;
+  the paper itself develops only the time-independent case.
 
 The result of stage 1 is exposed to stage 2 by
 `Circuit._import_from_symbolic_circuit`, which copies a list of
@@ -510,7 +543,9 @@ Circuit(symbolic_hamiltonian=..., ...)       # alternative; pre-built sympy Expr
 Both named constructors call `cls(input_string=..., from_file=True/
 False)` directly — neither chains through the other.
 
-`Circuit.__init__` does, in order:
+`Circuit.__init__` does, roughly in this order (read the actual
+function for the literal sequence — the deprecation handling and
+`_frozen` toggle bracket the steps below):
 
 1. Validate the input (must have either `input_string` or
    `symbolic_hamiltonian`, not both).
@@ -530,7 +565,7 @@ hierarchical diagonalisation. Same mixin chain as `Circuit`, except:
 - The constructor takes a `parent` and a sliced symbolic Hamiltonian
   rather than a fresh YAML.
 - `is_child=True`.
-- It defines its own `_configure(...)` (~80 lines, in `circuit.py`),
+- It defines its own `_configure(...)` (in `circuit.py`),
   which is *much* simpler than `Circuit._configure(...)` — it skips
   YAML parsing and graph-construction, taking those from the parent.
 
@@ -670,6 +705,11 @@ The full naming inventory (per `_build_extended_operators_*`,
 - *Harmonic-basis extras*: `a1_operator`, `ad1_operator` (annihilation,
   creation), `Nh1_operator` (number).
 - *Identity*: `I_operator`.
+- *Cross-cutting helper*: `exp_i_operator` — defined on
+  `HamiltonianAssemblyMixin` rather than per-variable. Used by
+  `_build_junction_phase_operator_list` (§8 below) when assembling
+  `cos(φ)` / `sin(φ)` matrix elements for a JJ phase that is a
+  linear combination of variables.
 
 These methods are built dynamically during `_configure` by
 `_set_operators` and attached via `types.MethodType`. Three factory
@@ -731,7 +771,19 @@ a `Circuit` or `Subsystem` is a `WatchedProperty` (defined in
 `settings.DISPATCH_ENABLED`.
 
 The setter installation is done by `LifecycleMixin._make_property`
-during `_configure`. Setter dispatch uses a constant lookup table:
+during `_configure`. The descriptor pattern is the load-bearing
+piece: `WatchedProperty.__set__` does *not* assign the value
+directly. Instead it dispatches through
+`_PROPERTY_SETTER_BY_TYPE[update_type]` to one of three named
+setter methods on the instance. Each property is registered with
+its `update_type` (`"update_param_vars"`,
+`"update_external_flux_or_charge"`, or `"update_cutoffs"`), and the
+descriptor reads that mapping every time the user assigns. To add
+a new lifecycle event kind, add a key to
+`_PROPERTY_SETTER_BY_TYPE` and an instance method with the
+matching name; the descriptor wires up automatically.
+
+Setter dispatch uses a constant lookup table:
 
 ```python
 PropertyUpdateType = Literal[
@@ -764,9 +816,14 @@ The three setter variants differ in *what they invalidate*:
   Hamiltonian re-evaluation but no operator-method rebuild. Also
   propagates to subsystems carrying that flux/charge.
 - `_set_property_and_update_cutoffs` (e.g. setting `cutoff_n_1`) —
-  cutoff changed ⇒ basis size changed ⇒ operator methods must be
-  rebuilt and bare eigensystem invalidated. Calls into
-  `_set_operators` on the affected subsystem.
+  cutoff changed ⇒ basis size changed ⇒ operator methods must
+  eventually be rebuilt and bare eigensystem invalidated. The
+  setter itself only validates the value, writes
+  `self._<param_name>`, and calls
+  `_propagate_param_to_affected_subsystems` to forward the new
+  value to any subsystem that owns that cutoff. Operator-method
+  rebuild is triggered later by `update()` (queued via the
+  central-dispatch event).
 
 When the user does `qubit.EJ = 12.0`:
 
@@ -774,12 +831,17 @@ When the user does `qubit.EJ = 12.0`:
 qubit.EJ = 12.0
    → WatchedProperty.__set__
        → _set_property_and_update_param_vars("EJ", 12.0)
-           → _propagate_param_to_affected_subsystems(...)
-               → for each affected subsystem:
-                     subsys._sync_parameters_with_parent()
+           → _propagate_param_to_affected_subsystems("EJ", 12.0)
+               → for each subsystem holding `EJ`:
+                     setattr(subsys, "EJ", 12.0)
+                     # re-fires WatchedProperty on the child
            → fires central-dispatch event "QUANTUMSYSTEM_UPDATE"
    ─► next call to qubit.eigenvals() rebuilds the Hamiltonian
 ```
+
+`_sync_parameters_with_parent` is a separate operation, invoked
+later by `update()` when the parent's queued event drains; it is
+**not** called from `_propagate_param_to_affected_subsystems`.
 
 The `update()` method on `LifecycleMixin` is the entry point that
 picks up queued events and refreshes whatever was invalidated; it is
@@ -804,11 +866,15 @@ circuit's branches and external fluxes — there is **no** static
 Channel families:
 
 - **Capacitive losses** — `t1_capacitive` plus per-capacitor variants
-  `t1_capacitive_to_ground_<branch_idx>`. Use the branch capacitance
-  helper `Cs(branch)` (defined on the mixin) to read the parsed
-  capacitance from `Branch.parameters`.
-- **Inductive losses** — `t1_inductive` plus per-inductor variants.
-  Mirror structure to capacitive; use `Ls(branch)`.
+  named `t1_capacitive<branch.index>` (no underscore between kind
+  and index). Per-branch values are read directly from
+  `branch.parameters["EC"]`; there is no separate accessor helper.
+- **Inductive losses** — `t1_inductive` plus per-inductor variants
+  named `t1_inductive<branch.index>`. Per-branch values come from
+  `branch.parameters["EL"]`. The shared per-branch wrapper is
+  `_wrapper_t1_inductive_capacitive`, which the dynamic-method
+  generator (`_generate_t1_methods`) instantiates once per
+  inductor / capacitor and binds with the index-suffixed name.
 - **Charge-impedance / dielectric noise** — `t1_charge_impedance`,
   `t1_flux_bias_line`, etc. Standard `NoisySystem` formula
   specialised for the circuit's charge / flux operators.
@@ -889,12 +955,13 @@ Internal-use methods worth knowing:
   `_i_d2_dphi2_operator`. Tags external fluxes with `* I * 2π` and
   offset charges with `* I` via a single batched
   `xreplace(dict)`.
-- `_potential_energy_symbols()` — returns the set of sympy symbols
+- `_potential_energy_symbols()` — returns the list of sympy symbols
   that contribute to the potential.
-- `_kinetic_part_of_expr(expr)` — returns the kinetic component of a
+- `_kinetic_part(expr)` — returns the kinetic component of a
   Hamiltonian expression.
-- `_substitute_parameters(...)` — recursively substitutes
-  `self.<param>` numeric values into a sympy expression.
+- `_substitute_parameters(...)` — substitutes `self.<param>`
+  numeric values into a sympy expression by iterating over
+  `symbolic_params` and calling `subs` once per symbol.
 - `_replace_mat_mul_operator(term)` — turns a sympy product
   `θ1 * θ2 * Q3` into the Python-string form
   `θ1_operator() @ θ2_operator() @ Q3_operator()` for downstream
@@ -927,10 +994,23 @@ From `scqubits.core.symbolic_circuit_graph`:
 - `Node`, `Branch`, `Coupler` — used when constructing
   closure-branch lists for `Circuit.configure(closure_branches=...)`.
 
-The `VarCategoryKey` and `ExtBasisChoice` `Literal` aliases are
-exported from `scqubits.core.circuit` (not from the top-level
-namespace) for downstream code that wants to type-check its
-arguments.
+From `scqubits.core.circuit`:
+
+- `Subsystem` — the recursive child class produced by hierarchical
+  diagonalisation. Users do not normally instantiate it directly,
+  but it appears in `isinstance` checks and type annotations.
+- `ConfigureError` — raised by `Circuit.configure(...)` when the
+  reconfiguration is rejected; the original cause is preserved as
+  `__cause__`. See §6.3.
+- `VarCategoryKey` and `ExtBasisChoice` — `Literal` aliases for
+  downstream code that wants to type-check its arguments.
+
+(Only `Circuit`, `SymbolicCircuit`, `truncation_template`,
+`assemble_circuit`, and `assemble_transformation_matrix` are exposed
+at the top-level `scqubits` namespace. `Node`, `Branch`, `Coupler`,
+`Subsystem`, `ConfigureError`, and the `Literal` aliases must be
+imported from their declaring modules — even though they are part
+of the documented user-facing API.)
 
 Everything under `scqubits.core.circuit_internals.*` is implementation
 detail. The leading-underscore convention is enforced: any name
@@ -955,8 +1035,12 @@ of the symbolic-Hamiltonian path:**
   structure (closure-branch detection, time-dependent flux
   distribution, sym_lagrangian, sym_potential decomposition) are
   unavailable.
-- `Circuit.configure(...)` cannot accept `closure_branches=` or
-  `transformation_matrix=`.
+- `Circuit.configure(...)` rejects `closure_branches=`,
+  `use_dynamic_flux_grouping=True`, and `generate_noise_methods=True`
+  with `ValueError` on the symbolic-Hamiltonian path. The
+  `transformation_matrix=` argument is *silently ignored* on this
+  path — the configure call accepts it without raising, but it is
+  not consumed by `_configure_sym_hamiltonian`.
 - Variable indices and names must already be encoded in the input
   expression (e.g. `θ1`, `Q1`, `n1`, `ng1`).
 
@@ -1289,6 +1373,37 @@ git diff scqubits/tests/characterization_goldens/  # binary diff is opaque
 
 A goldens-regeneration commit should always be its own commit and
 explain *why* the numerics changed.
+
+### 17.9 `_clear_unnecessary_attribs` uses brittle name patterns
+
+`Circuit._clear_unnecessary_attribs` (in `circuit.py`, ~L896) is
+called between reconfiguration steps to drop stale per-variable
+properties from `self.__dict__`. The membership test is *string
+pattern matching* on attribute names:
+
+```python
+if (
+    "cutoff_n_" in attrib
+    or "Φ" in attrib
+    or "cutoff_ext_" in attrib
+    or attrib[1:3] == "ng"
+):
+    delattr(self, attrib)
+```
+
+This is fragile in two ways:
+
+- Renaming any of `cutoff_n_<i>`, `cutoff_ext_<i>`, `Φ<i>`,
+  `_ng<i>` (note the leading underscore — `attrib[1:3] == "ng"`
+  matches against the position after the underscore prefix) will
+  silently drop the call from clearing those names, leaving them
+  to leak across reconfigurations.
+- Any new per-variable attribute name added to `_install_var_properties`
+  needs a parallel entry here.
+
+When adding a new per-variable property kind, update both
+`_install_var_properties` (which creates the descriptors) and
+`_clear_unnecessary_attribs` (which drops the underlying values).
 
 ---
 
