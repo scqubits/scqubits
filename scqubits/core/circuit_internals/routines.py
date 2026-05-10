@@ -633,7 +633,7 @@ class CircuitRoutines(
         corresponding to ``var_index``, depending on ``which_param``.
         """
         if not self.hierarchical_diagonalization:
-            return eval("self.osc_" + which_param + "s[" + str(var_index) + "]")
+            return getattr(self, f"osc_{which_param}s")[var_index]
 
         subsystem = self.subsystems[self.get_subsystem_index(var_index)]
         return subsystem.get_osc_param(var_index, which_param=which_param)
