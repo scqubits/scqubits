@@ -981,7 +981,26 @@ class Circuit(  # type: ignore[misc]
         Mutates instance state by reassigning attributes such as
         ``system_hierarchy``, ``subsystem_trunc_dims``, ``transformation_matrix``,
         and ``closure_branches``.
+
+        On instances constructed via ``Circuit(symbolic_hamiltonian=...)``
+        the parameters ``closure_branches``, ``transformation_matrix``,
+        ``use_dynamic_flux_grouping``, and ``generate_noise_methods``
+        are not supported and raise ``ValueError`` if supplied — they
+        require the graph-derived ``symbolic_circuit`` that only the
+        YAML construction path builds.
         """
+        # Precondition check: fail fast before any state snapshot, so
+        # no rollback is needed for invalid combinations on the
+        # symbolic-Hamiltonian path.
+        if not hasattr(self, "symbolic_circuit") and (
+            closure_branches is not None
+            or use_dynamic_flux_grouping
+            or generate_noise_methods
+            or transformation_matrix is not None
+        ):
+            raise ValueError(
+                "Circuit instance initialized using symbolic Hamiltonian cannot be configured with closure_branches, use_dynamic_flux_grouping, transformation_matrix or generate_noise_methods."
+            )
 
         old_system_hierarchy = self.system_hierarchy
         old_subsystem_trunc_dims = self.subsystem_trunc_dims
@@ -1009,14 +1028,6 @@ class Circuit(  # type: ignore[misc]
                     subsys_dict=subsys_dict,
                 )
             else:
-                if (
-                    closure_branches is not None
-                    or use_dynamic_flux_grouping
-                    or generate_noise_methods
-                ):
-                    raise ValueError(
-                        "Circuit instance initialized using symbolic Hamiltonian cannot be configured with closure_branches, use_dynamic_flux_grouping, transformation_matrix or generate_noise_methods."
-                    )
                 self._configure_sym_hamiltonian(
                     system_hierarchy=system_hierarchy,
                     subsystem_trunc_dims=subsystem_trunc_dims,

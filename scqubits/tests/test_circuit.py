@@ -100,9 +100,6 @@ class TestCircuit:
             symbolic_param_dict={"ng1": 0},
             ext_basis="harmonic",
         )
-        circ.configure(
-            transformation_matrix=np.array([[1, 0, 0], [0, 1, 0], [0, 1, 1]])
-        )
         circ.cutoff_n_1 = 20
         circ.cutoff_ext_2 = 20
         circ.cutoff_ext_3 = 20
@@ -117,6 +114,30 @@ class TestCircuit:
             [2.51547879, 3.00329327, 3.5556228, 3.57568727, 4.13233136, 4.29671029]
         )
         assert np.allclose(eigs, eigs_ref)
+
+    @staticmethod
+    def test_symbolic_hamiltonian_rejects_transformation_matrix():
+        """``transformation_matrix=`` is unsupported on the symbolic-Hamiltonian path.
+
+        Regression test for the prior silent-ignore bug: ``Circuit.configure``
+        previously accepted ``transformation_matrix=`` without raising and
+        without applying it. The fix raises ``ValueError`` instead.
+        """
+        import sympy as sm
+
+        sym_hamiltonian = sm.parse_expr(
+            "0.25*θ3**2 + 2.0*Q3**2 + 0.790697674419*Q2**2 + 0.45*θ2**2 + 7.674418604651*n1**2 + 7.674418604651*ng1**2 - 1.0*cos(θ1) + 0.5*θ2*θ3 + 1.395348837209*Q2*n1 + 1.395348837209*Q2*ng1 + 15.348837209302*n1*ng1"
+        )
+        circ = scq.Circuit(
+            input_string=None,
+            symbolic_hamiltonian=sym_hamiltonian,
+            symbolic_param_dict={"ng1": 0},
+            ext_basis="harmonic",
+        )
+        with pytest.raises(ValueError, match="transformation_matrix"):
+            circ.configure(
+                transformation_matrix=np.array([[1, 0, 0], [0, 1, 0], [0, 1, 1]])
+            )
 
     @staticmethod
     def test_eigenvals_harmonic():
