@@ -117,7 +117,7 @@ class CircuitRoutines(
     assembly, and eigensystem computation on
     :class:`HamiltonianAssemblyMixin`.  Concrete subclasses are
     responsible for initializing the declared attributes; this class
-    only mixes in the behaviour that operates on them.
+    only mixes in the behavior that operates on them.
     """
 
     # Attributes set by concrete subclasses (Circuit, Subsystem) in their __init__.

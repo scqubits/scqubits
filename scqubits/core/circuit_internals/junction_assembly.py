@@ -77,7 +77,7 @@ def build_junction_phase_operator_list(
 ) -> list[qt.Qobj]:
     """Build the per-variable ``exp(i * prefactor * var)`` operators for a JJ term.
 
-    Each Josephson term ``cos(sum_k a_k phi_k)`` is realised as a product
+    Each Josephson term ``cos(sum_k a_k phi_k)`` is realized as a product
     ``prod_k exp(i a_k phi_k)`` (combined with the dagger via
     :func:`assemble_cos_term` / :func:`assemble_sin_term`); this helper
     returns that list of per-variable factors, one per symbol in

@@ -304,7 +304,7 @@ _PARAM_TYPE_LINE = re.compile(
 
 
 # Set of Python type names (built-ins + scqubits-relevant) that should be
-# recognised as types when they appear bare in a docstring.  Used by both
+# recognized as types when they appear bare in a docstring.  Used by both
 # ``_looks_like_a_type`` (Parameters RHS) and ``_looks_like_bare_type_line``
 # (first body line of a Returns section).
 _KNOWN_TYPE_NAMES = frozenset(
@@ -380,7 +380,7 @@ def _looks_like_a_type(rhs: str) -> bool:
 
     Only flags the RHS if **every** token in it (after splitting on
     type-syntax separators ``|``, ``[``, ``]``, ``,``, ``.`` and
-    whitespace) is a recognised type identifier.  This rejects benign
+    whitespace) is a recognized type identifier.  This rejects benign
     descriptions that happen to start with a known type name like
     ``"None when not applicable"`` or ``"int input value"``.
     """
@@ -607,7 +607,7 @@ class WorkNarrativeCheck(Check):
                         "history.  Rewrite to describe what this function "
                         "does *now* -- move refactor history to the commit "
                         "message or PR description, and document any "
-                        "load-bearing legacy behaviour as a forward-looking "
+                        "load-bearing legacy behavior as a forward-looking "
                         'Notes paragraph ("This function preserves X for '
                         'back-compat.").',
                     )

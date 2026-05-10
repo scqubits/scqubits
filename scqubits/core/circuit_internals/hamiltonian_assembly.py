@@ -1095,7 +1095,7 @@ class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
     ) -> csc_matrix | ndarray:
         """Hamiltonian for purely harmonic systems when ext_basis is set to harmonic.
 
-        Specialised assembly path for circuits where every extended
+        Specialized assembly path for circuits where every extended
         variable lives in the harmonic-oscillator basis and the
         Hamiltonian contains no Josephson cosine / sine terms.  In
         that regime the symbolic Hamiltonian is a polynomial in the

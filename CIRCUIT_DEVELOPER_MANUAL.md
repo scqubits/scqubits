@@ -301,7 +301,7 @@ off-diagonal entry `M` to the inductance matrix. Critically:
   construction (it has no nodes of its own). Its sole role is to
   modify the symbolic inductance matrix in
   `SymbolicCircuit.generate_symbolic_lagrangian`.
-- Variable categorisation (§4.4) treats coupled branches the same
+- Variable categorization (§4.4) treats coupled branches the same
   as their underlying L branches; the coupling is invisible to the
   classification.
 
@@ -365,7 +365,7 @@ The paper defines (§2.2):
 > is **frozen** if ∂_{θ̇_f} L = 0 (its time derivative is missing
 > from the kinetic energy).*
 
-A fifth category, **sigma**, is the centre-of-mass mode that arises
+A fifth category, **sigma**, is the center-of-mass mode that arises
 when the circuit is not grounded; its conjugate momentum vanishes and
 it is dropped from the dynamics.
 
@@ -629,7 +629,7 @@ propagation from `_configure` outward to `configure`. A nested
 handler that catches and silently logs an exception will leave the
 instance in a half-configured state with no rollback.
 
-If you need conditional behaviour inside `_configure` based on a
+If you need conditional behavior inside `_configure` based on a
 recoverable condition, branch on a predicate rather than catching an
 exception. The `ConfigureError` chain (`raise ... from exc`) is the
 guarantee that the original cause is preserved for the caller.
@@ -911,7 +911,7 @@ Channel families:
   inductor / capacitor and binds with the index-suffixed name.
 - **Charge-impedance / dielectric noise** — `t1_charge_impedance`,
   `t1_flux_bias_line`, etc. Standard `NoisySystem` formula
-  specialised for the circuit's charge / flux operators.
+  specialized for the circuit's charge / flux operators.
 - **1/f flux noise** — `tphi_1_over_f_flux<n>` is a *per-closure-branch*
   method generated dynamically; one is created for each closure
   branch in `external_fluxes`. The signature follows
@@ -1171,12 +1171,12 @@ Three tiers of tests:
 `scqubits/tests/test_circuit.py` (~800 lines, 26 tests). Coverage
 includes representative qubit YAMLs (transmon, fluxonium, zero-pi,
 cos2phi-qubit, DFC) with hand-checked eigenvalues; `ConfigureError`
-behaviour; named-constructor compatibility; the `make_branch`
-`node_index_offset` parameter; randomised cross-checks of
+behavior; named-constructor compatibility; the `make_branch`
+`node_index_offset` parameter; randomized cross-checks of
 `variable_transformation_matrix`'s row classification; the
 `_AdjacencyIndex` cache; the DFS rewrite of `_find_path_to_root`
 (asymptotic test that legacy O(n!) algorithm would not complete);
-and the `_clear_unnecessary_attribs` registry behaviour.
+and the `_clear_unnecessary_attribs` registry behavior.
 
 ### 14.2 Characterization tests
 
