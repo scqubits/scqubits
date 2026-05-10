@@ -770,35 +770,17 @@ class Circuit(  # type: ignore[misc]
         self._frozen = True
         dispatch.CENTRAL_DISPATCH.register("CIRCUIT_UPDATE", self)
 
-    _SYMBOLIC_CIRCUIT_ATTRIBUTES = (
-        "branches",
-        "closure_branches",
-        "external_fluxes",
-        "ground_node",
-        "hamiltonian_symbolic",
-        "input_string",
-        "is_grounded",
-        "is_purely_harmonic",
-        "lagrangian_node_vars",
-        "lagrangian_symbolic",
-        "nodes",
-        "offset_charges",
-        "free_charges",
-        "potential_symbolic",
-        "potential_node_vars",
-        "symbolic_params",
-        "transformation_matrix",
-        "var_categories",
-    )
-
     def _import_from_symbolic_circuit(self, exclude: tuple[str, ...] = ()) -> None:
-        """Copy ``_SYMBOLIC_CIRCUIT_ATTRIBUTES`` from ``self.symbolic_circuit``.
+        """Copy ``SymbolicCircuit._STAGE2_ATTRIBUTES`` from ``self.symbolic_circuit``.
 
-        Names listed in ``exclude`` are skipped — used by ``from_yaml`` to
-        match the pre-refactor behaviour where a few attributes were copied
-        only later by ``_configure``.
+        The list of attributes that flow from stage 1 to stage 2 is owned
+        by :class:`~scqubits.core.symbolic_circuit.SymbolicCircuit` itself
+        — see ``SymbolicCircuit._STAGE2_ATTRIBUTES``. Names listed in
+        ``exclude`` are skipped — used by ``from_yaml`` to match the
+        pre-refactor behaviour where a few attributes were copied only
+        later by ``_configure``.
         """
-        for attr in self._SYMBOLIC_CIRCUIT_ATTRIBUTES:
+        for attr in self.symbolic_circuit._STAGE2_ATTRIBUTES:
             if attr in exclude:
                 continue
             setattr(self, attr, getattr(self.symbolic_circuit, attr))

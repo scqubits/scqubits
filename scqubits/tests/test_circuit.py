@@ -472,6 +472,95 @@ class TestClearUnnecessaryAttribs:
             assert name in circ._dynamic_var_attribs
 
 
+class TestRecomputationContract:
+    """``SymbolicCircuit._STAGE2_ATTRIBUTES`` is the single source of truth
+    for which attributes flow from stage 1 (symbolic) to stage 2 (numerical).
+    A fresh ``Circuit`` constructed from YAML must end up with every name in
+    that tuple set on the instance.
+
+    Regression net for the §17.3 maintenance pitfall: a contributor adding a
+    new attribute to ``SymbolicCircuit`` but forgetting to register it in
+    ``_STAGE2_ATTRIBUTES`` would either leave ``Circuit`` blind to it, or
+    rely on it via the wrong helper. This test fails loudly on any name in
+    the tuple that doesn't make it onto a fresh instance.
+    """
+
+    TRANSMON_YAML = (
+        "branches:\n"
+        "- [JJ, 1, 2, EJ=10, ECJ=20]\n"
+        "- [C, 1, 2, EC=2]\n"
+    )
+    FLUXONIUM_YAML = (
+        "branches:\n"
+        "- [JJ, 1, 2, EJ=5.7, ECJ=20]\n"
+        "- [L, 1, 2, EL=0.39]\n"
+        "- [C, 1, 2, EC=10]\n"
+    )
+    ZERO_PI_YAML = (
+        "branches:\n"
+        '- ["JJ", 1, 2, 10, 20]\n'
+        '- ["JJ", 3, 4, 10, 20]\n'
+        '- ["L", 2, 3, 0.008]\n'
+        '- ["L", 4, 1, 0.008]\n'
+        '- ["C", 1, 3, 0.02]\n'
+        '- ["C", 2, 4, 0.02]\n'
+    )
+
+    @pytest.mark.parametrize(
+        "yaml,name",
+        [
+            (TRANSMON_YAML, "transmon"),
+            (FLUXONIUM_YAML, "fluxonium"),
+            (ZERO_PI_YAML, "zero_pi"),
+        ],
+    )
+    def test_every_stage2_attr_is_set_on_fresh_circuit(self, yaml, name):
+        circ = scq.Circuit.from_yaml_string(yaml, ext_basis="discretized")
+        for attr in circ.symbolic_circuit._STAGE2_ATTRIBUTES:
+            assert hasattr(circ, attr), (
+                f"{name}: _STAGE2_ATTRIBUTES name {attr!r} was not propagated "
+                f"to the numerical Circuit instance"
+            )
+
+    @pytest.mark.parametrize(
+        "yaml,name",
+        [
+            (TRANSMON_YAML, "transmon"),
+            (FLUXONIUM_YAML, "fluxonium"),
+            (ZERO_PI_YAML, "zero_pi"),
+        ],
+    )
+    def test_topology_stage2_attrs_match_after_configure(self, yaml, name):
+        """For attributes that ``_configure`` does not further process, the
+        value on a fresh ``Circuit`` should remain reference-identical to the
+        value on ``self.symbolic_circuit``. (Symbolic expressions like
+        ``hamiltonian_symbolic`` / ``potential_symbolic`` / ``lagrangian_*``
+        are excluded because ``_configure`` legitimately rewrites them.)"""
+        topology_attrs = (
+            "branches",
+            "closure_branches",
+            "ground_node",
+            "input_string",
+            "is_grounded",
+            "is_purely_harmonic",
+            "nodes",
+            "external_fluxes",
+            "offset_charges",
+            "free_charges",
+            "var_categories",
+        )
+        circ = scq.Circuit.from_yaml_string(yaml, ext_basis="discretized")
+        for attr in topology_attrs:
+            assert attr in circ.symbolic_circuit._STAGE2_ATTRIBUTES, (
+                f"{attr!r} should be in _STAGE2_ATTRIBUTES"
+            )
+            circ_val = getattr(circ, attr)
+            sym_val = getattr(circ.symbolic_circuit, attr)
+            assert circ_val is sym_val or circ_val == sym_val, (
+                f"{name}: {attr} value differs between Circuit and symbolic_circuit"
+            )
+
+
 class TestNamedConstructors:
     """`Circuit.from_yaml_file` / `Circuit.from_yaml_string` are named
     alternatives to the legacy ``Circuit(input_string, from_file=...)`` form.

@@ -16,7 +16,7 @@ import itertools
 import warnings
 
 from itertools import chain
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 
 import numpy as np
 import scipy as sp
@@ -95,6 +95,32 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         the raw input string from which the circuit was parsed (empty by
         default); used for bookkeeping and serialization
     """
+
+    #: Names of attributes that flow from the symbolic (stage-1) layer to
+    #: the numerical (stage-2) ``Circuit`` instance via
+    #: :meth:`Circuit._import_from_symbolic_circuit`. Adding a new attribute
+    #: on this class that downstream code needs requires adding the name
+    #: here — there is no other registration step.
+    _STAGE2_ATTRIBUTES: ClassVar[tuple[str, ...]] = (
+        "branches",
+        "closure_branches",
+        "external_fluxes",
+        "ground_node",
+        "hamiltonian_symbolic",
+        "input_string",
+        "is_grounded",
+        "is_purely_harmonic",
+        "lagrangian_node_vars",
+        "lagrangian_symbolic",
+        "nodes",
+        "offset_charges",
+        "free_charges",
+        "potential_symbolic",
+        "potential_node_vars",
+        "symbolic_params",
+        "transformation_matrix",
+        "var_categories",
+    )
 
     def __init__(
         self,

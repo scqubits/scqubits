@@ -1291,14 +1291,20 @@ Internal callers pass `self.spanning_tree_dict`. The `_AdjacencyIndex`
 cache is keyed by `id(spanning_tree_dict)`; passing a different
 (freshly constructed) dict transparently rebuilds the cache.
 
-### 17.3 The 18-attribute import block
+### 17.3 The recomputation contract: `SymbolicCircuit._STAGE2_ATTRIBUTES`
 
-`Circuit._import_from_symbolic_circuit` copies a hardcoded list of
-attributes from `self.symbolic_circuit` to `self`. If you add a new
-attribute to `SymbolicCircuit` and the `Circuit`-side code needs it,
-add it to that list — *not* to `_install_var_properties`. The two
-helpers do different things and adding to the wrong one silently
-breaks.
+`Circuit._import_from_symbolic_circuit` iterates a tuple of attribute
+names defined as a `ClassVar` on `SymbolicCircuit` itself
+(``_STAGE2_ATTRIBUTES``). When you add a new attribute to
+`SymbolicCircuit` that the numerical `Circuit` side needs to read,
+add the name to that tuple — and **only** that tuple. Do not add it
+to `_install_var_properties` (which has a different role: installing
+per-variable property descriptors for cutoffs / fluxes / charges,
+not bridging stage 1 → stage 2).
+
+A regression test (`TestRecomputationContract`) asserts that for
+every canonical YAML fixture, every name in `_STAGE2_ATTRIBUTES` is
+present and equal on a fresh `Circuit` instance.
 
 ### 17.4 `_frozen` attribute
 
