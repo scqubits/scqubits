@@ -256,7 +256,6 @@ branches:
 ```python
 class Node:
     index: int           # integer ID (0 ⇒ ground node)
-    marker: int          # vestigial; see §17.2
     branches: list[Branch]   # back-pointers populated by Branch.__init__
 
 class Branch:
@@ -465,14 +464,13 @@ Algorithm:
    `_compute_subgraph_membership` (returns a list of integer markers
    parallel to the node order — `-1` for subgraphs that touch the
    ground node, `0` for nodes not in any subgraph in `branch_subset`,
-   and `k>0` for the *k*-th non-grounded subgraph). The returned
-   list is *pure* — `Node.marker` is not mutated.
+   and `k>0` for the *k*-th non-grounded subgraph).
 4. **Build basis vectors:**
    - One vector per non-grounded subgraph: marks subgraph members
      with `basisvec_entries[0]` (default `1`), others with
      `basisvec_entries[1]` (default `0`).
    - If `single_nodes=True`, also try one-hot vectors for nodes with
-     marker `0`, accepting each that strictly increases rank.
+     subgraph index `0`, accepting each that strictly increases rank.
 5. **Drop the ground-node column when grounded.** If
    `self.is_grounded`, drop the trailing column corresponding to the
    ground node: `basis = [vec[:-1] for vec in basis]`. For
@@ -1086,7 +1084,7 @@ from scqubits import assemble_circuit, assemble_transformation_matrix
 
 **Maintenance invariant:** what gets persisted is whatever `dill`
 can pickle from `self.__dict__`. The 18-attribute import block in
-`_import_from_symbolic_circuit` (§17.4) defines what *must* be set
+`_import_from_symbolic_circuit` (§17.3) defines what *must* be set
 for a fresh construction. The two lists overlap but are not the
 same: the import block is the *recomputation contract*, while
 `serialize` captures whatever was on the instance at the time. If
@@ -1121,7 +1119,7 @@ behaviour; named-constructor compatibility; the `make_branch`
 `variable_transformation_matrix`'s row classification; the
 `_AdjacencyIndex` cache; the DFS rewrite of `_find_path_to_root`
 (asymptotic test that legacy O(n!) algorithm would not complete);
-the `Node.marker` non-mutation invariant of `_independent_modes`.
+and the `_clear_unnecessary_attribs` registry behaviour.
 
 ### 14.2 Characterization tests
 
@@ -1170,9 +1168,8 @@ graph-side algorithms have all been brought to polynomial complexity:
 - `_complete_basis_with_standard_vectors` enumerates distinct
   candidates via `itertools.combinations` over zero-positions —
   O(n²) candidates rather than O(n!) permutations.
-- `_independent_modes` uses pure return values rather than
-  `Node.marker` mutation; rank tests are O(1) dict-keyed via the
-  `_AdjacencyIndex` cache.
+- `_independent_modes` uses pure return values; rank tests are
+  O(1) dict-keyed via the `_AdjacencyIndex` cache.
 - `variable_transformation_matrix`'s row classification is a
   single-pass dict lookup rather than five chained O(n²)
   comprehensions.
@@ -1286,15 +1283,7 @@ substitutes each one with the matching instance on `self` (matched
 via `==`, which is defined by `.index`). If you change `Node.__eq__` /
 `Branch.__eq__`, the remap silently breaks.
 
-### 17.2 `Node.marker` is vestigial
-
-`_independent_modes` no longer reads `Node.marker`. The
-`_mark_nodes_by_subgraph` helper still writes it for backward
-compatibility, but in-tree code uses the pure
-`_compute_subgraph_membership` return value instead. **Do not** add
-new code that reads `Node.marker` — it can be stale.
-
-### 17.3 `spanning_tree_dict` cache staleness
+### 17.2 `spanning_tree_dict` cache staleness
 
 `_find_path_to_root` and `_find_loop` require the
 `spanning_tree_dict` parameter explicitly (no `None` default).
@@ -1302,7 +1291,7 @@ Internal callers pass `self.spanning_tree_dict`. The `_AdjacencyIndex`
 cache is keyed by `id(spanning_tree_dict)`; passing a different
 (freshly constructed) dict transparently rebuilds the cache.
 
-### 17.4 The 18-attribute import block
+### 17.3 The 18-attribute import block
 
 `Circuit._import_from_symbolic_circuit` copies a hardcoded list of
 attributes from `self.symbolic_circuit` to `self`. If you add a new
@@ -1311,14 +1300,14 @@ add it to that list — *not* to `_install_var_properties`. The two
 helpers do different things and adding to the wrong one silently
 breaks.
 
-### 17.5 `_frozen` attribute
+### 17.4 `_frozen` attribute
 
 `Circuit` and `Subsystem` set `self._frozen = True` after
 `_configure` to block ad-hoc attribute creation. New attributes must
 be set in `__init__` / `_configure` / `_import_from_symbolic_circuit`
 before `_frozen` flips. Setting them later raises in `__setattr__`.
 
-### 17.6 The `from_file: bool` deprecation
+### 17.5 The `from_file: bool` deprecation
 
 `Circuit(yaml, from_file=True)` and `Circuit(yaml, from_file=False)`
 still work but emit `DeprecationWarning`. The deprecation is
@@ -1326,7 +1315,7 @@ sentinel-protected — passing `from_file` *implicitly* (omitting the
 arg) does NOT warn. New code should use `Circuit.from_yaml_file(path)`
 or `Circuit.from_yaml_string(text)`.
 
-### 17.7 The `eval`-based assembly is narrow
+### 17.6 The `eval`-based assembly is narrow
 
 Two paths in `HamiltonianAssemblyMixin` use `eval()`:
 
@@ -1351,7 +1340,7 @@ Pitfalls in the `eval()` paths:
   `round_symbolic_expr`) before `eval()` runs; otherwise
   scientific-notation forms can mislead the parser.
 
-### 17.8 Characterization-test goldens
+### 17.7 Characterization-test goldens
 
 Any change that intentionally modifies numerical output (e.g. a bug
 fix that corrects an eigenvalue) must regenerate the goldens. The
@@ -1367,7 +1356,7 @@ git diff scqubits/tests/characterization_goldens/  # binary diff is opaque
 A goldens-regeneration commit should always be its own commit and
 explain *why* the numerics changed.
 
-### 17.9 `_clear_unnecessary_attribs` is registry-driven
+### 17.8 `_clear_unnecessary_attribs` is registry-driven
 
 `Circuit._clear_unnecessary_attribs` (in `circuit.py`, ~L896) is
 called between reconfiguration steps to drop stale per-variable

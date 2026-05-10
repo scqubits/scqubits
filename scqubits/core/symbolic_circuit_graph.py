@@ -49,15 +49,11 @@ class Node:
     ----------
     index:
         integer identifier of the node
-    marker:
-        internal attribute used to group nodes and identify sub-circuits in
-        :meth:`SymbolicCircuitGraph._independent_modes`
     """
 
-    def __init__(self, index: int, marker: int = 0):
+    def __init__(self, index: int):
         self.index: int = index
-        self.marker: int = marker
-        self._init_params: dict[str, int] = {"id": self.index, "marker": self.marker}
+        self._init_params: dict[str, int] = {"id": self.index}
         self.branches: list[Branch] = []
 
     def __str__(self) -> str:
@@ -1482,27 +1478,6 @@ class SymbolicCircuitGraph(ABC):
                             break
             subgraphs.append(subgraph)
         return subgraphs
-
-    @staticmethod
-    def _mark_nodes_by_subgraph(
-        nodes_in_max_connected_branchsets: list[list[Node]],
-        all_nodes: list[Node],
-    ) -> None:
-        """Tag each node's ``.marker`` with its subgraph index (1-based) or -1
-        if any node in its subgraph is the ground node.
-
-        Mutates the ``Node`` objects in place.  Kept as a backward-compat
-        shim for any external code that reads ``Node.marker`` after
-        ``_independent_modes``; the method itself no longer relies on this
-        side effect (see :meth:`_compute_subgraph_membership`).
-        """
-        for node_set_index, node_set in enumerate(nodes_in_max_connected_branchsets):
-            grounded = any(n.is_ground() for n in node_set)
-            for node in node_set:
-                node.marker = -1 if grounded else node_set_index + 1
-        for node in all_nodes:
-            if node.is_ground():
-                node.marker = -1
 
     @staticmethod
     def _compute_subgraph_membership(

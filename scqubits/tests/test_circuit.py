@@ -680,34 +680,6 @@ class TestVariableTransformationMatrixClassification:
                 )
 
 
-class TestIndependentModesNoNodeMarkerMutation:
-    """``_independent_modes`` no longer mutates ``Node.marker`` on the
-    circuit's live nodes.  Pre-refactor it would set ``.marker`` on the
-    nodes inside ``self.nodes`` (via shallow copy + shared references),
-    creating a re-entrancy hazard if two callers ran concurrently.
-    """
-
-    YAML = (
-        "branches:\n"
-        "- [JJ, 1, 2, 10, 20]\n"
-        "- [L, 1, 2, 0.01]\n"
-        "- [C, 1, 2, 0.02]\n"
-    )
-
-    def test_node_marker_unchanged_by_independent_modes_call(self):
-        from scqubits.core.symbolic_circuit import SymbolicCircuit
-
-        circ = SymbolicCircuit.from_yaml(self.YAML, from_file=False)
-        markers_before = [n.marker for n in circ.nodes]
-        # call with each branch type
-        circ._independent_modes([b for b in circ.branches if b.type == "L"])
-        circ._independent_modes([b for b in circ.branches if b.type != "L"])
-        markers_after = [n.marker for n in circ.nodes]
-        assert (
-            markers_before == markers_after
-        ), "_independent_modes leaked Node.marker mutation onto live nodes"
-
-
 class TestFindPathToRootDFSRewrite:
     """``_find_path_to_root`` is now O(depth) DFS via ``_AdjacencyIndex``,
     not O(tree_size!) brute-force permutation enumeration.  The
