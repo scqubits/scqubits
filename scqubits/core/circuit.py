@@ -812,20 +812,37 @@ class Circuit(  # type: ignore[misc]
         each (idempotent — properties already present are left untouched).
         Also populates ``self.cutoff_names``, ``self.dynamic_var_indices``, and
         default entries in ``self.discretized_phi_range``.
+
+        Notes
+        -----
+        Maintains ``self._dynamic_var_attribs``: a set of every cutoff,
+        external-flux, and offset/free-charge name that has been
+        installed on this instance over its lifetime. Used by
+        :meth:`_clear_unnecessary_attribs` to drop values whose
+        corresponding variable category has been removed by a
+        reconfiguration. Symbolic-param names (e.g. ``EJ``, ``EC``) are
+        NOT registered here — they survive reconfiguration and are not
+        eligible for clearing.
         """
+        if not hasattr(self, "_dynamic_var_attribs"):
+            self._dynamic_var_attribs = set()
         self.cutoff_names = []
         for var_index in self.var_categories.get("periodic", []):
-            if not hasattr(self, f"_cutoff_n_{var_index}"):
+            attrib_name = f"cutoff_n_{var_index}"
+            if not hasattr(self, f"_{attrib_name}"):
                 self._make_property(
-                    f"cutoff_n_{var_index}", DEFAULT_PERIODIC_CUTOFF, "update_cutoffs"
+                    attrib_name, DEFAULT_PERIODIC_CUTOFF, "update_cutoffs"
                 )
-            self.cutoff_names.append(f"cutoff_n_{var_index}")
+            self.cutoff_names.append(attrib_name)
+            self._dynamic_var_attribs.add(attrib_name)
         for var_index in self.var_categories.get("extended", []):
-            if not hasattr(self, f"_cutoff_ext_{var_index}"):
+            attrib_name = f"cutoff_ext_{var_index}"
+            if not hasattr(self, f"_{attrib_name}"):
                 self._make_property(
-                    f"cutoff_ext_{var_index}", DEFAULT_EXTENDED_CUTOFF, "update_cutoffs"
+                    attrib_name, DEFAULT_EXTENDED_CUTOFF, "update_cutoffs"
                 )
-            self.cutoff_names.append(f"cutoff_ext_{var_index}")
+            self.cutoff_names.append(attrib_name)
+            self._dynamic_var_attribs.add(attrib_name)
 
         self.dynamic_var_indices = (
             self.var_categories["periodic"] + self.var_categories["extended"]
@@ -845,11 +862,13 @@ class Circuit(  # type: ignore[misc]
         for flux in self.external_fluxes:
             if not hasattr(self, flux.name):
                 self._make_property(flux.name, 0.0, "update_external_flux_or_charge")
+            self._dynamic_var_attribs.add(flux.name)
         for charge_var in self.offset_charges + self.free_charges:
             if not hasattr(self, charge_var.name):
                 self._make_property(
                     charge_var.name, 0.0, "update_external_flux_or_charge"
                 )
+            self._dynamic_var_attribs.add(charge_var.name)
 
     def _find_branch(
         self, node_id_1: int, node_id_2: int, branch_type: str, branch_params: dict
@@ -894,26 +913,33 @@ class Circuit(  # type: ignore[misc]
         return {}
 
     def _clear_unnecessary_attribs(self):
-        """Clear all the attributes which are not part of the circuit description."""
-        necessary_attrib_names = (
+        """Clear stale per-variable attributes left over from a previous configuration.
+
+        Walks ``self._dynamic_var_attribs`` (the registry of every cutoff,
+        external-flux, and offset/free-charge name installed on this
+        instance over its lifetime, populated by
+        :meth:`_install_var_properties`) and deletes the underlying
+        ``_<name>`` value attribute for any registered name whose
+        corresponding variable category has been removed by the current
+        reconfiguration. The registry entry is removed alongside.
+        Symbolic-param names (e.g. ``EJ``, ``EC``) are not registered
+        and not cleared.
+        """
+        if not hasattr(self, "_dynamic_var_attribs"):
+            return
+        necessary_attrib_names = set(
             self.cutoff_names
             + [flux_symbol.name for flux_symbol in self.external_fluxes]
             + [
                 charge_symbol.name
                 for charge_symbol in self.offset_charges + self.free_charges
             ]
-            + ["cutoff_names"]
         )
-        attrib_keys = list(self.__dict__)
-        for attrib in attrib_keys:
-            if attrib[1:] not in necessary_attrib_names:
-                if (
-                    "cutoff_n_" in attrib
-                    or "Φ" in attrib
-                    or "cutoff_ext_" in attrib
-                    or attrib[1:3] == "ng"
-                ):
-                    delattr(self, attrib)
+        stale = self._dynamic_var_attribs - necessary_attrib_names
+        for name in stale:
+            if hasattr(self, f"_{name}"):
+                delattr(self, f"_{name}")
+            self._dynamic_var_attribs.discard(name)
 
     def configure(
         self,

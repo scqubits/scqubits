@@ -416,6 +416,62 @@ class TestConfigureError:
         assert circ.ext_basis == prior_ext_basis
 
 
+class TestClearUnnecessaryAttribs:
+    """``_clear_unnecessary_attribs`` consults a registry, not name patterns.
+
+    The previous implementation matched attribute names by string
+    substring (``"cutoff_n_" in attrib`` etc.); a future per-variable
+    property kind whose name didn't match those patterns would have
+    silently leaked across reconfigurations. The registry-driven
+    implementation drops every name that ``_install_var_properties``
+    has installed but the current configuration no longer needs.
+    """
+
+    @staticmethod
+    def _make_zero_pi():
+        zp_yaml = """branches:
+        - ["JJ", 1, 2, 10, 20]
+        - ["JJ", 3, 4, 10, 20]
+        - ["L", 2, 3, 0.008]
+        - ["L", 4, 1, 0.008]
+        - ["C", 1, 3, 0.02]
+        - ["C", 2, 4, 0.02]
+        """
+        return scq.Circuit(zp_yaml, from_file=False, ext_basis="discretized")
+
+    def test_registry_clears_arbitrary_dynamic_attribute(self):
+        """A name in ``_dynamic_var_attribs`` but not in the necessary set is cleared."""
+        circ = self._make_zero_pi()
+        # Inject a name that does not match any of the legacy string
+        # patterns (``"cutoff_n_"``, ``"Φ"``, ``"cutoff_ext_"``,
+        # ``[1:3] == "ng"``). The legacy implementation would not have
+        # cleared this; the registry approach must.
+        object.__setattr__(circ, "_custom_kind_99", 42)
+        circ._dynamic_var_attribs.add("custom_kind_99")
+
+        circ._clear_unnecessary_attribs()
+
+        assert not hasattr(circ, "_custom_kind_99")
+        assert "custom_kind_99" not in circ._dynamic_var_attribs
+
+    def test_registry_preserves_currently_active_names(self):
+        """Names listed in ``cutoff_names`` survive a clearing pass."""
+        circ = self._make_zero_pi()
+        active_cutoffs = list(circ.cutoff_names)
+        # Sanity check the precondition: the registry contains every
+        # active cutoff name.
+        for name in active_cutoffs:
+            assert name in circ._dynamic_var_attribs
+
+        circ._clear_unnecessary_attribs()
+
+        for name in active_cutoffs:
+            assert hasattr(circ, f"_{name}"), (
+                f"active cutoff {name!r} was wrongly cleared"
+            )
+            assert name in circ._dynamic_var_attribs
+
+
 class TestNamedConstructors:
     """`Circuit.from_yaml_file` / `Circuit.from_yaml_string` are named
     alternatives to the legacy ``Circuit(input_string, from_file=...)`` form.

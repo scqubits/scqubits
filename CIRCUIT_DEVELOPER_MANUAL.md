@@ -1367,36 +1367,26 @@ git diff scqubits/tests/characterization_goldens/  # binary diff is opaque
 A goldens-regeneration commit should always be its own commit and
 explain *why* the numerics changed.
 
-### 17.9 `_clear_unnecessary_attribs` uses brittle name patterns
+### 17.9 `_clear_unnecessary_attribs` is registry-driven
 
 `Circuit._clear_unnecessary_attribs` (in `circuit.py`, ~L896) is
 called between reconfiguration steps to drop stale per-variable
-properties from `self.__dict__`. The membership test is *string
-pattern matching* on attribute names:
+properties (cutoffs, external fluxes, offset/free charges) from
+`self.__dict__`. It walks `self._dynamic_var_attribs` — a
+`set[str]` populated by `_install_var_properties` as it installs
+each property — and deletes the underlying `_<name>` value for
+any registered name whose corresponding variable category has
+been removed by the current reconfiguration.
 
-```python
-if (
-    "cutoff_n_" in attrib
-    or "Φ" in attrib
-    or "cutoff_ext_" in attrib
-    or attrib[1:3] == "ng"
-):
-    delattr(self, attrib)
-```
+When adding a new per-variable property kind, the only place
+that needs updating is `_install_var_properties`: register the
+attribute name into `self._dynamic_var_attribs` after calling
+`_make_property`. `_clear_unnecessary_attribs` picks it up
+automatically.
 
-This is fragile in two ways:
-
-- Renaming any of `cutoff_n_<i>`, `cutoff_ext_<i>`, `Φ<i>`,
-  `_ng<i>` (note the leading underscore — `attrib[1:3] == "ng"`
-  matches against the position after the underscore prefix) will
-  silently drop the call from clearing those names, leaving them
-  to leak across reconfigurations.
-- Any new per-variable attribute name added to `_install_var_properties`
-  needs a parallel entry here.
-
-When adding a new per-variable property kind, update both
-`_install_var_properties` (which creates the descriptors) and
-`_clear_unnecessary_attribs` (which drops the underlying values).
+Symbolic-param names (e.g. ``EJ``, ``EC``) are deliberately *not*
+registered — those attribs survive reconfiguration and are
+managed separately via `self.symbolic_params`.
 
 ---
 
