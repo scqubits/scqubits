@@ -30,13 +30,22 @@ from __future__ import annotations
 import re
 
 from scqubits.core.circuit_internals.input import example_circuit  # noqa: F401
+from scqubits.core.circuit_internals.matrix_helpers import (  # noqa: F401
+    matrix_power_sparse,
+)
 from scqubits.core.circuit_internals.sawtooth import (  # noqa: F401
     sawtooth_operator,
     sawtooth_potential,
 )
+from scqubits.core.circuit_internals.sympy_helpers import (  # noqa: F401
+    is_potential_term,
+    keep_terms_for_subsystem,
+    round_symbolic_expr,
+)
 from scqubits.core.circuit_internals.yaml_assembly import (  # noqa: F401
     assemble_circuit,
     assemble_transformation_matrix,
+    yaml_like_out_with_pp,
 )
 from scqubits.utils.misc import flatten_list_recursive
 
@@ -46,8 +55,13 @@ __all__ = [
     "example_circuit",
     "assemble_circuit",
     "assemble_transformation_matrix",
+    "is_potential_term",
+    "keep_terms_for_subsystem",
+    "matrix_power_sparse",
+    "round_symbolic_expr",
     "sawtooth_operator",
     "sawtooth_potential",
+    "yaml_like_out_with_pp",
 ]
 
 
