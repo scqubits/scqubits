@@ -30,7 +30,6 @@ from matplotlib.figure import Figure
 from matplotlib.offsetbox import AnchoredText
 from numpy import ndarray
 from scipy.sparse import csc_matrix
-from sympy import csc, sec
 
 import scqubits.core.units as units
 import scqubits.settings as settings

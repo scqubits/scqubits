@@ -1090,9 +1090,7 @@ class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
         )
 
     @check_sync_status_circuit
-    def _hamiltonian_for_purely_harmonic(
-        self, return_unsorted: bool = False
-    ) -> csc_matrix | ndarray:
+    def _hamiltonian_for_purely_harmonic(self) -> csc_matrix | ndarray:
         """Hamiltonian for purely harmonic systems when ext_basis is set to harmonic.
 
         Specialized assembly path for circuits where every extended
@@ -1106,11 +1104,6 @@ class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
 
         This is the **only** circuit-Hamiltonian path that uses
         ``eval``; the general path is :meth:`_evaluate_hamiltonian`.
-
-        Parameters
-        ----------
-        return_unsorted:
-            currently unused; retained for API compatibility.
 
         Returns
         -------

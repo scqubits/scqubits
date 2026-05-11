@@ -16,7 +16,7 @@ import re
 import warnings
 
 from collections.abc import Callable
-from typing import Any, Literal, get_type_hints
+from typing import Any, Literal
 
 import numpy as np
 import sympy as sm

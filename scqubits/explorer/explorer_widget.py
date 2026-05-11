@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep
 
 try:
-    from IPython.display import HTML, display, notebook  # type: ignore[attr-defined]
+    from IPython.display import display
 except ImportError:
     _HAS_IPYTHON = False
 else:
