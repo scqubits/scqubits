@@ -44,22 +44,7 @@ from scqubits.utils.misc import _HAS_WIDGET_BACKEND
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep
 
-try:
-    from IPython.display import display
-except ImportError:
-    _HAS_IPYTHON = False
-else:
-    _HAS_IPYTHON = True
-
-try:
-    import ipyvuetify as v
-    import ipywidgets
-
-    from scqubits.ui.gui_custom_widgets import flex_row
-except ImportError:
-    _HAS_IPYVUETIFY = False
-else:
-    _HAS_IPYVUETIFY = True
+from scqubits.ui._optional_deps import _HAS_IPYTHON, _HAS_IPYVUETIFY, display, v
 
 
 class PlotID:
@@ -154,16 +139,6 @@ class Explorer:
             label="Active Sweep Parameter",
             items=list(self.sweep.param_info.keys()),
         )
-        # self.ui.sweep_value_slider = ui.DiscreteSetSlider(
-        #     param_name=self.ui.sweep_param_dropdown.v_model,
-        #     param_vals=self.param_vals,
-        #     filled=False,
-        #     class_="px-3",
-        #     style_="max-width: 300px; padding-top: 10px",
-        # )
-        #
-        #
-        # self.ui.sweep_value_slider.observe(self.update_plots, names="v_model")
 
         self.ui.param_sliders = self.create_sliders()
         self.update_parameter_sliders(None)

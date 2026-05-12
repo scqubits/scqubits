@@ -24,12 +24,7 @@ import sympy as sm
 from numpy import ndarray
 from sympy import latex
 
-try:
-    import IPython
-except ImportError:
-    _HAS_IPYTHON = False
-else:
-    _HAS_IPYTHON = True
+from scqubits.ui._optional_deps import _HAS_IPYTHON  # noqa: F401
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.discretization as discretization

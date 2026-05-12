@@ -18,22 +18,16 @@ from typing import Any
 import scqubits.core.units as units
 import scqubits.utils.misc as utils
 
-try:
-    import ipyvuetify
-    import ipywidgets
+from scqubits.ui._optional_deps import (  # noqa: F401
+    _HAS_IPYTHON,
+    _HAS_IPYVUETIFY,
+    display,
+    ipywidgets,
+)
+from scqubits.ui._optional_deps import v as ipyvuetify  # noqa: F401
 
+if _HAS_IPYVUETIFY:
     from scqubits.ui.gui_custom_widgets import ValidatedNumberField
-except ImportError:
-    _HAS_IPYVUETIFY = False
-else:
-    _HAS_IPYVUETIFY = True
-
-try:
-    from IPython.display import display
-except ImportError:
-    _HAS_IPYTHON = False
-else:
-    _HAS_IPYTHON = True
 
 
 @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)

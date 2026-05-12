@@ -21,21 +21,14 @@ import matplotlib as mp
 
 import scqubits.utils.misc as utils
 
-try:
-    import ipyvuetify as v
-    import ipywidgets
-    import traitlets
-except ImportError:
-    _HAS_IPYVUETIFY = False
-else:
-    _HAS_IPYVUETIFY = True
-
-try:
-    from IPython.display import display
-except ImportError:
-    _HAS_IPYTHON = False
-else:
-    _HAS_IPYTHON = True
+from scqubits.ui._optional_deps import (  # noqa: F401
+    _HAS_IPYTHON,
+    _HAS_IPYVUETIFY,
+    display,
+    ipywidgets,
+    traitlets,
+    v,
+)
 
 if TYPE_CHECKING:
     from scqubits.explorer.explorer_widget import PlotID

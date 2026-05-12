@@ -150,3 +150,28 @@ def test_explorer_ui_default_instance_is_empty():
             assert value == {}, f"{f.name} default is not an empty dict"
         else:
             assert value is None, f"{f.name} default is not None"
+
+
+def test_optional_deps_module_exposes_expected_names():
+    """``scqubits.ui._optional_deps`` is the single source of truth for
+    the ipyvuetify / IPython availability flags + module references.
+
+    Catches accidental name drops (or silent renames) that would force
+    callers back to per-file ``try/except ImportError`` boilerplate.
+    """
+    from scqubits.ui import _optional_deps
+
+    for name in (
+        "_HAS_IPYVUETIFY",
+        "_HAS_IPYTHON",
+        "v",
+        "ipywidgets",
+        "display",
+        "HTML",
+    ):
+        assert hasattr(
+            _optional_deps, name
+        ), f"scqubits.ui._optional_deps missing expected symbol: {name!r}"
+
+    assert isinstance(_optional_deps._HAS_IPYVUETIFY, bool)
+    assert isinstance(_optional_deps._HAS_IPYTHON, bool)

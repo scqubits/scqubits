@@ -21,13 +21,7 @@ import sympy as sm
 
 from sympy import latex
 
-try:
-    from IPython.display import Latex, display
-except ImportError:
-    _HAS_IPYTHON = False
-else:
-    _HAS_IPYTHON = True
-
+from scqubits.ui._optional_deps import _HAS_IPYTHON, Latex, display  # noqa: F401
 
 __all__ = [
     "CircuitSymMethods",

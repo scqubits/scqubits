@@ -23,19 +23,7 @@ if TYPE_CHECKING:
     from scqubits import Explorer
     from scqubits.explorer.explorer_widget import PlotID
 
-try:
-    from IPython.display import display  # noqa: F401  (availability test)
-except ImportError:
-    _HAS_IPYTHON = False
-else:
-    _HAS_IPYTHON = True
-
-try:
-    import ipyvuetify as v
-except ImportError:
-    _HAS_IPYVUETIFY = False
-else:
-    _HAS_IPYVUETIFY = True
+from scqubits.ui._optional_deps import _HAS_IPYTHON, _HAS_IPYVUETIFY, v
 
 
 class ExplorerSettings:

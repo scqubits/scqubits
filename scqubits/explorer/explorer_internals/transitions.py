@@ -19,12 +19,7 @@ if TYPE_CHECKING:
     from scqubits.explorer.explorer_settings import ExplorerSettings
     from scqubits.explorer.explorer_widget import Explorer, PlotID
 
-try:
-    import ipyvuetify as v
-except ImportError:
-    _HAS_IPYVUETIFY = False
-else:
-    _HAS_IPYVUETIFY = True
+from scqubits.ui._optional_deps import _HAS_IPYVUETIFY, v  # noqa: F401
 
 
 @rc_context(matplotlib_settings)
