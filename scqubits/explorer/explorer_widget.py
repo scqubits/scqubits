@@ -29,6 +29,7 @@ import scqubits.ui.gui_defaults as gui_defaults
 from scqubits.core.param_sweep import ParameterSlice
 from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass
 from scqubits.explorer import explorer_panels as panels
+from scqubits.explorer.explorer_internals import PANEL_BUILDERS
 from scqubits.explorer.explorer_settings import ExplorerSettings
 from scqubits.settings import matplotlib_settings
 from scqubits.ui.gui_defaults import (
@@ -377,17 +378,15 @@ class Explorer:
         param_slice: ParameterSlice,
         fig_ax: tuple[Figure, Axes],
     ):
-        if plot_id.plot_type is PlotType.ENERGY_SPECTRUM:
-            panel_widget = self.settings[plot_id]
-            return panels.display_bare_spectrum(
-                self.sweep,
-                plot_id.subsystems[0],  # type: ignore[arg-type]
-                param_slice,
-                fig_ax,
-                subtract_ground=panel_widget[1].v_model,
-                evals_count=self.settings["level_slider"][plot_id].num_value,
-            )
-        elif plot_id.plot_type is PlotType.WAVEFUNCTIONS and isinstance(
+        # Registry-driven dispatch for plot types migrated into
+        # ``explorer_internals`` (see PANEL_BUILDERS).  Anything not in
+        # the registry falls through to the legacy ``if/elif`` chain
+        # below; the chain shrinks one entry per phase 2 commit.
+        builder_cls = PANEL_BUILDERS.get(plot_id.plot_type)
+        if builder_cls is not None:
+            return builder_cls().build_panel(self, plot_id, param_slice, fig_ax)
+
+        if plot_id.plot_type is PlotType.WAVEFUNCTIONS and isinstance(
             plot_id.subsystems[0], QubitBaseClass
         ):
             ui_wavefunction_selector, ui_mode_dropdown = self.settings[plot_id]

@@ -39,33 +39,6 @@ if TYPE_CHECKING:
 
 
 @rc_context(matplotlib_settings)
-def display_bare_spectrum(
-    sweep: "ParameterSweep",
-    subsys: "QubitBaseClass" | "Oscillator",
-    param_slice: "ParameterSlice",
-    fig_ax: tuple[Figure, Axes],
-    evals_count: int | None = None,
-    subtract_ground: bool = False,
-) -> tuple[Figure, Axes]:
-    subsys_index = sweep.get_subsys_index(subsys)
-    title = "Bare Spectrum: {}\n".format(subsys.id_str)
-
-    evals_count = evals_count or -1
-
-    bare_evals = sweep["bare_evals"]["subsys":subsys_index][param_slice.fixed]  # type: ignore[misc]
-    if subtract_ground:
-        bare_evals = bare_evals - bare_evals[:, 0, np.newaxis]
-
-    fig, axes = bare_evals[:, 0:evals_count].plot(
-        title=title,
-        ylabel="energy [{}]".format(units.get_units()),
-        fig_ax=fig_ax,
-    )
-    axes.axvline(param_slice.param_val, color="gray", linestyle=":")
-    return fig, axes
-
-
-@rc_context(matplotlib_settings)
 def display_anharmonicity(
     sweep: "ParameterSweep",
     subsys: "QubitBaseClass",

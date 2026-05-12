@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 import scqubits as scq
 import scqubits.ui.gui_custom_widgets as ui
 
+from scqubits.explorer.explorer_internals import PANEL_BUILDERS
 from scqubits.ui.gui_defaults import PlotType, mode_dropdown_list
 from scqubits.utils import misc as utils
 
@@ -97,43 +98,18 @@ class ExplorerSettings:
         return self.ui[item]
 
     def build_settings_ui(self, plot_id: "PlotID"):
+        # Registry-driven dispatch for plot types migrated into
+        # ``explorer_internals`` (see PANEL_BUILDERS).  Anything not in
+        # the registry falls through to the legacy ``if/elif`` chain
+        # below; the chain shrinks one entry per phase 2 commit.
+        builder_cls = PANEL_BUILDERS.get(plot_id.plot_type)
+        if builder_cls is not None:
+            return builder_cls().build_settings_ui(self, plot_id)
+
         # `subsys` is reassigned from list to single element in many branches below;
         # use `Any` to avoid narrowing-error churn without changing runtime behavior.
         subsys: Any = plot_id.subsystems
         plot_type = plot_id.plot_type
-
-        if plot_type is PlotType.ENERGY_SPECTRUM:
-            subsys = subsys[0]
-            subsys_index = self.explorer.sweep.get_subsys_index(subsys)
-            evals_count = self.explorer.sweep.subsys_evals_count(subsys_index)
-            self.ui["level_slider"][plot_id] = ui.NumberEntryWidget(
-                num_type=int,
-                label="Highest level",
-                v_min=1,
-                v_max=evals_count,
-                v_model=evals_count,
-                text_kwargs={
-                    "style_": "min-width: 140px; max-width: 200px;",
-                    "dense": True,
-                },
-                slider_kwargs={
-                    "style_": "min-width: 110px; max-width: 230px",
-                    "dense": True,
-                },
-            )
-            ui_subtract_ground_switch = v.Switch(
-                label="Subtract E\u2080", v_model=True, width=300
-            )
-            self.ui["level_slider"][plot_id].observe(
-                self.explorer.update_plots, names="v_model"
-            )
-            ui_subtract_ground_switch.observe(
-                self.explorer.update_plots, names="v_model"
-            )
-            return [
-                self.ui["level_slider"][plot_id].widget(),
-                ui_subtract_ground_switch,
-            ]
 
         if plot_type is PlotType.WAVEFUNCTIONS:
             subsys = subsys[0]
