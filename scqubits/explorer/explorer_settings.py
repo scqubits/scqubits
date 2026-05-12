@@ -111,9 +111,6 @@ class ExplorerSettings:
         subsys: Any = plot_id.subsystems
         plot_type = plot_id.plot_type
 
-        if plot_type is PlotType.CROSS_KERR:
-            return []
-
         if plot_type is PlotType.AC_STARK:
             self.ui["kerr"]["ac_stark_ell"] = ui.InitializedSelect(
                 v_model=1,

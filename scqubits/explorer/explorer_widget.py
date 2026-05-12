@@ -386,15 +386,7 @@ class Explorer:
         if builder_cls is not None:
             return builder_cls().build_panel(self, plot_id, param_slice, fig_ax)
 
-        if plot_id.plot_type is PlotType.CROSS_KERR:
-            return panels.display_cross_kerr(
-                sweep=self.sweep,
-                subsys1=plot_id.subsystems[0],
-                subsys2=plot_id.subsystems[1],
-                param_slice=param_slice,
-                fig_ax=fig_ax,
-            )
-        elif plot_id.plot_type is PlotType.AC_STARK:
+        if plot_id.plot_type is PlotType.AC_STARK:
             return panels.display_cross_kerr(
                 sweep=self.sweep,
                 subsys1=plot_id.subsystems[0],

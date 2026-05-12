@@ -10,6 +10,7 @@ from scqubits.explorer.explorer_internals._base import PanelBuilder
 from scqubits.explorer.explorer_internals.anharmonicity import (
     AnharmonicityPanelBuilder,
 )
+from scqubits.explorer.explorer_internals.cross_kerr import CrossKerrPanelBuilder
 from scqubits.explorer.explorer_internals.energy_spectrum import (
     EnergySpectrumPanelBuilder,
 )
@@ -32,6 +33,7 @@ __all__ = [
     "PANEL_BUILDERS",
     "PanelBuilder",
     "AnharmonicityPanelBuilder",
+    "CrossKerrPanelBuilder",
     "EnergySpectrumPanelBuilder",
     "MatrixElementsPanelBuilder",
     "MatrixElementSweepPanelBuilder",
@@ -53,4 +55,5 @@ PANEL_BUILDERS: dict[PlotType, type[PanelBuilder]] = {
     PlotType.ANHARMONICITY: AnharmonicityPanelBuilder,
     PlotType.TRANSITIONS: TransitionsPanelBuilder,
     PlotType.SELF_KERR: SelfKerrPanelBuilder,
+    PlotType.CROSS_KERR: CrossKerrPanelBuilder,
 }
