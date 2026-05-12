@@ -10,6 +10,9 @@ from scqubits.explorer.explorer_internals._base import PanelBuilder
 from scqubits.explorer.explorer_internals.energy_spectrum import (
     EnergySpectrumPanelBuilder,
 )
+from scqubits.explorer.explorer_internals.matrix_elements import (
+    MatrixElementsPanelBuilder,
+)
 from scqubits.explorer.explorer_internals.wavefunctions import (
     WavefunctionsPanelBuilder,
 )
@@ -19,6 +22,7 @@ __all__ = [
     "PANEL_BUILDERS",
     "PanelBuilder",
     "EnergySpectrumPanelBuilder",
+    "MatrixElementsPanelBuilder",
     "WavefunctionsPanelBuilder",
 ]
 
@@ -30,4 +34,5 @@ __all__ = [
 PANEL_BUILDERS: dict[PlotType, type[PanelBuilder]] = {
     PlotType.ENERGY_SPECTRUM: EnergySpectrumPanelBuilder,
     PlotType.WAVEFUNCTIONS: WavefunctionsPanelBuilder,
+    PlotType.MATRIX_ELEMENTS: MatrixElementsPanelBuilder,
 }

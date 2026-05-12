@@ -111,21 +111,6 @@ class ExplorerSettings:
         subsys: Any = plot_id.subsystems
         plot_type = plot_id.plot_type
 
-        if plot_type is PlotType.MATRIX_ELEMENTS:
-            subsys = subsys[0]
-            ui_mode_dropdown = ui.InitializedSelect(
-                items=mode_dropdown_list,
-                label="Plot matrix elements as",
-                v_model=mode_dropdown_list[2],
-            )
-            op_names = subsys.get_operator_names()
-            ui_operator_dropdown = ui.InitializedSelect(
-                items=op_names, label="Operator", v_model=op_names[0]
-            )
-            ui_mode_dropdown.observe(self.explorer.update_plots, names="v_model")
-            ui_operator_dropdown.observe(self.explorer.update_plots, names="v_model")
-            return [ui_mode_dropdown, ui_operator_dropdown]
-
         if plot_type is PlotType.MATRIX_ELEMENT_SCAN:
             subsys = subsys[0]
             ui_mode_dropdown = ui.InitializedSelect(

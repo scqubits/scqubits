@@ -61,47 +61,6 @@ def display_anharmonicity(
 
 
 @rc_context(matplotlib_settings)
-def display_matrixelements(
-    sweep: "ParameterSweep",
-    operator_name: str,
-    subsys: "QubitBaseClass",
-    param_slice: "ParameterSlice",
-    mode_str: str,
-    fig_ax: tuple[Figure, Axes],
-) -> tuple[Figure, Axes]:
-    subsys_index = sweep.get_subsys_index(subsys)
-    evecs = sweep["bare_evecs"][subsys_index][param_slice.all]
-
-    fig, axes = fig_ax
-    axes.cla()
-
-    title = f"{subsys.id_str}: matrix elements (fixed)"
-    # show3d=False makes plot_matrixelements return tuple[Figure, Axes]
-    fig, axes = subsys.plot_matrixelements(  # type: ignore[assignment]
-        operator_name,
-        evecs,
-        evals_count=subsys.truncated_dim,
-        mode=mode_str,
-        show3d=False,
-        show_numbers=False,
-        show_colorbar=True,
-        fig_ax=fig_ax,
-        title=title,
-    )
-    axes.text(
-        0.5,
-        1.05,
-        f"{scqubits.core.constants.MODE_STR_DICT[mode_str](operator_name)}",
-        fontsize=9,
-        fontweight=300,
-        horizontalalignment="center",
-        verticalalignment="bottom",
-        transform=axes.transAxes,
-    )
-    return fig, axes
-
-
-@rc_context(matplotlib_settings)
 def display_matrixelement_sweep(
     sweep: "ParameterSweep",
     operator_name: str,
