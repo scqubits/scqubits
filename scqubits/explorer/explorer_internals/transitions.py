@@ -48,10 +48,9 @@ def display_transitions(
     )
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
 
-    info_string = "Highlighted: transitions for "
-    for sys in subsys_list or []:
-        info_string += sys.id_str + ", "
-    info_string += "with sidebands" if sidebands else "no sidebands"
+    active_subsys_names = ", ".join(sys.id_str for sys in subsys_list or [])
+    sideband_tag = "with sidebands" if sidebands else "no sidebands"
+    info_string = f"Active subsystems: {active_subsys_names} ({sideband_tag})"
     axes.text(
         0.5,
         1.05,
@@ -154,7 +153,12 @@ class TransitionsPanelBuilder:
             multiple=True,
             label="",
             items=explorer.subsys_names,
-            v_model=[explorer.subsys_names[0]],
+            # Default to all subsystems active: this is what users expect
+            # when toggling ``Show sidebands`` -- sidebands by definition
+            # need >=2 subsystems to vary, and the legacy default of just
+            # ``[explorer.subsys_names[0]]`` made the sidebands switch a
+            # no-op for most users.
+            v_model=list(explorer.subsys_names),
             width=185,
         )
 
@@ -207,7 +211,12 @@ class TransitionsPanelBuilder:
         transition_highlighting = v.Container(
             class_="d-flex flex-row",
             children=[
-                v.Text(children=["Highlight:"]),
+                # The selector below feeds ``subsystems=`` of
+                # ``ParameterSweep.plot_transitions``, which is the
+                # "active subsystems" set for the transition search.
+                # With sidebands enabled, only these subsystems' levels
+                # vary; the rest stay pinned to the initial state.
+                v.Text(children=["Active subsystems:"]),
                 transitions_ui["highlight_selectmultiple"],
             ],
         )
