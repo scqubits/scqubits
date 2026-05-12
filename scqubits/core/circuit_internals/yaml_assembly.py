@@ -20,7 +20,7 @@ import scipy as sp
 
 from numpy import ndarray
 
-from scqubits.core import circuit_input
+from scqubits.core.circuit_internals import input as circuit_input
 from scqubits.utils.misc import (
     flatten_list_recursive,
     is_string_float,
