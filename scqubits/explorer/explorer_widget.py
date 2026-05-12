@@ -206,6 +206,19 @@ class Explorer:
 
         self._wire_observers()
         self.create_initial_plot_panels()
+
+    def _ipython_display_(self) -> None:
+        """Auto-display the Explorer when it is the last cell expression in Jupyter.
+
+        Replaces the legacy unconditional ``display(self.explorer_display)``
+        side-effect at the tail of ``__init__``.  After this change,
+        constructing ``Explorer(sweep)`` has no display side-effect:
+        the UI is rendered only when Jupyter evaluates the instance as
+        the trailing expression of a cell (the canonical
+        ``explorer = scq.Explorer(sweep); explorer`` notebook pattern)
+        or when the caller explicitly invokes ``display(explorer)``.
+        Imports and scripted use no longer fire a render.
+        """
         display(self.explorer_display)
 
     def _wire_observers(self) -> None:
