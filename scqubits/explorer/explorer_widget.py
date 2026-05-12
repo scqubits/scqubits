@@ -377,6 +377,7 @@ class Explorer:
             ],
         )
 
+    @matplotlib.rc_context(matplotlib_settings)
     def build_panel(
         self,
         plot_id: PlotID,
@@ -386,9 +387,7 @@ class Explorer:
         # Registry-driven dispatch: every ``PlotType`` has a corresponding
         # ``PanelBuilder`` under ``explorer_internals``.  Adding a new
         # panel means writing a builder file + one ``PANEL_BUILDERS``
-        # entry; nothing in this method needs to change.  No
-        # ``rc_context`` wrap here -- each builder's render function
-        # applies the project ``matplotlib_settings`` itself.
+        # entry; nothing in this method needs to change.
         builder_cls = PANEL_BUILDERS.get(plot_id.plot_type)
         if builder_cls is None:
             raise NotImplementedError(
@@ -529,56 +528,22 @@ class Explorer:
             list(self.sweep.param_info.keys()),
         )
 
-        # Slider-tick fast path: when the only thing that changed is one
-        # of the parameter sliders (active or fixed), and the resulting
-        # ``param_slice.fixed`` matches the panel's cached value, the
-        # plotted curves are identical to the last render -- only the
-        # gray vertical "current slice" indicator needs to move.  We
-        # detect this by inspecting ``change["owner"]``: a slider-driven
-        # observer fire carries a slider widget; any settings-widget
-        # change carries that widget instead, and the cache is bypassed.
-        owner = change.get("owner") if isinstance(change, dict) else None
-        slider_only = owner in set(self.ui.param_sliders.values())
-
-        for panel_id in panel_ids:
-            panel = self.plot_collection.panel_by_id[panel_id]
-            cached_fixed = getattr(panel, "_cached_fixed", None)
-            slice_line = getattr(panel, "_slice_line", None)
-            if (
-                slider_only
-                and cached_fixed == param_slice.fixed
-                and slice_line is not None
-            ):
-                # Cache hit: move the slice indicator, redraw, done.
-                slice_line.set_xdata([param_val, param_val])
-                if not _HAS_WIDGET_BACKEND:
-                    with panel.output:
-                        panel.output.clear_output(wait=True)
-                        display(panel.fig)
-                else:
-                    panel.fig.canvas.draw_idle()
-                continue
-
-            # Cache miss: clear and rebuild this panel from scratch.
-            fig, ax = panel.fig, panel.axes
-            for item in ax.lines + ax.collections + ax.texts:  # type: ignore[operator]
+        for axes in self.axes_list:
+            for item in axes.lines + axes.collections + axes.texts:  # type: ignore[operator]
                 item.remove()
-            ax.set_prop_cycle(None)
-            ax.relim()
-            ax.autoscale_view()
+            axes.set_prop_cycle(None)
+            axes.relim()
+            axes.autoscale_view()
+
+        for index, panel_id in enumerate(panel_ids):
+            fig = self.plot_collection.panel_by_id[panel_id].fig
+            ax = self.plot_collection.panel_by_id[panel_id].axes
+            output_widget = self.plot_collection.panel_by_id[panel_id].output
             self.build_panel(panel_id, param_slice=param_slice, fig_ax=(fig, ax))
             ax.title.set_text("")  # title is instead displayed in card header
-            # Cache the just-drawn state.  Every ``display_*`` render
-            # function ends with ``axes.axvline(param_slice.param_val,
-            # color="gray", linestyle=":")``, so the last line on the
-            # axes is the slice indicator.  Stored on the panel via
-            # ``setattr`` (the cache attrs are not declared on the
-            # widget class).
-            setattr(panel, "_cached_fixed", param_slice.fixed)
-            setattr(panel, "_slice_line", ax.lines[-1] if ax.lines else None)
             if not _HAS_WIDGET_BACKEND:
-                with panel.output:
-                    panel.output.clear_output(wait=True)
+                with output_widget:
+                    output_widget.clear_output(wait=True)
                     display(fig)
             else:
                 fig.canvas.draw_idle()
