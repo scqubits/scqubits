@@ -39,28 +39,6 @@ if TYPE_CHECKING:
 
 
 @rc_context(matplotlib_settings)
-def display_anharmonicity(
-    sweep: "ParameterSweep",
-    subsys: "QubitBaseClass",
-    param_slice: "ParameterSlice",
-    fig_ax: tuple[Figure, Axes],
-) -> tuple[Figure, Axes]:
-    subsys_index = sweep.get_subsys_index(subsys)
-
-    bare_evals = sweep["bare_evals"]["subsys":subsys_index][param_slice.fixed]  # type: ignore[misc]
-    anharmonicity = bare_evals[..., 2] - 2 * bare_evals[..., 1] + bare_evals[..., 0]
-
-    title = "Anharmonicity: {}".format(subsys.id_str)
-    fig, axes = anharmonicity.plot(
-        title=title,
-        ylabel="anharmonicity [{}]".format(units.get_units()),
-        fig_ax=fig_ax,
-    )
-    axes.axvline(param_slice.param_val, color="gray", linestyle=":")
-    return fig, axes
-
-
-@rc_context(matplotlib_settings)
 def display_transitions(
     sweep: "ParameterSweep",
     photon_number: int,

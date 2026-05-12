@@ -7,6 +7,9 @@
 from __future__ import annotations
 
 from scqubits.explorer.explorer_internals._base import PanelBuilder
+from scqubits.explorer.explorer_internals.anharmonicity import (
+    AnharmonicityPanelBuilder,
+)
 from scqubits.explorer.explorer_internals.energy_spectrum import (
     EnergySpectrumPanelBuilder,
 )
@@ -24,6 +27,7 @@ from scqubits.ui.gui_defaults import PlotType
 __all__ = [
     "PANEL_BUILDERS",
     "PanelBuilder",
+    "AnharmonicityPanelBuilder",
     "EnergySpectrumPanelBuilder",
     "MatrixElementsPanelBuilder",
     "MatrixElementSweepPanelBuilder",
@@ -40,4 +44,5 @@ PANEL_BUILDERS: dict[PlotType, type[PanelBuilder]] = {
     PlotType.WAVEFUNCTIONS: WavefunctionsPanelBuilder,
     PlotType.MATRIX_ELEMENTS: MatrixElementsPanelBuilder,
     PlotType.MATRIX_ELEMENT_SCAN: MatrixElementSweepPanelBuilder,
+    PlotType.ANHARMONICITY: AnharmonicityPanelBuilder,
 }

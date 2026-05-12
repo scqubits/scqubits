@@ -386,14 +386,7 @@ class Explorer:
         if builder_cls is not None:
             return builder_cls().build_panel(self, plot_id, param_slice, fig_ax)
 
-        if plot_id.plot_type is PlotType.ANHARMONICITY:
-            return panels.display_anharmonicity(
-                self.sweep,
-                plot_id.subsystems[0],  # type: ignore[arg-type]
-                param_slice,
-                fig_ax,
-            )
-        elif plot_id.plot_type is PlotType.TRANSITIONS:
+        if plot_id.plot_type is PlotType.TRANSITIONS:
             initial_state: int | tuple[int, ...]
             if (
                 self.settings["Transitions"]["initial_bare_dressed_toggle"].v_model
