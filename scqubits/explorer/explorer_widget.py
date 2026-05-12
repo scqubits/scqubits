@@ -386,47 +386,7 @@ class Explorer:
         if builder_cls is not None:
             return builder_cls().build_panel(self, plot_id, param_slice, fig_ax)
 
-        if plot_id.plot_type is PlotType.TRANSITIONS:
-            initial_state: int | tuple[int, ...]
-            if (
-                self.settings["Transitions"]["initial_bare_dressed_toggle"].v_model
-                == "bare"
-            ):
-                initial_state = tuple(
-                    int(inttext.v_model)
-                    for inttext in self.settings["Transitions"][
-                        "initial_state_inttexts"
-                    ]
-                )
-            else:
-                initial_state = int(
-                    self.settings["Transitions"]["initial_dressed_inttext"].v_model
-                )
-
-            subsys_name_tuple = self.settings["Transitions"][
-                "highlight_selectmultiple"
-            ].v_model
-            subsys_list: list[QuantumSystem] | None
-            if subsys_name_tuple == ():
-                subsys_list = None
-            else:
-                subsys_list = [
-                    self.sweep.subsys_by_id_str(subsys_name)
-                    for subsys_name in subsys_name_tuple
-                ]
-
-            sidebands = self.settings["Transitions"]["sidebands_switch"].v_model
-            photon_number = int(self.settings["Transitions"]["photons_inttext"].v_model)
-            return panels.display_transitions(
-                self.sweep,
-                photon_number,
-                subsys_list,  # type: ignore[arg-type]
-                initial_state,
-                sidebands,
-                param_slice,
-                fig_ax,
-            )
-        elif plot_id.plot_type is PlotType.SELF_KERR:
+        if plot_id.plot_type is PlotType.SELF_KERR:
             if self.settings[plot_id]:  # has settings, so must be qubit-mode self-Kerr
                 ui_state_selection = self.settings[plot_id][0]
                 which = ui_state_selection.v_model

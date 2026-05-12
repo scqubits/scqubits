@@ -19,6 +19,9 @@ from scqubits.explorer.explorer_internals.matrix_element_sweep import (
 from scqubits.explorer.explorer_internals.matrix_elements import (
     MatrixElementsPanelBuilder,
 )
+from scqubits.explorer.explorer_internals.transitions import (
+    TransitionsPanelBuilder,
+)
 from scqubits.explorer.explorer_internals.wavefunctions import (
     WavefunctionsPanelBuilder,
 )
@@ -31,6 +34,7 @@ __all__ = [
     "EnergySpectrumPanelBuilder",
     "MatrixElementsPanelBuilder",
     "MatrixElementSweepPanelBuilder",
+    "TransitionsPanelBuilder",
     "WavefunctionsPanelBuilder",
 ]
 
@@ -45,4 +49,5 @@ PANEL_BUILDERS: dict[PlotType, type[PanelBuilder]] = {
     PlotType.MATRIX_ELEMENTS: MatrixElementsPanelBuilder,
     PlotType.MATRIX_ELEMENT_SCAN: MatrixElementSweepPanelBuilder,
     PlotType.ANHARMONICITY: AnharmonicityPanelBuilder,
+    PlotType.TRANSITIONS: TransitionsPanelBuilder,
 }

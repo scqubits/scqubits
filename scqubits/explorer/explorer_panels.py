@@ -39,49 +39,6 @@ if TYPE_CHECKING:
 
 
 @rc_context(matplotlib_settings)
-def display_transitions(
-    sweep: "ParameterSweep",
-    photon_number: int,
-    subsys_list: list["QuantumSystem"],
-    initial: int | tuple[int, ...],
-    sidebands: bool,
-    param_slice: "ParameterSlice",
-    fig_ax: tuple[Figure, Axes],
-) -> tuple[Figure, Axes]:
-    if photon_number == 1:
-        title = r"Transition Spectrum"
-    else:
-        title = r"{}-photon Transitions".format(photon_number)
-    sliced_sweep = sweep if param_slice.fixed == tuple() else sweep[param_slice.fixed]
-    fig, axes = sliced_sweep.plot_transitions(
-        subsystems=subsys_list,
-        initial=initial,
-        photon_number=photon_number,
-        title=title,
-        sidebands=sidebands,
-        fig_ax=fig_ax,
-    )
-    axes.axvline(param_slice.param_val, color="gray", linestyle=":")
-
-    info_string = "Highlighted: transitions for "
-    for sys in subsys_list:
-        info_string += sys.id_str + ", "
-    info_string += "with sidebands" if sidebands else "no sidebands"
-    axes.text(
-        0.5,
-        1.05,
-        info_string,
-        fontsize=9,
-        fontweight=300,
-        horizontalalignment="center",
-        verticalalignment="bottom",
-        transform=axes.transAxes,
-    )
-
-    return fig, axes
-
-
-@rc_context(matplotlib_settings)
 def display_cross_kerr(
     sweep: "ParameterSweep",
     subsys1: "QuantumSystem",
