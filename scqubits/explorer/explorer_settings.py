@@ -111,34 +111,6 @@ class ExplorerSettings:
         subsys: Any = plot_id.subsystems
         plot_type = plot_id.plot_type
 
-        if plot_type is PlotType.WAVEFUNCTIONS:
-            subsys = subsys[0]
-            if isinstance(
-                subsys, (scq.FluxQubit, scq.ZeroPi, scq.Cos2PhiQubit)  # scq.Bifluxon
-            ):
-                ui_wavefunction_selector = ui.InitializedSelect(
-                    label="Display wavefunctions",
-                    items=list(range(subsys.truncated_dim)),
-                    v_model=0,
-                )
-            else:
-                ui_wavefunction_selector = ui.InitializedSelect(
-                    label="Display wavefunctions",
-                    multiple=True,
-                    items=list(range(subsys.truncated_dim)),
-                    v_model=list(range(subsys.truncated_dim)),
-                )
-            ui_mode_dropdown = ui.InitializedSelect(
-                items=mode_dropdown_list,
-                v_model=mode_dropdown_list[0],
-                label="Plot amplitude as",
-            )
-            ui_wavefunction_selector.observe(
-                self.explorer.update_plots, names="v_model"
-            )
-            ui_mode_dropdown.observe(self.explorer.update_plots, names="v_model")
-            return [ui_wavefunction_selector, ui_mode_dropdown]
-
         if plot_type is PlotType.MATRIX_ELEMENTS:
             subsys = subsys[0]
             ui_mode_dropdown = ui.InitializedSelect(

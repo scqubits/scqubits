@@ -150,30 +150,6 @@ def display_matrixelement_sweep(
 
 
 @rc_context(matplotlib_settings)
-def display_bare_wavefunctions(
-    sweep: "ParameterSweep",
-    subsys: "QubitBaseClass",
-    param_slice: "ParameterSlice",
-    fig_ax: tuple[Figure, Axes],
-    mode="real",
-    which=-1,
-) -> tuple[Figure, Axes]:
-    subsys_index = sweep.get_subsys_index(subsys)
-
-    evals = sweep["bare_evals"][subsys_index][param_slice.all]
-    evecs = sweep["bare_evecs"][subsys_index][param_slice.all]
-
-    settings.DISPATCH_ENABLED = False
-    sweep._update_hilbertspace(sweep, *param_slice.all_values)
-    settings.DISPATCH_ENABLED = True
-
-    title = "Wavefunctions: {}".format(subsys.id_str)
-    return subsys.plot_wavefunction(  # type: ignore[attr-defined]
-        which=which, esys=(evals, evecs), mode=mode, title=title, fig_ax=fig_ax
-    )
-
-
-@rc_context(matplotlib_settings)
 def display_transitions(
     sweep: "ParameterSweep",
     photon_number: int,

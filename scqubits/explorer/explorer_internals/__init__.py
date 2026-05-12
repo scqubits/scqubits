@@ -10,12 +10,16 @@ from scqubits.explorer.explorer_internals._base import PanelBuilder
 from scqubits.explorer.explorer_internals.energy_spectrum import (
     EnergySpectrumPanelBuilder,
 )
+from scqubits.explorer.explorer_internals.wavefunctions import (
+    WavefunctionsPanelBuilder,
+)
 from scqubits.ui.gui_defaults import PlotType
 
 __all__ = [
     "PANEL_BUILDERS",
     "PanelBuilder",
     "EnergySpectrumPanelBuilder",
+    "WavefunctionsPanelBuilder",
 ]
 
 # Registry: every ``PlotType`` value gets one entry as plot types are
@@ -25,4 +29,5 @@ __all__ = [
 # legacy chain for any ``PlotType`` not present here.
 PANEL_BUILDERS: dict[PlotType, type[PanelBuilder]] = {
     PlotType.ENERGY_SPECTRUM: EnergySpectrumPanelBuilder,
+    PlotType.WAVEFUNCTIONS: WavefunctionsPanelBuilder,
 }
