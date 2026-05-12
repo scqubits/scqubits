@@ -386,19 +386,7 @@ class Explorer:
         if builder_cls is not None:
             return builder_cls().build_panel(self, plot_id, param_slice, fig_ax)
 
-        if plot_id.plot_type is PlotType.MATRIX_ELEMENT_SCAN and isinstance(
-            plot_id.subsystems[0], QubitBaseClass
-        ):
-            ui_mode_dropdown, opname_dropdown = self.settings[plot_id]
-            return panels.display_matrixelement_sweep(
-                sweep=self.sweep,
-                subsys=plot_id.subsystems[0],
-                operator_name=opname_dropdown.v_model,
-                mode_str=mode_dropdown_dict[ui_mode_dropdown.v_model],
-                param_slice=param_slice,
-                fig_ax=fig_ax,
-            )
-        elif plot_id.plot_type is PlotType.ANHARMONICITY:
+        if plot_id.plot_type is PlotType.ANHARMONICITY:
             return panels.display_anharmonicity(
                 self.sweep,
                 plot_id.subsystems[0],  # type: ignore[arg-type]

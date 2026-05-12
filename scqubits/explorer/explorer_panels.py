@@ -61,54 +61,6 @@ def display_anharmonicity(
 
 
 @rc_context(matplotlib_settings)
-def display_matrixelement_sweep(
-    sweep: "ParameterSweep",
-    operator_name: str,
-    subsys: "QubitBaseClass",
-    param_slice: "ParameterSlice",
-    mode_str: str,
-    fig_ax: tuple[Figure, Axes],
-) -> tuple[Figure, Axes]:
-    subsys_index = sweep.get_subsys_index(subsys)
-    evals = sweep["bare_evals"][subsys_index][param_slice.fixed]
-    evecs = sweep["bare_evecs"][subsys_index][param_slice.fixed]
-
-    fig, axes = fig_ax
-    axes.cla()
-
-    param_name = param_slice.param_name
-    param_vals = sweep.param_info[param_name]
-    paramvals_count = len(param_vals)
-
-    specdata = SpectrumData(
-        evals,
-        {},
-        param_slice.param_name,
-        param_vals,
-        state_table=evecs,
-    )
-
-    matelem_table = np.empty(
-        shape=(paramvals_count, subsys.truncated_dim, subsys.truncated_dim),
-        dtype=np.complex128,
-    )
-    for index, paramval in enumerate(param_vals):
-        evecs = specdata.state_table[index]  # type: ignore[index]
-        matelem_table[index] = subsys.matrixelement_table(
-            operator_name, evecs=evecs, evals_count=subsys.truncated_dim
-        )
-
-    specdata.matrixelem_table = matelem_table
-
-    title = f"{subsys.id_str}: matrix elements (sweep)"
-    fig, axes = plot.matelem_vs_paramvals(
-        specdata, mode=mode_str, fig_ax=fig_ax, title=title
-    )
-    axes.axvline(param_slice.param_val, color="gray", linestyle=":")
-    return fig, axes
-
-
-@rc_context(matplotlib_settings)
 def display_transitions(
     sweep: "ParameterSweep",
     photon_number: int,
