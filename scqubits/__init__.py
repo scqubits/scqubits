@@ -100,7 +100,7 @@ from scqubits.utils.spectrum_utils import identity_wrap
 # avoid circular import issues. The isort markers below preserve this
 # ordering — do not remove.
 # isort: off
-from scqubits.core.circuit import Circuit
+from scqubits.core.circuit import Circuit, ConfigureError
 from scqubits.core.circuit_internals.utils import truncation_template
 from scqubits.core.circuit_internals.yaml_assembly import (
     assemble_circuit,

@@ -91,7 +91,7 @@ class NoisyCircuit(NoisySystem, ABC):
             if not is_string_float(Q_str):  # type: ignore[arg-type]
 
                 def Q_func(omega, T):
-                    return eval(Q_str)
+                    return eval(Q_str, {"__builtins__": {}}, {"omega": omega, "T": T})
 
                 return Q_func
             else:
@@ -174,7 +174,7 @@ class NoisyCircuit(NoisySystem, ABC):
                 ng_1_over_f_methods[
                     f"d_hamiltonian_d_ng{get_trailing_number(param_sym.name)}"
                 ] = param_derivative
-        ## cc noise methods
+        # cc noise methods
         junction_branches = [branch for branch in self.branches if "JJ" in branch.type]
         for idx, branch in enumerate(junction_branches):
 
@@ -370,54 +370,18 @@ class NoisyCircuit(NoisySystem, ABC):
         return tphi_1_over_f_func
 
     def _generate_tphi_1_over_f_methods(self):
-        """Generate ``tphi_1_over_f_*`` dephasing methods on the instance.
+        """Bind ``tphi_1_over_f_{flux,ng,cc}{idx}`` methods on the instance.
 
-        This function is a dynamic method generator, crafting methods for
-        calculating the 1/f dephasing time (or rate) due to different types of
-        noise in the quantum circuit. The generated methods are named
-        ``tphi_1_over_f_{noise_type}{index}``, where ``noise_type`` can be
-        ``'cc'``, ``'ng'``, or ``'flux'``, and ``index`` differentiates
-        individual noise sources.
-
-        external_fluxes :
-            A collection of symbols representing external fluxes in the circuit.
-        offset_charges :
-            A collection of symbols representing offset charges in the circuit.
-        branches :
-            A collection of branches in the circuit.
-
-        Notes
-        -----
-        1. Identifies the branches in the circuit that are junctions (indicated
-           by ``"JJ"`` in the branch type).
-        2. Initializes dictionaries to store the generated methods for each
-           type of noise.
-        3. Iterates over the external fluxes, offset charges, and junction
-           branches in the circuit.
-        4. Depending on the type of parameter (external flux, offset charge, or
-           junction branch), it determines the type of noise and the function
-           to differentiate the Hamiltonian with respect to the parameter.
-        5. If the parameter is an expression, it extracts the trailing number
-           from the parameter name and uses it to get the appropriate
-           differentiation function from the current instance.
-        6. If the parameter is a junction branch, it uses the branch's ID
-           string as the trailing number and gets the appropriate
-           differentiation function from the current instance.
-        7. Defines a function ``tphi_1_over_f_func`` that calculates the 1/f
-           dephasing time (or rate) for the current parameter. This function
-           invokes the differentiation function to generate the noise operator,
-           converts the noise operator to a sparse matrix if necessary, and
-           then calls the ``tphi_1_over_f`` method of the current instance to
-           calculate the 1/f dephasing time (or rate).
-        8. Adds the ``tphi_1_over_f_func`` function to the appropriate
-           dictionary, depending on the type of parameter.
-        9. Merges the dictionaries into a single dictionary ``noise_methods``.
-        10. Iterates over the ``noise_methods`` dictionary and adds each method
-            as an attribute of the current instance.
-
-        This function does not return anything; it modifies the current instance
-        by adding the 1/f dephasing time (or rate) calculation methods as
-        attributes.
+        For each external flux, offset charge, and Josephson-junction
+        branch in the circuit, install a per-source 1/f dephasing
+        method on this instance via :meth:`_register_noise_method`.
+        Each generated method computes the 1/f dephasing time (or rate)
+        from the appropriate Hamiltonian derivative —
+        ``d_hamiltonian_d_flux`` / ``d_hamiltonian_d_ng`` /
+        ``d_hamiltonian_d_EJ`` — and delegates the rate evaluation to
+        ``tphi_1_over_f``. The ``{idx}`` suffix is the parameter's
+        trailing index (e.g. ``Φ1`` → ``flux1``, ``ng2`` → ``ng2``) or
+        the branch index for junctions.
         """
         # calculating the rates from each of the flux sources
         junction_branches = [branch for branch in self.branches if "JJ" in branch.type]
@@ -468,52 +432,14 @@ class NoisyCircuit(NoisySystem, ABC):
             )
 
     def _generate_overall_tphi_cc(self):
-        """Generate the overall ``tphi_1_over_f_cc`` method on the instance.
+        """Bind a combined ``tphi_1_over_f_cc`` method on the instance.
 
-        This function calculates the overall dephasing time (Tphi) due to 1/f
-        critical current (cc) noise in the quantum circuit.
-
-        Steps
-        -----
-        1. Checks if there are any existing methods for calculating Tphi due to
-           1/f cc noise. This is done by searching the methods of the current
-           instance for method names that match the pattern
-           ``"tphi_1_over_f_cc\\d+$"``. If such methods exist, the function
-           returns None and does not generate a new method.
-
-        2. Defines a new method ``tphi_1_over_f_cc`` for calculating the
-           overall Tphi due to 1/f cc noise. This method performs the following
-           steps:
-
-            a. Initializes an empty list ``tphi_times`` to store the Tphi
-               times for each junction branch in the circuit.
-
-            b. Iterates over the junction branches in the circuit. A junction
-               branch is a branch that represents a Josephson junction (JJ).
-
-            c. Calls the method for calculating Tphi due to 1/f cc noise for
-               the current junction branch. The method is an attribute of the
-               current instance that is named ``"tphi_1_over_f_cc"`` followed
-               by the ID string of the branch.
-
-            d. Appends the calculated Tphi time to the ``tphi_times`` list.
-
-            e. Calculates the total rate of dephasing by summing the
-               reciprocals of the Tphi times.
-
-            f. If the ``get_rate`` parameter is True, returns the total rate
-               of dephasing. Otherwise, returns the reciprocal of the total
-               rate (the overall Tphi time), or infinity if the total rate is
-               zero.
-
-        3. Adds the ``tphi_1_over_f_cc`` method as an attribute of the current
-           instance. This is done using the ``setattr`` function and the
-           ``MethodType`` class to bind the method to the current instance.
-
-        Notes
-        -----
-        This function does not return anything; it modifies the current
-        instance by adding the ``tphi_1_over_f_cc`` method as an attribute.
+        Only fires when at least one per-branch ``tphi_1_over_f_cc<idx>``
+        method has already been installed by
+        :meth:`_generate_tphi_1_over_f_methods`. The combined method
+        sums per-branch dephasing rates and returns either the combined
+        rate (``get_rate=True``) or the combined ``T_phi`` time
+        (reciprocal of the rate; ``+inf`` when the total rate is zero).
         """
         if not any([re.match(r"tphi_1_over_f_cc\d+$", method) for method in dir(self)]):
             return None
@@ -568,52 +494,14 @@ class NoisyCircuit(NoisySystem, ABC):
         )
 
     def _generate_overall_tphi_flux(self):
-        """Generate the overall ``tphi_1_over_f_flux`` method on the instance.
+        """Bind a combined ``tphi_1_over_f_flux`` method on the instance.
 
-        This function calculates the overall dephasing time (Tphi) due to 1/f
-        flux noise in the quantum circuit.
-
-        Steps
-        -----
-        1. Checks if there are any existing methods for calculating Tphi due
-           to 1/f flux noise. This is done by searching the methods of the
-           current instance for method names that match the pattern
-           ``"tphi_1_over_f_flux\\d+$"``. If such methods exist, the function
-           returns None and does not generate a new method.
-
-        2. Defines a new method ``tphi_1_over_f_flux`` for calculating the
-           overall Tphi due to 1/f flux noise. This method performs the
-           following steps:
-
-            a. Initializes an empty list ``tphi_times`` to store the Tphi
-               times for each external flux in the circuit.
-
-            b. Iterates over the external fluxes in the circuit.
-
-            c. Calls the method for calculating Tphi due to 1/f flux noise for
-               the current external flux. The method is an attribute of the
-               current instance that is named ``"tphi_1_over_f_flux"`` followed
-               by the trailing number in the name of the flux.
-
-            d. Appends the calculated Tphi time to the ``tphi_times`` list.
-
-            e. Calculates the total rate of dephasing by summing the
-               reciprocals of the Tphi times.
-
-            f. If the ``get_rate`` parameter is True, returns the total rate
-               of dephasing. Otherwise, returns the reciprocal of the total
-               rate (the overall Tphi time), or infinity if the total rate is
-               zero.
-
-        3. Adds the ``tphi_1_over_f_flux`` method as an attribute of the
-           current instance. This is done using the ``setattr`` function and
-           the ``MethodType`` class to bind the method to the current
-           instance.
-
-        Notes
-        -----
-        This function does not return anything; it modifies the current
-        instance by adding the ``tphi_1_over_f_flux`` method as an attribute.
+        Only fires when at least one per-flux ``tphi_1_over_f_flux<idx>``
+        method has already been installed by
+        :meth:`_generate_tphi_1_over_f_methods`. The combined method
+        sums per-flux dephasing rates and returns either the combined
+        rate (``get_rate=True``) or the combined ``T_phi`` time
+        (reciprocal of the rate; ``+inf`` when the total rate is zero).
         """
         if not any(
             [re.match(r"tphi_1_over_f_flux\d+$", method) for method in dir(self)]
@@ -671,55 +559,15 @@ class NoisyCircuit(NoisySystem, ABC):
         )
 
     def _generate_overall_tphi_ng(self):
-        """Generate the overall ``tphi_1_over_f_ng`` method on the instance.
+        """Bind a combined ``tphi_1_over_f_ng`` method on the instance.
 
-        Overall Dephasing Time (Tphi) Calculator due to 1/f Flux Noise
-        --------------------------------------------------------------
-
-        This function calculates the overall dephasing time (Tphi) due to 1/f
-        flux noise in the quantum circuit.
-
-        Steps
-        -----
-        1. Checks if there are any existing methods for calculating Tphi due
-           to 1/f flux noise. This is done by searching the methods of the
-           current instance for method names that match the pattern
-           ``"tphi_1_over_f_flux\\d+$"``. If such methods exist, the function
-           returns None and does not generate a new method.
-
-        2. Defines a new method ``tphi_1_over_f_flux`` for calculating the
-           overall Tphi due to 1/f flux noise. This method performs the
-           following steps:
-
-            a. Initializes an empty list ``tphi_times`` to store the Tphi
-               times for each external flux in the circuit.
-
-            b. Iterates over the external fluxes in the circuit.
-
-            c. Calls the method for calculating Tphi due to 1/f flux noise for
-               the current external flux. The method is an attribute of the
-               current instance that is named ``"tphi_1_over_f_flux"`` followed
-               by the trailing number in the name of the flux.
-
-            d. Appends the calculated Tphi time to the ``tphi_times`` list.
-
-            e. Calculates the total rate of dephasing by summing the
-               reciprocals of the Tphi times.
-
-            f. If the ``get_rate`` parameter is True, returns the total rate
-               of dephasing. Otherwise, returns the reciprocal of the total
-               rate (the overall Tphi time), or infinity if the total rate is
-               zero.
-
-        3. Adds the ``tphi_1_over_f_flux`` method as an attribute of the
-           current instance. This is done using the ``setattr`` function and
-           the ``MethodType`` class to bind the method to the current
-           instance.
-
-        Notes
-        -----
-        This function does not return anything; it modifies the current
-        instance by adding the ``tphi_1_over_f_flux`` method as an attribute.
+        Only fires when at least one per-offset-charge
+        ``tphi_1_over_f_ng<idx>`` method has already been installed by
+        :meth:`_generate_tphi_1_over_f_methods`. The combined method
+        sums per-offset-charge dephasing rates and returns either the
+        combined rate (``get_rate=True``) or the combined ``T_phi``
+        time (reciprocal of the rate; ``+inf`` when the total rate is
+        zero).
         """
         if not any([re.match(r"tphi_1_over_f_ng\d+$", method) for method in dir(self)]):
             return None

@@ -20,9 +20,7 @@ Five helpers populate the ``replacement_dict`` passed to :func:`eval`:
 - ``matrix_power_sparse`` — dense-in, sparse-out matrix power
 
 The dispatcher selects between the sparse and dense variants based on the
-circuit's ``type_of_matrices`` setting. (B5 plans to replace this
-``eval``-driven dispatch with ``sympy.lambdify``, at which point this
-module disappears.)
+circuit's ``type_of_matrices`` setting.
 """
 
 from __future__ import annotations

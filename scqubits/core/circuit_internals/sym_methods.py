@@ -139,7 +139,6 @@ class CircuitSymMethods(ABC, CircuitProtocol):
         )
         return periodic_var_indices, extended_var_indices, phase_var_indices
 
-    # @staticmethod
     def _is_expression_purely_harmonic(self, hamiltonian: sm.Expr) -> bool:
         """Check if the Hamiltonian is purely harmonic.
 
@@ -659,7 +658,7 @@ class CircuitSymMethods(ABC, CircuitProtocol):
         """Harmonic-basis rendering: ``X**n`` -> ``matrix_power(X, n)`` and ``*`` -> ``@``."""
         term_string = self._rewrite_powers_as_matrix_power(str(term))
         if len(term.free_symbols) > 1:
-            term_string = re.sub(r"(?<=[^*])\*(?!\*)", "@", term_string, re.MULTILINE)
+            term_string = re.sub(r"(?<=[^*])\*(?!\*)", "@", term_string)
         return term_string
 
     def _rewrite_powers_as_matrix_power(self, term_string: str) -> str:
@@ -1066,9 +1065,6 @@ class CircuitSymMethods(ABC, CircuitProtocol):
         """
         expr_modified = expr
         # rounding the decimals in the coefficients
-        # citation:
-        # https://stackoverflow.com/questions/43804701/round-floats-within-an-expression
-        # accepted answer
         for term in sm.preorder_traversal(expr):
             if isinstance(term, sm.Float):
                 expr_modified = expr_modified.subs(term, round(term, float_round))

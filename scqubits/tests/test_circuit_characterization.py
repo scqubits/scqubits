@@ -1,8 +1,8 @@
 # test_circuit_characterization.py
 # meant to be run with 'pytest'
 #
-# Pin the numerical and lifecycle behaviour of ``Circuit`` against committed
-# golden ``.npy`` fixtures so behaviour-preserving refactors of the
+# Pin the numerical and lifecycle behavior of ``Circuit`` against committed
+# golden ``.npy`` fixtures so behavior-preserving refactors of the
 # ``circuit_internals`` mixins (Tier 5b and beyond) can be verified without
 # reasoning about every internal call path.
 #
@@ -27,7 +27,11 @@ import scipy.sparse as sparse
 
 import scqubits as scq
 
-GOLDENS_DIR = Path(__file__).parent / "characterization_goldens"
+# Resolve via the installed package, matching the ``TESTDIR/DATADIR``
+# pattern used by ``test_circuit.py``: robust under both editable installs
+# (``__file__`` happens to coincide with the source) and non-editable
+# installs where the test files may live under ``site-packages``.
+GOLDENS_DIR = Path(scq.__file__).parent / "tests" / "characterization_goldens"
 REGEN = os.environ.get("SCQUBITS_REGENERATE_GOLDENS") == "1"
 
 # Tolerances calibrated for cross-platform numerical noise (Intel MKL vs.
@@ -72,7 +76,7 @@ COS2PHI_YAML = """branches:
 """
 
 # Non-grounded LC + JJ between nodes 1 and 2 — exercises the sigma-mode
-# centre-of-mass allocation that grounded fixtures never trigger.
+# center-of-mass allocation that grounded fixtures never trigger.
 UNGROUNDED_YAML = """branches:
 - [JJ, 1, 2, EJ=12, ECJ=18]
 - [L, 1, 2, EL=0.015]
@@ -98,7 +102,7 @@ JJ2_YAML = """branches:
 """
 
 
-# Cutoffs deliberately minimised: characterization tests pin behaviour with
+# Cutoffs deliberately minimized: characterization tests pin behavior with
 # small reproducible matrices, not production-scale spectra. Keeping the
 # resulting golden ``.npy`` files small enough to commit (each < ~150 KB
 # with these settings).

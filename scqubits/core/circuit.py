@@ -78,8 +78,12 @@ ExtBasisChoice = Literal["discretized", "harmonic"]
 VarCategoryKey = Literal["periodic", "extended", "free", "frozen", "sigma"]
 
 
+class _FromFileUnsetType:
+    """Sentinel type for the ``from_file`` parameter default (see :data:`_FROM_FILE_UNSET`)."""
+
+
 # Sentinel: caller did not pass ``from_file`` explicitly.
-_FROM_FILE_UNSET: Any = object()
+_FROM_FILE_UNSET: _FromFileUnsetType = _FromFileUnsetType()
 
 
 class ConfigureError(RuntimeError):
@@ -453,7 +457,7 @@ class Circuit(  # type: ignore[misc]
     def __init__(
         self,
         input_string: str | None = None,
-        from_file: Any = _FROM_FILE_UNSET,
+        from_file: bool | _FromFileUnsetType = _FROM_FILE_UNSET,
         basis_completion: str = "heuristic",
         ext_basis: ExtBasisChoice = "discretized",
         use_dynamic_flux_grouping: bool = False,
@@ -477,6 +481,7 @@ class Circuit(  # type: ignore[misc]
                 DeprecationWarning,
                 stacklevel=2,
             )
+        assert isinstance(from_file, bool)
         # switch used in protecting the class from erroneous addition of new attributes
         object.__setattr__(self, "_frozen", False)
         base.QubitBaseClass.__init__(
@@ -970,6 +975,13 @@ class Circuit(  # type: ignore[misc]
 
         Raises
         ------
+        ValueError
+            When called on an instance constructed via
+            ``Circuit(symbolic_hamiltonian=...)`` with any of
+            ``closure_branches``, ``transformation_matrix``,
+            ``use_dynamic_flux_grouping``, or ``generate_noise_methods``
+            supplied. Raised by a pre-flight check before any state snapshot,
+            so no rollback is performed.
         ConfigureError
             When configuration fails — for example when ``system_hierarchy``
             is set without ``subsystem_trunc_dims``, or when
@@ -1406,6 +1418,17 @@ class Circuit(  # type: ignore[misc]
         :meth:`~scqubits.core.circuit_internals.noise.NoisyCircuit.channels`)
         rather than walking ``self.__dict__`` and matching names by
         substring.
+
+        Raises
+        ------
+        RuntimeError
+            When ``generate_noise_methods=True`` has not been passed to
+            :meth:`configure`; the absence of a populated noise-channel
+            registry is treated as a usage error at this layer. For
+            non-raising introspection of the registry contents (which
+            returns an empty mapping in the same state), use
+            :meth:`~scqubits.core.circuit_internals.noise.NoisyCircuit.channels`
+            instead.
         """
         if not hasattr(self, "_noise_methods_generated"):
             raise RuntimeError(
@@ -1558,7 +1581,10 @@ class Circuit(  # type: ignore[misc]
         if return_expr:
             warnings.warn(
                 "The `return_expr=True` flag is deprecated; "
-                "use `sym_lagrangian_expr(...)` instead.",
+                "use `sym_lagrangian_expr(...)` instead. Note that "
+                "`sym_lagrangian_expr` does not honor `print_latex`; "
+                "for the LaTeX print side-effect call `sym_lagrangian` "
+                "without `return_expr`.",
                 DeprecationWarning,
                 stacklevel=2,
             )

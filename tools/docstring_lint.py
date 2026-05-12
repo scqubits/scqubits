@@ -164,10 +164,6 @@ _SECTION_HEADERS = (
     "Attributes",
     "Methods",
 )
-_SECTION_HEADER_RE = re.compile(
-    rf"^(\s*)(?P<name>{'|'.join(_SECTION_HEADERS)})\s*\n(?P=name)?\s*-{{3,}}\s*$",
-    re.MULTILINE,
-)
 
 
 def _iter_numpydoc_sections(

@@ -1148,20 +1148,24 @@ class SymbolicCircuitGraph(ABC):
     def _adjacency_for_spanning_tree_dict(
         self, tree_info_dict: dict[str, list]
     ) -> "_AdjacencyIndex":
-        """Return a cached :class:`_AdjacencyIndex` keyed by ``id(tree_info_dict)``.
+        """Return a cached :class:`_AdjacencyIndex` keyed by dict identity.
 
         ``_find_path_to_root`` and ``_find_loop`` are called repeatedly
         against the same ``self.spanning_tree_dict`` (e.g. once per
         closure branch in :meth:`_time_dependent_flux_distribution`).
         Building the index is O(|nodes| + |branches|); caching it here
-        avoids rebuilding on every call.  The cache key is ``id`` of the
-        passed dict; passing a different dict transparently rebuilds.
+        avoids rebuilding on every call.  The cache holds a strong
+        reference to the dict it was built from, so an ``is`` comparison
+        is both correct and safe — id-recycling cannot produce a stale
+        hit because the previously-cached dict is kept alive by the
+        cache itself.
         """
-        cache_key = id(tree_info_dict)
         cached = getattr(self, "_adjacency_cache", None)
-        if cached is None or cached[0] != cache_key:
+        if cached is None or cached[0] is not tree_info_dict:
             adjacency = _AdjacencyIndex.from_spanning_tree_dict(tree_info_dict)
-            object.__setattr__(self, "_adjacency_cache", (cache_key, adjacency))
+            object.__setattr__(
+                self, "_adjacency_cache", (tree_info_dict, adjacency)
+            )
             return adjacency
         return cached[1]
 

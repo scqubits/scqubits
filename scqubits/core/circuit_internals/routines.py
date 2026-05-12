@@ -299,7 +299,6 @@ class CircuitRoutines(
     @staticmethod
     def default_params() -> dict[str, Any]:
         """Return an empty dict; concrete circuit subclasses have no defaults."""
-        # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
         return {}
 
     def cutoffs_dict(self) -> dict[int, int]:
@@ -520,7 +519,6 @@ class CircuitRoutines(
         Returns the matrix in sparse or dense version depending on the type of
         matrices used.
         """
-        #  all of this can be simplified.
         if sparse.issparse(matrix):
             if self.type_of_matrices == "sparse":
                 return matrix

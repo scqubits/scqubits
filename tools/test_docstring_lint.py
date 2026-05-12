@@ -487,8 +487,13 @@ def test_check_ids_are_unique() -> None:
 # ---------------------------------------------------------------------
 
 
-def _git(repo, *args):
-    """Run ``git`` in ``repo`` (a Path); raise on non-zero exit."""
+def _git_in(repo, *args):
+    """Run ``git`` in ``repo`` (a ``Path``); raise on non-zero exit.
+
+    Distinct from the production module's ``_git`` helper (which takes
+    ``cwd=`` keyword) — kept as a separate helper so the test scaffold
+    can build temp repos without coupling to the production signature.
+    """
     import subprocess
 
     subprocess.run(
@@ -505,16 +510,16 @@ def _make_two_commit_repo(tmp_path, base_text: str, head_text: str):
 
     repo = tmp_path / "repo"
     repo.mkdir()
-    _git(repo, "init", "-b", "main")
-    _git(repo, "config", "user.email", "test@example.invalid")
-    _git(repo, "config", "user.name", "Test")
+    _git_in(repo, "init", "-b", "main")
+    _git_in(repo, "config", "user.email", "test@example.invalid")
+    _git_in(repo, "config", "user.name", "Test")
     fpath = repo / "module.py"
     fpath.write_text(base_text, encoding="utf-8")
-    _git(repo, "add", "module.py")
-    _git(repo, "commit", "-m", "base")
+    _git_in(repo, "add", "module.py")
+    _git_in(repo, "commit", "-m", "base")
     fpath.write_text(head_text, encoding="utf-8")
-    _git(repo, "add", "module.py")
-    _git(repo, "commit", "-m", "head")
+    _git_in(repo, "add", "module.py")
+    _git_in(repo, "commit", "-m", "head")
     return repo, fpath
 
 

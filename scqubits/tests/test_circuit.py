@@ -416,12 +416,12 @@ class TestConfigureError:
 class TestClearUnnecessaryAttribs:
     """``_clear_unnecessary_attribs`` consults a registry, not name patterns.
 
-    The previous implementation matched attribute names by string
-    substring (``"cutoff_n_" in attrib`` etc.); a future per-variable
-    property kind whose name didn't match those patterns would have
-    silently leaked across reconfigurations. The registry-driven
-    implementation drops every name that ``_install_var_properties``
-    has installed but the current configuration no longer needs.
+    The contract: every per-variable attribute name installed by
+    ``_install_var_properties`` is recorded in ``self._dynamic_var_attribs``
+    and is dropped by ``_clear_unnecessary_attribs`` if the current
+    configuration no longer needs it. Substring-based name matching
+    would silently leak any new property kind whose name didn't match
+    the pattern; the registry has no such blind spot.
     """
 
     @staticmethod
@@ -439,8 +439,10 @@ class TestClearUnnecessaryAttribs:
     def test_registry_clears_arbitrary_dynamic_attribute(self):
         """A name in ``_dynamic_var_attribs`` but not in the necessary set is cleared."""
         circ = self._make_zero_pi()
-        # An arbitrary name not matching any common per-variable
-        # attribute pattern -- the registry must still clear it.
+        # Naming convention enforced by ``_clear_unnecessary_attribs``:
+        # the registry holds the public name (``"custom_kind_99"``) and
+        # the backing-store attribute is the same name with a leading
+        # underscore (``"_custom_kind_99"``).
         object.__setattr__(circ, "_custom_kind_99", 42)
         circ._dynamic_var_attribs.add("custom_kind_99")
 
@@ -470,14 +472,12 @@ class TestClearUnnecessaryAttribs:
 class TestRecomputationContract:
     """``SymbolicCircuit._STAGE2_ATTRIBUTES`` is the single source of truth
     for which attributes flow from stage 1 (symbolic) to stage 2 (numerical).
-    A fresh ``Circuit`` constructed from YAML must end up with every name in
-    that tuple set on the instance.
-
-    Regression net for the §17.3 maintenance pitfall: a contributor adding a
-    new attribute to ``SymbolicCircuit`` but forgetting to register it in
-    ``_STAGE2_ATTRIBUTES`` would either leave ``Circuit`` blind to it, or
-    rely on it via the wrong helper. This test fails loudly on any name in
-    the tuple that doesn't make it onto a fresh instance.
+    A fresh ``Circuit`` constructed from YAML must end up with every name
+    in that tuple set on the instance. The test fails loudly on any name
+    in the tuple that doesn't make it onto a fresh instance — a contributor
+    adding a new attribute to ``SymbolicCircuit`` but forgetting to register
+    it in ``_STAGE2_ATTRIBUTES`` would otherwise leave ``Circuit`` blind to
+    it, or rely on it via the wrong helper.
     """
 
     TRANSMON_YAML = "branches:\n" "- [JJ, 1, 2, EJ=10, ECJ=20]\n" "- [C, 1, 2, EC=2]\n"
@@ -642,16 +642,15 @@ class TestNoiseChannelsRegistry:
         assert any(name.startswith("tphi_1_over_f") for name in channels)
 
     def test_supported_noise_channels_matches_legacy_dict_walk(self):
-        """The new registry-driven ``supported_noise_channels()`` must
-        return the same set as the legacy implementation that walked
-        ``self.__dict__`` and substring-matched ``"t1_"`` / ``"tphi_1_over_f"``.
+        """The registry-driven ``supported_noise_channels()`` must return
+        the same set as a ``__dict__``-walk that substring-matches ``"t1_"``
+        / ``"tphi_1_over_f"`` against bound method names.
 
-        Without this parity check, a generator that fails to register
-        through ``_register_noise_method`` is silently dropped from
-        ``supported_noise_channels()`` and only an external observer
-        comparing to the legacy behaviour can notice — that's exactly
-        the regression mode the reviewer caught for
-        ``_generate_t1_flux_bias_line_methods`` in 7fa3901f.
+        Without this parity check, a generator that bypasses
+        ``_register_noise_method`` and calls ``setattr`` directly is
+        silently dropped from ``supported_noise_channels()`` while still
+        appearing in ``__dict__``: a divergence detectable only by an
+        external observer.
         """
         circ = self._make_fluxonium_with_noise()
         registry_names = sorted(circ.supported_noise_channels())
@@ -807,7 +806,7 @@ class TestVariableTransformationMatrixClassification:
         new_basis, Σ, free_modes, periodic_modes, frozen_modes, is_grounded
     ):
         """Reference 5-comprehension cascade implementation; used to
-        cross-check that the optimised single-pass partition produces
+        cross-check that the optimized single-pass partition produces
         identical output."""
         if not is_grounded:
             pos_Σ = [i for i in range(len(new_basis)) if new_basis[i].tolist() == Σ]
@@ -933,11 +932,10 @@ class TestVariableTransformationMatrixClassification:
 
 
 class TestFindPathToRootDFSRewrite:
-    """``_find_path_to_root`` is now O(depth) DFS via ``_AdjacencyIndex``,
-    not O(tree_size!) brute-force permutation enumeration.  The
-    spanning-tree path is unique (a tree has no cycles), so the DFS
-    answer is identical to what the legacy permutation search would
-    have returned."""
+    """``_find_path_to_root`` returns the unique path from a node to the
+    spanning-tree root in O(depth) time, computed by DFS against an
+    ``_AdjacencyIndex`` view of the tree. The path is unique because a
+    spanning tree has no cycles."""
 
     YAML = (
         "branches:\n"
@@ -1029,13 +1027,11 @@ class TestAdjacencyIndexCaching:
 
 
 class TestHeuristicBasisCompletionPerformance:
-    """The heuristic basis-completion in
-    ``_complete_basis_with_standard_vectors`` previously rank-tested every
-    permutation produced by ``itertools.permutations(vector_ref, n)``,
-    most of which were duplicates of vectors already rejected.  For a
-    10-node circuit this meant ~564 000 SVDs and ~26 s of construction.
-    The deduped variant rank-tests each distinct candidate at most
-    once."""
+    """``_complete_basis_with_standard_vectors`` enumerates at most one
+    rank-test per distinct candidate vector (``C(n, zeros_count)`` total
+    for an ``n``-node circuit), so heuristic basis completion remains
+    polynomial in the node count rather than scaling with the number of
+    duplicate permutations a naive enumeration would produce."""
 
     @staticmethod
     def _ten_node_chain_yaml() -> str:
@@ -1099,7 +1095,10 @@ class TestSymbolicCircuitFromYamlResourceHandling:
         path.write_text(self.BAD_YAML)
         from scqubits.core.symbolic_circuit import SymbolicCircuit
 
-        with pytest.raises(Exception):
+        # The ``match`` keyword pins the failure to "this YAML didn't parse".
+        # Without it the test would silently pass if the parser stopped
+        # raising on ``BAD_BRANCH_TYPE`` for some other reason in the future.
+        with pytest.raises(Exception, match="BAD"):
             SymbolicCircuit.from_yaml(str(path), from_file=True)
         # If the handle leaks (Windows-specific), unlink will fail with
         # PermissionError. The ``with`` block in from_yaml prevents that.

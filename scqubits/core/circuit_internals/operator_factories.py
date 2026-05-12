@@ -86,28 +86,21 @@ def make_hierarchical_diag_method(symbol_name: str) -> Callable:
     def operator_func(
         self: "Subsystem", energy_esys: bool | tuple[ndarray, ndarray] = False
     ):
-        """Returns the operator <op_name> (corresponds to the name of the method
-        "<op_name>_operator") for the Circuit/Subsystem instance.
-
-        Parameters
-        ----------
-        energy_esys:
-            If `False` (default), returns charge operator n in the charge basis.
-            If `True`, energy eigenspectrum is computed, returns charge operator n in the energy eigenbasis.
-            If `energy_esys = esys`, where `esys` is a tuple containing two ndarrays (eigenvalues and energy
-            eigenvectors), returns charge operator n in the energy eigenbasis, and does not have to recalculate the
-            eigenspectrum.
-
-        Returns
-        -------
-            Returns the operator <op_name>(corresponds to the name of the method "<op_name>_operator").
-            For `energy_esys=True`, n has dimensions of :attr:`truncated_dim` x :attr:`truncated_dim`.
-            If an actual eigensystem is handed to `energy_sys`, then `n` has dimensions of m x m,
-            where m is the number of given eigenvectors.
-        """
         native = Qobj_to_scipy_csc_matrix(self.get_operator_by_name(symbol_name))
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
+    operator_func.__doc__ = (
+        f"Return the ``{symbol_name}`` operator for this "
+        "hierarchically diagonalized subsystem.\n\n"
+        "Parameters\n"
+        "----------\n"
+        "energy_esys:\n"
+        "    ``False`` (default) returns the operator in the native basis.\n"
+        "    ``True`` computes the eigenspectrum and returns the operator\n"
+        "    in the energy eigenbasis. A pre-computed ``(evals, evecs)``\n"
+        "    tuple may be passed to avoid recomputation; the operator is\n"
+        "    then returned in that supplied eigenbasis.\n"
+    )
     return operator_func
 
 
@@ -142,32 +135,13 @@ def make_basis_operator_method(
     def operator_func(
         self: "Subsystem", energy_esys: bool | tuple[ndarray, ndarray] = False
     ):
-        """Returns the operator <op_name> (corresponds to the name of the method
-        "<op_name>_operator") for the Circuit/Subsystem instance.
-
-        Parameters
-        ----------
-        energy_esys:
-            If `False` (default), returns charge operator n in the charge basis.
-            If `True`, energy eigenspectrum is computed, returns charge operator n in the energy eigenbasis.
-            If `energy_esys = esys`, where `esys` is a tuple containing two ndarrays (eigenvalues and energy
-            eigenvectors), returns charge operator n in the energy eigenbasis, and does not have to recalculate the
-            eigenspectrum.
-
-        Returns
-        -------
-            Returns the operator <op_name>(corresponds to the name of the method "<op_name>_operator").
-            For `energy_esys=True`, n has dimensions of :attr:`truncated_dim` x :attr:`truncated_dim`.
-            If an actual eigensystem is handed to `energy_sys`, then `n` has dimensions of m x m,
-            where m is the number of given eigenvectors.
-        """
         prefactor = None
         if self.ext_basis == "harmonic":
             if op_type in ["position", "sin", "cos"]:
                 prefactor = self.osc_lengths[index] / (2**0.5)
             elif op_type == "momentum":
                 prefactor = 1 / (self.osc_lengths[index] * 2**0.5)
-        if prefactor:
+        if prefactor is not None:
             native = self._kron_operator(
                 inner_op(self.cutoffs_dict()[index], prefactor=prefactor), index
             )
@@ -175,4 +149,16 @@ def make_basis_operator_method(
             native = self._kron_operator(inner_op(self.cutoffs_dict()[index]), index)
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
+    op_label = op_type if op_type is not None else inner_op.__name__
+    operator_func.__doc__ = (
+        f"Return the ``{op_label}`` operator for variable index {index}.\n\n"
+        "Parameters\n"
+        "----------\n"
+        "energy_esys:\n"
+        "    ``False`` (default) returns the operator in the native basis.\n"
+        "    ``True`` computes the eigenspectrum and returns the operator\n"
+        "    in the energy eigenbasis. A pre-computed ``(evals, evecs)``\n"
+        "    tuple may be passed to avoid recomputation; the operator is\n"
+        "    then returned in that supplied eigenbasis.\n"
+    )
     return operator_func

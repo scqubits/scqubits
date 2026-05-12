@@ -5,4 +5,13 @@
 # imports keep working. Will be removed in a future major release.
 """Backward-compatibility shim; see ``scqubits.core.circuit_internals.utils``."""
 
-from scqubits.core.circuit_internals.utils import *  # noqa: F401, F403
+import warnings
+
+warnings.warn(
+    "scqubits.core.circuit_utils is deprecated; import from "
+    "scqubits.core.circuit_internals.utils instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
+from scqubits.core.circuit_internals.utils import *  # noqa: E402, F401, F403

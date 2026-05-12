@@ -392,11 +392,7 @@ class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
 
         if var_basis == "periodic":
             # Periodic-variable invariant: prefactor must be an integer (the
-            # diagonal offset of the resulting dia_matrix). The commented-out
-            # check below documents the historical assertion.
-            # if abs(prefactor) != 1:
-            #     raise Exception("Prefactor for periodic variable should be 1.")
-            # if prefactor > 0:
+            # diagonal offset of the resulting dia_matrix).
             exp_i_theta = _exp_i_theta_operator(
                 self.cutoffs_dict()[var_index], int(prefactor)
             )
@@ -1051,7 +1047,10 @@ class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
         junction_potential_matrix = Qobj_to_scipy_csc_matrix(junction_potential_matrix)
 
         if H_LC_str:
-            return eval(H_LC_str, replacement_dict) + junction_potential_matrix
+            return (
+                eval(H_LC_str, {"__builtins__": {}}, replacement_dict)
+                + junction_potential_matrix
+            )
         else:
             return junction_potential_matrix
 
@@ -1136,7 +1135,9 @@ class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
             operator_dict[f"Q{var_index}"] = qt.Qobj(Q_operator)
             operator_dict[f"θ{var_index}"] = qt.Qobj(theta_operator)
         return self._sparsity_adaptive(
-            Qobj_to_scipy_csc_matrix(eval(str(hamiltonian), operator_dict))
+            Qobj_to_scipy_csc_matrix(
+                eval(str(hamiltonian), {"__builtins__": {}}, operator_dict)
+            )
         )
 
     def _eigenvals_for_purely_harmonic(self, evals_count: int):

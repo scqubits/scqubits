@@ -101,9 +101,7 @@ class CircuitPlot(ABC, CircuitProtocol):
             Variable indices that should still be resolved in their original
             basis after the recursion.
         """
-        U_subsys = subsystem.eigensys(evals_count=subsystem.truncated_dim)[
-            1
-        ]  # eigensys(evals_count=subsystem.truncated_dim)
+        U_subsys = subsystem.eigensys(evals_count=subsystem.truncated_dim)[1]
         wf_sublist = list(range(len(wf_reshaped.shape)))
         U_sublist = [wf_dim, len(wf_sublist)]
         target_sublist = wf_sublist.copy()
@@ -534,7 +532,7 @@ class CircuitPlot(ABC, CircuitProtocol):
         esys: tuple[ndarray, ndarray] | None = None,
         change_discrete_charge_to_phi: bool = True,
         zero_calibrate: bool = True,
-        grids_dict: dict[int, discretization.Grid1d] = {},
+        grids_dict: dict[int, discretization.Grid1d] | None = None,
         **kwargs,
     ) -> tuple[Figure, Axes]:
         """Plot the wavefunction in the requested variables.
@@ -579,10 +577,12 @@ class CircuitPlot(ABC, CircuitProtocol):
         -------
         ``(Figure, Axes)`` tuple for further editing.
         """
+        if not var_indices:
+            raise ValueError("Cannot plot wave function without any plotting axes.")
         if len(var_indices) > 2:
             raise ValueError(
-                "Cannot plot wave function in more than 2 dimensions. The number of "
-                "dimensions should be less than 2."
+                "Cannot plot wave function in more than 2 dimensions. "
+                "At most 2 plotting axes are supported."
             )
         var_indices = np.sort(var_indices)  # type: ignore[assignment]
         grids_per_varindex_dict = grids_dict or self.discretized_grids_dict_for_vars()
