@@ -12,9 +12,12 @@
 ############################################################################
 from __future__ import annotations
 
+import dataclasses
+
 import scqubits as scq
 
 from scqubits.explorer.explorer_internals import PANEL_BUILDERS, PanelBuilder
+from scqubits.explorer.explorer_internals._state import ExplorerUI
 from scqubits.explorer.explorer_widget import PlotID
 from scqubits.ui.gui_defaults import PlotType
 
@@ -98,3 +101,52 @@ def test_default_panel_selection_for_known_topologies():
     assert PlotID(PlotType.TRANSITIONS, [tmon, resonator]).is_default_active()
     assert not PlotID(PlotType.CROSS_KERR, [tmon, resonator]).is_default_active()
     assert not PlotID(PlotType.AC_STARK, [tmon, resonator]).is_default_active()
+
+
+_EXPECTED_EXPLORER_UI_FIELDS = frozenset(
+    {
+        "add_plot_dialog",
+        "sweep_param_dropdown",
+        "sweep_value_slider",
+        "param_sliders",
+        "param_sliders_container",
+        "fixed_param_sliders",
+        "top_bar",
+        "panel_switch_by_plot_id",
+        "panel_switches_by_subsys_name",
+        "panel_switches",
+    }
+)
+
+
+def test_explorer_ui_dataclass_fields():
+    """``ExplorerUI`` exposes every field the Explorer writes to during ``__init__``.
+
+    Catches silent drift between ``Explorer.__init__`` and the dataclass:
+    if someone adds a new ``self.ui.<foo> = ...`` assignment in
+    ``explorer_widget.py``, this test fails until ``foo`` is declared on
+    the dataclass.
+    """
+    actual = {f.name for f in dataclasses.fields(ExplorerUI)}
+    assert actual == _EXPECTED_EXPLORER_UI_FIELDS, (
+        f"ExplorerUI fields drifted from the expected set.\n"
+        f"  Missing from dataclass: {_EXPECTED_EXPLORER_UI_FIELDS - actual}\n"
+        f"  Unexpected on dataclass: {actual - _EXPECTED_EXPLORER_UI_FIELDS}"
+    )
+
+
+def test_explorer_ui_default_instance_is_empty():
+    """``ExplorerUI()`` constructs successfully with all-default values."""
+    ui = ExplorerUI()
+    for f in dataclasses.fields(ExplorerUI):
+        value = getattr(ui, f.name)
+        if f.name in {
+            "param_sliders",
+            "fixed_param_sliders",
+            "panel_switch_by_plot_id",
+            "panel_switches_by_subsys_name",
+            "panel_switches",
+        }:
+            assert value == {}, f"{f.name} default is not an empty dict"
+        else:
+            assert value is None, f"{f.name} default is not None"

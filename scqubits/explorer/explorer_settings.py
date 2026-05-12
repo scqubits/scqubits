@@ -60,7 +60,7 @@ class ExplorerSettings:
         self.ui["Transitions"] = {}
         self.ui["kerr"] = {}
 
-        for plot_id in self.explorer.ui["panel_switch_by_plot_id"].keys():
+        for plot_id in self.explorer.ui.panel_switch_by_plot_id.keys():
             self.ui[plot_id] = self.build_settings_ui(plot_id)
 
         self.ui["dialogs"] = {
@@ -84,7 +84,7 @@ class ExplorerSettings:
                     )
                 ],
             )
-            for plot_id in self.explorer.ui["panel_switch_by_plot_id"].keys()
+            for plot_id in self.explorer.ui.panel_switch_by_plot_id.keys()
         }
 
     def __getitem__(self, item):

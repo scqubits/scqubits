@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import itertools
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -29,6 +29,7 @@ import scqubits.ui.gui_defaults as gui_defaults
 from scqubits.core.param_sweep import ParameterSlice
 from scqubits.core.qubit_base import QuantumSystem
 from scqubits.explorer.explorer_internals import PANEL_BUILDERS
+from scqubits.explorer.explorer_internals._state import ExplorerUI
 from scqubits.explorer.explorer_settings import ExplorerSettings
 from scqubits.settings import matplotlib_settings
 from scqubits.ui.gui_defaults import (
@@ -143,22 +144,22 @@ class Explorer:
         self.subsys_names: list[str] = [subsys.id_str for subsys in self.subsystems]
 
         # == GUI elements =========================================================
-        self.ui: dict[str, Any] = {}
+        self.ui = ExplorerUI()
         self.build_panel_switches()
-        self.ui["add_plot_dialog"] = self.build_ui_add_plot_dialog()
+        self.ui.add_plot_dialog = self.build_ui_add_plot_dialog()
 
-        self.ui["sweep_param_dropdown"] = ui.InitializedSelect(
+        self.ui.sweep_param_dropdown = ui.InitializedSelect(
             class_="px-2",
             style_="max-width: 200px;",
             label="Active Sweep Parameter",
             items=list(self.sweep.param_info.keys()),
         )
-        self.ui["sweep_param_dropdown"].observe(
+        self.ui.sweep_param_dropdown.observe(
             self.update_parameter_sliders, names="v_model"
         )
 
-        # self.ui["sweep_value_slider"] = ui.DiscreteSetSlider(
-        #     param_name=self.ui["sweep_param_dropdown"].v_model,
+        # self.ui.sweep_value_slider = ui.DiscreteSetSlider(
+        #     param_name=self.ui.sweep_param_dropdown.v_model,
         #     param_vals=self.param_vals,
         #     filled=False,
         #     class_="px-3",
@@ -166,11 +167,11 @@ class Explorer:
         # )
         #
         #
-        # self.ui["sweep_value_slider"].observe(self.update_plots, names="v_model")
+        # self.ui.sweep_value_slider.observe(self.update_plots, names="v_model")
 
-        self.ui["param_sliders"] = self.create_sliders()
+        self.ui.param_sliders = self.create_sliders()
         self.update_parameter_sliders(None)
-        self.ui["top_bar"] = v.Sheet(
+        self.ui.top_bar = v.Sheet(
             class_="d-flex flex-row m-0 pt-3 align-bottom",
             height=70,
             flat=True,
@@ -183,15 +184,15 @@ class Explorer:
                     elevation=0,
                     children=[gui_defaults.icons["scq-logo.png"]],
                 ),
-                self.ui["sweep_param_dropdown"],
-                self.ui["param_sliders_container"],
+                self.ui.sweep_param_dropdown,
+                self.ui.param_sliders_container,
             ],
         )
 
         self.plot_collection = ui.PlotPanelCollection(
             ncols=self.ncols,
             plot_choice_dialog=self.show_plot_choice_dialog,
-            toggle_switches_by_plot_id=self.ui["panel_switch_by_plot_id"],
+            toggle_switches_by_plot_id=self.ui.panel_switch_by_plot_id,
             plot_settings_dialog=self.plot_settings_dialog,
         )
 
@@ -200,9 +201,9 @@ class Explorer:
         self.explorer_display = v.Container(
             class_="d-flex flex-column mx-0 px-0",
             children=[
-                self.ui["top_bar"],
+                self.ui.top_bar,
                 self.plot_collection.show(),
-                self.ui["add_plot_dialog"],
+                self.ui.add_plot_dialog,
                 *self.settings["dialogs"].values(),
             ],
         )
@@ -213,7 +214,7 @@ class Explorer:
     @property
     def fixed_param(self):
         """Return the currently selected sweep parameter."""
-        return self.ui["sweep_param_dropdown"].v_model
+        return self.ui.sweep_param_dropdown.v_model
 
     @property
     def param_vals(self):
@@ -221,16 +222,16 @@ class Explorer:
         return self.sweep.param_info[self.fixed_param]
 
     def show_plot_choice_dialog(self, *args) -> None:
-        self.ui["add_plot_dialog"].v_model = True
+        self.ui.add_plot_dialog.v_model = True
 
     def close_plot_choice_dialog(self, *args) -> None:
-        self.ui["add_plot_dialog"].v_model = False
+        self.ui.add_plot_dialog.v_model = False
 
     def plot_settings_dialog(self, plot_id: PlotID) -> None:
         self.settings["dialogs"][plot_id].v_model = True
 
     def update_switches(self) -> None:
-        for switch in self.ui["panel_switch_by_plot_id"].values():
+        for switch in self.ui.panel_switch_by_plot_id.values():
             switch.v_model = switch.ref in self.plot_collection.id_list()
 
     def build_panel_switches(self) -> None:
@@ -295,18 +296,18 @@ class Explorer:
                 ui_panel_switch_by_plot_id[plot_id]
             ]
 
-        self.ui["panel_switch_by_plot_id"] = ui_panel_switch_by_plot_id
-        self.ui["panel_switches_by_subsys_name"] = ui_panel_switches_by_subsys_name
+        self.ui.panel_switch_by_plot_id = ui_panel_switch_by_plot_id
+        self.ui.panel_switches_by_subsys_name = ui_panel_switches_by_subsys_name
 
-        self.ui["panel_switches"] = {}
-        for subsys_name in self.ui["panel_switches_by_subsys_name"].keys():
-            self.ui["panel_switches"][subsys_name] = v.Container(
+        self.ui.panel_switches = {}
+        for subsys_name in self.ui.panel_switches_by_subsys_name.keys():
+            self.ui.panel_switches[subsys_name] = v.Container(
                 class_="d-flex flex-column",
                 dense=True,
-                children=self.ui["panel_switches_by_subsys_name"][subsys_name],
+                children=self.ui.panel_switches_by_subsys_name[subsys_name],
             )
 
-        for switch in self.ui["panel_switch_by_plot_id"].values():
+        for switch in self.ui.panel_switch_by_plot_id.values():
             switch.observe(self.on_toggle_event, names="v_model")
 
     def build_ui_add_plot_dialog(self) -> v.Dialog:
@@ -326,7 +327,7 @@ class Explorer:
                                 ui.flex_column(
                                     [
                                         v.CardTitle(children="Composite-system plots"),
-                                        self.ui["panel_switches"]["Composite"],
+                                        self.ui.panel_switches["Composite"],
                                     ]
                                 ),
                                 v.Divider(vertical=True),
@@ -343,7 +344,7 @@ class Explorer:
                                                             style_="font-weight: normal;",
                                                             children=subsys_name,
                                                         ),
-                                                        self.ui["panel_switches"][
+                                                        self.ui.panel_switches[
                                                             subsys_name
                                                         ],
                                                     ]
@@ -393,7 +394,7 @@ class Explorer:
         names."""
         return {
             plot_id: switch
-            for plot_id, switch in self.ui["panel_switch_by_plot_id"].items()
+            for plot_id, switch in self.ui.panel_switch_by_plot_id.items()
             if switch.v_model
         }
 
@@ -422,7 +423,7 @@ class Explorer:
 
     @property
     def fixed_params(self) -> dict[str, float]:
-        sliders = self.ui["fixed_param_sliders"]
+        sliders = self.ui.fixed_param_sliders
         return {
             param_name: slider.current_value() for param_name, slider in sliders.items()
         }
@@ -463,23 +464,23 @@ class Explorer:
             self.plot_collection.close_panel_by_id(toggled_panel_id)
 
     def update_parameter_sliders(self, change):
-        current_sweep_param = self.ui["sweep_param_dropdown"].v_model
-        self.ui["fixed_param_sliders"] = self.ui["param_sliders"].copy()
-        self.ui["fixed_param_sliders"].pop(current_sweep_param)
+        current_sweep_param = self.ui.sweep_param_dropdown.v_model
+        self.ui.fixed_param_sliders = self.ui.param_sliders.copy()
+        self.ui.fixed_param_sliders.pop(current_sweep_param)
 
-        self.ui["sweep_value_slider"] = self.ui["param_sliders"][current_sweep_param]
+        self.ui.sweep_value_slider = self.ui.param_sliders[current_sweep_param]
 
-        self.ui["param_sliders_container"] = ui.flex_row(
+        self.ui.param_sliders_container = ui.flex_row(
             [
-                self.ui["sweep_value_slider"],
-                v.Text(children="Fixed:" if self.ui["fixed_param_sliders"] else ""),
-                *self.ui["fixed_param_sliders"].values(),
+                self.ui.sweep_value_slider,
+                v.Text(children="Fixed:" if self.ui.fixed_param_sliders else ""),
+                *self.ui.fixed_param_sliders.values(),
             ]
         )
 
-        if "top_bar" in self.ui:
-            self.ui["top_bar"].children = self.ui["top_bar"].children[:-1] + [
-                self.ui["param_sliders_container"]
+        if self.ui.top_bar is not None:
+            self.ui.top_bar.children = self.ui.top_bar.children[:-1] + [
+                self.ui.param_sliders_container
             ]
             self.update_plots(None)
 
@@ -504,19 +505,19 @@ class Explorer:
     @property
     def parameter_slice(self):
         return ParameterSlice(
-            self.ui["sweep_param_dropdown"].v_model,
-            self.ui["sweep_value_slider"].current_value(),
+            self.ui.sweep_param_dropdown.v_model,
+            self.ui.sweep_value_slider.current_value(),
             self.fixed_params,
             list(self.sweep.param_info.keys()),
         )
 
     @matplotlib.rc_context(matplotlib_settings)
     def update_plots(self: "Explorer", change):
-        param_val = self.ui["sweep_value_slider"].current_value()
+        param_val = self.ui.sweep_value_slider.current_value()
         panel_ids = self.selected_plot_id_list
 
         param_slice = ParameterSlice(
-            self.ui["sweep_param_dropdown"].v_model,
+            self.ui.sweep_param_dropdown.v_model,
             param_val,
             self.fixed_params,
             list(self.sweep.param_info.keys()),
