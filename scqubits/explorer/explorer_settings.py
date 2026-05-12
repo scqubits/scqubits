@@ -111,26 +111,6 @@ class ExplorerSettings:
         subsys: Any = plot_id.subsystems
         plot_type = plot_id.plot_type
 
-        if plot_type is PlotType.SELF_KERR and isinstance(subsys[0], scq.Oscillator):
-            return []
-
-        if plot_type is PlotType.SELF_KERR and not isinstance(
-            subsys[0], scq.Oscillator
-        ):
-            subsys = subsys[0]
-            ui_kerr_selector = ui.InitializedSelect(
-                label="Selected pair of levels",
-                items=list(
-                    itertools.combinations_with_replacement(
-                        list(range(subsys.truncated_dim)), 2
-                    )
-                ),
-                v_model=[[1, 1], [1, 2], [2, 2]],
-                multiple=True,
-            )
-            ui_kerr_selector.observe(self.explorer.update_plots, names="v_model")
-            return [ui_kerr_selector]
-
         if plot_type is PlotType.CROSS_KERR:
             return []
 

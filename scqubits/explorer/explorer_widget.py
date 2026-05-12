@@ -386,25 +386,7 @@ class Explorer:
         if builder_cls is not None:
             return builder_cls().build_panel(self, plot_id, param_slice, fig_ax)
 
-        if plot_id.plot_type is PlotType.SELF_KERR:
-            if self.settings[plot_id]:  # has settings, so must be qubit-mode self-Kerr
-                ui_state_selection = self.settings[plot_id][0]
-                which = ui_state_selection.v_model
-                return panels.display_qubit_self_kerr(
-                    sweep=self.sweep,
-                    subsys=plot_id.subsystems[0],
-                    param_slice=param_slice,
-                    fig_ax=fig_ax,
-                    which=which,
-                )
-
-            return panels.display_self_kerr(
-                sweep=self.sweep,
-                subsys=plot_id.subsystems[0],  # type: ignore[arg-type]
-                param_slice=param_slice,
-                fig_ax=fig_ax,
-            )
-        elif plot_id.plot_type is PlotType.CROSS_KERR:
+        if plot_id.plot_type is PlotType.CROSS_KERR:
             return panels.display_cross_kerr(
                 sweep=self.sweep,
                 subsys1=plot_id.subsystems[0],
