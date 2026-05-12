@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from scqubits.explorer.explorer_internals._base import PanelBuilder
+from scqubits.explorer.explorer_internals.ac_stark import AcStarkPanelBuilder
 from scqubits.explorer.explorer_internals.anharmonicity import (
     AnharmonicityPanelBuilder,
 )
@@ -32,6 +33,7 @@ from scqubits.ui.gui_defaults import PlotType
 __all__ = [
     "PANEL_BUILDERS",
     "PanelBuilder",
+    "AcStarkPanelBuilder",
     "AnharmonicityPanelBuilder",
     "CrossKerrPanelBuilder",
     "EnergySpectrumPanelBuilder",
@@ -56,4 +58,5 @@ PANEL_BUILDERS: dict[PlotType, type[PanelBuilder]] = {
     PlotType.TRANSITIONS: TransitionsPanelBuilder,
     PlotType.SELF_KERR: SelfKerrPanelBuilder,
     PlotType.CROSS_KERR: CrossKerrPanelBuilder,
+    PlotType.AC_STARK: AcStarkPanelBuilder,
 }

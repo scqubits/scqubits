@@ -12,15 +12,11 @@
 
 from __future__ import annotations
 
-import itertools
-
 from typing import TYPE_CHECKING, Any
 
-import scqubits as scq
 import scqubits.ui.gui_custom_widgets as ui
 
 from scqubits.explorer.explorer_internals import PANEL_BUILDERS
-from scqubits.ui.gui_defaults import PlotType, mode_dropdown_list
 from scqubits.utils import misc as utils
 
 if TYPE_CHECKING:
@@ -28,7 +24,7 @@ if TYPE_CHECKING:
     from scqubits.explorer.explorer_widget import PlotID
 
 try:
-    from IPython.display import HTML, display
+    from IPython.display import display  # noqa: F401  (availability test)
 except ImportError:
     _HAS_IPYTHON = False
 else:
@@ -36,9 +32,6 @@ else:
 
 try:
     import ipyvuetify as v
-    import ipywidgets
-
-    from scqubits.ui.gui_custom_widgets import flex_row
 except ImportError:
     _HAS_IPYVUETIFY = False
 else:
@@ -98,34 +91,12 @@ class ExplorerSettings:
         return self.ui[item]
 
     def build_settings_ui(self, plot_id: "PlotID"):
-        # Registry-driven dispatch for plot types migrated into
-        # ``explorer_internals`` (see PANEL_BUILDERS).  Anything not in
-        # the registry falls through to the legacy ``if/elif`` chain
-        # below; the chain shrinks one entry per phase 2 commit.
+        # Registry-driven dispatch: every ``PlotType`` has a
+        # corresponding ``PanelBuilder`` under ``explorer_internals``.
+        # See ``PANEL_BUILDERS`` for the mapping.
         builder_cls = PANEL_BUILDERS.get(plot_id.plot_type)
-        if builder_cls is not None:
-            return builder_cls().build_settings_ui(self, plot_id)
-
-        # `subsys` is reassigned from list to single element in many branches below;
-        # use `Any` to avoid narrowing-error churn without changing runtime behavior.
-        subsys: Any = plot_id.subsystems
-        plot_type = plot_id.plot_type
-
-        if plot_type is PlotType.AC_STARK:
-            self.ui["kerr"]["ac_stark_ell"] = ui.InitializedSelect(
-                v_model=1,
-                items=list(range(1, subsys[0].truncated_dim)),
-                label="qubit level",
+        if builder_cls is None:
+            raise NotImplementedError(
+                f"No PanelBuilder is registered for plot type {plot_id.plot_type!r}."
             )
-            self.ui["kerr"]["ac_stark_ell"].observe(
-                self.explorer.update_plots, names="v_model"
-            )
-
-            return [
-                v.Container(
-                    class_="d-flex flex-column",
-                    children=[self.ui["kerr"]["ac_stark_ell"]],
-                )
-            ]
-
-        return []
+        return builder_cls().build_settings_ui(self, plot_id)

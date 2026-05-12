@@ -101,7 +101,7 @@ class MatrixElementsPanelBuilder:
             label="Plot matrix elements as",
             v_model=mode_dropdown_list[2],
         )
-        op_names = subsys.get_operator_names()  # type: ignore[attr-defined]
+        op_names = subsys.get_operator_names()
         ui_operator_dropdown = ui.InitializedSelect(
             items=op_names, label="Operator", v_model=op_names[0]
         )

@@ -27,8 +27,7 @@ import scqubits.ui.gui_custom_widgets as ui
 import scqubits.ui.gui_defaults as gui_defaults
 
 from scqubits.core.param_sweep import ParameterSlice
-from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass
-from scqubits.explorer import explorer_panels as panels
+from scqubits.core.qubit_base import QuantumSystem
 from scqubits.explorer.explorer_internals import PANEL_BUILDERS
 from scqubits.explorer.explorer_settings import ExplorerSettings
 from scqubits.settings import matplotlib_settings
@@ -36,7 +35,6 @@ from scqubits.ui.gui_defaults import (
     NAV_COLOR,
     PlotType,
     default_panels,
-    mode_dropdown_dict,
     supported_panels,
 )
 from scqubits.utils import misc as utils
@@ -378,24 +376,16 @@ class Explorer:
         param_slice: ParameterSlice,
         fig_ax: tuple[Figure, Axes],
     ):
-        # Registry-driven dispatch for plot types migrated into
-        # ``explorer_internals`` (see PANEL_BUILDERS).  Anything not in
-        # the registry falls through to the legacy ``if/elif`` chain
-        # below; the chain shrinks one entry per phase 2 commit.
+        # Registry-driven dispatch: every ``PlotType`` has a corresponding
+        # ``PanelBuilder`` under ``explorer_internals``.  Adding a new
+        # panel means writing a builder file + one ``PANEL_BUILDERS``
+        # entry; nothing in this method needs to change.
         builder_cls = PANEL_BUILDERS.get(plot_id.plot_type)
-        if builder_cls is not None:
-            return builder_cls().build_panel(self, plot_id, param_slice, fig_ax)
-
-        if plot_id.plot_type is PlotType.AC_STARK:
-            return panels.display_cross_kerr(
-                sweep=self.sweep,
-                subsys1=plot_id.subsystems[0],
-                subsys2=plot_id.subsystems[1],
-                param_slice=param_slice,
-                fig_ax=fig_ax,
-                which=self.settings.ui["kerr"]["ac_stark_ell"].v_model,
+        if builder_cls is None:
+            raise NotImplementedError(
+                f"No PanelBuilder is registered for plot type {plot_id.plot_type!r}."
             )
-        raise NotImplementedError(f"Plot type {plot_id} not implemented.")
+        return builder_cls().build_panel(self, plot_id, param_slice, fig_ax)
 
     @property
     def active_switches_by_plot_id(self) -> dict[PlotID, "ui.LinkedSwitch"]:

@@ -25,13 +25,11 @@ def test_explorer_internals_package_importable():
 
 
 def test_registry_complete():
-    """Every migrated ``PlotType`` has a registered ``PanelBuilder``.
-
-    During the phased migration this asserts the migrated subset only;
-    once Phase 2 finishes the assertion tightens to "every member of
-    ``PlotType`` has a builder".
-    """
-    assert PlotType.ENERGY_SPECTRUM in PANEL_BUILDERS
+    """Every member of ``PlotType`` has a registered ``PanelBuilder``."""
+    missing = set(PlotType) - set(PANEL_BUILDERS)
+    assert (
+        not missing
+    ), f"PlotType members without a builder: {sorted(m.name for m in missing)}"
     for key in PANEL_BUILDERS:
         assert isinstance(
             key, PlotType
@@ -71,3 +69,32 @@ def test_plot_id_value_object():
     assert single.is_default_active()
     # TRANSITIONS IS the default for any Composite plot.
     assert composite.is_default_active()
+
+
+def test_default_panel_selection_for_known_topologies():
+    """``PlotID.is_default_active`` matches the ``default_panels`` lookup table.
+
+    Sweep topology: ``(TunableTransmon, Oscillator)``.  Expected default
+    panels follow from ``gui_defaults.default_panels`` ---
+    ``common_panels`` for the qubit, ``[]`` for the oscillator, and
+    ``[TRANSITIONS]`` for the composite system.
+    """
+    tmon = scq.TunableTransmon(
+        EJmax=40.0, EC=0.2, d=0.1, flux=0.0, ng=0.3, ncut=40, truncated_dim=5
+    )
+    resonator = scq.Oscillator(E_osc=4.5, truncated_dim=4)
+
+    # Qubit: ENERGY_SPECTRUM + WAVEFUNCTIONS are defaults; others are not.
+    assert PlotID(PlotType.ENERGY_SPECTRUM, [tmon]).is_default_active()
+    assert PlotID(PlotType.WAVEFUNCTIONS, [tmon]).is_default_active()
+    assert not PlotID(PlotType.ANHARMONICITY, [tmon]).is_default_active()
+    assert not PlotID(PlotType.SELF_KERR, [tmon]).is_default_active()
+
+    # Oscillator: no defaults.
+    assert not PlotID(PlotType.ENERGY_SPECTRUM, [resonator]).is_default_active()
+    assert not PlotID(PlotType.SELF_KERR, [resonator]).is_default_active()
+
+    # Composite: only TRANSITIONS.
+    assert PlotID(PlotType.TRANSITIONS, [tmon, resonator]).is_default_active()
+    assert not PlotID(PlotType.CROSS_KERR, [tmon, resonator]).is_default_active()
+    assert not PlotID(PlotType.AC_STARK, [tmon, resonator]).is_default_active()
