@@ -154,10 +154,6 @@ class Explorer:
             label="Active Sweep Parameter",
             items=list(self.sweep.param_info.keys()),
         )
-        self.ui.sweep_param_dropdown.observe(
-            self.update_parameter_sliders, names="v_model"
-        )
-
         # self.ui.sweep_value_slider = ui.DiscreteSetSlider(
         #     param_name=self.ui.sweep_param_dropdown.v_model,
         #     param_vals=self.param_vals,
@@ -208,8 +204,34 @@ class Explorer:
             ],
         )
 
+        self._wire_observers()
         self.create_initial_plot_panels()
         display(self.explorer_display)
+
+    def _wire_observers(self) -> None:
+        """Attach every widget observer used by the Explorer.
+
+        Called once near the end of ``__init__`` after every widget
+        the Explorer caches on ``self.ui`` is constructed.  Centralizing
+        observer attachment here (rather than next to each widget
+        construction site) makes the full reactive surface auditable
+        from one place: changing what fires ``update_plots`` /
+        ``update_parameter_sliders`` / ``on_toggle_event`` only touches
+        this method.
+
+        The per-plot ``Transitions``-section observers live on the
+        ``ExplorerSettings`` side (constructed inside the
+        ``TransitionsPanelBuilder.build_settings_ui`` call) and are
+        intentionally not centralized here -- they belong to the
+        builder, not the Explorer.
+        """
+        self.ui.sweep_param_dropdown.observe(
+            self.update_parameter_sliders, names="v_model"
+        )
+        for slider in self.ui.param_sliders.values():
+            slider.observe(self.update_plots, names="v_model")
+        for switch in self.ui.panel_switch_by_plot_id.values():
+            switch.observe(self.on_toggle_event, names="v_model")
 
     @property
     def fixed_param(self):
@@ -306,9 +328,6 @@ class Explorer:
                 dense=True,
                 children=self.ui.panel_switches_by_subsys_name[subsys_name],
             )
-
-        for switch in self.ui.panel_switch_by_plot_id.values():
-            switch.observe(self.on_toggle_event, names="v_model")
 
     def build_ui_add_plot_dialog(self) -> v.Dialog:
         return v.Dialog(
@@ -417,8 +436,6 @@ class Explorer:
             )
             for param_name, param_array in self.sweep.param_info.items()
         }
-        for slider in slider_by_name.values():
-            slider.observe(self.update_plots, names="v_model")
         return slider_by_name
 
     @property
