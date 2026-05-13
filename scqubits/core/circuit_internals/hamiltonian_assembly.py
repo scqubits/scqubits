@@ -855,19 +855,6 @@ class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
         subsystem = self.subsystems[subsystem_index]
         operator = subsystem.identity_wrap_for_hd(operator, child_instance)
 
-        if isinstance(operator, qt.Qobj):
-            operator = operator.full()
-
-        operator = convert_matrix_to_qobj(
-            operator,
-            subsystem,
-            op_in_eigenbasis=False,
-            evecs=(
-                bare_esys[subsystem_index][1]
-                if bare_esys
-                else subsystem.eigensys(evals_count=subsystem.truncated_dim)[1]
-            ),
-        )
         return identity_wrap(
             operator,
             subsystem,
@@ -877,7 +864,7 @@ class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
                 if bare_esys
                 else subsystem.eigensys(evals_count=subsystem.truncated_dim)[1]
             ),
-            op_in_eigenbasis=True,
+            op_in_eigenbasis=False,
         )
 
     @check_sync_status_circuit
