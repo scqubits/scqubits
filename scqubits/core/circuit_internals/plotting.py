@@ -23,7 +23,6 @@ import scqubits.utils.plotting as plot
 
 from scqubits import get_units
 from scqubits.core.circuit_internals._protocols import CircuitProtocol
-from scqubits.core.circuit_internals.sawtooth import sawtooth_potential
 from scqubits.core.circuit_internals.utils import get_trailing_number
 from scqubits.io_utils.fileio_serializers import dict_serialize
 from scqubits.utils.misc import (
@@ -855,7 +854,7 @@ class CircuitPlot(ABC, CircuitProtocol):
         self._build_sweep_vars(kwargs, parameters)
 
         potential_func = sm.lambdify(
-            parameters.keys(), potential_sym, [{"saw": sawtooth_potential}, "numpy"]
+            parameters.keys(), potential_sym, ["numpy", ]
         )
 
         return potential_func(*parameters.values())

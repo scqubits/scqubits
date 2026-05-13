@@ -35,11 +35,6 @@ class TestContainsTrigonometricTerms:
         x = sm.symbols("x")
         assert CircuitSymMethods._contains_trigonometric_terms(sm.sin(x)) is True
 
-    def test_sawtooth_term_detected(self):
-        x = sm.symbols("x")
-        saw = sm.Function("saw", real=True)
-        assert CircuitSymMethods._contains_trigonometric_terms(saw(x)) is True
-
     def test_mixed_expression_detected(self):
         x, y = sm.symbols("x y")
         expr = x**2 + sm.cos(y)

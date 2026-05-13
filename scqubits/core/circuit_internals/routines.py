@@ -74,7 +74,6 @@ from scqubits.core.circuit_internals.operator_factories import (
     make_grid_operator_method,
     make_hierarchical_diag_method,
 )
-from scqubits.core.circuit_internals.sawtooth import sawtooth_potential
 from scqubits.core.circuit_internals.subsystem_tree import SubsystemTreeMixin
 from scqubits.core.circuit_internals.sympy_helpers import (
     _generate_symbols_list,

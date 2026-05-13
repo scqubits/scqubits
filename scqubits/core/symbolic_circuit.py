@@ -516,7 +516,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
     def _junction_terms(self) -> sm.Expr | int:
         r"""Return the sum of cosine Josephson terms for all standard JJ branches.
 
-        For each Josephson branch (excluding sawtooth ``JJs`` branches) and each
+        For each Josephson branch and each
         junction harmonic order, the contribution
         :math:`-E_{Jk}\cos[k(\varphi_a - \varphi_b + \varphi_\text{ext})]`
         is added, with appropriate handling of the ground node.
@@ -526,7 +526,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         junction_branches = [
             branch
             for branch in self.branches
-            if "JJ" in branch.type and "JJs" not in branch.type
+            if "JJ" in branch.type
         ]
         junction_branch_order = [
             _junction_order(branch.type) for branch in junction_branches
@@ -560,54 +560,6 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
                             + phi_ext
                         )
                     )
-        return terms
-
-    def _JJs_terms(self) -> sm.Expr | int:
-        r"""Return the sum of sawtooth Josephson terms for all ``JJs`` branches.
-
-        For each sawtooth-junction branch the contribution
-        :math:`E_J\,\mathrm{saw}(\varphi_a - \varphi_b + \varphi_\text{ext})`
-        is added, with appropriate handling of the ground node. The
-        sawtooth function is the placeholder symbol ``saw`` and is
-        evaluated numerically by ``sawtooth_potential`` in
-        ``circuit_internals/sawtooth.py``.
-
-        Returns
-        -------
-        Sum of sawtooth-junction Lagrangian contributions; ``0`` if
-        the circuit contains no ``JJs`` branches.
-        """
-        terms = 0
-        # looping over all the junction terms
-        junction_branches = [branch for branch in self.branches if "JJs" in branch.type]
-
-        # defining a function for sawtooth
-        saw = sympy.Function("saw", real=True)
-
-        for branch_idx, jj_branch in enumerate(junction_branches):
-            # adding external flux
-            phi_ext = self.branch_flux_allocations[jj_branch.index]
-
-            # if loop to check for the presence of ground node
-            junction_param = "EJ"
-            if jj_branch.nodes[1].index == 0:
-                terms += jj_branch.parameters[junction_param] * saw(
-                    (-sympy.symbols(f"φ{jj_branch.nodes[0].index}") + phi_ext)
-                )
-            elif jj_branch.nodes[0].index == 0:
-                terms += jj_branch.parameters[junction_param] * saw(
-                    (sympy.symbols(f"φ{jj_branch.nodes[1].index}") + phi_ext)
-                )
-            else:
-                terms += jj_branch.parameters[junction_param] * saw(
-                    (
-                        (
-                            sympy.symbols(f"φ{jj_branch.nodes[1].index}")
-                            - sympy.symbols(f"φ{jj_branch.nodes[0].index}")
-                        )
-                        + phi_ext
-                    )
-                )
         return terms
 
     def _inductance_inverse_matrix(
@@ -1130,7 +1082,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
 
         inductor_terms_φ = self._inductor_terms(substitute_params=substitute_params)
 
-        JJ_terms_φ = self._junction_terms() + self._JJs_terms()
+        JJ_terms_φ = self._junction_terms()
 
         lagrangian_φ = C_terms_φ - inductor_terms_φ - JJ_terms_φ
 

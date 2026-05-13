@@ -39,10 +39,6 @@ def _junction_order(branch_type: str) -> int:
     if "JJ" not in branch_type:
         raise ValueError("The branch is not a JJ branch")
     if len(branch_type) > 2:
-        if (
-            branch_type[2] == "s"
-        ):  # adding "JJs" which is a junction with sawtooth current phase relationship
-            return 1
         return int(branch_type[2:])
     else:
         return 1

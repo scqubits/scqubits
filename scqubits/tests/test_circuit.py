@@ -674,53 +674,6 @@ class TestNoiseChannelsRegistry:
         assert len(circ.channels()) == original_count
 
 
-class TestSawtoothCoefficientPerTerm:
-    """``evaluate_matrix_sawtooth_terms`` honours each term's own coefficient.
-
-    Pins linearity of the sawtooth-evaluation pipeline: the matrix
-    obtained from a multi-term ``saw_expr`` must equal the sum of the
-    per-term matrices.
-    """
-
-    YAML = (
-        "branches:\n"
-        "- [JJ, 0, 1, EJ=10, ECJ=20]\n"
-        "- [L, 0, 1, EL=0.04]\n"
-        "- [C, 0, 1, EC=2]\n"
-    )
-
-    def _make_circuit_with_discretized_phi(self):
-        circ = scq.Circuit.from_yaml_string(self.YAML, ext_basis="discretized")
-        circ.cutoff_ext_1 = 20
-        return circ
-
-    def test_multiterm_sawtooth_uses_per_term_coefficient(self):
-        import sympy as sm
-
-        from scqubits.core.circuit_internals import junction_assembly
-
-        circ = self._make_circuit_with_discretized_phi()
-        saw = sm.Function("saw", real=True)
-        theta1 = sm.symbols("θ1")
-
-        a, b = 2.0, 5.0
-        single_a = a * saw(theta1)
-        single_b = b * saw(2 * theta1)
-        combined = single_a + single_b
-
-        m_a = junction_assembly.evaluate_matrix_sawtooth_terms(circ, single_a)
-        m_b = junction_assembly.evaluate_matrix_sawtooth_terms(circ, single_b)
-        m_combined = junction_assembly.evaluate_matrix_sawtooth_terms(circ, combined)
-
-        diff_dense = np.asarray((m_combined - (m_a + m_b)).full())
-        np.testing.assert_allclose(
-            diff_dense,
-            np.zeros_like(diff_dense),
-            atol=1e-12,
-            err_msg="multi-term sawtooth != sum of single-term sawtooths",
-        )
-
-
 class TestNamedConstructors:
     """`Circuit.from_yaml_file` / `Circuit.from_yaml_string` are named
     alternatives to the legacy ``Circuit(input_string, from_file=...)`` form.

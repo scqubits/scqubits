@@ -419,8 +419,7 @@ class CircuitSymMethods(ABC, CircuitProtocol):
     def _evaluate_factor(self, factor: sm.Expr, bare_esys: Any) -> Any:
         """Dispatch a single symbolic factor to the right matrix-evaluation routine.
 
-        Cosine/sine factors are routed to the matrix-cosine evaluator,
-        sawtooth factors to the sawtooth evaluator, and all remaining
+        Cosine/sine factors are routed to the matrix-cosine evaluator, and all remaining
         operator factors to the operator-name lookup.
 
         Parameters
@@ -433,42 +432,8 @@ class CircuitSymMethods(ABC, CircuitProtocol):
         """
         if any([arg.has(sm.cos) or arg.has(sm.sin) for arg in (1.0 * factor).args]):
             return self._evaluate_matrix_cosine_terms(factor, bare_esys=bare_esys)
-        elif any(
-            [arg.has(sm.Function("saw", real=True)) for arg in (1.0 * factor).args]
-        ):
-            return self._evaluate_sawtooth_factor(factor, bare_esys)
         else:
             return self._evaluate_operator_factor(factor)
-
-    def _evaluate_sawtooth_factor(self, factor: sm.Expr, bare_esys: Any) -> Any:
-        """Evaluate a sawtooth-function factor to its matrix form.
-
-        When hierarchical diagonalization is active, all symbols in the
-        factor must belong to the same subsystem; the resulting operator is
-        identity-wrapped onto the full Hilbert space.
-
-        Parameters
-        ----------
-        factor:
-            symbolic factor containing sawtooth operators
-        bare_esys:
-            optional cached bare eigensystem data forwarded to identity-wrap
-            calls when hierarchical diagonalization is in use
-        """
-        if not self.hierarchical_diagonalization:
-            return self._evaluate_matrix_sawtooth_terms(factor, bare_esys=bare_esys)
-        index_subsystem = [
-            self.return_root_child(get_trailing_number(sym.name))
-            for sym in factor.free_symbols
-        ]
-        if len(set(index_subsystem)) > 1:
-            raise ValueError(
-                "Sawtooth function terms must belong to the same subsystem."
-            )
-        operator = index_subsystem[0]._evaluate_matrix_sawtooth_terms(factor)
-        return self.identity_wrap_for_hd(
-            operator, index_subsystem[0], bare_esys=bare_esys
-        )
 
     def _evaluate_operator_factor(self, factor: sm.Expr) -> Any:
         """Evaluate a non-trigonometric operator factor of the form ``op**k``.
