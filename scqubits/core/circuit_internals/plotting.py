@@ -854,7 +854,11 @@ class CircuitPlot(ABC, CircuitProtocol):
         self._build_sweep_vars(kwargs, parameters)
 
         potential_func = sm.lambdify(
-            parameters.keys(), potential_sym, ["numpy", ]
+            parameters.keys(),
+            potential_sym,
+            [
+                "numpy",
+            ],
         )
 
         return potential_func(*parameters.values())

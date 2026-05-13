@@ -523,11 +523,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         """
         terms = 0
         # looping over all the junction terms
-        junction_branches = [
-            branch
-            for branch in self.branches
-            if "JJ" in branch.type
-        ]
+        junction_branches = [branch for branch in self.branches if "JJ" in branch.type]
         junction_branch_order = [
             _junction_order(branch.type) for branch in junction_branches
         ]
