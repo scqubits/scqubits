@@ -14,10 +14,10 @@ from __future__ import annotations
 
 import ast
 import functools
+import inspect
 import platform
 import warnings
 
-import inspect
 from collections.abc import Callable, Iterable, Sequence
 from io import StringIO
 from typing import Any
@@ -26,9 +26,11 @@ import matplotlib
 import numpy as np
 import qutip as qt
 import scipy as sp
+
 from matplotlib import get_backend as get_matplotlib_backend
 
 import scqubits.settings
+
 from scqubits.settings import IN_IPYTHON
 
 if IN_IPYTHON:

@@ -16,32 +16,33 @@ import scipy.sparse as sparse
 import sympy as sm
 
 from scqubits.core import discretization
-from scqubits.core.circuit_utils import (
+from scqubits.core.circuit_internals.branch_metadata import (
     _capacitance_variable_for_branch,
-    _cos_dia,
-    _cos_dia_dense,
-    _cos_phi,
+    _junction_order,
+)
+from scqubits.core.circuit_internals.charge_basis_operators import (
     _cos_theta,
     _exp_i_theta_operator,
     _exp_i_theta_operator_conjugate,
-    _generate_symbols_list,
+    _identity_theta,
+    _n_theta_operator,
+    _sin_theta,
+)
+from scqubits.core.circuit_internals.discretized_phi_operators import (
+    _cos_phi,
     _i_d_dphi_operator,
     _identity_phi,
-    _identity_theta,
-    _junction_order,
-    _n_theta_operator,
     _phi_operator,
-    _sin_dia,
-    _sin_dia_dense,
     _sin_phi,
-    _sin_theta,
-    example_circuit,
-    get_trailing_number,
+)
+from scqubits.core.circuit_internals.input import example_circuit
+from scqubits.core.circuit_internals.sympy_helpers import (
+    _generate_symbols_list,
     is_potential_term,
-    matrix_power_sparse,
     round_symbolic_expr,
-    sawtooth_operator,
-    sawtooth_potential,
+)
+from scqubits.core.circuit_internals.utils import (
+    get_trailing_number,
     truncation_template,
 )
 
@@ -49,7 +50,7 @@ from scqubits.core.circuit_utils import (
 class TestJunctionOrder:
     @pytest.mark.parametrize(
         "branch_type, expected",
-        [("JJ", 1), ("JJ2", 2), ("JJ3", 3), ("JJ5", 5), ("JJs", 1)],
+        [("JJ", 1), ("JJ2", 2), ("JJ3", 3), ("JJ5", 5)],
     )
     def test_returns_declared_order(self, branch_type, expected):
         assert _junction_order(branch_type) == expected
@@ -114,63 +115,6 @@ class TestExampleCircuit:
     def test_raises_on_unknown_qubit_name(self):
         with pytest.raises(AttributeError, match="not available"):
             example_circuit("not_a_qubit")
-
-
-class TestDiagonalTrig:
-    def test_cos_dia_matches_np_cos(self):
-        diag = np.array([0.0, np.pi / 2, np.pi, 3 * np.pi / 2])
-        x = sparse.diags(diag).tocsc()
-        result = _cos_dia(x)
-        assert np.allclose(result.diagonal(), np.cos(diag))
-
-    def test_sin_dia_matches_np_sin(self):
-        diag = np.array([0.0, np.pi / 2, np.pi, 3 * np.pi / 2])
-        x = sparse.diags(diag).tocsc()
-        result = _sin_dia(x)
-        assert np.allclose(result.diagonal(), np.sin(diag))
-
-    def test_cos_dia_dense_matches_np_cos(self):
-        diag = np.array([0.0, np.pi / 3, np.pi])
-        x = np.diag(diag)
-        result = _cos_dia_dense(x)
-        assert np.allclose(np.diag(result), np.cos(diag))
-
-    def test_sin_dia_dense_matches_np_sin(self):
-        diag = np.array([0.0, np.pi / 3, np.pi])
-        x = np.diag(diag)
-        result = _sin_dia_dense(x)
-        assert np.allclose(np.diag(result), np.sin(diag))
-
-
-class TestMatrixPowerSparse:
-    def test_power_3_matches_np(self):
-        A = np.array([[1.0, 0.5], [0.25, 2.0]])
-        expected = A @ A @ A
-        result = matrix_power_sparse(A, 3)
-        assert sparse.issparse(result)
-        assert np.allclose(result.toarray(), expected)
-
-    def test_power_0_is_identity(self):
-        A = np.array([[2.0, 1.0], [1.0, 3.0]])
-        result = matrix_power_sparse(A, 0)
-        assert np.allclose(result.toarray(), np.eye(2))
-
-
-class TestSawtooth:
-    def test_potential_is_2pi_periodic(self):
-        phi = np.linspace(-np.pi, np.pi, 21)
-        assert np.allclose(sawtooth_potential(phi), sawtooth_potential(phi + 2 * np.pi))
-
-    def test_potential_is_even(self):
-        phi = np.linspace(0.01, 2.0, 10)
-        assert np.allclose(sawtooth_potential(phi), sawtooth_potential(-phi))
-
-    def test_operator_diagonal_matches_potential(self):
-        diag = np.array([0.1, 0.5, 1.0, 2.0])
-        x = sparse.diags(diag).tocsc()
-        op = sawtooth_operator(x)
-        assert sparse.issparse(op)
-        assert np.allclose(op.diagonal(), sawtooth_potential(diag))
 
 
 class TestTruncationTemplate:

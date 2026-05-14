@@ -12,13 +12,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import re
 import warnings
-from typing import Any, get_type_hints
+
+from collections.abc import Callable
+from typing import Any, Literal
 
 import numpy as np
 import sympy as sm
+
 from numpy import ndarray
 from sympy import latex
 
@@ -29,12 +31,16 @@ except ImportError:
 else:
     _HAS_IPYTHON = True
 
-import scqubits.core.discretization as discretization
 import scqubits.core.central_dispatch as dispatch
+import scqubits.core.discretization as discretization
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 
-from scqubits.core.circuit_utils import (
+from scqubits.core.circuit_internals.noise import NoisyCircuit
+from scqubits.core.circuit_internals.plotting import CircuitPlot
+from scqubits.core.circuit_internals.routines import CircuitRoutines
+from scqubits.core.circuit_internals.sym_methods import CircuitSymMethods
+from scqubits.core.circuit_internals.utils import (
     get_trailing_number,
 )
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
@@ -45,10 +51,43 @@ from scqubits.utils.misc import (
     number_of_lists_in_list,
 )
 
-from scqubits.core.circuit_routines import CircuitRoutines
-from scqubits.core.circuit_plotting import CircuitPlot
-from scqubits.core.circuit_sym_methods import CircuitSymMethods
-from scqubits.core.circuit_noise import NoisyCircuit
+# Default cutoff for the charge (``n``) basis used for periodic variables.
+# The basis spans ``n = -DEFAULT_PERIODIC_CUTOFF, ..., DEFAULT_PERIODIC_CUTOFF``.
+DEFAULT_PERIODIC_CUTOFF = 5
+
+# Default cutoff for the discretized-phi or harmonic-oscillator basis used
+# for extended variables (number of grid points / oscillator levels).
+DEFAULT_EXTENDED_CUTOFF = 30
+
+# Default half-range of the discretized-phi grid for an extended variable.
+# The grid spans ``(-DISCRETIZED_PHI_HALF_RANGE, +DISCRETIZED_PHI_HALF_RANGE)``.
+DISCRETIZED_PHI_HALF_RANGE = 6 * np.pi
+
+# Number of grid points used by the default phi grid (for plotting / fallback).
+DEFAULT_PLOTTING_PHI_GRID_POINTS = 200
+
+
+# Type alias for the ``ext_basis`` argument passed to single-variable contexts.
+# ``Circuit.configure`` and ``Circuit._configure[_sym_hamiltonian]`` accept a
+# nested-list form for hierarchical-diagonalization configuration; that's
+# typed separately as ``str | list[str] | None`` at those call sites.
+ExtBasisChoice = Literal["discretized", "harmonic"]
+
+# Type alias for the keys of ``var_categories``: how each variable index is
+# classified once the symbolic circuit's coordinate transformation is fixed.
+VarCategoryKey = Literal["periodic", "extended", "free", "frozen", "sigma"]
+
+
+class _FromFileUnsetType:
+    """Sentinel type for the ``from_file`` parameter default (see :data:`_FROM_FILE_UNSET`)."""
+
+
+# Sentinel: caller did not pass ``from_file`` explicitly.
+_FROM_FILE_UNSET: _FromFileUnsetType = _FromFileUnsetType()
+
+
+class ConfigureError(RuntimeError):
+    """Raised when ``Circuit.configure`` fails; the previous configuration is restored."""
 
 
 class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot):
@@ -104,7 +143,7 @@ class Subsystem(  # type: ignore[misc]
         list of offset charge variables
     free_charges: list[Sympy.Symbol]
         list of free charge variables
-    var_categories: dict[str, list[int]]
+    var_categories: dict[VarCategoryKey, list[int]]
         dictionary with keys "periodic", "extended", "free", "frozen" and values as
         the indices of the respective variable types
     cutoff_names: list[str]
@@ -131,7 +170,7 @@ class Subsystem(  # type: ignore[misc]
         self,
         parent: "Subsystem",
         hamiltonian_symbolic: sm.Expr,
-        ext_basis: str | list,
+        ext_basis: ExtBasisChoice | list,
         system_hierarchy: list | None = None,
         subsystem_trunc_dims: list | None = None,
         truncated_dim: int = 10,
@@ -171,7 +210,7 @@ class Subsystem(  # type: ignore[misc]
             [self.system_hierarchy]
         )
 
-        self.var_categories: dict[str, list[int]] = {}
+        self.var_categories: dict[VarCategoryKey, list[int]] = {}
         for var_type in self.parent.var_categories:
             self.var_categories[var_type] = [
                 var_index
@@ -180,7 +219,7 @@ class Subsystem(  # type: ignore[misc]
             ]
 
         self.cutoff_names: list[str] = []
-        for var_type in self.var_categories.keys():
+        for var_type in self.var_categories:
             if var_type == "periodic":
                 for var_index in self.var_categories["periodic"]:
                     self.cutoff_names.append(f"cutoff_n_{var_index}")
@@ -244,7 +283,7 @@ class Subsystem(  # type: ignore[misc]
             for var in self.parent.symbolic_params
             if var in self.hamiltonian_symbolic.free_symbols
         }
-        for idx, param in enumerate(self.symbolic_params):
+        for param in self.symbolic_params:
             self._make_property(
                 param.name, getattr(self.parent, param.name), "update_param_vars"
             )
@@ -390,7 +429,7 @@ class Circuit(  # type: ignore[misc]
         list of offset charge variables
     free_charges: list[sm.Symbol]
         list of free charge variables
-    var_categories: dict[str, list[int]]
+    var_categories: dict[VarCategoryKey, list[int]]
         dictionary with keys "periodic", "extended", "free", "frozen" and values as
         the indices of the respective variable types
     cutoff_names: list[str]
@@ -418,9 +457,9 @@ class Circuit(  # type: ignore[misc]
     def __init__(
         self,
         input_string: str | None = None,
-        from_file: bool = True,
+        from_file: bool | _FromFileUnsetType = _FROM_FILE_UNSET,
         basis_completion: str = "heuristic",
-        ext_basis: str = "discretized",
+        ext_basis: ExtBasisChoice = "discretized",
         use_dynamic_flux_grouping: bool = False,
         generate_noise_methods: bool = False,
         initiate_sym_calc: bool = True,
@@ -432,6 +471,17 @@ class Circuit(  # type: ignore[misc]
         esys_method: Callable | str | None = None,
         esys_method_options: dict | None = None,
     ):
+        if from_file is _FROM_FILE_UNSET:
+            from_file = True  # historic default
+        else:
+            warnings.warn(
+                "The `from_file` boolean flag is deprecated; use "
+                "`Circuit.from_yaml_file(path, ...)` or "
+                "`Circuit.from_yaml_string(yaml_string, ...)` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        assert isinstance(from_file, bool)
         # switch used in protecting the class from erroneous addition of new attributes
         object.__setattr__(self, "_frozen", False)
         base.QubitBaseClass.__init__(
@@ -443,28 +493,30 @@ class Circuit(  # type: ignore[misc]
             esys_method_options=esys_method_options,
         )
         if symbolic_hamiltonian and input_string:
-            raise Exception(
+            raise ValueError(
                 "Circuit instance cannot be initialized with both input_string and a symbolic hamiltonian."
             )
         if not symbolic_hamiltonian and not input_string:
-            raise Exception(
+            raise ValueError(
                 "Circuit instance must be initialized with either input_string or a symbolic hamiltonian."
             )
         if input_string:
-            self.from_yaml(
-                input_string=input_string,
-                from_file=from_file,
-                basis_completion=basis_completion,
-                ext_basis=ext_basis,
-                use_dynamic_flux_grouping=use_dynamic_flux_grouping,
-                generate_noise_methods=generate_noise_methods,
-                initiate_sym_calc=initiate_sym_calc,
-                truncated_dim=truncated_dim,
-            )
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                self.from_yaml(
+                    input_string=input_string,
+                    from_file=from_file,
+                    basis_completion=basis_completion,
+                    ext_basis=ext_basis,
+                    use_dynamic_flux_grouping=use_dynamic_flux_grouping,
+                    generate_noise_methods=generate_noise_methods,
+                    initiate_sym_calc=initiate_sym_calc,
+                    truncated_dim=truncated_dim,
+                )
 
         elif symbolic_hamiltonian:
             if use_dynamic_flux_grouping or generate_noise_methods:
-                raise Exception(
+                raise ValueError(
                     "Circuit instance initialized using symbolic Hamiltonian cannot be configured with closure_branches, use_dynamic_flux_grouping, transformation_matrix or generate_noise_methods."
                 )
             self._from_symbolic_hamiltonian(
@@ -475,13 +527,88 @@ class Circuit(  # type: ignore[misc]
                 ext_basis=ext_basis,
             )
 
+    @classmethod
+    def from_yaml_file(
+        cls,
+        path: str,
+        *,
+        basis_completion: str = "heuristic",
+        ext_basis: ExtBasisChoice = "discretized",
+        use_dynamic_flux_grouping: bool = False,
+        generate_noise_methods: bool = False,
+        initiate_sym_calc: bool = True,
+        truncated_dim: int = 10,
+        evals_method: Callable | str | None = None,
+        evals_method_options: dict | None = None,
+        esys_method: Callable | str | None = None,
+        esys_method_options: dict | None = None,
+    ) -> "Circuit":
+        """Construct a Circuit by reading the YAML circuit definition from ``path``.
+
+        Preferred over the legacy ``Circuit(path)`` form (which conflates a file
+        path and an inline YAML string via the ``from_file: bool`` flag).
+        """
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            return cls(
+                input_string=path,
+                from_file=True,
+                basis_completion=basis_completion,
+                ext_basis=ext_basis,
+                use_dynamic_flux_grouping=use_dynamic_flux_grouping,
+                generate_noise_methods=generate_noise_methods,
+                initiate_sym_calc=initiate_sym_calc,
+                truncated_dim=truncated_dim,
+                evals_method=evals_method,
+                evals_method_options=evals_method_options,
+                esys_method=esys_method,
+                esys_method_options=esys_method_options,
+            )
+
+    @classmethod
+    def from_yaml_string(
+        cls,
+        yaml_string: str,
+        *,
+        basis_completion: str = "heuristic",
+        ext_basis: ExtBasisChoice = "discretized",
+        use_dynamic_flux_grouping: bool = False,
+        generate_noise_methods: bool = False,
+        initiate_sym_calc: bool = True,
+        truncated_dim: int = 10,
+        evals_method: Callable | str | None = None,
+        evals_method_options: dict | None = None,
+        esys_method: Callable | str | None = None,
+        esys_method_options: dict | None = None,
+    ) -> "Circuit":
+        """Construct a Circuit from a YAML-syntax string.
+
+        Preferred over the legacy ``Circuit(yaml_string, from_file=False)`` form.
+        """
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            return cls(
+                input_string=yaml_string,
+                from_file=False,
+                basis_completion=basis_completion,
+                ext_basis=ext_basis,
+                use_dynamic_flux_grouping=use_dynamic_flux_grouping,
+                generate_noise_methods=generate_noise_methods,
+                initiate_sym_calc=initiate_sym_calc,
+                truncated_dim=truncated_dim,
+                evals_method=evals_method,
+                evals_method_options=evals_method_options,
+                esys_method=esys_method,
+                esys_method_options=esys_method_options,
+            )
+
     def _from_symbolic_hamiltonian(
         self,
         symbolic_hamiltonian: sm.Expr,
         symbolic_param_dict: dict[str, float],
         initiate_sym_calc: bool,
         truncated_dim: int,
-        ext_basis: str,
+        ext_basis: ExtBasisChoice,
     ):
         """Initialize the :class:`Circuit` instance from a symbolic Hamiltonian.
 
@@ -523,7 +650,9 @@ class Circuit(  # type: ignore[misc]
 
         # setting default grids for plotting
         self._default_grid_phi: discretization.Grid1d = discretization.Grid1d(
-            -6 * np.pi, 6 * np.pi, 200
+            -DISCRETIZED_PHI_HALF_RANGE,
+            DISCRETIZED_PHI_HALF_RANGE,
+            DEFAULT_PLOTTING_PHI_GRID_POINTS,
         )
 
         self.type_of_matrices: str = (
@@ -543,7 +672,7 @@ class Circuit(  # type: ignore[misc]
         input_string: str,
         from_file: bool = True,
         basis_completion: str = "heuristic",
-        ext_basis: str = "discretized",
+        ext_basis: ExtBasisChoice = "discretized",
         use_dynamic_flux_grouping: bool = False,
         generate_noise_methods: bool = False,
         initiate_sym_calc: bool = True,
@@ -584,8 +713,15 @@ class Circuit(  # type: ignore[misc]
             when ``True``, generate per-channel noise methods on the instance after
             initialization; by default ``False``.
         """
+        warnings.warn(
+            "`Circuit.from_yaml` is deprecated; use "
+            "`Circuit.from_yaml_file(path, ...)` or "
+            "`Circuit.from_yaml_string(yaml_string, ...)`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if basis_completion not in ["heuristic", "canonical"]:
-            raise Exception(
+            raise ValueError(
                 "Invalid choice for basis_completion: must be 'heuristic' or "
                 "'canonical'."
             )
@@ -612,33 +748,16 @@ class Circuit(  # type: ignore[misc]
         self.cutoff_names = []
 
         # setting default grids for plotting
-        self._default_grid_phi = discretization.Grid1d(-6 * np.pi, 6 * np.pi, 200)
+        self._default_grid_phi = discretization.Grid1d(
+            -DISCRETIZED_PHI_HALF_RANGE,
+            DISCRETIZED_PHI_HALF_RANGE,
+            DEFAULT_PLOTTING_PHI_GRID_POINTS,
+        )
 
         self.type_of_matrices = (
             "sparse"  # type of matrices used to construct the operators
         )
-        # copying all the required attributes
-        required_attributes = [
-            "branches",
-            "closure_branches",
-            "external_fluxes",
-            "ground_node",
-            "hamiltonian_symbolic",
-            "input_string",
-            "is_grounded",
-            "lagrangian_node_vars",
-            "lagrangian_symbolic",
-            "nodes",
-            "offset_charges",
-            "free_charges",
-            "potential_symbolic",
-            "potential_node_vars",
-            "symbolic_params",
-            "transformation_matrix",
-            "var_categories",
-        ]
-        for attr in required_attributes:
-            setattr(self, attr, getattr(self.symbolic_circuit, attr))
+        self._import_from_symbolic_circuit(exclude=("is_purely_harmonic",))
 
         # needs to be included to make sure that plot_evals_vs_paramvals works
         self._init_params = []
@@ -650,6 +769,87 @@ class Circuit(  # type: ignore[misc]
             self.generate_noise_methods()
         self._frozen = True
         dispatch.CENTRAL_DISPATCH.register("CIRCUIT_UPDATE", self)
+
+    def _import_from_symbolic_circuit(self, exclude: tuple[str, ...] = ()) -> None:
+        """Copy ``SymbolicCircuit._STAGE2_ATTRIBUTES`` from ``self.symbolic_circuit``.
+
+        The list of attributes that flow from stage 1 to stage 2 is owned
+        by :class:`~scqubits.core.symbolic_circuit.SymbolicCircuit` itself
+        — see ``SymbolicCircuit._STAGE2_ATTRIBUTES``. Names listed in
+        ``exclude`` are skipped, leaving them to be set later (e.g. by
+        ``_configure``).
+        """
+        for attr in self.symbolic_circuit._STAGE2_ATTRIBUTES:
+            if attr in exclude:
+                continue
+            setattr(self, attr, getattr(self.symbolic_circuit, attr))
+
+    def _install_var_properties(self) -> None:
+        """Create instance properties for cutoffs, params, fluxes and charges.
+
+        Reads from ``self.var_categories``, ``self.symbolic_params``,
+        ``self.external_fluxes``, ``self.offset_charges``, ``self.free_charges``
+        and creates a :class:`~scqubits.core.descriptors.WatchedProperty` for
+        each (idempotent — properties already present are left untouched).
+        Also populates ``self.cutoff_names``, ``self.dynamic_var_indices``, and
+        default entries in ``self.discretized_phi_range``.
+
+        Notes
+        -----
+        Maintains ``self._dynamic_var_attribs``: a set of every cutoff,
+        external-flux, and offset/free-charge name that has been
+        installed on this instance over its lifetime. Used by
+        :meth:`_clear_unnecessary_attribs` to drop values whose
+        corresponding variable category has been removed by a
+        reconfiguration. Symbolic-param names (e.g. ``EJ``, ``EC``) are
+        NOT registered here — they survive reconfiguration and are not
+        eligible for clearing.
+        """
+        if not hasattr(self, "_dynamic_var_attribs"):
+            self._dynamic_var_attribs = set()
+        self.cutoff_names = []
+        for var_index in self.var_categories.get("periodic", []):
+            attrib_name = f"cutoff_n_{var_index}"
+            if not hasattr(self, f"_{attrib_name}"):
+                self._make_property(
+                    attrib_name, DEFAULT_PERIODIC_CUTOFF, "update_cutoffs"
+                )
+            self.cutoff_names.append(attrib_name)
+            self._dynamic_var_attribs.add(attrib_name)
+        for var_index in self.var_categories.get("extended", []):
+            attrib_name = f"cutoff_ext_{var_index}"
+            if not hasattr(self, f"_{attrib_name}"):
+                self._make_property(
+                    attrib_name, DEFAULT_EXTENDED_CUTOFF, "update_cutoffs"
+                )
+            self.cutoff_names.append(attrib_name)
+            self._dynamic_var_attribs.add(attrib_name)
+
+        self.dynamic_var_indices = (
+            self.var_categories["periodic"] + self.var_categories["extended"]
+        )
+
+        for param in self.symbolic_params:
+            if not hasattr(self, param.name):
+                self._make_property(
+                    param.name, self.symbolic_params[param], "update_param_vars"
+                )
+        for var_index in self.var_categories["extended"]:
+            if var_index not in self.discretized_phi_range:
+                self.discretized_phi_range[var_index] = (
+                    -DISCRETIZED_PHI_HALF_RANGE,
+                    DISCRETIZED_PHI_HALF_RANGE,
+                )
+        for flux in self.external_fluxes:
+            if not hasattr(self, flux.name):
+                self._make_property(flux.name, 0.0, "update_external_flux_or_charge")
+            self._dynamic_var_attribs.add(flux.name)
+        for charge_var in self.offset_charges + self.free_charges:
+            if not hasattr(self, charge_var.name):
+                self._make_property(
+                    charge_var.name, 0.0, "update_external_flux_or_charge"
+                )
+            self._dynamic_var_attribs.add(charge_var.name)
 
     def _find_branch(
         self, node_id_1: int, node_id_2: int, branch_type: str, branch_params: dict
@@ -694,26 +894,33 @@ class Circuit(  # type: ignore[misc]
         return {}
 
     def _clear_unnecessary_attribs(self):
-        """Clear all the attributes which are not part of the circuit description."""
-        necessary_attrib_names = (
+        """Clear stale per-variable attributes left over from a previous configuration.
+
+        Walks ``self._dynamic_var_attribs`` (the registry of every cutoff,
+        external-flux, and offset/free-charge name installed on this
+        instance over its lifetime, populated by
+        :meth:`_install_var_properties`) and deletes the underlying
+        ``_<name>`` value attribute for any registered name whose
+        corresponding variable category has been removed by the current
+        reconfiguration. The registry entry is removed alongside.
+        Symbolic-param names (e.g. ``EJ``, ``EC``) are not registered
+        and not cleared.
+        """
+        if not hasattr(self, "_dynamic_var_attribs"):
+            return
+        necessary_attrib_names = set(
             self.cutoff_names
             + [flux_symbol.name for flux_symbol in self.external_fluxes]
             + [
                 charge_symbol.name
                 for charge_symbol in self.offset_charges + self.free_charges
             ]
-            + ["cutoff_names"]
         )
-        attrib_keys = list(self.__dict__.keys()).copy()
-        for attrib in attrib_keys:
-            if attrib[1:] not in necessary_attrib_names:
-                if (
-                    "cutoff_n_" in attrib
-                    or "Φ" in attrib
-                    or "cutoff_ext_" in attrib
-                    or attrib[1:3] == "ng"
-                ):
-                    delattr(self, attrib)
+        stale = self._dynamic_var_attribs - necessary_attrib_names
+        for name in stale:
+            if hasattr(self, f"_{name}"):
+                delattr(self, f"_{name}")
+            self._dynamic_var_attribs.discard(name)
 
     def configure(
         self,
@@ -721,7 +928,7 @@ class Circuit(  # type: ignore[misc]
         system_hierarchy: list | None = None,
         subsystem_trunc_dims: list | None = None,
         closure_branches: list[Branch | dict[Branch, float]] | None = None,
-        ext_basis: str | list[str] | None = None,
+        ext_basis: ExtBasisChoice | list[str] | None = None,
         use_dynamic_flux_grouping: bool | None = None,
         generate_noise_methods: bool = False,
         subsys_dict: dict[str, Any] | None = None,
@@ -768,18 +975,46 @@ class Circuit(  # type: ignore[misc]
 
         Raises
         ------
-        Exception
-            When system_hierarchy is set and subsystem_trunc_dims is not set.
-        Exception
-            When closure_branches is set and the Circuit instance is initialized
-            with the setting ``use_dynamic_flux_grouping=True``.
+        ValueError
+            When called on an instance constructed via
+            ``Circuit(symbolic_hamiltonian=...)`` with any of
+            ``closure_branches``, ``transformation_matrix``,
+            ``use_dynamic_flux_grouping``, or ``generate_noise_methods``
+            supplied. Raised by a pre-flight check before any state snapshot,
+            so no rollback is performed.
+        ConfigureError
+            When configuration fails — for example when ``system_hierarchy``
+            is set without ``subsystem_trunc_dims``, or when
+            ``closure_branches`` is set on an instance initialized with
+            ``use_dynamic_flux_grouping=True``. The triggering exception is
+            preserved as ``__cause__``; prior configuration is restored
+            before the error is raised.
 
         Notes
         -----
         Mutates instance state by reassigning attributes such as
         ``system_hierarchy``, ``subsystem_trunc_dims``, ``transformation_matrix``,
         and ``closure_branches``.
+
+        On instances constructed via ``Circuit(symbolic_hamiltonian=...)``
+        the parameters ``closure_branches``, ``transformation_matrix``,
+        ``use_dynamic_flux_grouping``, and ``generate_noise_methods``
+        are not supported and raise ``ValueError`` if supplied — they
+        require the graph-derived ``symbolic_circuit`` that only the
+        YAML construction path builds.
         """
+        # Precondition check: fail fast before any state snapshot, so
+        # no rollback is needed for invalid combinations on the
+        # symbolic-Hamiltonian path.
+        if not hasattr(self, "symbolic_circuit") and (
+            closure_branches is not None
+            or use_dynamic_flux_grouping
+            or generate_noise_methods
+            or transformation_matrix is not None
+        ):
+            raise ValueError(
+                "Circuit instance initialized using symbolic Hamiltonian cannot be configured with closure_branches, use_dynamic_flux_grouping, transformation_matrix or generate_noise_methods."
+            )
 
         old_system_hierarchy = self.system_hierarchy
         old_subsystem_trunc_dims = self.subsystem_trunc_dims
@@ -807,21 +1042,13 @@ class Circuit(  # type: ignore[misc]
                     subsys_dict=subsys_dict,
                 )
             else:
-                if (
-                    closure_branches is not None
-                    or use_dynamic_flux_grouping
-                    or generate_noise_methods
-                ):
-                    raise Exception(
-                        "Circuit instance initialized using symbolic Hamiltonian cannot be configured with closure_branches, use_dynamic_flux_grouping, transformation_matrix or generate_noise_methods."
-                    )
                 self._configure_sym_hamiltonian(
                     system_hierarchy=system_hierarchy,
                     subsystem_trunc_dims=subsystem_trunc_dims,
                     ext_basis=ext_basis,
                     subsys_dict=subsys_dict,
                 )
-        except:
+        except Exception as exc:
             # resetting the necessary attributes
             self.system_hierarchy = old_system_hierarchy
             self.subsystem_trunc_dims = old_subsystem_trunc_dims
@@ -847,11 +1074,15 @@ class Circuit(  # type: ignore[misc]
                     ext_basis=old_ext_basis,
                     subsys_dict=old_subsys_dict,
                 )
-            raise Exception("Configure failed due to incorrect parameters.")
+            raise ConfigureError(
+                "Configure failed; previous configuration restored."
+            ) from exc
 
     def _read_symbolic_hamiltonian(
         self, symbolic_hamiltonian: sm.Expr
-    ) -> tuple[list[sm.Expr], list[sm.Expr], list[sm.Expr], dict[str, list[int]]]:
+    ) -> tuple[
+        list[sm.Expr], list[sm.Expr], list[sm.Expr], dict[VarCategoryKey, list[int]]
+    ]:
         """Extract flux, charge, and variable-category metadata.
 
         Extracts the metadata from the supplied symbolic Hamiltonian.
@@ -875,7 +1106,7 @@ class Circuit(  # type: ignore[misc]
         external_fluxes = []
         offset_charges = []
         free_charges = []
-        var_categories: dict[str, list[int]] = {
+        var_categories: dict[VarCategoryKey, list[int]] = {
             "periodic": [],
             "extended": [],
             "free": [],
@@ -904,7 +1135,7 @@ class Circuit(  # type: ignore[misc]
         system_hierarchy: list | None = None,
         subsystem_trunc_dims: list | None = None,
         subsys_dict: dict[str, Any] | None = None,
-        ext_basis: str | list[str] | None = None,
+        ext_basis: ExtBasisChoice | list[str] | None = None,
     ):
         """Re-initialize a symbolic-Hamiltonian circuit's hierarchical settings.
 
@@ -960,50 +1191,7 @@ class Circuit(  # type: ignore[misc]
             self.var_categories,
         ) = self._read_symbolic_hamiltonian(self.hamiltonian_symbolic)
 
-        # initiating the class properties
-        self.cutoff_names = []
-        for var_type in self.var_categories.keys():
-            if var_type == "periodic":
-                for idx, var_index in enumerate(self.var_categories["periodic"]):
-                    if not hasattr(self, f"_cutoff_n_{var_index}"):
-                        self._make_property(
-                            f"cutoff_n_{var_index}", 5, "update_cutoffs"
-                        )
-                    self.cutoff_names.append(f"cutoff_n_{var_index}")
-            if var_type == "extended":
-                for idx, var_index in enumerate(self.var_categories["extended"]):
-                    if not hasattr(self, f"_cutoff_ext_{var_index}"):
-                        self._make_property(
-                            f"cutoff_ext_{var_index}", 30, "update_cutoffs"
-                        )
-                    self.cutoff_names.append(f"cutoff_ext_{var_index}")
-
-        self.dynamic_var_indices = (
-            self.var_categories["periodic"] + self.var_categories["extended"]
-        )
-
-        # default values for the parameters
-        for idx, param in enumerate(self.symbolic_params):
-            if not hasattr(self, param.name):
-                self._make_property(
-                    param.name, self.symbolic_params[param], "update_param_vars"
-                )
-        # setting the ranges for flux ranges used for discrete phi vars
-        for var_index in self.var_categories["extended"]:
-            if var_index not in self.discretized_phi_range:
-                self.discretized_phi_range[var_index] = (-6 * np.pi, 6 * np.pi)
-        # external flux vars
-        for flux in self.external_fluxes:
-            # setting the default to zero external flux
-            if not hasattr(self, flux.name):
-                self._make_property(flux.name, 0.0, "update_external_flux_or_charge")
-        # offset charges
-        for charge_var in self.offset_charges + self.free_charges:
-            # default to zero offset charge
-            if not hasattr(self, charge_var.name):
-                self._make_property(
-                    charge_var.name, 0.0, "update_external_flux_or_charge"
-                )
+        self._install_var_properties()
 
         self.potential_symbolic = self._generate_sym_potential()
 
@@ -1038,7 +1226,7 @@ class Circuit(  # type: ignore[misc]
             self.operators_by_name = None
             self.system_hierarchy = system_hierarchy
             if subsystem_trunc_dims is None:
-                raise Exception(
+                raise ValueError(
                     "The truncated dimensions attribute for hierarchical "
                     "diagonalization is not set."
                 )
@@ -1068,7 +1256,7 @@ class Circuit(  # type: ignore[misc]
         system_hierarchy: list | None = None,
         subsystem_trunc_dims: list | None = None,
         closure_branches: list[Branch | dict[Branch, float]] | None = None,
-        ext_basis: str | list[str] | None = None,
+        ext_basis: ExtBasisChoice | list[str] | None = None,
         use_dynamic_flux_grouping: bool | None = None,
         subsys_dict: dict[str, Any] | None = None,
         generate_noise_methods: bool = False,
@@ -1152,74 +1340,9 @@ class Circuit(  # type: ignore[misc]
             True if system_hierarchy is not None else False
         )
 
-        # copying all the required attributes
-        required_attributes = [
-            "branches",
-            "closure_branches",
-            "external_fluxes",
-            "ground_node",
-            "hamiltonian_symbolic",
-            "input_string",
-            "is_grounded",
-            "lagrangian_node_vars",
-            "lagrangian_symbolic",
-            "nodes",
-            "offset_charges",
-            "free_charges",
-            "potential_symbolic",
-            "potential_node_vars",
-            "symbolic_params",
-            "transformation_matrix",
-            "var_categories",
-            "is_purely_harmonic",
-        ]
-        for attr in required_attributes:
-            setattr(self, attr, getattr(self.symbolic_circuit, attr))
+        self._import_from_symbolic_circuit()
 
-        # initiating the class properties
-        self.cutoff_names = []
-        for var_type in self.var_categories.keys():
-            if var_type == "periodic":
-                for idx, var_index in enumerate(self.var_categories["periodic"]):
-                    if not hasattr(self, f"_cutoff_n_{var_index}"):
-                        self._make_property(
-                            f"cutoff_n_{var_index}", 5, "update_cutoffs"
-                        )
-                    self.cutoff_names.append(f"cutoff_n_{var_index}")
-            if var_type == "extended":
-                for idx, var_index in enumerate(self.var_categories["extended"]):
-                    if not hasattr(self, f"_cutoff_ext_{var_index}"):
-                        self._make_property(
-                            f"cutoff_ext_{var_index}", 30, "update_cutoffs"
-                        )
-                    self.cutoff_names.append(f"cutoff_ext_{var_index}")
-
-        self.dynamic_var_indices = (
-            self.var_categories["periodic"] + self.var_categories["extended"]
-        )
-
-        # default values for the parameters
-        for idx, param in enumerate(self.symbolic_params):
-            if not hasattr(self, param.name):
-                self._make_property(
-                    param.name, self.symbolic_params[param], "update_param_vars"
-                )
-        # setting the ranges for flux ranges used for discrete phi vars
-        for var_index in self.var_categories["extended"]:
-            if var_index not in self.discretized_phi_range:
-                self.discretized_phi_range[var_index] = (-6 * np.pi, 6 * np.pi)
-        # external flux vars
-        for flux in self.external_fluxes:
-            # setting the default to zero external flux
-            if not hasattr(self, flux.name):
-                self._make_property(flux.name, 0.0, "update_external_flux_or_charge")
-        # offset and free charges
-        for charge_var in self.offset_charges + self.free_charges:
-            # default to zero offset charge
-            if not hasattr(self, charge_var.name):
-                self._make_property(
-                    charge_var.name, 0.0, "update_external_flux_or_charge"
-                )
+        self._install_var_properties()
 
         # changing the matrix type if necessary
         if (
@@ -1264,7 +1387,7 @@ class Circuit(  # type: ignore[misc]
             self.operators_by_name = None
             self.system_hierarchy = system_hierarchy
             if subsystem_trunc_dims is None:
-                raise Exception(
+                raise ValueError(
                     "The truncated dimensions attribute for hierarchical "
                     "diagonalization is not set."
                 )
@@ -1288,16 +1411,30 @@ class Circuit(  # type: ignore[misc]
         self.update()
 
     def supported_noise_channels(self) -> list[str]:  # type: ignore[override]
-        """Return a list of supported noise channels."""
+        """Return a list of supported noise channels.
+
+        Reads from the explicit noise-channel registry populated by
+        :meth:`generate_noise_methods` (see
+        :meth:`~scqubits.core.circuit_internals.noise.NoisyCircuit.channels`)
+        rather than walking ``self.__dict__`` and matching names by
+        substring.
+
+        Raises
+        ------
+        RuntimeError
+            When ``generate_noise_methods=True`` has not been passed to
+            :meth:`configure`; the absence of a populated noise-channel
+            registry is treated as a usage error at this layer. For
+            non-raising introspection of the registry contents (which
+            returns an empty mapping in the same state), use
+            :meth:`~scqubits.core.circuit_internals.noise.NoisyCircuit.channels`
+            instead.
+        """
         if not hasattr(self, "_noise_methods_generated"):
-            raise Exception(
+            raise RuntimeError(
                 "Noise methods are not generated, please use configure() with generate_noise_methods=True to generate them."
             )
-        return [
-            method_name
-            for method_name in self.__dict__
-            if "tphi_1_over_f" in method_name or "t1_" in method_name
-        ]
+        return list(self.channels())
 
     def effective_noise_channels(self):
         """Return the names of effective (combined) noise-channel methods.
@@ -1308,7 +1445,7 @@ class Circuit(  # type: ignore[misc]
         (effective) noise channels rather than per-branch contributions.
         """
         if not hasattr(self, "_noise_methods_generated"):
-            raise Exception(
+            raise RuntimeError(
                 "Noise methods are not generated, please use configure() with generate_noise_methods=True to generate them."
             )
         return [
@@ -1357,26 +1494,13 @@ class Circuit(  # type: ignore[misc]
         else:
             print(var_eqns)
 
-    def sym_lagrangian(
-        self,
-        vars_type: str = "node",
-        print_latex: bool = False,
-        return_expr: bool = False,
-    ) -> sm.Expr | None:
-        """Return or print a user-readable symbolic Lagrangian.
-
-        Provides a Lagrangian for the current instance, in either node-variable
-        or new-variable form.
+    def sym_lagrangian_expr(self, vars_type: str = "node") -> sm.Expr:
+        """Return the symbolic Lagrangian for the current instance.
 
         Parameters
         ----------
         vars_type:
-            "node" or "new", fixes the kind of lagrangian requested, by default "node"
-        print_latex:
-            if set to True, the expression is additionally printed as LaTeX code
-        return_expr:
-            if set to True, all printing is suppressed and the function will silently
-            return the sympy expression
+            ``"node"`` or ``"new"``, fixes the kind of Lagrangian requested.
         """
         if vars_type == "node":
             lagrangian = self.lagrangian_node_vars  # type: ignore[attr-defined]
@@ -1388,8 +1512,6 @@ class Circuit(  # type: ignore[misc]
                     sm.symbols(f"vφ{var_index}"),
                     sm.symbols("\\dot{φ_" + str(var_index) + "}"),
                 )
-            # break down the lagrangian into kinetic and potential part, and rejoin
-            # with evaluate=False to force the kinetic terms together and appear first
             sym_lagrangian_PE_node_vars = self.potential_node_vars  # type: ignore[attr-defined]
             for external_flux in self.external_fluxes:
                 sym_lagrangian_PE_node_vars = sym_lagrangian_PE_node_vars.replace(
@@ -1401,22 +1523,19 @@ class Circuit(  # type: ignore[misc]
                         + "})"
                     ),
                 )
-            lagrangian = sm.Add(
+            return sm.Add(
                 (self._make_expr_human_readable(lagrangian + self.potential_node_vars)),  # type: ignore[attr-defined]
                 (self._make_expr_human_readable(-sym_lagrangian_PE_node_vars)),
                 evaluate=False,
             )
 
-        elif vars_type == "new":
+        if vars_type == "new":
             lagrangian = self.lagrangian_symbolic  # type: ignore[attr-defined]
-            # replace v\theta with \theta_dot
             for var_index in self.dynamic_var_indices:
                 lagrangian = lagrangian.replace(
                     sm.symbols(f"vθ{var_index}"),
                     sm.symbols("\\dot{θ_" + str(var_index) + "}"),
                 )
-            # break down the lagrangian into kinetic and potential part, and rejoin
-            # with evaluate=False to force the kinetic terms together and appear first
             sym_lagrangian_PE_new = self.potential_symbolic.expand()
             for external_flux in self.external_fluxes:
                 sym_lagrangian_PE_new = sym_lagrangian_PE_new.replace(
@@ -1428,7 +1547,7 @@ class Circuit(  # type: ignore[misc]
                         + "})"
                     ),
                 )
-            lagrangian = sm.Add(
+            return sm.Add(
                 (
                     self._make_expr_human_readable(
                         lagrangian + self.potential_symbolic.expand()
@@ -1437,8 +1556,41 @@ class Circuit(  # type: ignore[misc]
                 (self._make_expr_human_readable(-sym_lagrangian_PE_new)),
                 evaluate=False,
             )
+
+        raise ValueError(f"vars_type must be 'node' or 'new', got {vars_type!r}")
+
+    def sym_lagrangian(
+        self,
+        vars_type: str = "node",
+        print_latex: bool = False,
+        return_expr: bool = False,
+    ) -> sm.Expr | None:
+        """Print a user-readable symbolic Lagrangian for the current instance.
+
+        Parameters
+        ----------
+        vars_type:
+            ``"node"`` or ``"new"``, fixes the kind of Lagrangian requested.
+        print_latex:
+            if ``True``, also print the LaTeX source.
+        return_expr:
+            deprecated; use :meth:`sym_lagrangian_expr` instead. When ``True``,
+            a ``DeprecationWarning`` is emitted and the sympy expression is
+            returned without printing.
+        """
         if return_expr:
-            return lagrangian
+            warnings.warn(
+                "The `return_expr=True` flag is deprecated; "
+                "use `sym_lagrangian_expr(...)` instead. Note that "
+                "`sym_lagrangian_expr` does not honor `print_latex`; "
+                "for the LaTeX print side-effect call `sym_lagrangian` "
+                "without `return_expr`.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return self.sym_lagrangian_expr(vars_type=vars_type)
+
+        lagrangian = self.sym_lagrangian_expr(vars_type=vars_type)
         if print_latex:
             print(latex(lagrangian))
         if _HAS_IPYTHON:
@@ -1470,7 +1622,9 @@ class Circuit(  # type: ignore[misc]
                 self.external_fluxes[list_closure_branches[branch]]
             ): (
                 branch,
-                self.symbolic_circuit._find_loop(branch),
+                self.symbolic_circuit._find_loop(
+                    branch, self.symbolic_circuit.spanning_tree_dict
+                ),
             )
             for branch in list_closure_branches
         }
@@ -1494,11 +1648,11 @@ class Circuit(  # type: ignore[misc]
         for subsystem_index in osc_index_list:
             subsystem = self.subsystems[subsystem_index]
             if not subsystem.is_purely_harmonic:
-                raise Exception(
+                raise ValueError(
                     f"the subsystem {subsystem_index} is not purely harmonic"
                 )
             elif len(subsystem.var_categories["extended"]) != 1:
-                raise Exception(
+                raise ValueError(
                     "the subsystem has more than one harmonic oscillator mode"
                 )
             else:
@@ -1516,7 +1670,9 @@ class Circuit(  # type: ignore[misc]
         Parameters
         ----------
         qbt_index_list:
-            a list of indices of subsystems that are single-mode harmonic oscillators
+            indices of subsystems that should be treated as qubits (i.e.
+            non-purely-harmonic subsystems with a discrete low-energy
+            spectrum) rather than oscillators.
         """
         # identify if each naminated subsystem indeed have a single harmonic oscillator
         qbt_subsys_list = []

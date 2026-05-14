@@ -12,11 +12,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
 import functools
 import importlib
 import re
 
+from collections.abc import Callable, Iterator
 from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
 import numpy as np
@@ -51,8 +51,8 @@ else:
 if TYPE_CHECKING:
     from scqubits.io_utils.fileio import IOData
 
-from scqubits.utils.typedefs import OscillatorList, QuantumSys, QubitList
 from scqubits.core.qubit_base import QubitBaseClass
+from scqubits.utils.typedefs import OscillatorList, QuantumSys, QubitList
 
 
 def has_duplicate_id_str(subsystem_list: list[QuantumSys]) -> bool:

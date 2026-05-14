@@ -5,8 +5,11 @@ from typing import TYPE_CHECKING, Any, cast
 if TYPE_CHECKING:
     from scqubits.core.circuit import Subsystem
 
+from abc import ABC
+
 import numpy as np
 import sympy as sm
+
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -17,80 +20,60 @@ import scqubits.core.oscillator as osc
 import scqubits.core.storage as storage
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
+
 from scqubits import get_units
+from scqubits.core.circuit_internals._protocols import CircuitProtocol
+from scqubits.core.circuit_internals.utils import get_trailing_number
 from scqubits.io_utils.fileio_serializers import dict_serialize
-from scqubits.core.circuit_utils import (
-    sawtooth_potential,
-    get_trailing_number,
-)
 from scqubits.utils.misc import (
     flatten_list_recursive,
     list_intersection,
     unique_elements_in_list,
 )
 from scqubits.utils.plot_utils import _process_options
-from abc import ABC
+
+__all__ = [
+    "CircuitPlot",
+]
 
 
-class CircuitPlot(ABC):
-    """Mixin providing wave-function and potential plotting for circuit subsystems."""
+class CircuitPlot(ABC, CircuitProtocol):
+    """Mixin providing wave-function and potential plotting for circuit subsystems.
 
-    # The following attributes and methods are provided by sibling mixins
-    # (CircuitRoutines, CircuitSymMethods) when composed into Subsystem/Circuit.
-    # They are declared here under TYPE_CHECKING so that mypy understands the
-    # mixin's references to them without affecting runtime behavior.
-    if TYPE_CHECKING:
-        dynamic_var_indices: list[int]
-        var_categories: dict[str, list[int]]
-        cutoff_names: list[str]
-        ext_basis: str
-        hierarchical_diagonalization: bool
-        subsystems: list["Subsystem"]
-        external_fluxes: list[sm.Symbol]
-        symbolic_params: dict[sm.Symbol, float]
-        potential_symbolic: sm.Expr
+    Cross-mixin attributes / methods (``dynamic_var_indices``,
+    ``cutoff_names``, ``cutoffs_dict``, ``get_osc_param``, etc.) are
+    inherited from
+    :class:`~scqubits.core.circuit_internals._protocols.CircuitProtocol`,
+    which is type-only at runtime (its body is gated under
+    ``TYPE_CHECKING``).
+    """
 
-        def get_osc_param(self, var_index: int, which_param: str = ...) -> float:
-            """Stub: oscillator parameter for ``var_index`` provided by sibling mixin.
+    # ****************************************************************
+    # ************* Cutoff accessors (used by both wf and potential) *
+    # ****************************************************************
+    def _charge_cutoff(self, var_index: int) -> int:
+        """Return the periodic-variable cutoff ``cutoff_n_<var_index>`` in the charge basis."""
+        return getattr(self, f"cutoff_n_{var_index}")
 
-            Parameters
-            ----------
-            var_index:
-                index of the variable whose oscillator parameter is requested.
-            which_param:
-                key identifying which oscillator parameter to retrieve.
-            """
-            ...
+    def _extended_cutoff(self, var_index: int) -> int:
+        """Return the extended-variable cutoff ``cutoff_ext_<var_index>``."""
+        return getattr(self, f"cutoff_ext_{var_index}")
 
-        def get_subsystem_index(self, var_index: int) -> int:
-            """Stub: subsystem index for ``var_index`` provided by sibling mixin.
+    @staticmethod
+    def _set_charge_axis_locator(axis, cutoff_n: int, max_visible_cutoff: int) -> None:
+        """Choose an integer tick locator for an axis displaying charge labels.
 
-            Parameters
-            ----------
-            var_index:
-                index of the variable whose subsystem index is requested.
-            """
-            ...
-
-        def cutoffs_dict(self) -> dict[int, int]:
-            """Stub: cutoff dictionary provided by sibling mixin."""
-            ...
-
-        def discretized_grids_dict_for_vars(
-            self,
-        ) -> dict[int, discretization.Grid1d]:
-            """Stub: discretized grids dictionary provided by sibling mixin."""
-            ...
-
-        def eigensys(self, evals_count: int = ...) -> tuple[ndarray, ndarray]:
-            """Stub: eigensystem accessor provided by sibling mixin.
-
-            Parameters
-            ----------
-            evals_count:
-                see :meth:`scqubits.core.qubit_base.QubitBaseClass.eigensys`
-            """
-            ...
+        Periodic variables span ``n = -cutoff_n, ..., cutoff_n``
+        (``2*cutoff_n + 1`` integer values). When the cutoff is small enough
+        (``<= max_visible_cutoff``), every integer is rendered; otherwise the
+        density is capped at ``2*max_visible_cutoff + 1`` ticks.
+        """
+        if cutoff_n > max_visible_cutoff:
+            axis.set_major_locator(
+                plt.MaxNLocator(2 * max_visible_cutoff + 1, integer=True)
+            )
+        else:
+            axis.set_major_locator(plt.MaxNLocator(1 + 2 * cutoff_n, integer=True))
 
     # ****************************************************************
     # ************* Functions for plotting wave function *************
@@ -117,9 +100,7 @@ class CircuitPlot(ABC):
             Variable indices that should still be resolved in their original
             basis after the recursion.
         """
-        U_subsys = subsystem.eigensys(evals_count=subsystem.truncated_dim)[
-            1
-        ]  # eigensys(evals_count=subsystem.truncated_dim)
+        U_subsys = subsystem.eigensys(evals_count=subsystem.truncated_dim)[1]
         wf_sublist = list(range(len(wf_reshaped.shape)))
         U_sublist = [wf_dim, len(wf_sublist)]
         target_sublist = wf_sublist.copy()
@@ -134,7 +115,7 @@ class CircuitPlot(ABC):
             ]
             wf_new_basis = wf_new_basis.reshape(flatten_list_recursive(wf_shape))
             for sub_subsys_index, sub_subsys in enumerate(subsystem.subsystems):
-                if len(set(relevant_indices) & set(sub_subsys.dynamic_var_indices)) > 0:
+                if set(relevant_indices) & set(sub_subsys.dynamic_var_indices):
                     wf_new_basis = self._recursive_basis_change(
                         wf_new_basis,
                         wf_dim + sub_subsys_index,
@@ -142,7 +123,7 @@ class CircuitPlot(ABC):
                         relevant_indices=relevant_indices,
                     )
         else:
-            if len(set(relevant_indices) & set(subsystem.dynamic_var_indices)) > 0:
+            if set(relevant_indices) & set(subsystem.dynamic_var_indices):
                 wf_shape = list(wf_new_basis.shape)
                 wf_shape[wf_dim] = [
                     (
@@ -183,7 +164,7 @@ class CircuitPlot(ABC):
                     grid_n.make_linspace(),
                     abs(self.get_osc_param(var_index, which_param="length")),
                 )
-                for n in range(getattr(self, "cutoff_ext_" + str(var_index)))
+                for n in range(self._extended_cutoff(var_index))
             ]
         )
         wf_sublist = [idx for idx, _ in enumerate(wf_original_basis.shape)]
@@ -223,7 +204,7 @@ class CircuitPlot(ABC):
                     grid_phi.make_linspace(),
                     abs(self.get_osc_param(var_index, which_param="length")),
                 )
-                for n in range(getattr(self, "cutoff_ext_" + str(var_index)))
+                for n in range(self._extended_cutoff(var_index))
             ]
         )
         wf_sublist = [idx for idx, _ in enumerate(wf_original_basis.shape)]
@@ -260,8 +241,8 @@ class CircuitPlot(ABC):
             [
                 np.exp(n * grid_phi.make_linspace() * 1j)
                 for n in range(
-                    -getattr(self, "cutoff_n_" + str(var_index)),
-                    getattr(self, "cutoff_n_" + str(var_index)) + 1,
+                    -self._charge_cutoff(var_index),
+                    self._charge_cutoff(var_index) + 1,
                 )
             ]
         )
@@ -289,14 +270,14 @@ class CircuitPlot(ABC):
             return self.dynamic_var_indices.index(var_index)
         for subsys in self.subsystems:
             intersection = list_intersection(subsys.dynamic_var_indices, wf_var_indices)
-            if len(intersection) > 0 and var_index not in intersection:
+            if intersection and var_index not in intersection:
                 if subsys.hierarchical_diagonalization:
                     wf_dim += subsys._get_var_dim_for_reshaped_wf(
                         wf_var_indices, var_index
                     )
                 else:
                     wf_dim += len(subsys.dynamic_var_indices)
-            elif len(intersection) > 0 and var_index in intersection:
+            elif intersection and var_index in intersection:
                 if subsys.hierarchical_diagonalization:
                     wf_dim += subsys._get_var_dim_for_reshaped_wf(
                         wf_var_indices, var_index
@@ -521,24 +502,24 @@ class CircuitPlot(ABC):
             )
             return wf_plot
         if mode == "abs":
-            if len(dims_to_be_summed) == 0:
+            if not dims_to_be_summed:
                 return np.abs(wf_ext_basis)
             else:
-                raise AttributeError(
+                raise ValueError(
                     "Cannot plot the absolute value of the wave function in more than 2 dimensions."
                 )
         elif mode == "real":
-            if len(dims_to_be_summed) == 0:
+            if not dims_to_be_summed:
                 return np.real(wf_ext_basis)
             else:
-                raise AttributeError(
+                raise ValueError(
                     "Cannot plot the real part of the wave function in more than 2 dimensions."
                 )
         elif mode == "imag":
-            if len(dims_to_be_summed) == 0:
+            if not dims_to_be_summed:
                 return np.imag(wf_ext_basis)
             else:
-                raise AttributeError(
+                raise ValueError(
                     "Cannot plot the imaginary part of the wave function in more than 2 dimensions."
                 )
 
@@ -550,7 +531,7 @@ class CircuitPlot(ABC):
         esys: tuple[ndarray, ndarray] | None = None,
         change_discrete_charge_to_phi: bool = True,
         zero_calibrate: bool = True,
-        grids_dict: dict[int, discretization.Grid1d] = {},
+        grids_dict: dict[int, discretization.Grid1d] | None = None,
         **kwargs,
     ) -> tuple[Figure, Axes]:
         """Plot the wavefunction in the requested variables.
@@ -595,10 +576,12 @@ class CircuitPlot(ABC):
         -------
         ``(Figure, Axes)`` tuple for further editing.
         """
+        if not var_indices:
+            raise ValueError("Cannot plot wave function without any plotting axes.")
         if len(var_indices) > 2:
-            raise AttributeError(
-                "Cannot plot wave function in more than 2 dimensions. The number of "
-                "dimensions should be less than 2."
+            raise ValueError(
+                "Cannot plot wave function in more than 2 dimensions. "
+                "At most 2 plotting axes are supported."
             )
         var_indices = np.sort(var_indices)  # type: ignore[assignment]
         grids_per_varindex_dict = grids_dict or self.discretized_grids_dict_for_vars()
@@ -681,14 +664,8 @@ class CircuitPlot(ABC):
             if not change_discrete_charge_to_phi and (
                 var_indices[index_order] in self.var_categories["periodic"]
             ):
-                grids.append(
-                    [
-                        -getattr(self, "cutoff_n_" + str(var_indices[index_order])),
-                        getattr(self, "cutoff_n_" + str(var_indices[index_order])),
-                        2 * getattr(self, "cutoff_n_" + str(var_indices[index_order]))
-                        + 1,
-                    ]
-                )
+                cutoff_n = self._charge_cutoff(var_indices[index_order])
+                grids.append([-cutoff_n, cutoff_n, 2 * cutoff_n + 1])
                 labels.append(r"$n_{{{}}}$".format(str(var_indices[index_order])))
             else:
                 grids.append(
@@ -714,25 +691,17 @@ class CircuitPlot(ABC):
         # also force the tick marks to be integers
         if not change_discrete_charge_to_phi:
             if var_indices[0] in self.var_categories["periodic"]:
-                if getattr(self, "cutoff_n_" + str(var_indices[0])) >= 6:
-                    axes.yaxis.set_major_locator(plt.MaxNLocator(13, integer=True))
-                else:
-                    axes.yaxis.set_major_locator(
-                        plt.MaxNLocator(
-                            1 + 2 * getattr(self, "cutoff_n_" + str(var_indices[0])),
-                            integer=True,
-                        )
-                    )
+                self._set_charge_axis_locator(
+                    axes.yaxis,
+                    self._charge_cutoff(var_indices[0]),
+                    max_visible_cutoff=6,
+                )
             if var_indices[1] in self.var_categories["periodic"]:
-                if getattr(self, "cutoff_n_" + str(var_indices[1])) >= 15:
-                    axes.xaxis.set_major_locator(plt.MaxNLocator(31, integer=True))
-                else:
-                    axes.xaxis.set_major_locator(
-                        plt.MaxNLocator(
-                            1 + 2 * getattr(self, "cutoff_n_" + str(var_indices[1])),
-                            integer=True,
-                        )
-                    )
+                self._set_charge_axis_locator(
+                    axes.xaxis,
+                    self._charge_cutoff(var_indices[1]),
+                    max_visible_cutoff=15,
+                )
 
         return fig, axes
 
@@ -781,18 +750,11 @@ class CircuitPlot(ABC):
                 **defaults.wavefunction1d_discrete("abs_sqr"),
                 **kwargs,
             }
-            wavefunc.basis_labels = np.arange(
-                -getattr(self, "cutoff_n_" + str(var_index)),
-                getattr(self, "cutoff_n_" + str(var_index)) + 1,
-            )
+            cutoff_n = self._charge_cutoff(var_index)
+            wavefunc.basis_labels = np.arange(-cutoff_n, cutoff_n + 1)
             fig, axes = plot.wavefunction1d_discrete(wavefunc, **kwargs)
             # changing the tick frequency for axes
-            if getattr(self, "cutoff_n_" + str(var_index)) >= 7:
-                axes.xaxis.set_major_locator(plt.MaxNLocator(15, integer=True))
-            else:
-                axes.xaxis.set_major_locator(
-                    plt.MaxNLocator(1 + 2 * getattr(self, "cutoff_n_" + str(var_index)))
-                )
+            self._set_charge_axis_locator(axes.xaxis, cutoff_n, max_visible_cutoff=7)
         else:
             wavefunc = storage.WaveFunction(
                 basis_labels=grids_per_varindex_dict[var_indices[0]].make_linspace(),
@@ -822,6 +784,38 @@ class CircuitPlot(ABC):
     # ****************************************************************
     # ************* Functions for plotting potential *****************
     # ****************************************************************
+    def _potential_parameter_template(self) -> dict:
+        """Return a None-valued dict keyed by every parameter the potential needs.
+
+        The keys are ``θ<index>`` for each extended/periodic variable, plus
+        the names of all external fluxes and symbolic parameters.
+        """
+        var_categories = (
+            self.var_categories["extended"] + self.var_categories["periodic"]
+        )
+        return dict.fromkeys(
+            [f"θ{index}" for index in var_categories]
+            + [var.name for var in self.external_fluxes]
+            + [var.name for var in self.symbolic_params]
+        )
+
+    @staticmethod
+    def _build_sweep_vars(kwargs: dict, parameters: dict) -> dict:
+        """Collect the ``ndarray``-valued entries of ``kwargs`` into a sweep dict.
+
+        When more than one is present, meshgrid them and write the resulting
+        broadcast arrays back into ``parameters``. Returns the (post-mesh)
+        sweep dict.
+        """
+        sweep_vars = {
+            name: val for name, val in kwargs.items() if isinstance(val, np.ndarray)
+        }
+        if len(sweep_vars) > 1:
+            sweep_vars.update(zip(sweep_vars, np.meshgrid(*list(sweep_vars.values()))))
+            for var_name in sweep_vars:
+                parameters[var_name] = sweep_vars[var_name]
+        return sweep_vars
+
     def potential_energy(self, **kwargs) -> ndarray:
         r"""Return the circuit potential evaluated on a user-specified grid.
 
@@ -834,59 +828,37 @@ class CircuitPlot(ABC):
         θ<index>:
             value(s) for variable :math:`\theta_i` in the potential
         """
-        periodic_indices = self.var_categories["periodic"]
-        discretized_ext_indices = self.var_categories["extended"]
-        var_categories = discretized_ext_indices + periodic_indices
-
         # substituting the parameters
         potential_sym = self.potential_symbolic.subs("I", 1)
         for ext_flux in self.external_fluxes:
             potential_sym = potential_sym.subs(ext_flux, ext_flux * 2 * np.pi)
 
-        # constructing the grids
-        parameters = dict.fromkeys(
-            [f"θ{index}" for index in var_categories]
-            + [var.name for var in self.external_fluxes]
-            + [var.name for var in self.symbolic_params]
-        )
+        parameters = self._potential_parameter_template()
 
         for var_name in kwargs:
-            if isinstance(kwargs[var_name], np.ndarray):
-                parameters[var_name] = kwargs[var_name]
-            elif isinstance(kwargs[var_name], (int, float)):
+            if isinstance(kwargs[var_name], (np.ndarray, int, float)):
                 parameters[var_name] = kwargs[var_name]
             else:
-                raise AttributeError(
+                raise TypeError(
                     "Only float, int or Numpy ndarray assignments are allowed."
                 )
 
-        for var_name in parameters.keys():
-            if parameters[var_name] is None:
-                if var_name in [
-                    var.name
-                    for var in list(self.symbolic_params.keys()) + self.external_fluxes
-                ]:
-                    parameters[var_name] = getattr(self, var_name)
-                elif var_name in [f"θ{index}" for index in var_categories]:
-                    raise AttributeError(var_name + " is not set.")
+        theta_keys = [k for k in parameters if k.startswith("θ") and k[1:].isdigit()]
+        for var_name, val in parameters.items():
+            if val is not None:
+                continue
+            if var_name in theta_keys:
+                raise ValueError(var_name + " is not set.")
+            parameters[var_name] = getattr(self, var_name)
 
-        # creating a meshgrid for multiple dimensions
-        sweep_vars = {}
-        for var_name in kwargs:
-            if isinstance(kwargs[var_name], np.ndarray):
-                sweep_vars[var_name] = kwargs[var_name]
-        if len(sweep_vars) > 1:
-            sweep_vars.update(
-                zip(
-                    sweep_vars,
-                    np.meshgrid(*[grid for grid in sweep_vars.values()]),
-                )
-            )
-            for var_name in sweep_vars:
-                parameters[var_name] = sweep_vars[var_name]
+        self._build_sweep_vars(kwargs, parameters)
 
         potential_func = sm.lambdify(
-            parameters.keys(), potential_sym, [{"saw": sawtooth_potential}, "numpy"]
+            parameters.keys(),
+            potential_sym,
+            [
+                "numpy",
+            ],
         )
 
         return potential_func(*parameters.values())
@@ -908,36 +880,19 @@ class CircuitPlot(ABC):
         ``(Figure, Axes)`` tuple for further editing.
         """
 
-        periodic_indices = self.var_categories["periodic"]
-        discretized_ext_indices = self.var_categories["extended"]
-        var_categories = discretized_ext_indices + periodic_indices
-
-        # constructing the grids
-        parameters = dict.fromkeys(
-            [f"θ{index}" for index in var_categories]
-            + [var.name for var in self.external_fluxes]
-            + [var.name for var in self.symbolic_params]
-        )
+        parameters = self._potential_parameter_template()
 
         # filtering the plotting options
-        plot_kwargs = {}
-        list_of_keys = list(kwargs.keys())
-        for key in list_of_keys:
-            if key not in parameters:
-                plot_kwargs[key] = kwargs[key]
-                del kwargs[key]
+        plot_kwargs = {
+            key: kwargs[key] for key in list(kwargs) if key not in parameters
+        }
+        for key in plot_kwargs:
+            del kwargs[key]
 
-        sweep_vars = {}
-        for var_name in kwargs:
-            if isinstance(kwargs[var_name], np.ndarray):
-                sweep_vars[var_name] = kwargs[var_name]
-        if len(sweep_vars) > 1:
-            sweep_vars.update(zip(sweep_vars, np.meshgrid(*list(sweep_vars.values()))))
-            for var_name in sweep_vars:
-                parameters[var_name] = sweep_vars[var_name]
+        sweep_vars = self._build_sweep_vars(kwargs, parameters)
 
         if len(sweep_vars) > 2:
-            raise AttributeError(
+            raise ValueError(
                 "Cannot plot with a dimension greater than 3; Only give a maximum of "
                 "two grid inputs"
             )
@@ -949,9 +904,7 @@ class CircuitPlot(ABC):
         if len(sweep_vars) == 1:
             axes.plot(*(list(sweep_vars.values()) + [potential_energies]))
             axes.set_xlabel(
-                r"$\theta_{{{}}}$".format(
-                    get_trailing_number(list(sweep_vars.keys())[0])
-                )
+                r"$\theta_{{{}}}$".format(get_trailing_number(next(iter(sweep_vars))))
             )
             axes.set_ylabel("Potential energy in " + get_units())
 
@@ -959,9 +912,7 @@ class CircuitPlot(ABC):
             contourset = axes.contourf(
                 *(list(sweep_vars.values()) + [potential_energies])
             )
-            var_indices = [
-                get_trailing_number(var_name) for var_name in list(sweep_vars.keys())
-            ]
+            var_indices = [get_trailing_number(var_name) for var_name in sweep_vars]
             axes.set_xlabel(r"$\theta_{{{}}}$".format(var_indices[0]))
             axes.set_ylabel(r"$\theta_{{{}}}$".format(var_indices[1]))
             cbar = plt.colorbar(contourset, ax=axes)

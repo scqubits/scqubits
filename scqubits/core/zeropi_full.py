@@ -768,7 +768,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
         Returns
         -------
-        int
+        Product ``zeropi_cutoff * zeta_cutoff`` -- the dimension of the
+        full ``ZeroPi`` Hilbert space (zero-pi sector tensor zeta-mode).
         """
         return self.zeropi_cutoff * self.zeta_cutoff
 

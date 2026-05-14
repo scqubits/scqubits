@@ -12,20 +12,24 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from numpy import ndarray
-from typing import Any
-from qutip import Qobj
-from scipy.sparse import csc_matrix
-from scqubits.io_utils.fileio_qutip import QutipEigenstates
-from scqubits.utils.spectrum_utils import order_eigensystem, has_degeneracy
-
 import copy
+import warnings
+
+from collections.abc import Callable
+from typing import Any
+
 import numpy as np
 import qutip as q
 import scipy as sp
+
+from numpy import ndarray
+from qutip import Qobj
+from scipy.sparse import csc_matrix
+
 import scqubits.settings as settings
-import warnings
+
+from scqubits.io_utils.fileio_qutip import QutipEigenstates
+from scqubits.utils.spectrum_utils import has_degeneracy, order_eigensystem
 
 
 def _dict_merge(
@@ -532,6 +536,7 @@ def evals_cupy_sparse(
     """
     try:
         import cupy as cp
+
         from cupyx.scipy.sparse import csc_matrix as cp_csc_matrix
         from cupyx.scipy.sparse.linalg import eigsh
     except:
@@ -577,6 +582,7 @@ def esys_cupy_sparse(
     """
     try:
         import cupy as cp
+
         from cupyx.scipy.sparse import csc_matrix as cp_csc_matrix
         from cupyx.scipy.sparse.linalg import eigsh
     except:

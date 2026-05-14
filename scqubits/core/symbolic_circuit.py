@@ -14,42 +14,43 @@ from __future__ import annotations
 import copy
 import itertools
 import warnings
-from typing import Any
+
+from itertools import chain
+from typing import Any, ClassVar, Literal
 
 import numpy as np
-from numpy import ndarray
 import scipy as sp
 import sympy
 import sympy as sm
-from sympy import symbols, Symbol
 
-from scqubits.core.circuit_utils import (
-    round_symbolic_expr,
-    _capacitance_variable_for_branch,
-    _junction_order,
-    get_trailing_number,
-)
+from numpy import ndarray
+from sympy import Symbol, symbols
 
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
-from itertools import chain
 
+from scqubits.core.circuit_internals.branch_metadata import (
+    _capacitance_variable_for_branch,
+    _junction_order,
+)
+from scqubits.core.circuit_internals.input import (
+    parse_code_line,
+    process_param,
+    remove_branchline,
+    remove_comments,
+    strip_empty_lines,
+)
+from scqubits.core.circuit_internals.sympy_helpers import round_symbolic_expr
+from scqubits.core.circuit_internals.utils import get_trailing_number
+from scqubits.core.symbolic_circuit_graph import (
+    Branch,
+    Coupler,
+    Node,
+    SymbolicCircuitGraph,
+)
 from scqubits.utils.misc import (
     flatten_list_recursive,
     unique_elements_in_list,
-)
-from scqubits.core.circuit_input import (
-    remove_comments,
-    remove_branchline,
-    strip_empty_lines,
-    parse_code_line,
-    process_param,
-)
-from scqubits.core.symbolic_circuit_graph import (
-    SymbolicCircuitGraph,
-    Node,
-    Branch,
-    Coupler,
 )
 
 
@@ -95,6 +96,32 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         default); used for bookkeeping and serialization
     """
 
+    #: Names of attributes that flow from the symbolic (stage-1) layer to
+    #: the numerical (stage-2) ``Circuit`` instance via
+    #: :meth:`Circuit._import_from_symbolic_circuit`. Adding a new attribute
+    #: on this class that downstream code needs requires adding the name
+    #: here — there is no other registration step.
+    _STAGE2_ATTRIBUTES: ClassVar[tuple[str, ...]] = (
+        "branches",
+        "closure_branches",
+        "external_fluxes",
+        "ground_node",
+        "hamiltonian_symbolic",
+        "input_string",
+        "is_grounded",
+        "is_purely_harmonic",
+        "lagrangian_node_vars",
+        "lagrangian_symbolic",
+        "nodes",
+        "offset_charges",
+        "free_charges",
+        "potential_symbolic",
+        "potential_node_vars",
+        "symbolic_params",
+        "transformation_matrix",
+        "var_categories",
+    )
+
     def __init__(
         self,
         nodes_list: list[Node],
@@ -116,7 +143,9 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
         # attributes set by methods
         self.transformation_matrix: ndarray
 
-        self.var_categories: dict[str, list[int]] = {}
+        self.var_categories: dict[
+            Literal["periodic", "extended", "free", "frozen", "sigma"], list[int]
+        ] = {}
         self.external_fluxes: list[Symbol] = []
         self.closure_branches: list[Branch | dict[Branch, float]] = []
 
@@ -157,7 +186,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
 
     def _is_any_branch_parameter_symbolic(self) -> bool:
         """Return ``True`` if any branch parameter is symbolic."""
-        return True if len(self.symbolic_params) > 0 else False
+        return True if self.symbolic_params else False
 
     @staticmethod
     def _gram_schmidt(initial_vecs: ndarray, metric: ndarray) -> ndarray:
@@ -487,18 +516,14 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
     def _junction_terms(self) -> sm.Expr | int:
         r"""Return the sum of cosine Josephson terms for all standard JJ branches.
 
-        For each Josephson branch (excluding sawtooth ``JJs`` branches) and each
+        For each Josephson branch and each
         junction harmonic order, the contribution
         :math:`-E_{Jk}\cos[k(\varphi_a - \varphi_b + \varphi_\text{ext})]`
         is added, with appropriate handling of the ground node.
         """
         terms = 0
         # looping over all the junction terms
-        junction_branches = [
-            branch
-            for branch in self.branches
-            if "JJ" in branch.type and "JJs" not in branch.type
-        ]
+        junction_branches = [branch for branch in self.branches if "JJ" in branch.type]
         junction_branch_order = [
             _junction_order(branch.type) for branch in junction_branches
         ]
@@ -533,54 +558,29 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
                     )
         return terms
 
-    def _JJs_terms(self):
-        """To add terms for the sawtooth josephson junction."""
-        terms = 0
-        # looping over all the junction terms
-        junction_branches = [branch for branch in self.branches if "JJs" in branch.type]
+    def _inductance_inverse_matrix(
+        self, substitute_params: bool = False
+    ) -> ndarray | sm.Matrix:
+        """Return the node-basis inverse-inductance (Laplacian) matrix.
 
-        # defining a function for sawtooth
-        saw = sympy.Function("saw", real=True)
-
-        for branch_idx, jj_branch in enumerate(junction_branches):
-            # adding external flux
-            phi_ext = self.branch_flux_allocations[jj_branch.index]
-
-            # if loop to check for the presence of ground node
-            junction_param = "EJ"
-            if jj_branch.nodes[1].index == 0:
-                terms += jj_branch.parameters[junction_param] * saw(
-                    (-sympy.symbols(f"φ{jj_branch.nodes[0].index}") + phi_ext)
-                )
-            elif jj_branch.nodes[0].index == 0:
-                terms += jj_branch.parameters[junction_param] * saw(
-                    (sympy.symbols(f"φ{jj_branch.nodes[1].index}") + phi_ext)
-                )
-            else:
-                terms += jj_branch.parameters[junction_param] * saw(
-                    (
-                        (
-                            sympy.symbols(f"φ{jj_branch.nodes[1].index}")
-                            - sympy.symbols(f"φ{jj_branch.nodes[0].index}")
-                        )
-                        + phi_ext
-                    )
-                )
-        return terms
-
-    def _inductance_inverse_matrix(self, substitute_params: bool = False):
-        """Generate a inductance matrix for the circuit.
+        Off-diagonal entry ``[i, j]`` is the sum of ``-EL`` over every
+        ``L``-type branch joining nodes ``i`` and ``j``; the diagonal is
+        chosen so each row sums to zero (graph Laplacian convention).
+        If the circuit is grounded, the ground row and column are
+        dropped, leaving an ``(N-1) × (N-1)`` matrix where ``N`` is the
+        node count including ground.
 
         Parameters
         ----------
         substitute_params:
-            when set to True all the symbolic branch parameters are substituted with
-            their corresponding attributes in float, by default False
+            when ``True`` all symbolic branch parameters are substituted
+            with their current numeric attributes; default ``False``.
 
         Returns
         -------
-        _type_
-            _description_
+        ``ndarray`` when every parameter is numeric or
+        ``substitute_params=True``; otherwise a ``sympy.Matrix`` with
+        the symbolic ``EL`` placeholders preserved.
         """
         branches_with_inductance = [
             branch for branch in self.branches if branch.type == "L"
@@ -622,19 +622,31 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
             L_mat = L_mat[1:, 1:]
         return L_mat
 
-    def _capacitance_matrix(self, substitute_params: bool = False):
-        """Generate a capacitance matrix for the circuit.
+    def _capacitance_matrix(
+        self, substitute_params: bool = False
+    ) -> ndarray | sm.Matrix:
+        """Return the node-basis capacitance matrix derived from ``EC`` values.
+
+        Off-diagonal entry ``[i, j]`` is the sum of ``-1/(8·EC)`` over
+        every capacitive branch (``"C"`` and ``"JJ"``-type) joining
+        nodes ``i`` and ``j``; the diagonal is chosen so each row sums
+        to zero. If the circuit is grounded, the ground row and column
+        are dropped, leaving an ``(N-1) × (N-1)`` matrix where ``N`` is
+        the node count including ground. The factor of ``8`` reflects
+        the convention :math:`E_C = e^2 / (2 C)` — each branch
+        contributes ``C = 1/(8·E_C)`` to the capacitance matrix.
 
         Parameters
         ----------
         substitute_params:
-            when set to True all the symbolic branch parameters are substituted with
-            their corresponding attributes in float, by default False
+            when ``True`` all symbolic branch parameters are substituted
+            with their current numeric attributes; default ``False``.
 
         Returns
         -------
-        _type_
-            _description_
+        ``ndarray`` when every parameter is numeric or
+        ``substitute_params=True``; otherwise a ``sympy.Matrix`` with
+        the symbolic ``EC`` placeholders preserved.
         """
         branches_with_capacitance = [
             branch
@@ -1066,13 +1078,13 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
 
         inductor_terms_φ = self._inductor_terms(substitute_params=substitute_params)
 
-        JJ_terms_φ = self._junction_terms() + self._JJs_terms()
+        JJ_terms_φ = self._junction_terms()
 
         lagrangian_φ = C_terms_φ - inductor_terms_φ - JJ_terms_φ
 
         potential_φ = inductor_terms_φ + JJ_terms_φ
         potential_θ = (
-            potential_φ.copy() if potential_φ != 0 else symbols("x") * 0
+            potential_φ.copy() if isinstance(potential_φ, sm.Expr) else symbols("x") * 0
         )  # copying the potential in terms of the old variables to make substitutions
 
         for index in range(
@@ -1081,7 +1093,7 @@ class SymbolicCircuit(serializers.Serializable, SymbolicCircuitGraph):
             potential_θ = potential_θ.subs(symbols(f"φ{index + 1}"), φ_vars_θ[index])
 
         # eliminating the frozen variables
-        if len(self.var_categories["frozen"]) > 0:
+        if self.var_categories["frozen"]:
             frozen_eom_list = []
             for frozen_var_index in self.var_categories["frozen"]:
                 frozen_eom_list.append(

@@ -14,10 +14,10 @@ from __future__ import annotations
 
 import itertools
 import numbers
-from copy import copy
-from warnings import warn
 
+from copy import copy
 from typing import TYPE_CHECKING, Any, Literal, Protocol
+from warnings import warn
 
 import numpy as np
 import qutip as qt
@@ -30,8 +30,8 @@ import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
 
 from scqubits.core.namedslots_array import NamedSlotsNdarray, convert_to_std_npindex
-from scqubits.utils.typedefs import NpIndexTuple, NpIndices
 from scqubits.utils.spectrum_utils import identity_wrap
+from scqubits.utils.typedefs import NpIndexTuple, NpIndices
 
 if TYPE_CHECKING:
     from scqubits import HilbertSpace

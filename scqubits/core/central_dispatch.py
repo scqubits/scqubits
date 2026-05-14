@@ -15,8 +15,8 @@ from __future__ import annotations
 import logging
 import warnings
 import weakref
-from types import MethodType
 
+from types import MethodType
 from weakref import WeakKeyDictionary
 
 import scqubits.settings as settings
@@ -62,7 +62,7 @@ class CentralDispatch:
 
         Returns
         -------
-        dict
+        Mapping from each registered client to its callback routine for ``event``.
         """
         return self.clients_dict[event]
 

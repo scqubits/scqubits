@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+
 import scqubits.settings as settings
 
 
@@ -22,12 +23,17 @@ def get_map_method(num_cpus: int) -> Callable:
 
     Parameters
     ----------
-    num_cpus: int
+    num_cpus:
+        number of worker processes requested by the caller; ``1``
+        returns the built-in ``map``, ``> 1`` starts a multiprocessing
+        pool of the configured kind.
 
     Returns
     -------
-    function
-        `.map` method to be used by caller
+    A ``.map``-style callable to be used by the caller.  For
+    ``num_cpus == 1`` this is the built-in ``map``; otherwise it is
+    the bound ``map`` method of a freshly-started pathos or
+    multiprocessing pool (selected by ``settings.MULTIPROC``).
     """
     if num_cpus == 1:
         return map

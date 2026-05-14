@@ -14,7 +14,7 @@
 import pytest
 import sympy as sm
 
-from scqubits.core.circuit_sym_methods import CircuitSymMethods
+from scqubits.core.circuit_internals.sym_methods import CircuitSymMethods
 
 
 class TestContainsTrigonometricTerms:
@@ -34,11 +34,6 @@ class TestContainsTrigonometricTerms:
     def test_sin_term_detected(self):
         x = sm.symbols("x")
         assert CircuitSymMethods._contains_trigonometric_terms(sm.sin(x)) is True
-
-    def test_sawtooth_term_detected(self):
-        x = sm.symbols("x")
-        saw = sm.Function("saw", real=True)
-        assert CircuitSymMethods._contains_trigonometric_terms(saw(x)) is True
 
     def test_mixed_expression_detected(self):
         x, y = sm.symbols("x y")

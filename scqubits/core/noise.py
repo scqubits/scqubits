@@ -12,33 +12,32 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import math
 import warnings
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from typing import Any, cast
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy as sp
 import qutip as qt
+import scipy as sp
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.offsetbox import AnchoredText
 from numpy import ndarray
 from scipy.sparse import csc_matrix
-from sympy import csc, sec
 
 import scqubits.core.units as units
 import scqubits.settings as settings
 import scqubits.utils.plotting as plotting
-from scqubits.utils.misc import Qobj_to_scipy_csc_matrix
 
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import matplotlib_settings
+from scqubits.utils.misc import Qobj_to_scipy_csc_matrix
 
 # flag that lets us show a warning about the default t1 behavior
 # (i.e., total=True setting) only once. Using the standard warnings
@@ -64,7 +63,7 @@ def calc_therm_ratio(
 
     Returns
     -------
-    float
+    Dimensionless thermal ratio :math:`\\hbar \\omega / (k_B T)`.
     """
     omega = units.to_standard_units(omega) if not omega_in_standard_units else omega
     return (sp.constants.hbar * omega) / (sp.constants.k * T)
@@ -185,7 +184,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        Figure, Axes
+        Matplotlib ``Figure`` and ``Axes`` (or array of axes) for the
+        rendered plot, suitable for further customisation.
         """
         num_cpus = num_cpus or settings.NUM_CPUS
         common_noise_options = (
@@ -406,7 +406,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        Figure, Axes
+        Matplotlib ``Figure`` and ``Axes`` (or array of axes) for the
+        rendered plot, suitable for further customisation.
         """
         num_cpus = num_cpus or settings.NUM_CPUS
         common_noise_options = (
@@ -560,7 +561,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        Figure, Axes
+        Matplotlib ``Figure`` and ``Axes`` (or array of axes) for the
+        rendered plot, suitable for further customisation.
         """
         num_cpus = num_cpus or settings.NUM_CPUS
         common_noise_options = (

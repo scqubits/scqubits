@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import math
+
 from collections.abc import Callable
 from typing import Any
 
@@ -23,6 +24,7 @@ import scipy as sp
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
+from scipy.sparse import csc_matrix
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
@@ -32,8 +34,6 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
-
-from scipy.sparse import csc_matrix
 
 from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem

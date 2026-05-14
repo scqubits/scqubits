@@ -13,11 +13,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import inspect
 
 from abc import ABCMeta
 from collections import OrderedDict
+from collections.abc import Callable
 from numbers import Number
 from typing import TYPE_CHECKING, Any, Protocol, Type, TypeVar, runtime_checkable
 
