@@ -30,9 +30,6 @@ from __future__ import annotations
 import re
 
 from scqubits.core.circuit_internals.input import example_circuit  # noqa: F401
-from scqubits.core.circuit_internals.matrix_helpers import (  # noqa: F401
-    matrix_power_sparse,
-)
 from scqubits.core.circuit_internals.sympy_helpers import (  # noqa: F401
     is_potential_term,
     keep_terms_for_subsystem,
@@ -53,7 +50,6 @@ __all__ = [
     "assemble_transformation_matrix",
     "is_potential_term",
     "keep_terms_for_subsystem",
-    "matrix_power_sparse",
     "round_symbolic_expr",
     "yaml_like_out_with_pp",
 ]

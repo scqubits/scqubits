@@ -62,13 +62,6 @@ from scqubits.core.circuit_internals.hamiltonian_assembly import (
     HamiltonianAssemblyMixin,
 )
 from scqubits.core.circuit_internals.lifecycle import LifecycleMixin
-from scqubits.core.circuit_internals.matrix_helpers import (
-    _cos_dia,
-    _cos_dia_dense,
-    _sin_dia,
-    _sin_dia_dense,
-    matrix_power_sparse,
-)
 from scqubits.core.circuit_internals.operator_factories import (
     make_basis_operator_method,
     make_grid_operator_method,

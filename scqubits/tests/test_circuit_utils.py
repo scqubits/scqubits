@@ -36,13 +36,6 @@ from scqubits.core.circuit_internals.discretized_phi_operators import (
     _sin_phi,
 )
 from scqubits.core.circuit_internals.input import example_circuit
-from scqubits.core.circuit_internals.matrix_helpers import (
-    _cos_dia,
-    _cos_dia_dense,
-    _sin_dia,
-    _sin_dia_dense,
-    matrix_power_sparse,
-)
 from scqubits.core.circuit_internals.sympy_helpers import (
     _generate_symbols_list,
     is_potential_term,
@@ -122,46 +115,6 @@ class TestExampleCircuit:
     def test_raises_on_unknown_qubit_name(self):
         with pytest.raises(AttributeError, match="not available"):
             example_circuit("not_a_qubit")
-
-
-class TestDiagonalTrig:
-    def test_cos_dia_matches_np_cos(self):
-        diag = np.array([0.0, np.pi / 2, np.pi, 3 * np.pi / 2])
-        x = sparse.diags(diag).tocsc()
-        result = _cos_dia(x)
-        assert np.allclose(result.diagonal(), np.cos(diag))
-
-    def test_sin_dia_matches_np_sin(self):
-        diag = np.array([0.0, np.pi / 2, np.pi, 3 * np.pi / 2])
-        x = sparse.diags(diag).tocsc()
-        result = _sin_dia(x)
-        assert np.allclose(result.diagonal(), np.sin(diag))
-
-    def test_cos_dia_dense_matches_np_cos(self):
-        diag = np.array([0.0, np.pi / 3, np.pi])
-        x = np.diag(diag)
-        result = _cos_dia_dense(x)
-        assert np.allclose(np.diag(result), np.cos(diag))
-
-    def test_sin_dia_dense_matches_np_sin(self):
-        diag = np.array([0.0, np.pi / 3, np.pi])
-        x = np.diag(diag)
-        result = _sin_dia_dense(x)
-        assert np.allclose(np.diag(result), np.sin(diag))
-
-
-class TestMatrixPowerSparse:
-    def test_power_3_matches_np(self):
-        A = np.array([[1.0, 0.5], [0.25, 2.0]])
-        expected = A @ A @ A
-        result = matrix_power_sparse(A, 3)
-        assert sparse.issparse(result)
-        assert np.allclose(result.toarray(), expected)
-
-    def test_power_0_is_identity(self):
-        A = np.array([[2.0, 1.0], [1.0, 3.0]])
-        result = matrix_power_sparse(A, 0)
-        assert np.allclose(result.toarray(), np.eye(2))
 
 
 class TestTruncationTemplate:
