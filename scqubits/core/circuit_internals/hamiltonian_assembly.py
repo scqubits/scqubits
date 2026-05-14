@@ -903,24 +903,16 @@ class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
             operator_name, power=power, bare_esys=subsys_bare_esys
         )
 
-        if isinstance(operator, qt.Qobj):
-            operator = Qobj_to_scipy_csc_matrix(operator)
-
-        operator = convert_matrix_to_qobj(
+        return identity_wrap(
             operator,
             subsystem,
+            self.subsystems,
             op_in_eigenbasis=False,
             evecs=(
                 bare_esys[subsystem_index][1]
                 if bare_esys
                 else subsystem.eigensys(evals_count=subsystem.truncated_dim)[1]
             ),
-        )
-        return identity_wrap(
-            operator,
-            subsystem,
-            self.subsystems,
-            op_in_eigenbasis=True,
         )
 
     def _hamiltonian_for_harmonic_extended_vars(self) -> csc_matrix | ndarray:
