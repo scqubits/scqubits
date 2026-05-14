@@ -1380,9 +1380,6 @@ Two paths in `HamiltonianAssemblyMixin` use `eval()`:
 - `_hamiltonian_for_purely_harmonic` — for circuits where every
   extended variable is in the harmonic basis and there are no JJ
   cosines, the Hamiltonian string is built and `eval()`-ed.
-- `_purely_harmonic_operator_func_factory` — emits per-variable
-  operator method bodies that include `eval()` of an operator
-  string.
 
 The *general* `_evaluate_hamiltonian` flow does NOT use `eval()`; it
 walks the symbolic Hamiltonian term-by-term with `as_coefficients_dict`

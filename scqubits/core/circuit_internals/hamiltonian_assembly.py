@@ -70,13 +70,6 @@ from scqubits.core.circuit_internals.discretized_phi_operators import (
 )
 from scqubits.core.circuit_internals import junction_assembly
 from scqubits.core.circuit_internals._protocols import CircuitProtocol
-from scqubits.core.circuit_internals.matrix_helpers import (
-    _cos_dia,
-    _cos_dia_dense,
-    _sin_dia,
-    _sin_dia_dense,
-    matrix_power_sparse,
-)
 from scqubits.core.circuit_internals.operator_factories import (
     make_basis_operator_method,
     make_grid_operator_method,
@@ -903,12 +896,10 @@ class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
             operator_name, power=power, bare_esys=subsys_bare_esys
         )
 
-        if isinstance(operator, qt.Qobj):
-            operator = Qobj_to_scipy_csc_matrix(operator)
-
-        operator = convert_matrix_to_qobj(
+        return identity_wrap(
             operator,
             subsystem,
+            self.subsystems,
             op_in_eigenbasis=False,
             evecs=(
                 bare_esys[subsystem_index][1]
@@ -916,109 +907,6 @@ class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
                 else subsystem.eigensys(evals_count=subsystem.truncated_dim)[1]
             ),
         )
-        return identity_wrap(
-            operator,
-            subsystem,
-            self.subsystems,
-            op_in_eigenbasis=True,
-        )
-
-    def _hamiltonian_for_harmonic_extended_vars(self) -> csc_matrix | ndarray:
-        """Build the matrix Hamiltonian when extended vars use the harmonic basis."""
-        hamiltonian = self._hamiltonian_sym_for_numerics
-        # substitute all parameter values
-        all_sym_parameters = (
-            list(self.symbolic_params.keys())
-            + self.external_fluxes
-            + self.offset_charges
-            + self.free_charges
-        )
-        hamiltonian = hamiltonian.subs(
-            [
-                (sym_param, getattr(self, sym_param.name))
-                for sym_param in all_sym_parameters
-            ]
-        )
-        hamiltonian = hamiltonian.subs("I", 1)
-        # add an identity operator for the constant in the symbolic expression
-        constant = float(hamiltonian.as_coefficients_dict()[1])
-        hamiltonian -= hamiltonian.as_coefficients_dict()[1]
-        hamiltonian = hamiltonian.expand() + constant * sm.symbols("I")
-
-        # replace the extended degrees of freedom with harmonic oscillators
-        for var_index in self.var_categories["extended"]:
-            ECi = float(hamiltonian.coeff(f"Q{var_index}" + "**2").cancel()) / 4
-            ELi = float(hamiltonian.coeff(f"θ{var_index}" + "**2").cancel()) * 2
-            osc_freq = (8 * ELi * ECi) ** 0.5
-            hamiltonian = (
-                (
-                    hamiltonian
-                    - ECi * 4 * sm.symbols(f"Q{var_index}") ** 2
-                    - ELi / 2 * sm.symbols(f"θ{var_index}") ** 2
-                    + osc_freq
-                    * (sm.symbols("Nh" + str(var_index)) + 0.5 * sm.symbols("I"))
-                )
-                .cancel()
-                .expand()
-            )
-
-        # separating cosine and LC part of the Hamiltonian
-        junction_potential = sum(
-            [term for term in hamiltonian.as_ordered_terms() if "cos" in str(term)]
-        )
-
-        self.junction_potential = junction_potential
-        hamiltonian_LC = hamiltonian - junction_potential
-
-        H_LC_str = self._get_eval_hamiltonian_string(hamiltonian_LC)
-
-        offset_free_charge_names = [
-            charge_var.name for charge_var in self.offset_charges + self.free_charges
-        ]
-        offset_free_var_dict = dict(
-            zip(offset_free_charge_names, self.offset_free_charge_values())
-        )
-        external_flux_names = [
-            external_flux.name for external_flux in self.external_fluxes
-        ]
-        external_flux_dict = dict(
-            zip(
-                external_flux_names,
-                [getattr(self, flux) for flux in external_flux_names],
-            )
-        )
-
-        replacement_dict: dict[str, Any] = {
-            **self.operators_by_name,
-            **offset_free_var_dict,
-            **external_flux_dict,
-        }
-
-        # adding matrix power to the dict
-        if self.type_of_matrices == "dense":
-            replacement_dict["matrix_power"] = np.linalg.matrix_power
-            replacement_dict["cos"] = _cos_dia_dense
-            replacement_dict["sin"] = _sin_dia_dense
-        else:
-            replacement_dict["matrix_power"] = matrix_power_sparse
-            replacement_dict["cos"] = _cos_dia
-            replacement_dict["sin"] = _sin_dia
-
-        # adding self to the list
-        replacement_dict["self"] = self
-
-        junction_potential_matrix = self._evaluate_matrix_cosine_terms(
-            junction_potential
-        )
-        junction_potential_matrix = Qobj_to_scipy_csc_matrix(junction_potential_matrix)
-
-        if H_LC_str:
-            return (
-                eval(H_LC_str, {"__builtins__": {}}, replacement_dict)
-                + junction_potential_matrix
-            )
-        else:
-            return junction_potential_matrix
 
     def _evaluate_hamiltonian(self) -> csc_matrix | ndarray:
         """Substitute parameter values and return the numerical Hamiltonian matrix.
