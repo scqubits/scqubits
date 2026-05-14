@@ -72,7 +72,6 @@ scqubits/core/
     ├── charge_basis_operators.py  _cos_theta, _sin_theta, _n_theta_operator, ...
     ├── discretized_phi_operators.py  _phi_operator, _cos_phi, _sin_phi, _i_d_dphi_operator
     ├── matrix_helpers.py          _cos_dia, _sin_dia, matrix_power_sparse
-    ├── sawtooth.py                sawtooth_operator, sawtooth_potential
     │
     ├── sympy_helpers.py           round_symbolic_expr, is_potential_term, ...
     └── utils.py                   truncation_template, get_trailing_number, ...
@@ -260,7 +259,7 @@ class Node:
 
 class Branch:
     nodes: tuple[Node, Node]
-    type: str            # "C", "L", "JJ", "JJ2", "JJs", ...
+    type: str            # "C", "L", "JJ", "JJ2", ...
     parameters: dict     # {"EC": 2.0} for C; {"EJ": 10, "ECJ": 20} for JJ; ...
     index: int           # branch position in declaration order
 
@@ -279,7 +278,6 @@ depends on `branch_type`:
   in general `JJ<n>` adds `EJ` through `EJ<n>` and one trailing
   `ECJ`. The mapping is encoded in `_junction_order` (in
   `circuit_internals/branch_metadata.py`).
-- `JJs` is the sawtooth-junction model (see `circuit_internals/sawtooth.py`).
 
 `Node.__eq__` and `Branch.__eq__` are defined by `.index`. This is
 load-bearing: the spanning-tree algorithm runs on a
@@ -295,7 +293,7 @@ A `Coupler("ML", b1, b2, M=...)` represents a *mutual inductance*
 between two `L` branches `b1` and `b2`. It contributes an
 off-diagonal entry `M` to the inductance matrix. Critically:
 
-- Only `L` branches can be coupled; coupling JJs or capacitors via
+- Only `L` branches can be coupled; coupling JJ or capacitors via
   `ML` is rejected at parse time.
 - `Coupler` does **not** participate in the spanning-tree
   construction (it has no nodes of its own). Its sole role is to
@@ -754,8 +752,6 @@ The bare per-basis primitives are split across:
   `_i_d2_dphi2_operator`, `_identity_phi`. The discretized basis
   uses `Grid1d` from `scqubits.core.discretization`; per-variable
   grid spans are read from `discretized_phi_range[var_index]`.
-- `circuit_internals/sawtooth.py` — `sawtooth_operator`,
-  `sawtooth_potential` (sawtooth-junction model).
 - `circuit_internals/matrix_helpers.py` — `_cos_dia` / `_sin_dia` for
   cos/sin of a diagonal sparse matrix; `matrix_power_sparse`.
 
@@ -778,8 +774,7 @@ taking an explicit ``circuit`` argument:
 5. The `term_has_cos_factor` / `term_has_sin_factor` predicates pick
    which assembler to call for each sympy term.
 
-`HamiltonianAssemblyMixin._evaluate_matrix_cosine_terms` and
-`_evaluate_matrix_sawtooth_terms` are thin instance-method wrappers
+`HamiltonianAssemblyMixin._evaluate_matrix_cosine_terms` is thin instance-method wrapper
 around the `junction_assembly.*` functions, kept on the mixin so
 existing callers (notably ``CircuitSymMethods._evaluate_symbolic_expr``)
 that invoke ``self._evaluate_matrix_cosine_terms(...)`` keep working.
@@ -1462,7 +1457,6 @@ managed separately via `self.symbolic_params`.
 | Noise channels | `circuit_internals/noise.py` |
 | Bare per-basis operators (charge / discretized-φ) | `circuit_internals/charge_basis_operators.py`, `circuit_internals/discretized_phi_operators.py` |
 | Sparse cos/sin of a diagonal matrix | `circuit_internals/matrix_helpers.py` |
-| Sawtooth-junction physics | `circuit_internals/sawtooth.py` |
 | Branch-type predicates | `circuit_internals/branch_metadata.py` |
 | Sympy expression rounding | `circuit_internals/sympy_helpers.py` |
 

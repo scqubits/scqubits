@@ -11,7 +11,7 @@ or, for two-parameter branches such as JJ::
 
 where ``<branch_type>`` is one of ``"C"`` (capacitance), ``"L"``
 (inductance), ``"JJ"`` / ``"JJ2"`` / ``"JJ<n>"`` (Josephson junctions
-with up to ``n``-th harmonic), ``"JJs"`` (sawtooth-junction model), or
+with up to ``n``-th harmonic), or
 ``"ML"`` (mutual inductance between two ``L`` branches; in that case
 ``<node1>`` and ``<node2>`` are *branch indices*, not node IDs).
 

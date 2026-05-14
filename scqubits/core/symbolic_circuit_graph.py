@@ -1163,9 +1163,7 @@ class SymbolicCircuitGraph(ABC):
         cached = getattr(self, "_adjacency_cache", None)
         if cached is None or cached[0] is not tree_info_dict:
             adjacency = _AdjacencyIndex.from_spanning_tree_dict(tree_info_dict)
-            object.__setattr__(
-                self, "_adjacency_cache", (tree_info_dict, adjacency)
-            )
+            object.__setattr__(self, "_adjacency_cache", (tree_info_dict, adjacency))
             return adjacency
         return cached[1]
 

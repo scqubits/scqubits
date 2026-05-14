@@ -1,9 +1,8 @@
 """Pipeline that converts symbolic Josephson-junction potential terms
 into ``qutip.Qobj`` matrix operators.
 
-The two public entry points -- ``evaluate_matrix_cosine_terms`` and
-``evaluate_matrix_sawtooth_terms`` -- take a symbolic expression
-involving ``cos(...)`` / ``sin(...)`` or the ``saw(...)`` placeholder
+The public entry point -- ``evaluate_matrix_cosine_terms`` -- takes a symbolic expression
+involving ``cos(...)`` / ``sin(...)`` placeholder
 and construct its matrix representation in the appropriate Hilbert
 space.  Each takes an explicit ``circuit`` argument
 (a ``Subsystem``-or-``Circuit`` instance) to access the cross-mixin
@@ -24,7 +23,6 @@ import numpy as np
 import qutip as qt
 import sympy as sm
 
-from scqubits.core.circuit_internals.sawtooth import sawtooth_potential
 from scqubits.core.circuit_internals.utils import get_trailing_number
 
 if TYPE_CHECKING:
@@ -179,51 +177,3 @@ def evaluate_matrix_cosine_terms(
         elif term_has_sin_factor(term):
             junction_potential_matrix += assemble_sin_term(term_operator)
     return junction_potential_matrix
-
-
-def evaluate_matrix_sawtooth_terms(
-    circuit: CircuitProtocol,
-    saw_expr: sm.Expr,
-    bare_esys: dict[int, tuple] | None = None,
-) -> qt.Qobj:
-    """Evaluate symbolic sawtooth-potential terms to a :class:`qutip.Qobj`.
-
-    Parameters
-    ----------
-    circuit:
-        the ``Subsystem`` or ``Circuit`` instance providing
-        ``hierarchical_diagonalization``, ``subsystems``, ``hilbertdim``,
-        and ``_evaluate_symbolic_expr``.
-    saw_expr:
-        symbolic expression containing :func:`sawtooth_potential` terms.
-    bare_esys:
-        optional precomputed dict of bare eigensystems for subsystems.
-    """
-    if circuit.hierarchical_diagonalization:
-        subsystem_list = circuit.subsystems
-        identity = qt.tensor(
-            [qt.identity(subsystem.truncated_dim) for subsystem in subsystem_list]
-        )
-    else:
-        identity = qt.identity(circuit.hilbertdim())
-
-    saw_potential_matrix = identity * 0
-
-    saw = sm.Function("saw", real=True)
-    for saw_term in saw_expr.as_ordered_terms():
-        coefficient = float(list(saw_term.as_coefficients_dict().values())[0])
-        saw_argument_expr = [
-            arg.args[0] for arg in (1.0 * saw_term).args if (arg.has(saw))
-        ][0]
-
-        saw_argument_operator = circuit._evaluate_symbolic_expr(
-            saw_argument_expr, bare_esys
-        )
-
-        # since this operator only works for discretized phi basis
-        diagonal_elements = sawtooth_potential(saw_argument_operator.diag())
-        saw_potential_matrix += coefficient * qt.qdiags(
-            diagonal_elements, 0, dims=saw_potential_matrix.dims
-        )
-
-    return saw_potential_matrix

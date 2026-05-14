@@ -19,7 +19,7 @@ output:
   ``_build_*_operators_*`` family, the ``make_*_method`` factories);
 * Thin wrappers delegating Josephson cosine/sine evaluation to
   :mod:`~scqubits.core.circuit_internals.junction_assembly`
-  (``_evaluate_matrix_cosine_terms``, ``_evaluate_matrix_sawtooth_terms``);
+  (``_evaluate_matrix_cosine_terms``);
 * Hamiltonian assembly
   (``_hamiltonian_for_*``, ``_evaluate_hamiltonian``, ``hamiltonian``);
 * eigenvalue / eigensystem computation
@@ -426,27 +426,6 @@ class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
             exp_i_theta = sparse.linalg.expm(exp_argument_op * prefactor * 1j)
 
         return self._sparsity_adaptive(exp_i_theta)
-
-    def _evaluate_matrix_sawtooth_terms(
-        self, saw_expr: sm.Expr, bare_esys: dict[int, tuple] | None = None
-    ) -> qt.Qobj:
-        """Evaluate symbolic sawtooth-potential terms to a :class:`qutip.Qobj`.
-
-        Thin wrapper around
-        :func:`~scqubits.core.circuit_internals.junction_assembly.evaluate_matrix_sawtooth_terms`;
-        kept on the mixin so callers (notably ``CircuitSymMethods._evaluate_symbolic_expr``)
-        can continue to invoke ``self._evaluate_matrix_sawtooth_terms(...)``.
-
-        Parameters
-        ----------
-        saw_expr:
-            symbolic expression containing :func:`sawtooth_potential` terms.
-        bare_esys:
-            optional precomputed dict of bare eigensystems for subsystems.
-        """
-        return junction_assembly.evaluate_matrix_sawtooth_terms(
-            self, saw_expr, bare_esys
-        )
 
     def _evaluate_matrix_cosine_terms(
         self, junction_potential: sm.Expr, bare_esys: dict[int, tuple] | None = None
@@ -855,19 +834,6 @@ class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
         subsystem = self.subsystems[subsystem_index]
         operator = subsystem.identity_wrap_for_hd(operator, child_instance)
 
-        if isinstance(operator, qt.Qobj):
-            operator = operator.full()
-
-        operator = convert_matrix_to_qobj(
-            operator,
-            subsystem,
-            op_in_eigenbasis=False,
-            evecs=(
-                bare_esys[subsystem_index][1]
-                if bare_esys
-                else subsystem.eigensys(evals_count=subsystem.truncated_dim)[1]
-            ),
-        )
         return identity_wrap(
             operator,
             subsystem,
@@ -877,7 +843,7 @@ class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
                 if bare_esys
                 else subsystem.eigensys(evals_count=subsystem.truncated_dim)[1]
             ),
-            op_in_eigenbasis=True,
+            op_in_eigenbasis=False,
         )
 
     @check_sync_status_circuit

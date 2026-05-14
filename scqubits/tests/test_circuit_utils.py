@@ -43,10 +43,6 @@ from scqubits.core.circuit_internals.matrix_helpers import (
     _sin_dia_dense,
     matrix_power_sparse,
 )
-from scqubits.core.circuit_internals.sawtooth import (
-    sawtooth_operator,
-    sawtooth_potential,
-)
 from scqubits.core.circuit_internals.sympy_helpers import (
     _generate_symbols_list,
     is_potential_term,
@@ -61,7 +57,7 @@ from scqubits.core.circuit_internals.utils import (
 class TestJunctionOrder:
     @pytest.mark.parametrize(
         "branch_type, expected",
-        [("JJ", 1), ("JJ2", 2), ("JJ3", 3), ("JJ5", 5), ("JJs", 1)],
+        [("JJ", 1), ("JJ2", 2), ("JJ3", 3), ("JJ5", 5)],
     )
     def test_returns_declared_order(self, branch_type, expected):
         assert _junction_order(branch_type) == expected
@@ -166,23 +162,6 @@ class TestMatrixPowerSparse:
         A = np.array([[2.0, 1.0], [1.0, 3.0]])
         result = matrix_power_sparse(A, 0)
         assert np.allclose(result.toarray(), np.eye(2))
-
-
-class TestSawtooth:
-    def test_potential_is_2pi_periodic(self):
-        phi = np.linspace(-np.pi, np.pi, 21)
-        assert np.allclose(sawtooth_potential(phi), sawtooth_potential(phi + 2 * np.pi))
-
-    def test_potential_is_even(self):
-        phi = np.linspace(0.01, 2.0, 10)
-        assert np.allclose(sawtooth_potential(phi), sawtooth_potential(-phi))
-
-    def test_operator_diagonal_matches_potential(self):
-        diag = np.array([0.1, 0.5, 1.0, 2.0])
-        x = sparse.diags(diag).tocsc()
-        op = sawtooth_operator(x)
-        assert sparse.issparse(op)
-        assert np.allclose(op.diagonal(), sawtooth_potential(diag))
 
 
 class TestTruncationTemplate:

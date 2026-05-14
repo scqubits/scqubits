@@ -177,9 +177,6 @@ class CircuitProtocol:
             junction_potential: sm.Expr,
             bare_esys: dict[int, tuple] | None = ...,
         ) -> qt.Qobj: ...
-        def _evaluate_matrix_sawtooth_terms(
-            self, saw_expr: sm.Expr, bare_esys: dict[int, tuple] | None = ...
-        ) -> qt.Qobj: ...
 
         # --------------------------------------------------------------
         # Bridges to ``CircuitSymMethods`` (declared as ``Callable``
