@@ -32,6 +32,7 @@ from scqubits.core.diag import DIAG_METHODS
 from scqubits.core.flux_qubit import FluxQubit
 from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.generic_qubit import GenericQubit
+from scqubits.core.lambda_qubit import Lambda
 from scqubits.core.hilbert_space import (
     HilbertSpace,
     InteractionTerm,
