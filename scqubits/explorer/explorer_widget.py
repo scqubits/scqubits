@@ -44,7 +44,7 @@ from scqubits.utils.misc import _HAS_WIDGET_BACKEND
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep
 
-from scqubits.ui._optional_deps import _HAS_IPYTHON, _HAS_IPYVUETIFY, display, v
+from scqubits.utils._optional_deps import _HAS_IPYTHON, _HAS_IPYVUETIFY, display, v
 
 
 class PlotID:

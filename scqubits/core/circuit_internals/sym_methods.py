@@ -21,7 +21,7 @@ import sympy as sm
 
 from sympy import latex
 
-from scqubits.ui._optional_deps import _HAS_IPYTHON, Latex, display
+from scqubits.utils._optional_deps import _HAS_IPYTHON, Latex, display
 
 __all__ = [
     "CircuitSymMethods",

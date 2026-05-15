@@ -19,13 +19,7 @@ from scqubits.ui import gui_defaults as gui_defaults
 from scqubits.ui.gui_custom_widgets import flex_column
 from scqubits.ui.gui_defaults import NAV_COLOR
 
-from scqubits.ui._optional_deps import (  # noqa: F401
-    _HAS_IPYTHON,
-    _HAS_IPYVUETIFY,
-    display,
-    ipywidgets,
-    v,
-)
+from scqubits.utils._optional_deps import _HAS_IPYTHON, _HAS_IPYVUETIFY, v
 
 
 @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)

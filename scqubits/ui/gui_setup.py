@@ -25,13 +25,7 @@ from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.ui import gui_custom_widgets as ui
 from scqubits.ui import gui_defaults as gui_defaults
 
-from scqubits.ui._optional_deps import (  # noqa: F401
-    _HAS_IPYTHON,
-    _HAS_IPYVUETIFY,
-    display,
-    ipywidgets,
-    v,
-)
+from scqubits.utils._optional_deps import _HAS_IPYTHON, _HAS_IPYVUETIFY, ipywidgets, v
 
 
 @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)

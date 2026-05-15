@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from scqubits.explorer.explorer_settings import ExplorerSettings
     from scqubits.explorer.explorer_widget import Explorer, PlotID
 
-from scqubits.ui._optional_deps import _HAS_IPYVUETIFY, v  # noqa: F401
+from scqubits.utils._optional_deps import _HAS_IPYVUETIFY, v
 
 
 class AcStarkPanelBuilder:

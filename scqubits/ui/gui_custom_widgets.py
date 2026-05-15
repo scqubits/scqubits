@@ -21,7 +21,7 @@ import matplotlib as mp
 
 import scqubits.utils.misc as utils
 
-from scqubits.ui._optional_deps import (  # noqa: F401
+from scqubits.utils._optional_deps import (
     _HAS_IPYTHON,
     _HAS_IPYVUETIFY,
     display,

@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from scqubits import Explorer
     from scqubits.explorer.explorer_widget import PlotID
 
-from scqubits.ui._optional_deps import _HAS_IPYTHON, _HAS_IPYVUETIFY, v
+from scqubits.utils._optional_deps import _HAS_IPYTHON, _HAS_IPYVUETIFY, v
 
 
 class ExplorerSettings:
