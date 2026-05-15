@@ -1133,9 +1133,9 @@ class SpectrumLookupMixin(MixinCompatible):
 
     def branch_analysis_observables(
         self,
-        primary_mode: "Union[int, QuantumSys]",
+        primary_mode: int | "QuantumSys",
         observable: Literal["N", "EM"] = "N",
-        param_npindices: Union[int, slice, Tuple[int, ...], Tuple[slice, ...]] = 0,
+        param_npindices: int | slice | tuple[int, ...] | tuple[slice, ...] = 0,
     ):
         """
         Compute observable values for branch analysis.
@@ -1241,7 +1241,7 @@ class SpectrumLookupMixin(MixinCompatible):
     def _evaluate_BA_n_crit(
         self,
         N_matrix: np.ndarray,
-        branch: Union[int, Tuple[int], List[int], List[Tuple[int, ...]]],
+        branch: int | tuple[int] | list[int] | list[tuple[int, ...]],
         primary_mode_idx: int,
         occupation_threshold: int = 2,
     ) -> int:
@@ -1299,9 +1299,9 @@ class SpectrumLookupMixin(MixinCompatible):
 
     def branch_analysis_n_crit(
         self,
-        primary_mode: "Union[int, QuantumSys]",
-        branch: Union[int, Tuple[int], List[int], List[Tuple[int, ...]]],
-        param_npindices: Union[int, slice, Tuple[int, ...], Tuple[slice, ...]] = 0,
+        primary_mode: int | "QuantumSys",
+        branch: int | tuple[int] | list[int] | list[tuple[int, ...]],
+        param_npindices: int | slice | tuple[int, ...] | tuple[slice, ...] = 0,
         occupation_threshold: int = 2,
     ) -> int:
         """
@@ -1358,11 +1358,11 @@ class SpectrumLookupMixin(MixinCompatible):
 
     def plot_branch_analysis(
         self,
-        primary_mode: "Union[int, QuantumSys]",
+        primary_mode: int | "QuantumSys",
         y_axis: Literal["N", "EM"] = "N",
-        param_npindices: Union[int, slice, Tuple[int, ...], Tuple[slice, ...]] = 0,
+        param_npindices: int | slice | tuple[int, ...] | tuple[slice, ...] = 0,
         **kwargs,
-    ) -> Tuple[Figure, Axes]:
+    ) -> tuple[Figure, Axes]:
         """
         Plot branch analysis results where each point corresponds to a system 
         eigenstate. The x-axis represents the occupation number of the primary 
