@@ -73,15 +73,11 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             self.v_max = v_max
 
             super().__init__(v_model=v_model, filled=filled, **kwargs)
+            self.on_event("input", self._on_input)
 
         @traitlets.validate("v_model")
         def _validate_v_model(self, state):
-            if self.is_valid():
-                self.error = False
-                self.rules = []
-            else:
-                self.error = True
-                self.rules = ["invalid"]
+            self._refresh_validity(state["value"])
             return state["value"]
 
         @traitlets.observe("v_model")
@@ -89,17 +85,31 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             if not self.error:
                 self.set_trait("num_value", self._type(change["new"]))
 
-        def is_valid(self):
+        def _on_input(self, widget, event, data):
+            # React to the per-keystroke ``input`` event: ipyvuetify syncs
+            # ``v_model`` (and so re-runs ``_validate_v_model``) only on
+            # blur, so without this the "invalid" marker stays stale while
+            # typing.  ``data`` is the field's current text -- except that
+            # ipyvue coerces an empty string to ``{}`` (``data or {}``), so
+            # an empty field arrives here as a dict.
+            text = "" if isinstance(data, dict) else data
+            self._refresh_validity(text)
+
+        def _refresh_validity(self, value):
+            if self.is_valid(value):
+                self.error = False
+                self.rules = []
+            else:
+                self.error = True
+                self.rules = ["invalid"]
+
+        def is_valid(self, value=None):
+            if value is None:
+                value = self.v_model
             if (
-                not self._typecheck_func(self.v_model)
-                or (
-                    self.v_min not in [None, ""]
-                    and self._type(self.v_model) < self.v_min
-                )
-                or (
-                    self.v_max not in [None, ""]
-                    and self._type(self.v_model) > self.v_max
-                )
+                not self._typecheck_func(value)
+                or (self.v_min not in [None, ""] and self._type(value) < self.v_min)
+                or (self.v_max not in [None, ""] and self._type(value) > self.v_max)
             ):
                 return False
             return True
