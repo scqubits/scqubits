@@ -58,6 +58,7 @@ class EnergySpectrumPanelBuilder:
     """Builder for the ENERGY_SPECTRUM panel."""
 
     plot_type: ClassVar[PlotType] = PlotType.ENERGY_SPECTRUM
+    slider_invariant: ClassVar[bool] = True
 
     def build_panel(
         self,

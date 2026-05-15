@@ -175,3 +175,51 @@ def test_optional_deps_module_exposes_expected_names():
 
     assert isinstance(_optional_deps._HAS_IPYVUETIFY, bool)
     assert isinstance(_optional_deps._HAS_IPYTHON, bool)
+
+
+def test_update_param_marker_moves_axvline():
+    """``update_param_marker`` rewrites the dashed-gray ``axvline`` only.
+
+    The helper backs the slider fast path in ``Explorer.update_plots``:
+    for ``slider_invariant`` panels (curves don't depend on the active
+    parameter value), it moves the marker line without rebuilding the
+    figure.  Returns ``False`` when no marker is present, so callers
+    can fall back to a full rebuild on uninitialized axes.
+    """
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from scqubits.explorer.explorer_internals._base import update_param_marker
+
+    fig, ax = plt.subplots()
+    # A regular data line that must NOT be touched.
+    (data_line,) = ax.plot([0.0, 1.0, 2.0], [0.0, 1.0, 0.0])
+    marker = ax.axvline(0.3, color="gray", linestyle=":")
+
+    assert update_param_marker(ax, 0.7) is True
+    assert list(marker.get_xdata()) == [0.7, 0.7]
+    # The regular data line is unaffected.
+    assert list(data_line.get_xdata()) == [0.0, 1.0, 2.0]
+
+    # Axes with no marker -> False, no exception.
+    fig2, ax2 = plt.subplots()
+    assert update_param_marker(ax2, 0.5) is False
+
+    plt.close(fig)
+    plt.close(fig2)
+
+
+def test_panel_builder_slider_invariant_classvar_set():
+    """Every registered ``PanelBuilder`` declares ``slider_invariant``.
+
+    Catches new builders that forget to set the flag: without it the
+    ``isinstance(..., PanelBuilder)`` runtime check in
+    ``test_panel_builder_protocol_conformance`` already fails, but
+    asserting the type here gives a clearer error message.
+    """
+    for plot_type, builder_cls in PANEL_BUILDERS.items():
+        assert isinstance(
+            getattr(builder_cls, "slider_invariant", None), bool
+        ), f"{builder_cls.__name__} is missing ``slider_invariant: ClassVar[bool]``"

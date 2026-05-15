@@ -29,6 +29,7 @@ import scqubits.ui.gui_defaults as gui_defaults
 from scqubits.core.param_sweep import ParameterSlice
 from scqubits.core.qubit_base import QuantumSystem
 from scqubits.explorer.explorer_internals import PANEL_BUILDERS
+from scqubits.explorer.explorer_internals._base import update_param_marker
 from scqubits.explorer.explorer_internals._state import ExplorerUI
 from scqubits.explorer.explorer_settings import ExplorerSettings
 from scqubits.settings import matplotlib_settings
@@ -528,19 +529,37 @@ class Explorer:
             list(self.sweep.param_info.keys()),
         )
 
-        for axes in self.axes_list:
-            for item in axes.lines + axes.collections + axes.texts:  # type: ignore[operator]
-                item.remove()
-            axes.set_prop_cycle(None)
-            axes.relim()
-            axes.autoscale_view()
+        # Fast path: when only the active-parameter slider moved, curves of
+        # ``slider_invariant`` panels are unchanged; just move their
+        # parameter-position marker line.  Settings changes, dropdown
+        # changes, and initial ``update_plots(None)`` calls fall through
+        # to the full-rebuild path.
+        slider_only = (
+            change is not None and change.get("owner") is self.ui.sweep_value_slider
+        )
 
-        for index, panel_id in enumerate(panel_ids):
-            fig = self.plot_collection.panel_by_id[panel_id].fig
-            ax = self.plot_collection.panel_by_id[panel_id].axes
-            output_widget = self.plot_collection.panel_by_id[panel_id].output
-            self.build_panel(panel_id, param_slice=param_slice, fig_ax=(fig, ax))
-            ax.title.set_text("")  # title is instead displayed in card header
+        for panel_id in panel_ids:
+            panel = self.plot_collection.panel_by_id[panel_id]
+            fig, ax, output_widget = panel.fig, panel.axes, panel.output
+            builder_cls = PANEL_BUILDERS.get(panel_id.plot_type)
+
+            if (
+                slider_only
+                and builder_cls is not None
+                and builder_cls.slider_invariant
+                and update_param_marker(ax, param_val)
+            ):
+                # Fast path: marker moved, no rebuild needed.
+                pass
+            else:
+                for item in ax.lines + ax.collections + ax.texts:  # type: ignore[operator]
+                    item.remove()
+                ax.set_prop_cycle(None)
+                ax.relim()
+                ax.autoscale_view()
+                self.build_panel(panel_id, param_slice=param_slice, fig_ax=(fig, ax))
+                ax.title.set_text("")  # title is instead displayed in card header
+
             if not _HAS_WIDGET_BACKEND:
                 with output_widget:
                     output_widget.clear_output(wait=True)

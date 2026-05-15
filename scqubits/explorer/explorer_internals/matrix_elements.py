@@ -67,6 +67,7 @@ class MatrixElementsPanelBuilder:
     """Builder for the MATRIX_ELEMENTS panel (qubit subsystems only)."""
 
     plot_type: ClassVar[PlotType] = PlotType.MATRIX_ELEMENTS
+    slider_invariant: ClassVar[bool] = False
 
     def build_panel(
         self,

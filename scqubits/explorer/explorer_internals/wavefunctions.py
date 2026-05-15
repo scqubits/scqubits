@@ -50,6 +50,7 @@ class WavefunctionsPanelBuilder:
     """Builder for the WAVEFUNCTIONS panel (qubit subsystems only)."""
 
     plot_type: ClassVar[PlotType] = PlotType.WAVEFUNCTIONS
+    slider_invariant: ClassVar[bool] = False
 
     def build_panel(
         self,

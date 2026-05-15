@@ -104,6 +104,7 @@ class SelfKerrPanelBuilder:
     """Builder for the SELF_KERR panel (oscillator and qubit variants)."""
 
     plot_type: ClassVar[PlotType] = PlotType.SELF_KERR
+    slider_invariant: ClassVar[bool] = True
 
     def build_panel(
         self,

@@ -69,6 +69,7 @@ class TransitionsPanelBuilder:
     """Builder for the TRANSITIONS panel (composite plot, no subsystem restriction)."""
 
     plot_type: ClassVar[PlotType] = PlotType.TRANSITIONS
+    slider_invariant: ClassVar[bool] = True
 
     def build_panel(
         self,

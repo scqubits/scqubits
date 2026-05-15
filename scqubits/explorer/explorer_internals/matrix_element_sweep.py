@@ -77,6 +77,7 @@ class MatrixElementSweepPanelBuilder:
     """Builder for the MATRIX_ELEMENT_SCAN panel (qubit subsystems only)."""
 
     plot_type: ClassVar[PlotType] = PlotType.MATRIX_ELEMENT_SCAN
+    slider_invariant: ClassVar[bool] = True
 
     def build_panel(
         self,

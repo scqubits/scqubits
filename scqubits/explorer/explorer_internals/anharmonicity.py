@@ -47,6 +47,7 @@ class AnharmonicityPanelBuilder:
     """Builder for the ANHARMONICITY panel (no per-plot settings)."""
 
     plot_type: ClassVar[PlotType] = PlotType.ANHARMONICITY
+    slider_invariant: ClassVar[bool] = True
 
     def build_panel(
         self,

@@ -37,6 +37,15 @@ class PanelBuilder(Protocol):
 
     plot_type: ClassVar["PlotType"]
 
+    #: ``True`` if the rendered curves do not depend on the active-parameter
+    #: value (only the parameter-position vertical marker moves when the
+    #: slider is dragged).  ``Explorer.update_plots`` takes a fast path on
+    #: slider-only changes for invariant panels and only moves the marker
+    #: line rather than rebuilding the whole figure.  Panels whose data is
+    #: plotted *at* the current parameter slice (e.g. ``WAVEFUNCTIONS``,
+    #: ``MATRIX_ELEMENTS``) must override this to ``False``.
+    slider_invariant: ClassVar[bool]
+
     def build_panel(
         self,
         explorer: "Explorer",
@@ -54,3 +63,19 @@ class PanelBuilder(Protocol):
     ) -> list[Any]:
         """Build the per-plot settings widget list for this builder."""
         ...
+
+
+def update_param_marker(axes: "Axes", param_val: float) -> bool:
+    """Move the panel's parameter-position vertical marker to ``param_val``.
+
+    Looks for the dashed-gray ``axvline`` drawn by ``build_panel`` (the
+    convention used by every ``slider_invariant`` builder) and rewrites
+    its x-data in place.  Returns ``True`` if a marker was found and
+    moved; ``False`` if none exists (e.g. the panel hasn't been rendered
+    yet, in which case the caller should fall back to a full rebuild).
+    """
+    for line in axes.lines:
+        if line.get_linestyle() in (":", "dotted") and line.get_color() == "gray":
+            line.set_xdata([param_val, param_val])
+            return True
+    return False

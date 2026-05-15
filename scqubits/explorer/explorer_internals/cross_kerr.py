@@ -99,6 +99,7 @@ class CrossKerrPanelBuilder:
     """Builder for the CROSS_KERR panel (composite, no per-plot settings)."""
 
     plot_type: ClassVar[PlotType] = PlotType.CROSS_KERR
+    slider_invariant: ClassVar[bool] = True
 
     def build_panel(
         self,

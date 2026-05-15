@@ -29,6 +29,7 @@ class AcStarkPanelBuilder:
     """Builder for the AC_STARK panel (qubit-oscillator pair only)."""
 
     plot_type: ClassVar[PlotType] = PlotType.AC_STARK
+    slider_invariant: ClassVar[bool] = True
 
     def build_panel(
         self,
