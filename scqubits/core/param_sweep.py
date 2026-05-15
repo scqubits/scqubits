@@ -897,22 +897,27 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         """
         initial = initial if isinstance(initial, list) else [initial]  # type: ignore[list-item]
         final = final if isinstance(final, list) else [final]  # type: ignore[list-item]
-        for initial_tuple, final_tuple in itertools.product(initial, final):
-            if initial_tuple is not None:
-                if len(initial_tuple) != len(self.hilbertspace.subsystem_dims):
+        # Dressed-state indices (``int`` form of ``StateLabel``) bypass the
+        # tuple-shape checks; their bounds are enforced downstream when
+        # ``_process_initial_option`` / ``_process_final_option`` consult
+        # the dressed-state lookup tables.  The tuple checks below apply
+        # only to bare-product-state labels.
+        for initial_state, final_state in itertools.product(initial, final):
+            if isinstance(initial_state, tuple):
+                if len(initial_state) != len(self.hilbertspace.subsystem_dims):
                     raise ValueError(
                         "Initial state tuple does not match the number of subsystems."
                     )
-                if max(initial_tuple) >= max(self.hilbertspace.subsystem_dims):
+                if max(initial_state) >= max(self.hilbertspace.subsystem_dims):
                     raise ValueError(
                         "Initial state tuple exceeds subsystem dimensions."
                     )
-            if final_tuple is not None:
-                if len(final_tuple) != len(self.hilbertspace.subsystem_dims):
+            if isinstance(final_state, tuple):
+                if len(final_state) != len(self.hilbertspace.subsystem_dims):
                     raise ValueError(
                         "Final state tuple does not match the number of subsystems."
                     )
-                if max(final_tuple) >= max(self.hilbertspace.subsystem_dims):
+                if max(final_state) >= max(self.hilbertspace.subsystem_dims):
                     raise ValueError("Final state tuple exceeds subsystem dimensions.")
 
     def plot_transitions(

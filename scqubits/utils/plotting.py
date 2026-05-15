@@ -489,10 +489,17 @@ def data_vs_paramvals(
             **_extract_kwargs_options(kwargs, "plot"),
         )
     if _LABELLINES_ENABLED:
-        try:
-            labelLines(axes.get_lines(), zorder=2.0)
-        except Exception:
-            pass
+        # Drop curves whose y values are all NaN (transition energies near
+        # level crossings can produce such curves). labelLines raises and
+        # warns on them, leaving every other curve unlabelled too.
+        visible_lines = [
+            line for line in axes.get_lines() if not np.all(np.isnan(line.get_ydata()))
+        ]
+        if visible_lines:
+            try:
+                labelLines(visible_lines, zorder=2.0)
+            except Exception:
+                pass
     else:
         axes.legend(
             bbox_to_anchor=(1.04, 0.5),
@@ -608,7 +615,11 @@ def matelem_vs_paramvals(
         )
 
     if _LABELLINES_ENABLED:
-        labelLines(axes.get_lines(), zorder=1.5)
+        visible_lines = [
+            line for line in axes.get_lines() if not np.all(np.isnan(line.get_ydata()))
+        ]
+        if visible_lines:
+            labelLines(visible_lines, zorder=1.5)
     else:
         axes.legend(loc="center left", bbox_to_anchor=(1, 0.5), frameon=False)
     _process_options(fig, axes, opts=defaults.matelem_vs_paramvals(specdata), **kwargs)

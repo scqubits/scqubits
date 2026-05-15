@@ -19,14 +19,7 @@ import os
 
 from collections.abc import Sequence
 
-try:
-    import ipyvuetify as v
-    import ipywidgets
-except ImportError:
-    _HAS_IPYVUETIFY = False
-else:
-    _HAS_IPYVUETIFY = True
-
+from scqubits.ui._optional_deps import _HAS_IPYVUETIFY, ipywidgets, v  # noqa: F401
 
 gui_plot_choice_dict = collections.OrderedDict(
     [

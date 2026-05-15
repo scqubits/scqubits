@@ -24,22 +24,16 @@ from scipy.sparse import csc_matrix
 
 from scqubits.ui.gui_defaults import NAV_COLOR
 
-try:
-    import ipyvuetify as v
-    import ipywidgets
+from scqubits.ui._optional_deps import (  # noqa: F401
+    _HAS_IPYTHON,
+    _HAS_IPYVUETIFY,
+    display,
+    ipywidgets,
+    v,
+)
 
+if _HAS_IPYVUETIFY:
     from scqubits.ui.gui_custom_widgets import ClickChip, ValidatedNumberField
-except ImportError:
-    _HAS_IPYVUETIFY = False
-else:
-    _HAS_IPYVUETIFY = True
-
-try:
-    from IPython.display import display
-except ImportError:
-    _HAS_IPYTHON = False
-else:
-    _HAS_IPYTHON = True
 
 import scqubits
 
