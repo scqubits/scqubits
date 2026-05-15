@@ -1140,10 +1140,10 @@ class SpectrumLookupMixin(MixinCompatible):
     ):
         """
         Compute observable values for branch analysis.
-        
+
         Returns two arrays with the following shape:
         ``(D_0, D_1, ..., D_{n-1})``, where ``D_i`` is the truncated dimension of the ``i``-th subsystem. Each element corresponds to an eigenstate of the system.
-        
+
         The first array is the expectation value of the primary-mode number operator for each eigenstate.
         The second array is controlled by ``observable``:
         - ``"N"``: the total occupation number of the non-primary modes
@@ -1261,7 +1261,7 @@ class SpectrumLookupMixin(MixinCompatible):
         primary_mode_idx:
             The index of the primary mode.
         occupation_threshold:
-            The threshold for the occupation number that determines the critical 
+            The threshold for the occupation number that determines the critical
             point.
         Returns
         -------
@@ -1293,7 +1293,7 @@ class SpectrumLookupMixin(MixinCompatible):
             N_threshold = np.sum(br) + occupation_threshold
             true_indices = np.where(N_branch > N_threshold)[0]
             if len(true_indices) == 0:
-                n_crit_list.append(None) # no critical point found
+                n_crit_list.append(None)  # no critical point found
             else:
                 n_crit_list.append(true_indices[0])
 
@@ -1302,7 +1302,6 @@ class SpectrumLookupMixin(MixinCompatible):
         if not n_crit_filtered:
             return None
         return min(n_crit_filtered)
- 
 
     def branch_analysis_n_crit(
         self,
@@ -1312,18 +1311,18 @@ class SpectrumLookupMixin(MixinCompatible):
         occupation_threshold: float = 2,
     ) -> int | None:
         """
-        Determine the critical occupation number for a given branch from the 
+        Determine the critical occupation number for a given branch from the
         branch analysis results.
 
         Definition
         ----------
         Eigenstates of the full system are labeled by the bare indices
         (i, j, ..., k, n), where the last index n is the occupation number
-        of the primary mode. For the branch (i, j, ..., k), the critical 
+        of the primary mode. For the branch (i, j, ..., k), the critical
         occupation number is defined as the smallest photon number n such that:
-        
+
         <i, j, ..., k, n | N | i, j, ..., k, n> > i + j + ... + k + occupation_threshold,
-        
+
         where N is the total number operator of the non-primary modes.
 
         Requires LX branch labeling so ``dressed_indices`` assigns a dressed
@@ -1343,14 +1342,14 @@ class SpectrumLookupMixin(MixinCompatible):
         param_npindices:
             Parameter sweep indices to select for the analysis.
         occupation_threshold:
-            The threshold for the occupation number that determines the critical 
+            The threshold for the occupation number that determines the critical
             point.
-            
+
         Returns
         -------
         n_crit
             Critical occupation number for the specified branch(es). When
-            no critical number is found up to the truncation dimension, None 
+            no critical number is found up to the truncation dimension, None
             is returned.
         """
         _, N_matrix = self.branch_analysis_observables(
@@ -1365,7 +1364,10 @@ class SpectrumLookupMixin(MixinCompatible):
             primary_mode_idx = primary_mode
 
         return self._evaluate_BA_n_crit(
-            N_matrix, branch, primary_mode_idx, occupation_threshold=occupation_threshold
+            N_matrix,
+            branch,
+            primary_mode_idx,
+            occupation_threshold=occupation_threshold,
         )
 
     def plot_branch_analysis(
@@ -1376,8 +1378,8 @@ class SpectrumLookupMixin(MixinCompatible):
         **kwargs,
     ) -> tuple[Figure, Axes]:
         """
-        Plot branch analysis results where each point corresponds to a system 
-        eigenstate. The x-axis represents the occupation number of the primary 
+        Plot branch analysis results where each point corresponds to a system
+        eigenstate. The x-axis represents the occupation number of the primary
         mode (typically the resonator). The y-axis can be set to one of two options:
         - "N": total occupation number of the non-primary modes
         - "EM": eigenenergy modulo the bare energy of the primary mode
@@ -1438,12 +1440,13 @@ class SpectrumLookupMixin(MixinCompatible):
         }
         if y_axis == "N":
             all_non_primary_modes = [
-                subsys.id_str for subsys in self.hilbertspace.subsystem_list
+                subsys.id_str
+                for subsys in self.hilbertspace.subsystem_list
                 if subsys != primary_mode
             ]
-            all_N_labels = "+".join([
-                rf"N_\text{{{subsys}}}" for subsys in all_non_primary_modes
-            ])
+            all_N_labels = "+".join(
+                [rf"N_\text{{{subsys}}}" for subsys in all_non_primary_modes]
+            )
             kwargs_default["ylabel"] = rf"$\langle {all_N_labels} \rangle$"
         else:
             kwargs_default["ylabel"] = (
