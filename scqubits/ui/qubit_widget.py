@@ -18,13 +18,13 @@ from typing import Any
 import scqubits.core.units as units
 import scqubits.utils.misc as utils
 
-from scqubits.utils._optional_deps import (  # noqa: F401
+from scqubits.utils._optional_deps import (
     _HAS_IPYTHON,
     _HAS_IPYVUETIFY,
     display,
     ipywidgets,
 )
-from scqubits.utils._optional_deps import v as ipyvuetify  # noqa: F401
+from scqubits.utils._optional_deps import v as ipyvuetify
 
 if _HAS_IPYVUETIFY:
     from scqubits.ui.gui_custom_widgets import ValidatedNumberField

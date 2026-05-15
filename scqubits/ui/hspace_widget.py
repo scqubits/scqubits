@@ -24,7 +24,7 @@ from scipy.sparse import csc_matrix
 
 from scqubits.ui.gui_defaults import NAV_COLOR
 
-from scqubits.utils._optional_deps import (  # noqa: F401
+from scqubits.utils._optional_deps import (
     _HAS_IPYTHON,
     _HAS_IPYVUETIFY,
     display,

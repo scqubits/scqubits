@@ -43,7 +43,7 @@ from scqubits.ui.gui_setup import (
 )
 from scqubits.utils.misc import _HAS_WIDGET_BACKEND
 
-from scqubits.utils._optional_deps import (  # noqa: F401
+from scqubits.utils._optional_deps import (
     _HAS_IPYTHON,
     _HAS_IPYVUETIFY,
     display,
