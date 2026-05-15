@@ -32,6 +32,7 @@ import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
 
 from scqubits.core.namedslots_array import NamedSlotsNdarray, convert_to_std_npindex
+import scqubits.core.units as units
 from scqubits.utils.spectrum_utils import identity_wrap
 import scqubits.utils.plotting as plot
 from scqubits.utils.typedefs import NpIndexTuple, NpIndices
@@ -1133,7 +1134,7 @@ class SpectrumLookupMixin(MixinCompatible):
 
     def branch_analysis_observables(
         self,
-        primary_mode: int | "QuantumSys",
+        primary_mode: "int | QuantumSys",
         observable: Literal["N", "EM"] = "N",
         param_npindices: int | slice | tuple[int, ...] | tuple[slice, ...] = 0,
     ):
@@ -1241,10 +1242,10 @@ class SpectrumLookupMixin(MixinCompatible):
     def _evaluate_BA_n_crit(
         self,
         N_matrix: np.ndarray,
-        branch: int | tuple[int] | list[int] | list[tuple[int, ...]],
+        branch: int | tuple[int, ...] | list[int] | list[tuple[int, ...]],
         primary_mode_idx: int,
-        occupation_threshold: int = 2,
-    ) -> int:
+        occupation_threshold: float = 2,
+    ) -> int | None:
         """
         Helper function for branch analysis. It evaluates the critical occupation number
         for a given branch.
@@ -1260,7 +1261,8 @@ class SpectrumLookupMixin(MixinCompatible):
         primary_mode_idx:
             The index of the primary mode.
         occupation_threshold:
-            The threshold for the occupation number.
+            The threshold for the occupation number that determines the critical 
+            point.
         Returns
         -------
         n_crit
@@ -1291,19 +1293,24 @@ class SpectrumLookupMixin(MixinCompatible):
             N_threshold = np.sum(br) + occupation_threshold
             true_indices = np.where(N_branch > N_threshold)[0]
             if len(true_indices) == 0:
-                n_crit_list.append(len(N_branch))
+                n_crit_list.append(None) # no critical point found
             else:
                 n_crit_list.append(true_indices[0])
 
-        return np.min(n_crit_list)
+        # Filter out None values and return min if there is any, else return None
+        n_crit_filtered = [val for val in n_crit_list if val is not None]
+        if not n_crit_filtered:
+            return None
+        return min(n_crit_filtered)
+ 
 
     def branch_analysis_n_crit(
         self,
-        primary_mode: int | "QuantumSys",
-        branch: int | tuple[int] | list[int] | list[tuple[int, ...]],
+        primary_mode: "int | QuantumSys",
+        branch: int | tuple[int, ...] | list[int] | list[tuple[int, ...]],
         param_npindices: int | slice | tuple[int, ...] | tuple[slice, ...] = 0,
-        occupation_threshold: int = 2,
-    ) -> int:
+        occupation_threshold: float = 2,
+    ) -> int | None:
         """
         Determine the critical occupation number for a given branch from the 
         branch analysis results.
@@ -1335,11 +1342,16 @@ class SpectrumLookupMixin(MixinCompatible):
             number across all branches is returned.
         param_npindices:
             Parameter sweep indices to select for the analysis.
-
+        occupation_threshold:
+            The threshold for the occupation number that determines the critical 
+            point.
+            
         Returns
         -------
         n_crit
-            Critical occupation number for the specified branch(es).
+            Critical occupation number for the specified branch(es). When
+            no critical number is found up to the truncation dimension, None 
+            is returned.
         """
         _, N_matrix = self.branch_analysis_observables(
             primary_mode,
@@ -1358,7 +1370,7 @@ class SpectrumLookupMixin(MixinCompatible):
 
     def plot_branch_analysis(
         self,
-        primary_mode: int | "QuantumSys",
+        primary_mode: "int | QuantumSys",
         y_axis: Literal["N", "EM"] = "N",
         param_npindices: int | slice | tuple[int, ...] | tuple[slice, ...] = 0,
         **kwargs,
@@ -1425,13 +1437,19 @@ class SpectrumLookupMixin(MixinCompatible):
             "xlabel": rf"$\langle N_\text{{{primary_mode.id_str}}} \rangle$",
         }
         if y_axis == "N":
-            all_non_primary_modes = [subsys.id_str for subsys in self.hilbertspace.subsystem_list if subsys != primary_mode]
+            all_non_primary_modes = [
+                subsys.id_str for subsys in self.hilbertspace.subsystem_list
+                if subsys != primary_mode
+            ]
             all_N_labels = "+".join([
                 rf"N_\text{{{subsys}}}" for subsys in all_non_primary_modes
             ])
             kwargs_default["ylabel"] = rf"$\langle {all_N_labels} \rangle$"
         else:
-            kwargs_default["ylabel"] = rf"$(E \ \text{{mod}} \ E_\text{{{primary_mode.id_str}}}) / \hbar$"
+            kwargs_default["ylabel"] = (
+                rf"$(E \ \text{{mod}} \ E_\text{{{primary_mode.id_str}}}) / h$  "
+                f"[{units.get_units()}]"
+            )
         kwargs_default.update(kwargs)
 
         return plot.data_vs_paramvals(x_val, y_val, label_list, **kwargs_default)
