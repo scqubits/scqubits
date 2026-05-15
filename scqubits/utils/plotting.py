@@ -493,9 +493,7 @@ def data_vs_paramvals(
         # level crossings can produce such curves). labelLines raises and
         # warns on them, leaving every other curve unlabelled too.
         visible_lines = [
-            line
-            for line in axes.get_lines()
-            if not np.all(np.isnan(line.get_ydata()))
+            line for line in axes.get_lines() if not np.all(np.isnan(line.get_ydata()))
         ]
         if visible_lines:
             try:
@@ -618,9 +616,7 @@ def matelem_vs_paramvals(
 
     if _LABELLINES_ENABLED:
         visible_lines = [
-            line
-            for line in axes.get_lines()
-            if not np.all(np.isnan(line.get_ydata()))
+            line for line in axes.get_lines() if not np.all(np.isnan(line.get_ydata()))
         ]
         if visible_lines:
             labelLines(visible_lines, zorder=1.5)
