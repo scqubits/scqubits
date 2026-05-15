@@ -1158,10 +1158,10 @@ class SpectrumLookupMixin(MixinCompatible):
         """
         Compute observable expectation values for doing branch analysis.
 
-        Returns two arrays where each element corresponds to 
+        Returns two arrays where each element corresponds to
         an eigenstate of the system.
 
-        The first array is the expectation value of the primary-mode number 
+        The first array is the expectation value of the primary-mode number
         operator for each eigenstate.
         The second array is controlled by ``observable``:
         - ``"N"``: the occupation number of ``secondary_mode``
@@ -1218,9 +1218,7 @@ class SpectrumLookupMixin(MixinCompatible):
                 secondary_mode, "Secondary"
             )
             if secondary_mode_idx == primary_mode_idx:
-                raise ValueError(
-                    "Primary and secondary modes cannot be the same."
-                )
+                raise ValueError("Primary and secondary modes cannot be the same.")
 
         x_N_op = identity_wrap(
             qt.num(primary_subsys.truncated_dim),
@@ -1406,9 +1404,7 @@ class SpectrumLookupMixin(MixinCompatible):
             param_npindices=param_npindices,
         )
 
-        primary_mode_idx, _ = self._branch_analysis_parse_mode(
-            primary_mode, "Primary"
-        )
+        primary_mode_idx, _ = self._branch_analysis_parse_mode(primary_mode, "Primary")
         if secondary_mode is None:
             secondary_mode_idx = 1 - primary_mode_idx
         else:
