@@ -1076,43 +1076,34 @@ class SpectrumLookupMixin(MixinCompatible):
     def branch_analysis_observables(
         self,
         primary_mode: "Union[int, QuantumSys]",
-        x_observable: Literal["N", "I"] = "N",
-        y_observable: Literal["E", "N", "EM"] = "E",
+        observable: Literal["N", "EM"] = "N",
         param_npindices: Union[int, slice, Tuple[int, ...], Tuple[slice, ...]] = 0,
     ):
         """
-        Helper function for branch analysis. It computes relevant observables
-        for each eigenstates, and organize them by bare labels. Before it is called,
-        eigenstate labeling by branch analysis should be performed, either by
-        `HilbertSpace.generate_lookup(ordering='LX')` or
-        `ParameterSweep(..., labeling_scheme='LX')`.
-
-        The observables computed will be the energy / occupation number / energy
-        modulo the energy of the resonator mode (we refer to it as the primary mode).
+        Compute observable values for branch analysis.
+        
+        Returns two arrays with the following shape:
+        ``(D_0, D_1, ..., D_{n-1})``, where ``D_i`` is the truncated dimension of the ``i``-th subsystem. Each element corresponds to an eigenstate of the system.
+        
+        The first array is the expectation value of the primary-mode number operator for each eigenstate.
+        The second array is controlled by ``observable``:
+        - ``"N"``: the total occupation number of the non-primary modes
+        - ``"EM"``: eigenenergy modulo the bare energy of the primary mode
 
         Parameters
         ----------
         primary_mode:
-            The primary mode, whose excited states form the branches.
-            Typically the resonator mode.
-        x_observable:
-            The observable expectation values to be computed on the x axis.
-            "N" for occupation number of the primary mode, "I" for
-            its bare state index.
-        y_observable:
-            The observable expectation value to be computed for the y axis.
-            "E" for eigenenergy, "N" for total occupation number excluding
-            the primary mode, "EM" for eigenenergy modulo the bare energy
-            of the primary mode.
+            Primary mode subsystem (index or instance), typically the resonator.
+        observable:
+            Choice of observable, either ``"N"`` or ``"EM"``.
         param_npindices:
-            Indices of the parameter sweep to be analyzed.
+            Parameter sweep indices; all parameters must be fixed.
 
         Returns
         -------
         x_val, y_val:
-            The expectation values of the observables organized by the
-            bare state indices, both with shape (D0, D1, ..., Dn), where 
-            D0, D1, ..., Dn are the dimensions of the subsystems.
+            ``⟨N_prim⟩`` and the selected ``observable`` quantity, shaped like
+            ``hilbertspace.subsystem_dims``.
         """
         if not self.all_params_fixed(param_npindices):
             raise ValueError("Not all parameters are fixed.")
@@ -1123,31 +1114,34 @@ class SpectrumLookupMixin(MixinCompatible):
                 "the HilbertSpace must have at least 2 subsystems."
             )
 
-        # transpose back to the original order
         dims = self.hilbertspace.subsystem_dims
         branch_indices = self["dressed_indices"][param_npindices].reshape(dims)
 
-        # necessary ingredients
         if isinstance(primary_mode, int):
             assert (
                 0 <= primary_mode < self.hilbertspace.subsystem_count
             ), "Primary mode index is out of range."
             primary_mode_idx = primary_mode
-            primary_mode = self.hilbertspace.subsystem_list[primary_mode]
+            primary_subsys = self.hilbertspace.subsystem_list[primary_mode_idx]
         else:
             assert (
                 primary_mode in self.hilbertspace.subsystem_list
             ), "Provided primary mode is not found in the HilbertSpace."
-            primary_mode_idx = self.hilbertspace.subsystem_list.index(primary_mode)
+            primary_subsys = primary_mode
+            primary_mode_idx = self.hilbertspace.subsystem_list.index(primary_subsys)
 
-        if x_observable == "N":
-            x_N_op = identity_wrap(
-                qt.num(primary_mode.truncated_dim),
-                primary_mode,
-                self.hilbertspace.subsystem_list,
-                op_in_eigenbasis=True,
-            )
-        if y_observable == "N":
+        x_N_op = identity_wrap(
+            qt.num(primary_subsys.truncated_dim),
+            primary_subsys,
+            self.hilbertspace.subsystem_list,
+            op_in_eigenbasis=True,
+        )
+
+        evecs = self["evecs"][param_npindices]
+        x_val_arr = np.zeros_like(branch_indices, dtype=float)
+        y_val_arr = np.zeros_like(branch_indices, dtype=float)
+
+        if observable == "N":
             y_N_ops = [
                 identity_wrap(
                     qt.num(subsys.truncated_dim),
@@ -1156,42 +1150,33 @@ class SpectrumLookupMixin(MixinCompatible):
                     op_in_eigenbasis=True,
                 )
                 for subsys in self.hilbertspace.subsystem_list
-                if subsys != primary_mode
+                if subsys != primary_subsys
             ]
-            y_N_op = sum(y_N_ops)
-        elif y_observable == "EM":
-            y_E_mod_arr = self["bare_evals"][primary_mode_idx][param_npindices]
-            y_E_mod = y_E_mod_arr[1] - y_E_mod_arr[0]
-
-        # eigenenergies and eigenstates are precomputed in the HilbertSpace object
-        # as well as the ParameterSweep object
-        evals = self["evals"][param_npindices]
-        evecs = self["evecs"][param_npindices]
-
-        # calculate observable values
-        x_val_arr = np.zeros_like(branch_indices, dtype=float)
-        y_val_arr = np.zeros_like(branch_indices, dtype=float)
-        for idx, drs_idx in np.ndenumerate(branch_indices):
-            if drs_idx is None:
-                x_val_arr[idx] = np.nan
-                y_val_arr[idx] = np.nan
-                continue
-
-            if x_observable == "N":
-                x_val_arr[idx] = qt.expect(x_N_op, evecs[drs_idx])
-            elif x_observable == "I":
-                x_val_arr[idx] = idx[primary_mode_idx]
-            else:
-                raise ValueError(f"Invalid x_val: {x_observable}")
-
-            if y_observable == "E":
-                y_val_arr[idx] = evals[drs_idx]
-            elif y_observable == "N":
-                y_val_arr[idx] = qt.expect(y_N_op, evecs[drs_idx])
-            elif y_observable == "EM":
+            y_N_op = y_N_ops[0]
+            for op in y_N_ops[1:]:
+                y_N_op = y_N_op + op
+            for idx, drs_idx in np.ndenumerate(branch_indices):
+                if drs_idx is None:
+                    x_val_arr[idx] = np.nan
+                    y_val_arr[idx] = np.nan
+                    continue
+                ket = evecs[drs_idx]
+                x_val_arr[idx] = qt.expect(x_N_op, ket)
+                y_val_arr[idx] = qt.expect(y_N_op, ket)
+        elif observable == "EM":
+            bare_primary = self["bare_evals"][primary_mode_idx][param_npindices]
+            y_E_mod = bare_primary[1] - bare_primary[0]
+            evals = self["evals"][param_npindices]
+            for idx, drs_idx in np.ndenumerate(branch_indices):
+                if drs_idx is None:
+                    x_val_arr[idx] = np.nan
+                    y_val_arr[idx] = np.nan
+                    continue
+                ket = evecs[drs_idx]
+                x_val_arr[idx] = qt.expect(x_N_op, ket)
                 y_val_arr[idx] = evals[drs_idx] % y_E_mod
-            else:
-                raise ValueError(f"Invalid y_val: {y_observable}")
+        else:
+            raise ValueError(f"observable must be 'N' or 'EM', got {observable!r}")
 
         return x_val_arr, y_val_arr
 
@@ -1200,9 +1185,10 @@ class SpectrumLookupMixin(MixinCompatible):
         N_matrix: np.ndarray,
         branch: Union[int, Tuple[int], List[int], List[Tuple[int, ...]]],
         primary_mode_idx: int,
+        occupation_threshold: int = 2,
     ) -> int:
         """
-        Helper function for branch analysis. It evaluates the critical photon number
+        Helper function for branch analysis. It evaluates the critical occupation number
         for a given branch.
 
         Parameters
@@ -1212,14 +1198,15 @@ class SpectrumLookupMixin(MixinCompatible):
         branch:
             The branch index as the non-primary mode's indices (or a tuple
             of indices). If a list of branches is provided, the smallest
-            critical photon number of all branches is returned.
+            critical occupation number of all branches is returned.
         primary_mode_idx:
             The index of the primary mode.
-
+        occupation_threshold:
+            The threshold for the occupation number.
         Returns
         -------
         n_crit
-            The critical photon number.
+            The critical occupation number.
         """
         # grab a column of the N_matrix (branch)
         if not isinstance(branch, list):
@@ -1243,7 +1230,7 @@ class SpectrumLookupMixin(MixinCompatible):
             N_branch = N_matrix[branch_slice]
 
             # find the critical photon number
-            N_threshold = np.sum(br) + 1
+            N_threshold = np.sum(br) + occupation_threshold
             true_indices = np.where(N_branch > N_threshold)[0]
             if len(true_indices) == 0:
                 n_crit_list.append(len(N_branch))
@@ -1257,43 +1244,48 @@ class SpectrumLookupMixin(MixinCompatible):
         primary_mode: "Union[int, QuantumSys]",
         branch: Union[int, Tuple[int], List[int], List[Tuple[int, ...]]],
         param_npindices: Union[int, slice, Tuple[int, ...], Tuple[slice, ...]] = 0,
+        occupation_threshold: int = 2,
     ) -> int:
         """
-        Helper function for branch analysis. It determines the critical photon number
-        based on the branch analysis.
+        Determine the critical occupation number for a given branch from the 
+        branch analysis results.
 
         Definition
         ----------
-        We label the eigenstate of the full system by the bare indices
-        (i, j, ..., k, n), where the last index n is the photon number
-        of the primary mode.
-        For the branch (i, j, ..., k), the critical photon number is
-        defined as the smallest photon number n, such that:
-        <i, j, ..., k, n | N | i, j, ..., k, n> > i + j + ... + k + 1,
+        Eigenstates of the full system are labeled by the bare indices
+        (i, j, ..., k, n), where the last index n is the occupation number
+        of the primary mode. For the branch (i, j, ..., k), the critical 
+        occupation number is defined as the smallest photon number n such that:
+        
+        <i, j, ..., k, n | N | i, j, ..., k, n> > i + j + ... + k + occupation_threshold,
+        
         where N is the total number operator of the non-primary modes.
+
+        Requires LX branch labeling so ``dressed_indices`` assigns a dressed
+        eigenstate index to each bare product label—either from
+        ``HilbertSpace.generate_lookup(ordering='LX')`` or
+        ``ParameterSweep(..., labeling_scheme='LX')``.
 
         Parameters
         ----------
         primary_mode:
-            The primary mode, whose excited states form the branches.
-            Typically the resonator mode.
+            Primary mode subsystem (index or instance), typically the resonator.
         branch:
-            Branch index as the non-primary mode's indices (or a tuple
-            of indices). The critical photon number is evaluated at this
-            given branch. If a list of branches is provided, the smallest
-            critical photon number of all branches is returned.
+            Branch indices for the non-primary modes (as a tuple or list of tuples).
+            The critical photon number is evaluated for the specified branch.
+            If a list of branches is provided, the smallest critical occupation
+            number across all branches is returned.
         param_npindices:
-            Indices of the parameter sweep to be analyzed.
+            Parameter sweep indices to select for the analysis.
 
         Returns
         -------
         n_crit
-            The critical photon number.
+            Critical occupation number for the specified branch(es).
         """
         _, N_matrix = self.branch_analysis_observables(
             primary_mode,
-            x_observable="I",
-            y_observable="N",
+            observable="N",
             param_npindices=param_npindices,
         )
 
@@ -1302,54 +1294,57 @@ class SpectrumLookupMixin(MixinCompatible):
         else:
             primary_mode_idx = primary_mode
 
-        return self._evaluate_BA_n_crit(N_matrix, branch, primary_mode_idx)
+        return self._evaluate_BA_n_crit(
+            N_matrix, branch, primary_mode_idx, occupation_threshold=occupation_threshold
+        )
 
     def plot_branch_analysis(
         self,
         primary_mode: "Union[int, QuantumSys]",
-        x_observable: Literal["N", "I"] = "N",
-        y_observable: Literal["E", "N", "EM"] = "N",
+        y_axis: Literal["N", "EM"] = "N",
         param_npindices: Union[int, slice, Tuple[int, ...], Tuple[slice, ...]] = 0,
         **kwargs,
     ) -> Tuple[Figure, Axes]:
         """
-        Plot the branch analysis results, i.e. the expectation values of the observables
-        organized by the bare state indices.
+        Plot branch analysis results where each point corresponds to a system 
+        eigenstate. The x-axis represents the occupation number of the primary 
+        mode (typically the resonator). The y-axis can be set to one of two options:
+        - "N": total occupation number of the non-primary modes
+        - "EM": eigenenergy modulo the bare energy of the primary mode
+
+        Requires LX branch labeling so ``dressed_indices`` assigns a dressed
+        eigenstate index to each bare product label—either from
+        ``HilbertSpace.generate_lookup(ordering='LX')`` or
+        ``ParameterSweep(..., labeling_scheme='LX')``.
 
         Parameters
         ----------
         primary_mode:
-            The primary mode, whose excited states form the branches.
-            Typically the resonator mode.
-        x_observable:
-            The observable to be plotted on the x axis. "N" for occupation number 
-            of the primary mode, "I" for its bare state index.
-        y_observable:
-            The observable to be plotted on the y axis. "E" for eigenenergy, "N" for
-            total occupation number excluding the primary mode, "EM" for eigenenergy
-            modulo the bare energy of the primary mode. 
+            Primary mode subsystem (index or instance), typically the resonator.
+        y_axis:
+            Choice of y-axis for the plot, either "N" or "EM".
+            - "N": total occupation number of the non-primary modes
+            - "EM": eigenenergy modulo the bare energy of the primary mode
         param_npindices:
-            Indices of the parameter sweep to be analyzed.
+            Parameter sweep indices to select for the plot.
         **kwargs:
-            Keyword arguments for the plot.
+            Additional keyword arguments passed to ``plot.data_vs_paramvals``.
 
         Returns
         -------
-        fig:
-            The figure object.
-        ax:
-            The axis object.
+        fig, ax:
+            Matplotlib figure and axes objects containing the plot.
         """
         x_val, y_val = self.branch_analysis_observables(
-            primary_mode, x_observable, y_observable, param_npindices
+            primary_mode, observable=y_axis, param_npindices=param_npindices
         )
 
-        # move the primary mode to the first axis
         dims = self.hilbertspace.subsystem_dims
-        if not isinstance(primary_mode, int):
-            primary_mode_idx = self.hilbertspace.subsystem_list.index(primary_mode)
-        else:
+        if isinstance(primary_mode, int):
             primary_mode_idx = primary_mode
+            primary_mode = self.hilbertspace.subsystem_list[primary_mode_idx]
+        else:
+            primary_mode_idx = self.hilbertspace.subsystem_list.index(primary_mode)
         primary_mode_dim = dims[primary_mode_idx]
         x_val = np.moveaxis(x_val, primary_mode_idx, 0)
         y_val = np.moveaxis(y_val, primary_mode_idx, 0)
@@ -1365,22 +1360,20 @@ class SpectrumLookupMixin(MixinCompatible):
         x_val = x_val.reshape(primary_mode_dim, -1)
         y_val = y_val.reshape(primary_mode_dim, -1)
 
-        # Plotting options
         kwargs_default = {
             "marker": "o",
             "markersize": 2,
             "linewidth": 1,
+            "xlabel": rf"$\langle N_\text{{{primary_mode.id_str}}} \rangle$",
         }
-        if x_observable == "N":
-            kwargs_default["xlabel"] = rf"$\langle N_\text{{prim}} \rangle$"
-        elif x_observable == "I":
-            kwargs_default["xlabel"] = rf"Primary mode index"
-        if y_observable == "E":
-            kwargs_default["ylabel"] = rf"$E / \hbar$"
-        elif y_observable == "N":
-            kwargs_default["ylabel"] = rf"$\langle N_\text{{non-prim}} \rangle$"
-        elif y_observable == "EM":
-            kwargs_default["ylabel"] = rf"$(E \text{{mod}} E_\text{{prim}}) / \hbar$"
+        if y_axis == "N":
+            all_non_primary_modes = [subsys.id_str for subsys in self.hilbertspace.subsystem_list if subsys != primary_mode]
+            all_N_labels = "+".join([
+                rf"N_\text{{{subsys}}}" for subsys in all_non_primary_modes
+            ])
+            kwargs_default["ylabel"] = rf"$\langle {all_N_labels} \rangle$"
+        else:
+            kwargs_default["ylabel"] = rf"$(E \ \text{{mod}} \ E_\text{{{primary_mode.id_str}}}) / \hbar$"
         kwargs_default.update(kwargs)
 
         return plot.data_vs_paramvals(x_val, y_val, label_list, **kwargs_default)
