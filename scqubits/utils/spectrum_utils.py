@@ -10,9 +10,12 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
 import cmath
 
-from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 import qutip as qt
@@ -20,7 +23,7 @@ import scipy as sp
 
 from numpy import ndarray
 from qutip import Qobj
-from scipy.sparse import csc_matrix, dia_matrix, csr_matrix
+from scipy.sparse import csc_matrix, csr_matrix, dia_matrix
 
 import scqubits.settings as settings
 
@@ -29,8 +32,8 @@ if TYPE_CHECKING:
     from scqubits.core.qubit_base import QubitBaseClass
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
-from scqubits.utils.typedefs import QuantumSys
 from scqubits.utils.misc import Qobj_to_scipy_csc_matrix
+from scqubits.utils.typedefs import QuantumSys
 
 
 def eigsh_safe(*args, **kwargs):
@@ -61,7 +64,7 @@ def has_degeneracy(evals: ndarray) -> bool:
 
 def order_eigensystem(
     evals: np.ndarray, evecs: np.ndarray, standardize_phase: bool = False
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Takes eigenvalues and corresponding eigenvectors and orders them (in place)
     according to the eigenvalues (from smallest to largest; real valued eigenvalues
     are assumed). Compare http://stackoverflow.com/questions/22806398.
@@ -85,7 +88,7 @@ def order_eigensystem(
 
 
 def extract_phase(
-    complex_array: np.ndarray, position: Optional[Tuple[int, ...]] = None
+    complex_array: np.ndarray, position: tuple[int, ...] | None = None
 ) -> float:
     """Extracts global phase from `complex_array` at given `position`. If position is
     not specified, the `position` is set as follows. Find the maximum between the
@@ -104,7 +107,7 @@ def extract_phase(
         flattened_position = np.argmax(
             np.abs(complex_array[:halfway_position])
         )  # extract phase from element with largest amplitude modulus
-        position = np.unravel_index(flattened_position, complex_array.shape)
+        position = np.unravel_index(flattened_position, complex_array.shape)  # type: ignore[assignment]
     return cmath.phase(complex_array[position])
 
 
@@ -139,10 +142,10 @@ def standardize_sign(real_array: np.ndarray) -> np.ndarray:
 
 
 def matrix_element(
-    state1: Union[np.ndarray, qt.Qobj],
-    operator: Union[np.ndarray, csc_matrix, qt.Qobj],
-    state2: Union[np.ndarray, qt.Qobj],
-) -> Union[float, complex]:
+    state1: np.ndarray | qt.Qobj,
+    operator: np.ndarray | csc_matrix | qt.Qobj,
+    state2: np.ndarray | qt.Qobj,
+) -> float | complex:
     """Calculate the matrix element `<state1|operator|state2>`.
 
     Parameters
@@ -166,19 +169,19 @@ def matrix_element(
     if isinstance(state1, qt.Qobj):
         vec1 = Qobj_to_scipy_csc_matrix(state1)
     else:
-        vec1 = state1
+        vec1 = state1  # type: ignore[assignment]
 
     if isinstance(state2, qt.Qobj):
         vec2 = Qobj_to_scipy_csc_matrix(state2)
     else:
-        vec2 = state2
+        vec2 = state2  # type: ignore[assignment]
 
     return vec1.conj().T @ op_matrix @ vec2
 
 
 def get_matrixelement_table(
-    operator: Union[np.ndarray, csc_matrix, dia_matrix, qt.Qobj],
-    state_table: Union[np.ndarray, qt.Qobj],
+    operator: np.ndarray | csc_matrix | dia_matrix | qt.Qobj,
+    state_table: np.ndarray | qt.Qobj,
 ) -> np.ndarray:
     """Calculates a table of matrix elements.
 
@@ -225,7 +228,7 @@ def get_eigenstate_index_maxoverlap(
     eigenstates_qobj: "QutipEigenstates",
     reference_state_qobj: qt.Qobj,
     return_overlap: bool = False,
-) -> Union[int, Tuple[int, float], None]:
+) -> int | tuple[int, float] | None:
     """For given list of qutip states, find index of the state that has largest
     overlap with the qutip ket `reference_state_qobj`. If `|overlap|` is smaller than
     0.5, return None.
@@ -269,7 +272,7 @@ def absorption_spectrum(spectrum_data: "SpectrumData") -> "SpectrumData":
     omitted.
     """
     assert isinstance(spectrum_data.energy_table, ndarray)
-    spectrum_data.energy_table = spectrum_data.energy_table.clip(min=0.0)  # type:ignore
+    spectrum_data.energy_table = spectrum_data.energy_table.clip(min=0.0)
     return spectrum_data
 
 
@@ -283,7 +286,7 @@ def emission_spectrum(spectrum_data: "SpectrumData") -> "SpectrumData":
     """
     assert isinstance(spectrum_data.energy_table, ndarray)
     spectrum_data.energy_table *= -1.0
-    spectrum_data.energy_table = spectrum_data.energy_table.clip(min=0.0)  # type:ignore
+    spectrum_data.energy_table = spectrum_data.energy_table.clip(min=0.0)
     return spectrum_data
 
 
@@ -309,10 +312,10 @@ def convert_evecs_to_ndarray(evecs_qutip: ndarray) -> np.ndarray:
 
 
 def convert_matrix_to_qobj(
-    operator: Union[np.ndarray, csc_matrix, dia_matrix],
-    subsystem: Union["QubitBaseClass", "Oscillator"],
+    operator: np.ndarray | csc_matrix | dia_matrix,
+    subsystem: "QubitBaseClass" | "Oscillator",
     op_in_eigenbasis: bool,
-    evecs: Optional[np.ndarray],
+    evecs: np.ndarray | None,
 ) -> qt.Qobj:
     dim = subsystem.truncated_dim
 
@@ -321,13 +324,13 @@ def convert_matrix_to_qobj(
             _, evecs = subsystem.eigensys(evals_count=dim)
         operator_matrixelements = get_matrixelement_table(operator, evecs)
         return qt.Qobj(operator_matrixelements)
-    return qt.Qobj(operator[:dim, :dim])
+    return qt.Qobj(operator[:dim, :dim])  # type: ignore[index]
 
 
 def convert_opstring_to_qobj(
     operator: str,
-    subsystem: Union["QubitBaseClass", "Oscillator"],
-    evecs: Optional[np.ndarray],
+    subsystem: "QubitBaseClass" | "Oscillator",
+    evecs: np.ndarray | None,
 ) -> qt.Qobj:
     dim = subsystem.truncated_dim
 
@@ -338,24 +341,24 @@ def convert_opstring_to_qobj(
 
 
 def convert_operator_to_qobj(
-    operator: Union[np.ndarray, csc_matrix, dia_matrix, qt.Qobj, str],
-    subsystem: Union["QubitBaseClass", "Oscillator"],
+    operator: np.ndarray | csc_matrix | dia_matrix | qt.Qobj | str,
+    subsystem: "QubitBaseClass" | "Oscillator",
     op_in_eigenbasis: bool,
-    evecs: Optional[np.ndarray],
+    evecs: np.ndarray | None,
 ) -> qt.Qobj:
     if isinstance(operator, qt.Qobj):
         operator = Qobj_to_scipy_csc_matrix(operator)
     if isinstance(operator, str):
         return convert_opstring_to_qobj(operator, subsystem, evecs)
     elif isinstance(operator, (np.ndarray, csc_matrix, csr_matrix, dia_matrix)):
-        return convert_matrix_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)
+        return convert_matrix_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)  # type: ignore[arg-type]
     else:
         raise TypeError("Unsupported operator type: ", type(operator))
 
 
 def generate_target_states_list(
-    sweep: "ParameterSweep", initial_state_labels: Tuple[int, ...]
-) -> List[Tuple[int, ...]]:
+    sweep: "ParameterSweep", initial_state_labels: tuple[int, ...]
+) -> list[tuple[int, ...]]:
     """Based on a bare state label (i1, i2, ...)  with i1 being the excitation level of
     subsystem 1, i2 the excitation level of subsystem 2 etc., generate a list of new
     bare state labels. These bare state labels correspond to target states reached from
@@ -385,8 +388,8 @@ def generate_target_states_list(
 
 
 def recast_esys_mapdata(
-    esys_mapdata: List[Tuple[np.ndarray, np.ndarray]],
-) -> Tuple[np.ndarray, List[np.ndarray]]:
+    esys_mapdata: list[tuple[np.ndarray, np.ndarray]],
+) -> tuple[np.ndarray, list[np.ndarray]]:
     """Takes data generated by a map of eigensystem calls and returns the eigenvalue and
     eigenstate tables.
 
@@ -403,11 +406,11 @@ def recast_esys_mapdata(
 
 
 def identity_wrap(
-    operator: Union[str, ndarray, Qobj, Callable],
+    operator: str | ndarray | Qobj | Callable,
     subsystem: "QuantumSys",
-    subsys_list: List["QuantumSys"],
+    subsys_list: list["QuantumSys"],
     op_in_eigenbasis: bool = False,
-    evecs: Optional[ndarray] = None,
+    evecs: ndarray | None = None,
 ) -> Qobj:
     """Takes the `operator` belonging to `subsystem` and "wraps" it in identities. The
     full Hilbert space is taken to consist of all subsystems given as `subsys_list`.
@@ -441,7 +444,7 @@ def identity_wrap(
         operator = operator()
 
     subsys_operator = convert_operator_to_qobj(
-        operator, subsystem, op_in_eigenbasis, evecs  # type:ignore
+        operator, subsystem, op_in_eigenbasis, evecs  # type: ignore[arg-type]
     )
     operator_identitywrap_list = [
         qt.operators.qeye(the_subsys.truncated_dim) for the_subsys in subsys_list

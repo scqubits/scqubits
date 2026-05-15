@@ -10,7 +10,10 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import TYPE_CHECKING, Callable, Iterable, List, Optional, Tuple, Union
+from __future__ import annotations
+
+from collections.abc import Callable, Iterable
+from typing import TYPE_CHECKING, cast
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -19,6 +22,7 @@ import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from mpl_toolkits.mplot3d import Axes3D
 
 import scqubits.core.constants as constants
 import scqubits.utils.misc as utils
@@ -48,12 +52,12 @@ except ImportError:
 
 @mpl.rc_context(matplotlib_settings)
 def wavefunction1d(
-    wavefuncs: Union["WaveFunction", "List[WaveFunction]"],
+    wavefuncs: "WaveFunction" | "list[WaveFunction]",
     potential_vals: np.ndarray,
-    offset: Union[float, Iterable[float]] = 0,
-    scaling: Optional[float] = None,
+    offset: float | Iterable[float] = 0,
+    scaling: float | None = None,
     **kwargs,
-) -> Tuple[Figure, Axes]:
+) -> tuple[Figure, Axes]:
     """Plots the amplitude of a single real-valued 1d wave function, along with the
     potential energy if provided.
 
@@ -77,7 +81,7 @@ def wavefunction1d(
     fig, axes = kwargs.get("fig_ax") or plt.subplots()
 
     offset_list = utils.to_list(offset)
-    wavefunc_list: List[WaveFunction] = utils.to_list(wavefuncs)
+    wavefunc_list: list[WaveFunction] = utils.to_list(wavefuncs)
     wavefunc_list = scale_wavefunctions(wavefunc_list, potential_vals, scaling)
 
     for wavefunction, energy_offset in zip(wavefunc_list, offset_list):
@@ -92,10 +96,10 @@ def wavefunction1d(
 
 @mpl.rc_context(matplotlib_settings)
 def wavefunction1d_nopotential(
-    wavefuncs: Union["WaveFunction", "List[WaveFunction]"],
-    offset: Union[float, Iterable[float]] = 0,
+    wavefuncs: "WaveFunction" | "list[WaveFunction]",
+    offset: float | Iterable[float] = 0,
     **kwargs,
-) -> Tuple[Figure, Axes]:
+) -> tuple[Figure, Axes]:
     """Plots the amplitude of a single real-valued 1d wave function, along with the
     potential energy if provided.
 
@@ -119,7 +123,7 @@ def wavefunction1d_nopotential(
     fig, axes = kwargs.get("fig_ax") or plt.subplots()
 
     offset_list = utils.to_list(offset)
-    wavefunc_list: List[WaveFunction] = utils.to_list(wavefuncs)
+    wavefunc_list: list[WaveFunction] = utils.to_list(wavefuncs)
 
     for wavefunction, energy_offset in zip(wavefunc_list, offset_list):
         plot_wavefunction_to_axes(axes, wavefunction, energy_offset, **kwargs)
@@ -129,7 +133,7 @@ def wavefunction1d_nopotential(
 
 
 @mpl.rc_context(matplotlib_settings)
-def wavefunction1d_discrete(wavefunc: "WaveFunction", **kwargs) -> Tuple[Figure, Axes]:
+def wavefunction1d_discrete(wavefunc: "WaveFunction", **kwargs) -> tuple[Figure, Axes]:
     """Plots the amplitude of a real-valued 1d wave function in a discrete basis.
     (Example: transmon in the charge basis.)
 
@@ -160,7 +164,7 @@ def wavefunction1d_discrete(wavefunc: "WaveFunction", **kwargs) -> Tuple[Figure,
 @mpl.rc_context(matplotlib_settings)
 def wavefunction2d(
     wavefunc: "WaveFunctionOnGrid", zero_calibrate: bool = False, **kwargs
-) -> Tuple[Figure, Axes]:
+) -> tuple[Figure, Axes]:
     """Creates a density plot of the amplitude of a real-valued wave function in 2
     "spatial" dimensions.
 
@@ -190,11 +194,11 @@ def wavefunction2d(
     else:
         imshow_minval = np.min(wavefunc.amplitudes)
         imshow_maxval = np.max(wavefunc.amplitudes)
-        cmap = plt.cm.viridis
+        cmap = plt.get_cmap("viridis")
 
     im = axes.imshow(
         wavefunc.amplitudes,
-        extent=[min_vals[0], max_vals[0], min_vals[1], max_vals[1]],
+        extent=(min_vals[0], max_vals[0], min_vals[1], max_vals[1]),
         cmap=cmap,
         vmin=imshow_minval,
         vmax=imshow_maxval,
@@ -212,13 +216,13 @@ def wavefunction2d(
 
 @mpl.rc_context(matplotlib_settings)
 def contours(
-    x_vals: Union[List[float], np.ndarray],
-    y_vals: Union[List[float], np.ndarray],
+    x_vals: list[float] | np.ndarray,
+    y_vals: list[float] | np.ndarray,
     func: Callable,
-    contour_vals: Union[List[float], np.ndarray] = None,
+    contour_vals: list[float] | np.ndarray | None = None,
     show_colorbar: bool = True,
     **kwargs,
-) -> Tuple[Figure, Axes]:
+) -> tuple[Figure, Axes]:
     """Contour plot of a 2d function `func(x,y)`.
 
     Parameters
@@ -249,7 +253,7 @@ def contours(
         y_grid,
         z_array,
         levels=contour_vals,
-        cmap=plt.cm.viridis,
+        cmap=plt.get_cmap("viridis"),
         origin="lower",
         **_extract_kwargs_options(kwargs, "contourf"),
     )
@@ -266,7 +270,7 @@ def contours(
 @mpl.rc_context(matplotlib_settings)
 def matrix(
     data_matrix: np.ndarray, mode: str = "abs", show_numbers: bool = False, **kwargs
-) -> Tuple[Figure, Tuple[Axes, Axes]]:
+) -> tuple[Figure, tuple[Axes, Axes]]:
     """Create a "skyscraper" plot and a 2d color-coded plot of a matrix.
 
     Parameters
@@ -304,7 +308,7 @@ def matrix(
 @mpl.rc_context(matplotlib_settings)
 def matrix_skyscraper(
     matrix: np.ndarray, mode: str = "abs", **kwargs
-) -> Tuple[Figure, Axes]:
+) -> tuple[Figure, Axes]:
     """Display a 3d skyscraper plot of the matrix.
 
     Parameters
@@ -333,13 +337,14 @@ def matrix_skyscraper(
     zbottom = np.zeros(element_count)  # all bars start at z=0
     dx, dy = 0.75, 0.75  # width of bars in x and y directions
 
-    modefunction = constants.MODE_FUNC_DICT[mode]
+    modefunction = cast(Callable, constants.MODE_FUNC_DICT[mode])
     zheight = modefunction(matrix).flatten()  # height of bars from matrix elements
 
     min_zheight, max_zheight, nrm = color_normalize(zheight, mode)
-    colors = plt.cm.viridis(nrm(zheight))  # list of colors for each bar
+    colors = plt.get_cmap("viridis")(nrm(zheight))  # list of colors for each bar
 
-    # skyscraper plot
+    # skyscraper plot (axes has projection="3d")
+    axes = cast(Axes3D, axes)
     axes.view_init(azim=210, elev=23)
     axes.bar3d(xgrid, ygrid, zbottom, dx, dy, zheight, color=colors)
 
@@ -376,7 +381,7 @@ def matrix2d(
     show_numbers: bool = True,
     show_colorbar: bool = True,
     **kwargs,
-) -> Tuple[Figure, Axes]:
+) -> tuple[Figure, Axes]:
     """Display a matrix as a color-coded 2d plot, optionally printing the numerical
     values of the matrix elements.
 
@@ -401,7 +406,7 @@ def matrix2d(
     """
     fig, axes = kwargs.get("fig_ax") or plt.subplots()
 
-    modefunction = constants.MODE_FUNC_DICT[mode]
+    modefunction = cast(Callable, constants.MODE_FUNC_DICT[mode])
     zheight = modefunction(matrix).flatten()  # height of bars from matrix elements
 
     min_zheight, max_zheight, nrm = color_normalize(zheight, mode)
@@ -410,17 +415,19 @@ def matrix2d(
         # add colorbar with normalized range
         if hasattr(axes, "colorbar"):  # update existing colorbar
             axes.colorbar.update_normal(
-                mpl.cm.ScalarMappable(norm=nrm, cmap=plt.cm.viridis)
+                mpl.cm.ScalarMappable(norm=nrm, cmap=plt.get_cmap("viridis"))
             )
         else:  # create new colorbar
             cb = fig.colorbar(
-                mpl.cm.ScalarMappable(norm=nrm, cmap=plt.cm.viridis),
+                mpl.cm.ScalarMappable(norm=nrm, cmap=plt.get_cmap("viridis")),
                 ax=axes,
                 fraction=0.046,
                 pad=0.04,
             )
-            axes.colorbar = cb
-    cax = axes.matshow(modefunction(matrix), cmap=plt.cm.viridis, interpolation=None)
+            axes.colorbar = cb  # type: ignore[union-attr]
+    cax = axes.matshow(
+        modefunction(matrix), cmap=plt.get_cmap("viridis"), interpolation=None
+    )
 
     if show_numbers:
         fig_width, fig_height = fig.get_size_inches()
@@ -448,9 +455,9 @@ def matrix2d(
 def data_vs_paramvals(
     xdata: np.ndarray,
     ydata: np.ndarray,
-    label_list: Union[List[str], List[int], None] = None,
+    label_list: list[str] | list[int] | None = None,
     **kwargs,
-) -> Tuple[Figure, Axes]:
+) -> tuple[Figure, Axes]:
     """Plot of a set of ydata vs xdata. The individual points correspond to the a
     provided array of parameter values.
 
@@ -498,10 +505,17 @@ def data_vs_paramvals(
             **_extract_kwargs_options(kwargs, "plot"),
         )
     if _LABELLINES_ENABLED:
-        try:
-            labelLines(axes.get_lines(), zorder=2.0)
-        except Exception:
-            pass
+        # Drop curves whose y values are all NaN (transition energies near
+        # level crossings can produce such curves). labelLines raises and
+        # warns on them, leaving every other curve unlabelled too.
+        visible_lines = [
+            line for line in axes.get_lines() if not np.all(np.isnan(line.get_ydata()))
+        ]
+        if visible_lines:
+            try:
+                labelLines(visible_lines, zorder=2.0)
+            except Exception:
+                pass
     else:
         axes.legend(
             bbox_to_anchor=(1.04, 0.5),
@@ -523,11 +537,11 @@ def data_vs_paramvals(
 @mpl.rc_context(matplotlib_settings)
 def evals_vs_paramvals(
     specdata: "SpectrumData",
-    which: Union[int, Iterable[int]] = -1,
+    which: int | Iterable[int] = -1,
     subtract_ground: bool = False,
-    label_list: List[str] = None,
+    label_list: list[str] | None = None,
     **kwargs,
-) -> Tuple[Figure, Axes]:
+) -> tuple[Figure, Axes]:
     """Generates a simple plot of a set of eigenvalues as a function of one parameter.
     The individual points correspond to the a provided array of parameter values.
 
@@ -570,10 +584,10 @@ def evals_vs_paramvals(
 @mpl.rc_context(matplotlib_settings)
 def matelem_vs_paramvals(
     specdata: "SpectrumData",
-    select_elems: Union[int, List[Tuple[int, int]]] = 4,
+    select_elems: int | list[tuple[int, int]] = 4,
     mode: str = "abs",
     **kwargs,
-) -> Tuple[Figure, Axes]:
+) -> tuple[Figure, Axes]:
     """Generates a simple plot of matrix elements as a function of one parameter. The
     individual points correspond to the a provided array of parameter values.
 
@@ -598,8 +612,8 @@ def matelem_vs_paramvals(
         specdata.matrixelem_table is not None
     ), "SpectrumData is missing matrix element data!"
     fig, axes = kwargs.get("fig_ax") or plt.subplots()
-    x_vals = specdata.param_vals
-    modefunction = constants.MODE_FUNC_DICT[mode]
+    x_vals = cast(np.ndarray, specdata.param_vals)
+    modefunction = cast(Callable, constants.MODE_FUNC_DICT[mode])
 
     if isinstance(select_elems, int):
         index_pairs = [
@@ -618,7 +632,11 @@ def matelem_vs_paramvals(
         )
 
     if _LABELLINES_ENABLED:
-        labelLines(axes.get_lines(), zorder=1.5)
+        visible_lines = [
+            line for line in axes.get_lines() if not np.all(np.isnan(line.get_ydata()))
+        ]
+        if visible_lines:
+            labelLines(visible_lines, zorder=1.5)
     else:
         axes.legend(loc="center left", bbox_to_anchor=(1, 0.5), frameon=False)
     _process_options(fig, axes, opts=defaults.matelem_vs_paramvals(specdata), **kwargs)

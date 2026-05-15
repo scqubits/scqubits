@@ -10,32 +10,36 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
 import ast
 import functools
+import inspect
 import platform
 import warnings
 
-import inspect
-from collections.abc import Sequence
+from collections.abc import Callable, Iterable, Sequence
 from io import StringIO
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any
 
 import matplotlib
 import numpy as np
 import qutip as qt
 import scipy as sp
+
 from matplotlib import get_backend as get_matplotlib_backend
 
 import scqubits.settings
+
 from scqubits.settings import IN_IPYTHON
 
 if IN_IPYTHON:
     from tqdm.notebook import tqdm
 else:
-    from tqdm import tqdm
+    from tqdm import tqdm  # type: ignore[assignment]
 
 
-def process_which(which: Union[int, Iterable[int]], max_index: int) -> List[int]:
+def process_which(which: int | Iterable[int], max_index: int) -> list[int]:
     """Processes different ways of specifying the selection of  wanted
     eigenvalues/eigenstates.
 
@@ -58,7 +62,7 @@ def process_which(which: Union[int, Iterable[int]], max_index: int) -> List[int]
     return list(which)
 
 
-def make_bare_labels(subsystem_count: int, *args) -> Tuple[int, ...]:
+def make_bare_labels(subsystem_count: int, *args) -> tuple[int, ...]:
     """For two given subsystem states, return the full-system bare state label obtained
     by placing all remaining subsys_list in their ground states.
 
@@ -81,7 +85,7 @@ def make_bare_labels(subsystem_count: int, *args) -> Tuple[int, ...]:
     return tuple(bare_labels)
 
 
-def drop_private_keys(full_dict: Dict[str, Any]) -> Dict[str, Any]:
+def drop_private_keys(full_dict: dict[str, Any]) -> dict[str, Any]:
     """Filter for entries in the full dictionary that have numerical values."""
     return {key: value for key, value in full_dict.items() if key[0] != "_"}
 
@@ -100,7 +104,7 @@ class InfoBar:
     def __init__(self, desc: str, num_cpus: int) -> None:
         self.desc = desc
         self.num_cpus = num_cpus
-        self.tqdm_bar = None
+        self.tqdm_bar: Any = None
 
     def __enter__(self) -> None:
         self.tqdm_bar = tqdm(
@@ -246,7 +250,7 @@ def to_expression_or_string(string_expr: str) -> Any:
         return string_expr
 
 
-def remove_nones(dict_data: Dict[str, Any]) -> Dict[str, Any]:
+def remove_nones(dict_data: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in dict_data.items() if value is not None}
 
 
@@ -302,7 +306,7 @@ def tuple_to_short_str(the_tuple: tuple) -> str:
     return short_str[:-1]
 
 
-def to_list(obj: Any) -> List[Any]:
+def to_list(obj: Any) -> list[Any]:
     """
     Converts object to a list: if the input is already a list, it will return the same list. If the input is
     a numpy array, it will convert to a python list. Otherwise, it will return
@@ -324,7 +328,7 @@ def to_list(obj: Any) -> List[Any]:
     return [obj]
 
 
-def about(print_info=True) -> Optional[str]:
+def about(print_info=True) -> str | None:
     """Prints or returns a string with basic information about scqubits as well as
     installed version of various packages that scqubits depends on.
 
@@ -455,12 +459,10 @@ def unique_elements_in_list(list_object: list) -> list:
     list_object :
         A list of any objects
     """
-    unique_list = []
-    [
-        unique_list.append(element)
-        for element in list_object
-        if element not in unique_list
-    ]
+    unique_list: list = []
+    for element in list_object:
+        if element not in unique_list:
+            unique_list.append(element)
     return unique_list
 
 
@@ -482,9 +484,9 @@ def number_of_lists_in_list(list_object: list) -> int:
 
 def inspect_public_API(
     module: Any,
-    public_names: List[str] = [],
-    private_names: List[str] = [],
-) -> List[str]:
+    public_names: list[str] = [],
+    private_names: list[str] = [],
+) -> list[str]:
     """Find all public names in a module.
 
     Parameters

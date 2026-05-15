@@ -199,3 +199,33 @@ class TestParameterSweep:
             dtype=object,
         )
         assert np.all(indices_LX[..., 9] == ref_indices_LX)
+
+    def test_validate_states_accepts_dressed_index(self, num_cpus):
+        """Regression: ``_validate_states`` must accept ``int`` (dressed-state
+        index) as well as ``tuple`` (bare-product-state label).
+
+        Pre-fix, the Explorer's ``Transitions`` panel crashed with
+        ``TypeError: object of type 'int' has no len()`` whenever the
+        ``initial_bare_dressed_toggle`` widget was switched to "by
+        dressed index", because ``plot_transitions`` passes the
+        integer index straight into ``_validate_states``.
+        """
+        sweep = self.initialize(num_cpus)
+
+        # int form: dressed-state index (no crash).
+        sweep._validate_states(initial=0, final=None)
+        sweep._validate_states(initial=3, final=5)
+
+        # None form: "no state specified" (the default) must be a no-op.
+        sweep._validate_states(initial=None, final=None)
+
+        # tuple form: bare-product-state label (existing behavior preserved).
+        sweep._validate_states(initial=(0, 0, 0), final=None)
+        sweep._validate_states(initial=(0, 0, 0), final=(1, 0, 0))
+
+        # Mixed: tuple initial, int final.
+        sweep._validate_states(initial=(0, 0, 0), final=3)
+
+        # Tuple-shape errors still fire.
+        with pytest.raises(ValueError, match="number of subsystems"):
+            sweep._validate_states(initial=(0, 0), final=None)

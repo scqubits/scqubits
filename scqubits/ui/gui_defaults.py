@@ -10,19 +10,16 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
 import base64
 import collections
 import enum
 import os
 
-try:
-    import ipyvuetify as v
-    import ipywidgets
-except ImportError:
-    _HAS_IPYVUETIFY = False
-else:
-    _HAS_IPYVUETIFY = True
+from collections.abc import Sequence
 
+from scqubits.utils._optional_deps import _HAS_IPYVUETIFY, ipywidgets, v
 
 gui_plot_choice_dict = collections.OrderedDict(
     [
@@ -399,7 +396,9 @@ default_panels["KerrOscillator"] = []
 default_panels["Composite"] = [PlotType.TRANSITIONS]
 
 # Supported panels for each qubit type, used in Explorer class
-supported_panels = {qubit_name: subsys_plot_types for qubit_name in supported_qubits}
+supported_panels: dict[str, Sequence[PlotType]] = {
+    qubit_name: subsys_plot_types for qubit_name in supported_qubits
+}
 supported_panels["Oscillator"] = [PlotType.ENERGY_SPECTRUM, PlotType.SELF_KERR]
 supported_panels["KerrOscillator"] = [PlotType.ENERGY_SPECTRUM]
 supported_panels["Composite"] = composite_plot_types

@@ -1,0 +1,29 @@
+name: mypy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install scqubits + dev deps (includes mypy, stubs)
+        run: |
+          pip install ".[gui,develop]"
+          # numpy 2.x introduced tighter scalar typing (explicit _32Bit/_64Bit
+          # variants) that cascades through scipy-stubs and surfaces ~17
+          # strictness errors vs the numpy 1.x types the typing cleanup was
+          # verified against. scqubits itself runs fine on numpy 2 (Azure
+          # pytest covers that); this pin is mypy-specific.
+          pip install mypy==1.19.1 "numpy<2"
+      - name: Show resolved versions
+        run: pip list | grep -iE "^(scipy|mypy|types|numpy|tqdm|ipython|qutip)"
+      - name: Run mypy
+        run: mypy scqubits/

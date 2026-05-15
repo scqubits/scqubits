@@ -10,12 +10,13 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
 
 import logging
 import warnings
 import weakref
+
 from types import MethodType
-from typing import Optional
 from weakref import WeakKeyDictionary
 
 import scqubits.settings as settings
@@ -26,7 +27,6 @@ LOGGER = logging.getLogger(__name__)
 # To enable logging output, uncomment the following setting:
 # LOGGER.setLevel(logging.DEBUG)
 # ---------------------------------------------------------------
-
 
 EVENTS = [
     "QUANTUMSYSTEM_UPDATE",
@@ -53,33 +53,34 @@ class CentralDispatch:
     # expire. Callback methods are stored as weakref.WeakMethod for the same reason.
 
     def get_clients_dict(self, event: str) -> WeakKeyDictionary:
-        """For given `event`, return the dict mapping each registered client to their
-        callback routine.
+        """Return the dict mapping each registered client to its callback routine.
 
         Parameters
         ----------
-        event: str
-            event name from EVENTS
+        event:
+            event name from :data:`EVENTS`.
 
         Returns
         -------
-        dict
+        Mapping from each registered client to its callback routine for ``event``.
         """
         return self.clients_dict[event]
 
     def register(
-        self, event: str, who: "DispatchClient", callback: Optional[MethodType] = None
+        self, event: str, who: "DispatchClient", callback: MethodType | None = None
     ) -> None:
-        """Register object `who` for event `event`. (This modifies `clients_dict`.)
+        """Register object ``who`` for event ``event``.
+
+        This modifies ``clients_dict``.
 
         Parameters
         ----------
-        event: str
-            event name from EVENTS
-        who: DispatchClient
-            object to be registered
-        callback: method, optional
-            custom callback method other than `.receive()`
+        event:
+            event name from :data:`EVENTS`.
+        who:
+            object to be registered.
+        callback:
+            custom callback method other than ``.receive()`` (optional).
         """
         LOGGER.debug(
             "Registering {} for {}. welcome.".format(type(who).__name__, event)
@@ -100,37 +101,41 @@ class CentralDispatch:
         self.get_clients_dict(event)[who] = callback_ref
 
     def unregister(self, event: str, who: "DispatchClient") -> None:
-        """Unregister object `who` from event `event`.  (This modifies `clients_dict`.)
+        """Unregister object ``who`` from event ``event``.
+
+        This modifies ``clients_dict``.
 
         Parameters
         ----------
-        event: str
-            event name from EVENTS
-        who: DispatchClient
-            object to be unregistered
+        event:
+            event name from :data:`EVENTS`.
+        who:
+            object to be unregistered.
         """
         del self.get_clients_dict(event)[who]
 
     def unregister_object(self, who: "DispatchClient") -> None:
-        """Unregister object `who` from all events.  (This modifies `clients_dict`.)
+        """Unregister object ``who`` from all events.
+
+        This modifies ``clients_dict``.
 
         Parameters
         ----------
-        who: DispatchClient
-            object to be unregistered
+        who:
+            object to be unregistered.
         """
         for event in self.clients_dict:
             self.get_clients_dict(event).pop(who, None)
 
     def _dispatch(self, event: str, sender: "DispatchClient", **kwargs) -> None:
-        """Issue a dispatch for `event` coming from `sender.
+        """Issue a dispatch for ``event`` coming from ``sender``.
 
         Parameters
         ----------
-        event: str
-            event name from EVENTS
-        sender: DispatchClient
-            object requesting the dispatch
+        event:
+            event name from :data:`EVENTS`.
+        sender:
+            object requesting the dispatch.
         **kwargs
         """
         for client, callback_ref in self.get_clients_dict(event).items():
@@ -147,15 +152,17 @@ class CentralDispatch:
             # callback_ref(event, sender=sender, **kwargs)
 
     def listen(self, caller: "DispatchClient", event: str, **kwargs) -> None:
-        """Receive message from client `caller` for event `event`. If dispatch is
-        globally enabled, trigger a dispatch to all clients registered for event.
+        """Receive a message from client ``caller`` for event ``event``.
+
+        If dispatch is globally enabled, trigger a dispatch to all clients
+        registered for ``event``.
 
         Parameters
         ----------
-        caller: DispatchClient
-            object requesting the dispatch
-        event:  str
-            event name from EVENTS
+        caller:
+            object requesting the dispatch.
+        event:
+            event name from :data:`EVENTS`.
         **kwargs
         """
         if settings.DISPATCH_ENABLED:
@@ -170,12 +177,12 @@ class DispatchClient:
     """Base class inherited by objects participating in central dispatch."""
 
     def broadcast(self, event: str, **kwargs) -> None:
-        """Request a broadcast from CENTRAL_DISPATCH reporting `event`.
+        """Request a broadcast from :data:`CENTRAL_DISPATCH` reporting ``event``.
 
         Parameters
         ----------
         event:
-            event name from EVENTS
+            event name from :data:`EVENTS`.
         **kwargs
         """
         if settings.DISPATCH_ENABLED:
@@ -183,19 +190,20 @@ class DispatchClient:
         CENTRAL_DISPATCH.listen(self, event, **kwargs)
 
     def receive(self, event: str, sender: "DispatchClient", **kwargs) -> None:
-        """Receive a message from CENTRAL_DISPATCH and initiate action on it.
+        """Receive a message from :data:`CENTRAL_DISPATCH` and act on it.
 
         Parameters
         ----------
         event:
-            event name from EVENTS
+            event name from :data:`EVENTS`.
         sender:
-            original sender reporting the event
+            original sender reporting the event.
         **kwargs
         """
         warnings.warn("`receive() method not implemented for {}".format(self))
 
     def __del__(self) -> None:
+        """Unregister the client from all dispatch events on garbage collection."""
         # Garbage collection will invoke this at undetermined time. `if` clauses
         # below prevent exceptions upon program exit. (`logging` and
         # `CENTRAL_DISPATCH` may have already been removed.)

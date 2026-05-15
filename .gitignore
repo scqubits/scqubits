@@ -3,11 +3,7 @@
 .asv/
 
 # Byte compiled
-./scqubits/io_utils/__pycache__
-./scqubits/utils/__pycache__
-./scqubits/core/__pycache__
-./scqubits/ui/__pycache__
-./scqubits/__pycache__
+__pycache__/
 *.py[cod]
 
 # Packages
@@ -28,6 +24,7 @@
 /scratch/
 
 /.vscode/
+/.claude/
 /.pytest_cache/
 /.coverage
 /.ipynb_checkpoints/
@@ -37,3 +34,8 @@ scqubits/ui/.ipynb_checkpoints/test-checkpoint.ipynb
 scqubits/.vscode/settings.json
 *.ipynb
 /.asv/
+/CLAUDE.md
+/docstring_audit.py
+/docstring_fixer.py
+/modernize_types.py
+/monkeytype.sqlite3
