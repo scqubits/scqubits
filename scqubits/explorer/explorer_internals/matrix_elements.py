@@ -76,10 +76,11 @@ class MatrixElementsPanelBuilder:
         fig_ax: tuple[Figure, Axes],
     ) -> tuple[Figure, Axes]:
         subsys = plot_id.subsystems[0]
-        assert isinstance(subsys, QubitBaseClass), (
-            "MATRIX_ELEMENTS panel requires a QubitBaseClass subsystem; "
-            f"got {type(subsys).__name__}."
-        )
+        if not isinstance(subsys, QubitBaseClass):
+            raise TypeError(
+                "MATRIX_ELEMENTS panel requires a QubitBaseClass subsystem; "
+                f"got {type(subsys).__name__}."
+            )
         ui_mode_dropdown, opname_dropdown = explorer.settings[plot_id]
         return display_matrixelements(
             sweep=explorer.sweep,

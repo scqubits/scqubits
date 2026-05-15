@@ -216,6 +216,9 @@ class TestParameterSweep:
         sweep._validate_states(initial=0, final=None)
         sweep._validate_states(initial=3, final=5)
 
+        # None form: "no state specified" (the default) must be a no-op.
+        sweep._validate_states(initial=None, final=None)
+
         # tuple form: bare-product-state label (existing behavior preserved).
         sweep._validate_states(initial=(0, 0, 0), final=None)
         sweep._validate_states(initial=(0, 0, 0), final=(1, 0, 0))

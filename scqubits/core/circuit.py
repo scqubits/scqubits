@@ -24,7 +24,7 @@ import sympy as sm
 from numpy import ndarray
 from sympy import latex
 
-from scqubits.ui._optional_deps import _HAS_IPYTHON  # noqa: F401
+from scqubits.ui._optional_deps import _HAS_IPYTHON
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.discretization as discretization

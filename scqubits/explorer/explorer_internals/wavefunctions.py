@@ -21,8 +21,6 @@ if TYPE_CHECKING:
     from scqubits.explorer.explorer_settings import ExplorerSettings
     from scqubits.explorer.explorer_widget import Explorer, PlotID
 
-from scqubits.ui._optional_deps import _HAS_IPYVUETIFY, v  # noqa: F401
-
 
 @rc_context(matplotlib_settings)
 def display_bare_wavefunctions(
@@ -61,12 +59,13 @@ class WavefunctionsPanelBuilder:
         fig_ax: tuple[Figure, Axes],
     ) -> tuple[Figure, Axes]:
         subsys = plot_id.subsystems[0]
-        assert isinstance(subsys, QubitBaseClass), (
-            "WAVEFUNCTIONS panel requires a QubitBaseClass subsystem; "
-            f"got {type(subsys).__name__}.  Check that "
-            "``gui_defaults.supported_panels`` is not offering this plot "
-            "for the wrong topology."
-        )
+        if not isinstance(subsys, QubitBaseClass):
+            raise TypeError(
+                "WAVEFUNCTIONS panel requires a QubitBaseClass subsystem; "
+                f"got {type(subsys).__name__}.  Check that "
+                "``gui_defaults.supported_panels`` is not offering this plot "
+                "for a non-qubit subsystem."
+            )
         ui_wavefunction_selector, ui_mode_dropdown = explorer.settings[plot_id]
         return display_bare_wavefunctions(
             explorer.sweep,
