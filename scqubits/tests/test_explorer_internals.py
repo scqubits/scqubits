@@ -167,7 +167,6 @@ def test_optional_deps_module_exposes_expected_names():
         "v",
         "ipywidgets",
         "display",
-        "HTML",
     ):
         assert hasattr(
             _optional_deps, name

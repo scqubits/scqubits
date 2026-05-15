@@ -40,16 +40,13 @@ else:
 
 # IPython display: same pattern as above.
 try:
-    from IPython.display import HTML as _HTML
     from IPython.display import Latex as _Latex
     from IPython.display import display as _display
 except ImportError:
     _HAS_IPYTHON = False
-    HTML: Any = None
     Latex: Any = None
     display: Any = None
 else:
     _HAS_IPYTHON = True
-    HTML = _HTML
     Latex = _Latex
     display = _display
