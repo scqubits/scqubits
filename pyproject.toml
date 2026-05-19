@@ -61,6 +61,11 @@ develop = [
 Homepage = "https://scqubits.readthedocs.io"
 Repository = "https://github.com/scqubits/scqubits"
 
+[tool.pytest.ini_options]
+markers = [
+    "slow: marks tests as slow (deselect with -m 'not slow')",
+]
+
 [tool.black]
 target-version = ["py310"]
 

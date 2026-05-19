@@ -172,3 +172,23 @@ OVERLAP_THRESHOLD = 0.5
 # The following determines the threshold for the number of nodes above which the
 # symbolic inversion of the capacitance matrix is skipped.
 SYM_INVERSION_MAX_NODES = 3
+
+# Convergence-diagnostics settings (see scqubits.core.convergence) ----------------------
+# Default mode for estimate_convergence() when not explicitly specified.
+CONVERGENCE_DEFAULT_MODE = "verify"
+# Default floor on the local isolation gap (in GHz) used when normalising
+# convergence estimates by an observed spectral gap.
+CONVERGENCE_G_FLOOR_GHZ = 1e-3
+# Default dimensionless threshold for observed-gap-scale convergence verdicts.
+CONVERGENCE_DEFAULT_GAP_REL = 1e-3
+# Cluster-detection threshold: a consecutive run of eigenvalues forms a cluster
+# when its internal max-gap is below this ratio times the external gap.
+CONVERGENCE_CLUSTER_RATIO = 0.1
+# Safety factor S applied to one-step refinement estimates,
+# abs_err_est = S * |E(N+dN) - E(N)|. Default 2.0 corresponds to assuming a
+# refinement-ratio bound R <= 1/2 (calibration tightens or loosens as needed).
+CONVERGENCE_SAFETY_FACTOR = 2.0
+# Floor on rates (Hz) when comparing coherence channels; below this, the
+# rate-relative-error denominator is clamped to avoid divide-by-zero in
+# T = 1/Gamma reporting. (Used in PR-3.)
+CONVERGENCE_RATE_FLOOR_HZ = 1.0
