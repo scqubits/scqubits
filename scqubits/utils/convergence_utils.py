@@ -141,13 +141,13 @@ def cluster_safe_match_energies(
 
     Returns
     -------
-    A pair ``(clusters_b, max_diff_per_cluster)`` where:
-
-    - ``clusters_b`` is the index partition for ``evals_b``; in this PR
-      it is identical to ``clusters_a`` (direct-index mapping).
-    - ``max_diff_per_cluster[k]`` is the maximum of
-      ``|sorted(evals_a[c]) - sorted(evals_b[c])|`` over the indices in
-      cluster ``k``.
+    clusters_b : list of tuple of int
+        The index partition for ``evals_b``; in this PR identical to
+        ``clusters_a`` (direct-index mapping).
+    max_diff_per_cluster : ndarray
+        Entry ``k`` is the maximum of
+        ``|sorted(evals_a[c]) - sorted(evals_b[c])|`` over the indices in
+        cluster ``k``.
 
     Raises
     ------
