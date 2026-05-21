@@ -122,6 +122,32 @@ class TestDataclasses:
         # __str__ delegates to summary(), so print(report) shows the same text.
         assert str(report) == text
 
+    def test_level_accessor_looks_up_by_index(self):
+        verdicts = [
+            LevelVerdict(
+                level_index=k,
+                status="converged",
+                status_scope="absolute",
+                evidence="verified_empirical",
+                abs_err_est_GHz=1e-10,
+                eps_gap_est=None,
+            )
+            for k in range(3)
+        ]
+        report = ConvergenceReport(
+            per_level=verdicts,
+            aggregate_status="converged",
+            worst_level=2,
+            channel_breakdown_GHz={},
+            clusters=[(0,), (1,), (2,)],
+            recommendations=[],
+            implementation_audit=self._make_audit(),
+        )
+        assert report.level(1).level_index == 1
+        assert report.level(report.worst_level).level_index == 2
+        with pytest.raises(KeyError):
+            report.level(99)
+
     def test_evidence_ordering(self):
         # certified is the strongest; unverified the weakest.
         assert evidence_at_least("certified", "unverified")

@@ -156,6 +156,21 @@ class ConvergenceReport:
     implementation_audit: ImplementationAudit
     derived: dict[str, "ConvergenceReport"] | None = None
 
+    def level(self, level_index: int) -> LevelVerdict:
+        """Return the per-level verdict for the given level index.
+
+        Looks the verdict up by its ``level_index`` (not by list position), so
+        ``report.level(report.worst_level)`` reliably retrieves the driving
+        level. Raises :class:`KeyError` if that level was not assessed.
+        """
+        for verdict in self.per_level:
+            if verdict.level_index == level_index:
+                return verdict
+        assessed = [verdict.level_index for verdict in self.per_level]
+        raise KeyError(
+            f"no verdict for level_index {level_index}; assessed levels: {assessed}"
+        )
+
     def summary(self) -> str:
         """Return a compact, human-readable multi-line summary of the report.
 
