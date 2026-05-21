@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import dataclasses
 
+import numpy as np
 import pytest
 
 import scqubits as sq
@@ -472,3 +473,48 @@ class TestTunableTransmon:
         )
         report = tt.estimate_convergence(n_levels=5, mode="verify", target_abs_GHz=1e-8)
         assert report.aggregate_status in {"marginal", "underconverged"}
+
+
+# ------------------------------------------------------------- Fluxonium (Stage 2)
+
+
+class TestFluxonium:
+    def test_all_channels_converge(self):
+        # Fluxonium uses a harmonic-oscillator (Fock) basis controlled by cutoff.
+        flx = sq.Fluxonium(
+            EJ=8.9, EC=2.5, EL=0.5, flux=0.5, cutoff=110, truncated_dim=6
+        )
+        report = flx.estimate_convergence(
+            n_levels=5,
+            mode="verify",
+            target_abs_GHz=1e-4,
+            include_derived=True,
+            derived_quantities=["wavefunctions", "matrix_elements", "coherence"],
+        )
+        assert report.aggregate_status == "converged"
+        # The truncation channel is the HO phi coordinate, not charge.
+        assert report.per_level[0].truncation_channel == "HO_phi"
+        assert report.implementation_audit.qubit_class == "Fluxonium"
+        assert report.implementation_audit.cutoff_parameters == {"cutoff": 110}
+        for sub in report.derived.values():
+            assert sub.aggregate_status == "converged"
+
+    def test_undersized_is_underconverged(self):
+        flx = sq.Fluxonium(EJ=8.9, EC=2.5, EL=0.5, flux=0.5, cutoff=12, truncated_dim=6)
+        report = flx.estimate_convergence(
+            n_levels=5, mode="verify", target_abs_GHz=1e-8
+        )
+        assert report.aggregate_status in {"marginal", "underconverged"}
+        assert any("cutoff" in r for r in report.recommendations)
+
+    def test_pad_eigenvectors_appends_high_fock_zeros(self):
+        flx = sq.Fluxonium(EJ=8.9, EC=2.5, EL=0.5, flux=0.5, cutoff=20, truncated_dim=6)
+        evecs = np.zeros((20, 2), dtype=np.float64)
+        evecs[0, 0] = 1.0
+        evecs[5, 1] = 1.0
+        padded = flx._convergence_pad_eigenvectors(evecs, 20, 30)
+        assert padded.shape == (30, 2)
+        # Existing Fock amplitudes are preserved; the added high-Fock rows are 0.
+        assert padded[0, 0] == 1.0
+        assert padded[5, 1] == 1.0
+        assert np.all(padded[20:, :] == 0.0)

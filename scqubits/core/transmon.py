@@ -40,6 +40,7 @@ from scqubits.core.convergence_report import TruncationChannel
 from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 from scqubits.core.storage import WaveFunction
+from scqubits.utils.convergence_utils import pad_charge_basis
 
 LevelsTuple = tuple[int, ...]
 Transition = tuple[int, int]
@@ -183,6 +184,19 @@ class Transmon(
         # k-th eigenvector.
         boundary_sq = np.abs(evecs[0, :]) ** 2 + np.abs(evecs[-1, :]) ** 2
         return boundary_sq.astype(np.float64)
+
+    def _convergence_pad_eigenvectors(
+        self,
+        evecs: npt.NDArray[np.float64],
+        value_from: int,
+        value_to: int,
+    ) -> npt.NDArray[np.float64]:
+        """Symmetrically zero-pad charge-basis eigenvectors to a larger ``ncut``.
+
+        The charge basis spans ``n = -ncut .. +ncut``; embedding into a larger
+        cutoff adds equal zero rows at each end, keeping ``n = 0`` centered.
+        """
+        return pad_charge_basis(evecs, value_from, value_to)
 
     def _hamiltonian_diagonal(self) -> npt.NDArray[np.float64]:
         """Return the diagonal of the Hamiltonian in the charge basis."""

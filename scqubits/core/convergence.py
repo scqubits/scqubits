@@ -99,6 +99,26 @@ class ConvergenceCheckable:
         """
         return None
 
+    def _convergence_pad_eigenvectors(
+        self,
+        evecs: npt.NDArray[np.float64],
+        value_from: int,
+        value_to: int,
+    ) -> npt.NDArray[np.float64]:
+        """Embed eigenvectors from the basis at one truncation value into a larger one.
+
+        Used by the wavefunction channel to bring two eigenvector sets, computed
+        at different cutoffs, into a common basis before comparison. The
+        embedding is basis-specific (charge bases pad symmetrically, a harmonic
+        oscillator pads at the high-Fock end), so a qubit must override this to
+        support the wavefunction channel; the default signals that the channel is
+        unavailable.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement eigenvector padding, so "
+            "the wavefunction convergence channel is unavailable for it."
+        )
+
     # ----------------------------------------------------------------- public
 
     def estimate_convergence(
@@ -655,12 +675,12 @@ class ConvergenceCheckable:
         derived: dict[str, ConvergenceReport] = {}
 
         if "wavefunctions" in derived_quantities:
-            movement_first = _wavefunction_movement(
+            movement_first = self._convergence_wavefunction_movement(
                 evecs_n0, evecs_n1, ncut_0, ncut_1, clusters, n_levels
             )
             movement_second: npt.NDArray[np.float64] | None = None
             if refinement == "ratio_test" and evecs_n2 is not None:
-                movement_second = _wavefunction_movement(
+                movement_second = self._convergence_wavefunction_movement(
                     evecs_n1, evecs_n2, ncut_1, ncut_2, clusters, n_levels
                 )
             derived["wavefunctions"] = _build_metric_report(
@@ -737,6 +757,42 @@ class ConvergenceCheckable:
             )
 
         return dataclasses.replace(report, derived=derived)
+
+    def _convergence_wavefunction_movement(
+        self,
+        evecs_a: npt.NDArray[np.float64],
+        evecs_b: npt.NDArray[np.float64],
+        value_a: int,
+        value_b: int,
+        clusters: list[tuple[int, ...]],
+        n_levels: int,
+    ) -> npt.NDArray[np.float64]:
+        """Per-level wavefunction movement between two cutoffs.
+
+        Both eigenvector sets are embedded into the larger basis via the
+        qubit's :meth:`_convergence_pad_eigenvectors` hook. Isolated levels use
+        the overlap deficit ``1 - |<a_k | b_k>|`` (invariant to each vector's
+        global phase); near-degenerate clusters use the subspace angle, assigned
+        to every member, which is robust to eigenvector rotations within the
+        block.
+        """
+        value_max = max(value_a, value_b)
+        a = self._convergence_pad_eigenvectors(
+            evecs_a[:, :n_levels], value_a, value_max
+        )
+        b = self._convergence_pad_eigenvectors(
+            evecs_b[:, :n_levels], value_b, value_max
+        )
+        movement = np.empty(n_levels, dtype=np.float64)
+        for k in range(n_levels):
+            movement[k] = 1.0 - min(1.0, abs(complex(np.vdot(a[:, k], b[:, k]))))
+        for cluster in clusters:
+            if len(cluster) > 1:
+                cols = list(cluster)
+                angle = cutils.subspace_angle(a[:, cols], b[:, cols])
+                for k in cluster:
+                    movement[k] = angle
+        return movement
 
 
 # ------------------------------------------------------------ module helpers
@@ -966,36 +1022,6 @@ def _aggregate_worst(verdicts: list[LevelVerdict]) -> tuple[int, Status]:
 _MATELEM_REF_FLOOR = 1e-12
 
 
-def _wavefunction_movement(
-    evecs_a: npt.NDArray[np.float64],
-    evecs_b: npt.NDArray[np.float64],
-    ncut_a: int,
-    ncut_b: int,
-    clusters: list[tuple[int, ...]],
-    n_levels: int,
-) -> npt.NDArray[np.float64]:
-    """Per-level wavefunction movement between two cutoffs.
-
-    Isolated levels use the overlap deficit ``1 - |<a_k | b_k>|``; near-degenerate
-    clusters use the subspace angle (assigned to every member), which is robust to
-    eigenvector rotations within the block.
-    """
-    overlaps = cutils.wavefunction_overlap(
-        evecs_a[:, :n_levels], evecs_b[:, :n_levels], ncut_a, ncut_b
-    )
-    movement = 1.0 - np.minimum(1.0, overlaps)
-    ncut_max = max(ncut_a, ncut_b)
-    a = cutils.pad_charge_basis(evecs_a[:, :n_levels], ncut_a, ncut_max)
-    b = cutils.pad_charge_basis(evecs_b[:, :n_levels], ncut_b, ncut_max)
-    for cluster in clusters:
-        if len(cluster) > 1:
-            cols = list(cluster)
-            angle = cutils.subspace_angle(a[:, cols], b[:, cols])
-            for k in cluster:
-                movement[k] = angle
-    return movement
-
-
 def _matrix_element_movement(
     qubit_a: Any,
     qubit_b: Any,
@@ -1010,8 +1036,11 @@ def _matrix_element_movement(
     assigned the worst relative change of its matrix-element row and column,
     maximized over operators. The relative change normalizes by the refined
     table's row/column norm, floored to guard against selection-rule zeros.
-    Operators that raise or return a shape-incompatible table are skipped and
-    reported (graceful degradation), not silently dropped.
+    Matrix elements are compared by magnitude, since each eigenvector's global
+    phase is a gauge choice that can differ between cutoffs (a signed comparison
+    would report spurious movement from phase flips). Operators that raise or
+    return a shape-incompatible table are skipped and reported (graceful
+    degradation), not silently dropped.
     """
     movement = np.zeros(n_levels, dtype=np.float64)
     skipped: list[str] = []
@@ -1029,7 +1058,7 @@ def _matrix_element_movement(
         if m0.shape != (n_levels, n_levels) or m1.shape != (n_levels, n_levels):
             skipped.append(op_name)
             continue
-        delta = np.abs(m1 - m0)
+        delta = np.abs(np.abs(m1) - np.abs(m0))
         for k in range(n_levels):
             row_ref = max(float(np.linalg.norm(m1[k, :])), _MATELEM_REF_FLOOR)
             col_ref = max(float(np.linalg.norm(m1[:, k])), _MATELEM_REF_FLOOR)

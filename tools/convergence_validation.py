@@ -48,7 +48,9 @@ N_LEVELS = 6
 
 
 def low_evals(EJ, EC, ng, ncut, n):
-    return np.sort(scq.Transmon(EJ=EJ, EC=EC, ng=ng, ncut=ncut).eigenvals(evals_count=n))
+    return np.sort(
+        scq.Transmon(EJ=EJ, EC=EC, ng=ng, ncut=ncut).eigenvals(evals_count=n)
+    )
 
 
 def ground_truth(EJ, EC, ng, n):
@@ -78,7 +80,9 @@ def validate_stability_and_energies():
         unstable = noise > 1e-6
         any_unstable = any_unstable or unstable
         flag = "  <-- UNSTABLE GROUND TRUTH" if unstable else ""
-        print(f"\n[{label}] noise floor |E{NCUT_GT_CHECK}-E{NCUT_GT}| = {noise:.2e}{flag}")
+        print(
+            f"\n[{label}] noise floor |E{NCUT_GT_CHECK}-E{NCUT_GT}| = {noise:.2e}{flag}"
+        )
         meaningful = max(10.0 * noise, 1e-9)
         for ncut in TEST_NCUTS:
             tmon = scq.Transmon(EJ=EJ, EC=EC, ng=ng, ncut=ncut)
@@ -98,11 +102,18 @@ def validate_stability_and_energies():
                 if r > 1.0:
                     violations += 1
             if worst_r > worst_ratio:
-                worst_ratio, worst_where = worst_r, f"{label} ncut={ncut} level={worst_k}"
+                worst_ratio, worst_where = (
+                    worst_r,
+                    f"{label} ncut={ncut} level={worst_k}",
+                )
             tag = "ok" if worst_r <= 1.0 else "UNDERESTIMATE"
-            print(f"   ncut={ncut:3d}: worst true_err/est = {worst_r:6.3f} (level {worst_k})  [{tag}]")
+            print(
+                f"   ncut={ncut:3d}: worst true_err/est = {worst_r:6.3f} (level {worst_k})  [{tag}]"
+            )
     print("\n" + "-" * 78)
-    print(f"Energy soundness: {violations} underestimate(s) of {assessed} assessed levels")
+    print(
+        f"Energy soundness: {violations} underestimate(s) of {assessed} assessed levels"
+    )
     print(f"Worst true_err/abs_err_est = {worst_ratio:.3f}  at  {worst_where}")
     print(f"(safety factor S = {SAFETY}; want worst <= 1.0)")
     return violations == 0 and not any_unstable
@@ -133,7 +144,9 @@ def validate_verdicts():
                             f"  FALSE CONVERGED: {label} ncut={ncut} level={k} "
                             f"target={target:.0e} true_err={true_err:.2e}"
                         )
-    print(f"\nFalse 'converged' verdicts: {false_converged} of {checks} converged-level checks")
+    print(
+        f"\nFalse 'converged' verdicts: {false_converged} of {checks} converged-level checks"
+    )
     return false_converged == 0
 
 
@@ -148,7 +161,9 @@ def validate_strict_ratio_test():
     calibrated = sum(e == "calibrated" for e in evid)
     print(f"  evidence: {evid}")
     print(f"  methods : {methods}")
-    print(f"  {calibrated}/{len(evid)} levels reached 'calibrated' (ratio test asymptotic)")
+    print(
+        f"  {calibrated}/{len(evid)} levels reached 'calibrated' (ratio test asymptotic)"
+    )
     return calibrated >= 1
 
 
@@ -184,8 +199,14 @@ def validate_derived():
                 continue  # rate at the noise floor: relative change is meaningless
             ch = v.estimator_method[:-5]  # strip "_rate"
             try:
-                r0 = abs(float(getattr(tmon, ch)(get_rate=True, esys=(e_now, evec_now)))) * to_hz
-                r1 = abs(float(getattr(gt, ch)(get_rate=True, esys=(e_gt, evec_gt)))) * to_hz
+                r0 = (
+                    abs(float(getattr(tmon, ch)(get_rate=True, esys=(e_now, evec_now))))
+                    * to_hz
+                )
+                r1 = (
+                    abs(float(getattr(gt, ch)(get_rate=True, esys=(e_gt, evec_gt))))
+                    * to_hz
+                )
             except Exception:
                 continue
             true_rate = abs(r1 - r0) / max(r1, RATE_FLOOR)
@@ -223,7 +244,10 @@ def _true_matelem_change(tmon, gt, evec_now, evec_gt, n):
             continue
         if m0.shape != (n, n) or m1.shape != (n, n):
             continue
-        d = np.abs(m1 - m0)
+        # Compare matrix-element magnitudes: each eigenvector's global phase is a
+        # gauge choice that can flip between cutoffs, matching the framework's
+        # phase-invariant comparison in _matrix_element_movement.
+        d = np.abs(np.abs(m1) - np.abs(m0))
         for k in range(n):
             row_ref = max(float(np.linalg.norm(m1[k, :])), 1e-12)
             col_ref = max(float(np.linalg.norm(m1[:, k])), 1e-12)
