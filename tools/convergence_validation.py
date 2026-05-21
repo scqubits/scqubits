@@ -352,6 +352,59 @@ def validate_zeropi_fd_groundtruth():
     return ok
 
 
+def validate_fluxonium_groundtruth():
+    section("FLUXONIUM GROUND TRUTH (no false converged, HO-basis, regime grid)")
+    # Fluxonium HO-basis convergence is regime-dependent: deep wells (small EL)
+    # near half flux have a broad wavefunction and need a high cutoff. A
+    # high-cutoff reference gives the true error of each moderate "user" cutoff;
+    # the verify-mode estimate must bound it and never falsely report converged.
+    n = 4
+    target = 1e-4
+    cutoff_gt, cutoff_gt2 = 400, 360
+    # (label, EJ, EC, EL, flux): standard, half flux, deep well, and a stiffer well
+    grid = [
+        ("EL=0.5 flux=0   ", 8.9, 2.5, 0.5, 0.0),
+        ("EL=0.5 flux=0.5 ", 8.9, 2.5, 0.5, 0.5),
+        ("EL=0.2 flux=0.5 ", 8.9, 2.5, 0.2, 0.5),
+        ("EL=1.0 flux=0.5 ", 5.0, 1.0, 1.0, 0.5),
+    ]
+    test_cutoffs = [20, 30, 50, 80]
+
+    def evals(EJ, EC, EL, flux, cutoff):
+        flx = scq.Fluxonium(
+            EJ=EJ, EC=EC, EL=EL, flux=flux, cutoff=cutoff, truncated_dim=n + 2
+        )
+        return np.sort(flx.eigenvals(evals_count=n))
+
+    ok = True
+    for label, EJ, EC, EL, flux in grid:
+        e_ref = evals(EJ, EC, EL, flux, cutoff_gt)
+        noise = float(np.max(np.abs(e_ref - evals(EJ, EC, EL, flux, cutoff_gt2))))
+        worst_ratio = 0.0
+        false_converged = 0
+        for cutoff in test_cutoffs:
+            flx = scq.Fluxonium(
+                EJ=EJ, EC=EC, EL=EL, flux=flux, cutoff=cutoff, truncated_dim=n + 2
+            )
+            e_user = np.sort(flx.eigenvals(evals_count=n))
+            rep = flx.estimate_convergence(n_levels=n, target_abs_GHz=target)
+            for k, v in enumerate(rep.per_level):
+                true_err = abs(float(e_user[k] - e_ref[k]))
+                est = v.abs_err_est_GHz or 0.0
+                if true_err > noise:
+                    worst_ratio = max(worst_ratio, true_err / max(est, 1e-30))
+                if v.status == "converged" and true_err >= target:
+                    false_converged += 1
+        good = worst_ratio <= 1.0 and false_converged == 0
+        ok = ok and good
+        print(
+            f"  {label}: worst true/est={worst_ratio:.2f}  "
+            f"false_converged={false_converged}  (noise {noise:.1e})  "
+            f"[{'ok' if good else 'SUSPECT'}]"
+        )
+    return ok
+
+
 def main():
     results = {
         "energy soundness + stability": validate_stability_and_energies(),
@@ -360,6 +413,7 @@ def main():
         "derived channels": validate_derived(),
         "high-cutoff check stability": validate_high_cutoff_check(),
         "zeropi FD ground truth": validate_zeropi_fd_groundtruth(),
+        "fluxonium ground truth": validate_fluxonium_groundtruth(),
     }
     section("SUMMARY")
     for name, passed in results.items():
