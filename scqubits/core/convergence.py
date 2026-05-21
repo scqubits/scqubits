@@ -9,7 +9,7 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
-"""ConvergenceCheckable mixin and the verified-refinement engine.
+"""Verified-refinement convergence diagnostics for qubit classes.
 
 A concrete qubit that adds ``ConvergenceCheckable`` to its MRO and declares
 ``_convergence_axes`` gains an :meth:`estimate_convergence` method returning a
