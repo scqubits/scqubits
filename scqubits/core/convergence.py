@@ -9,16 +9,16 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
-"""ConvergenceCheckable mixin and the energy-channel verified-refinement engine.
+"""ConvergenceCheckable mixin and the verified-refinement engine.
 
-PR-1 scope: a concrete qubit that adds ``ConvergenceCheckable`` to its MRO and
-declares ``_convergence_axes`` gains an :meth:`estimate_convergence` method
-returning a :class:`~scqubits.core.convergence_report.ConvergenceReport`.
-Only the energy sub-channel is implemented here; PR-2 adds wavefunctions and
-matrix elements, PR-3 adds coherence.
+A concrete qubit that adds ``ConvergenceCheckable`` to its MRO and declares
+``_convergence_axes`` gains an :meth:`estimate_convergence` method returning a
+:class:`~scqubits.core.convergence_report.ConvergenceReport`. The engine assesses
+the energy spectrum and, on request, the derived wavefunction, matrix-element,
+and coherence channels.
 
-The mixin's refinement engine clones the qubit, bumps a cutoff axis by a
-step, re-diagonalizes, and compares cluster-matched eigenvalues. Cheap-mode
+The refinement engine clones the qubit, bumps a cutoff axis by a step,
+re-diagonalizes, and compares cluster-matched eigenvalues. Cheap-mode
 diagnostics never claim ``converged`` (per the published design specification).
 """
 
@@ -1206,15 +1206,19 @@ def _build_coherence_report(
     ``noise_floor`` warning rather than a lifetime claim. Verdicts use the
     observed-gap ladder against ``target_gap_rel``.
     """
+    safety_factor = settings.CONVERGENCE_SAFETY_FACTOR
     verdicts: list[LevelVerdict] = []
     for idx, name in enumerate(channel_names):
         warnings: tuple[str, ...] = ("noise_floor",) if floor_flags[idx] else ()
+        # One-step rate change times the safety factor, matching the energy and
+        # other derived channels.
+        eps = float(safety_factor * movement[idx])
         verdicts.append(
             LevelVerdict(
                 level_index=idx,
                 status=_assign_status(
                     abs_err_est=0.0,
-                    eps_gap_est=float(movement[idx]),
+                    eps_gap_est=eps,
                     scope="observed_gap_scale",
                     target_abs_GHz=None,
                     target_gap_rel=target_gap_rel,
@@ -1222,7 +1226,7 @@ def _build_coherence_report(
                 status_scope="observed_gap_scale",
                 evidence="verified_empirical",
                 abs_err_est_GHz=None,
-                eps_gap_est=float(movement[idx]),
+                eps_gap_est=eps,
                 truncation_channel=channel,
                 estimator_method=f"{name}_rate",
                 warnings=warnings,
