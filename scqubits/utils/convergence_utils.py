@@ -15,8 +15,9 @@ This module contains backend-agnostic functions used by
 :mod:`scqubits.core.convergence`. Keeping them separate makes them
 unit-testable without instantiating a qubit.
 
-PR-1 scope: cluster detection and cluster-safe energy matching.
-PR-2 will add: subspace-angle, wavefunction-overlap, ratio-test arithmetic.
+PR-1 scope: cluster detection, cluster-safe energy matching, and the
+geometric ratio test.
+PR-2 will add: subspace-angle, wavefunction-overlap.
 PR-3 will add: rate-relative-error.
 """
 
@@ -168,3 +169,52 @@ def cluster_safe_match_energies(
     # PR-2 may add a centroid-overlap-based matching for cases where the
     # cluster structure itself changes between cutoffs.
     return list(clusters_a), max_diffs
+
+
+def geometric_ratio_test(
+    diff_first: npt.NDArray[np.float64],
+    diff_second: npt.NDArray[np.float64],
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.bool_]]:
+    """Run a per-cluster geometric ratio test on successive refinement movements.
+
+    Given the absolute spectral movements between consecutive cutoffs --
+    ``diff_first`` for the base-to-first-refinement step and ``diff_second`` for
+    the first-to-second-refinement step -- this characterizes whether each
+    cluster is in the geometric (asymptotically converging) regime and, if so,
+    extrapolates the remaining tail error from a geometric series.
+
+    Parameters
+    ----------
+    diff_first:
+        Per-cluster absolute eigenvalue movement of the first refinement step.
+        Entries are non-negative.
+    diff_second:
+        Per-cluster absolute eigenvalue movement of the second refinement step,
+        aligned element-wise with ``diff_first``.
+
+    Returns
+    -------
+    ratios
+        ``diff_second / diff_first`` per cluster, with ``inf`` wherever
+        ``diff_first`` is zero (the movement is already at the floor and the
+        ratio is undefined).
+    geometric_tail
+        The geometric-series tail estimate ``diff_first / (1 - ratios)`` for
+        clusters with ``ratios < 1``, and ``inf`` elsewhere.
+    is_asymptotic
+        ``True`` for clusters with ``ratios < 1``, i.e. those whose movement is
+        shrinking and for which the geometric extrapolation is meaningful.
+    """
+    ratios = np.divide(
+        diff_second,
+        diff_first,
+        out=np.full_like(diff_first, np.inf),
+        where=diff_first > 0,
+    )
+    geometric_tail = np.where(
+        ratios < 1.0,
+        diff_first / np.clip(1.0 - ratios, 1e-30, None),
+        np.inf,
+    )
+    is_asymptotic = ratios < 1.0
+    return ratios, geometric_tail, is_asymptotic

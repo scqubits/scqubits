@@ -18,6 +18,7 @@ import pytest
 from scqubits.utils.convergence_utils import (
     cluster_safe_match_energies,
     detect_clusters,
+    geometric_ratio_test,
 )
 
 # Mark all tests in this module as slow so they participate in the
@@ -122,3 +123,35 @@ class TestClusterSafeMatchEnergies:
         # Within the cluster, only the third member moved (by 0.003).
         np.testing.assert_allclose(max_diffs[1], 0.003, rtol=1e-12)
         assert max_diffs[2] == 0.0
+
+
+# ----------------------------------------------------------- geometric_ratio_test
+
+
+class TestGeometricRatioTest:
+    def test_asymptotic_cluster_extrapolates_geometric_tail(self):
+        # Movement halves each step (R = 0.5): geometric tail = d0 / (1 - R) = 2.
+        diff_first = np.asarray([1.0], dtype=np.float64)
+        diff_second = np.asarray([0.5], dtype=np.float64)
+        ratios, tail, is_asymptotic = geometric_ratio_test(diff_first, diff_second)
+        np.testing.assert_allclose(ratios, [0.5])
+        np.testing.assert_allclose(tail, [2.0])
+        assert bool(is_asymptotic[0]) is True
+
+    def test_non_asymptotic_cluster_flags_inf_tail(self):
+        # Movement grows (R = 2): not asymptotic, tail undefined (inf).
+        diff_first = np.asarray([1.0], dtype=np.float64)
+        diff_second = np.asarray([2.0], dtype=np.float64)
+        ratios, tail, is_asymptotic = geometric_ratio_test(diff_first, diff_second)
+        np.testing.assert_allclose(ratios, [2.0])
+        assert np.isinf(tail[0])
+        assert bool(is_asymptotic[0]) is False
+
+    def test_zero_first_movement_gives_inf_ratio(self):
+        # d0 already at the floor: ratio undefined (inf), so not asymptotic.
+        diff_first = np.asarray([0.0], dtype=np.float64)
+        diff_second = np.asarray([1.0], dtype=np.float64)
+        ratios, tail, is_asymptotic = geometric_ratio_test(diff_first, diff_second)
+        assert np.isinf(ratios[0])
+        assert np.isinf(tail[0])
+        assert bool(is_asymptotic[0]) is False

@@ -426,161 +426,88 @@ class ConvergenceCheckable:
         """Assemble the LevelVerdicts and the ConvergenceReport from refinement
         eigenvalues. Shared between verify and strict modes."""
         channel: TruncationChannel = self._convergence_truncation_channel(axis)
-        cluster_threshold = settings.CONVERGENCE_CLUSTER_RATIO
         safety_factor = settings.CONVERGENCE_SAFETY_FACTOR
 
-        # Cluster-detect on N0 (the reference / user's current spectrum).
+        # Cluster-detect on N0 (the reference / user's current spectrum) and
+        # measure the one-step movement N0 -> N1 per cluster.
         clusters = cutils.detect_clusters(
-            evals_n0, gap_ratio_threshold=cluster_threshold
+            evals_n0, gap_ratio_threshold=settings.CONVERGENCE_CLUSTER_RATIO
         )
         _, cluster_max_diff_n1 = cutils.cluster_safe_match_energies(
             evals_n0, evals_n1, clusters
         )
 
-        # Per-level: assign the cluster-level estimate to every member.
-        per_level_estimate = np.empty(n_levels, dtype=np.float64)
-        for cluster_idx, cluster in enumerate(clusters):
-            for k in cluster:
-                per_level_estimate[k] = cluster_max_diff_n1[cluster_idx]
-
-        # Strict mode: ratio test.
-        ratio_per_cluster: npt.NDArray[np.float64] | None = None
+        # Strict mode: a second refinement enables the geometric ratio test.
         geometric_tail: npt.NDArray[np.float64] | None = None
         asymptotic_flag: npt.NDArray[np.bool_] | None = None
         if refinement == "ratio_test" and evals_n2 is not None:
             _, cluster_max_diff_n2 = cutils.cluster_safe_match_energies(
                 evals_n1, evals_n2, clusters
             )
-            ratio_per_cluster = np.divide(
-                cluster_max_diff_n2,
-                cluster_max_diff_n1,
-                out=np.full_like(cluster_max_diff_n1, np.inf),
-                where=cluster_max_diff_n1 > 0,
+            _, geometric_tail, asymptotic_flag = cutils.geometric_ratio_test(
+                cluster_max_diff_n1, cluster_max_diff_n2
             )
-            # Geometric-tail estimate: d0 / (1 - R) when R < 1.
-            geometric_tail = np.where(
-                ratio_per_cluster < 1.0,
-                cluster_max_diff_n1 / np.clip(1.0 - ratio_per_cluster, 1e-30, None),
-                np.inf,
-            )
-            asymptotic_flag = ratio_per_cluster < 1.0
 
-        # If strict-mode geometric tail succeeded, use that as the
-        # estimate; otherwise stick with safety_factor * d0.
-        per_level_abs_err = np.empty(n_levels, dtype=np.float64)
-        per_level_evidence: list[Evidence] = []
-        per_level_estimator_method: list[str] = []
-        per_level_warnings: list[list[str]] = [[] for _ in range(n_levels)]
+        (
+            per_level_abs_err,
+            per_level_evidence,
+            per_level_estimator_method,
+            per_level_warnings,
+        ) = _per_cluster_energy_estimates(
+            clusters=clusters,
+            cluster_max_diff_n1=cluster_max_diff_n1,
+            refinement=refinement,
+            geometric_tail=geometric_tail,
+            asymptotic_flag=asymptotic_flag,
+            safety_factor=safety_factor,
+            n_levels=n_levels,
+        )
 
-        for cluster_idx, cluster in enumerate(clusters):
-            if refinement == "ratio_test" and geometric_tail is not None:
-                if asymptotic_flag is not None and asymptotic_flag[cluster_idx]:
-                    est = float(geometric_tail[cluster_idx])
-                    ev: Evidence = "calibrated"
-                    method = "ratio_test"
-                else:
-                    est = float(safety_factor * cluster_max_diff_n1[cluster_idx])
-                    ev = "verified_empirical"
-                    method = "ratio_test_failed_fallback_one_step"
-                    for k in cluster:
-                        per_level_warnings[k].append("ratio_test_not_asymptotic")
-            else:
-                est = float(safety_factor * cluster_max_diff_n1[cluster_idx])
-                ev = "verified_empirical"
-                method = "one_step"
+        eps_gap_est = _observed_gap_eps(
+            scope=scope,
+            evals_n0=evals_n0,
+            buffer_n0=buffer_n0,
+            n_levels=n_levels,
+            g_floor_GHz=g_floor_GHz,
+            per_level_abs_err=per_level_abs_err,
+            per_level_warnings=per_level_warnings,
+        )
 
-            for k in cluster:
-                per_level_abs_err[k] = est
-                per_level_evidence.append(ev)
-                per_level_estimator_method.append(method)
+        per_level_status = _assign_level_statuses(
+            n_levels=n_levels,
+            per_level_abs_err=per_level_abs_err,
+            eps_gap_est=eps_gap_est,
+            per_level_evidence=per_level_evidence,
+            per_level_warnings=per_level_warnings,
+            scope=scope,
+            target_abs_GHz=target_abs_GHz,
+            target_gap_rel=target_gap_rel,
+            mode=mode,
+        )
 
-        # Observed-gap scope: compute local isolation gaps from N0 spectrum.
-        eps_gap_est: list[float | None]
-        if scope == "observed_gap_scale":
-            eps_gap_est = []
-            for k in range(n_levels):
-                gap = _local_isolation_gap(
-                    evals_n0=evals_n0,
-                    buffer_n0=buffer_n0,
-                    k=k,
-                    n_levels=n_levels,
-                    g_floor=g_floor_GHz,
-                )
-                if gap is None:
-                    # Topmost level without buffer: cannot compute upper gap.
-                    eps_gap_est.append(None)
-                    per_level_warnings[k].append("upper_gap_unavailable")
-                else:
-                    eps_gap_est.append(float(per_level_abs_err[k] / gap))
-        else:
-            eps_gap_est = [None] * n_levels
-
-        # Assign status per level based on chosen scope and target.
-        per_level_status: list[Status] = []
-        for k in range(n_levels):
-            status = _assign_status(
-                abs_err_est=float(per_level_abs_err[k]),
+        per_level_verdicts = [
+            LevelVerdict(
+                level_index=k,
+                status=per_level_status[k],
+                status_scope=scope,  # type: ignore[arg-type]
+                evidence=per_level_evidence[k],
+                abs_err_est_GHz=float(per_level_abs_err[k]),
                 eps_gap_est=eps_gap_est[k],
-                scope=scope,
-                target_abs_GHz=target_abs_GHz,
-                target_gap_rel=target_gap_rel,
+                truncation_channel=channel,
+                estimator_method=per_level_estimator_method[k],
+                warnings=tuple(per_level_warnings[k]),
             )
-            # Strict mode downgrades any status weaker than verified_empirical.
-            if mode == "strict" and status == "converged":
-                if not evidence_at_least(per_level_evidence[k], "verified_empirical"):
-                    status = "marginal"
-                    per_level_warnings[k].append(
-                        "strict_mode_downgrade_insufficient_evidence"
-                    )
-            per_level_status.append(status)
+            for k in range(n_levels)
+        ]
 
-        # Build LevelVerdicts.
-        per_level_verdicts: list[LevelVerdict] = []
-        for k in range(n_levels):
-            per_level_verdicts.append(
-                LevelVerdict(
-                    level_index=k,
-                    status=per_level_status[k],
-                    status_scope=scope,  # type: ignore[arg-type]
-                    evidence=per_level_evidence[k],
-                    abs_err_est_GHz=float(per_level_abs_err[k]),
-                    eps_gap_est=eps_gap_est[k],
-                    truncation_channel=channel,
-                    estimator_method=per_level_estimator_method[k],
-                    warnings=tuple(per_level_warnings[k]),
-                )
-            )
+        worst_idx, aggregate_status = _aggregate_worst(per_level_verdicts)
 
-        # Aggregate worst status.
-        worst_rank = -1
-        worst_idx = 0
-        for k, v in enumerate(per_level_verdicts):
-            r = _status_rank(v.status)
-            if r > worst_rank:
-                worst_rank = r
-                worst_idx = k
-        aggregate_status: Status = per_level_verdicts[worst_idx].status
-
-        # Recommendations.
-        recommendations: list[str] = []
-        if any(v.status == "underconverged" for v in per_level_verdicts):
-            current_value = int(getattr(self, axis))
-            step = self._convergence_step(axis)
-            recommendations.append(
-                f"increase {axis} from {current_value} to at least "
-                f"{current_value + step} and re-run; the worst-level "
-                f"estimate exceeded the target threshold"
-            )
-        if (
-            scope == "absolute"
-            and target_abs_GHz is None
-            and any(v.status == "unverified" for v in per_level_verdicts)
-        ):
-            recommendations.append(
-                "supply target_abs_GHz for an automatic status assignment "
-                "in absolute scope; report currently exposes abs_err_est_GHz "
-                "per level without thresholding"
-            )
+        recommendations = self._energy_recommendations(
+            verdicts=per_level_verdicts,
+            scope=scope,
+            target_abs_GHz=target_abs_GHz,
+            axis=axis,
+        )
 
         return ConvergenceReport(
             per_level=per_level_verdicts,
@@ -598,6 +525,40 @@ class ConvergenceCheckable:
                 refinement=refinement,
             ),
         )
+
+    def _energy_recommendations(
+        self,
+        verdicts: list[LevelVerdict],
+        scope: str,
+        target_abs_GHz: float | None,
+        axis: str,
+    ) -> list[str]:
+        """Build the next-step recommendations for an energy convergence report.
+
+        Suggests increasing the truncation axis when any level is
+        underconverged, and prompts for a ``target_abs_GHz`` when absolute-scope
+        levels are unverified for lack of a target.
+        """
+        recommendations: list[str] = []
+        if any(v.status == "underconverged" for v in verdicts):
+            current_value = int(getattr(self, axis))
+            step = self._convergence_step(axis)
+            recommendations.append(
+                f"increase {axis} from {current_value} to at least "
+                f"{current_value + step} and re-run; the worst-level "
+                f"estimate exceeded the target threshold"
+            )
+        if (
+            scope == "absolute"
+            and target_abs_GHz is None
+            and any(v.status == "unverified" for v in verdicts)
+        ):
+            recommendations.append(
+                "supply target_abs_GHz for an automatic status assignment "
+                "in absolute scope; report currently exposes abs_err_est_GHz "
+                "per level without thresholding"
+            )
+        return recommendations
 
 
 # ------------------------------------------------------------ module helpers
@@ -683,6 +644,143 @@ def _assign_status(
     if eps_gap_est < 10.0 * target_gap_rel:
         return "marginal"
     return "underconverged"
+
+
+def _per_cluster_energy_estimates(
+    clusters: list[tuple[int, ...]],
+    cluster_max_diff_n1: npt.NDArray[np.float64],
+    refinement: str,
+    geometric_tail: npt.NDArray[np.float64] | None,
+    asymptotic_flag: npt.NDArray[np.bool_] | None,
+    safety_factor: float,
+    n_levels: int,
+) -> tuple[npt.NDArray[np.float64], list[Evidence], list[str], list[list[str]]]:
+    """Derive each level's error estimate, evidence, estimator method, and warnings.
+
+    Verify mode (and the strict-mode fallback) takes ``safety_factor`` times the
+    one-step movement, tagged ``verified_empirical``. Strict mode uses the
+    geometric-tail estimate tagged ``calibrated`` for clusters confirmed to be in
+    the asymptotic regime, and otherwise falls back to the one-step estimate and
+    records a ``ratio_test_not_asymptotic`` warning. Every level inherits the
+    values of the cluster it belongs to.
+    """
+    per_level_abs_err = np.empty(n_levels, dtype=np.float64)
+    per_level_evidence: list[Evidence] = []
+    per_level_estimator_method: list[str] = []
+    per_level_warnings: list[list[str]] = [[] for _ in range(n_levels)]
+
+    for cluster_idx, cluster in enumerate(clusters):
+        if refinement == "ratio_test" and geometric_tail is not None:
+            if asymptotic_flag is not None and asymptotic_flag[cluster_idx]:
+                est = float(geometric_tail[cluster_idx])
+                ev: Evidence = "calibrated"
+                method = "ratio_test"
+            else:
+                est = float(safety_factor * cluster_max_diff_n1[cluster_idx])
+                ev = "verified_empirical"
+                method = "ratio_test_failed_fallback_one_step"
+                for k in cluster:
+                    per_level_warnings[k].append("ratio_test_not_asymptotic")
+        else:
+            est = float(safety_factor * cluster_max_diff_n1[cluster_idx])
+            ev = "verified_empirical"
+            method = "one_step"
+
+        for k in cluster:
+            per_level_abs_err[k] = est
+            per_level_evidence.append(ev)
+            per_level_estimator_method.append(method)
+
+    return (
+        per_level_abs_err,
+        per_level_evidence,
+        per_level_estimator_method,
+        per_level_warnings,
+    )
+
+
+def _observed_gap_eps(
+    scope: str,
+    evals_n0: npt.NDArray[np.float64],
+    buffer_n0: npt.NDArray[np.float64] | None,
+    n_levels: int,
+    g_floor_GHz: float,
+    per_level_abs_err: npt.NDArray[np.float64],
+    per_level_warnings: list[list[str]],
+) -> list[float | None]:
+    """Normalize each level's error by its local isolation gap.
+
+    Returns ``None`` for every level outside ``observed_gap_scale`` scope.
+    Within that scope, each entry is the absolute error divided by the level's
+    local isolation gap; a level whose upper gap is unavailable (the topmost
+    requested level without a buffer) is left as ``None`` and gets an
+    ``upper_gap_unavailable`` warning.
+    """
+    if scope != "observed_gap_scale":
+        return [None] * n_levels
+    eps_gap_est: list[float | None] = []
+    for k in range(n_levels):
+        gap = _local_isolation_gap(
+            evals_n0=evals_n0,
+            buffer_n0=buffer_n0,
+            k=k,
+            n_levels=n_levels,
+            g_floor=g_floor_GHz,
+        )
+        if gap is None:
+            eps_gap_est.append(None)
+            per_level_warnings[k].append("upper_gap_unavailable")
+        else:
+            eps_gap_est.append(float(per_level_abs_err[k] / gap))
+    return eps_gap_est
+
+
+def _assign_level_statuses(
+    n_levels: int,
+    per_level_abs_err: npt.NDArray[np.float64],
+    eps_gap_est: list[float | None],
+    per_level_evidence: list[Evidence],
+    per_level_warnings: list[list[str]],
+    scope: str,
+    target_abs_GHz: float | None,
+    target_gap_rel: float,
+    mode: str,
+) -> list[Status]:
+    """Assign each level's Status from its error estimate and the active target.
+
+    In strict mode a ``converged`` verdict backed by evidence weaker than
+    ``verified_empirical`` is downgraded to ``marginal`` and a
+    ``strict_mode_downgrade_insufficient_evidence`` warning is recorded.
+    """
+    per_level_status: list[Status] = []
+    for k in range(n_levels):
+        status = _assign_status(
+            abs_err_est=float(per_level_abs_err[k]),
+            eps_gap_est=eps_gap_est[k],
+            scope=scope,
+            target_abs_GHz=target_abs_GHz,
+            target_gap_rel=target_gap_rel,
+        )
+        if mode == "strict" and status == "converged":
+            if not evidence_at_least(per_level_evidence[k], "verified_empirical"):
+                status = "marginal"
+                per_level_warnings[k].append(
+                    "strict_mode_downgrade_insufficient_evidence"
+                )
+        per_level_status.append(status)
+    return per_level_status
+
+
+def _aggregate_worst(verdicts: list[LevelVerdict]) -> tuple[int, Status]:
+    """Return the index and Status of the worst-ranked level verdict."""
+    worst_rank = -1
+    worst_idx = 0
+    for k, v in enumerate(verdicts):
+        r = _status_rank(v.status)
+        if r > worst_rank:
+            worst_rank = r
+            worst_idx = k
+    return worst_idx, verdicts[worst_idx].status
 
 
 def estimate_convergence(qubit: Any, **kwargs: Any) -> ConvergenceReport:
