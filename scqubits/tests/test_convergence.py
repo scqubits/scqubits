@@ -125,11 +125,34 @@ class TestAPIValidation:
         with pytest.raises(ValueError, match="scope must be"):
             tmon.estimate_convergence(n_levels=3, scope="LC_scale")
 
-    def test_include_derived_not_implemented(self):
-        # PR-1 doesn't implement derived sub-channels.
+    def test_include_derived_requires_derived_quantities(self):
         tmon = sq.Transmon(EJ=15.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        with pytest.raises(NotImplementedError, match="include_derived=True"):
+        with pytest.raises(ValueError, match="requires derived_quantities"):
             tmon.estimate_convergence(n_levels=3, include_derived=True)
+
+    def test_include_derived_rejects_quick_mode(self):
+        tmon = sq.Transmon(EJ=15.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
+        with pytest.raises(ValueError, match="verify"):
+            tmon.estimate_convergence(
+                n_levels=3,
+                mode="quick",
+                include_derived=True,
+                derived_quantities=["wavefunctions"],
+            )
+
+    def test_unknown_derived_quantity_raises(self):
+        tmon = sq.Transmon(EJ=15.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
+        with pytest.raises(ValueError, match="unknown derived_quantities"):
+            tmon.estimate_convergence(
+                n_levels=3, include_derived=True, derived_quantities=["bogus"]
+            )
+
+    def test_coherence_derived_not_implemented(self):
+        tmon = sq.Transmon(EJ=15.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
+        with pytest.raises(NotImplementedError, match="coherence"):
+            tmon.estimate_convergence(
+                n_levels=3, include_derived=True, derived_quantities=["coherence"]
+            )
 
 
 # ------------------------------------------------------------- verify-mode tests
@@ -266,3 +289,90 @@ class TestClusterIntegration:
         )
         flattened = [k for c in report.clusters for k in c]
         assert sorted(flattened) == list(range(4))
+
+
+# --------------------------------------------------------- derived-channel tests
+
+
+class TestDerivedChannels:
+    def test_wavefunctions_converged_at_high_cutoff(self):
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
+        report = tmon.estimate_convergence(
+            n_levels=4,
+            mode="verify",
+            target_abs_GHz=1e-4,
+            include_derived=True,
+            derived_quantities=["wavefunctions"],
+        )
+        wf = report.derived["wavefunctions"]
+        assert wf.aggregate_status == "converged"
+        assert len(wf.per_level) == 4
+        for v in wf.per_level:
+            assert v.eps_gap_est is not None
+            assert v.eps_gap_est < 1e-3
+            # Derived metrics are dimensionless: no GHz error estimate.
+            assert v.abs_err_est_GHz is None
+            assert v.evidence == "verified_empirical"
+            assert v.estimator_method == "wavefunction_overlap"
+
+    def test_matrix_elements_converged_at_high_cutoff(self):
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
+        report = tmon.estimate_convergence(
+            n_levels=4,
+            mode="verify",
+            target_abs_GHz=1e-4,
+            include_derived=True,
+            derived_quantities=["matrix_elements"],
+        )
+        me = report.derived["matrix_elements"]
+        assert me.aggregate_status == "converged"
+        for v in me.per_level:
+            assert v.eps_gap_est is not None
+            assert v.estimator_method == "matrix_element_frobenius"
+
+    def test_both_channels_attached_together(self):
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
+        report = tmon.estimate_convergence(
+            n_levels=3,
+            mode="verify",
+            target_abs_GHz=1e-4,
+            include_derived=True,
+            derived_quantities=["wavefunctions", "matrix_elements"],
+        )
+        assert set(report.derived.keys()) == {"wavefunctions", "matrix_elements"}
+
+    def test_wavefunction_movement_shrinks_with_cutoff(self):
+        # The overlap deficit at a larger base cutoff is no larger than at a
+        # clearly undersized one.
+        small = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=5, truncated_dim=4)
+        large = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=25, truncated_dim=4)
+        rep_s = small.estimate_convergence(
+            n_levels=3,
+            mode="verify",
+            include_derived=True,
+            derived_quantities=["wavefunctions"],
+        )
+        rep_l = large.estimate_convergence(
+            n_levels=3,
+            mode="verify",
+            include_derived=True,
+            derived_quantities=["wavefunctions"],
+        )
+        worst_s = max(v.eps_gap_est for v in rep_s.derived["wavefunctions"].per_level)
+        worst_l = max(v.eps_gap_est for v in rep_l.derived["wavefunctions"].per_level)
+        assert worst_l <= worst_s + 1e-12
+
+    def test_strict_mode_derived_runs_ratio_test(self):
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
+        report = tmon.estimate_convergence(
+            n_levels=3,
+            mode="strict",
+            target_abs_GHz=1e-4,
+            include_derived=True,
+            derived_quantities=["wavefunctions"],
+        )
+        wf = report.derived["wavefunctions"]
+        # Strict mode runs the ratio test; the estimator method records either
+        # the successful ratio test or its one-step fallback.
+        for v in wf.per_level:
+            assert "ratio_test" in v.estimator_method
