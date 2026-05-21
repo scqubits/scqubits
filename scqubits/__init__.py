@@ -32,6 +32,15 @@ from scqubits import settings
 
 # core
 from scqubits.core.central_dispatch import CentralDispatch
+from scqubits.core.convergence import (
+    ConvergenceCheckable,
+    estimate_convergence,
+)
+from scqubits.core.convergence_report import (
+    ConvergenceReport,
+    ImplementationAudit,
+    LevelVerdict,
+)
 from scqubits.core.cos2phi_qubit import Cos2PhiQubit
 from scqubits.core.diag import DIAG_METHODS
 from scqubits.core.discretization import Grid1d

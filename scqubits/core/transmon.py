@@ -35,6 +35,8 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 
+from scqubits.core.convergence import ConvergenceCheckable
+from scqubits.core.convergence_report import TruncationChannel
 from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 from scqubits.core.storage import WaveFunction
@@ -46,7 +48,9 @@ TransitionsTuple = tuple[Transition, ...]
 # Cooper pair box / transmon
 
 
-class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
+class Transmon(
+    base.QubitBaseClass1d, serializers.Serializable, NoisySystem, ConvergenceCheckable
+):
     r"""Class for the Cooper-pair-box and transmon qubit.
 
     The Hamiltonian is represented in dense form in the number basis,
@@ -85,6 +89,13 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     EC = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ng = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ncut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
+
+    # Convergence-diagnostics integration (see scqubits.core.convergence).
+    # The single truncation axis is ``ncut``; the kept Hilbert space has
+    # dimension ``2 * ncut + 1`` charge states. The basis label and channel
+    # are reported in the audit and per-level verdict respectively.
+    _convergence_axes: tuple[str, ...] = ("ncut",)
+    _convergence_basis: str = "charge"
 
     def __init__(
         self,
@@ -136,6 +147,42 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         noise_channels = cls.supported_noise_channels()
         noise_channels.remove("t1_charge_impedance")
         return noise_channels
+
+    # ----- Convergence-diagnostics hooks ----------------------------------------------
+
+    def _convergence_truncation_channel(self, axis: str) -> TruncationChannel:
+        """Report the ``charge`` truncation channel for ``ncut``.
+
+        Override of the default mixin behavior; explicit so the reported
+        channel is unambiguous even if the mixin default changes.
+        """
+        return "charge"
+
+    def _convergence_boundary_diagnostic(
+        self,
+        esys: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]],
+        axis: str,
+    ) -> npt.NDArray[np.float64] | None:
+        """Per-level boundary-amplitude cheap diagnostic for ``ncut``.
+
+        Returns ``|c_{-ncut, k}|^2 + |c_{+ncut, k}|^2`` per kept level
+        ``k``. In the charge basis, large boundary amplitudes signal that
+        the truncated eigenstate has appreciable support at the edge of
+        the kept space and is therefore suspect; quick mode promotes a
+        level out of ``unverified`` only when this signal is well below a
+        small threshold.
+
+        Returns ``None`` if ``axis`` is not ``"ncut"`` (defensive; the
+        mixin only invokes this for declared axes).
+        """
+        if axis != "ncut":
+            return None
+        _, evecs = esys
+        # Eigenvector matrix has shape (2*ncut + 1, evals_count); row 0 is
+        # charge -ncut, row 2*ncut is charge +ncut. ``evecs[:, k]`` is the
+        # k-th eigenvector.
+        boundary_sq = np.abs(evecs[0, :]) ** 2 + np.abs(evecs[-1, :]) ** 2
+        return boundary_sq.astype(np.float64)
 
     def _hamiltonian_diagonal(self) -> npt.NDArray[np.float64]:
         """Return the diagonal of the Hamiltonian in the charge basis."""
