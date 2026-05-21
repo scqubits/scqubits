@@ -208,6 +208,30 @@ class TestEnergyVerifyMode:
         )
         assert len(report.per_level) == 4
 
+    def test_transition_err_is_triangle_inequality(self):
+        # Each level reports transition-error estimates to the other levels,
+        # equal to the sum of the two absolute estimates (triangle inequality).
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
+        report = sq.estimate_convergence(
+            tmon, n_levels=4, mode="verify", target_abs_GHz=1e-4
+        )
+        err = [v.abs_err_est_GHz for v in report.per_level]
+        v0 = report.per_level[0]
+        # Keys are (0, j) for every other level j.
+        assert set(v0.transition_err_est_GHz) == {(0, 1), (0, 2), (0, 3)}
+        for (i, j), te in v0.transition_err_est_GHz.items():
+            assert te == pytest.approx(err[i] + err[j])
+
+    def test_recommendation_is_channel_specific(self):
+        # An undersized transmon's dominant channel is the charge tail, so the
+        # recommendation must name the charge cutoff (not a generic axis bump).
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=6, truncated_dim=6)
+        report = sq.estimate_convergence(
+            tmon, n_levels=4, mode="verify", target_abs_GHz=1e-6
+        )
+        assert report.aggregate_status == "underconverged"
+        assert any("charge" in r and "ncut" in r for r in report.recommendations)
+
 
 # ------------------------------------------------------------- strict-mode tests
 
@@ -538,6 +562,21 @@ class TestFluxonium:
         assert padded[5, 1] == 1.0
         assert np.all(padded[20:, :] == 0.0)
 
+    def test_near_degenerate_doublet_warns_cluster_ambiguity(self):
+        # At half flux with a deep double well the lowest two levels form a
+        # near-degenerate doublet; they must be grouped into one cluster and
+        # carry the cluster_index_ambiguity warning (their labels are not
+        # individually reliable).
+        flx = sq.Fluxonium(
+            EJ=8.9, EC=2.5, EL=0.2, flux=0.5, cutoff=110, truncated_dim=8
+        )
+        report = flx.estimate_convergence(
+            n_levels=4, mode="verify", target_abs_GHz=1e-4
+        )
+        assert (0, 1) in report.clusters  # the doublet is one cluster
+        for k in (0, 1):
+            assert "cluster_index_ambiguity" in report.per_level[k].warnings
+
 
 # ------------------------------------------------------------- FluxQubit (Stage 2)
 
@@ -648,6 +687,8 @@ class TestZeroPi:
         assert report.aggregate_status == "underconverged"
         cb = report.channel_breakdown_GHz
         assert cb["FD_box"] > cb["FD_stencil"]
+        # The recommendation must say to enlarge the box, not just add points.
+        assert any("box" in r for r in report.recommendations)
 
     def test_quick_mode_uses_pedge_and_never_converges(self):
         zp = self._make()

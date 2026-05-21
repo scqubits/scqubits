@@ -647,6 +647,8 @@ class ConvergenceCheckable:
             non_asymptotic=per_level_non_asymptotic,
         )
 
+        # Per-level transition-error estimates: for a transition k -> j the
+        # triangle inequality gives the bound errhat_k + errhat_j (design spec).
         per_level_verdicts = [
             LevelVerdict(
                 level_index=k,
@@ -655,6 +657,11 @@ class ConvergenceCheckable:
                 evidence=per_level_evidence[k],
                 abs_err_est_GHz=float(per_level_abs_err[k]),
                 eps_gap_est=eps_gap_est[k],
+                transition_err_est_GHz={
+                    (k, j): float(per_level_abs_err[k] + per_level_abs_err[j])
+                    for j in range(n_levels)
+                    if j != k
+                },
                 truncation_channel=channel,
                 estimator_method=per_level_estimator_method[k],
                 warnings=tuple(per_level_warnings[k]),
@@ -693,20 +700,61 @@ class ConvergenceCheckable:
         target_abs_GHz: float | None,
         axis: str,
     ) -> list[str]:
-        """Build the next-step recommendations for an energy convergence report.
+        """Build channel-specific next-step recommendations for an energy report.
 
-        Suggests increasing the truncation axis when any level is
-        underconverged, and prompts for a ``target_abs_GHz`` when absolute-scope
-        levels are unverified for lack of a target.
+        When a level is underconverged, the advice is tailored to the dominant
+        truncation channel (design spec): a charge tail grows ``ncut``, an HO
+        tail grows the oscillator cutoff (or changes backend), an FD box must be
+        enlarged rather than merely refined, and an FD stencil is refined at a
+        fixed box. Also flags near-degenerate clusters whose labels are
+        ambiguous, and prompts for a ``target_abs_GHz`` when absolute-scope levels
+        are unverified for lack of a target.
         """
         recommendations: list[str] = []
         if any(v.status == "underconverged" for v in verdicts):
             current_value = self._convergence_axis_value(axis)
             step = self._convergence_step(axis)
-            recommendations.append(
+            channel = self._convergence_truncation_channel(axis)
+            bump = (
                 f"increase {axis} from {current_value} to at least "
-                f"{current_value + step} and re-run; the worst-level "
-                f"estimate exceeded the target threshold"
+                f"{current_value + step}"
+            )
+            if channel == "charge_tail":
+                recommendations.append(
+                    f"charge-basis tail dominates: {bump} (charge cutoff) and "
+                    f"re-run; if the boundary probability is large the tail is "
+                    f"nonperturbative -- increase more aggressively"
+                )
+            elif channel == "HO_tail":
+                recommendations.append(
+                    f"oscillator tail dominates: {bump} (oscillator cutoff) and "
+                    f"re-run; if the matrix-function backend shows instability, "
+                    f"prefer an alternative representation or backend instead"
+                )
+            elif channel == "FD_box":
+                recommendations.append(
+                    "finite box dominates: enlarge the coordinate window (a wider "
+                    "box at comparable grid spacing); adding grid points at the "
+                    "same window cannot fix a box error"
+                )
+            elif channel == "FD_stencil":
+                recommendations.append(
+                    f"grid spacing dominates: {bump} (grid points at a fixed "
+                    f"window) or raise the stencil order, then re-run"
+                )
+            else:
+                recommendations.append(
+                    f"{bump} and re-run; the worst-level estimate exceeded the "
+                    f"target threshold"
+                )
+        if any(
+            v.status == "underconverged" and "cluster_index_ambiguity" in v.warnings
+            for v in verdicts
+        ):
+            recommendations.append(
+                "an underconverged level lies in a near-degenerate cluster; "
+                "compare clusters as sets (cluster-safe matching) rather than by "
+                "individual level labels, and refine the dominant cutoff"
             )
         if (
             scope == "absolute"
@@ -1138,11 +1186,18 @@ def _per_cluster_energy_estimates(
             ev = "verified_empirical"
             method = "one_step"
 
+        # A multi-level (near-degenerate) cluster is compared as a sorted set,
+        # so individual level labels inside it are not reliable. Flag every
+        # member (design spec).
+        cluster_ambiguous = len(cluster) > 1
+
         for k in cluster:
             per_level_abs_err[k] = est
             per_level_evidence.append(ev)
             per_level_estimator_method.append(method)
             per_level_non_asymptotic[k] = non_asymptotic
+            if cluster_ambiguous:
+                per_level_warnings[k].append("cluster_index_ambiguity")
 
     return (
         per_level_abs_err,
