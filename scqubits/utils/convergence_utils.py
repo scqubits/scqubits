@@ -287,6 +287,79 @@ def richardson_estimate(
     return estimate, is_asymptotic
 
 
+def ho_window_resolvent_estimate(
+    coupling_window: npt.NDArray[np.float64],
+    coupling_tail: npt.NDArray[np.float64],
+    h_window: npt.NDArray[np.float64],
+    evecs: npt.NDArray[np.float64],
+    e_levels: npt.NDArray[np.float64],
+    n_levels: int,
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.bool_]]:
+    """Finite-window block-resolvent HO truncation estimate per level.
+
+    Implements the design-spec finite-window estimator for a non-banded
+    (harmonic-oscillator / Fock) basis, where the dropped-space residual must use
+    the full kept vector rather than a fixed boundary band. For level ``k`` with
+    kept eigenvector ``c_k``, the residual on a dropped window ``W`` is
+    ``r_W = coupling_window @ c_k`` (the ``<m|H|j>`` block from kept ``j`` to
+    window ``m``), and the second-order estimate is
+
+        eta_k = | <r_W, (H_WW - E_k I)^-1 r_W> |.
+
+    A further dropped band beyond ``W`` gives the omitted-residual norm
+    ``rho_tail = ||coupling_tail @ c_k||^2``; if it is not small relative to the
+    resolved residual ``||r_W||^2`` the window is too small and the estimate is
+    not reliable. A window state at or below ``E_k`` (near resonance) likewise
+    makes the perturbative estimate invalid.
+
+    Parameters
+    ----------
+    coupling_window:
+        ``<m|H|j>`` block, shape ``(window_dim, n_kept)``, from kept states ``j``
+        to the dropped window states ``m`` in ``W``.
+    coupling_tail:
+        ``<m|H|j>`` block, shape ``(tail_dim, n_kept)``, for the dropped band
+        beyond ``W`` (the omitted-residual diagnostic).
+    h_window:
+        The Hamiltonian restricted to the window, ``H_WW``, shape
+        ``(window_dim, window_dim)``.
+    evecs:
+        Kept eigenvectors (columns are eigenvectors), shape ``(n_kept, n_levels)``.
+    e_levels:
+        Eigenvalues aligned with the columns of ``evecs``.
+    n_levels:
+        Number of lowest levels to assess.
+
+    Returns
+    -------
+    estimate
+        Per-level second-order window estimate (GHz).
+    perturbative_ok
+        ``False`` for a level whose window contains a near-resonant state
+        (eigenvalue at/below ``E_k``) or whose omitted-residual norm exceeds the
+        resolved residual (window too small).
+    """
+    window_dim = h_window.shape[0]
+    identity = np.eye(window_dim)
+    min_window_eig = float(np.linalg.eigvalsh(h_window)[0])
+    estimate = np.zeros(n_levels, dtype=np.float64)
+    perturbative_ok = np.ones(n_levels, dtype=np.bool_)
+
+    for k in range(n_levels):
+        c = evecs[:, k]
+        r_window = coupling_window @ c
+        r_tail = coupling_tail @ c
+        resolved = float(np.real(np.vdot(r_window, r_window)))
+        rho_tail = float(np.real(np.vdot(r_tail, r_tail)))
+        energy = float(e_levels[k])
+        solution = np.linalg.solve(h_window - energy * identity, r_window)
+        estimate[k] = abs(complex(np.vdot(r_window, solution)))
+        if min_window_eig <= energy or rho_tail > resolved:
+            perturbative_ok[k] = False
+
+    return estimate, perturbative_ok
+
+
 def _charge_tail_green_11(
     ncut: int,
     EJ: float,

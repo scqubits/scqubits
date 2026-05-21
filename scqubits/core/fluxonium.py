@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import cmath
+import copy
 import math
 
 from collections.abc import Callable
@@ -36,6 +37,7 @@ import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.core.convergence import ConvergenceCheckable
 from scqubits.core.convergence_report import TruncationChannel
 from scqubits.core.noise import NoisySystem
+from scqubits.utils.convergence_utils import ho_window_resolvent_estimate
 
 if TYPE_CHECKING:
     from scqubits.core.discretization import Grid1d
@@ -176,6 +178,63 @@ class Fluxonium(
             return None
         _, evecs = esys
         return (np.abs(evecs[-1, :]) ** 2).astype(np.float64)
+
+    def _convergence_tail_estimate(
+        self,
+        esys: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]],
+        axis: str,
+    ) -> (
+        tuple[npt.NDArray[np.float64], npt.NDArray[np.bool_], npt.NDArray[np.float64]]
+        | None
+    ):
+        """Finite-window block-resolvent perturbative estimate for ``cutoff``.
+
+        The cosine is not banded in the oscillator basis, so the dropped-space
+        residual is built from the full kept vector (design spec): the
+        kept-to-dropped coupling ``<m|H|j> = -EJ <m|cos(phi+phi_ext)|j>`` (the LC
+        term is diagonal and does not couple kept to dropped) is obtained from the
+        cosine on an extended Fock basis, and the second-order window estimate is
+        formed by :func:`ho_window_resolvent_estimate`. This replaces a bare
+        top-Fock boundary band, which the spec cautions against. Returns ``None``
+        for an unrecognized axis.
+        """
+        if axis != "cutoff":
+            return None
+        evals, evecs = esys
+        n_kept = evecs.shape[0]
+        n_levels = evecs.shape[1]
+        window, tail = 8, 8
+
+        clone = copy.deepcopy(self)
+        clone.cutoff = n_kept + window + tail
+        cos_ext = np.asarray(clone.cos_phi_operator(beta=2.0 * np.pi * self.flux))
+        omega_lc = self.plasma_energy()
+
+        win_lo, win_hi = n_kept, n_kept + window
+        tail_lo, tail_hi = n_kept + window, n_kept + window + tail
+        coupling_window = -self.EJ * cos_ext[win_lo:win_hi, :n_kept]
+        coupling_tail = -self.EJ * cos_ext[tail_lo:tail_hi, :n_kept]
+        window_fock = np.arange(win_lo, win_hi)
+        h_window = (
+            np.diag(omega_lc * (window_fock + 0.5))
+            - self.EJ * cos_ext[win_lo:win_hi, win_lo:win_hi]
+        )
+
+        estimate, perturbative_ok = ho_window_resolvent_estimate(
+            coupling_window,
+            coupling_tail,
+            h_window,
+            evecs,
+            evals,
+            n_levels,
+        )
+        # Boundary probability: occupation of the top few kept Fock states (the
+        # oscillator analog of charge-edge support).
+        band = min(4, n_kept)
+        boundary_prob = np.sum(
+            np.abs(evecs[n_kept - band :, :n_levels]) ** 2, axis=0
+        ).astype(np.float64)
+        return estimate, perturbative_ok, boundary_prob
 
     def _convergence_pad_eigenvectors(
         self,

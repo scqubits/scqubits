@@ -20,6 +20,7 @@ from scqubits.utils.convergence_utils import (
     cluster_safe_match_energies,
     detect_clusters,
     geometric_ratio_test,
+    ho_window_resolvent_estimate,
     pad_charge_basis,
     richardson_estimate,
     subspace_angle,
@@ -197,6 +198,49 @@ class TestRichardsonEstimate:
         estimate, is_asymptotic = richardson_estimate(d0, d1, 11, 21, 41, 4)
         assert estimate[0] == 0.0
         assert bool(is_asymptotic[0]) is True
+
+
+# ----------------------------------------------------- ho_window_resolvent_estimate
+
+
+class TestHOWindowResolvent:
+    def test_second_order_estimate_value(self):
+        # r = [1, 1], (H_WW)^-1 = diag(0.1, 0.05) -> eta = 0.1 + 0.05 = 0.15.
+        h_window = np.diag([10.0, 20.0])
+        coupling_window = np.array([[1.0], [1.0]])
+        coupling_tail = np.zeros((1, 1))
+        evecs = np.array([[1.0]])
+        e = np.array([0.0])
+        est, ok = ho_window_resolvent_estimate(
+            coupling_window, coupling_tail, h_window, evecs, e, 1
+        )
+        np.testing.assert_allclose(est[0], 0.15)
+        assert bool(ok[0]) is True
+
+    def test_near_resonant_window_not_perturbative(self):
+        # Level energy between the window eigenvalues: near resonance.
+        h_window = np.diag([10.0, 20.0])
+        coupling_window = np.array([[1.0], [1.0]])
+        coupling_tail = np.zeros((1, 1))
+        evecs = np.array([[1.0]])
+        e = np.array([15.0])
+        _, ok = ho_window_resolvent_estimate(
+            coupling_window, coupling_tail, h_window, evecs, e, 1
+        )
+        assert bool(ok[0]) is False
+
+    def test_large_tail_residual_not_reliable(self):
+        # Omitted-residual norm exceeds the resolved window residual: window too
+        # small, estimate unreliable.
+        h_window = np.diag([10.0, 20.0])
+        coupling_window = np.array([[0.1], [0.1]])
+        coupling_tail = np.array([[1.0], [1.0]])
+        evecs = np.array([[1.0]])
+        e = np.array([0.0])
+        _, ok = ho_window_resolvent_estimate(
+            coupling_window, coupling_tail, h_window, evecs, e, 1
+        )
+        assert bool(ok[0]) is False
 
 
 # ----------------------------------------------------- charge_finite_tail_estimate

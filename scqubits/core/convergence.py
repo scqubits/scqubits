@@ -492,11 +492,15 @@ class ConvergenceCheckable:
         estimate, perturbative_ok, boundary_prob = tail
         # Boundary probability above which the basis is judged too small outright.
         large_boundary_prob = 1e-3
+        # The perturbative tail estimate is a lower bound (it omits higher-order
+        # and far-tail contributions); apply the same safety factor the refinement
+        # modes use so a quick verdict carries a comparable margin.
+        safety_factor = settings.CONVERGENCE_SAFETY_FACTOR
 
         per_level: list[LevelVerdict] = []
         for k in range(n_levels):
             warnings: list[str] = []
-            est = float(estimate[k])
+            est = safety_factor * float(estimate[k])
             gap = (
                 _local_isolation_gap(evals_n0, None, k, n_levels, g_floor_GHz)
                 if scope == "observed_gap_scale"

@@ -312,10 +312,11 @@ class TestEnergyQuickMode:
         )
         assert report.aggregate_status == "underconverged"
         e_user = tmon.eigenvals(evals_count=5)
-        # The worst-level estimate is within a small factor of the true error.
+        # The worst-level estimate is within a small factor of the true error
+        # (the reported estimate includes the safety factor, so true/est ~ 0.5).
         v = report.per_level[report.worst_level]
         true_err = abs(float(e_user[v.level_index] - ref[v.level_index]))
-        assert 0.5 <= true_err / v.abs_err_est_GHz <= 2.0
+        assert 0.2 <= true_err / v.abs_err_est_GHz <= 2.0
 
     def test_quick_mode_undersized_is_underconverged(self):
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=4, truncated_dim=4)
@@ -594,6 +595,24 @@ class TestFluxonium:
         assert (0, 1) in report.clusters  # the doublet is one cluster
         for k in (0, 1):
             assert "cluster_index_ambiguity" in report.per_level[k].warnings
+
+    def test_quick_mode_uses_finite_window_perturbative(self):
+        # Fluxonium quick mode reports the finite-window block-resolvent estimate
+        # (perturbative evidence + an abs_err_est), not a bare boundary band.
+        flx = sq.Fluxonium(
+            EJ=8.9, EC=2.5, EL=0.5, flux=0.5, cutoff=110, truncated_dim=6
+        )
+        report = flx.estimate_convergence(n_levels=4, mode="quick", target_abs_GHz=1e-4)
+        assert report.aggregate_status == "likely_converged"
+        for v in report.per_level:
+            assert v.evidence == "perturbative"
+            assert v.estimator_method == "finite_tail_resolvent"
+            assert v.abs_err_est_GHz is not None
+
+    def test_quick_mode_undersized_is_underconverged(self):
+        flx = sq.Fluxonium(EJ=8.9, EC=2.5, EL=0.5, flux=0.5, cutoff=12, truncated_dim=6)
+        report = flx.estimate_convergence(n_levels=4, mode="quick", target_abs_GHz=1e-4)
+        assert report.aggregate_status == "underconverged"
 
 
 # ------------------------------------------------------------- FluxQubit (Stage 2)
