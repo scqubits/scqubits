@@ -19,6 +19,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
+import numpy.typing as npt
 import scipy as sp
 
 from numpy import ndarray
@@ -32,13 +33,17 @@ import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 
+from scqubits.core.convergence import ConvergenceCheckable
+from scqubits.core.convergence_report import TruncationChannel
 from scqubits.core.noise import NoisySystem
 
 if TYPE_CHECKING:
     from scqubits.core.discretization import Grid1d
 
 
-class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
+class Fluxonium(
+    base.QubitBaseClass1d, serializers.Serializable, NoisySystem, ConvergenceCheckable
+):
     r"""Class for the fluxonium qubit.
 
     Hamiltonian :math:`H_\text{fl}=-4E_\text{C}\partial_\phi^2-E_\text{J}\cos(
@@ -81,6 +86,9 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     EL = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     flux = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     cutoff = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
+
+    _convergence_axes: tuple[str, ...] = ("cutoff",)
+    _convergence_basis: str = "harmonic_osc"
 
     def __init__(
         self,
@@ -143,6 +151,51 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         noise_channels = cls.supported_noise_channels()
         noise_channels.remove("t1_charge_impedance")
         return noise_channels
+
+    # ----- Convergence-diagnostics hooks ----------------------------------------------
+
+    def _convergence_truncation_channel(self, axis: str) -> TruncationChannel:
+        """Report the harmonic-oscillator phi channel for the ``cutoff`` axis."""
+        return "HO_phi"
+
+    def _convergence_boundary_diagnostic(
+        self,
+        esys: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]],
+        axis: str,
+    ) -> npt.NDArray[np.float64] | None:
+        """Per-level boundary-amplitude cheap diagnostic for ``cutoff``.
+
+        Returns the squared amplitude in the highest harmonic-oscillator basis
+        state, ``|c_{cutoff-1, k}|^2``, for each kept level ``k``. Large values
+        signal appreciable support at the top of the kept Fock space and so an
+        underconverged eigenstate; quick mode promotes a level out of
+        ``unverified`` only when this is well below a small threshold. Returns
+        ``None`` if ``axis`` is not ``"cutoff"``.
+        """
+        if axis != "cutoff":
+            return None
+        _, evecs = esys
+        return (np.abs(evecs[-1, :]) ** 2).astype(np.float64)
+
+    def _convergence_pad_eigenvectors(
+        self,
+        evecs: npt.NDArray[np.float64],
+        value_from: int,
+        value_to: int,
+    ) -> npt.NDArray[np.float64]:
+        """Zero-pad harmonic-oscillator eigenvectors to a larger ``cutoff``.
+
+        The Fock basis is ordered ``0 .. cutoff-1``; embedding into a larger
+        cutoff appends zero rows for the added high-Fock states.
+        """
+        if value_to < value_from:
+            raise ValueError(
+                f"value_to ({value_to}) must be >= value_from ({value_from})"
+            )
+        pad = value_to - value_from
+        if pad == 0:
+            return evecs
+        return np.pad(evecs, ((0, pad), (0, 0)))
 
     def phi_osc(self) -> float:
         """Return the oscillator length for the fluxonium LC oscillator."""
