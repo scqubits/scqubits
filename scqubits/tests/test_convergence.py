@@ -518,3 +518,59 @@ class TestFluxonium:
         assert padded[0, 0] == 1.0
         assert padded[5, 1] == 1.0
         assert np.all(padded[20:, :] == 0.0)
+
+
+# ------------------------------------------------------------- FluxQubit (Stage 2)
+
+
+class TestFluxQubit:
+    @staticmethod
+    def _make(ncut):
+        ej, alpha = 35.0, 0.6
+        return sq.FluxQubit(
+            EJ1=ej,
+            EJ2=ej,
+            EJ3=alpha * ej,
+            ECJ1=1.0,
+            ECJ2=1.0,
+            ECJ3=1.0 / alpha,
+            ECg1=50.0,
+            ECg2=50.0,
+            ng1=0.0,
+            ng2=0.0,
+            flux=0.5,
+            ncut=ncut,
+            truncated_dim=6,
+        )
+
+    def test_all_channels_converge(self):
+        # FluxQubit uses a two-island charge basis of dimension (2*ncut+1)**2.
+        fq = self._make(14)
+        report = fq.estimate_convergence(
+            n_levels=4,
+            mode="verify",
+            target_abs_GHz=1e-4,
+            include_derived=True,
+            derived_quantities=["wavefunctions", "matrix_elements", "coherence"],
+        )
+        assert report.aggregate_status == "converged"
+        assert report.per_level[0].truncation_channel == "charge"
+        assert report.implementation_audit.qubit_class == "FluxQubit"
+        assert report.implementation_audit.cutoff_parameters == {"ncut": 14}
+        for sub in report.derived.values():
+            assert sub.aggregate_status == "converged"
+
+    def test_undersized_is_underconverged(self):
+        fq = self._make(4)
+        report = fq.estimate_convergence(n_levels=4, mode="verify", target_abs_GHz=1e-8)
+        assert report.aggregate_status in {"marginal", "underconverged"}
+
+    def test_pad_eigenvectors_pads_both_charge_axes(self):
+        fq = self._make(2)  # 5x5 charge grid, flattened to length 25
+        evecs = np.zeros((25, 1), dtype=np.complex128)
+        evecs[12, 0] = 1.0  # center state |n1=0, n2=0| (row 2, col 2)
+        padded = fq._convergence_pad_eigenvectors(evecs, 2, 4)  # to 9x9 grid
+        assert padded.shape == (81, 1)
+        # The center maps to (row 4, col 4) -> flat index 40; nothing else.
+        assert padded[40, 0] == 1.0
+        assert abs(complex(padded.sum()) - 1.0) < 1e-12
