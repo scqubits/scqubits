@@ -18,6 +18,7 @@ from collections.abc import Callable
 from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -36,6 +37,8 @@ import scqubits.ui.qubit_widget as ui
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as utils
 
+from scqubits.core.convergence import ConvergenceCheckable
+from scqubits.core.convergence_report import TruncationChannel
 from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 from scqubits.core.storage import WaveFunctionOnGrid
@@ -52,7 +55,9 @@ class NoisyZeroPi(NoisySystem):
 # -Symmetric 0-pi qubit, phi discretized, theta in charge basis
 
 
-class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
+class ZeroPi(
+    base.QubitBaseClass, serializers.Serializable, NoisyZeroPi, ConvergenceCheckable
+):
     r"""Zero-Pi Qubit.
 
     | [1] Brooks et al., Physical Review A, 87(5), 052306 (2013).
@@ -125,6 +130,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     dCJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ng = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ncut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
+
+    _convergence_axes: tuple[str, ...] = ("grid", "ncut")
+    _convergence_basis: str = "discretized_phi+charge"
 
     def __init__(
         self,
@@ -348,6 +356,65 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     def hilbertdim(self) -> int:
         """Return the Hilbert space dimension."""
         return self.grid.pt_count * (2 * self.ncut + 1)
+
+    # ----- Convergence-diagnostics hooks ----------------------------------------------
+
+    def _convergence_axis_value(self, axis: str) -> int:
+        """Return the integer size of a truncation axis.
+
+        ``"grid"`` reports the phi-grid point count; ``"ncut"`` the theta charge
+        cutoff.
+        """
+        if axis == "grid":
+            return self.grid.pt_count
+        return int(getattr(self, axis))
+
+    def _convergence_set_axis(
+        self, clone: "ConvergenceCheckable", axis: str, value: int
+    ) -> None:
+        """Set a truncation axis on ``clone``.
+
+        For ``"grid"`` a new :class:`Grid1d` with ``value`` points is built over
+        the same phi window; ``"ncut"`` is assigned directly.
+        """
+        if axis == "grid":
+            clone.grid = Grid1d(  # type: ignore[attr-defined]
+                self.grid.min_val, self.grid.max_val, value
+            )
+        else:
+            setattr(clone, axis, value)
+
+    def _convergence_truncation_channel(self, axis: str) -> TruncationChannel:
+        """Report the FD phi-grid channel for ``"grid"`` and charge for ``"ncut"``."""
+        return "FD_grid" if axis == "grid" else "charge"
+
+    def _convergence_boundary_diagnostic(
+        self,
+        esys: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]],
+        axis: str,
+    ) -> npt.NDArray[np.float64] | None:
+        """Per-level boundary-amplitude diagnostic for the requested axis.
+
+        Eigenvectors flatten as ``(grid.pt_count, 2*ncut+1) = [phi, theta]``. For
+        ``"grid"`` the squared amplitude on the phi-window edges (summed over
+        theta) is returned; for ``"ncut"`` the amplitude on the charge edges
+        (summed over phi). A large value flags appreciable support at the basis
+        boundary. Returns ``None`` for an unrecognized axis.
+        """
+        if axis not in ("grid", "ncut"):
+            return None
+        _, evecs = esys
+        dim_phi = self.grid.pt_count
+        dim_theta = 2 * self.ncut + 1
+        n_cols = evecs.shape[1]
+        boundary = np.empty(n_cols, dtype=np.float64)
+        for k in range(n_cols):
+            amp_sq = np.abs(evecs[:, k].reshape(dim_phi, dim_theta)) ** 2
+            if axis == "grid":
+                boundary[k] = float(amp_sq[0, :].sum() + amp_sq[-1, :].sum())
+            else:  # ncut
+                boundary[k] = float(amp_sq[:, 0].sum() + amp_sq[:, -1].sum())
+        return boundary
 
     def potential(self, phi: ndarray, theta: ndarray) -> ndarray:
         r"""Return the zero-pi potential energy evaluated at :math:`\phi,\theta`.

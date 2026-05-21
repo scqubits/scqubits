@@ -440,34 +440,80 @@ class ConvergenceCheckable:
         for matrix elements) are reused to build the requested derived per-level
         sub-reports, which are attached under ``ConvergenceReport.derived``.
         """
-        # For PR-1, we handle exactly one axis. Multi-axis aggregation
-        # (refine one axis at a time, combine absolute errors by triangle
-        # inequality) will be added when Circuit lands in Stage 3.
-        if len(self._convergence_axes) != 1:
-            raise NotImplementedError(
-                "Multi-axis refinement is not yet implemented; only single-axis "
-                "qubits (e.g. Transmon) are supported in this version."
-            )
-        axis = self._convergence_axes[0]
-        step = self._convergence_step(axis)
+        axes = self._convergence_axes
         n_eigs = n_levels + n_buffer
+        safety_factor = settings.CONVERGENCE_SAFETY_FACTOR
+        clusters = cutils.detect_clusters(
+            evals_n0[:n_levels], gap_ratio_threshold=settings.CONVERGENCE_CLUSTER_RATIO
+        )
+        n_clusters = len(clusters)
 
-        current_value = getattr(self, axis)
-        clone_1 = self._convergence_clone_at({axis: current_value + step})
-        evals_n1, evecs_n1 = clone_1.eigensys(evals_count=n_eigs)  # type: ignore[attr-defined]
+        # Refine each truncation axis independently (bump it, hold the others)
+        # and sum the per-axis movements -- a triangle-inequality upper bound on
+        # the combined truncation error.
+        combined_diff_n1 = np.zeros(n_clusters, dtype=np.float64)
+        combined_diff_n2: npt.NDArray[np.float64] | None = (
+            np.zeros(n_clusters, dtype=np.float64)
+            if refinement == "ratio_test"
+            else None
+        )
+        channel_breakdown: dict[str, float] = {}
+        per_axis_movement: dict[str, float] = {}
+        # Keep each axis's first-refinement clone/eigensystem so the derived
+        # channels can reuse them without re-diagonalizing.
+        axis_refinements: dict[str, tuple[Any, ...]] = {}
 
-        evals_n2: npt.NDArray[np.float64] | None = None
-        evecs_n2: npt.NDArray[np.float64] | None = None
-        clone_2: ConvergenceCheckable | None = None
-        if refinement == "ratio_test":
-            clone_2 = self._convergence_clone_at({axis: current_value + 2 * step})
-            evals_n2, evecs_n2 = clone_2.eigensys(evals_count=n_eigs)  # type: ignore[attr-defined]
+        for axis in axes:
+            step = self._convergence_step(axis)
+            current = self._convergence_axis_value(axis)
+            clone_1 = self._convergence_clone_at({axis: current + step})
+            evals_a1, evecs_a1 = clone_1.eigensys(evals_count=n_eigs)  # type: ignore[attr-defined]
+            _, diff_n1 = cutils.cluster_safe_match_energies(
+                evals_n0[:n_levels], evals_a1[:n_levels], clusters
+            )
+            combined_diff_n1 += diff_n1
+
+            clone_2: ConvergenceCheckable | None = None
+            evecs_a2: npt.NDArray[np.float64] | None = None
+            if refinement == "ratio_test":
+                clone_2 = self._convergence_clone_at({axis: current + 2 * step})
+                evals_a2, evecs_a2 = clone_2.eigensys(evals_count=n_eigs)  # type: ignore[attr-defined]
+                _, diff_n2 = cutils.cluster_safe_match_energies(
+                    evals_a1[:n_levels], evals_a2[:n_levels], clusters
+                )
+                assert combined_diff_n2 is not None
+                combined_diff_n2 += diff_n2
+
+            axis_channel = self._convergence_truncation_channel(axis)
+            axis_max = float(np.max(diff_n1)) if n_clusters else 0.0
+            channel_breakdown[axis_channel] = (
+                channel_breakdown.get(axis_channel, 0.0) + safety_factor * axis_max
+            )
+            per_axis_movement[axis] = axis_max
+            axis_refinements[axis] = (
+                clone_1,
+                evals_a1,
+                evecs_a1,
+                clone_2,
+                evecs_a2,
+                current,
+                step,
+            )
+
+        multi_axis = len(axes) > 1
+        per_level_channel: TruncationChannel = (
+            "composite" if multi_axis else self._convergence_truncation_channel(axes[0])
+        )
+        dominant_axis = max(per_axis_movement, key=lambda a: per_axis_movement[a])
 
         report = self._convergence_build_energy_report(
             evals_n0=evals_n0[:n_levels],
-            evals_n1=evals_n1[:n_levels],
-            evals_n2=evals_n2[:n_levels] if evals_n2 is not None else None,
             buffer_n0=evals_n0[n_levels:] if n_buffer > 0 else None,
+            clusters=clusters,
+            cluster_max_diff_n1=combined_diff_n1,
+            cluster_max_diff_n2=combined_diff_n2,
+            channel=per_level_channel,
+            channel_breakdown=channel_breakdown,
             n_levels=n_levels,
             n_buffer=n_buffer,
             mode=mode,
@@ -476,23 +522,33 @@ class ConvergenceCheckable:
             target_gap_rel=target_gap_rel,
             g_floor_GHz=g_floor_GHz,
             refinement=refinement,
-            axis=axis,
+            dominant_axis=dominant_axis,
         )
 
         if not include_derived:
             return report
 
+        if multi_axis:
+            raise NotImplementedError(
+                "derived quantities for multi-axis qubits are not yet available; "
+                "request them on single-axis qubits, or omit include_derived."
+            )
+
+        axis = axes[0]
+        clone_1, evals_a1, evecs_a1, clone_2, evecs_a2, current, step = (
+            axis_refinements[axis]
+        )
         return self._attach_derived_reports(
             report=report,
             derived_quantities=derived_quantities,
             evals_n0=evals_n0,
-            evals_n1=evals_n1,
+            evals_n1=evals_a1,
             evecs_n0=evecs_n0,
-            evecs_n1=evecs_n1,
-            evecs_n2=evecs_n2,
+            evecs_n1=evecs_a1,
+            evecs_n2=evecs_a2,
             clone_1=clone_1,
             clone_2=clone_2,
-            ncut_0=int(current_value),
+            ncut_0=int(current),
             step=step,
             n_levels=n_levels,
             n_buffer=n_buffer,
@@ -505,9 +561,12 @@ class ConvergenceCheckable:
     def _convergence_build_energy_report(
         self,
         evals_n0: npt.NDArray[np.float64],
-        evals_n1: npt.NDArray[np.float64],
-        evals_n2: npt.NDArray[np.float64] | None,
         buffer_n0: npt.NDArray[np.float64] | None,
+        clusters: list[tuple[int, ...]],
+        cluster_max_diff_n1: npt.NDArray[np.float64],
+        cluster_max_diff_n2: npt.NDArray[np.float64] | None,
+        channel: TruncationChannel,
+        channel_breakdown: dict[str, float],
         n_levels: int,
         n_buffer: int,
         mode: str,
@@ -516,29 +575,22 @@ class ConvergenceCheckable:
         target_gap_rel: float,
         g_floor_GHz: float,
         refinement: str,
-        axis: str,
+        dominant_axis: str,
     ) -> ConvergenceReport:
-        """Assemble the LevelVerdicts and the ConvergenceReport from refinement
-        eigenvalues. Shared between verify and strict modes."""
-        channel: TruncationChannel = self._convergence_truncation_channel(axis)
-        safety_factor = settings.CONVERGENCE_SAFETY_FACTOR
+        """Assemble the LevelVerdicts and ConvergenceReport from per-cluster
+        movements.
 
-        # Cluster-detect on N0 (the reference / user's current spectrum) and
-        # measure the one-step movement N0 -> N1 per cluster.
-        clusters = cutils.detect_clusters(
-            evals_n0, gap_ratio_threshold=settings.CONVERGENCE_CLUSTER_RATIO
-        )
-        _, cluster_max_diff_n1 = cutils.cluster_safe_match_energies(
-            evals_n0, evals_n1, clusters
-        )
+        Shared by single- and multi-axis refinement. The caller supplies the
+        cluster partition and the per-cluster movements (already summed over
+        axes for the multi-axis case), the per-level ``channel`` (``"composite"``
+        when multiple axes contribute), and the per-channel ``channel_breakdown``.
+        """
+        safety_factor = settings.CONVERGENCE_SAFETY_FACTOR
 
         # Strict mode: a second refinement enables the geometric ratio test.
         geometric_tail: npt.NDArray[np.float64] | None = None
         asymptotic_flag: npt.NDArray[np.bool_] | None = None
-        if refinement == "ratio_test" and evals_n2 is not None:
-            _, cluster_max_diff_n2 = cutils.cluster_safe_match_energies(
-                evals_n1, evals_n2, clusters
-            )
+        if refinement == "ratio_test" and cluster_max_diff_n2 is not None:
             _, geometric_tail, asymptotic_flag = cutils.geometric_ratio_test(
                 cluster_max_diff_n1, cluster_max_diff_n2
             )
@@ -601,16 +653,14 @@ class ConvergenceCheckable:
             verdicts=per_level_verdicts,
             scope=scope,
             target_abs_GHz=target_abs_GHz,
-            axis=axis,
+            axis=dominant_axis,
         )
 
         return ConvergenceReport(
             per_level=per_level_verdicts,
             aggregate_status=aggregate_status,
             worst_level=worst_idx,
-            channel_breakdown_GHz={
-                channel: float(np.max(per_level_abs_err)),
-            },
+            channel_breakdown_GHz=channel_breakdown,
             clusters=clusters,
             recommendations=recommendations,
             implementation_audit=self._convergence_audit(
