@@ -17,6 +17,7 @@ from collections.abc import Callable
 from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 import scipy as sp
 
 from matplotlib.axes import Axes
@@ -33,6 +34,8 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
 
+from scqubits.core.convergence import ConvergenceCheckable
+from scqubits.core.convergence_report import TruncationChannel
 from scqubits.core.noise import NOISE_PARAMS, NoisySystem
 
 
@@ -280,7 +283,12 @@ class NoisyFluxQubit(NoisySystem, ABC):
 # -Flux qubit, both degrees of freedom in charge basis---------------------------------
 
 
-class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
+class FluxQubit(
+    base.QubitBaseClass,
+    serializers.Serializable,
+    NoisyFluxQubit,
+    ConvergenceCheckable,
+):
     r"""Flux Qubit.
 
     | [1] Orlando et al., Physical Review B, 60, 15398 (1999).
@@ -364,6 +372,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     ng2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     flux = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ncut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
+
+    _convergence_axes: tuple[str, ...] = ("ncut",)
+    _convergence_basis: str = "charge"
 
     def __init__(
         self,
@@ -515,6 +526,71 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def hilbertdim(self) -> int:
         """Return the Hilbert space dimension."""
         return (2 * self.ncut + 1) ** 2
+
+    # ----- Convergence-diagnostics hooks ----------------------------------------------
+
+    def _convergence_truncation_channel(self, axis: str) -> TruncationChannel:
+        """Report the ``charge`` truncation channel for ``ncut`` (both islands)."""
+        return "charge"
+
+    def _convergence_boundary_diagnostic(
+        self,
+        esys: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]],
+        axis: str,
+    ) -> npt.NDArray[np.float64] | None:
+        """Per-level boundary-amplitude cheap diagnostic for ``ncut``.
+
+        The basis is the two-island charge grid ``n1, n2 = -ncut .. +ncut``,
+        flattened with island 1 outermost. For each kept level the squared
+        amplitude summed over the grid perimeter (states with ``n1 = +/-ncut`` or
+        ``n2 = +/-ncut``) is returned; a large value flags appreciable support at
+        the edge of the kept charge box. Returns ``None`` if ``axis`` is not
+        ``"ncut"``.
+        """
+        if axis != "ncut":
+            return None
+        _, evecs = esys
+        dim = 2 * self.ncut + 1
+        n_cols = evecs.shape[1]
+        boundary = np.empty(n_cols, dtype=np.float64)
+        for k in range(n_cols):
+            grid = np.abs(evecs[:, k].reshape(dim, dim)) ** 2
+            perimeter = (
+                grid[0, :].sum()
+                + grid[-1, :].sum()
+                + grid[1:-1, 0].sum()
+                + grid[1:-1, -1].sum()
+            )
+            boundary[k] = float(perimeter)
+        return boundary
+
+    def _convergence_pad_eigenvectors(
+        self,
+        evecs: npt.NDArray[np.float64],
+        value_from: int,
+        value_to: int,
+    ) -> npt.NDArray[np.float64]:
+        """Symmetrically zero-pad the two-island charge grid to a larger ``ncut``.
+
+        Each eigenvector is reshaped to the ``(2*ncut+1, 2*ncut+1)`` charge grid
+        (island 1 outermost), padded with equal zero rows and columns on every
+        side so each island's ``n = 0`` stays centered, then re-flattened.
+        """
+        if value_to < value_from:
+            raise ValueError(
+                f"value_to ({value_to}) must be >= value_from ({value_from})"
+            )
+        pad = value_to - value_from
+        if pad == 0:
+            return evecs
+        dim_from = 2 * value_from + 1
+        dim_to = 2 * value_to + 1
+        n_cols = evecs.shape[1]
+        padded = np.zeros((dim_to * dim_to, n_cols), dtype=evecs.dtype)
+        for k in range(n_cols):
+            grid = evecs[:, k].reshape(dim_from, dim_from)
+            padded[:, k] = np.pad(grid, ((pad, pad), (pad, pad))).reshape(-1)
+        return padded
 
     def potential(self, phi1: ndarray, phi2: ndarray) -> ndarray:
         r"""Return the potential energy at :math:`\phi_1` and :math:`\phi_2`.
