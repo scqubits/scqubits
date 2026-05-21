@@ -71,13 +71,33 @@ class ConvergenceCheckable:
     # Per-class overrides. Defaults are reasonable for transmon-like
     # single-knob qubits; multi-axis qubits override.
 
+    def _convergence_axis_value(self, axis: str) -> int:
+        """Return the current integer size of truncation ``axis``.
+
+        Default reads the integer attribute named ``axis``. Qubits whose axis is
+        not a plain integer override this -- e.g. a discretized grid returns its
+        point count.
+        """
+        return int(getattr(self, axis))
+
+    def _convergence_set_axis(
+        self, clone: "ConvergenceCheckable", axis: str, value: int
+    ) -> None:
+        """Set truncation ``axis`` of ``clone`` to integer size ``value``.
+
+        Default assigns the integer attribute named ``axis``. Qubits whose axis
+        is not a plain integer override this -- e.g. a discretized grid rebuilds
+        its ``Grid1d`` with the new point count over the same window.
+        """
+        setattr(clone, axis, value)
+
     def _convergence_step(self, axis: str) -> int:
         """Return the refinement step (axis units) for ``axis``.
 
         Default: ``max(4, current_value // 4)``. Concrete qubits override
         if a different heuristic better matches their convergence law.
         """
-        current = getattr(self, axis)
+        current = self._convergence_axis_value(axis)
         return max(4, current // 4)
 
     def _convergence_truncation_channel(self, axis: str) -> TruncationChannel:
@@ -266,7 +286,7 @@ class ConvergenceCheckable:
         """
         clone = copy.deepcopy(self)
         for axis, value in axis_values.items():
-            setattr(clone, axis, value)
+            self._convergence_set_axis(clone, axis, value)
         return clone
 
     def _convergence_audit(
@@ -283,7 +303,7 @@ class ConvergenceCheckable:
             scq_version = "unknown"
 
         cutoff_params = {
-            axis: int(getattr(self, axis)) for axis in self._convergence_axes
+            axis: self._convergence_axis_value(axis) for axis in self._convergence_axes
         }
         # Diagonalization method label: prefer an explicit user setting if
         # provided, otherwise fall back to a generic "default".
