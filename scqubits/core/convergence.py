@@ -9,16 +9,16 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
-"""ConvergenceCheckable mixin and the energy-channel verified-refinement engine.
+"""Verified-refinement convergence diagnostics for qubit classes.
 
-PR-1 scope: a concrete qubit that adds ``ConvergenceCheckable`` to its MRO and
-declares ``_convergence_axes`` gains an :meth:`estimate_convergence` method
-returning a :class:`~scqubits.core.convergence_report.ConvergenceReport`.
-Only the energy sub-channel is implemented here; PR-2 adds wavefunctions and
-matrix elements, PR-3 adds coherence.
+A concrete qubit that adds ``ConvergenceCheckable`` to its MRO and declares
+``_convergence_axes`` gains an :meth:`estimate_convergence` method returning a
+:class:`~scqubits.core.convergence_report.ConvergenceReport`. The engine assesses
+the energy spectrum and, on request, the derived wavefunction, matrix-element,
+and coherence channels.
 
-The mixin's refinement engine clones the qubit, bumps a cutoff axis by a
-step, re-diagonalizes, and compares cluster-matched eigenvalues. Cheap-mode
+The refinement engine clones the qubit, bumps a cutoff axis by a step,
+re-diagonalizes, and compares cluster-matched eigenvalues. Cheap-mode
 diagnostics never claim ``converged`` (per the published design specification).
 """
 
@@ -32,6 +32,7 @@ from typing import Any, Sequence
 import numpy as np
 import numpy.typing as npt
 
+import scqubits.core.units as units
 import scqubits.utils.convergence_utils as cutils
 
 from scqubits import settings
@@ -143,8 +144,8 @@ class ConvergenceCheckable:
             ``"verify"`` or ``"strict"`` -- derived quantities need a
             refinement comparison.
         derived_quantities:
-            Subset of ``{"wavefunctions", "matrix_elements"}`` to assess when
-            ``include_derived`` is set. ``"coherence"`` arrives in PR-3.
+            Subset of ``{"wavefunctions", "matrix_elements", "coherence"}`` to
+            assess when ``include_derived`` is set.
         refinement:
             ``"one_step"`` for verify mode; ``"ratio_test"`` for strict
             mode. Coerced to match ``mode`` if inconsistent.
@@ -186,10 +187,8 @@ class ConvergenceCheckable:
             if unknown:
                 raise ValueError(
                     f"unknown derived_quantities: {sorted(unknown)}; valid: "
-                    "'wavefunctions', 'matrix_elements'"
+                    "'wavefunctions', 'matrix_elements', 'coherence'"
                 )
-            if "coherence" in requested_derived:
-                raise NotImplementedError("coherence convergence arrives in PR-3")
         if not self._convergence_axes:
             raise NotImplementedError(
                 f"{type(self).__name__} does not declare _convergence_axes; "
@@ -447,6 +446,7 @@ class ConvergenceCheckable:
             report=report,
             derived_quantities=derived_quantities,
             evals_n0=evals_n0,
+            evals_n1=evals_n1,
             evecs_n0=evecs_n0,
             evecs_n1=evecs_n1,
             evecs_n2=evecs_n2,
@@ -620,6 +620,7 @@ class ConvergenceCheckable:
         report: ConvergenceReport,
         derived_quantities: tuple[str, ...],
         evals_n0: npt.NDArray[np.float64],
+        evals_n1: npt.NDArray[np.float64],
         evecs_n0: npt.NDArray[np.float64],
         evecs_n1: npt.NDArray[np.float64],
         evecs_n2: npt.NDArray[np.float64] | None,
@@ -706,6 +707,33 @@ class ConvergenceCheckable:
                 current_value=ncut_0,
                 step=step,
                 skipped=skipped,
+            )
+
+        if "coherence" in derived_quantities:
+            channels = list(
+                self.effective_noise_channels()  # type: ignore[attr-defined]
+            ) + ["t1_effective", "t2_effective"]
+            names, rate_movement, floor_flags, skipped_channels = (
+                _coherence_rate_movement(
+                    self,
+                    clone_1,
+                    (evals_n0, evecs_n0),
+                    (evals_n1, evecs_n1),
+                    channels,
+                    settings.CONVERGENCE_RATE_FLOOR_HZ,
+                )
+            )
+            derived["coherence"] = _build_coherence_report(
+                channel_names=names,
+                movement=rate_movement,
+                floor_flags=floor_flags,
+                channel=channel,
+                target_gap_rel=target_gap_rel,
+                audit=audit,
+                axis=axis,
+                current_value=ncut_0,
+                step=step,
+                skipped=skipped_channels,
             )
 
         return dataclasses.replace(report, derived=derived)
@@ -1110,6 +1138,126 @@ def _build_metric_report(
         worst_level=worst_idx,
         channel_breakdown_GHz={},
         clusters=clusters,
+        recommendations=recommendations,
+        implementation_audit=audit,
+    )
+
+
+def _coherence_rate_movement(
+    qubit_a: Any,
+    qubit_b: Any,
+    esys_a: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]],
+    esys_b: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]],
+    channels: list[str],
+    rate_floor: float,
+) -> tuple[list[str], npt.NDArray[np.float64], list[bool], list[str]]:
+    """Per-channel relative change of noise rates between two cutoffs.
+
+    Each channel's rate is evaluated at both cutoffs (``get_rate=True``, reusing
+    the supplied eigensystems so no extra diagonalization is needed), converted
+    to Hz so that ``rate_floor`` (in Hz) is meaningful regardless of the active
+    unit system, and the relative change ``|G_b - G_a| / max(|G_b|, rate_floor)``
+    is recorded. A channel whose refined rate falls below ``rate_floor`` is
+    flagged -- its rate sits at the noise floor, so the corresponding lifetime is
+    not physically meaningful. Channels that raise are skipped and reported, not
+    silently dropped.
+    """
+    to_hz = units.units_scale_factor()
+    names: list[str] = []
+    movement: list[float] = []
+    floor_flags: list[bool] = []
+    skipped: list[str] = []
+    for channel in channels:
+        try:
+            rate_a = (
+                abs(float(getattr(qubit_a, channel)(get_rate=True, esys=esys_a)))
+                * to_hz
+            )
+            rate_b = (
+                abs(float(getattr(qubit_b, channel)(get_rate=True, esys=esys_b)))
+                * to_hz
+            )
+        except Exception:
+            skipped.append(channel)
+            continue
+        names.append(channel)
+        movement.append(abs(rate_b - rate_a) / max(rate_b, rate_floor))
+        floor_flags.append(rate_b < rate_floor)
+    return names, np.asarray(movement, dtype=np.float64), floor_flags, skipped
+
+
+def _build_coherence_report(
+    channel_names: list[str],
+    movement: npt.NDArray[np.float64],
+    floor_flags: list[bool],
+    channel: TruncationChannel,
+    target_gap_rel: float,
+    audit: ImplementationAudit,
+    axis: str,
+    current_value: int,
+    step: int,
+    skipped: list[str],
+) -> ConvergenceReport:
+    """Assemble the per-noise-channel coherence convergence sub-report.
+
+    Each verdict is one noise channel; ``eps_gap_est`` is the relative change of
+    its rate between cutoffs and ``estimator_method`` names the channel. Rates
+    are assessed first: a channel whose refined rate is below the floor carries a
+    ``noise_floor`` warning rather than a lifetime claim. Verdicts use the
+    observed-gap ladder against ``target_gap_rel``.
+    """
+    safety_factor = settings.CONVERGENCE_SAFETY_FACTOR
+    verdicts: list[LevelVerdict] = []
+    for idx, name in enumerate(channel_names):
+        warnings: tuple[str, ...] = ("noise_floor",) if floor_flags[idx] else ()
+        # One-step rate change times the safety factor, matching the energy and
+        # other derived channels.
+        eps = float(safety_factor * movement[idx])
+        verdicts.append(
+            LevelVerdict(
+                level_index=idx,
+                status=_assign_status(
+                    abs_err_est=0.0,
+                    eps_gap_est=eps,
+                    scope="observed_gap_scale",
+                    target_abs_GHz=None,
+                    target_gap_rel=target_gap_rel,
+                ),
+                status_scope="observed_gap_scale",
+                evidence="verified_empirical",
+                abs_err_est_GHz=None,
+                eps_gap_est=eps,
+                truncation_channel=channel,
+                estimator_method=f"{name}_rate",
+                warnings=warnings,
+            )
+        )
+
+    if verdicts:
+        worst_idx, aggregate_status = _aggregate_worst(verdicts)
+    else:
+        worst_idx, aggregate_status = 0, "unverified"
+
+    recommendations: list[str] = []
+    if any(v.status == "underconverged" for v in verdicts):
+        recommendations.append(
+            f"increase {axis} from {current_value} to at least "
+            f"{current_value + step} and re-run; a noise-rate estimate exceeded "
+            f"the target threshold"
+        )
+    if not verdicts:
+        recommendations.append(
+            "no noise-channel rates could be evaluated for this qubit"
+        )
+    if skipped:
+        recommendations.append("skipped noise channels (raised): " + ", ".join(skipped))
+
+    return ConvergenceReport(
+        per_level=verdicts,
+        aggregate_status=aggregate_status,
+        worst_level=worst_idx,
+        channel_breakdown_GHz={},
+        clusters=[],
         recommendations=recommendations,
         implementation_audit=audit,
     )
