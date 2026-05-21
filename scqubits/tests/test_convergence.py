@@ -147,13 +147,6 @@ class TestAPIValidation:
                 n_levels=3, include_derived=True, derived_quantities=["bogus"]
             )
 
-    def test_coherence_derived_not_implemented(self):
-        tmon = sq.Transmon(EJ=15.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        with pytest.raises(NotImplementedError, match="coherence"):
-            tmon.estimate_convergence(
-                n_levels=3, include_derived=True, derived_quantities=["coherence"]
-            )
-
 
 # ------------------------------------------------------------- verify-mode tests
 
@@ -376,3 +369,69 @@ class TestDerivedChannels:
         # the successful ratio test or its one-step fallback.
         for v in wf.per_level:
             assert "ratio_test" in v.estimator_method
+
+
+# -------------------------------------------------------------- coherence tests
+
+
+class TestCoherenceChannel:
+    def test_coherence_report_is_per_channel(self):
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
+        report = tmon.estimate_convergence(
+            n_levels=4,
+            mode="verify",
+            include_derived=True,
+            derived_quantities=["coherence"],
+        )
+        co = report.derived["coherence"]
+        methods = {v.estimator_method for v in co.per_level}
+        # The qubit's effective noise channels plus the aggregate t1/t2 rates.
+        assert "t1_effective_rate" in methods
+        assert "t2_effective_rate" in methods
+        assert "t1_capacitive_rate" in methods
+        for v in co.per_level:
+            assert v.estimator_method.endswith("_rate")
+            assert v.eps_gap_est is not None
+            # Coherence is a rate metric, not an energy.
+            assert v.abs_err_est_GHz is None
+
+    def test_coherence_converged_at_high_cutoff(self):
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
+        report = tmon.estimate_convergence(
+            n_levels=4,
+            mode="verify",
+            include_derived=True,
+            derived_quantities=["coherence"],
+        )
+        assert report.derived["coherence"].aggregate_status == "converged"
+
+    def test_symmetric_zero_channel_flagged_noise_floor(self):
+        # At ng=0 the 1/f charge-noise dephasing rate vanishes by symmetry, so
+        # its rate sits at the noise floor while a real channel does not.
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
+        report = tmon.estimate_convergence(
+            n_levels=3,
+            mode="verify",
+            include_derived=True,
+            derived_quantities=["coherence"],
+        )
+        by_method = {
+            v.estimator_method: v for v in report.derived["coherence"].per_level
+        }
+        assert "noise_floor" in by_method["tphi_1_over_f_ng_rate"].warnings
+        assert "noise_floor" not in by_method["t1_capacitive_rate"].warnings
+
+    def test_all_three_derived_channels_together(self):
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
+        report = tmon.estimate_convergence(
+            n_levels=3,
+            mode="verify",
+            target_abs_GHz=1e-4,
+            include_derived=True,
+            derived_quantities=["wavefunctions", "matrix_elements", "coherence"],
+        )
+        assert set(report.derived.keys()) == {
+            "wavefunctions",
+            "matrix_elements",
+            "coherence",
+        }
