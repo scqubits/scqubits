@@ -16,6 +16,7 @@ import numpy as np
 import pytest
 
 from scqubits.utils.convergence_utils import (
+    charge_finite_tail_estimate,
     cluster_safe_match_energies,
     detect_clusters,
     geometric_ratio_test,
@@ -196,6 +197,60 @@ class TestRichardsonEstimate:
         estimate, is_asymptotic = richardson_estimate(d0, d1, 11, 21, 41, 4)
         assert estimate[0] == 0.0
         assert bool(is_asymptotic[0]) is True
+
+
+# ----------------------------------------------------- charge_finite_tail_estimate
+
+
+class TestChargeFiniteTail:
+    @staticmethod
+    def _evec(ncut, c_left, c_right):
+        dim = 2 * ncut + 1
+        v = np.zeros((dim, 1), dtype=np.float64)
+        v[dim // 2, 0] = 1.0
+        v[0, 0] = c_left
+        v[-1, 0] = c_right
+        return v
+
+    def test_estimate_grows_with_boundary_amplitude(self):
+        ncut, EJ, EC, ng = 10, 1.0, 1.0, 0.0
+        e = np.array([0.0], dtype=np.float64)
+        est_small, _, _ = charge_finite_tail_estimate(
+            self._evec(ncut, 1e-4, 1e-4), e, ncut, EJ, EC, ng, 1
+        )
+        est_large, _, _ = charge_finite_tail_estimate(
+            self._evec(ncut, 1e-1, 1e-1), e, ncut, EJ, EC, ng, 1
+        )
+        assert est_large[0] > est_small[0] > 0.0
+
+    def test_unit_depth_reduces_to_boundary_denominator(self):
+        # With negligible hopping the estimate is the boundary-denominator
+        # formula EJ^2/4 * (|cR|^2 / DR + |cL|^2 / DL).
+        ncut, EJ, EC, ng = 10, 1e-6, 1.0, 0.0
+        energy = 0.5
+        c_left, c_right = 0.2, 0.3
+        est, _, boundary = charge_finite_tail_estimate(
+            self._evec(ncut, c_left, c_right),
+            np.array([energy]),
+            ncut,
+            EJ,
+            EC,
+            ng,
+            1,
+        )
+        denom_r = 4 * EC * (ncut + 1 - ng) ** 2 - energy
+        denom_l = 4 * EC * (ncut + 1 + ng) ** 2 - energy
+        expected = abs(EJ**2 / 4 * (c_right**2 / denom_r + c_left**2 / denom_l))
+        np.testing.assert_allclose(est[0], expected, rtol=1e-3)
+        np.testing.assert_allclose(boundary[0], c_left**2 + c_right**2)
+
+    def test_non_perturbative_when_energy_above_tail(self):
+        # Energy above the tail block's lowest eigenvalue: not perturbative.
+        ncut, EJ, EC, ng = 5, 1.0, 1.0, 0.0
+        _, perturbative_ok, _ = charge_finite_tail_estimate(
+            self._evec(ncut, 0.1, 0.1), np.array([200.0]), ncut, EJ, EC, ng, 1
+        )
+        assert bool(perturbative_ok[0]) is False
 
 
 # --------------------------------------------------------------- pad_charge_basis

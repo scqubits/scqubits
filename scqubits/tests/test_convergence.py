@@ -294,17 +294,35 @@ class TestEnergyQuickMode:
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
         report = sq.estimate_convergence(tmon, n_levels=4, mode="quick")
         assert report.aggregate_status == "likely_converged"
-        # No abs_err_est is provided in quick mode.
+        # The charge finite-tail gives a perturbative estimate (not just a
+        # boundary diagnostic), so an abs_err_est is provided even in quick mode.
         for v in report.per_level:
-            assert v.abs_err_est_GHz is None
+            assert v.evidence == "perturbative"
+            assert v.estimator_method == "finite_tail_resolvent"
+            assert v.abs_err_est_GHz is not None
 
-    def test_quick_mode_undersized_is_unverified(self):
+    def test_quick_mode_perturbative_estimate_tracks_true_error(self):
+        # The perturbative tail estimate should grade an undersized transmon as
+        # underconverged for a tight target, and a level's estimate must be
+        # comparable to the true charge-truncation error.
+        ref = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=200).eigenvals(evals_count=5)
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=6, truncated_dim=6)
+        report = sq.estimate_convergence(
+            tmon, n_levels=5, mode="quick", target_abs_GHz=1e-4
+        )
+        assert report.aggregate_status == "underconverged"
+        e_user = tmon.eigenvals(evals_count=5)
+        # The worst-level estimate is within a small factor of the true error.
+        v = report.per_level[report.worst_level]
+        true_err = abs(float(e_user[v.level_index] - ref[v.level_index]))
+        assert 0.5 <= true_err / v.abs_err_est_GHz <= 2.0
+
+    def test_quick_mode_undersized_is_underconverged(self):
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=4, truncated_dim=4)
         report = sq.estimate_convergence(tmon, n_levels=3, mode="quick")
-        assert report.aggregate_status == "unverified"
-        # Each underconverged level carries the relevant warning.
-        for v in report.per_level:
-            assert "boundary_amplitude_above_threshold" in v.warnings
+        assert report.aggregate_status == "underconverged"
+        # The dominant levels sit hard against the charge boundary.
+        assert any("boundary_probability_large" in v.warnings for v in report.per_level)
 
     def test_quick_mode_has_no_extra_diagonalization(self):
         # The audit field n_levels_buffer is 0 for quick mode at

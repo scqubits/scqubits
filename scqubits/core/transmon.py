@@ -40,7 +40,10 @@ from scqubits.core.convergence_report import TruncationChannel
 from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 from scqubits.core.storage import WaveFunction
-from scqubits.utils.convergence_utils import pad_charge_basis
+from scqubits.utils.convergence_utils import (
+    charge_finite_tail_estimate,
+    pad_charge_basis,
+)
 
 LevelsTuple = tuple[int, ...]
 Transition = tuple[int, int]
@@ -184,6 +187,34 @@ class Transmon(
         # k-th eigenvector.
         boundary_sq = np.abs(evecs[0, :]) ** 2 + np.abs(evecs[-1, :]) ** 2
         return boundary_sq.astype(np.float64)
+
+    def _convergence_tail_estimate(
+        self,
+        esys: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]],
+        axis: str,
+    ) -> (
+        tuple[npt.NDArray[np.float64], npt.NDArray[np.bool_], npt.NDArray[np.float64]]
+        | None
+    ):
+        """Finite-tail (Green-function) charge-truncation estimate for ``ncut``.
+
+        Lets quick mode report a ``perturbative`` per-level error estimate for the
+        charge tail, rather than only a boundary-amplitude diagnostic. Returns
+        ``None`` for an unrecognized axis.
+        """
+        if axis != "ncut":
+            return None
+        evals, evecs = esys
+        n_levels = evecs.shape[1]
+        return charge_finite_tail_estimate(
+            evecs,
+            evals,
+            self.ncut,
+            self.EJ,
+            self.EC,
+            self.ng,
+            n_levels,
+        )
 
     def _convergence_pad_eigenvectors(
         self,

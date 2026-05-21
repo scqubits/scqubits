@@ -132,6 +132,24 @@ class ConvergenceCheckable:
         """
         return None
 
+    def _convergence_tail_estimate(
+        self, esys: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]], axis: str
+    ) -> (
+        tuple[npt.NDArray[np.float64], npt.NDArray[np.bool_], npt.NDArray[np.float64]]
+        | None
+    ):
+        """Return a cheap perturbative truncation-error estimate for ``axis``.
+
+        A qubit with a tractable dropped-space residual (e.g. a 1D charge tail)
+        overrides this to return ``(estimate, perturbative_ok, boundary_prob)``
+        per level: a second-order tail error estimate (GHz), a flag that the tail
+        is in the perturbative regime, and the boundary probability. Quick mode
+        then reports a ``perturbative`` estimate instead of a bare diagnostic.
+        Returns ``None`` (the default) when no such estimate is available, in
+        which case quick mode falls back to the boundary diagnostic.
+        """
+        return None
+
     def _convergence_pad_eigenvectors(
         self,
         evecs: npt.NDArray[np.float64],
@@ -352,19 +370,35 @@ class ConvergenceCheckable:
         target_gap_rel: float,
         g_floor_GHz: float,
     ) -> ConvergenceReport:
-        """Quick-mode report: cheap boundary diagnostic only.
+        """Quick-mode report: cheap perturbative tail estimate or boundary diagnostic.
 
-        Per the published design, quick mode never returns ``converged``;
-        the best it can say is ``likely_converged`` based on a cheap
-        boundary-amplitude check.
+        If the qubit supplies a perturbative tail estimate (e.g. the charge
+        finite-tail), quick mode reports it with ``perturbative`` evidence;
+        otherwise it falls back to the bare boundary-amplitude diagnostic. Per the
+        published design, quick mode never returns an unqualified ``converged`` --
+        the best it can say is ``likely_converged``.
         """
-        # We assume a single axis for PR-1 (Transmon ncut). Multi-axis
-        # quick-mode aggregation is straightforward and added with Stage 3.
+        # Quick mode assesses the first (dominant) axis without refinement.
         axis = self._convergence_axes[0]
+        channel: TruncationChannel = self._convergence_truncation_channel(axis)
+
+        tail = self._convergence_tail_estimate((evals_n0, evecs_n0), axis)
+        if tail is not None:
+            return self._convergence_quick_perturbative(
+                tail=tail,
+                channel=channel,
+                evals_n0=evals_n0,
+                n_levels=n_levels,
+                scope=scope,
+                target_abs_GHz=target_abs_GHz,
+                target_gap_rel=target_gap_rel,
+                g_floor_GHz=g_floor_GHz,
+                axis=axis,
+            )
+
         boundary_amplitudes = self._convergence_boundary_diagnostic(
             (evals_n0, evecs_n0), axis
         )
-        channel: TruncationChannel = self._convergence_truncation_channel(axis)
 
         per_level: list[LevelVerdict] = []
         recommendations: list[str] = []
@@ -427,6 +461,103 @@ class ConvergenceCheckable:
             channel_breakdown_GHz={},
             clusters=[(k,) for k in range(n_levels)],
             recommendations=list(dict.fromkeys(recommendations)),  # dedupe
+            implementation_audit=self._convergence_audit(
+                n_levels=n_levels, n_buffer=0, mode="quick", refinement="one_step"
+            ),
+        )
+
+    def _convergence_quick_perturbative(
+        self,
+        tail: tuple[
+            npt.NDArray[np.float64], npt.NDArray[np.bool_], npt.NDArray[np.float64]
+        ],
+        channel: TruncationChannel,
+        evals_n0: npt.NDArray[np.float64],
+        n_levels: int,
+        scope: str,
+        target_abs_GHz: float | None,
+        target_gap_rel: float,
+        g_floor_GHz: float,
+        axis: str,
+    ) -> ConvergenceReport:
+        """Quick-mode report from a perturbative tail estimate.
+
+        Reports the per-level tail estimate with ``perturbative`` evidence and
+        the usual status ladder, but caps ``converged`` at ``likely_converged``
+        (quick mode never makes an unqualified convergence claim). A level whose
+        boundary probability is large, or whose tail is not in the perturbative
+        regime, is forced to ``underconverged`` / ``unverified`` regardless of the
+        estimate (design-spec edge cases).
+        """
+        estimate, perturbative_ok, boundary_prob = tail
+        # Boundary probability above which the basis is judged too small outright.
+        large_boundary_prob = 1e-3
+
+        per_level: list[LevelVerdict] = []
+        for k in range(n_levels):
+            warnings: list[str] = []
+            est = float(estimate[k])
+            gap = (
+                _local_isolation_gap(evals_n0, None, k, n_levels, g_floor_GHz)
+                if scope == "observed_gap_scale"
+                else None
+            )
+            eps = est / gap if gap is not None else None
+            if scope == "observed_gap_scale" and gap is None:
+                warnings.append("upper_gap_unavailable")
+
+            if float(boundary_prob[k]) > large_boundary_prob:
+                status: Status = "underconverged"
+                evidence: Evidence = "perturbative"
+                warnings.append("boundary_probability_large")
+            elif not bool(perturbative_ok[k]):
+                status = "unverified"
+                evidence = "unverified"
+                warnings.append("tail_not_perturbative")
+            elif scope == "absolute" and target_abs_GHz is None:
+                # No absolute target: fall back to a target-free gut check -- a
+                # small perturbative tail with little boundary support is
+                # likely_converged (never an unqualified converged).
+                status = "likely_converged"
+                evidence = "perturbative"
+            else:
+                status = _assign_status(est, eps, scope, target_abs_GHz, target_gap_rel)
+                evidence = "perturbative"
+                if status == "converged":
+                    # Quick mode never makes an unqualified convergence claim.
+                    status = "likely_converged"
+
+            per_level.append(
+                LevelVerdict(
+                    level_index=k,
+                    status=status,
+                    status_scope=scope,  # type: ignore[arg-type]
+                    evidence=evidence,
+                    abs_err_est_GHz=est,
+                    eps_gap_est=eps,
+                    truncation_channel=channel,
+                    estimator_method="finite_tail_resolvent",
+                    warnings=tuple(warnings),
+                )
+            )
+
+        worst_idx, aggregate_status = _aggregate_worst(per_level)
+        recommendations: list[str] = []
+        if any(v.status in ("underconverged", "unverified") for v in per_level):
+            current = self._convergence_axis_value(axis)
+            step = self._convergence_step(axis)
+            recommendations.append(
+                f"increase {axis} from {current} to at least {current + step}, or "
+                f"re-run with mode='verify' for a refinement-verified estimate"
+            )
+
+        return ConvergenceReport(
+            per_level=per_level,
+            aggregate_status=aggregate_status,
+            worst_level=worst_idx,
+            channel_breakdown_GHz={},
+            clusters=[(k,) for k in range(n_levels)],
+            recommendations=recommendations,
             implementation_audit=self._convergence_audit(
                 n_levels=n_levels, n_buffer=0, mode="quick", refinement="one_step"
             ),

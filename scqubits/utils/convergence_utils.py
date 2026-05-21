@@ -287,6 +287,127 @@ def richardson_estimate(
     return estimate, is_asymptotic
 
 
+def _charge_tail_green_11(
+    ncut: int,
+    EJ: float,
+    EC: float,
+    ng: float,
+    energy: float,
+    side: int,
+    depth: int,
+) -> tuple[float, float]:
+    """Return the ``(1, 1)`` Green-function entry and smallest eigenvalue of a tail.
+
+    Builds the depth-``depth`` tridiagonal block of the dropped charge tail on one
+    side (``side = +1`` for charges ``ncut+1 .. ncut+depth``, ``side = -1`` for
+    ``-(ncut+1) .. -(ncut+depth)``), with diagonal ``4 EC (n - ng)**2`` and
+    nearest-neighbor hopping ``-EJ/2``, and returns
+    ``[(T - energy * I)^-1]_{0,0}`` together with the block's smallest eigenvalue
+    (used to detect a non-perturbative tail).
+    """
+    idx = np.arange(1, depth + 1)
+    n = side * (ncut + idx)
+    diag = 4.0 * EC * (n - ng) ** 2
+    block = np.diag(diag).astype(np.float64)
+    if depth > 1:
+        off = np.full(depth - 1, -EJ / 2.0)
+        block += np.diag(off, 1) + np.diag(off, -1)
+    min_eig = float(np.linalg.eigvalsh(block)[0])
+    resolvent_col = np.linalg.solve(block - energy * np.eye(depth), np.eye(depth)[:, 0])
+    return float(resolvent_col[0]), min_eig
+
+
+def charge_finite_tail_estimate(
+    evecs: npt.NDArray[np.float64],
+    e_levels: npt.NDArray[np.float64],
+    ncut: int,
+    EJ: float,
+    EC: float,
+    ng: float,
+    n_levels: int,
+    depth_max: int = 16,
+    tol: float = 0.01,
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.bool_], npt.NDArray[np.float64]]:
+    """Finite-tail (Green-function) charge-truncation error estimate per level.
+
+    Implements the design-spec second-order tail estimate for a 1D charge basis
+    (transmon-like): for level ``k`` with boundary amplitudes
+    ``c_R = <ncut|u_k>`` and ``c_L = <-ncut|u_k>``,
+
+        errhat_k = | EJ^2 / 4 * (|c_R|^2 G_R + |c_L|^2 G_L) |,
+
+    where ``G_R``/``G_L`` are the ``(1, 1)`` entries of the resolvents of the
+    finite dropped tail blocks of depth ``d`` on each side. The depth is increased
+    until the estimate changes by less than ``tol`` (relative) or ``depth_max`` is
+    reached. At ``d = 1`` this reduces to the familiar boundary-denominator
+    estimate. The estimate is a perturbative one and must not be used blindly for
+    a multi-coordinate charge basis.
+
+    Parameters
+    ----------
+    evecs:
+        Charge-basis eigenvectors (columns are eigenvectors), rows ordered from
+        charge ``-ncut`` to ``+ncut``.
+    e_levels:
+        Eigenvalues aligned with the columns of ``evecs``.
+    ncut, EJ, EC, ng:
+        Charge cutoff and transmon energies / offset charge.
+    n_levels:
+        Number of lowest levels to assess.
+    depth_max:
+        Maximum tail depth.
+    tol:
+        Relative change in the estimate at which depth refinement stops.
+
+    Returns
+    -------
+    estimate
+        Per-level perturbative error estimate (GHz).
+    perturbative_ok
+        ``False`` for a level whose tail block has an eigenvalue at or below the
+        level energy -- the tail is not perturbative there and the estimate is
+        unreliable.
+    boundary_prob
+        Per-level boundary probability ``|c_L|^2 + |c_R|^2``; a large value is an
+        independent warning that the basis is too small.
+    """
+    c_left = evecs[0, :n_levels]
+    c_right = evecs[-1, :n_levels]
+    boundary_prob = (np.abs(c_left) ** 2 + np.abs(c_right) ** 2).astype(np.float64)
+    estimate = np.zeros(n_levels, dtype=np.float64)
+    perturbative_ok = np.ones(n_levels, dtype=np.bool_)
+
+    for k in range(n_levels):
+        energy = float(e_levels[k])
+        previous: float | None = None
+        est = 0.0
+        for depth in range(1, depth_max + 1):
+            g_right, min_right = _charge_tail_green_11(
+                ncut, EJ, EC, ng, energy, 1, depth
+            )
+            g_left, min_left = _charge_tail_green_11(
+                ncut, EJ, EC, ng, energy, -1, depth
+            )
+            est = abs(
+                EJ**2
+                / 4.0
+                * (
+                    abs(complex(c_right[k])) ** 2 * g_right
+                    + abs(complex(c_left[k])) ** 2 * g_left
+                )
+            )
+            if min(min_right, min_left) <= energy:
+                perturbative_ok[k] = False
+            if previous is not None and abs(est - previous) <= tol * max(
+                previous, 1e-30
+            ):
+                break
+            previous = est
+        estimate[k] = est
+
+    return estimate, perturbative_ok, boundary_prob
+
+
 def pad_charge_basis(
     evecs: npt.NDArray[np.float64],
     ncut_old: int,
