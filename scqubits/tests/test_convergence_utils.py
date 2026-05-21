@@ -19,6 +19,9 @@ from scqubits.utils.convergence_utils import (
     cluster_safe_match_energies,
     detect_clusters,
     geometric_ratio_test,
+    pad_charge_basis,
+    subspace_angle,
+    wavefunction_overlap,
 )
 
 # Mark all tests in this module as slow so they participate in the
@@ -155,3 +158,74 @@ class TestGeometricRatioTest:
         assert np.isinf(ratios[0])
         assert np.isinf(tail[0])
         assert bool(is_asymptotic[0]) is False
+
+
+# --------------------------------------------------------------- pad_charge_basis
+
+
+class TestPadChargeBasis:
+    def test_equal_cutoff_returns_input(self):
+        evecs = np.eye(3, dtype=np.float64)  # 2*1 + 1
+        np.testing.assert_array_equal(pad_charge_basis(evecs, 1, 1), evecs)
+
+    def test_pads_symmetrically(self):
+        # ncut 1 (dim 3) -> ncut 2 (dim 5): one zero row at each end.
+        evecs = np.asarray([[1.0], [2.0], [3.0]], dtype=np.float64)
+        out = pad_charge_basis(evecs, 1, 2)
+        assert out.shape == (5, 1)
+        np.testing.assert_array_equal(out[:, 0], [0.0, 1.0, 2.0, 3.0, 0.0])
+
+    def test_shrinking_cutoff_raises(self):
+        with pytest.raises(ValueError, match="must be >="):
+            pad_charge_basis(np.eye(5, dtype=np.float64), 2, 1)
+
+    def test_wrong_row_count_raises(self):
+        with pytest.raises(ValueError, match="expected 2"):
+            pad_charge_basis(np.eye(4, dtype=np.float64), 1, 2)
+
+
+# ----------------------------------------------------------------- subspace_angle
+
+
+class TestSubspaceAngle:
+    def test_identical_subspace_is_zero(self):
+        basis = np.linalg.qr(np.random.default_rng(0).standard_normal((6, 2)))[0]
+        assert subspace_angle(basis, basis) == pytest.approx(0.0, abs=1e-12)
+
+    def test_orthogonal_subspaces_is_one(self):
+        a = np.zeros((4, 1), dtype=np.float64)
+        a[0, 0] = 1.0
+        b = np.zeros((4, 1), dtype=np.float64)
+        b[1, 0] = 1.0
+        assert subspace_angle(a, b) == pytest.approx(1.0)
+
+    def test_forty_five_degrees_gives_sin_of_half(self):
+        a = np.zeros((3, 1), dtype=np.float64)
+        a[0, 0] = 1.0
+        b = np.asarray([[1.0], [1.0], [0.0]], dtype=np.float64) / np.sqrt(2)
+        assert subspace_angle(a, b) == pytest.approx(np.sqrt(0.5))
+
+
+# ------------------------------------------------------------ wavefunction_overlap
+
+
+class TestWavefunctionOverlap:
+    def test_identical_vectors_overlap_one(self):
+        rng = np.random.default_rng(1)
+        c = rng.standard_normal((5, 3))  # ncut 2, three levels
+        c /= np.linalg.norm(c, axis=0, keepdims=True)
+        np.testing.assert_allclose(
+            wavefunction_overlap(c, c, 2, 2), np.ones(3), atol=1e-12
+        )
+
+    def test_overlap_invariant_to_padding(self):
+        # Same physical vector, one expressed at a larger cutoff via padding.
+        c_small = np.asarray([[0.6], [0.0], [0.8]], dtype=np.float64)  # ncut 1
+        c_big = pad_charge_basis(c_small, 1, 2)  # ncut 2
+        np.testing.assert_allclose(
+            wavefunction_overlap(c_small, c_big, 1, 2), [1.0], atol=1e-12
+        )
+
+    def test_overlap_invariant_to_global_sign(self):
+        c = np.asarray([[0.6], [0.0], [0.8]], dtype=np.float64)
+        np.testing.assert_allclose(wavefunction_overlap(c, -c, 1, 1), [1.0], atol=1e-12)

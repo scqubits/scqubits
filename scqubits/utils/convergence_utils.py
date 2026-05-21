@@ -17,7 +17,7 @@ unit-testable without instantiating a qubit.
 
 PR-1 scope: cluster detection, cluster-safe energy matching, and the
 geometric ratio test.
-PR-2 will add: subspace-angle, wavefunction-overlap.
+PR-2 adds: charge-basis padding, subspace angle, and wavefunction overlap.
 PR-3 will add: rate-relative-error.
 """
 
@@ -218,3 +218,116 @@ def geometric_ratio_test(
     )
     is_asymptotic = ratios < 1.0
     return ratios, geometric_tail, is_asymptotic
+
+
+def pad_charge_basis(
+    evecs: npt.NDArray[np.float64],
+    ncut_old: int,
+    ncut_new: int,
+) -> npt.NDArray[np.float64]:
+    """Embed charge-basis eigenvectors into a larger-cutoff basis by zero-padding.
+
+    The transmon charge basis spans charge states ``-ncut .. +ncut`` (dimension
+    ``2 * ncut + 1``). To compare eigenvectors computed at two cutoffs they must
+    live in a common basis: the smaller-cutoff vectors are embedded into the
+    larger basis by adding ``ncut_new - ncut_old`` zero rows at each end, which
+    keeps the ``n = 0`` charge state aligned at the center.
+
+    Parameters
+    ----------
+    evecs:
+        Charge-basis eigenvectors with ``2 * ncut_old + 1`` rows; each column is
+        one eigenvector.
+    ncut_old:
+        Charge cutoff the vectors were computed at.
+    ncut_new:
+        Target charge cutoff; must be at least ``ncut_old``.
+
+    Returns
+    -------
+    The eigenvectors embedded in the ``2 * ncut_new + 1`` dimensional basis;
+    returned unchanged when the two cutoffs are equal.
+
+    Raises
+    ------
+    ValueError
+        If ``ncut_new`` is smaller than ``ncut_old`` or ``evecs`` does not have
+        ``2 * ncut_old + 1`` rows.
+    """
+    if ncut_new < ncut_old:
+        raise ValueError(f"ncut_new ({ncut_new}) must be >= ncut_old ({ncut_old})")
+    expected_rows = 2 * ncut_old + 1
+    if evecs.shape[0] != expected_rows:
+        raise ValueError(
+            f"evecs has {evecs.shape[0]} rows; expected 2*ncut_old+1 = {expected_rows}"
+        )
+    pad = ncut_new - ncut_old
+    if pad == 0:
+        return evecs
+    return np.pad(evecs, ((pad, pad), (0, 0)))
+
+
+def subspace_angle(
+    subspace_a: npt.NDArray[np.float64], subspace_b: npt.NDArray[np.float64]
+) -> float:
+    """Return the sine of the largest principal angle between two subspaces.
+
+    The subspaces are the column spans of ``subspace_a`` and ``subspace_b`` --
+    tall matrices with matching row dimension and orthonormal columns. The value
+    ``||(I - A A^H) B||_2`` is 0 when the spans coincide and 1 when ``B`` has a
+    direction orthogonal to all of ``A``. This is the cluster-level analogue of
+    one minus a wavefunction overlap, robust to eigenvector rotations within a
+    near-degenerate block.
+
+    Parameters
+    ----------
+    subspace_a, subspace_b:
+        Tall matrices with the same number of rows and orthonormal columns; the
+        caller pads them to a common basis first if the cutoffs differ.
+
+    Returns
+    -------
+    The sine of the largest principal angle, clamped to ``[0, 1]``.
+    """
+    residual = subspace_b - subspace_a @ (subspace_a.conj().T @ subspace_b)
+    sin_angle = float(np.linalg.norm(residual, ord=2))
+    return min(1.0, sin_angle)
+
+
+def wavefunction_overlap(
+    c_a: npt.NDArray[np.float64],
+    c_b: npt.NDArray[np.float64],
+    ncut_a: int,
+    ncut_b: int,
+) -> npt.NDArray[np.float64]:
+    """Return per-level wavefunction overlap moduli across two charge cutoffs.
+
+    Both eigenvector arrays are embedded into the larger charge basis (via
+    :func:`pad_charge_basis`) and the modulus of the per-column inner product
+    ``|<a_k | b_k>|`` is returned. The modulus is invariant under each
+    eigenvector's arbitrary global phase, so no phase standardization is needed;
+    a value near 1 means the wavefunction is stable across the cutoff change.
+    This per-level measure is meaningful only for isolated (non-degenerate)
+    levels; near-degenerate clusters must be compared with
+    :func:`subspace_angle`.
+
+    Parameters
+    ----------
+    c_a, c_b:
+        Charge-basis eigenvector arrays (columns are eigenvectors) at cutoffs
+        ``ncut_a`` and ``ncut_b``, with the same number of columns.
+    ncut_a, ncut_b:
+        Charge cutoffs of ``c_a`` and ``c_b``.
+
+    Returns
+    -------
+    The per-level overlap moduli ``|<a_k | b_k>|``, one entry per column.
+    """
+    ncut_max = max(ncut_a, ncut_b)
+    a = pad_charge_basis(c_a, ncut_a, ncut_max)
+    b = pad_charge_basis(c_b, ncut_b, ncut_max)
+    n_cols = a.shape[1]
+    overlaps = np.empty(n_cols, dtype=np.float64)
+    for k in range(n_cols):
+        overlaps[k] = float(np.abs(np.vdot(a[:, k], b[:, k])))
+    return overlaps
