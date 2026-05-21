@@ -529,9 +529,18 @@ class ConvergenceCheckable:
             return report
 
         if multi_axis:
-            raise NotImplementedError(
-                "derived quantities for multi-axis qubits are not yet available; "
-                "request them on single-axis qubits, or omit include_derived."
+            return self._attach_derived_reports_multiaxis(
+                report=report,
+                derived_quantities=derived_quantities,
+                evals_n0=evals_n0,
+                evecs_n0=evecs_n0,
+                axis_refinements=axis_refinements,
+                clusters=clusters,
+                n_levels=n_levels,
+                n_buffer=n_buffer,
+                mode=mode,
+                target_gap_rel=target_gap_rel,
+                dominant_axis=dominant_axis,
             )
 
         axis = axes[0]
@@ -863,6 +872,113 @@ class ConvergenceCheckable:
                 for k in cluster:
                     movement[k] = angle
         return movement
+
+    def _attach_derived_reports_multiaxis(
+        self,
+        report: ConvergenceReport,
+        derived_quantities: tuple[str, ...],
+        evals_n0: npt.NDArray[np.float64],
+        evecs_n0: npt.NDArray[np.float64],
+        axis_refinements: dict[str, tuple[Any, ...]],
+        clusters: list[tuple[int, ...]],
+        n_levels: int,
+        n_buffer: int,
+        mode: str,
+        target_gap_rel: float,
+        dominant_axis: str,
+    ) -> ConvergenceReport:
+        """Attach derived sub-reports for a multi-axis qubit.
+
+        Each derived metric is measured against every axis's first refinement and
+        the per-axis movements are summed (triangle-inequality bound), mirroring
+        the energy channel. Matrix elements and coherence are basis-agnostic and
+        supported here; wavefunctions require axis-aware tensor padding and are
+        not yet available for multi-axis qubits.
+        """
+        if "wavefunctions" in derived_quantities:
+            raise NotImplementedError(
+                "wavefunction convergence for multi-axis qubits is not yet "
+                "available; request matrix_elements and/or coherence."
+            )
+        channel: TruncationChannel = "composite"
+        audit = self._convergence_audit(
+            n_levels=n_levels, n_buffer=n_buffer, mode=mode, refinement="one_step"
+        )
+        dom_current = self._convergence_axis_value(dominant_axis)
+        dom_step = self._convergence_step(dominant_axis)
+        derived: dict[str, ConvergenceReport] = {}
+
+        if "matrix_elements" in derived_quantities:
+            combined = np.zeros(n_levels, dtype=np.float64)
+            skipped: set[str] = set()
+            for refinement_data in axis_refinements.values():
+                clone_axis, evecs_axis = refinement_data[0], refinement_data[2]
+                movement, axis_skipped = _matrix_element_movement(
+                    self, clone_axis, evecs_n0, evecs_axis, n_levels
+                )
+                combined += movement
+                skipped.update(axis_skipped)
+            derived["matrix_elements"] = _build_metric_report(
+                movement_first=combined,
+                movement_second=None,
+                channel=channel,
+                estimator_method="matrix_element_frobenius",
+                clusters=clusters,
+                n_levels=n_levels,
+                mode=mode,
+                target_gap_rel=target_gap_rel,
+                refinement="one_step",
+                audit=audit,
+                axis=dominant_axis,
+                current_value=dom_current,
+                step=dom_step,
+                skipped=sorted(skipped),
+            )
+
+        if "coherence" in derived_quantities:
+            channels = list(
+                self.effective_noise_channels()  # type: ignore[attr-defined]
+            ) + ["t1_effective", "t2_effective"]
+            combined_by_channel: dict[str, float] = {}
+            floor_by_channel: dict[str, bool] = {}
+            skipped_channels: set[str] = set()
+            for refinement_data in axis_refinements.values():
+                clone_axis, evals_axis, evecs_axis = refinement_data[:3]
+                names, movement, floor_flags, axis_skipped = _coherence_rate_movement(
+                    self,
+                    clone_axis,
+                    (evals_n0, evecs_n0),
+                    (evals_axis, evecs_axis),
+                    channels,
+                    settings.CONVERGENCE_RATE_FLOOR_HZ,
+                )
+                skipped_channels.update(axis_skipped)
+                for idx, name in enumerate(names):
+                    combined_by_channel[name] = combined_by_channel.get(
+                        name, 0.0
+                    ) + float(movement[idx])
+                    floor_by_channel[name] = floor_by_channel.get(name, False) or bool(
+                        floor_flags[idx]
+                    )
+            final_names = list(combined_by_channel)
+            final_movement = np.asarray(
+                [combined_by_channel[name] for name in final_names], dtype=np.float64
+            )
+            final_floor = [floor_by_channel[name] for name in final_names]
+            derived["coherence"] = _build_coherence_report(
+                channel_names=final_names,
+                movement=final_movement,
+                floor_flags=final_floor,
+                channel=channel,
+                target_gap_rel=target_gap_rel,
+                audit=audit,
+                axis=dominant_axis,
+                current_value=dom_current,
+                step=dom_step,
+                skipped=sorted(skipped_channels - set(final_names)),
+            )
+
+        return dataclasses.replace(report, derived=derived)
 
 
 # ------------------------------------------------------------ module helpers
