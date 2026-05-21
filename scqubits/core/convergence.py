@@ -1074,6 +1074,7 @@ def _build_metric_report(
             movement_first, movement_second
         )
 
+    safety_factor = settings.CONVERGENCE_SAFETY_FACTOR
     per_level_eps = np.empty(n_levels, dtype=np.float64)
     per_level_evidence: list[Evidence] = []
     per_level_method: list[str] = []
@@ -1081,11 +1082,15 @@ def _build_metric_report(
 
     for k in range(n_levels):
         if geometric_tail is not None and asymptotic is not None and asymptotic[k]:
+            # Geometric tail is already an extrapolated remaining-error estimate.
             per_level_eps[k] = float(geometric_tail[k])
             per_level_evidence.append("calibrated")
             per_level_method.append(f"{estimator_method}_ratio_test")
         else:
-            per_level_eps[k] = float(movement_first[k])
+            # One-step movement is a lower bound on the remaining error; apply
+            # the same safety factor the energy channel uses so a derived
+            # "converged" carries the same margin.
+            per_level_eps[k] = float(safety_factor * movement_first[k])
             per_level_evidence.append("verified_empirical")
             if refinement == "ratio_test":
                 per_level_method.append(f"{estimator_method}_ratio_test_fallback")
