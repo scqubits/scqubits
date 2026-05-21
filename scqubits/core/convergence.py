@@ -701,7 +701,7 @@ class ConvergenceCheckable:
         """
         recommendations: list[str] = []
         if any(v.status == "underconverged" for v in verdicts):
-            current_value = int(getattr(self, axis))
+            current_value = self._convergence_axis_value(axis)
             step = self._convergence_step(axis)
             recommendations.append(
                 f"increase {axis} from {current_value} to at least "

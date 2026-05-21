@@ -593,3 +593,89 @@ class TestFluxQubit:
         # The center maps to (row 4, col 4) -> flat index 40; nothing else.
         assert padded[40, 0] == 1.0
         assert abs(complex(padded.sum()) - 1.0) < 1e-12
+
+
+# ---------------------------------------------------------------- ZeroPi (Stage 2)
+
+
+class TestZeroPi:
+    @staticmethod
+    def _make(window=6 * np.pi, pts=120, ncut=12):
+        grid = sq.Grid1d(-window, window, pts)
+        return sq.ZeroPi(
+            grid=grid,
+            EJ=10.0,
+            EL=0.04,
+            ECJ=20.0,
+            EC=0.04,
+            ng=0.1,
+            flux=0.23,
+            ncut=ncut,
+            truncated_dim=6,
+        )
+
+    def test_two_fd_channels_plus_charge(self):
+        # ZeroPi's phi grid contributes two independent FD channels (finite box
+        # and finite spacing); theta contributes a charge tail.
+        zp = self._make()
+        report = zp.estimate_convergence(n_levels=3, mode="verify", target_abs_GHz=1e-2)
+        assert report.aggregate_status == "converged"
+        assert set(report.channel_breakdown_GHz) == {
+            "FD_box",
+            "FD_stencil",
+            "charge_tail",
+        }
+        # The per-level channel is the multi-axis composite.
+        assert {v.truncation_channel for v in report.per_level} == {
+            "composite_coupling"
+        }
+        # All three axes are recorded in the audit.
+        assert set(report.implementation_audit.cutoff_parameters) == {
+            "grid_box",
+            "grid_spacing",
+            "ncut",
+        }
+
+    def test_small_box_diagnosed_by_FD_box_not_FD_stencil(self):
+        # A snug phi window with plenty of points: the box is too small but the
+        # spacing is fine. The design spec's point is that adding grid points at
+        # a fixed window cannot fix a box error, so the FD_box channel must
+        # dominate the FD_stencil channel.
+        snug = self._make(window=np.pi, pts=100, ncut=12)
+        report = snug.estimate_convergence(
+            n_levels=3, mode="verify", target_abs_GHz=1e-3
+        )
+        assert report.aggregate_status == "underconverged"
+        cb = report.channel_breakdown_GHz
+        assert cb["FD_box"] > cb["FD_stencil"]
+
+    def test_quick_mode_uses_pedge_and_never_converges(self):
+        zp = self._make()
+        report = zp.estimate_convergence(n_levels=3, mode="quick")
+        # Quick mode reports the FD_box edge-band (P_edge) diagnostic ...
+        assert {v.truncation_channel for v in report.per_level} == {"FD_box"}
+        # ... and never claims an unqualified 'converged'.
+        for v in report.per_level:
+            assert v.status != "converged"
+
+    def test_grid_box_grows_window_at_fixed_spacing(self):
+        # grid_box must enlarge the phi window while holding the spacing h fixed;
+        # grid_spacing must keep the window and shrink h.
+        zp = self._make(window=6 * np.pi, pts=101, ncut=4)
+        h0 = (zp.grid.max_val - zp.grid.min_val) / (zp.grid.pt_count - 1)
+
+        box_clone = zp._convergence_clone_at({"grid_box": 121})
+        h_box = (box_clone.grid.max_val - box_clone.grid.min_val) / (
+            box_clone.grid.pt_count - 1
+        )
+        assert box_clone.grid.pt_count == 121
+        assert box_clone.grid.max_val > zp.grid.max_val  # window grew
+        assert abs(h_box - h0) < 1e-9  # spacing held fixed
+
+        spacing_clone = zp._convergence_clone_at({"grid_spacing": 121})
+        h_spacing = (spacing_clone.grid.max_val - spacing_clone.grid.min_val) / (
+            spacing_clone.grid.pt_count - 1
+        )
+        assert spacing_clone.grid.pt_count == 121
+        assert spacing_clone.grid.max_val == zp.grid.max_val  # window unchanged
+        assert h_spacing < h0  # spacing shrank

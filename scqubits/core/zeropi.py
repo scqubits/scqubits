@@ -131,7 +131,12 @@ class ZeroPi(
     ng = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ncut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
 
-    _convergence_axes: tuple[str, ...] = ("grid", "ncut")
+    # The phi finite-difference coordinate has two independent error channels
+    # (design spec): the grid spacing (``grid_spacing`` -> FD_stencil, refined by
+    # adding points at a fixed window) and the finite box (``grid_box`` -> FD_box,
+    # verified by expanding the window at a fixed spacing). The theta charge basis
+    # is the third axis.
+    _convergence_axes: tuple[str, ...] = ("grid_box", "grid_spacing", "ncut")
     _convergence_basis: str = "discretized_phi+charge"
 
     def __init__(
@@ -362,62 +367,96 @@ class ZeroPi(
     def _convergence_axis_value(self, axis: str) -> int:
         """Return the integer size of a truncation axis.
 
-        ``"grid"`` reports the phi-grid point count; ``"ncut"`` the theta charge
-        cutoff.
+        Both FD axes (``"grid_box"`` and ``"grid_spacing"``) report the phi-grid
+        point count; ``"ncut"`` reports the theta charge cutoff.
         """
-        if axis == "grid":
+        if axis in ("grid_box", "grid_spacing"):
             return self.grid.pt_count
         return int(getattr(self, axis))
 
     def _convergence_set_axis(
         self, clone: "ConvergenceCheckable", axis: str, value: int
     ) -> None:
-        """Set a truncation axis on ``clone``.
+        """Set a truncation axis on ``clone`` to ``value`` points / cutoff.
 
-        For ``"grid"`` a new :class:`Grid1d` with ``value`` points is built over
-        the same phi window; ``"ncut"`` is assigned directly.
+        The two FD axes refine the phi grid differently, matching the two
+        independent finite-difference error channels of the design spec:
+
+        - ``"grid_spacing"`` (FD_stencil): rebuild the grid with ``value`` points
+          over the *same* phi window, so the spacing ``h`` shrinks at fixed box.
+        - ``"grid_box"`` (FD_box): rebuild the grid with ``value`` points over a
+          *larger* window centered on the same midpoint while holding ``h``
+          approximately fixed, so the box ``[-L, L]`` grows. Increasing the point
+          count at a fixed window does not test the box, so the window must grow.
+
+        ``"ncut"`` is assigned directly.
         """
-        if axis == "grid":
+        if axis == "grid_spacing":
             clone.grid = Grid1d(  # type: ignore[attr-defined]
                 self.grid.min_val, self.grid.max_val, value
+            )
+        elif axis == "grid_box":
+            spacing = (self.grid.max_val - self.grid.min_val) / (self.grid.pt_count - 1)
+            midpoint = 0.5 * (self.grid.min_val + self.grid.max_val)
+            half_width = 0.5 * spacing * (value - 1)
+            clone.grid = Grid1d(  # type: ignore[attr-defined]
+                midpoint - half_width, midpoint + half_width, value
             )
         else:
             setattr(clone, axis, value)
 
     def _convergence_truncation_channel(self, axis: str) -> TruncationChannel:
-        """Report the FD grid-spacing channel for ``"grid"`` and charge for ``"ncut"``.
+        """Map each axis to its design-spec truncation channel.
 
-        The ``"grid"`` axis currently refines the grid-point count at a fixed
-        window, i.e. the grid spacing, so it maps to ``"FD_stencil"``. The
-        separate finite-box (``"FD_box"``) channel is added by the box-support
-        diagnostic.
+        ``"grid_spacing"`` -> ``"FD_stencil"`` (finite grid spacing),
+        ``"grid_box"`` -> ``"FD_box"`` (finite box extent), ``"ncut"`` ->
+        ``"charge_tail"`` (theta charge basis).
         """
-        return "FD_stencil" if axis == "grid" else "charge_tail"
+        if axis == "grid_spacing":
+            return "FD_stencil"
+        if axis == "grid_box":
+            return "FD_box"
+        return "charge_tail"
 
     def _convergence_boundary_diagnostic(
         self,
         esys: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]],
         axis: str,
     ) -> npt.NDArray[np.float64] | None:
-        """Per-level boundary-amplitude diagnostic for the requested axis.
+        """Per-level cheap boundary diagnostic for the requested axis.
 
-        Eigenvectors flatten as ``(grid.pt_count, 2*ncut+1) = [phi, theta]``. For
-        ``"grid"`` the squared amplitude on the phi-window edges (summed over
-        theta) is returned; for ``"ncut"`` the amplitude on the charge edges
-        (summed over phi). A large value flags appreciable support at the basis
-        boundary. Returns ``None`` for an unrecognized axis.
+        Eigenvectors flatten as ``(grid.pt_count, 2*ncut+1) = [phi, theta]``.
+
+        - ``"grid_box"``: the edge-band probability ``P_edge`` of the design
+          spec -- the summed squared amplitude on the outermost ``q`` phi-grid
+          points at each end (summed over theta), with ``q = max(5, ceil(
+          w_edge / h))`` for an edge width ``w_edge`` of ~2.5% of the window
+          (at least a few 5-point-stencil half-widths). A large ``P_edge`` is a
+          reliable warning that the box is too small; a small ``P_edge`` is not
+          a proof that it is wide enough.
+        - ``"ncut"``: the squared amplitude on the theta charge edges (summed
+          over phi).
+        - ``"grid_spacing"``: no cheap diagnostic -- grid-spacing error is only
+          revealed by refinement, so ``None`` is returned.
+
+        Returns ``None`` for an unrecognized axis.
         """
-        if axis not in ("grid", "ncut"):
+        if axis == "grid_spacing" or axis not in ("grid_box", "ncut"):
             return None
         _, evecs = esys
         dim_phi = self.grid.pt_count
         dim_theta = 2 * self.ncut + 1
         n_cols = evecs.shape[1]
         boundary = np.empty(n_cols, dtype=np.float64)
+        if axis == "grid_box":
+            q = max(5, int(np.ceil(0.025 * dim_phi)))
+            q = min(q, dim_phi // 2)
         for k in range(n_cols):
             amp_sq = np.abs(evecs[:, k].reshape(dim_phi, dim_theta)) ** 2
-            if axis == "grid":
-                boundary[k] = float(amp_sq[0, :].sum() + amp_sq[-1, :].sum())
+            if axis == "grid_box":
+                boundary[k] = float(
+                    amp_sq[:q, :].sum() + amp_sq[dim_phi - q :, :].sum()
+                )
             else:  # ncut
                 boundary[k] = float(amp_sq[:, 0].sum() + amp_sq[:, -1].sum())
         return boundary
