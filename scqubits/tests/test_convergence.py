@@ -96,6 +96,32 @@ class TestDataclasses:
         assert d["per_level"][0]["level_index"] == 0
         assert d["implementation_audit"]["mode"] == "verify"
 
+    def test_summary_renders_and_str_delegates(self):
+        verdict = LevelVerdict(
+            level_index=0,
+            status="converged",
+            status_scope="absolute",
+            evidence="verified_empirical",
+            abs_err_est_GHz=1e-10,
+            eps_gap_est=None,
+        )
+        report = ConvergenceReport(
+            per_level=[verdict],
+            aggregate_status="converged",
+            worst_level=0,
+            channel_breakdown_GHz={"charge_tail": 1e-10},
+            clusters=[(0,)],
+            recommendations=["do X"],
+            implementation_audit=self._make_audit(),
+        )
+        text = report.summary()
+        assert "aggregate: converged" in text
+        assert "level 0" in text
+        assert "charge_tail" in text
+        assert "recommendation: do X" in text
+        # __str__ delegates to summary(), so print(report) shows the same text.
+        assert str(report) == text
+
     def test_evidence_ordering(self):
         # certified is the strongest; unverified the weakest.
         assert evidence_at_least("certified", "unverified")
@@ -231,6 +257,15 @@ class TestEnergyVerifyMode:
         )
         assert report.aggregate_status == "underconverged"
         assert any("charge" in r and "ncut" in r for r in report.recommendations)
+
+    def test_boundary_probability_large_warning_in_verify_mode(self):
+        # At a small ncut the higher levels reach the charge boundary: they must
+        # carry the boundary_probability_large warning (their dropped tail is
+        # non-perturbative), and a recommendation must call it out.
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=5, truncated_dim=6)
+        report = sq.estimate_convergence(tmon, n_levels=5, target_abs_GHz=1e-6)
+        assert any("boundary_probability_large" in v.warnings for v in report.per_level)
+        assert any("boundary_probability_large" in r for r in report.recommendations)
 
 
 # ------------------------------------------------------------- strict-mode tests

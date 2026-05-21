@@ -20,6 +20,8 @@ explicit evidence label to every numerical conclusion.
 
 from __future__ import annotations
 
+import textwrap
+
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -153,6 +155,58 @@ class ConvergenceReport:
     recommendations: list[str]
     implementation_audit: ImplementationAudit
     derived: dict[str, "ConvergenceReport"] | None = None
+
+    def summary(self) -> str:
+        """Return a compact, human-readable multi-line summary of the report.
+
+        Lists the aggregate status and worst level, then per level the status,
+        evidence label, truncation channel, error estimate, and any warnings,
+        followed by the per-channel breakdown, the recommendations, and any
+        derived sub-reports (indented).
+
+        Returns
+        -------
+        The formatted summary, the same text produced by ``print(report)``.
+        """
+        lines = [
+            f"aggregate: {self.aggregate_status}   (worst level: {self.worst_level})"
+        ]
+        for verdict in self.per_level:
+            abs_err = (
+                "  -  "
+                if verdict.abs_err_est_GHz is None
+                else f"{verdict.abs_err_est_GHz:.2e}"
+            )
+            eps_gap = (
+                "  -  " if verdict.eps_gap_est is None else f"{verdict.eps_gap_est:.2e}"
+            )
+            warns = (
+                "  [" + ", ".join(verdict.warnings) + "]" if verdict.warnings else ""
+            )
+            lines.append(
+                f"  level {verdict.level_index}: {verdict.status:<16} "
+                f"evidence={verdict.evidence:<18} "
+                f"channel={str(verdict.truncation_channel):<18} "
+                f"abs_err={abs_err}  eps_gap={eps_gap}  "
+                f"via {verdict.estimator_method}{warns}"
+            )
+        if self.channel_breakdown_GHz:
+            breakdown = {
+                name: f"{value:.2e}"
+                for name, value in self.channel_breakdown_GHz.items()
+            }
+            lines.append(f"  channel_breakdown_GHz: {breakdown}")
+        for recommendation in self.recommendations:
+            lines.append(f"  recommendation: {recommendation}")
+        if self.derived:
+            for name, sub_report in self.derived.items():
+                lines.append(f"  derived [{name}]:")
+                lines.append(textwrap.indent(sub_report.summary(), "    "))
+        return "\n".join(lines)
+
+    def __str__(self) -> str:
+        """Return :meth:`summary` so ``print(report)`` shows the readable form."""
+        return self.summary()
 
 
 # Ordered list used by callers wanting to filter on minimum evidence strength.

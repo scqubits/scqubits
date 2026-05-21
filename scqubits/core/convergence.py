@@ -490,8 +490,7 @@ class ConvergenceCheckable:
         estimate (design-spec edge cases).
         """
         estimate, perturbative_ok, boundary_prob = tail
-        # Boundary probability above which the basis is judged too small outright.
-        large_boundary_prob = 1e-3
+        large_boundary_prob = _BOUNDARY_PROBABILITY_LARGE
         # The perturbative tail estimate is a lower bound (it omits higher-order
         # and far-tail contributions); apply the same safety factor the refinement
         # modes use so a quick verdict carries a comparable margin.
@@ -700,6 +699,21 @@ class ConvergenceCheckable:
         )
         dominant_axis = max(per_axis_weight, key=lambda a: per_axis_weight[a])
 
+        # Flag levels whose kept eigenstate reaches a basis boundary so strongly
+        # that the dropped tail is non-perturbative -- a reliable underconvergence
+        # signal independent of the refinement movement (design spec). Uses each
+        # axis's cheap boundary diagnostic on the base eigensystem.
+        boundary_large = [False] * n_levels
+        for axis in axes:
+            diagnostic = self._convergence_boundary_diagnostic(
+                (evals_n0, evecs_n0), axis
+            )
+            if diagnostic is None:
+                continue
+            for k in range(n_levels):
+                if float(diagnostic[k]) > _BOUNDARY_PROBABILITY_LARGE:
+                    boundary_large[k] = True
+
         report = self._convergence_build_energy_report(
             evals_n0=evals_n0[:n_levels],
             buffer_n0=evals_n0[n_levels:] if n_buffer > 0 else None,
@@ -719,6 +733,7 @@ class ConvergenceCheckable:
             dominant_axis=dominant_axis,
             precomputed_estimate=combined_estimate,
             precomputed_non_asymptotic=combined_non_asymptotic,
+            boundary_large=boundary_large,
         )
 
         if not include_derived:
@@ -783,6 +798,7 @@ class ConvergenceCheckable:
         dominant_axis: str,
         precomputed_estimate: npt.NDArray[np.float64] | None = None,
         precomputed_non_asymptotic: npt.NDArray[np.bool_] | None = None,
+        boundary_large: list[bool] | None = None,
     ) -> ConvergenceReport:
         """Assemble the LevelVerdicts and ConvergenceReport from per-cluster
         movements.
@@ -797,7 +813,9 @@ class ConvergenceCheckable:
         Richardson estimator), it is the per-cluster absolute error already summed
         over axes, and ``precomputed_non_asymptotic`` flags clusters whose ratio
         or Richardson test failed; the geometric ratio test on the summed
-        movements is then bypassed.
+        movements is then bypassed. ``boundary_large`` flags levels that reach a
+        basis boundary so strongly that the dropped tail is non-perturbative; they
+        receive a ``boundary_probability_large`` warning.
         """
         safety_factor = settings.CONVERGENCE_SAFETY_FACTOR
 
@@ -854,6 +872,13 @@ class ConvergenceCheckable:
             mode=mode,
             non_asymptotic=per_level_non_asymptotic,
         )
+
+        # A level reaching a basis boundary has a non-perturbative dropped tail:
+        # surface it so the recommendation's reference is concrete.
+        if boundary_large is not None:
+            for k in range(n_levels):
+                if boundary_large[k]:
+                    per_level_warnings[k].append("boundary_probability_large")
 
         # Per-level transition-error estimates: for a transition k -> j the
         # triangle inequality gives the bound errhat_k + errhat_j (design spec).
@@ -914,9 +939,10 @@ class ConvergenceCheckable:
         truncation channel (design spec): a charge tail grows ``ncut``, an HO
         tail grows the oscillator cutoff (or changes backend), an FD box must be
         enlarged rather than merely refined, and an FD stencil is refined at a
-        fixed box. Also flags near-degenerate clusters whose labels are
-        ambiguous, and prompts for a ``target_abs_GHz`` when absolute-scope levels
-        are unverified for lack of a target.
+        fixed box. Levels carrying the ``boundary_probability_large`` warning are
+        called out as having a non-perturbative tail. Also flags near-degenerate
+        clusters whose labels are ambiguous, and prompts for a ``target_abs_GHz``
+        when absolute-scope levels are unverified for lack of a target.
         """
         recommendations: list[str] = []
         if any(v.status == "underconverged" for v in verdicts):
@@ -929,9 +955,7 @@ class ConvergenceCheckable:
             )
             if channel == "charge_tail":
                 recommendations.append(
-                    f"charge-basis tail dominates: {bump} (charge cutoff) and "
-                    f"re-run; if the boundary probability is large the tail is "
-                    f"nonperturbative -- increase more aggressively"
+                    f"charge-basis tail dominates: {bump} (charge cutoff) and re-run"
                 )
             elif channel == "HO_tail":
                 recommendations.append(
@@ -955,6 +979,17 @@ class ConvergenceCheckable:
                     f"{bump} and re-run; the worst-level estimate exceeded the "
                     f"target threshold"
                 )
+        flagged = [
+            v.level_index
+            for v in verdicts
+            if "boundary_probability_large" in v.warnings
+        ]
+        if flagged:
+            recommendations.append(
+                f"levels {flagged} carry the 'boundary_probability_large' warning: "
+                f"the kept state reaches the basis boundary, so the dropped tail is "
+                f"non-perturbative -- increase the cutoff aggressively"
+            )
         if any(
             v.status == "underconverged" and "cluster_index_ambiguity" in v.warnings
             for v in verdicts
@@ -1538,6 +1573,11 @@ def _aggregate_worst(verdicts: list[LevelVerdict]) -> tuple[int, Status]:
 # Reference-norm floor for relative matrix-element comparison, guarding against
 # division by a vanishing (selection-rule-zero) reference row/column.
 _MATELEM_REF_FLOOR = 1e-12
+
+# Boundary probability above which the kept eigenstate reaches the basis edge so
+# strongly that the dropped tail is non-perturbative; the level then carries a
+# ``boundary_probability_large`` warning regardless of any perturbative estimate.
+_BOUNDARY_PROBABILITY_LARGE = 1e-3
 
 
 def _matrix_element_movement(
