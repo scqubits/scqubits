@@ -609,6 +609,7 @@ class ConvergenceCheckable:
             per_level_evidence,
             per_level_estimator_method,
             per_level_warnings,
+            per_level_non_asymptotic,
         ) = _per_cluster_energy_estimates(
             clusters=clusters,
             cluster_max_diff_n1=cluster_max_diff_n1,
@@ -639,6 +640,7 @@ class ConvergenceCheckable:
             target_abs_GHz=target_abs_GHz,
             target_gap_rel=target_gap_rel,
             mode=mode,
+            non_asymptotic=per_level_non_asymptotic,
         )
 
         per_level_verdicts = [
@@ -1074,31 +1076,57 @@ def _per_cluster_energy_estimates(
     asymptotic_flag: npt.NDArray[np.bool_] | None,
     safety_factor: float,
     n_levels: int,
-) -> tuple[npt.NDArray[np.float64], list[Evidence], list[str], list[list[str]]]:
+) -> tuple[
+    npt.NDArray[np.float64], list[Evidence], list[str], list[list[str]], list[bool]
+]:
     """Derive each level's error estimate, evidence, estimator method, and warnings.
 
-    Verify mode (and the strict-mode fallback) takes ``safety_factor`` times the
-    one-step movement, tagged ``verified_empirical``. Strict mode uses the
-    geometric-tail estimate tagged ``calibrated`` for clusters confirmed to be in
-    the asymptotic regime, and otherwise falls back to the one-step estimate and
-    records a ``ratio_test_not_asymptotic`` warning. Every level inherits the
-    values of the cluster it belongs to.
+    A one-step estimate (verify mode, or the strict-mode fallback) takes
+    ``safety_factor`` times the one-step movement; with the spec-recommended
+    calibrated safety factor this is ``verified_empirical`` (design spec: a
+    single-step comparison becomes ``verified_empirical`` once the safety factor
+    is calibrated in the regime). A successful two-step ratio test is also
+    ``verified_empirical`` -- it adds the asymptoticity check the spec attaches to
+    that label -- and reports the geometric-tail estimate. When the ratio test
+    finds ``R >= 1`` (no reliable asymptotic regime), the level is flagged
+    non-asymptotic so the status logic can refuse a softened verdict. Every level
+    inherits the values of the cluster it belongs to.
+
+    The fifth returned element flags, per level, a failed (``R >= 1``)
+    asymptoticity test on a non-zero movement; the status logic forces such
+    levels to ``underconverged`` rather than ``marginal``.
     """
     per_level_abs_err = np.empty(n_levels, dtype=np.float64)
     per_level_evidence: list[Evidence] = []
     per_level_estimator_method: list[str] = []
     per_level_warnings: list[list[str]] = [[] for _ in range(n_levels)]
+    per_level_non_asymptotic: list[bool] = [False] * n_levels
 
     for cluster_idx, cluster in enumerate(clusters):
+        non_asymptotic = False
         if refinement == "ratio_test" and geometric_tail is not None:
+            d0 = float(cluster_max_diff_n1[cluster_idx])
             if asymptotic_flag is not None and asymptotic_flag[cluster_idx]:
+                # Ratio test confirmed the geometric (asymptotic) regime: the
+                # asymptoticity check is what makes this verified_empirical.
                 est = float(geometric_tail[cluster_idx])
-                ev: Evidence = "calibrated"
+                ev: Evidence = "verified_empirical"
+                method = "ratio_test"
+            elif d0 == 0.0:
+                # No movement across the first refinement: already stable, so the
+                # ratio (0/0) is undefined rather than a failed asymptoticity test.
+                est = 0.0
+                ev = "verified_empirical"
                 method = "ratio_test"
             else:
-                est = float(safety_factor * cluster_max_diff_n1[cluster_idx])
+                # R >= 1: not a reliable asymptotic regime. The one-step movement
+                # is only a lower bound and the geometric extrapolation is
+                # inapplicable; flag the level so it cannot be reported converged
+                # or merely marginal.
+                est = float(safety_factor * d0)
                 ev = "verified_empirical"
                 method = "ratio_test_failed_fallback_one_step"
+                non_asymptotic = True
                 for k in cluster:
                     per_level_warnings[k].append("ratio_test_not_asymptotic")
         else:
@@ -1110,12 +1138,14 @@ def _per_cluster_energy_estimates(
             per_level_abs_err[k] = est
             per_level_evidence.append(ev)
             per_level_estimator_method.append(method)
+            per_level_non_asymptotic[k] = non_asymptotic
 
     return (
         per_level_abs_err,
         per_level_evidence,
         per_level_estimator_method,
         per_level_warnings,
+        per_level_non_asymptotic,
     )
 
 
@@ -1165,16 +1195,25 @@ def _assign_level_statuses(
     target_abs_GHz: float | None,
     target_gap_rel: float,
     mode: str,
+    non_asymptotic: list[bool],
 ) -> list[Status]:
     """Assign each level's Status from its error estimate and the active target.
 
     In strict mode a ``converged`` verdict backed by evidence weaker than
     ``verified_empirical`` is downgraded to ``marginal`` and a
     ``strict_mode_downgrade_insufficient_evidence`` warning is recorded.
+
+    A level whose two-step ratio test failed (``R >= 1`` on a non-zero movement,
+    flagged in ``non_asymptotic``) cannot be reported as ``marginal``: the design
+    spec requires ``underconverged`` or ``unverified``, since the error estimate
+    is not trustworthy. Such a level is forced to ``underconverged`` and its
+    evidence is downgraded to ``unverified``. A level the ladder already rates
+    ``converged`` (estimate below target -- a stable, noise-floor level) is left
+    intact, carrying only its ``ratio_test_not_asymptotic`` warning.
     """
     per_level_status: list[Status] = []
     for k in range(n_levels):
-        status = _assign_status(
+        status: Status = _assign_status(
             abs_err_est=float(per_level_abs_err[k]),
             eps_gap_est=eps_gap_est[k],
             scope=scope,
@@ -1187,6 +1226,9 @@ def _assign_level_statuses(
                 per_level_warnings[k].append(
                     "strict_mode_downgrade_insufficient_evidence"
                 )
+        if non_asymptotic[k] and status in ("marginal", "underconverged"):
+            status = "underconverged"
+            per_level_evidence[k] = "unverified"
         per_level_status.append(status)
     return per_level_status
 
@@ -1278,9 +1320,13 @@ def _build_metric_report(
     refinement (overlap deficit, subspace angle, or relative matrix-element
     change). In ratio-test mode ``movement_second`` (the first-to-second
     refinement change) drives a geometric extrapolation; levels confirmed
-    asymptotic use the extrapolated tail and are tagged ``calibrated``, the rest
-    fall back to the one-step movement with a recorded warning. Verdicts apply
-    the observed-gap-scale ladder against ``target_gap_rel``.
+    asymptotic use the extrapolated tail (tagged ``verified_empirical`` -- the
+    asymptoticity check is what earns that label), the rest fall back to the
+    one-step movement with a recorded warning. A failed ratio test (``R >= 1`` on
+    a non-zero movement) cannot be reported as ``marginal``: the level is forced
+    to ``underconverged`` with ``unverified`` evidence, mirroring the energy
+    channel. Verdicts apply the observed-gap-scale ladder against
+    ``target_gap_rel``.
     """
     geometric_tail: npt.NDArray[np.float64] | None = None
     asymptotic: npt.NDArray[np.bool_] | None = None
@@ -1294,12 +1340,20 @@ def _build_metric_report(
     per_level_evidence: list[Evidence] = []
     per_level_method: list[str] = []
     per_level_warnings: list[list[str]] = [[] for _ in range(n_levels)]
+    per_level_non_asymptotic: list[bool] = [False] * n_levels
 
     for k in range(n_levels):
         if geometric_tail is not None and asymptotic is not None and asymptotic[k]:
-            # Geometric tail is already an extrapolated remaining-error estimate.
+            # Geometric tail is already an extrapolated remaining-error estimate;
+            # the asymptoticity check makes it verified_empirical.
             per_level_eps[k] = float(geometric_tail[k])
-            per_level_evidence.append("calibrated")
+            per_level_evidence.append("verified_empirical")
+            per_level_method.append(f"{estimator_method}_ratio_test")
+        elif refinement == "ratio_test" and float(movement_first[k]) == 0.0:
+            # No movement: already stable, the ratio is undefined rather than a
+            # failed asymptoticity test.
+            per_level_eps[k] = 0.0
+            per_level_evidence.append("verified_empirical")
             per_level_method.append(f"{estimator_method}_ratio_test")
         else:
             # One-step movement is a lower bound on the remaining error; apply
@@ -1310,29 +1364,36 @@ def _build_metric_report(
             if refinement == "ratio_test":
                 per_level_method.append(f"{estimator_method}_ratio_test_fallback")
                 per_level_warnings[k].append("ratio_test_not_asymptotic")
+                per_level_non_asymptotic[k] = True
             else:
                 per_level_method.append(estimator_method)
 
-    verdicts = [
-        LevelVerdict(
-            level_index=k,
-            status=_assign_status(
-                abs_err_est=0.0,
-                eps_gap_est=float(per_level_eps[k]),
-                scope="observed_gap_scale",
-                target_abs_GHz=None,
-                target_gap_rel=target_gap_rel,
-            ),
-            status_scope="observed_gap_scale",
-            evidence=per_level_evidence[k],
-            abs_err_est_GHz=None,
+    verdicts: list[LevelVerdict] = []
+    for k in range(n_levels):
+        status: Status = _assign_status(
+            abs_err_est=0.0,
             eps_gap_est=float(per_level_eps[k]),
-            truncation_channel=channel,
-            estimator_method=per_level_method[k],
-            warnings=tuple(per_level_warnings[k]),
+            scope="observed_gap_scale",
+            target_abs_GHz=None,
+            target_gap_rel=target_gap_rel,
         )
-        for k in range(n_levels)
-    ]
+        evidence: Evidence = per_level_evidence[k]
+        if per_level_non_asymptotic[k] and status in ("marginal", "underconverged"):
+            status = "underconverged"
+            evidence = "unverified"
+        verdicts.append(
+            LevelVerdict(
+                level_index=k,
+                status=status,
+                status_scope="observed_gap_scale",
+                evidence=evidence,
+                abs_err_est_GHz=None,
+                eps_gap_est=float(per_level_eps[k]),
+                truncation_channel=channel,
+                estimator_method=per_level_method[k],
+                warnings=tuple(per_level_warnings[k]),
+            )
+        )
     worst_idx, aggregate_status = _aggregate_worst(verdicts)
 
     recommendations: list[str] = []

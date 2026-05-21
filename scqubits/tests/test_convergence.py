@@ -229,6 +229,25 @@ class TestEnergyStrictMode:
             {"ratio_test", "ratio_test_failed_fallback_one_step", "one_step"}
         )
 
+    def test_strict_mode_asymptotic_ratio_test_is_verified_empirical(self):
+        # A well-converged transmon in strict mode must reach 'converged' backed
+        # by 'verified_empirical' evidence -- the design spec reserves a strict
+        # 'converged' for certified or ratio-tested verified_empirical evidence.
+        # Regression guard: an earlier inversion mislabeled the asymptotic ratio
+        # test 'calibrated', which the evidence ladder ranks *below*
+        # verified_empirical, so the strict-mode gate wrongly downgraded every
+        # ratio-tested 'converged' level to 'marginal'.
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=16, truncated_dim=6)
+        report = sq.estimate_convergence(
+            tmon, n_levels=4, mode="strict", target_abs_GHz=1e-4
+        )
+        assert report.aggregate_status == "converged"
+        for v in report.per_level:
+            assert v.evidence == "verified_empirical"
+        # The refinement engine never emits 'calibrated' (reserved for
+        # grid-calibrated cheap estimators, not runtime refinement).
+        assert all(v.evidence != "calibrated" for v in report.per_level)
+
 
 # --------------------------------------------------------------- quick-mode tests
 
