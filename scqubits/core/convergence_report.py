@@ -44,9 +44,7 @@ reporting scope -- see the published design specification for the rationale.
 """
 
 Evidence = Literal[
-    "certified",
     "verified_empirical",
-    "calibrated",
     "perturbative",
     "diagnostic",
     "unverified",
@@ -55,11 +53,9 @@ Evidence = Literal[
 
 Meanings:
 
-- ``certified``: theorem-level bound with all hypotheses checked at runtime.
 - ``verified_empirical``: refinement or cross-representation comparison with
-  a ratio, asymptoticity, or stability check.
-- ``calibrated``: estimator whose mapping to true error has been measured on
-  a calibration grid covering the stated regime.
+  a ratio, asymptoticity, or stability check (the strongest label produced; an
+  unqualified ``converged`` status requires it).
 - ``perturbative``: derivation from perturbation theory or a block-resolvent
   approximation with unverified runtime hypotheses.
 - ``diagnostic``: useful signal of possible failure, not an estimate of the
@@ -273,9 +269,7 @@ class ParamSweepConvergence:
 
 # Ordered list used by callers wanting to filter on minimum evidence strength.
 EVIDENCE_ORDER: tuple[Evidence, ...] = (
-    "certified",
     "verified_empirical",
-    "calibrated",
     "perturbative",
     "diagnostic",
     "unverified",

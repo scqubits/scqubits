@@ -149,12 +149,12 @@ class TestDataclasses:
             report.level(99)
 
     def test_evidence_ordering(self):
-        # certified is the strongest; unverified the weakest.
-        assert evidence_at_least("certified", "unverified")
-        assert evidence_at_least("verified_empirical", "calibrated")
-        assert not evidence_at_least("diagnostic", "calibrated")
-        # Sanity: the order tuple matches the docstring.
-        assert EVIDENCE_ORDER[0] == "certified"
+        # verified_empirical is the strongest; unverified the weakest.
+        assert evidence_at_least("verified_empirical", "unverified")
+        assert evidence_at_least("perturbative", "diagnostic")
+        assert not evidence_at_least("diagnostic", "verified_empirical")
+        # Sanity: the order tuple runs strongest -> weakest.
+        assert EVIDENCE_ORDER[0] == "verified_empirical"
         assert EVIDENCE_ORDER[-1] == "unverified"
 
 
@@ -316,12 +316,11 @@ class TestEnergyStrictMode:
 
     def test_strict_mode_asymptotic_ratio_test_is_verified_empirical(self):
         # A well-converged transmon in strict mode must reach 'converged' backed
-        # by 'verified_empirical' evidence -- the design spec reserves a strict
-        # 'converged' for certified or ratio-tested verified_empirical evidence.
-        # Regression guard: an earlier inversion mislabeled the asymptotic ratio
-        # test 'calibrated', which the evidence ladder ranks *below*
-        # verified_empirical, so the strict-mode gate wrongly downgraded every
-        # ratio-tested 'converged' level to 'marginal'.
+        # by 'verified_empirical' evidence (a strict 'converged' requires a
+        # ratio-tested verified_empirical result). Regression guard: an earlier
+        # inversion mislabeled the asymptotic ratio test with a weaker evidence
+        # rung, so the strict-mode gate wrongly downgraded every ratio-tested
+        # 'converged' level to 'marginal'.
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=16, truncated_dim=6)
         report = sq.estimate_convergence(
             tmon, n_levels=4, mode="strict", target_abs_GHz=1e-4
@@ -329,9 +328,6 @@ class TestEnergyStrictMode:
         assert report.aggregate_status == "converged"
         for v in report.per_level:
             assert v.evidence == "verified_empirical"
-        # The refinement engine never emits 'calibrated' (reserved for
-        # grid-calibrated cheap estimators, not runtime refinement).
-        assert all(v.evidence != "calibrated" for v in report.per_level)
 
 
 # --------------------------------------------------------------- quick-mode tests

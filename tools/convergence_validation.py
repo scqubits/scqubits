@@ -153,31 +153,20 @@ def validate_verdicts():
 def validate_strict_ratio_test():
     section("STRICT-MODE RATIO TEST (asymptoticity detection)")
     # A moderately-converged transmon is in the geometric regime for the low
-    # levels. The design spec reserves a strict 'converged' for certified or
-    # ratio-tested 'verified_empirical' evidence -- so strict mode must reach
-    # 'converged' backed by 'verified_empirical', and the refinement engine must
-    # never emit 'calibrated' (that label is reserved for grid-calibrated cheap
-    # estimators, not runtime refinement).
+    # levels. A strict 'converged' requires a ratio-tested 'verified_empirical'
+    # result, so strict mode must reach 'converged' backed by 'verified_empirical'
+    # via the ratio test.
     tmon = scq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=16)
     rep = tmon.estimate_convergence(n_levels=4, mode="strict", target_abs_GHz=1e-4)
     evid = [v.evidence for v in rep.per_level]
     methods = [v.estimator_method for v in rep.per_level]
     all_verified = all(e == "verified_empirical" for e in evid)
-    no_calibrated = all(e != "calibrated" for e in evid)
     ran_ratio_test = any("ratio_test" in m for m in methods)
     print(f"  aggregate: {rep.aggregate_status}")
     print(f"  evidence : {evid}")
     print(f"  methods  : {methods}")
-    print(
-        f"  all verified_empirical={all_verified}  ran_ratio_test={ran_ratio_test}  "
-        f"no calibrated-from-refinement={no_calibrated}"
-    )
-    return (
-        rep.aggregate_status == "converged"
-        and all_verified
-        and ran_ratio_test
-        and no_calibrated
-    )
+    print(f"  all verified_empirical={all_verified}  ran_ratio_test={ran_ratio_test}")
+    return rep.aggregate_status == "converged" and all_verified and ran_ratio_test
 
 
 def validate_derived():
