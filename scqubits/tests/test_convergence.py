@@ -435,3 +435,40 @@ class TestCoherenceChannel:
             "matrix_elements",
             "coherence",
         }
+
+
+# ------------------------------------------------------- TunableTransmon (Stage 2)
+
+
+class TestTunableTransmon:
+    def test_inherits_all_channels(self):
+        # TunableTransmon subclasses Transmon, so it inherits the charge-basis
+        # convergence machinery (ncut axis) for all four channels.
+        tt = sq.TunableTransmon(
+            EJmax=30.0, EC=0.3, d=0.1, flux=0.1, ng=0.0, ncut=31, truncated_dim=6
+        )
+        report = tt.estimate_convergence(
+            n_levels=4,
+            mode="verify",
+            target_abs_GHz=1e-4,
+            include_derived=True,
+            derived_quantities=["wavefunctions", "matrix_elements", "coherence"],
+        )
+        assert report.aggregate_status == "converged"
+        assert set(report.derived.keys()) == {
+            "wavefunctions",
+            "matrix_elements",
+            "coherence",
+        }
+        for sub in report.derived.values():
+            assert sub.aggregate_status == "converged"
+        # The audit identifies the concrete subclass and its charge cutoff.
+        assert report.implementation_audit.qubit_class == "TunableTransmon"
+        assert report.implementation_audit.cutoff_parameters == {"ncut": 31}
+
+    def test_undersized_is_not_converged(self):
+        tt = sq.TunableTransmon(
+            EJmax=30.0, EC=0.3, d=0.1, flux=0.3, ng=0.0, ncut=5, truncated_dim=6
+        )
+        report = tt.estimate_convergence(n_levels=5, mode="verify", target_abs_GHz=1e-8)
+        assert report.aggregate_status in {"marginal", "underconverged"}
