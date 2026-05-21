@@ -86,7 +86,7 @@ class TestDataclasses:
             per_level=[verdict],
             aggregate_status="converged",
             worst_level=0,
-            channel_breakdown_GHz={"charge": 1e-10},
+            channel_breakdown_GHz={"charge_tail": 1e-10},
             clusters=[(0,)],
             recommendations=[],
             implementation_audit=self._make_audit(),
@@ -511,8 +511,8 @@ class TestFluxonium:
             derived_quantities=["wavefunctions", "matrix_elements", "coherence"],
         )
         assert report.aggregate_status == "converged"
-        # The truncation channel is the HO phi coordinate, not charge.
-        assert report.per_level[0].truncation_channel == "HO_phi"
+        # The truncation channel is the HO (Fock) tail, not a charge tail.
+        assert report.per_level[0].truncation_channel == "HO_tail"
         assert report.implementation_audit.qubit_class == "Fluxonium"
         assert report.implementation_audit.cutoff_parameters == {"cutoff": 110}
         for sub in report.derived.values():
@@ -573,7 +573,7 @@ class TestFluxQubit:
             derived_quantities=["wavefunctions", "matrix_elements", "coherence"],
         )
         assert report.aggregate_status == "converged"
-        assert report.per_level[0].truncation_channel == "charge"
+        assert report.per_level[0].truncation_channel == "charge_tail"
         assert report.implementation_audit.qubit_class == "FluxQubit"
         assert report.implementation_audit.cutoff_parameters == {"ncut": 14}
         for sub in report.derived.values():

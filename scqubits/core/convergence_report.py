@@ -67,18 +67,27 @@ Meanings:
 """
 
 TruncationChannel = Literal[
-    "charge",
-    "HO_phi",
-    "HO_theta",
-    "FD_grid",
-    "coordinate",
-    "composite",
+    "charge_tail",
+    "HO_tail",
+    "FD_box",
+    "FD_stencil",
+    "composite_coupling",
 ]
 """Physical truncation channel responsible for a (sub-)report.
 
 Reserved for actual error sources (which basis is being truncated), distinct
 from ``estimator_method`` (how the error was estimated) and ``warnings`` (what
 caveats accompany the verdict). The three vocabularies are disjoint by design.
+
+Channels follow the design specification:
+
+- ``charge_tail``: truncation of a charge basis ``|n| <= ncut`` (transmon,
+  flux qubit, ZeroPi theta).
+- ``HO_tail``: truncation of a harmonic-oscillator (Fock) basis (fluxonium).
+- ``FD_box``: finite extent of a finite-difference coordinate box ``[-L, L]``.
+- ``FD_stencil``: finite finite-difference grid spacing at fixed box.
+- ``composite_coupling``: combined estimate over several channels (a
+  multi-coordinate qubit's per-axis sum, or a composite Hilbert space).
 """
 
 
@@ -98,7 +107,7 @@ class LevelVerdict:
     abs_err_est_GHz: float | None
     eps_gap_est: float | None
     transition_err_est_GHz: dict[tuple[int, int], float] = field(default_factory=dict)
-    truncation_channel: TruncationChannel = "charge"
+    truncation_channel: TruncationChannel = "charge_tail"
     estimator_method: str = "one_step"
     warnings: tuple[str, ...] = ()
 

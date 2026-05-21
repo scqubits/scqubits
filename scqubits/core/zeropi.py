@@ -385,8 +385,14 @@ class ZeroPi(
             setattr(clone, axis, value)
 
     def _convergence_truncation_channel(self, axis: str) -> TruncationChannel:
-        """Report the FD phi-grid channel for ``"grid"`` and charge for ``"ncut"``."""
-        return "FD_grid" if axis == "grid" else "charge"
+        """Report the FD grid-spacing channel for ``"grid"`` and charge for ``"ncut"``.
+
+        The ``"grid"`` axis currently refines the grid-point count at a fixed
+        window, i.e. the grid spacing, so it maps to ``"FD_stencil"``. The
+        separate finite-box (``"FD_box"``) channel is added by the box-support
+        diagnostic.
+        """
+        return "FD_stencil" if axis == "grid" else "charge_tail"
 
     def _convergence_boundary_diagnostic(
         self,

@@ -103,10 +103,11 @@ class ConvergenceCheckable:
     def _convergence_truncation_channel(self, axis: str) -> TruncationChannel:
         """Return the physical channel label for ``axis``.
 
-        Defaults to ``"charge"``. Concrete qubits override for HO bases
-        (``"HO_phi"``), finite-difference grids (``"FD_grid"``), etc.
+        Defaults to ``"charge_tail"``. Concrete qubits override for HO bases
+        (``"HO_tail"``), finite-difference grids (``"FD_stencil"`` /
+        ``"FD_box"``), etc.
         """
-        return "charge"
+        return "charge_tail"
 
     def _convergence_boundary_diagnostic(
         self, esys: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]], axis: str
@@ -502,7 +503,9 @@ class ConvergenceCheckable:
 
         multi_axis = len(axes) > 1
         per_level_channel: TruncationChannel = (
-            "composite" if multi_axis else self._convergence_truncation_channel(axes[0])
+            "composite_coupling"
+            if multi_axis
+            else self._convergence_truncation_channel(axes[0])
         )
         dominant_axis = max(per_axis_movement, key=lambda a: per_axis_movement[a])
 
@@ -590,9 +593,10 @@ class ConvergenceCheckable:
         movements.
 
         Shared by single- and multi-axis refinement. The caller supplies the
-        cluster partition and the per-cluster movements (already summed over
-        axes for the multi-axis case), the per-level ``channel`` (``"composite"``
-        when multiple axes contribute), and the per-channel ``channel_breakdown``.
+        cluster partition and the per-cluster movements (already summed over axes
+        for the multi-axis case), the per-level ``channel``
+        (``"composite_coupling"`` when multiple axes contribute), and the
+        per-channel ``channel_breakdown``.
         """
         safety_factor = settings.CONVERGENCE_SAFETY_FACTOR
 
@@ -902,7 +906,7 @@ class ConvergenceCheckable:
                 "wavefunction convergence for multi-axis qubits is not yet "
                 "available; request matrix_elements and/or coherence."
             )
-        channel: TruncationChannel = "composite"
+        channel: TruncationChannel = "composite_coupling"
         audit = self._convergence_audit(
             n_levels=n_levels, n_buffer=n_buffer, mode=mode, refinement="one_step"
         )

@@ -155,8 +155,8 @@ class Fluxonium(
     # ----- Convergence-diagnostics hooks ----------------------------------------------
 
     def _convergence_truncation_channel(self, axis: str) -> TruncationChannel:
-        """Report the harmonic-oscillator phi channel for the ``cutoff`` axis."""
-        return "HO_phi"
+        """Report the harmonic-oscillator (Fock) tail channel for ``cutoff``."""
+        return "HO_tail"
 
     def _convergence_boundary_diagnostic(
         self,

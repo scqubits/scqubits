@@ -530,8 +530,8 @@ class FluxQubit(
     # ----- Convergence-diagnostics hooks ----------------------------------------------
 
     def _convergence_truncation_channel(self, axis: str) -> TruncationChannel:
-        """Report the ``charge`` truncation channel for ``ncut`` (both islands)."""
-        return "charge"
+        """Report the ``charge_tail`` truncation channel for ``ncut`` (both islands)."""
+        return "charge_tail"
 
     def _convergence_boundary_diagnostic(
         self,
