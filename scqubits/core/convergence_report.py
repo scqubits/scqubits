@@ -21,7 +21,7 @@ explicit evidence label to every numerical conclusion.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal, Optional
+from typing import Literal
 
 Status = Literal[
     "converged", "likely_converged", "marginal", "underconverged", "unverified"
@@ -35,7 +35,7 @@ diagnostics; an unqualified ``converged`` always implies at least
 
 StatusScope = Literal["absolute", "observed_gap_scale"]
 """Whether the convergence threshold was applied to an absolute energy error
-(in GHz) or to an error normalised by an observed local spectral gap.
+(in GHz) or to an error normalized by an observed local spectral gap.
 
 The basis-parameter scale (e.g. fluxonium ``omega_LC``) is intentionally not a
 reporting scope -- see the published design specification for the rationale.
@@ -95,8 +95,8 @@ class LevelVerdict:
     status: Status
     status_scope: StatusScope
     evidence: Evidence
-    abs_err_est_GHz: Optional[float]
-    eps_gap_est: Optional[float]
+    abs_err_est_GHz: float | None
+    eps_gap_est: float | None
     transition_err_est_GHz: dict[tuple[int, int], float] = field(default_factory=dict)
     truncation_channel: TruncationChannel = "charge"
     estimator_method: str = "one_step"
@@ -113,14 +113,14 @@ class ImplementationAudit:
     """
 
     scqubits_version: str
-    scqubits_commit: Optional[str]
+    scqubits_commit: str | None
     qubit_class: str
     basis: str
     diagonalization_method: str
     cutoff_parameters: dict[str, int]
-    fd_stencil_order: Optional[int]
-    fd_box: Optional[tuple[float, float]]
-    nonpoly_backend: Optional[str]
+    fd_stencil_order: int | None
+    fd_box: tuple[float, float] | None
+    nonpoly_backend: str | None
     n_levels_requested: int
     n_levels_buffer: int
     mode: Literal["quick", "verify", "strict"]
@@ -138,12 +138,12 @@ class ConvergenceReport:
 
     per_level: list[LevelVerdict]
     aggregate_status: Status
-    worst_level: Optional[int]
+    worst_level: int | None
     channel_breakdown_GHz: dict[str, float]
     clusters: list[tuple[int, ...]]
     recommendations: list[str]
     implementation_audit: ImplementationAudit
-    derived: Optional[dict[str, "ConvergenceReport"]] = None
+    derived: dict[str, "ConvergenceReport"] | None = None
 
 
 # Ordered list used by callers wanting to filter on minimum evidence strength.

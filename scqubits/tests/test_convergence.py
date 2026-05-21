@@ -65,12 +65,12 @@ class TestDataclasses:
             eps_gap_est=None,
         )
         with pytest.raises(dataclasses.FrozenInstanceError):
-            verdict.level_index = 1  # type: ignore[misc]
+            verdict.level_index = 1
 
     def test_implementation_audit_is_frozen(self):
         audit = self._make_audit()
         with pytest.raises(dataclasses.FrozenInstanceError):
-            audit.qubit_class = "Foo"  # type: ignore[misc]
+            audit.qubit_class = "Foo"
 
     def test_convergence_report_asdict_roundtrip(self):
         verdict = LevelVerdict(
@@ -118,14 +118,12 @@ class TestAPIValidation:
     def test_invalid_mode_raises(self):
         tmon = sq.Transmon(EJ=15.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
         with pytest.raises(ValueError, match="mode must be"):
-            tmon.estimate_convergence(n_levels=3, mode="turbo")  # type: ignore[arg-type]
+            tmon.estimate_convergence(n_levels=3, mode="turbo")
 
     def test_invalid_scope_raises(self):
         tmon = sq.Transmon(EJ=15.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
         with pytest.raises(ValueError, match="scope must be"):
-            tmon.estimate_convergence(
-                n_levels=3, scope="LC_scale"  # type: ignore[arg-type]
-            )
+            tmon.estimate_convergence(n_levels=3, scope="LC_scale")
 
     def test_include_derived_not_implemented(self):
         # PR-1 doesn't implement derived sub-channels.

@@ -22,7 +22,6 @@ PR-3 will add: rate-relative-error.
 
 from __future__ import annotations
 
-from typing import Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -80,12 +79,12 @@ def detect_clusters(
             # External-gap candidates: below the cluster's first level
             # and above the cluster-extension candidate. Only finite
             # sides are usable as external references.
-            ext_below: Optional[float] = (
+            ext_below: float | None = (
                 float(evals[cluster[0]] - evals[cluster[0] - 1])
                 if cluster[0] > 0
                 else None
             )
-            ext_above: Optional[float] = (
+            ext_above: float | None = (
                 float(evals[j + 1] - evals[j]) if j + 1 < n else None
             )
 

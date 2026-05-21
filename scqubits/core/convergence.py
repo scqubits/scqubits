@@ -18,7 +18,7 @@ Only the energy sub-channel is implemented here; PR-2 adds wavefunctions and
 matrix elements, PR-3 adds coherence.
 
 The mixin's refinement engine clones the qubit, bumps a cutoff axis by a
-step, re-diagonalises, and compares cluster-matched eigenvalues. Cheap-mode
+step, re-diagonalizes, and compares cluster-matched eigenvalues. Cheap-mode
 diagnostics never claim ``converged`` (per the published design specification).
 """
 
@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import copy
 
-from typing import Any, Optional, Sequence
+from typing import Any, Sequence
 
 import numpy as np
 import numpy.typing as npt
@@ -88,7 +88,7 @@ class ConvergenceCheckable:
 
     def _convergence_boundary_diagnostic(
         self, esys: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]], axis: str
-    ) -> Optional[npt.NDArray[np.float64]]:
+    ) -> npt.NDArray[np.float64] | None:
         """Return a per-level cheap boundary-amplitude diagnostic.
 
         For Transmon: ``|c_{-ncut, k}|^2 + |c_{+ncut, k}|^2`` for each kept
@@ -104,11 +104,11 @@ class ConvergenceCheckable:
         n_levels: int = 6,
         mode: str = "verify",
         scope: str = "absolute",
-        target_abs_GHz: Optional[float] = None,
+        target_abs_GHz: float | None = None,
         target_gap_rel: float = 1e-3,
         g_floor_GHz: float = 1e-3,
         include_derived: bool = False,
-        derived_quantities: Optional[Sequence[str]] = None,
+        derived_quantities: Sequence[str] | None = None,
         refinement: str = "one_step",
     ) -> ConvergenceReport:
         """Estimate the convergence of the lowest ``n_levels`` eigenvalues.
@@ -119,12 +119,12 @@ class ConvergenceCheckable:
             Number of lowest eigenvalues to assess.
         mode:
             One of ``"quick"`` (cheap diagnostics only, no extra
-            diagonalisations), ``"verify"`` (one refinement at a bumped
+            diagonalizations), ``"verify"`` (one refinement at a bumped
             cutoff; default), or ``"strict"`` (ratio test across two
             successive refinements).
         scope:
             ``"absolute"`` (verdict applied to ``abs_err_est_GHz``) or
-            ``"observed_gap_scale"`` (verdict applied to error normalised
+            ``"observed_gap_scale"`` (verdict applied to error normalized
             by the local isolation gap).
         target_abs_GHz:
             Required for absolute-scope status assignment. If ``None``,
@@ -178,7 +178,7 @@ class ConvergenceCheckable:
         if mode == "strict" and refinement == "one_step":
             refinement = "ratio_test"
 
-        # -------- diagonalise at the current cutoff
+        # -------- diagonalize at the current cutoff
         # Buffer one extra level so the topmost reported level still has an
         # upper gap available for the observed-gap-scale denominator.
         n_buffer = 1 if scope == "observed_gap_scale" else 0
@@ -242,7 +242,7 @@ class ConvergenceCheckable:
         cutoff_params = {
             axis: int(getattr(self, axis)) for axis in self._convergence_axes
         }
-        # Diagonalisation method label: prefer an explicit user setting if
+        # Diagonalization method label: prefer an explicit user setting if
         # provided, otherwise fall back to a generic "default".
         diag_method = getattr(self, "evals_method", None) or "default"
         if not isinstance(diag_method, str):
@@ -272,7 +272,7 @@ class ConvergenceCheckable:
         evecs_n0: npt.NDArray[np.float64],
         n_levels: int,
         scope: str,
-        target_abs_GHz: Optional[float],
+        target_abs_GHz: float | None,
         target_gap_rel: float,
         g_floor_GHz: float,
     ) -> ConvergenceReport:
@@ -364,7 +364,7 @@ class ConvergenceCheckable:
         n_buffer: int,
         mode: str,
         scope: str,
-        target_abs_GHz: Optional[float],
+        target_abs_GHz: float | None,
         target_gap_rel: float,
         g_floor_GHz: float,
         refinement: str,
@@ -386,7 +386,7 @@ class ConvergenceCheckable:
         clone_1 = self._convergence_clone_at({axis: current_value + step})
         evals_n1, _ = clone_1.eigensys(evals_count=n_eigs)  # type: ignore[attr-defined]
 
-        evals_n2: Optional[npt.NDArray[np.float64]] = None
+        evals_n2: npt.NDArray[np.float64] | None = None
         if refinement == "ratio_test":
             clone_2 = self._convergence_clone_at({axis: current_value + 2 * step})
             evals_n2, _ = clone_2.eigensys(evals_count=n_eigs)  # type: ignore[attr-defined]
@@ -411,13 +411,13 @@ class ConvergenceCheckable:
         self,
         evals_n0: npt.NDArray[np.float64],
         evals_n1: npt.NDArray[np.float64],
-        evals_n2: Optional[npt.NDArray[np.float64]],
-        buffer_n0: Optional[npt.NDArray[np.float64]],
+        evals_n2: npt.NDArray[np.float64] | None,
+        buffer_n0: npt.NDArray[np.float64] | None,
         n_levels: int,
         n_buffer: int,
         mode: str,
         scope: str,
-        target_abs_GHz: Optional[float],
+        target_abs_GHz: float | None,
         target_gap_rel: float,
         g_floor_GHz: float,
         refinement: str,
@@ -444,9 +444,9 @@ class ConvergenceCheckable:
                 per_level_estimate[k] = cluster_max_diff_n1[cluster_idx]
 
         # Strict mode: ratio test.
-        ratio_per_cluster: Optional[npt.NDArray[np.float64]] = None
-        geometric_tail: Optional[npt.NDArray[np.float64]] = None
-        asymptotic_flag: Optional[npt.NDArray[np.bool_]] = None
+        ratio_per_cluster: npt.NDArray[np.float64] | None = None
+        geometric_tail: npt.NDArray[np.float64] | None = None
+        asymptotic_flag: npt.NDArray[np.bool_] | None = None
         if refinement == "ratio_test" and evals_n2 is not None:
             _, cluster_max_diff_n2 = cutils.cluster_safe_match_energies(
                 evals_n1, evals_n2, clusters
@@ -495,7 +495,7 @@ class ConvergenceCheckable:
                 per_level_estimator_method.append(method)
 
         # Observed-gap scope: compute local isolation gaps from N0 spectrum.
-        eps_gap_est: list[Optional[float]]
+        eps_gap_est: list[float | None]
         if scope == "observed_gap_scale":
             eps_gap_est = []
             for k in range(n_levels):
@@ -619,11 +619,11 @@ def _status_rank(status: Status) -> int:
 
 def _local_isolation_gap(
     evals_n0: npt.NDArray[np.float64],
-    buffer_n0: Optional[npt.NDArray[np.float64]],
+    buffer_n0: npt.NDArray[np.float64] | None,
     k: int,
     n_levels: int,
     g_floor: float,
-) -> Optional[float]:
+) -> float | None:
     """Compute the local isolation gap for level ``k``.
 
     Per the design specification:
@@ -661,9 +661,9 @@ def _local_isolation_gap(
 
 def _assign_status(
     abs_err_est: float,
-    eps_gap_est: Optional[float],
+    eps_gap_est: float | None,
     scope: str,
-    target_abs_GHz: Optional[float],
+    target_abs_GHz: float | None,
     target_gap_rel: float,
 ) -> Status:
     """Assign a Status based on the configured scope and target."""
