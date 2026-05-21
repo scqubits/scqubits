@@ -834,3 +834,60 @@ class TestZeroPi:
         for v in report.per_level:
             assert v.evidence == "verified_empirical"
             assert v.estimator_method.startswith("richardson_composite")
+
+
+# ------------------------------------------------------- parameter-sweep coverage
+
+
+class TestParamSweep:
+    def test_sweep_samples_endpoints_and_restores_param(self):
+        flx = sq.Fluxonium(EJ=8.9, EC=2.5, EL=0.5, flux=0.0, cutoff=30, truncated_dim=6)
+        sweep = flx.estimate_convergence_vs_paramvals(
+            "flux",
+            np.linspace(0.0, 0.5, 21),
+            sample=5,
+            n_levels=3,
+            target_abs_GHz=1e-3,
+        )
+        # Five points were sampled, including both endpoints.
+        assert len(sweep.param_vals) == 5
+        assert sweep.param_vals[0] == 0.0
+        assert sweep.param_vals[-1] == 0.5
+        assert len(sweep.reports) == 5
+        # The swept parameter is restored after the sweep.
+        assert flx.flux == 0.0
+        # Worst-case accessors are self-consistent.
+        assert sweep.worst_param_val() == sweep.param_vals[sweep.worst_index]
+        assert sweep.worst_report() is sweep.reports[sweep.worst_index]
+        # The reported aggregate is the worst per-point aggregate.
+        assert (
+            sweep.aggregate_status == sweep.reports[sweep.worst_index].aggregate_status
+        )
+
+    def test_sweep_summary_and_str_delegate(self):
+        flx = sq.Fluxonium(EJ=8.9, EC=2.5, EL=0.5, flux=0.0, cutoff=30, truncated_dim=6)
+        sweep = flx.estimate_convergence_vs_paramvals(
+            "flux", np.linspace(0.0, 0.5, 11), sample=3, n_levels=3, target_abs_GHz=1e-3
+        )
+        text = sweep.summary()
+        assert "convergence vs flux" in text
+        assert str(sweep) == text
+
+    def test_sweep_none_checks_every_value(self):
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
+        sweep = tmon.estimate_convergence_vs_paramvals(
+            "ng",
+            np.array([0.0, 0.25, 0.5]),
+            sample=None,
+            n_levels=3,
+            target_abs_GHz=1e-4,
+        )
+        assert len(sweep.param_vals) == 3
+
+    def test_top_level_sweep_shim(self):
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
+        sweep = sq.estimate_convergence_vs_paramvals(
+            tmon, "ng", np.array([0.0, 0.5]), n_levels=2, target_abs_GHz=1e-4
+        )
+        assert sweep.param_name == "ng"
+        assert len(sweep.param_vals) == 2

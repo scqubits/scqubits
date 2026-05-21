@@ -35,11 +35,13 @@ from scqubits.core.central_dispatch import CentralDispatch
 from scqubits.core.convergence import (
     ConvergenceCheckable,
     estimate_convergence,
+    estimate_convergence_vs_paramvals,
 )
 from scqubits.core.convergence_report import (
     ConvergenceReport,
     ImplementationAudit,
     LevelVerdict,
+    ParamSweepConvergence,
 )
 from scqubits.core.cos2phi_qubit import Cos2PhiQubit
 from scqubits.core.diag import DIAG_METHODS

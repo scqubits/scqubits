@@ -224,6 +224,53 @@ class ConvergenceReport:
         return self.summary()
 
 
+@dataclass(frozen=True)
+class ParamSweepConvergence:
+    """Convergence across a swept parameter (e.g. a ``plot_..._vs_paramvals`` range).
+
+    Holds the per-point :class:`ConvergenceReport` at each sampled parameter
+    value, and identifies the worst-case point -- the value at which the fixed
+    cutoff is least trustworthy.
+    """
+
+    param_name: str
+    param_vals: list[float]
+    reports: list[ConvergenceReport]
+    worst_index: int
+    aggregate_status: Status
+
+    def worst_param_val(self) -> float:
+        """Return the parameter value with the worst per-point aggregate status."""
+        return self.param_vals[self.worst_index]
+
+    def worst_report(self) -> ConvergenceReport:
+        """Return the :class:`ConvergenceReport` at the worst-case parameter value."""
+        return self.reports[self.worst_index]
+
+    def summary(self) -> str:
+        """Return a compact, human-readable summary across the swept values.
+
+        Lists each sampled parameter value with its per-point aggregate status,
+        marks the worst-case point, and states the overall worst status. The
+        full per-point reports remain available in :attr:`reports`.
+        """
+        lines = [
+            f"convergence vs {self.param_name} ({len(self.param_vals)} points): "
+            f"worst = {self.aggregate_status} at "
+            f"{self.param_name}={self.worst_param_val():.4g}"
+        ]
+        for index, (value, report) in enumerate(zip(self.param_vals, self.reports)):
+            marker = "  <-- worst" if index == self.worst_index else ""
+            lines.append(
+                f"  {self.param_name}={value:<10.4g} {report.aggregate_status}{marker}"
+            )
+        return "\n".join(lines)
+
+    def __str__(self) -> str:
+        """Return :meth:`summary` so ``print(sweep)`` shows the readable form."""
+        return self.summary()
+
+
 # Ordered list used by callers wanting to filter on minimum evidence strength.
 EVIDENCE_ORDER: tuple[Evidence, ...] = (
     "certified",

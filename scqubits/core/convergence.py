@@ -41,6 +41,7 @@ from scqubits.core.convergence_report import (
     Evidence,
     ImplementationAudit,
     LevelVerdict,
+    ParamSweepConvergence,
     Status,
     TruncationChannel,
     evidence_at_least,
@@ -302,6 +303,76 @@ class ConvergenceCheckable:
             refinement=refinement,
             include_derived=include_derived,
             derived_quantities=requested_derived,
+        )
+
+    def estimate_convergence_vs_paramvals(
+        self,
+        param_name: str,
+        param_vals: npt.NDArray[np.float64],
+        sample: int | None = 5,
+        **kwargs: Any,
+    ) -> ParamSweepConvergence:
+        """Assess convergence across a swept parameter, returning the worst case.
+
+        A single :meth:`estimate_convergence` call certifies only the current
+        parameter set. A plot such as ``plot_evals_vs_paramvals`` instead sweeps
+        a parameter at a fixed cutoff, and truncation convergence can vary across
+        that range (e.g. fluxonium near half flux). This runs the per-point check
+        at sampled values of ``param_name`` and reports the worst case -- the
+        value at which the chosen cutoff is least trustworthy.
+
+        Parameters
+        ----------
+        param_name:
+            Name of the swept qubit parameter (e.g. ``"flux"``), as used by
+            ``get_spectrum_vs_paramvals``.
+        param_vals:
+            The parameter values of the intended sweep.
+        sample:
+            Number of values to actually check, spread across the range and
+            always including both endpoints (the usual worst case). ``None``
+            checks every value in ``param_vals``. Sampling keeps the check cheap
+            relative to a full per-point sweep.
+        **kwargs:
+            Forwarded to :meth:`estimate_convergence` (e.g. ``n_levels``,
+            ``mode``, ``target_abs_GHz``, ``scope``).
+
+        Returns
+        -------
+        :class:`~scqubits.core.convergence_report.ParamSweepConvergence`
+        """
+        values = np.asarray(param_vals, dtype=np.float64)
+        if values.ndim != 1 or values.size == 0:
+            raise ValueError("param_vals must be a non-empty 1D array")
+        if sample is None or sample >= values.size:
+            indices = list(range(values.size))
+        else:
+            if sample < 2:
+                raise ValueError("sample must be at least 2 (the two endpoints)")
+            indices = sorted(
+                set(np.linspace(0, values.size - 1, sample).round().astype(int))
+            )
+        sampled_vals = [float(values[i]) for i in indices]
+
+        original = getattr(self, param_name)
+        reports: list[ConvergenceReport] = []
+        try:
+            for value in sampled_vals:
+                setattr(self, param_name, value)
+                reports.append(self.estimate_convergence(**kwargs))
+        finally:
+            setattr(self, param_name, original)
+
+        worst_index = max(
+            range(len(reports)),
+            key=lambda i: _status_rank(reports[i].aggregate_status),
+        )
+        return ParamSweepConvergence(
+            param_name=param_name,
+            param_vals=sampled_vals,
+            reports=reports,
+            worst_index=worst_index,
+            aggregate_status=reports[worst_index].aggregate_status,
         )
 
     # ------------------------------------------------------------ engine helpers
@@ -1882,3 +1953,21 @@ def estimate_convergence(qubit: Any, **kwargs: Any) -> ConvergenceReport:
             "(further qubits land in subsequent PRs)."
         )
     return qubit.estimate_convergence(**kwargs)
+
+
+def estimate_convergence_vs_paramvals(
+    qubit: Any,
+    param_name: str,
+    param_vals: npt.NDArray[np.float64],
+    **kwargs: Any,
+) -> ParamSweepConvergence:
+    """Top-level shim: forwards to ``qubit.estimate_convergence_vs_paramvals(...)``.
+
+    Raises ``TypeError`` if the qubit does not subclass
+    :class:`ConvergenceCheckable`.
+    """
+    if not isinstance(qubit, ConvergenceCheckable):
+        raise TypeError(
+            f"{type(qubit).__name__} does not implement convergence checking."
+        )
+    return qubit.estimate_convergence_vs_paramvals(param_name, param_vals, **kwargs)
