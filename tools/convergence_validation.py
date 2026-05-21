@@ -291,6 +291,78 @@ def validate_high_cutoff_check():
     return ok
 
 
+def validate_zeropi_fd_groundtruth():
+    section("ZEROPI FINITE-DIFFERENCE GROUND TRUTH (no false converged, FD strict)")
+    # Trusted reference: a much larger box, a much finer grid, and a higher charge
+    # cutoff than any user calc below, so |E_user - E_ref| is a faithful proxy for
+    # the user's true FD + charge truncation error. A second slightly-coarser
+    # reference gauges the reference's own noise floor.
+    EJ, EL, ECJ, EC, ng, flux = 10.0, 0.04, 20.0, 0.04, 0.1, 0.23
+    n = 4
+
+    def evals(window, pts, ncut):
+        grid = scq.Grid1d(-window, window, pts)
+        zp = scq.ZeroPi(
+            grid=grid,
+            EJ=EJ,
+            EL=EL,
+            ECJ=ECJ,
+            EC=EC,
+            ng=ng,
+            flux=flux,
+            ncut=ncut,
+            truncated_dim=n + 2,
+        )
+        return np.sort(zp.eigenvals(evals_count=n))
+
+    saved_stencil = settings.STENCIL
+    try:
+        settings.STENCIL = 7
+        e_ref = evals(8.0 * np.pi, 500, 30)
+        noise = float(np.max(np.abs(e_ref - evals(8.0 * np.pi, 440, 26))))
+
+        ok = True
+        target = 1e-2
+        for stencil in (5, 7):
+            settings.STENCIL = stencil
+            grid = scq.Grid1d(-6.0 * np.pi, 6.0 * np.pi, 120)
+            zp = scq.ZeroPi(
+                grid=grid,
+                EJ=EJ,
+                EL=EL,
+                ECJ=ECJ,
+                EC=EC,
+                ng=ng,
+                flux=flux,
+                ncut=20,
+                truncated_dim=n + 2,
+            )
+            e_user = np.sort(zp.eigenvals(evals_count=n))
+            rep = zp.estimate_convergence(
+                n_levels=n, mode="strict", target_abs_GHz=target
+            )
+            worst_ratio = 0.0
+            false_converged = 0
+            for k, v in enumerate(rep.per_level):
+                true_err = abs(float(e_user[k] - e_ref[k]))
+                est = v.abs_err_est_GHz or 0.0
+                if true_err > noise:  # only assess above the reference noise floor
+                    worst_ratio = max(worst_ratio, true_err / max(est, 1e-30))
+                if v.status == "converged" and true_err >= target:
+                    false_converged += 1
+            good = worst_ratio <= 1.0 and false_converged == 0
+            ok = ok and good
+            print(
+                f"  STENCIL={stencil} (p={stencil - 1}): agg={rep.aggregate_status:13s} "
+                f"worst true/est={worst_ratio:.2f}  false_converged={false_converged}  "
+                f"[{'ok' if good else 'SUSPECT'}]"
+            )
+        print(f"  (reference noise floor = {noise:.2e} GHz; target = {target:.0e})")
+    finally:
+        settings.STENCIL = saved_stencil
+    return ok
+
+
 def main():
     results = {
         "energy soundness + stability": validate_stability_and_energies(),
@@ -298,6 +370,7 @@ def main():
         "strict ratio test": validate_strict_ratio_test(),
         "derived channels": validate_derived(),
         "high-cutoff check stability": validate_high_cutoff_check(),
+        "zeropi FD ground truth": validate_zeropi_fd_groundtruth(),
     }
     section("SUMMARY")
     for name, passed in results.items():
