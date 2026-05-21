@@ -25,6 +25,7 @@ diagnostics never claim ``converged`` (per the published design specification).
 from __future__ import annotations
 
 import copy
+import dataclasses
 
 from typing import Any, Sequence
 
@@ -136,11 +137,14 @@ class ConvergenceCheckable:
             Floor on the local isolation gap (default ``1e-3`` GHz = 1 MHz)
             to avoid divide-by-tiny-numbers when the gap is very small.
         include_derived:
-            PR-1: ignored; raises ``NotImplementedError`` if set to True
-            in this PR (the wavefunctions/matrix-elements/coherence
-            channels arrive in PR-2 and PR-3).
+            If True, additionally assess the requested ``derived_quantities``
+            and attach their per-level sub-reports under
+            :attr:`ConvergenceReport.derived`. Requires ``mode`` of
+            ``"verify"`` or ``"strict"`` -- derived quantities need a
+            refinement comparison.
         derived_quantities:
-            PR-1: ignored.
+            Subset of ``{"wavefunctions", "matrix_elements"}`` to assess when
+            ``include_derived`` is set. ``"coherence"`` arrives in PR-3.
         refinement:
             ``"one_step"`` for verify mode; ``"ratio_test"`` for strict
             mode. Coerced to match ``mode`` if inconsistent.
@@ -162,12 +166,30 @@ class ConvergenceCheckable:
             raise ValueError(
                 f"refinement must be 'one_step' or 'ratio_test'; " f"got {refinement!r}"
             )
+        requested_derived: tuple[str, ...] = tuple(derived_quantities or ())
         if include_derived:
-            raise NotImplementedError(
-                "include_derived=True is not yet available in this version. "
-                "Wavefunctions and matrix elements arrive in PR-2; coherence "
-                "in PR-3."
-            )
+            if mode == "quick":
+                raise ValueError(
+                    "include_derived requires mode='verify' or 'strict'; "
+                    "derived quantities need a refinement comparison"
+                )
+            if not requested_derived:
+                raise ValueError(
+                    "include_derived=True requires derived_quantities, e.g. "
+                    "['wavefunctions', 'matrix_elements']"
+                )
+            unknown = set(requested_derived) - {
+                "wavefunctions",
+                "matrix_elements",
+                "coherence",
+            }
+            if unknown:
+                raise ValueError(
+                    f"unknown derived_quantities: {sorted(unknown)}; valid: "
+                    "'wavefunctions', 'matrix_elements'"
+                )
+            if "coherence" in requested_derived:
+                raise NotImplementedError("coherence convergence arrives in PR-3")
         if not self._convergence_axes:
             raise NotImplementedError(
                 f"{type(self).__name__} does not declare _convergence_axes; "
@@ -208,6 +230,8 @@ class ConvergenceCheckable:
             target_gap_rel=target_gap_rel,
             g_floor_GHz=g_floor_GHz,
             refinement=refinement,
+            include_derived=include_derived,
+            derived_quantities=requested_derived,
         )
 
     # ------------------------------------------------------------ engine helpers
@@ -368,8 +392,15 @@ class ConvergenceCheckable:
         target_gap_rel: float,
         g_floor_GHz: float,
         refinement: str,
+        include_derived: bool = False,
+        derived_quantities: tuple[str, ...] = (),
     ) -> ConvergenceReport:
-        """Verify / strict mode: refine cutoff(s), compare cluster-matched energies."""
+        """Verify / strict mode: refine cutoff(s), compare cluster-matched energies.
+
+        When ``include_derived`` is set, the refined eigenvectors (and clones,
+        for matrix elements) are reused to build the requested derived per-level
+        sub-reports, which are attached under ``ConvergenceReport.derived``.
+        """
         # For PR-1, we handle exactly one axis. Multi-axis aggregation
         # (refine one axis at a time, combine absolute errors by triangle
         # inequality) will be added when Circuit lands in Stage 3.
@@ -384,14 +415,16 @@ class ConvergenceCheckable:
 
         current_value = getattr(self, axis)
         clone_1 = self._convergence_clone_at({axis: current_value + step})
-        evals_n1, _ = clone_1.eigensys(evals_count=n_eigs)  # type: ignore[attr-defined]
+        evals_n1, evecs_n1 = clone_1.eigensys(evals_count=n_eigs)  # type: ignore[attr-defined]
 
         evals_n2: npt.NDArray[np.float64] | None = None
+        evecs_n2: npt.NDArray[np.float64] | None = None
+        clone_2: ConvergenceCheckable | None = None
         if refinement == "ratio_test":
             clone_2 = self._convergence_clone_at({axis: current_value + 2 * step})
-            evals_n2, _ = clone_2.eigensys(evals_count=n_eigs)  # type: ignore[attr-defined]
+            evals_n2, evecs_n2 = clone_2.eigensys(evals_count=n_eigs)  # type: ignore[attr-defined]
 
-        return self._convergence_build_energy_report(
+        report = self._convergence_build_energy_report(
             evals_n0=evals_n0[:n_levels],
             evals_n1=evals_n1[:n_levels],
             evals_n2=evals_n2[:n_levels] if evals_n2 is not None else None,
@@ -403,6 +436,28 @@ class ConvergenceCheckable:
             target_abs_GHz=target_abs_GHz,
             target_gap_rel=target_gap_rel,
             g_floor_GHz=g_floor_GHz,
+            refinement=refinement,
+            axis=axis,
+        )
+
+        if not include_derived:
+            return report
+
+        return self._attach_derived_reports(
+            report=report,
+            derived_quantities=derived_quantities,
+            evals_n0=evals_n0,
+            evecs_n0=evecs_n0,
+            evecs_n1=evecs_n1,
+            evecs_n2=evecs_n2,
+            clone_1=clone_1,
+            clone_2=clone_2,
+            ncut_0=int(current_value),
+            step=step,
+            n_levels=n_levels,
+            n_buffer=n_buffer,
+            mode=mode,
+            target_gap_rel=target_gap_rel,
             refinement=refinement,
             axis=axis,
         )
@@ -559,6 +614,101 @@ class ConvergenceCheckable:
                 "per level without thresholding"
             )
         return recommendations
+
+    def _attach_derived_reports(
+        self,
+        report: ConvergenceReport,
+        derived_quantities: tuple[str, ...],
+        evals_n0: npt.NDArray[np.float64],
+        evecs_n0: npt.NDArray[np.float64],
+        evecs_n1: npt.NDArray[np.float64],
+        evecs_n2: npt.NDArray[np.float64] | None,
+        clone_1: "ConvergenceCheckable",
+        clone_2: "ConvergenceCheckable | None",
+        ncut_0: int,
+        step: int,
+        n_levels: int,
+        n_buffer: int,
+        mode: str,
+        target_gap_rel: float,
+        refinement: str,
+        axis: str,
+    ) -> ConvergenceReport:
+        """Build and attach the requested per-level derived sub-reports.
+
+        Reuses the already-computed reference and refined eigenvectors (and the
+        refinement clones, for matrix elements) to assess wavefunction and
+        matrix-element convergence on the same per-level footing as energies,
+        then returns ``report`` with its ``derived`` mapping populated.
+        """
+        channel = self._convergence_truncation_channel(axis)
+        clusters = cutils.detect_clusters(
+            evals_n0[:n_levels],
+            gap_ratio_threshold=settings.CONVERGENCE_CLUSTER_RATIO,
+        )
+        audit = self._convergence_audit(
+            n_levels=n_levels, n_buffer=n_buffer, mode=mode, refinement=refinement
+        )
+        ncut_1 = ncut_0 + step
+        ncut_2 = ncut_0 + 2 * step
+        derived: dict[str, ConvergenceReport] = {}
+
+        if "wavefunctions" in derived_quantities:
+            movement_first = _wavefunction_movement(
+                evecs_n0, evecs_n1, ncut_0, ncut_1, clusters, n_levels
+            )
+            movement_second: npt.NDArray[np.float64] | None = None
+            if refinement == "ratio_test" and evecs_n2 is not None:
+                movement_second = _wavefunction_movement(
+                    evecs_n1, evecs_n2, ncut_1, ncut_2, clusters, n_levels
+                )
+            derived["wavefunctions"] = _build_metric_report(
+                movement_first=movement_first,
+                movement_second=movement_second,
+                channel=channel,
+                estimator_method="wavefunction_overlap",
+                clusters=clusters,
+                n_levels=n_levels,
+                mode=mode,
+                target_gap_rel=target_gap_rel,
+                refinement=refinement,
+                audit=audit,
+                axis=axis,
+                current_value=ncut_0,
+                step=step,
+            )
+
+        if "matrix_elements" in derived_quantities:
+            me_movement_first, skipped = _matrix_element_movement(
+                self, clone_1, evecs_n0, evecs_n1, n_levels
+            )
+            me_movement_second: npt.NDArray[np.float64] | None = None
+            if (
+                refinement == "ratio_test"
+                and clone_2 is not None
+                and evecs_n2 is not None
+            ):
+                me_movement_second, _ = _matrix_element_movement(
+                    clone_1, clone_2, evecs_n1, evecs_n2, n_levels
+                )
+            derived["matrix_elements"] = _build_metric_report(
+                movement_first=me_movement_first,
+                movement_second=me_movement_second,
+                channel=channel,
+                estimator_method="matrix_element_frobenius",
+                clusters=clusters,
+                n_levels=n_levels,
+                mode=mode,
+                target_gap_rel=target_gap_rel,
+                refinement=refinement,
+                audit=audit,
+                axis=axis,
+                current_value=ncut_0,
+                step=step,
+                skipped=skipped,
+            )
+
+        return dataclasses.replace(report, derived=derived)
 
 
 # ------------------------------------------------------------ module helpers
@@ -781,6 +931,183 @@ def _aggregate_worst(verdicts: list[LevelVerdict]) -> tuple[int, Status]:
             worst_rank = r
             worst_idx = k
     return worst_idx, verdicts[worst_idx].status
+
+
+# Reference-norm floor for relative matrix-element comparison, guarding against
+# division by a vanishing (selection-rule-zero) reference row/column.
+_MATELEM_REF_FLOOR = 1e-12
+
+
+def _wavefunction_movement(
+    evecs_a: npt.NDArray[np.float64],
+    evecs_b: npt.NDArray[np.float64],
+    ncut_a: int,
+    ncut_b: int,
+    clusters: list[tuple[int, ...]],
+    n_levels: int,
+) -> npt.NDArray[np.float64]:
+    """Per-level wavefunction movement between two cutoffs.
+
+    Isolated levels use the overlap deficit ``1 - |<a_k | b_k>|``; near-degenerate
+    clusters use the subspace angle (assigned to every member), which is robust to
+    eigenvector rotations within the block.
+    """
+    overlaps = cutils.wavefunction_overlap(
+        evecs_a[:, :n_levels], evecs_b[:, :n_levels], ncut_a, ncut_b
+    )
+    movement = 1.0 - np.minimum(1.0, overlaps)
+    ncut_max = max(ncut_a, ncut_b)
+    a = cutils.pad_charge_basis(evecs_a[:, :n_levels], ncut_a, ncut_max)
+    b = cutils.pad_charge_basis(evecs_b[:, :n_levels], ncut_b, ncut_max)
+    for cluster in clusters:
+        if len(cluster) > 1:
+            cols = list(cluster)
+            angle = cutils.subspace_angle(a[:, cols], b[:, cols])
+            for k in cluster:
+                movement[k] = angle
+    return movement
+
+
+def _matrix_element_movement(
+    qubit_a: Any,
+    qubit_b: Any,
+    evecs_a: npt.NDArray[np.float64],
+    evecs_b: npt.NDArray[np.float64],
+    n_levels: int,
+) -> tuple[npt.NDArray[np.float64], list[str]]:
+    """Per-level relative matrix-element movement between two cutoffs.
+
+    For each operator returned by ``get_operator_names`` the ``n_levels`` x
+    ``n_levels`` matrix-element table is formed at both cutoffs; level ``k`` is
+    assigned the worst relative change of its matrix-element row and column,
+    maximized over operators. The relative change normalizes by the refined
+    table's row/column norm, floored to guard against selection-rule zeros.
+    Operators that raise or return a shape-incompatible table are skipped and
+    reported (graceful degradation), not silently dropped.
+    """
+    movement = np.zeros(n_levels, dtype=np.float64)
+    skipped: list[str] = []
+    for op_name in qubit_a.get_operator_names():
+        try:
+            m0 = np.asarray(
+                qubit_a.matrixelement_table(op_name, evecs=evecs_a[:, :n_levels])
+            )
+            m1 = np.asarray(
+                qubit_b.matrixelement_table(op_name, evecs=evecs_b[:, :n_levels])
+            )
+        except Exception:
+            skipped.append(op_name)
+            continue
+        if m0.shape != (n_levels, n_levels) or m1.shape != (n_levels, n_levels):
+            skipped.append(op_name)
+            continue
+        delta = np.abs(m1 - m0)
+        for k in range(n_levels):
+            row_ref = max(float(np.linalg.norm(m1[k, :])), _MATELEM_REF_FLOOR)
+            col_ref = max(float(np.linalg.norm(m1[:, k])), _MATELEM_REF_FLOOR)
+            rel_k = max(
+                float(np.linalg.norm(delta[k, :])) / row_ref,
+                float(np.linalg.norm(delta[:, k])) / col_ref,
+            )
+            movement[k] = max(float(movement[k]), rel_k)
+    return movement, skipped
+
+
+def _build_metric_report(
+    movement_first: npt.NDArray[np.float64],
+    movement_second: npt.NDArray[np.float64] | None,
+    channel: TruncationChannel,
+    estimator_method: str,
+    clusters: list[tuple[int, ...]],
+    n_levels: int,
+    mode: str,
+    target_gap_rel: float,
+    refinement: str,
+    audit: ImplementationAudit,
+    axis: str,
+    current_value: int,
+    step: int,
+    skipped: list[str] | None = None,
+) -> ConvergenceReport:
+    """Assemble a per-level ConvergenceReport for a dimensionless derived metric.
+
+    ``movement_first`` holds each level's change between the base and first
+    refinement (overlap deficit, subspace angle, or relative matrix-element
+    change). In ratio-test mode ``movement_second`` (the first-to-second
+    refinement change) drives a geometric extrapolation; levels confirmed
+    asymptotic use the extrapolated tail and are tagged ``calibrated``, the rest
+    fall back to the one-step movement with a recorded warning. Verdicts apply
+    the observed-gap-scale ladder against ``target_gap_rel``.
+    """
+    geometric_tail: npt.NDArray[np.float64] | None = None
+    asymptotic: npt.NDArray[np.bool_] | None = None
+    if refinement == "ratio_test" and movement_second is not None:
+        _, geometric_tail, asymptotic = cutils.geometric_ratio_test(
+            movement_first, movement_second
+        )
+
+    per_level_eps = np.empty(n_levels, dtype=np.float64)
+    per_level_evidence: list[Evidence] = []
+    per_level_method: list[str] = []
+    per_level_warnings: list[list[str]] = [[] for _ in range(n_levels)]
+
+    for k in range(n_levels):
+        if geometric_tail is not None and asymptotic is not None and asymptotic[k]:
+            per_level_eps[k] = float(geometric_tail[k])
+            per_level_evidence.append("calibrated")
+            per_level_method.append(f"{estimator_method}_ratio_test")
+        else:
+            per_level_eps[k] = float(movement_first[k])
+            per_level_evidence.append("verified_empirical")
+            if refinement == "ratio_test":
+                per_level_method.append(f"{estimator_method}_ratio_test_fallback")
+                per_level_warnings[k].append("ratio_test_not_asymptotic")
+            else:
+                per_level_method.append(estimator_method)
+
+    verdicts = [
+        LevelVerdict(
+            level_index=k,
+            status=_assign_status(
+                abs_err_est=0.0,
+                eps_gap_est=float(per_level_eps[k]),
+                scope="observed_gap_scale",
+                target_abs_GHz=None,
+                target_gap_rel=target_gap_rel,
+            ),
+            status_scope="observed_gap_scale",
+            evidence=per_level_evidence[k],
+            abs_err_est_GHz=None,
+            eps_gap_est=float(per_level_eps[k]),
+            truncation_channel=channel,
+            estimator_method=per_level_method[k],
+            warnings=tuple(per_level_warnings[k]),
+        )
+        for k in range(n_levels)
+    ]
+    worst_idx, aggregate_status = _aggregate_worst(verdicts)
+
+    recommendations: list[str] = []
+    if any(v.status == "underconverged" for v in verdicts):
+        recommendations.append(
+            f"increase {axis} from {current_value} to at least "
+            f"{current_value + step} and re-run; a derived-quantity estimate "
+            f"exceeded the target threshold"
+        )
+    if skipped:
+        recommendations.append(
+            "skipped operators (raised or shape-incompatible): " + ", ".join(skipped)
+        )
+
+    return ConvergenceReport(
+        per_level=verdicts,
+        aggregate_status=aggregate_status,
+        worst_level=worst_idx,
+        channel_breakdown_GHz={},
+        clusters=clusters,
+        recommendations=recommendations,
+        implementation_audit=audit,
+    )
 
 
 def estimate_convergence(qubit: Any, **kwargs: Any) -> ConvergenceReport:
