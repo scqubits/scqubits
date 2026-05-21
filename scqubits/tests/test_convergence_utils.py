@@ -20,6 +20,7 @@ from scqubits.utils.convergence_utils import (
     detect_clusters,
     geometric_ratio_test,
     pad_charge_basis,
+    richardson_estimate,
     subspace_angle,
     wavefunction_overlap,
 )
@@ -158,6 +159,43 @@ class TestGeometricRatioTest:
         assert np.isinf(ratios[0])
         assert np.isinf(tail[0])
         assert bool(is_asymptotic[0]) is False
+
+
+# --------------------------------------------------------------- richardson_estimate
+
+
+class TestRichardsonEstimate:
+    @staticmethod
+    def _energies(order, *point_counts, c=1.0, e_inf=0.0):
+        # Exact h**order model E(N) = e_inf + c / (N - 1)**order.
+        return [e_inf + c / (n - 1) ** order for n in point_counts]
+
+    def test_asymptotic_h4_recovers_continuum_error(self):
+        # A clean h**4 model: the estimate must equal the coarse grid's true
+        # error c / (n0 - 1)**4, and the level must be flagged asymptotic.
+        order, n0, n1, n2 = 4, 11, 21, 41
+        e0, e1, e2 = self._energies(order, n0, n1, n2)
+        d0 = np.asarray([abs(e0 - e1)], dtype=np.float64)
+        d1 = np.asarray([abs(e1 - e2)], dtype=np.float64)
+        estimate, is_asymptotic = richardson_estimate(d0, d1, n0, n1, n2, order)
+        np.testing.assert_allclose(estimate, [1.0 / (n0 - 1) ** order], rtol=1e-9)
+        assert bool(is_asymptotic[0]) is True
+
+    def test_movement_inconsistent_with_model_is_not_asymptotic(self):
+        # Movement barely shrinks (ratio ~ 0.95), far from the h**4-predicted
+        # ratio, so the level is not in the asymptotic regime.
+        d0 = np.asarray([1.0], dtype=np.float64)
+        d1 = np.asarray([0.95], dtype=np.float64)
+        _, is_asymptotic = richardson_estimate(d0, d1, 11, 21, 41, 4)
+        assert bool(is_asymptotic[0]) is False
+
+    def test_zero_movement_is_asymptotic_with_zero_estimate(self):
+        # No measurable movement: already stable, estimate 0, treated asymptotic.
+        d0 = np.asarray([0.0], dtype=np.float64)
+        d1 = np.asarray([0.0], dtype=np.float64)
+        estimate, is_asymptotic = richardson_estimate(d0, d1, 11, 21, 41, 4)
+        assert estimate[0] == 0.0
+        assert bool(is_asymptotic[0]) is True
 
 
 # --------------------------------------------------------------- pad_charge_basis

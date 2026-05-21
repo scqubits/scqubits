@@ -109,6 +109,18 @@ class ConvergenceCheckable:
         """
         return "charge_tail"
 
+    def _convergence_richardson_order(self, axis: str) -> int | None:
+        """Return the Richardson error order ``p`` for a finite-difference axis.
+
+        An axis whose discretization error scales as ``h**p`` with the spacing
+        ``h`` proportional to ``1 / (N - 1)`` (a grid refined at a fixed window)
+        returns ``p`` so that strict mode verifies its asymptoticity with
+        Richardson extrapolation instead of the geometric ratio test (design
+        spec). Returns ``None`` (the default) for axes that converge
+        geometrically -- charge and oscillator tails, and finite-box expansion.
+        """
+        return None
+
     def _convergence_boundary_diagnostic(
         self, esys: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]], axis: str
     ) -> npt.NDArray[np.float64] | None:
@@ -458,8 +470,22 @@ class ConvergenceCheckable:
             if refinement == "ratio_test"
             else None
         )
+        # When a finite-difference (Richardson) axis is present, the strict-mode
+        # estimate must be formed per-axis (Richardson for the FD-stencil channel,
+        # geometric elsewhere) and summed -- a single geometric test on the
+        # summed movements would misjudge the h**p stencil channel. Non-FD qubits
+        # and verify mode keep the summed-movement path unchanged.
+        use_richardson = refinement == "ratio_test" and any(
+            self._convergence_richardson_order(a) is not None for a in axes
+        )
+        combined_estimate: npt.NDArray[np.float64] | None = (
+            np.zeros(n_clusters, dtype=np.float64) if use_richardson else None
+        )
+        combined_non_asymptotic: npt.NDArray[np.bool_] | None = (
+            np.zeros(n_clusters, dtype=np.bool_) if use_richardson else None
+        )
         channel_breakdown: dict[str, float] = {}
-        per_axis_movement: dict[str, float] = {}
+        per_axis_weight: dict[str, float] = {}
         # Keep each axis's first-refinement clone/eigensystem so the derived
         # channels can reuse them without re-diagonalizing.
         axis_refinements: dict[str, tuple[Any, ...]] = {}
@@ -476,6 +502,7 @@ class ConvergenceCheckable:
 
             clone_2: ConvergenceCheckable | None = None
             evecs_a2: npt.NDArray[np.float64] | None = None
+            diff_n2: npt.NDArray[np.float64] | None = None
             if refinement == "ratio_test":
                 clone_2 = self._convergence_clone_at({axis: current + 2 * step})
                 evals_a2, evecs_a2 = clone_2.eigensys(evals_count=n_eigs)  # type: ignore[attr-defined]
@@ -486,11 +513,40 @@ class ConvergenceCheckable:
                 combined_diff_n2 += diff_n2
 
             axis_channel = self._convergence_truncation_channel(axis)
-            axis_max = float(np.max(diff_n1)) if n_clusters else 0.0
+            if use_richardson and diff_n2 is not None:
+                # Per-axis absolute estimate (Richardson for an h**p FD-stencil
+                # axis, geometric otherwise), summed via the triangle inequality.
+                order = self._convergence_richardson_order(axis)
+                if order is not None:
+                    est_raw, asymptotic = cutils.richardson_estimate(
+                        diff_n1,
+                        diff_n2,
+                        current,
+                        current + step,
+                        current + 2 * step,
+                        order,
+                    )
+                else:
+                    _, est_raw, asymptotic = cutils.geometric_ratio_test(
+                        diff_n1, diff_n2
+                    )
+                est_axis = np.where(
+                    asymptotic, est_raw, safety_factor * diff_n1
+                ).astype(np.float64)
+                non_asymptotic_axis = (~asymptotic) & (diff_n1 > 0.0)
+                assert combined_estimate is not None
+                assert combined_non_asymptotic is not None
+                combined_estimate += est_axis
+                combined_non_asymptotic |= non_asymptotic_axis
+                axis_weight = float(np.max(est_axis)) if n_clusters else 0.0
+            else:
+                axis_weight = (
+                    safety_factor * float(np.max(diff_n1)) if n_clusters else 0.0
+                )
             channel_breakdown[axis_channel] = (
-                channel_breakdown.get(axis_channel, 0.0) + safety_factor * axis_max
+                channel_breakdown.get(axis_channel, 0.0) + axis_weight
             )
-            per_axis_movement[axis] = axis_max
+            per_axis_weight[axis] = axis_weight
             axis_refinements[axis] = (
                 clone_1,
                 evals_a1,
@@ -507,7 +563,7 @@ class ConvergenceCheckable:
             if multi_axis
             else self._convergence_truncation_channel(axes[0])
         )
-        dominant_axis = max(per_axis_movement, key=lambda a: per_axis_movement[a])
+        dominant_axis = max(per_axis_weight, key=lambda a: per_axis_weight[a])
 
         report = self._convergence_build_energy_report(
             evals_n0=evals_n0[:n_levels],
@@ -526,6 +582,8 @@ class ConvergenceCheckable:
             g_floor_GHz=g_floor_GHz,
             refinement=refinement,
             dominant_axis=dominant_axis,
+            precomputed_estimate=combined_estimate,
+            precomputed_non_asymptotic=combined_non_asymptotic,
         )
 
         if not include_derived:
@@ -588,6 +646,8 @@ class ConvergenceCheckable:
         g_floor_GHz: float,
         refinement: str,
         dominant_axis: str,
+        precomputed_estimate: npt.NDArray[np.float64] | None = None,
+        precomputed_non_asymptotic: npt.NDArray[np.bool_] | None = None,
     ) -> ConvergenceReport:
         """Assemble the LevelVerdicts and ConvergenceReport from per-cluster
         movements.
@@ -597,13 +657,24 @@ class ConvergenceCheckable:
         for the multi-axis case), the per-level ``channel``
         (``"composite_coupling"`` when multiple axes contribute), and the
         per-channel ``channel_breakdown``.
+
+        When ``precomputed_estimate`` is given (a finite-difference axis used the
+        Richardson estimator), it is the per-cluster absolute error already summed
+        over axes, and ``precomputed_non_asymptotic`` flags clusters whose ratio
+        or Richardson test failed; the geometric ratio test on the summed
+        movements is then bypassed.
         """
         safety_factor = settings.CONVERGENCE_SAFETY_FACTOR
 
-        # Strict mode: a second refinement enables the geometric ratio test.
+        # Strict mode without a Richardson axis: a second refinement enables the
+        # geometric ratio test on the summed movements.
         geometric_tail: npt.NDArray[np.float64] | None = None
         asymptotic_flag: npt.NDArray[np.bool_] | None = None
-        if refinement == "ratio_test" and cluster_max_diff_n2 is not None:
+        if (
+            refinement == "ratio_test"
+            and cluster_max_diff_n2 is not None
+            and precomputed_estimate is None
+        ):
             _, geometric_tail, asymptotic_flag = cutils.geometric_ratio_test(
                 cluster_max_diff_n1, cluster_max_diff_n2
             )
@@ -622,6 +693,8 @@ class ConvergenceCheckable:
             asymptotic_flag=asymptotic_flag,
             safety_factor=safety_factor,
             n_levels=n_levels,
+            precomputed_estimate=precomputed_estimate,
+            precomputed_non_asymptotic=precomputed_non_asymptotic,
         )
 
         eps_gap_est = _observed_gap_eps(
@@ -1128,6 +1201,8 @@ def _per_cluster_energy_estimates(
     asymptotic_flag: npt.NDArray[np.bool_] | None,
     safety_factor: float,
     n_levels: int,
+    precomputed_estimate: npt.NDArray[np.float64] | None = None,
+    precomputed_non_asymptotic: npt.NDArray[np.bool_] | None = None,
 ) -> tuple[
     npt.NDArray[np.float64], list[Evidence], list[str], list[list[str]], list[bool]
 ]:
@@ -1144,9 +1219,14 @@ def _per_cluster_energy_estimates(
     non-asymptotic so the status logic can refuse a softened verdict. Every level
     inherits the values of the cluster it belongs to.
 
-    The fifth returned element flags, per level, a failed (``R >= 1``)
-    asymptoticity test on a non-zero movement; the status logic forces such
-    levels to ``underconverged`` rather than ``marginal``.
+    When ``precomputed_estimate`` is supplied (a finite-difference axis used the
+    Richardson estimator), it is the per-cluster absolute error already summed
+    over axes and ``precomputed_non_asymptotic`` flags clusters whose per-axis
+    test failed; these are used directly instead of the geometric path.
+
+    The fifth returned element flags, per level, a failed asymptoticity test on a
+    non-zero movement; the status logic forces such levels to ``underconverged``
+    rather than ``marginal``.
     """
     per_level_abs_err = np.empty(n_levels, dtype=np.float64)
     per_level_evidence: list[Evidence] = []
@@ -1156,13 +1236,29 @@ def _per_cluster_energy_estimates(
 
     for cluster_idx, cluster in enumerate(clusters):
         non_asymptotic = False
-        if refinement == "ratio_test" and geometric_tail is not None:
+        if precomputed_estimate is not None:
+            # Strict mode with a finite-difference axis: the per-axis estimate
+            # (Richardson for the FD-stencil channel, geometric elsewhere) has
+            # already been summed over axes.
+            est = float(precomputed_estimate[cluster_idx])
+            ev: Evidence = "verified_empirical"
+            non_asymptotic = bool(
+                precomputed_non_asymptotic is not None
+                and precomputed_non_asymptotic[cluster_idx]
+            )
+            if non_asymptotic:
+                method = "richardson_composite_not_asymptotic"
+                for k in cluster:
+                    per_level_warnings[k].append("ratio_test_not_asymptotic")
+            else:
+                method = "richardson_composite"
+        elif refinement == "ratio_test" and geometric_tail is not None:
             d0 = float(cluster_max_diff_n1[cluster_idx])
             if asymptotic_flag is not None and asymptotic_flag[cluster_idx]:
                 # Ratio test confirmed the geometric (asymptotic) regime: the
                 # asymptoticity check is what makes this verified_empirical.
                 est = float(geometric_tail[cluster_idx])
-                ev: Evidence = "verified_empirical"
+                ev = "verified_empirical"
                 method = "ratio_test"
             elif d0 == 0.0:
                 # No movement across the first refinement: already stable, so the

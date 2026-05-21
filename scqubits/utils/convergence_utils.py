@@ -220,6 +220,73 @@ def geometric_ratio_test(
     return ratios, geometric_tail, is_asymptotic
 
 
+def richardson_estimate(
+    diff_first: npt.NDArray[np.float64],
+    diff_second: npt.NDArray[np.float64],
+    n0: int,
+    n1: int,
+    n2: int,
+    order: int,
+    rel_tol: float = 0.5,
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.bool_]]:
+    """Richardson ``h**order`` error estimate and asymptoticity test for an FD grid.
+
+    For a finite-difference coordinate the discretization error scales as
+    ``h**order`` with the spacing ``h`` proportional to ``1 / (N - 1)`` at a fixed
+    window, so the window cancels and only the grid-point counts ``n0 < n1 < n2``
+    enter. With ``g_i = 1 / (n_i - 1)**order`` and the model
+    ``E(N) = E_inf + C g(N)``, the error of the coarsest (user) grid extrapolated
+    to the continuum is ``diff_first / (1 - g1 / g0)``.
+
+    The asymptoticity test compares the observed movement ratio
+    ``diff_second / diff_first`` against the model-predicted
+    ``(g1 - g2) / (g0 - g1)``: a cluster is asymptotic when the two agree to
+    within ``rel_tol`` (relative), or when ``diff_first`` is at the numerical
+    floor (no measurable movement). Richardson is a verified estimate only in the
+    asymptotic regime; the caller falls back to a one-step bound otherwise.
+
+    Parameters
+    ----------
+    diff_first:
+        Per-cluster absolute eigenvalue movement from the coarse grid ``n0`` to
+        the first refinement ``n1``. Entries are non-negative.
+    diff_second:
+        Per-cluster absolute movement from ``n1`` to the second refinement
+        ``n2``, aligned with ``diff_first``.
+    n0, n1, n2:
+        Grid-point counts of the coarse grid and the two refinements,
+        ``n0 < n1 < n2``, all sharing the same window.
+    order:
+        Leading discretization-error order ``p`` (4 for a 5-point second-
+        derivative stencil).
+    rel_tol:
+        Relative tolerance on the asymptoticity test.
+
+    Returns
+    -------
+    estimate
+        Per-cluster Richardson error estimate of the coarse grid ``n0``; ``0``
+        where there is no movement.
+    is_asymptotic
+        ``True`` for clusters whose observed movement ratio matches the
+        ``h**order`` model (or that are at the numerical floor).
+    """
+    g0 = 1.0 / (n0 - 1) ** order
+    g1 = 1.0 / (n1 - 1) ** order
+    g2 = 1.0 / (n2 - 1) ** order
+    expected_ratio = (g1 - g2) / (g0 - g1)
+    estimate = np.where(diff_first > 0, diff_first / (1.0 - g1 / g0), 0.0)
+    observed_ratio = np.divide(
+        diff_second,
+        diff_first,
+        out=np.full_like(diff_first, np.inf),
+        where=diff_first > 0,
+    )
+    rel_dev = np.abs(observed_ratio - expected_ratio) / expected_ratio
+    is_asymptotic = (rel_dev <= rel_tol) | (diff_first <= 0.0)
+    return estimate, is_asymptotic
+
+
 def pad_charge_basis(
     evecs: npt.NDArray[np.float64],
     ncut_old: int,

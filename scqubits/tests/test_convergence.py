@@ -720,3 +720,19 @@ class TestZeroPi:
         assert spacing_clone.grid.pt_count == 121
         assert spacing_clone.grid.max_val == zp.grid.max_val  # window unchanged
         assert h_spacing < h0  # spacing shrank
+
+    def test_strict_mode_uses_richardson_for_grid_spacing(self):
+        # The grid_spacing channel reports the FD stencil order h**(STENCIL-1);
+        # strict mode must therefore verify it with Richardson extrapolation,
+        # not the geometric ratio test. The composite estimator method records
+        # this, and a well-sized ZeroPi reaches 'converged'.
+        import scqubits.settings as settings
+
+        zp = self._make()
+        assert zp._convergence_richardson_order("grid_spacing") == settings.STENCIL - 1
+        assert zp._convergence_richardson_order("grid_box") is None
+        report = zp.estimate_convergence(n_levels=3, mode="strict", target_abs_GHz=1e-2)
+        assert report.aggregate_status == "converged"
+        for v in report.per_level:
+            assert v.evidence == "verified_empirical"
+            assert v.estimator_method.startswith("richardson_composite")

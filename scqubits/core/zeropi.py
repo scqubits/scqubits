@@ -33,6 +33,7 @@ import scqubits.core.discretization as discretization
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
+import scqubits.settings as settings
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as utils
@@ -417,6 +418,18 @@ class ZeroPi(
         if axis == "grid_box":
             return "FD_box"
         return "charge_tail"
+
+    def _convergence_richardson_order(self, axis: str) -> int | None:
+        """Use Richardson ``h**p`` for the grid-spacing channel.
+
+        scqubits discretizes the second derivative with a central stencil of
+        ``settings.STENCIL`` points, whose leading error scales as
+        ``h**(STENCIL - 1)`` at a fixed window (``h`` proportional to
+        ``1 / (pt_count - 1)``). The ``"grid_spacing"`` axis therefore verifies
+        its asymptoticity by Richardson extrapolation at that order; the
+        finite-box and charge axes converge geometrically and return ``None``.
+        """
+        return settings.STENCIL - 1 if axis == "grid_spacing" else None
 
     def _convergence_boundary_diagnostic(
         self,
