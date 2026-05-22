@@ -24,6 +24,7 @@ import pytest
 
 import scqubits as sq
 
+from scqubits.core.convergence import _status_rank
 from scqubits.core.convergence_report import (
     EVIDENCE_ORDER,
     ConvergenceReport,
@@ -900,3 +901,108 @@ class TestParamSweep:
         )
         assert sweep.param_name == "ng"
         assert len(sweep.param_vals) == 2
+
+
+# ----------------------------------------------------- HilbertSpace (composite)
+
+
+def _transmon_resonator(td_t=6, td_o=6, ncut=31, g=0.1):
+    """Build a transmon-resonator HilbertSpace with a number-charge coupling."""
+    tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=ncut, truncated_dim=td_t)
+    osc = sq.Oscillator(E_osc=5.0, truncated_dim=td_o)
+    hs = sq.HilbertSpace([tmon, osc])
+    hs.add_interaction(g=g, op1=tmon.n_operator, op2=osc.creation_operator, add_hc=True)
+    return hs, tmon, osc
+
+
+class TestHilbertSpaceConvergence:
+    def test_well_converged_composite_is_converged(self):
+        hs, _, _ = _transmon_resonator(td_t=6, td_o=6)
+        report = hs.estimate_convergence(n_levels=5, mode="verify", target_abs_GHz=1e-3)
+        assert report.aggregate_status == "converged"
+        # The composite truncation is reported on the composite_coupling channel.
+        assert {v.truncation_channel for v in report.per_level} == {
+            "composite_coupling"
+        }
+        assert {v.evidence for v in report.per_level} == {"verified_empirical"}
+        assert report.implementation_audit.mode == "verify"
+
+    def test_layer1_subsystem_reports_attached(self):
+        # Layer 1 attaches each capable subsystem's own report under derived; the
+        # oscillator has no internal cutoff and is skipped.
+        hs, _, _ = _transmon_resonator(td_t=6, td_o=6)
+        report = hs.estimate_convergence(n_levels=5, mode="verify", target_abs_GHz=1e-3)
+        assert report.derived is not None
+        keys = list(report.derived)
+        assert len(keys) == 1
+        assert keys[0].startswith("subsystem:")
+        assert "Transmon" in keys[0]
+
+    def test_assume_subsystems_converged_skips_layer1(self):
+        hs, _, _ = _transmon_resonator(td_t=6, td_o=6)
+        report = hs.estimate_convergence(
+            n_levels=5,
+            mode="verify",
+            target_abs_GHz=1e-3,
+            assume_subsystems_converged=True,
+        )
+        assert report.derived is None
+        assert report.aggregate_status == "converged"
+
+    def test_undersized_truncated_dim_is_underconverged(self):
+        # A too-small resonator truncated_dim leaves the coupled spectrum
+        # unconverged; the dominant axis is the oscillator and a recommendation
+        # must name it.
+        hs, _, _ = _transmon_resonator(td_t=6, td_o=3, g=0.6)
+        report = hs.estimate_convergence(n_levels=4, mode="verify", target_abs_GHz=1e-5)
+        assert report.aggregate_status == "underconverged"
+        assert any("Oscillator" in r for r in report.recommendations)
+
+    def test_aggregate_widened_by_underconverged_subsystem(self):
+        # If a subsystem is underconverged at its own cutoff, the composite
+        # cannot be better: the aggregate is widened to the subsystem verdict.
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=5, truncated_dim=6)
+        osc = sq.Oscillator(E_osc=5.0, truncated_dim=6)
+        hs = sq.HilbertSpace([tmon, osc])
+        hs.add_interaction(
+            g=0.1, op1=tmon.n_operator, op2=osc.creation_operator, add_hc=True
+        )
+        report = hs.estimate_convergence(n_levels=5, mode="verify", target_abs_GHz=1e-6)
+        sub = report.derived["subsystem:" + tmon.id_str]
+        assert _status_rank(sub.aggregate_status) >= _status_rank("marginal")
+        assert _status_rank(report.aggregate_status) >= _status_rank(
+            sub.aggregate_status
+        )
+
+    def test_quick_mode_is_verify_recommended(self):
+        hs, _, _ = _transmon_resonator(td_t=6, td_o=6)
+        report = hs.estimate_convergence(n_levels=5, mode="quick")
+        # No cheap composite estimate: the composite verdict is unverified and a
+        # recommendation points to verify mode. Layer-1 subsystem quick checks
+        # are still attached.
+        assert report.aggregate_status == "unverified"
+        assert all(
+            v.truncation_channel == "composite_coupling" for v in report.per_level
+        )
+        assert any("verify" in r for r in report.recommendations)
+        assert report.derived is not None and len(report.derived) == 1
+
+    def test_n_levels_exceeding_dimension_raises(self):
+        hs, _, _ = _transmon_resonator(td_t=2, td_o=2)  # composite dimension 4
+        with pytest.raises(ValueError, match="exceeds the composite dimension"):
+            hs.estimate_convergence(n_levels=5, mode="verify", target_abs_GHz=1e-3)
+
+    def test_strict_mode_uses_composite_coupling_channel(self):
+        hs, _, _ = _transmon_resonator(td_t=6, td_o=6)
+        report = hs.estimate_convergence(n_levels=5, mode="strict", target_abs_GHz=1e-3)
+        assert {v.truncation_channel for v in report.per_level} == {
+            "composite_coupling"
+        }
+        assert report.implementation_audit.mode == "strict"
+
+    def test_top_level_shim_on_hilbertspace(self):
+        hs, _, _ = _transmon_resonator(td_t=6, td_o=6)
+        report = sq.estimate_convergence(
+            hs, n_levels=5, mode="verify", target_abs_GHz=1e-3
+        )
+        assert report.aggregate_status == "converged"

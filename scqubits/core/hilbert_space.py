@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import functools
 import importlib
 import re
@@ -51,6 +52,12 @@ else:
 if TYPE_CHECKING:
     from scqubits.io_utils.fileio import IOData
 
+from scqubits.core.convergence import ConvergenceCheckable, _status_rank
+from scqubits.core.convergence_report import (
+    ConvergenceReport,
+    LevelVerdict,
+    TruncationChannel,
+)
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.utils.typedefs import OscillatorList, QuantumSys, QubitList
 
@@ -401,7 +408,10 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
 
 
 class HilbertSpace(
-    spec_lookup.SpectrumLookupMixin, dispatch.DispatchClient, serializers.Serializable
+    spec_lookup.SpectrumLookupMixin,
+    ConvergenceCheckable,
+    dispatch.DispatchClient,
+    serializers.Serializable,
 ):
     """Composite Hilbert space assembled from one or more subsystems.
 
@@ -702,6 +712,257 @@ class HilbertSpace(
     def subsystem_count(self) -> int:
         """Return the number of subsystems composing the joint Hilbert space."""
         return len(self._subsystems)
+
+    ###################################################################################
+    # HilbertSpace: convergence diagnostics
+    ###################################################################################
+    # The composite Hilbert space has two truncation layers. Layer 1 is each
+    # subsystem's own basis cutoff (ncut, cutoff, grid), verified by delegating to
+    # the subsystem's own estimate_convergence. Layer 2 is the per-subsystem
+    # truncated_dim that sets how many subsystem levels enter the product space; it
+    # is verified by the inherited multi-axis refinement engine, one axis per
+    # subsystem, re-diagonalizing the whole composite so that subsystem and
+    # coupling leakage are counted exactly once. See the convergence design spec,
+    # section "Multi-coordinate qubits and composite Hilbert spaces".
+
+    @property
+    def _convergence_axes(self) -> tuple[str, ...]:  # type: ignore[override]
+        """Layer-2 refinement axes: one ``truncated_dim`` per subsystem.
+
+        Each axis is identified by the subsystem ``id_str``. Growing a
+        subsystem's ``truncated_dim`` includes more of its levels in the
+        composite product space -- the composite truncation knob.
+        """
+        return tuple(subsys.id_str for subsys in self)
+
+    def _convergence_subsystem(self, axis: str) -> QuantumSys:
+        """Return the subsystem whose ``id_str`` equals ``axis``."""
+        for subsys in self:
+            if subsys.id_str == axis:
+                return subsys
+        raise KeyError(f"no subsystem with id_str {axis!r}")
+
+    def _convergence_axis_value(self, axis: str) -> int:
+        """Return the current ``truncated_dim`` of the named subsystem."""
+        return int(self._convergence_subsystem(axis).truncated_dim)
+
+    def _convergence_set_axis(
+        self, clone: "ConvergenceCheckable", axis: str, value: int
+    ) -> None:
+        """Set the ``truncated_dim`` of ``clone``'s matching subsystem."""
+        cast("HilbertSpace", clone)._convergence_subsystem(axis).truncated_dim = value
+
+    def _convergence_step(self, axis: str) -> int:
+        """Refinement step for a subsystem's ``truncated_dim``.
+
+        Capped so that even strict mode's two-step refinement stays within a
+        finite subsystem's internal basis dimension; an oscillator's Fock space
+        is unbounded and takes the bare heuristic step.
+        """
+        subsys = self._convergence_subsystem(axis)
+        current = int(subsys.truncated_dim)
+        step = max(2, current // 4)
+        if subsys not in self.osc_subsys_list:
+            headroom = int(subsys.hilbertdim()) - current
+            step = min(step, max(0, headroom // 2))
+        return step
+
+    def _convergence_truncation_channel(self, axis: str) -> TruncationChannel:
+        """Composite truncation is reported on the ``composite_coupling`` channel."""
+        return "composite_coupling"
+
+    def estimate_convergence(  # type: ignore[override]
+        self,
+        n_levels: int = 6,
+        mode: str = "verify",
+        scope: str = "absolute",
+        target_abs_GHz: float | None = None,
+        target_gap_rel: float = 1e-3,
+        g_floor_GHz: float = 1e-3,
+        assume_subsystems_converged: bool = False,
+    ) -> ConvergenceReport:
+        """Estimate convergence of the composite spectrum across two layers.
+
+        Layer 1 (subsystem-internal): for each subsystem that supports it,
+        delegate to ``subsystem.estimate_convergence`` to verify its own basis
+        cutoff for the levels that enter the product space; the per-subsystem
+        reports are attached under ``report.derived["subsystem:<id>"]``. Pass
+        ``assume_subsystems_converged=True`` to skip this layer when subsystem
+        convergence has been established separately.
+
+        Layer 2 (composite ``truncated_dim``): refine each subsystem's
+        ``truncated_dim`` one at a time, re-diagonalizing the whole composite and
+        comparing cluster-matched spectra. A single composite re-diagonalization
+        counts subsystem and coupling leakage exactly once.
+
+        The ``aggregate_status`` is the worst of the layer-2 composite verdict
+        and every layer-1 subsystem verdict: the composite cannot be more
+        converged than its parts.
+
+        Parameters
+        ----------
+        n_levels:
+            Number of lowest composite eigenvalues to assess.
+        mode:
+            ``"quick"`` (no composite re-diagonalization; the composite verdict
+            is reported as verify-recommended), ``"verify"`` (one composite
+            refinement; default), or ``"strict"`` (two-step ratio test).
+        scope:
+            ``"absolute"`` or ``"observed_gap_scale"``, as in
+            :meth:`ConvergenceCheckable.estimate_convergence`.
+        target_abs_GHz:
+            Required for absolute-scope status assignment.
+        target_gap_rel:
+            Threshold for the observed-gap scope (default ``1e-3``).
+        g_floor_GHz:
+            Floor on the local isolation gap (default ``1e-3`` GHz).
+        assume_subsystems_converged:
+            If True, skip the layer-1 subsystem checks.
+
+        Returns
+        -------
+        :class:`~scqubits.core.convergence_report.ConvergenceReport`
+        """
+        if n_levels > self.dimension:
+            raise ValueError(
+                f"n_levels={n_levels} exceeds the composite dimension "
+                f"{self.dimension}; reduce n_levels or raise subsystem "
+                "truncated_dim values"
+            )
+
+        if mode == "quick":
+            composite = self._convergence_composite_quick(n_levels, scope)
+        else:
+            composite = ConvergenceCheckable.estimate_convergence(
+                self,
+                n_levels=n_levels,
+                mode=mode,
+                scope=scope,
+                target_abs_GHz=target_abs_GHz,
+                target_gap_rel=target_gap_rel,
+                g_floor_GHz=g_floor_GHz,
+            )
+
+        subsystem_reports: dict[str, ConvergenceReport] = {}
+        if not assume_subsystems_converged:
+            subsystem_reports = self._convergence_subsystem_reports(
+                mode=mode,
+                scope=scope,
+                target_abs_GHz=target_abs_GHz,
+                target_gap_rel=target_gap_rel,
+                g_floor_GHz=g_floor_GHz,
+            )
+
+        return self._convergence_compose(composite, subsystem_reports)
+
+    def _convergence_subsystem_reports(
+        self,
+        mode: str,
+        scope: str,
+        target_abs_GHz: float | None,
+        target_gap_rel: float,
+        g_floor_GHz: float,
+    ) -> dict[str, ConvergenceReport]:
+        """Run the layer-1 internal convergence check for each capable subsystem.
+
+        Each subsystem is assessed for ``truncated_dim`` plus the layer-2
+        refinement reach, so the extra levels a composite bump pulls in are
+        themselves verified. Subsystems without an internal cutoff (no
+        ``_convergence_axes`` -- e.g. oscillators) are skipped.
+        """
+        reports: dict[str, ConvergenceReport] = {}
+        for subsys in self:
+            if not isinstance(subsys, ConvergenceCheckable):
+                continue
+            if not subsys._convergence_axes:
+                continue
+            axis = subsys.id_str
+            truncated = int(subsys.truncated_dim)
+            reach = self._convergence_step(axis)
+            if mode == "strict":
+                reach *= 2
+            n_sub = max(1, min(truncated + reach, int(subsys.hilbertdim())))
+            reports[axis] = subsys.estimate_convergence(
+                n_levels=n_sub,
+                mode=mode,
+                scope=scope,
+                target_abs_GHz=target_abs_GHz,
+                target_gap_rel=target_gap_rel,
+                g_floor_GHz=g_floor_GHz,
+            )
+        return reports
+
+    def _convergence_compose(
+        self,
+        composite: ConvergenceReport,
+        subsystem_reports: dict[str, ConvergenceReport],
+    ) -> ConvergenceReport:
+        """Merge layer-1 subsystem reports into the layer-2 composite report.
+
+        The subsystem reports are attached under ``derived["subsystem:<id>"]``
+        and the aggregate status is widened to the worst of the composite and
+        all subsystem verdicts.
+        """
+        recommendations = list(composite.recommendations)
+        derived = dict(composite.derived or {})
+        aggregate = composite.aggregate_status
+        for axis, subreport in subsystem_reports.items():
+            derived[f"subsystem:{axis}"] = subreport
+            if _status_rank(subreport.aggregate_status) >= _status_rank("marginal"):
+                recommendations.append(
+                    f"subsystem '{axis}' is {subreport.aggregate_status} at its own "
+                    "cutoff; the composite cannot be more converged than its parts "
+                    "-- converge the subsystem first"
+                )
+            if _status_rank(subreport.aggregate_status) > _status_rank(aggregate):
+                aggregate = subreport.aggregate_status
+
+        return dataclasses.replace(
+            composite,
+            aggregate_status=aggregate,
+            recommendations=recommendations,
+            derived=derived or None,
+        )
+
+    def _convergence_composite_quick(
+        self, n_levels: int, scope: str
+    ) -> ConvergenceReport:
+        """Composite quick mode: no composite estimate, verify-recommended.
+
+        A composite truncation verdict requires a full composite
+        re-diagonalization, which quick mode skips by design. Each level is
+        reported ``unverified`` with a recommendation to run ``mode='verify'``;
+        layer-1 subsystem quick checks are attached separately by the caller.
+        """
+        audit = self._convergence_audit(n_levels, 0, "quick", "one_step")
+        status_scope = cast("Any", scope)
+        per_level = [
+            LevelVerdict(
+                level_index=k,
+                status="unverified",
+                status_scope=status_scope,
+                evidence="diagnostic",
+                abs_err_est_GHz=None,
+                eps_gap_est=None,
+                truncation_channel="composite_coupling",
+                estimator_method="verify_recommended",
+                warnings=("composite_verify_recommended",),
+            )
+            for k in range(n_levels)
+        ]
+        return ConvergenceReport(
+            per_level=per_level,
+            aggregate_status="unverified",
+            worst_level=0 if n_levels else None,
+            channel_breakdown_GHz={},
+            clusters=[],
+            recommendations=[
+                "composite truncation has no cheap estimate; run mode='verify' "
+                "for a composite truncation verdict"
+            ],
+            implementation_audit=audit,
+            derived=None,
+        )
 
     ###################################################################################
     # HilbertSpace: generate SpectrumLookup
