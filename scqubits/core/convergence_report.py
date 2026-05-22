@@ -94,8 +94,12 @@ class LevelVerdict:
     """Per-level convergence verdict.
 
     All numerical fields suffixed ``_est`` are computed estimates, not the
-    unknown true error. ``transition_err_est_GHz`` keys are pairs
-    ``(i, j)`` for the transition ``i -> j``.
+    unknown true error. ``abs_err_est_GHz`` and ``eps_gap_est`` (an
+    isolation-gap-normalized energy error) describe an energy level;
+    ``rel_change_est`` is the dimensionless change of a *derived* quantity
+    (wavefunction, matrix element, coherence rate) and is set only in derived
+    sub-reports. ``transition_err_est_GHz`` keys are pairs ``(i, j)`` for the
+    transition ``i -> j``.
     """
 
     level_index: int
@@ -104,6 +108,7 @@ class LevelVerdict:
     evidence: Evidence
     abs_err_est_GHz: float | None
     eps_gap_est: float | None
+    rel_change_est: float | None = None
     transition_err_est_GHz: dict[tuple[int, int], float] = field(default_factory=dict)
     truncation_channel: TruncationChannel = "charge_tail"
     estimator_method: str = "one_step"
@@ -188,9 +193,15 @@ class ConvergenceReport:
                 if verdict.abs_err_est_GHz is None
                 else f"{verdict.abs_err_est_GHz:.2e}"
             )
-            eps_gap = (
-                "  -  " if verdict.eps_gap_est is None else f"{verdict.eps_gap_est:.2e}"
-            )
+            # Energy levels report a gap-normalized eps_gap_est; derived
+            # quantities report a dimensionless rel_change_est. Show whichever
+            # applies.
+            if verdict.eps_gap_est is not None:
+                metric = f"eps_gap={verdict.eps_gap_est:.2e}"
+            elif verdict.rel_change_est is not None:
+                metric = f"rel_change={verdict.rel_change_est:.2e}"
+            else:
+                metric = "eps_gap=  -  "
             warns = (
                 "  [" + ", ".join(verdict.warnings) + "]" if verdict.warnings else ""
             )
@@ -198,7 +209,7 @@ class ConvergenceReport:
                 f"  level {verdict.level_index}: {verdict.status:<16} "
                 f"evidence={verdict.evidence:<18} "
                 f"channel={str(verdict.truncation_channel):<18} "
-                f"abs_err={abs_err}  eps_gap={eps_gap}  "
+                f"abs_err={abs_err}  {metric}  "
                 f"via {verdict.estimator_method}{warns}"
             )
         if self.channel_breakdown_GHz:

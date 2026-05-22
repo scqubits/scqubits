@@ -421,9 +421,11 @@ class TestDerivedChannels:
         assert wf.aggregate_status == "converged"
         assert len(wf.per_level) == 4
         for v in wf.per_level:
-            assert v.eps_gap_est is not None
-            assert v.eps_gap_est < 1e-3
-            # Derived metrics are dimensionless: no GHz error estimate.
+            # Derived metrics report rel_change_est (dimensionless), not the
+            # gap-normalized eps_gap_est, and carry no GHz error estimate.
+            assert v.rel_change_est is not None
+            assert v.rel_change_est < 1e-3
+            assert v.eps_gap_est is None
             assert v.abs_err_est_GHz is None
             assert v.evidence == "verified_empirical"
             assert v.estimator_method == "wavefunction_overlap"
@@ -440,7 +442,8 @@ class TestDerivedChannels:
         me = report.derived["matrix_elements"]
         assert me.aggregate_status == "converged"
         for v in me.per_level:
-            assert v.eps_gap_est is not None
+            assert v.rel_change_est is not None
+            assert v.eps_gap_est is None
             assert v.estimator_method == "matrix_element_frobenius"
 
     def test_both_channels_attached_together(self):
@@ -454,7 +457,7 @@ class TestDerivedChannels:
         )
         assert set(report.derived.keys()) == {"wavefunctions", "matrix_elements"}
 
-    def test_wavefunction_movement_shrinks_with_cutoff(self):
+    def test_wavefunction_refinement_diff_shrinks_with_cutoff(self):
         # The overlap deficit at a larger base cutoff is no larger than at a
         # clearly undersized one.
         small = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=5, truncated_dim=4)
@@ -471,8 +474,12 @@ class TestDerivedChannels:
             include_derived=True,
             derived_quantities=["wavefunctions"],
         )
-        worst_s = max(v.eps_gap_est for v in rep_s.derived["wavefunctions"].per_level)
-        worst_l = max(v.eps_gap_est for v in rep_l.derived["wavefunctions"].per_level)
+        worst_s = max(
+            v.rel_change_est for v in rep_s.derived["wavefunctions"].per_level
+        )
+        worst_l = max(
+            v.rel_change_est for v in rep_l.derived["wavefunctions"].per_level
+        )
         assert worst_l <= worst_s + 1e-12
 
     def test_strict_mode_derived_runs_ratio_test(self):
@@ -511,8 +518,10 @@ class TestCoherenceChannel:
         assert "t1_capacitive_rate" in methods
         for v in co.per_level:
             assert v.estimator_method.endswith("_rate")
-            assert v.eps_gap_est is not None
-            # Coherence is a rate metric, not an energy.
+            # Coherence is a rate metric, not an energy: rel_change_est, not
+            # eps_gap_est or abs_err_est_GHz.
+            assert v.rel_change_est is not None
+            assert v.eps_gap_est is None
             assert v.abs_err_est_GHz is None
 
     def test_coherence_converged_at_high_cutoff(self):
@@ -758,9 +767,13 @@ class TestZeroPi:
             "FD_stencil",
             "charge_tail",
         }
-        # The per-level channel is the multi-axis composite.
-        assert {v.truncation_channel for v in report.per_level} == {
-            "composite_coupling"
+        # The per-level channel is the dominant physical channel (composite_coupling
+        # is reserved for coupled-subsystem HilbertSpace truncation, not a
+        # multi-coordinate single qubit); the full split is in channel_breakdown.
+        assert {v.truncation_channel for v in report.per_level} <= {
+            "FD_box",
+            "FD_stencil",
+            "charge_tail",
         }
         # All three axes are recorded in the audit.
         assert set(report.implementation_audit.cutoff_parameters) == {

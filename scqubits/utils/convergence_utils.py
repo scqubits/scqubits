@@ -175,9 +175,9 @@ def geometric_ratio_test(
     diff_first: npt.NDArray[np.float64],
     diff_second: npt.NDArray[np.float64],
 ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.bool_]]:
-    """Run a per-cluster geometric ratio test on successive refinement movements.
+    """Run a per-cluster geometric ratio test on successive refinement refinement differences.
 
-    Given the absolute spectral movements between consecutive cutoffs --
+    Given the absolute spectral refinement differences between consecutive cutoffs --
     ``diff_first`` for the base-to-first-refinement step and ``diff_second`` for
     the first-to-second-refinement step -- this characterizes whether each
     cluster is in the geometric (asymptotically converging) regime and, if so,
@@ -186,23 +186,23 @@ def geometric_ratio_test(
     Parameters
     ----------
     diff_first:
-        Per-cluster absolute eigenvalue movement of the first refinement step.
+        Per-cluster absolute eigenvalue refinement difference of the first refinement step.
         Entries are non-negative.
     diff_second:
-        Per-cluster absolute eigenvalue movement of the second refinement step,
+        Per-cluster absolute eigenvalue refinement difference of the second refinement step,
         aligned element-wise with ``diff_first``.
 
     Returns
     -------
     ratios
         ``diff_second / diff_first`` per cluster, with ``inf`` wherever
-        ``diff_first`` is zero (the movement is already at the floor and the
+        ``diff_first`` is zero (the refinement difference is already at the floor and the
         ratio is undefined).
     geometric_tail
         The geometric-series tail estimate ``diff_first / (1 - ratios)`` for
         clusters with ``ratios < 1``, and ``inf`` elsewhere.
     is_asymptotic
-        ``True`` for clusters with ``ratios < 1``, i.e. those whose movement is
+        ``True`` for clusters with ``ratios < 1``, i.e. those whose refinement difference is
         shrinking and for which the geometric extrapolation is meaningful.
     """
     ratios = np.divide(
@@ -238,20 +238,20 @@ def richardson_estimate(
     ``E(N) = E_inf + C g(N)``, the error of the coarsest (user) grid extrapolated
     to the continuum is ``diff_first / (1 - g1 / g0)``.
 
-    The asymptoticity test compares the observed movement ratio
+    The asymptoticity test compares the observed refinement difference ratio
     ``diff_second / diff_first`` against the model-predicted
     ``(g1 - g2) / (g0 - g1)``: a cluster is asymptotic when the two agree to
     within ``rel_tol`` (relative), or when ``diff_first`` is at the numerical
-    floor (no measurable movement). Richardson is a verified estimate only in the
+    floor (no measurable refinement difference). Richardson is a verified estimate only in the
     asymptotic regime; the caller falls back to a one-step bound otherwise.
 
     Parameters
     ----------
     diff_first:
-        Per-cluster absolute eigenvalue movement from the coarse grid ``n0`` to
+        Per-cluster absolute eigenvalue refinement difference from the coarse grid ``n0`` to
         the first refinement ``n1``. Entries are non-negative.
     diff_second:
-        Per-cluster absolute movement from ``n1`` to the second refinement
+        Per-cluster absolute refinement difference from ``n1`` to the second refinement
         ``n2``, aligned with ``diff_first``.
     n0, n1, n2:
         Grid-point counts of the coarse grid and the two refinements,
@@ -266,9 +266,9 @@ def richardson_estimate(
     -------
     estimate
         Per-cluster Richardson error estimate of the coarse grid ``n0``; ``0``
-        where there is no movement.
+        where there is no refinement difference.
     is_asymptotic
-        ``True`` for clusters whose observed movement ratio matches the
+        ``True`` for clusters whose observed refinement difference ratio matches the
         ``h**order`` model (or that are at the numerical floor).
     """
     g0 = 1.0 / (n0 - 1) ** order
@@ -302,9 +302,9 @@ def ho_window_resolvent_estimate(
     the full kept vector rather than a fixed boundary band. For level ``k`` with
     kept eigenvector ``c_k``, the residual on a dropped window ``W`` is
     ``r_W = coupling_window @ c_k`` (the ``<m|H|j>`` block from kept ``j`` to
-    window ``m``), and the second-order estimate is
+    window ``m``), and the second-order estimate is::
 
-        eta_k = | <r_W, (H_WW - E_k I)^-1 r_W> |.
+        eta_k = | <r_W, (H_WW - E_k I)^-1 r_W> |
 
     A further dropped band beyond ``W`` gives the omitted-residual norm
     ``rho_tail = ||coupling_tail @ c_k||^2``; if it is not small relative to the
@@ -404,10 +404,10 @@ def charge_finite_tail_estimate(
     """Finite-tail (Green-function) charge-truncation error estimate per level.
 
     Implements the design-spec second-order tail estimate for a 1D charge basis
-    (transmon-like): for level ``k`` with boundary amplitudes
-    ``c_R = <ncut|u_k>`` and ``c_L = <-ncut|u_k>``,
+    (transmon-like). For level ``k`` with boundary amplitudes
+    ``c_R = <ncut|u_k>`` and ``c_L = <-ncut|u_k>`` the second-order estimate is::
 
-        errhat_k = | EJ^2 / 4 * (|c_R|^2 G_R + |c_L|^2 G_L) |,
+        errhat_k = | EJ^2 / 4 * (|c_R|^2 G_R + |c_L|^2 G_L) |
 
     where ``G_R``/``G_L`` are the ``(1, 1)`` entries of the resolvents of the
     finite dropped tail blocks of depth ``d`` on each side. The depth is increased

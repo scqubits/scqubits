@@ -136,7 +136,7 @@ class TestClusterSafeMatchEnergies:
 
 class TestGeometricRatioTest:
     def test_asymptotic_cluster_extrapolates_geometric_tail(self):
-        # Movement halves each step (R = 0.5): geometric tail = d0 / (1 - R) = 2.
+        # Refinement difference halves each step (R = 0.5): geometric tail = d0/(1-R) = 2.
         diff_first = np.asarray([1.0], dtype=np.float64)
         diff_second = np.asarray([0.5], dtype=np.float64)
         ratios, tail, is_asymptotic = geometric_ratio_test(diff_first, diff_second)
@@ -145,7 +145,7 @@ class TestGeometricRatioTest:
         assert bool(is_asymptotic[0]) is True
 
     def test_non_asymptotic_cluster_flags_inf_tail(self):
-        # Movement grows (R = 2): not asymptotic, tail undefined (inf).
+        # Refinement difference grows (R = 2): not asymptotic, tail undefined (inf).
         diff_first = np.asarray([1.0], dtype=np.float64)
         diff_second = np.asarray([2.0], dtype=np.float64)
         ratios, tail, is_asymptotic = geometric_ratio_test(diff_first, diff_second)
@@ -153,7 +153,7 @@ class TestGeometricRatioTest:
         assert np.isinf(tail[0])
         assert bool(is_asymptotic[0]) is False
 
-    def test_zero_first_movement_gives_inf_ratio(self):
+    def test_zero_first_refinement_diff_gives_inf_ratio(self):
         # d0 already at the floor: ratio undefined (inf), so not asymptotic.
         diff_first = np.asarray([0.0], dtype=np.float64)
         diff_second = np.asarray([1.0], dtype=np.float64)
@@ -183,16 +183,16 @@ class TestRichardsonEstimate:
         np.testing.assert_allclose(estimate, [1.0 / (n0 - 1) ** order], rtol=1e-9)
         assert bool(is_asymptotic[0]) is True
 
-    def test_movement_inconsistent_with_model_is_not_asymptotic(self):
-        # Movement barely shrinks (ratio ~ 0.95), far from the h**4-predicted
+    def test_refinement_diff_inconsistent_with_model_is_not_asymptotic(self):
+        # Refinement difference barely shrinks (ratio ~ 0.95), far from the h**4-predicted
         # ratio, so the level is not in the asymptotic regime.
         d0 = np.asarray([1.0], dtype=np.float64)
         d1 = np.asarray([0.95], dtype=np.float64)
         _, is_asymptotic = richardson_estimate(d0, d1, 11, 21, 41, 4)
         assert bool(is_asymptotic[0]) is False
 
-    def test_zero_movement_is_asymptotic_with_zero_estimate(self):
-        # No measurable movement: already stable, estimate 0, treated asymptotic.
+    def test_zero_refinement_diff_is_asymptotic_with_zero_estimate(self):
+        # No measurable refinement difference: already stable, estimate 0, treated asymptotic.
         d0 = np.asarray([0.0], dtype=np.float64)
         d1 = np.asarray([0.0], dtype=np.float64)
         estimate, is_asymptotic = richardson_estimate(d0, d1, 11, 21, 41, 4)

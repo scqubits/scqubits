@@ -330,9 +330,12 @@ class ConvergenceCheckable:
             The parameter values of the intended sweep.
         sample:
             Number of values to actually check, spread across the range and
-            always including both endpoints (the usual worst case). ``None``
-            checks every value in ``param_vals``. Sampling keeps the check cheap
-            relative to a full per-point sweep.
+            including both endpoints. The hardest point is often *interior*
+            (e.g. fluxonium near half flux, avoided crossings), so the sampling
+            spans the whole range rather than just the ends; pass any known hard
+            points explicitly via ``param_vals``, or ``sample=None`` to check
+            every value. Sampling keeps the check cheap relative to a full
+            per-point sweep.
         **kwargs:
             Forwarded to :meth:`estimate_convergence` (e.g. ``n_levels``,
             ``mode``, ``target_abs_GHz``, ``scope``).
@@ -562,9 +565,9 @@ class ConvergenceCheckable:
         """
         estimate, perturbative_ok, boundary_prob = tail
         large_boundary_prob = _BOUNDARY_PROBABILITY_LARGE
-        # The perturbative tail estimate is a lower bound (it omits higher-order
-        # and far-tail contributions); apply the same safety factor the refinement
-        # modes use so a quick verdict carries a comparable margin.
+        # The perturbative tail estimate omits higher-order and far-tail
+        # contributions, so it is not a bound; apply the same safety factor the
+        # refinement modes use so a quick verdict carries a comparable margin.
         safety_factor = settings.CONVERGENCE_SAFETY_FACTOR
 
         per_level: list[LevelVerdict] = []
@@ -667,7 +670,7 @@ class ConvergenceCheckable:
         n_clusters = len(clusters)
 
         # Refine each truncation axis independently (bump it, hold the others)
-        # and sum the per-axis movements -- a triangle-inequality upper bound on
+        # and sum the per-axis refinement differences -- a triangle-inequality upper bound on
         # the combined truncation error.
         combined_diff_n1 = np.zeros(n_clusters, dtype=np.float64)
         combined_diff_n2: npt.NDArray[np.float64] | None = (
@@ -678,8 +681,8 @@ class ConvergenceCheckable:
         # When a finite-difference (Richardson) axis is present, the strict-mode
         # estimate must be formed per-axis (Richardson for the FD-stencil channel,
         # geometric elsewhere) and summed -- a single geometric test on the
-        # summed movements would misjudge the h**p stencil channel. Non-FD qubits
-        # and verify mode keep the summed-movement path unchanged.
+        # summed refinement differences would misjudge the h**p stencil channel. Non-FD qubits
+        # and verify mode keep the summed-refinement difference path unchanged.
         use_richardson = refinement == "ratio_test" and any(
             self._convergence_richardson_order(a) is not None for a in axes
         )
@@ -763,16 +766,18 @@ class ConvergenceCheckable:
             )
 
         multi_axis = len(axes) > 1
-        per_level_channel: TruncationChannel = (
-            "composite_coupling"
-            if multi_axis
-            else self._convergence_truncation_channel(axes[0])
-        )
         dominant_axis = max(per_axis_weight, key=lambda a: per_axis_weight[a])
+        # For a single multi-coordinate qubit the per-level channel is the
+        # dominant physical channel (the full per-channel split is in
+        # channel_breakdown_GHz). ``composite_coupling`` is reserved for
+        # coupled-subsystem HilbertSpace truncation, not a multi-axis qubit.
+        per_level_channel: TruncationChannel = self._convergence_truncation_channel(
+            dominant_axis
+        )
 
         # Flag levels whose kept eigenstate reaches a basis boundary so strongly
         # that the dropped tail is non-perturbative -- a reliable underconvergence
-        # signal independent of the refinement movement (design spec). Uses each
+        # signal independent of the refinement refinement difference (design spec). Uses each
         # axis's cheap boundary diagnostic on the base eigensystem.
         boundary_large = [False] * n_levels
         for axis in axes:
@@ -872,26 +877,26 @@ class ConvergenceCheckable:
         boundary_large: list[bool] | None = None,
     ) -> ConvergenceReport:
         """Assemble the LevelVerdicts and ConvergenceReport from per-cluster
-        movements.
+        refinement differences.
 
         Shared by single- and multi-axis refinement. The caller supplies the
-        cluster partition and the per-cluster movements (already summed over axes
-        for the multi-axis case), the per-level ``channel``
-        (``"composite_coupling"`` when multiple axes contribute), and the
-        per-channel ``channel_breakdown``.
+        cluster partition and the per-cluster refinement differences (already summed over axes
+        for the multi-axis case), the per-level ``channel`` (the dominant physical
+        channel for a multi-coordinate qubit), and the per-channel
+        ``channel_breakdown``.
 
         When ``precomputed_estimate`` is given (a finite-difference axis used the
         Richardson estimator), it is the per-cluster absolute error already summed
         over axes, and ``precomputed_non_asymptotic`` flags clusters whose ratio
         or Richardson test failed; the geometric ratio test on the summed
-        movements is then bypassed. ``boundary_large`` flags levels that reach a
+        refinement differences is then bypassed. ``boundary_large`` flags levels that reach a
         basis boundary so strongly that the dropped tail is non-perturbative; they
         receive a ``boundary_probability_large`` warning.
         """
         safety_factor = settings.CONVERGENCE_SAFETY_FACTOR
 
         # Strict mode without a Richardson axis: a second refinement enables the
-        # geometric ratio test on the summed movements.
+        # geometric ratio test on the summed refinement differences.
         geometric_tail: npt.NDArray[np.float64] | None = None
         asymptotic_flag: npt.NDArray[np.bool_] | None = None
         if (
@@ -1122,17 +1127,17 @@ class ConvergenceCheckable:
         derived: dict[str, ConvergenceReport] = {}
 
         if "wavefunctions" in derived_quantities:
-            movement_first = self._convergence_wavefunction_movement(
+            refinement_diff_first = self._convergence_wavefunction_refinement_diff(
                 evecs_n0, evecs_n1, ncut_0, ncut_1, clusters, n_levels
             )
-            movement_second: npt.NDArray[np.float64] | None = None
+            refinement_diff_second: npt.NDArray[np.float64] | None = None
             if refinement == "ratio_test" and evecs_n2 is not None:
-                movement_second = self._convergence_wavefunction_movement(
+                refinement_diff_second = self._convergence_wavefunction_refinement_diff(
                     evecs_n1, evecs_n2, ncut_1, ncut_2, clusters, n_levels
                 )
             derived["wavefunctions"] = _build_metric_report(
-                movement_first=movement_first,
-                movement_second=movement_second,
+                refinement_diff_first=refinement_diff_first,
+                refinement_diff_second=refinement_diff_second,
                 channel=channel,
                 estimator_method="wavefunction_overlap",
                 clusters=clusters,
@@ -1147,21 +1152,21 @@ class ConvergenceCheckable:
             )
 
         if "matrix_elements" in derived_quantities:
-            me_movement_first, skipped = _matrix_element_movement(
+            me_refinement_diff_first, skipped = _matrix_element_refinement_diff(
                 self, clone_1, evecs_n0, evecs_n1, n_levels
             )
-            me_movement_second: npt.NDArray[np.float64] | None = None
+            me_refinement_diff_second: npt.NDArray[np.float64] | None = None
             if (
                 refinement == "ratio_test"
                 and clone_2 is not None
                 and evecs_n2 is not None
             ):
-                me_movement_second, _ = _matrix_element_movement(
+                me_refinement_diff_second, _ = _matrix_element_refinement_diff(
                     clone_1, clone_2, evecs_n1, evecs_n2, n_levels
                 )
             derived["matrix_elements"] = _build_metric_report(
-                movement_first=me_movement_first,
-                movement_second=me_movement_second,
+                refinement_diff_first=me_refinement_diff_first,
+                refinement_diff_second=me_refinement_diff_second,
                 channel=channel,
                 estimator_method="matrix_element_frobenius",
                 clusters=clusters,
@@ -1180,8 +1185,8 @@ class ConvergenceCheckable:
             channels = list(
                 self.effective_noise_channels()  # type: ignore[attr-defined]
             ) + ["t1_effective", "t2_effective"]
-            names, rate_movement, floor_flags, skipped_channels = (
-                _coherence_rate_movement(
+            names, rate_refinement_diff, floor_flags, skipped_channels = (
+                _coherence_rate_refinement_diff(
                     self,
                     clone_1,
                     (evals_n0, evecs_n0),
@@ -1192,7 +1197,7 @@ class ConvergenceCheckable:
             )
             derived["coherence"] = _build_coherence_report(
                 channel_names=names,
-                movement=rate_movement,
+                refinement_diff=rate_refinement_diff,
                 floor_flags=floor_flags,
                 channel=channel,
                 target_gap_rel=target_gap_rel,
@@ -1205,7 +1210,7 @@ class ConvergenceCheckable:
 
         return dataclasses.replace(report, derived=derived)
 
-    def _convergence_wavefunction_movement(
+    def _convergence_wavefunction_refinement_diff(
         self,
         evecs_a: npt.NDArray[np.float64],
         evecs_b: npt.NDArray[np.float64],
@@ -1214,7 +1219,7 @@ class ConvergenceCheckable:
         clusters: list[tuple[int, ...]],
         n_levels: int,
     ) -> npt.NDArray[np.float64]:
-        """Per-level wavefunction movement between two cutoffs.
+        """Per-level wavefunction refinement difference between two cutoffs.
 
         Both eigenvector sets are embedded into the larger basis via the
         qubit's :meth:`_convergence_pad_eigenvectors` hook. Isolated levels use
@@ -1230,16 +1235,16 @@ class ConvergenceCheckable:
         b = self._convergence_pad_eigenvectors(
             evecs_b[:, :n_levels], value_b, value_max
         )
-        movement = np.empty(n_levels, dtype=np.float64)
+        refinement_diff = np.empty(n_levels, dtype=np.float64)
         for k in range(n_levels):
-            movement[k] = 1.0 - min(1.0, abs(complex(np.vdot(a[:, k], b[:, k]))))
+            refinement_diff[k] = 1.0 - min(1.0, abs(complex(np.vdot(a[:, k], b[:, k]))))
         for cluster in clusters:
             if len(cluster) > 1:
                 cols = list(cluster)
                 angle = cutils.subspace_angle(a[:, cols], b[:, cols])
                 for k in cluster:
-                    movement[k] = angle
-        return movement
+                    refinement_diff[k] = angle
+        return refinement_diff
 
     def _attach_derived_reports_multiaxis(
         self,
@@ -1258,7 +1263,7 @@ class ConvergenceCheckable:
         """Attach derived sub-reports for a multi-axis qubit.
 
         Each derived metric is measured against every axis's first refinement and
-        the per-axis movements are summed (triangle-inequality bound), mirroring
+        the per-axis refinement differences are summed (triangle-inequality bound), mirroring
         the energy channel. Matrix elements and coherence are basis-agnostic and
         supported here; wavefunctions require axis-aware tensor padding and are
         not yet available for multi-axis qubits.
@@ -1268,7 +1273,7 @@ class ConvergenceCheckable:
                 "wavefunction convergence for multi-axis qubits is not yet "
                 "available; request matrix_elements and/or coherence."
             )
-        channel: TruncationChannel = "composite_coupling"
+        channel: TruncationChannel = self._convergence_truncation_channel(dominant_axis)
         audit = self._convergence_audit(
             n_levels=n_levels, n_buffer=n_buffer, mode=mode, refinement="one_step"
         )
@@ -1281,14 +1286,14 @@ class ConvergenceCheckable:
             skipped: set[str] = set()
             for refinement_data in axis_refinements.values():
                 clone_axis, evecs_axis = refinement_data[0], refinement_data[2]
-                movement, axis_skipped = _matrix_element_movement(
+                refinement_diff, axis_skipped = _matrix_element_refinement_diff(
                     self, clone_axis, evecs_n0, evecs_axis, n_levels
                 )
-                combined += movement
+                combined += refinement_diff
                 skipped.update(axis_skipped)
             derived["matrix_elements"] = _build_metric_report(
-                movement_first=combined,
-                movement_second=None,
+                refinement_diff_first=combined,
+                refinement_diff_second=None,
                 channel=channel,
                 estimator_method="matrix_element_frobenius",
                 clusters=clusters,
@@ -1312,30 +1317,32 @@ class ConvergenceCheckable:
             skipped_channels: set[str] = set()
             for refinement_data in axis_refinements.values():
                 clone_axis, evals_axis, evecs_axis = refinement_data[:3]
-                names, movement, floor_flags, axis_skipped = _coherence_rate_movement(
-                    self,
-                    clone_axis,
-                    (evals_n0, evecs_n0),
-                    (evals_axis, evecs_axis),
-                    channels,
-                    settings.CONVERGENCE_RATE_FLOOR_HZ,
+                names, refinement_diff, floor_flags, axis_skipped = (
+                    _coherence_rate_refinement_diff(
+                        self,
+                        clone_axis,
+                        (evals_n0, evecs_n0),
+                        (evals_axis, evecs_axis),
+                        channels,
+                        settings.CONVERGENCE_RATE_FLOOR_HZ,
+                    )
                 )
                 skipped_channels.update(axis_skipped)
                 for idx, name in enumerate(names):
                     combined_by_channel[name] = combined_by_channel.get(
                         name, 0.0
-                    ) + float(movement[idx])
+                    ) + float(refinement_diff[idx])
                     floor_by_channel[name] = floor_by_channel.get(name, False) or bool(
                         floor_flags[idx]
                     )
             final_names = list(combined_by_channel)
-            final_movement = np.asarray(
+            final_refinement_diff = np.asarray(
                 [combined_by_channel[name] for name in final_names], dtype=np.float64
             )
             final_floor = [floor_by_channel[name] for name in final_names]
             derived["coherence"] = _build_coherence_report(
                 channel_names=final_names,
-                movement=final_movement,
+                refinement_diff=final_refinement_diff,
                 floor_flags=final_floor,
                 channel=channel,
                 target_gap_rel=target_gap_rel,
@@ -1450,7 +1457,7 @@ def _per_cluster_energy_estimates(
     """Derive each level's error estimate, evidence, estimator method, and warnings.
 
     A one-step estimate (verify mode, or the strict-mode fallback) takes
-    ``safety_factor`` times the one-step movement; with the spec-recommended
+    ``safety_factor`` times the one-step refinement difference; with the spec-recommended
     calibrated safety factor this is ``verified_empirical`` (design spec: a
     single-step comparison becomes ``verified_empirical`` once the safety factor
     is calibrated in the regime). A successful two-step ratio test is also
@@ -1466,7 +1473,7 @@ def _per_cluster_energy_estimates(
     test failed; these are used directly instead of the geometric path.
 
     The fifth returned element flags, per level, a failed asymptoticity test on a
-    non-zero movement; the status logic forces such levels to ``underconverged``
+    non-zero refinement difference; the status logic forces such levels to ``underconverged``
     rather than ``marginal``.
     """
     per_level_abs_err = np.empty(n_levels, dtype=np.float64)
@@ -1502,14 +1509,14 @@ def _per_cluster_energy_estimates(
                 ev = "verified_empirical"
                 method = "ratio_test"
             elif d0 == 0.0:
-                # No movement across the first refinement: already stable, so the
+                # No refinement difference across the first refinement: already stable, so the
                 # ratio (0/0) is undefined rather than a failed asymptoticity test.
                 est = 0.0
                 ev = "verified_empirical"
                 method = "ratio_test"
             else:
-                # R >= 1: not a reliable asymptotic regime. The one-step movement
-                # is only a lower bound and the geometric extrapolation is
+                # R >= 1: not a reliable asymptotic regime. The one-step refinement difference
+                # is only the observed refinement difference and the geometric extrapolation is
                 # inapplicable; flag the level so it cannot be reported converged
                 # or merely marginal.
                 est = float(safety_factor * d0)
@@ -1599,7 +1606,7 @@ def _assign_level_statuses(
     ``verified_empirical`` is downgraded to ``marginal`` and a
     ``strict_mode_downgrade_insufficient_evidence`` warning is recorded.
 
-    A level whose two-step ratio test failed (``R >= 1`` on a non-zero movement,
+    A level whose two-step ratio test failed (``R >= 1`` on a non-zero refinement difference,
     flagged in ``non_asymptotic``) cannot be reported as ``marginal``: the design
     spec requires ``underconverged`` or ``unverified``, since the error estimate
     is not trustworthy. Such a level is forced to ``underconverged`` and its
@@ -1651,14 +1658,14 @@ _MATELEM_REF_FLOOR = 1e-12
 _BOUNDARY_PROBABILITY_LARGE = 1e-3
 
 
-def _matrix_element_movement(
+def _matrix_element_refinement_diff(
     qubit_a: Any,
     qubit_b: Any,
     evecs_a: npt.NDArray[np.float64],
     evecs_b: npt.NDArray[np.float64],
     n_levels: int,
 ) -> tuple[npt.NDArray[np.float64], list[str]]:
-    """Per-level relative matrix-element movement between two cutoffs.
+    """Per-level relative matrix-element refinement difference between two cutoffs.
 
     For each operator returned by ``get_operator_names`` the ``n_levels`` x
     ``n_levels`` matrix-element table is formed at both cutoffs; level ``k`` is
@@ -1667,11 +1674,11 @@ def _matrix_element_movement(
     table's row/column norm, floored to guard against selection-rule zeros.
     Matrix elements are compared by magnitude, since each eigenvector's global
     phase is a gauge choice that can differ between cutoffs (a signed comparison
-    would report spurious movement from phase flips). Operators that raise or
+    would report spurious refinement difference from phase flips). Operators that raise or
     return a shape-incompatible table are skipped and reported (graceful
     degradation), not silently dropped.
     """
-    movement = np.zeros(n_levels, dtype=np.float64)
+    refinement_diff = np.zeros(n_levels, dtype=np.float64)
     skipped: list[str] = []
     for op_name in qubit_a.get_operator_names():
         try:
@@ -1695,13 +1702,13 @@ def _matrix_element_movement(
                 float(np.linalg.norm(delta[k, :])) / row_ref,
                 float(np.linalg.norm(delta[:, k])) / col_ref,
             )
-            movement[k] = max(float(movement[k]), rel_k)
-    return movement, skipped
+            refinement_diff[k] = max(float(refinement_diff[k]), rel_k)
+    return refinement_diff, skipped
 
 
 def _build_metric_report(
-    movement_first: npt.NDArray[np.float64],
-    movement_second: npt.NDArray[np.float64] | None,
+    refinement_diff_first: npt.NDArray[np.float64],
+    refinement_diff_second: npt.NDArray[np.float64] | None,
     channel: TruncationChannel,
     estimator_method: str,
     clusters: list[tuple[int, ...]],
@@ -1717,23 +1724,23 @@ def _build_metric_report(
 ) -> ConvergenceReport:
     """Assemble a per-level ConvergenceReport for a dimensionless derived metric.
 
-    ``movement_first`` holds each level's change between the base and first
+    ``refinement_diff_first`` holds each level's change between the base and first
     refinement (overlap deficit, subspace angle, or relative matrix-element
-    change). In ratio-test mode ``movement_second`` (the first-to-second
+    change). In ratio-test mode ``refinement_diff_second`` (the first-to-second
     refinement change) drives a geometric extrapolation; levels confirmed
     asymptotic use the extrapolated tail (tagged ``verified_empirical`` -- the
     asymptoticity check is what earns that label), the rest fall back to the
-    one-step movement with a recorded warning. A failed ratio test (``R >= 1`` on
-    a non-zero movement) cannot be reported as ``marginal``: the level is forced
+    one-step refinement difference with a recorded warning. A failed ratio test (``R >= 1`` on
+    a non-zero refinement difference) cannot be reported as ``marginal``: the level is forced
     to ``underconverged`` with ``unverified`` evidence, mirroring the energy
     channel. Verdicts apply the observed-gap-scale ladder against
     ``target_gap_rel``.
     """
     geometric_tail: npt.NDArray[np.float64] | None = None
     asymptotic: npt.NDArray[np.bool_] | None = None
-    if refinement == "ratio_test" and movement_second is not None:
+    if refinement == "ratio_test" and refinement_diff_second is not None:
         _, geometric_tail, asymptotic = cutils.geometric_ratio_test(
-            movement_first, movement_second
+            refinement_diff_first, refinement_diff_second
         )
 
     safety_factor = settings.CONVERGENCE_SAFETY_FACTOR
@@ -1750,17 +1757,17 @@ def _build_metric_report(
             per_level_eps[k] = float(geometric_tail[k])
             per_level_evidence.append("verified_empirical")
             per_level_method.append(f"{estimator_method}_ratio_test")
-        elif refinement == "ratio_test" and float(movement_first[k]) == 0.0:
-            # No movement: already stable, the ratio is undefined rather than a
+        elif refinement == "ratio_test" and float(refinement_diff_first[k]) == 0.0:
+            # No refinement difference: already stable, the ratio is undefined rather than a
             # failed asymptoticity test.
             per_level_eps[k] = 0.0
             per_level_evidence.append("verified_empirical")
             per_level_method.append(f"{estimator_method}_ratio_test")
         else:
-            # One-step movement is a lower bound on the remaining error; apply
-            # the same safety factor the energy channel uses so a derived
-            # "converged" carries the same margin.
-            per_level_eps[k] = float(safety_factor * movement_first[k])
+            # One-step refinement difference underestimates the remaining change; apply the
+            # same safety factor the energy channel uses so a derived "converged"
+            # carries the same margin.
+            per_level_eps[k] = float(safety_factor * refinement_diff_first[k])
             per_level_evidence.append("verified_empirical")
             if refinement == "ratio_test":
                 per_level_method.append(f"{estimator_method}_ratio_test_fallback")
@@ -1789,7 +1796,8 @@ def _build_metric_report(
                 status_scope="observed_gap_scale",
                 evidence=evidence,
                 abs_err_est_GHz=None,
-                eps_gap_est=float(per_level_eps[k]),
+                eps_gap_est=None,
+                rel_change_est=float(per_level_eps[k]),
                 truncation_channel=channel,
                 estimator_method=per_level_method[k],
                 warnings=tuple(per_level_warnings[k]),
@@ -1820,7 +1828,7 @@ def _build_metric_report(
     )
 
 
-def _coherence_rate_movement(
+def _coherence_rate_refinement_diff(
     qubit_a: Any,
     qubit_b: Any,
     esys_a: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]],
@@ -1841,7 +1849,7 @@ def _coherence_rate_movement(
     """
     to_hz = units.units_scale_factor()
     names: list[str] = []
-    movement: list[float] = []
+    refinement_diff: list[float] = []
     floor_flags: list[bool] = []
     skipped: list[str] = []
     for channel in channels:
@@ -1858,14 +1866,14 @@ def _coherence_rate_movement(
             skipped.append(channel)
             continue
         names.append(channel)
-        movement.append(abs(rate_b - rate_a) / max(rate_b, rate_floor))
+        refinement_diff.append(abs(rate_b - rate_a) / max(rate_b, rate_floor))
         floor_flags.append(rate_b < rate_floor)
-    return names, np.asarray(movement, dtype=np.float64), floor_flags, skipped
+    return names, np.asarray(refinement_diff, dtype=np.float64), floor_flags, skipped
 
 
 def _build_coherence_report(
     channel_names: list[str],
-    movement: npt.NDArray[np.float64],
+    refinement_diff: npt.NDArray[np.float64],
     floor_flags: list[bool],
     channel: TruncationChannel,
     target_gap_rel: float,
@@ -1889,7 +1897,7 @@ def _build_coherence_report(
         warnings: tuple[str, ...] = ("noise_floor",) if floor_flags[idx] else ()
         # One-step rate change times the safety factor, matching the energy and
         # other derived channels.
-        eps = float(safety_factor * movement[idx])
+        eps = float(safety_factor * refinement_diff[idx])
         verdicts.append(
             LevelVerdict(
                 level_index=idx,
@@ -1903,7 +1911,8 @@ def _build_coherence_report(
                 status_scope="observed_gap_scale",
                 evidence="verified_empirical",
                 abs_err_est_GHz=None,
-                eps_gap_est=eps,
+                eps_gap_est=None,
+                rel_change_est=eps,
                 truncation_channel=channel,
                 estimator_method=f"{name}_rate",
                 warnings=warnings,

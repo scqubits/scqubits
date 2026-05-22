@@ -195,8 +195,13 @@ class Fluxonium(
         term is diagonal and does not couple kept to dropped) is obtained from the
         cosine on an extended Fock basis, and the second-order window estimate is
         formed by :func:`ho_window_resolvent_estimate`. This replaces a bare
-        top-Fock boundary band, which the spec cautions against. Returns ``None``
-        for an unrecognized axis.
+        top-Fock boundary band, which the spec cautions against. The result is a
+        perturbative estimate with an omitted-tail diagnostic, not a bound: a
+        finite dropped window omits both the far-dropped residual and the Schur
+        self-energy of the remaining dropped space, so it is not sign-definite. If
+        the omitted-window residual is not small the level is reported unverified
+        in quick mode and should be checked by refinement. Returns ``None`` for an
+        unrecognized axis.
         """
         if axis != "cutoff":
             return None

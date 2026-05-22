@@ -237,7 +237,7 @@ def _worst_ratio(true_per_level, sub_report):
 
 
 def _true_matelem_change(tmon, gt, evec_now, evec_gt, n):
-    movement = np.zeros(n)
+    refinement_diff = np.zeros(n)
     for op in tmon.get_operator_names():
         try:
             m0 = np.asarray(tmon.matrixelement_table(op, evecs=evec_now[:, :n]))
@@ -248,19 +248,19 @@ def _true_matelem_change(tmon, gt, evec_now, evec_gt, n):
             continue
         # Compare matrix-element magnitudes: each eigenvector's global phase is a
         # gauge choice that can flip between cutoffs, matching the framework's
-        # phase-invariant comparison in _matrix_element_movement.
+        # phase-invariant comparison in _matrix_element_refinement_diff.
         d = np.abs(np.abs(m1) - np.abs(m0))
         for k in range(n):
             row_ref = max(float(np.linalg.norm(m1[k, :])), 1e-12)
             col_ref = max(float(np.linalg.norm(m1[:, k])), 1e-12)
-            movement[k] = max(
-                movement[k],
+            refinement_diff[k] = max(
+                refinement_diff[k],
                 max(
                     float(np.linalg.norm(d[k, :])) / row_ref,
                     float(np.linalg.norm(d[:, k])) / col_ref,
                 ),
             )
-    return movement
+    return refinement_diff
 
 
 def validate_high_cutoff_check():

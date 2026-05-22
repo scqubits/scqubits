@@ -430,14 +430,14 @@ class ZeroPi(
         finite-box and charge axes converge geometrically and return ``None``.
 
         The order is read from ``settings.STENCIL`` rather than hard-coded
-        because the realized order matters for the asymptoticity test. The
-        5-point stencil cleanly realizes ``h**4`` across usable grids, giving the
-        most reliable Richardson signal. The default 7-point stencil (and the
-        9-point) converge faster in absolute accuracy, but their ``h**p`` regime
-        saturates near the ``1e-6`` GHz round-off scale, so on coarse grids the
-        asymptoticity test more often rejects and the engine falls back to the
-        conservative one-step bound -- a safe outcome (no false convergence), at
-        the cost of a less frequent verified Richardson estimate.
+        because the realized order matters for the asymptoticity test. How well
+        the ``h**p`` regime is realized is parameter-, box-, and grid-dependent:
+        a lower-order stencil (e.g. 5-point, ``p=4``) tends to realize its order
+        over a wider usable grid range, whereas the higher-order default reaches
+        the round-off floor sooner. Where the regime is not realized the
+        asymptoticity test rejects and the engine falls back to the one-step
+        estimate -- a safe outcome (no false convergence), at the cost of a less
+        frequent verified Richardson estimate.
         """
         return settings.STENCIL - 1 if axis == "grid_spacing" else None
 
