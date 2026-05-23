@@ -1033,3 +1033,23 @@ class TestHilbertSpaceConvergence:
         )
         report = hs.estimate_convergence(n_levels=5, mode="verify", target_abs_GHz=1e-3)
         assert not any("hybridization" in r for r in report.recommendations)
+
+    def test_fixed_matrix_oscillator_interaction_degrades_gracefully(self):
+        # A fixed-matrix interaction operator on an oscillator cannot be resized
+        # when truncated_dim is refined; the composite check degrades to
+        # unverified with an actionable recommendation rather than crashing.
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=4)
+        osc = sq.Oscillator(E_osc=5.0, truncated_dim=4)
+        hs = sq.HilbertSpace([tmon, osc])
+        hs.add_interaction(
+            g=0.1,
+            op1=(tmon.n_operator(), tmon),
+            op2=(osc.creation_operator(), osc),
+            add_hc=True,
+        )
+        report = hs.estimate_convergence(n_levels=4, mode="verify", target_abs_GHz=1e-3)
+        assert report.aggregate_status == "unverified"
+        assert any("callable" in r for r in report.recommendations)
+        assert all(
+            "composite_unrefinable_interaction" in v.warnings for v in report.per_level
+        )

@@ -806,6 +806,11 @@ class HilbertSpace(
         and every layer-1 subsystem verdict: the composite cannot be more
         converged than its parts.
 
+        If a fixed-matrix interaction operator prevents a ``truncated_dim``
+        refinement (it cannot be resized when the dimension grows), the composite
+        verdict is reported ``unverified`` with a recommendation to supply that
+        operator as a callable or operator name.
+
         Parameters
         ----------
         n_levels:
@@ -837,8 +842,30 @@ class HilbertSpace(
                 "truncated_dim values"
             )
 
+        unrefinable = self._convergence_unrefinable_axes()
         if mode == "quick":
-            composite = self._convergence_composite_quick(n_levels, scope)
+            composite = self._convergence_composite_unverified(
+                n_levels,
+                scope,
+                mode,
+                recommendations=[
+                    "composite truncation has no cheap estimate; run mode='verify' "
+                    "for a composite truncation verdict"
+                ],
+                warning="composite_verify_recommended",
+            )
+        elif unrefinable:
+            # A fixed-matrix interaction operator prevents a truncated_dim
+            # refinement, so the composite truncation cannot be verified. Report
+            # it unverified with an actionable fix rather than crashing on a
+            # dimension mismatch or claiming false convergence.
+            composite = self._convergence_composite_unverified(
+                n_levels,
+                scope,
+                mode,
+                recommendations=list(unrefinable.values()),
+                warning="composite_unrefinable_interaction",
+            )
         else:
             composite = ConvergenceCheckable.estimate_convergence(
                 self,
@@ -935,17 +962,51 @@ class HilbertSpace(
             derived=derived or None,
         )
 
-    def _convergence_composite_quick(
-        self, n_levels: int, scope: str
-    ) -> ConvergenceReport:
-        """Composite quick mode: no composite estimate, verify-recommended.
+    def _convergence_unrefinable_axes(self) -> dict[str, str]:
+        """Map subsystem ``id_str`` to a reason for any axis that cannot be refined.
 
-        A composite truncation verdict requires a full composite
-        re-diagonalization, which quick mode skips by design. Each level is
-        reported ``unverified`` with a recommendation to run ``mode='verify'``;
-        layer-1 subsystem quick checks are attached separately by the caller.
+        Refining a subsystem's ``truncated_dim`` re-diagonalizes the composite,
+        which re-evaluates *callable* interaction operators at the new dimension.
+        A *fixed* (non-callable) interaction matrix on a subsystem whose bare
+        basis tracks ``truncated_dim`` (an oscillator) becomes the wrong size
+        after the bump, so that subsystem's ``truncated_dim`` cannot be refined.
+        Such cases are reported rather than allowed to crash the refinement.
         """
-        audit = self._convergence_audit(n_levels, 0, "quick", "one_step")
+        osc_subsystems = set(self.osc_subsys_list)
+        unrefinable: dict[str, str] = {}
+        for term in self.interaction_list:
+            if not isinstance(term, InteractionTerm):
+                continue
+            for subsys_index, operator in term.operator_list:
+                if callable(operator):
+                    continue
+                subsys = self.subsystem_list[subsys_index]
+                if subsys in osc_subsystems:
+                    unrefinable[subsys.id_str] = (
+                        f"a fixed-matrix interaction operator on '{subsys.id_str}' "
+                        "cannot be resized when its truncated_dim is refined, so "
+                        "the composite truncation could not be verified; supply "
+                        "that operator as a callable (e.g. osc.creation_operator) "
+                        "or an operator name so the composite check can refine it"
+                    )
+        return unrefinable
+
+    def _convergence_composite_unverified(
+        self,
+        n_levels: int,
+        scope: str,
+        mode: str,
+        recommendations: list[str],
+        warning: str,
+    ) -> ConvergenceReport:
+        """Composite report with no verified truncation estimate.
+
+        Every level is reported ``unverified``. Used when quick mode skips the
+        composite re-diagonalization, and when a fixed-matrix interaction operator
+        prevents a ``truncated_dim`` refinement. Layer-1 subsystem checks are
+        attached separately by the caller.
+        """
+        audit = self._convergence_audit(n_levels, 0, mode, "one_step")
         status_scope = cast("Any", scope)
         per_level = [
             LevelVerdict(
@@ -957,7 +1018,7 @@ class HilbertSpace(
                 eps_gap_est=None,
                 truncation_channel="composite_coupling",
                 estimator_method="verify_recommended",
-                warnings=("composite_verify_recommended",),
+                warnings=(warning,),
             )
             for k in range(n_levels)
         ]
@@ -967,10 +1028,7 @@ class HilbertSpace(
             worst_level=0 if n_levels else None,
             channel_breakdown_GHz={},
             clusters=[],
-            recommendations=[
-                "composite truncation has no cheap estimate; run mode='verify' "
-                "for a composite truncation verdict"
-            ],
+            recommendations=list(recommendations),
             implementation_audit=audit,
             derived=None,
         )
