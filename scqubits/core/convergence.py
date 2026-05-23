@@ -432,6 +432,48 @@ class ConvergenceCheckable:
             refinement=refinement,  # type: ignore[arg-type]
         )
 
+    def _convergence_unverified_report(
+        self,
+        n_levels: int,
+        scope: str,
+        mode: str,
+        recommendations: list[str],
+        warning: str,
+        channel: TruncationChannel = "composite_coupling",
+    ) -> ConvergenceReport:
+        """Build an all-levels-``unverified`` report with no truncation estimate.
+
+        Shared by coupled-system classes (``HilbertSpace``, ``FullZeroPi``) for the
+        cases where there is no cheap composite estimate (quick mode) or where a
+        refinement cannot be carried out. Inner/layer-1 checks are attached
+        separately by the caller.
+        """
+        audit = self._convergence_audit(n_levels, 0, mode, "one_step")
+        per_level = [
+            LevelVerdict(
+                level_index=k,
+                status="unverified",
+                status_scope=scope,  # type: ignore[arg-type]
+                evidence="diagnostic",
+                abs_err_est_GHz=None,
+                eps_gap_est=None,
+                truncation_channel=channel,
+                estimator_method="verify_recommended",
+                warnings=(warning,),
+            )
+            for k in range(n_levels)
+        ]
+        return ConvergenceReport(
+            per_level=per_level,
+            aggregate_status="unverified",
+            worst_level=0 if n_levels else None,
+            channel_breakdown_GHz={},
+            clusters=[],
+            recommendations=list(recommendations),
+            implementation_audit=audit,
+            derived=None,
+        )
+
     # ------------------------------------------------------------ mode handlers
 
     def _convergence_quick(

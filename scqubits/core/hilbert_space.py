@@ -55,7 +55,6 @@ if TYPE_CHECKING:
 from scqubits.core.convergence import ConvergenceCheckable, _status_rank
 from scqubits.core.convergence_report import (
     ConvergenceReport,
-    LevelVerdict,
     TruncationChannel,
 )
 from scqubits.core.qubit_base import QubitBaseClass
@@ -844,7 +843,7 @@ class HilbertSpace(
 
         unrefinable = self._convergence_unrefinable_axes()
         if mode == "quick":
-            composite = self._convergence_composite_unverified(
+            composite = self._convergence_unverified_report(
                 n_levels,
                 scope,
                 mode,
@@ -859,7 +858,7 @@ class HilbertSpace(
             # refinement, so the composite truncation cannot be verified. Report
             # it unverified with an actionable fix rather than crashing on a
             # dimension mismatch or claiming false convergence.
-            composite = self._convergence_composite_unverified(
+            composite = self._convergence_unverified_report(
                 n_levels,
                 scope,
                 mode,
@@ -990,48 +989,6 @@ class HilbertSpace(
                         "or an operator name so the composite check can refine it"
                     )
         return unrefinable
-
-    def _convergence_composite_unverified(
-        self,
-        n_levels: int,
-        scope: str,
-        mode: str,
-        recommendations: list[str],
-        warning: str,
-    ) -> ConvergenceReport:
-        """Composite report with no verified truncation estimate.
-
-        Every level is reported ``unverified``. Used when quick mode skips the
-        composite re-diagonalization, and when a fixed-matrix interaction operator
-        prevents a ``truncated_dim`` refinement. Layer-1 subsystem checks are
-        attached separately by the caller.
-        """
-        audit = self._convergence_audit(n_levels, 0, mode, "one_step")
-        status_scope = cast("Any", scope)
-        per_level = [
-            LevelVerdict(
-                level_index=k,
-                status="unverified",
-                status_scope=status_scope,
-                evidence="diagnostic",
-                abs_err_est_GHz=None,
-                eps_gap_est=None,
-                truncation_channel="composite_coupling",
-                estimator_method="verify_recommended",
-                warnings=(warning,),
-            )
-            for k in range(n_levels)
-        ]
-        return ConvergenceReport(
-            per_level=per_level,
-            aggregate_status="unverified",
-            worst_level=0 if n_levels else None,
-            channel_breakdown_GHz={},
-            clusters=[],
-            recommendations=list(recommendations),
-            implementation_audit=audit,
-            derived=None,
-        )
 
     def _convergence_hybridization(self, g_floor_GHz: float) -> list[str]:
         r"""Near-resonance (hybridization) screen over the kept product manifold.

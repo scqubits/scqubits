@@ -12,6 +12,8 @@
 
 from __future__ import annotations
 
+import dataclasses
+
 from collections.abc import Callable
 from typing import Any
 
@@ -31,6 +33,8 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.spectrum_utils as spec_utils
 
+from scqubits.core.convergence import ConvergenceCheckable, _status_rank
+from scqubits.core.convergence_report import ConvergenceReport, TruncationChannel
 from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 
@@ -43,7 +47,12 @@ class NoisyFullZeroPi(NoisySystem):
     pass
 
 
-class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi):
+class FullZeroPi(
+    base.QubitBaseClass,
+    serializers.Serializable,
+    NoisyFullZeroPi,
+    ConvergenceCheckable,
+):
     r"""Zero-Pi qubit including coupling to the :math:`\zeta` mode.
 
     See [Brooks2013]_ and [Dempster2014]_. The circuit is described by the
@@ -772,6 +781,141 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         full ``ZeroPi`` Hilbert space (zero-pi sector tensor zeta-mode).
         """
         return self.zeropi_cutoff * self.zeta_cutoff
+
+    # ----------------------------------------------------------- convergence
+    # FullZeroPi is hierarchical: an interior ZeroPi (its grid / ncut) is
+    # diagonalized and truncated to ``zeropi_cutoff`` levels, then coupled to a
+    # zeta oscillator (``zeta_cutoff``). Convergence is therefore checked in two
+    # layers, mirroring HilbertSpace: layer 1 delegates to the interior ZeroPi's
+    # own estimate_convergence (verifying the 0-pi basis, with its FD box/stencil
+    # and edge diagnostics); layer 2 refines the coupling cutoffs zeropi_cutoff
+    # and zeta_cutoff and re-diagonalizes the full coupled system.
+    _convergence_axes: tuple[str, ...] = ("zeropi_cutoff", "zeta_cutoff")
+    _convergence_basis: str = "zeropi(discretized_phi+charge) x zeta_fock"
+
+    def _convergence_truncation_channel(self, axis: str) -> TruncationChannel:
+        """``zeropi_cutoff`` -> ``composite_coupling`` (how many 0-pi levels enter
+        the coupling); ``zeta_cutoff`` -> ``HO_tail`` (zeta Fock cutoff)."""
+        return "HO_tail" if axis == "zeta_cutoff" else "composite_coupling"
+
+    def _convergence_step(self, axis: str) -> int:
+        """Refinement step for a coupling cutoff.
+
+        ``truncated_dim``-style step; ``zeropi_cutoff`` is capped at the interior
+        ZeroPi's available levels (its bare Hilbert dimension), while the zeta
+        Fock space is unbounded.
+        """
+        current = self._convergence_axis_value(axis)
+        step = max(2, current // 4)
+        if axis == "zeropi_cutoff":
+            headroom = int(self._zeropi.hilbertdim()) - current
+            step = min(step, max(1, headroom // 2))
+        return step
+
+    def estimate_convergence(  # type: ignore[override]
+        self,
+        n_levels: int = 6,
+        mode: str = "verify",
+        scope: str = "absolute",
+        target_abs_GHz: float | None = None,
+        target_gap_rel: float = 1e-3,
+        g_floor_GHz: float = 1e-3,
+        assume_inner_converged: bool = False,
+    ) -> ConvergenceReport:
+        """Estimate convergence of the coupled FullZeroPi spectrum in two layers.
+
+        Layer 1 (interior basis): unless ``assume_inner_converged=True``, delegate
+        to the interior :class:`.ZeroPi`'s own ``estimate_convergence`` (the phi
+        grid box/spacing and theta charge cutoff) for the lowest ``zeropi_cutoff``
+        plus refinement-reach levels, and attach it under
+        ``report.derived["interior_zeropi"]``.
+
+        Layer 2 (coupling truncation): refine ``zeropi_cutoff`` (how many 0-pi
+        levels enter the coupling) and ``zeta_cutoff`` (the zeta Fock cutoff),
+        re-diagonalizing the full coupled system and comparing cluster-matched
+        spectra. The ``aggregate_status`` is the worse of the two layers.
+
+        Parameters
+        ----------
+        n_levels:
+            Number of lowest coupled eigenvalues to assess.
+        mode:
+            ``"quick"`` (no coupled re-diagonalization; verify-recommended),
+            ``"verify"`` (one refinement; default), or ``"strict"`` (ratio test).
+        scope, target_abs_GHz, target_gap_rel, g_floor_GHz:
+            As in :meth:`ConvergenceCheckable.estimate_convergence`.
+        assume_inner_converged:
+            If True, skip the layer-1 interior-ZeroPi check.
+
+        Returns
+        -------
+        :class:`~scqubits.core.convergence_report.ConvergenceReport`
+        """
+        if n_levels > self.hilbertdim():
+            raise ValueError(
+                f"n_levels={n_levels} exceeds the FullZeroPi dimension "
+                f"{self.hilbertdim()}; reduce n_levels or raise zeropi_cutoff / "
+                "zeta_cutoff"
+            )
+
+        if mode == "quick":
+            composite = self._convergence_unverified_report(
+                n_levels,
+                scope,
+                mode,
+                recommendations=[
+                    "coupled truncation has no cheap estimate; run mode='verify' "
+                    "for a coupled-spectrum verdict"
+                ],
+                warning="composite_verify_recommended",
+            )
+        else:
+            composite = ConvergenceCheckable.estimate_convergence(
+                self,
+                n_levels=n_levels,
+                mode=mode,
+                scope=scope,
+                target_abs_GHz=target_abs_GHz,
+                target_gap_rel=target_gap_rel,
+                g_floor_GHz=g_floor_GHz,
+            )
+
+        if assume_inner_converged:
+            return composite
+
+        reach = self._convergence_step("zeropi_cutoff")
+        if mode == "strict":
+            reach *= 2
+        n_inner = max(
+            1, min(self.zeropi_cutoff + reach, int(self._zeropi.hilbertdim()))
+        )
+        inner = self._zeropi.estimate_convergence(
+            n_levels=n_inner,
+            mode=mode,
+            scope=scope,
+            target_abs_GHz=target_abs_GHz,
+            target_gap_rel=target_gap_rel,
+            g_floor_GHz=g_floor_GHz,
+        )
+
+        recommendations = list(composite.recommendations)
+        if _status_rank(inner.aggregate_status) >= _status_rank("marginal"):
+            recommendations.append(
+                f"the interior ZeroPi basis is {inner.aggregate_status} for the "
+                "lowest coupled levels; converge it first (phi grid / theta ncut) "
+                "-- the full ZeroPi cannot be more converged than its 0-pi sector"
+            )
+        aggregate = composite.aggregate_status
+        if _status_rank(inner.aggregate_status) > _status_rank(aggregate):
+            aggregate = inner.aggregate_status
+        derived = dict(composite.derived or {})
+        derived["interior_zeropi"] = inner
+        return dataclasses.replace(
+            composite,
+            aggregate_status=aggregate,
+            recommendations=recommendations,
+            derived=derived or None,
+        )
 
     def _evals_calc(
         self, evals_count: int, hamiltonian_mat: csc_matrix | None = None

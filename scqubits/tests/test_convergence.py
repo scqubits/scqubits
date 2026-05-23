@@ -1053,3 +1053,82 @@ class TestHilbertSpaceConvergence:
         assert all(
             "composite_unrefinable_interaction" in v.warnings for v in report.per_level
         )
+
+
+# ------------------------------------------------------- FullZeroPi (hierarchical)
+
+
+def _full_zeropi(zeropi_cutoff=8, zeta_cutoff=30, ncut=20, npts=100):
+    """Build a FullZeroPi (interior ZeroPi coupled to a zeta oscillator)."""
+    grid = sq.Grid1d(-6 * np.pi, 6 * np.pi, npts)
+    return sq.FullZeroPi(
+        EJ=10.0,
+        EL=0.04,
+        ECJ=20.0,
+        EC=0.04,
+        dEJ=0.05,
+        dCJ=0.05,
+        dC=0.08,
+        dEL=0.05,
+        flux=0.23,
+        ng=0.1,
+        zeropi_cutoff=zeropi_cutoff,
+        zeta_cutoff=zeta_cutoff,
+        grid=grid,
+        ncut=ncut,
+        truncated_dim=10,
+    )
+
+
+class TestFullZeroPi:
+    def test_converged_full_zeropi(self):
+        fzp = _full_zeropi()
+        report = fzp.estimate_convergence(
+            n_levels=4, mode="verify", target_abs_GHz=1e-2
+        )
+        assert report.aggregate_status == "converged"
+        # Layer-2 coupling channels only (composite_coupling / HO_tail).
+        assert {v.truncation_channel for v in report.per_level} <= {
+            "composite_coupling",
+            "HO_tail",
+        }
+        # Layer-1 interior ZeroPi report is attached.
+        assert "interior_zeropi" in (report.derived or {})
+        assert report.derived["interior_zeropi"].aggregate_status == "converged"
+
+    def test_undersized_interior_is_flagged(self):
+        # A too-small interior basis (ncut, grid) leaves the 0-pi sector
+        # underconverged; layer 1 catches it and the aggregate reflects it.
+        fzp = _full_zeropi(ncut=6, npts=60)
+        report = fzp.estimate_convergence(
+            n_levels=4, mode="verify", target_abs_GHz=1e-5
+        )
+        assert _status_rank(report.aggregate_status) >= _status_rank("marginal")
+        assert "interior_zeropi" in (report.derived or {})
+
+    def test_assume_inner_converged_skips_layer1(self):
+        fzp = _full_zeropi()
+        report = fzp.estimate_convergence(
+            n_levels=4,
+            mode="verify",
+            target_abs_GHz=1e-2,
+            assume_inner_converged=True,
+        )
+        assert report.derived is None
+
+    def test_quick_is_verify_recommended(self):
+        fzp = _full_zeropi()
+        report = fzp.estimate_convergence(n_levels=4, mode="quick")
+        assert report.aggregate_status == "unverified"
+        assert any("verify" in r for r in report.recommendations)
+        assert "interior_zeropi" in (report.derived or {})
+
+    def test_n_levels_exceeding_dimension_raises(self):
+        fzp = _full_zeropi(zeropi_cutoff=2, zeta_cutoff=2)  # dimension 4
+        with pytest.raises(ValueError, match="exceeds the FullZeroPi dimension"):
+            fzp.estimate_convergence(n_levels=5, mode="verify", target_abs_GHz=1e-2)
+
+    def test_top_level_shim(self):
+        fzp = _full_zeropi()
+        report = sq.estimate_convergence(fzp, n_levels=4, mode="quick")
+        assert report.aggregate_status == "unverified"
