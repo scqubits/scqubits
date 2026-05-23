@@ -17,7 +17,7 @@ import functools
 import importlib
 import re
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
 import numpy as np
@@ -73,6 +73,13 @@ def has_duplicate_id_str(subsystem_list: list[QuantumSys]) -> bool:
     id_str_list = [obj.id_str for obj in subsystem_list]
     id_str_set = set(obj.id_str for obj in subsystem_list)
     return len(id_str_set) != len(id_str_list)
+
+
+# Hybridization screen: a dimensionless near-resonance parameter eta above this
+# threshold means kept product-state labels are unreliable and cluster-safe
+# matching is required (convergence design spec, composite section). It is a
+# labeling diagnostic, not a truncation-error estimate.
+_HYBRIDIZATION_ETA_LARGE = 0.1
 
 
 class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
@@ -853,7 +860,8 @@ class HilbertSpace(
                 g_floor_GHz=g_floor_GHz,
             )
 
-        return self._convergence_compose(composite, subsystem_reports)
+        hybridization = self._convergence_hybridization(g_floor_GHz)
+        return self._convergence_compose(composite, subsystem_reports, hybridization)
 
     def _convergence_subsystem_reports(
         self,
@@ -896,14 +904,17 @@ class HilbertSpace(
         self,
         composite: ConvergenceReport,
         subsystem_reports: dict[str, ConvergenceReport],
+        extra_recommendations: Sequence[str] = (),
     ) -> ConvergenceReport:
         """Merge layer-1 subsystem reports into the layer-2 composite report.
 
-        The subsystem reports are attached under ``derived["subsystem:<id>"]``
-        and the aggregate status is widened to the worst of the composite and
-        all subsystem verdicts.
+        The subsystem reports are attached under ``derived["subsystem:<id>"]``,
+        the aggregate status is widened to the worst of the composite and all
+        subsystem verdicts, and ``extra_recommendations`` (e.g. the hybridization
+        screen) are appended.
         """
         recommendations = list(composite.recommendations)
+        recommendations.extend(extra_recommendations)
         derived = dict(composite.derived or {})
         aggregate = composite.aggregate_status
         for axis, subreport in subsystem_reports.items():
@@ -963,6 +974,124 @@ class HilbertSpace(
             implementation_audit=audit,
             derived=None,
         )
+
+    def _convergence_hybridization(self, g_floor_GHz: float) -> list[str]:
+        r"""Near-resonance (hybridization) screen over the kept product manifold.
+
+        For each two-body operator-form ``InteractionTerm`` :math:`g\,A\otimes B`,
+        compute the dimensionless hybridization parameter
+
+            eta = |g| |A_{a'a}| |B_{b'b}| / max(|dE|, g_floor)
+
+        between distinct kept product states, where ``dE`` is their bare energy
+        difference (convergence design spec, composite section). A large ``eta``
+        means product-state labels are unreliable and cluster-safe matching is
+        required; it is a labeling diagnostic, not a truncation-error estimate.
+        Terms that are not two-body operator products (string-based or ``Qobj``
+        terms, or terms whose operators cannot be extracted) are skipped.
+        """
+        worst_eta = 0.0
+        worst_pair: tuple[str, str] | None = None
+        for term in self.interaction_list:
+            if not isinstance(term, InteractionTerm):
+                continue
+            if len(term.operator_list) != 2:
+                continue
+            (idx_p, op_p), (idx_q, op_q) = term.operator_list
+            if idx_p == idx_q:
+                continue
+            try:
+                evals_p, mat_p = self._convergence_subsystem_operator(idx_p, op_p)
+                evals_q, mat_q = self._convergence_subsystem_operator(idx_q, op_q)
+            except Exception:  # noqa: BLE001 -- best-effort diagnostic, never fatal
+                continue
+            g = abs(complex(term.g_strength))
+            if g == 0.0:
+                continue
+            eta = self._max_hybridization(
+                evals_p, mat_p, evals_q, mat_q, g, g_floor_GHz
+            )
+            if eta > worst_eta:
+                worst_eta = eta
+                worst_pair = (
+                    self.subsystem_list[idx_p].id_str,
+                    self.subsystem_list[idx_q].id_str,
+                )
+        if worst_pair is not None and worst_eta > _HYBRIDIZATION_ETA_LARGE:
+            id_p, id_q = worst_pair
+            return [
+                f"hybridization screen: near-resonant coupling (eta ~= "
+                f"{worst_eta:.2g}) between bare product states of '{id_p}' and "
+                f"'{id_q}'; product-state labels are unreliable -- rely on "
+                f"cluster-safe matching and full composite refinement"
+            ]
+        return []
+
+    def _convergence_subsystem_operator(
+        self, subsys_index: int, operator: Any
+    ) -> tuple[ndarray, ndarray]:
+        """Return ``(eigenvalues, operator matrix)`` in a subsystem's truncated eigenbasis.
+
+        Mirrors the operator handling of :meth:`InteractionTerm.id_wrap_all_ops`:
+        a callable is evaluated (in the eigenbasis when it accepts
+        ``energy_esys``), a bare matrix is projected with the subsystem's
+        eigenvectors. Used by the hybridization screen.
+        """
+        subsys = self.subsystem_list[subsys_index]
+        truncated = int(subsys.truncated_dim)
+        esys = subsys.eigensys(evals_count=truncated)
+        evals, evecs = esys
+        evecs = np.asarray(evecs)
+        if callable(operator):
+            try:
+                matrix = self._to_dense(operator(energy_esys=esys))
+            except TypeError:
+                matrix = evecs.conj().T @ self._to_dense(operator()) @ evecs
+        else:
+            matrix = evecs.conj().T @ self._to_dense(operator) @ evecs
+        matrix = np.asarray(matrix)
+        return (
+            np.asarray(evals, dtype=np.float64)[:truncated],
+            matrix[:truncated, :truncated],
+        )
+
+    @staticmethod
+    def _to_dense(operator: Any) -> ndarray:
+        """Return a dense ``ndarray`` from a Qobj, sparse matrix, or array."""
+        if hasattr(operator, "full"):  # qutip Qobj
+            return np.asarray(operator.full())
+        if hasattr(operator, "toarray"):  # scipy sparse
+            return np.asarray(operator.toarray())
+        return np.asarray(operator)
+
+    @staticmethod
+    def _max_hybridization(
+        evals_p: ndarray,
+        mat_p: ndarray,
+        evals_q: ndarray,
+        mat_q: ndarray,
+        g: float,
+        g_floor: float,
+    ) -> float:
+        """Return the largest hybridization ``eta`` over distinct kept product states."""
+        a_abs = np.abs(np.asarray(mat_p))
+        b_abs = np.abs(np.asarray(mat_q))
+        e_p = np.asarray(evals_p, dtype=np.float64)
+        e_q = np.asarray(evals_q, dtype=np.float64)
+        n_p, n_q = e_p.size, e_q.size
+        worst = 0.0
+        for a in range(n_p):
+            for a_prime in range(n_p):
+                for b in range(n_q):
+                    for b_prime in range(n_q):
+                        if a == a_prime and b == b_prime:
+                            continue
+                        delta = (e_p[a] + e_q[b]) - (e_p[a_prime] + e_q[b_prime])
+                        denom = abs(delta) if abs(delta) > g_floor else g_floor
+                        eta = g * a_abs[a_prime, a] * b_abs[b_prime, b] / denom
+                        if eta > worst:
+                            worst = eta
+        return float(worst)
 
     ###################################################################################
     # HilbertSpace: generate SpectrumLookup

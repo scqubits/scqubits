@@ -405,6 +405,59 @@ def validate_fluxonium_groundtruth():
     return ok
 
 
+def validate_hilbertspace_groundtruth():
+    section("HILBERTSPACE GROUND TRUTH (composite truncated_dim, no false converged)")
+    # A transmon-resonator composite: a high truncated_dim reference gives the
+    # true error of each moderate "user" truncated_dim. The verify-mode composite
+    # estimate must bound it and never falsely report converged. Subsystem
+    # internal cutoffs are held high (assume_subsystems_converged) so that the
+    # only truncation under test is the composite truncated_dim.
+    n = 4
+    target = 1e-4
+    td_ref, td_ref2 = 30, 26
+    g = 0.6
+
+    def make_hs(truncated):
+        tmon = scq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=truncated)
+        osc = scq.Oscillator(E_osc=5.0, truncated_dim=truncated)
+        hs = scq.HilbertSpace([tmon, osc])
+        hs.add_interaction(
+            g=g, op1=tmon.n_operator, op2=osc.creation_operator, add_hc=True
+        )
+        return hs
+
+    def evals(truncated):
+        return np.sort(make_hs(truncated).eigenvals(evals_count=n))
+
+    e_ref = evals(td_ref)
+    noise = float(np.max(np.abs(e_ref - evals(td_ref2))))
+    worst_ratio = 0.0
+    false_converged = 0
+    for truncated in (3, 4, 6, 8):
+        hs = make_hs(truncated)
+        e_user = np.sort(hs.eigenvals(evals_count=n))
+        rep = hs.estimate_convergence(
+            n_levels=n,
+            mode="verify",
+            target_abs_GHz=target,
+            assume_subsystems_converged=True,
+        )
+        for k, v in enumerate(rep.per_level):
+            true_err = abs(float(e_user[k] - e_ref[k]))
+            est = v.abs_err_est_GHz or 0.0
+            if true_err > noise:
+                worst_ratio = max(worst_ratio, true_err / max(est, 1e-30))
+            if v.status == "converged" and true_err >= target:
+                false_converged += 1
+    ok = worst_ratio <= 1.0 and false_converged == 0
+    print(
+        f"  transmon-resonator g={g}: worst true/est={worst_ratio:.2f}  "
+        f"false_converged={false_converged}  (noise {noise:.1e})  "
+        f"[{'ok' if ok else 'SUSPECT'}]"
+    )
+    return ok
+
+
 def main():
     results = {
         "energy soundness + stability": validate_stability_and_energies(),
@@ -414,6 +467,7 @@ def main():
         "high-cutoff check stability": validate_high_cutoff_check(),
         "zeropi FD ground truth": validate_zeropi_fd_groundtruth(),
         "fluxonium ground truth": validate_fluxonium_groundtruth(),
+        "hilbertspace ground truth": validate_hilbertspace_groundtruth(),
     }
     section("SUMMARY")
     for name, passed in results.items():

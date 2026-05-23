@@ -1050,6 +1050,13 @@ class ConvergenceCheckable:
                     f"grid spacing dominates: {bump} (grid points at a fixed "
                     f"window) or raise the stencil order, then re-run"
                 )
+            elif channel == "composite_coupling":
+                recommendations.append(
+                    f"composite truncation dominates: increase truncated_dim of "
+                    f"'{axis}' from {current_value} to at least "
+                    f"{current_value + step} and re-run (it sets how many of that "
+                    f"subsystem's levels enter the product space)"
+                )
             else:
                 recommendations.append(
                     f"{bump} and re-run; the worst-level estimate exceeded the "

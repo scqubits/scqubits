@@ -1006,3 +1006,30 @@ class TestHilbertSpaceConvergence:
             hs, n_levels=5, mode="verify", target_abs_GHz=1e-3
         )
         assert report.aggregate_status == "converged"
+
+    def test_hybridization_screen_flags_near_resonance(self):
+        # Resonator tuned to the transmon 0-1 transition: the bare product states
+        # hybridize. The screen flags it as a labeling issue, independent of any
+        # truncation error.
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
+        evals = tmon.eigenvals(evals_count=2)
+        f01 = float(evals[1] - evals[0])
+        osc = sq.Oscillator(E_osc=f01, truncated_dim=6)
+        hs = sq.HilbertSpace([tmon, osc])
+        hs.add_interaction(
+            g=0.2, op1=tmon.n_operator, op2=osc.creation_operator, add_hc=True
+        )
+        report = hs.estimate_convergence(n_levels=5, mode="verify", target_abs_GHz=1e-3)
+        assert any("hybridization" in r for r in report.recommendations)
+
+    def test_hybridization_screen_silent_off_resonance(self):
+        # A resonator far below all kept transmon transitions (which span
+        # ~5-6.6 GHz here), weakly coupled, does not trip the screen.
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
+        osc = sq.Oscillator(E_osc=2.0, truncated_dim=6)
+        hs = sq.HilbertSpace([tmon, osc])
+        hs.add_interaction(
+            g=0.01, op1=tmon.n_operator, op2=osc.creation_operator, add_hc=True
+        )
+        report = hs.estimate_convergence(n_levels=5, mode="verify", target_abs_GHz=1e-3)
+        assert not any("hybridization" in r for r in report.recommendations)
