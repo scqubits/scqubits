@@ -1180,3 +1180,80 @@ class TestCos2PhiQubit:
         q = _cos2phi(ncut=8, phi_cut=7, zeta_cut=10)
         report = sq.estimate_convergence(q, n_levels=4, mode="quick")
         assert report.per_level
+
+
+# ----------------------------------------------------- Circuit (non-hierarchical)
+
+_ZERO_PI_YAML = """branches:
+- ["JJ", 1, 2, 10, 20]
+- ["JJ", 3, 4, 10, 20]
+- ["L", 2, 3, 0.008]
+- ["L", 4, 1, 0.008]
+- ["C", 1, 3, 0.02]
+- ["C", 2, 4, 0.02]
+"""
+
+
+def _zero_pi_circuit(ext_basis="discretized", cutoff_n=5, cutoff_ext=8):
+    """Build a flat (non-HD) zero-pi Circuit with small cutoffs for fast tests."""
+    circ = sq.Circuit(_ZERO_PI_YAML, from_file=False, ext_basis=ext_basis)
+    circ.cutoff_n_1 = cutoff_n
+    circ.cutoff_ext_2 = cutoff_ext
+    circ.cutoff_ext_3 = cutoff_ext
+    return circ
+
+
+class TestCircuit:
+    def test_axes_are_cutoff_names(self):
+        circ = _zero_pi_circuit()
+        # Refinement axes are exactly the per-variable cutoffs (sigma var 4 has none).
+        assert tuple(circ._convergence_axes) == tuple(circ.cutoff_names)
+        assert "cutoff_n_1" in circ._convergence_axes
+
+    def test_discretized_underconverged_channels_and_recommendation(self):
+        # Small discretized grid: underconverged, grid-spacing (FD_stencil)
+        # dominates, both channel families appear, and the recommendation names a
+        # cutoff_ext grid.
+        circ = _zero_pi_circuit(cutoff_n=5, cutoff_ext=8)
+        report = circ.estimate_convergence(
+            n_levels=4, mode="verify", target_abs_GHz=1e-4
+        )
+        assert report.aggregate_status == "underconverged"
+        assert {v.truncation_channel for v in report.per_level} <= {
+            "charge_tail",
+            "FD_stencil",
+        }
+        assert "FD_stencil" in report.channel_breakdown_GHz
+        assert "charge_tail" in report.channel_breakdown_GHz
+        assert any("cutoff_ext" in r for r in report.recommendations)
+
+    def test_harmonic_basis_uses_ho_tail_channel(self):
+        # An extended variable in the harmonic basis maps to the HO_tail channel.
+        circ = _zero_pi_circuit(ext_basis="harmonic", cutoff_n=5, cutoff_ext=10)
+        report = circ.estimate_convergence(
+            n_levels=4, mode="verify", target_abs_GHz=1e-4
+        )
+        assert "HO_tail" in report.channel_breakdown_GHz
+        assert all(
+            v.truncation_channel in {"charge_tail", "HO_tail"} for v in report.per_level
+        )
+
+    def test_quick_is_not_converged(self):
+        circ = _zero_pi_circuit(cutoff_n=5, cutoff_ext=8)
+        report = circ.estimate_convergence(n_levels=4, mode="quick")
+        assert report.aggregate_status != "converged"
+
+    def test_hierarchical_diagonalization_raises(self):
+        circ = _zero_pi_circuit(cutoff_n=5, cutoff_ext=8)
+        circ.configure(
+            system_hierarchy=[[1], [2, 3]],
+            subsystem_trunc_dims=sq.truncation_template([[1], [2, 3]]),
+        )
+        assert circ.hierarchical_diagonalization
+        with pytest.raises(NotImplementedError, match="hierarchical"):
+            circ.estimate_convergence(n_levels=4, mode="verify", target_abs_GHz=1e-3)
+
+    def test_top_level_shim(self):
+        circ = _zero_pi_circuit(cutoff_n=5, cutoff_ext=8)
+        report = sq.estimate_convergence(circ, n_levels=4, mode="quick")
+        assert report.per_level

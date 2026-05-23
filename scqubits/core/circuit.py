@@ -30,6 +30,7 @@ import scqubits.core.central_dispatch as dispatch
 import scqubits.core.discretization as discretization
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
+import scqubits.settings as settings
 
 from scqubits.core.circuit_internals.noise import NoisyCircuit
 from scqubits.core.circuit_internals.plotting import CircuitPlot
@@ -38,6 +39,8 @@ from scqubits.core.circuit_internals.sym_methods import CircuitSymMethods
 from scqubits.core.circuit_internals.utils import (
     get_trailing_number,
 )
+from scqubits.core.convergence import ConvergenceCheckable
+from scqubits.core.convergence_report import ConvergenceReport, TruncationChannel
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
 from scqubits.utils.misc import (
     flatten_list,
@@ -85,10 +88,117 @@ class ConfigureError(RuntimeError):
     """Raised when ``Circuit.configure`` fails; the previous configuration is restored."""
 
 
-class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot):
-    """Abstract base aggregating circuit routines, symbolic methods, and plotting."""
+class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot, ConvergenceCheckable):
+    """Abstract base aggregating circuit routines, symbolic methods, and plotting.
 
-    pass
+    Also wires convergence diagnostics for both :class:`Circuit` and
+    :class:`Subsystem`. A non-hierarchically-diagonalized circuit is a flat
+    product basis whose refinement axes are the per-variable cutoffs
+    (``self.cutoff_names``): periodic charge cutoffs (``charge_tail``) and extended
+    cutoffs (``FD_stencil`` for a discretized variable, ``HO_tail`` for a harmonic
+    one). Hierarchical diagonalization (Stage 3b) delegates to the circuit's
+    internal :class:`.HilbertSpace` -- handled in :meth:`estimate_convergence`.
+    """
+
+    _convergence_basis: str = "circuit"
+
+    @property
+    def _convergence_axes(self) -> tuple[str, ...]:  # type: ignore[override]
+        """Refinement axes for a flat circuit: the per-variable cutoff names.
+
+        Returns the periodic/extended cutoff attribute names (``self.cutoff_names``)
+        when the circuit is not hierarchically diagonalized; otherwise ``()``
+        (hierarchical diagonalization is handled in :meth:`estimate_convergence`).
+        """
+        if getattr(self, "hierarchical_diagonalization", False):
+            return ()
+        return tuple(self.cutoff_names)
+
+    def _convergence_ext_basis(self, var_index: int) -> str:
+        """Return the extended-variable basis (``"discretized"`` or ``"harmonic"``).
+
+        ``self.ext_basis`` is either a single string (all extended variables) or a
+        per-extended-variable list ordered by ``var_categories["extended"]``.
+        """
+        ext_basis = self.ext_basis
+        if isinstance(ext_basis, str):
+            return ext_basis
+        return ext_basis[self.var_categories["extended"].index(var_index)]
+
+    def _convergence_truncation_channel(self, axis: str) -> TruncationChannel:
+        """Map a cutoff axis to its truncation channel.
+
+        ``cutoff_n_<i>`` -> ``charge_tail`` (periodic charge basis);
+        ``cutoff_ext_<i>`` -> ``FD_stencil`` for a discretized extended variable,
+        ``HO_tail`` for a harmonic one.
+        """
+        if axis.startswith("cutoff_n_"):
+            return "charge_tail"
+        var_index = int(axis.rsplit("_", 1)[1])
+        if self._convergence_ext_basis(var_index) == "harmonic":
+            return "HO_tail"
+        return "FD_stencil"
+
+    def _convergence_richardson_order(self, axis: str) -> int | None:
+        """Richardson order for a discretized extended cutoff (``h**p`` grid spacing).
+
+        A discretized extended variable is a finite-difference grid refined by
+        adding points at a fixed window, so its spacing error scales as
+        ``h**(STENCIL - 1)`` (exactly like ZeroPi's ``grid_spacing``). Charge and
+        harmonic axes converge geometrically and return ``None``.
+        """
+        if axis.startswith("cutoff_ext_"):
+            var_index = int(axis.rsplit("_", 1)[1])
+            if self._convergence_ext_basis(var_index) == "discretized":
+                return settings.STENCIL - 1
+        return None
+
+    def estimate_convergence(  # type: ignore[override]
+        self,
+        n_levels: int = 6,
+        mode: str = "verify",
+        scope: str = "absolute",
+        target_abs_GHz: float | None = None,
+        target_gap_rel: float = 1e-3,
+        g_floor_GHz: float = 1e-3,
+        assume_subsystems_converged: bool = False,
+    ) -> ConvergenceReport:
+        """Estimate convergence of the lowest ``n_levels`` circuit eigenvalues.
+
+        For a flat (non-hierarchically-diagonalized) circuit, each per-variable
+        cutoff (``self.cutoff_names``) is refined and the spectrum re-diagonalized,
+        reusing the multi-axis engine; the dominant channel drives the
+        recommendation. Quick mode is verify-recommended (a coupled multi-coordinate
+        basis has no clean cheap estimator).
+
+        Hierarchically-diagonalized circuit support is not yet available
+        (Stage 3b); such circuits raise :class:`NotImplementedError`. Run the
+        circuit without hierarchical diagonalization (``system_hierarchy=None``),
+        or check individual leaf subsystems via
+        ``circuit.subsystems[i].estimate_convergence(...)``.
+
+        Parameters and return value are as in
+        :meth:`ConvergenceCheckable.estimate_convergence`; ``scope``,
+        ``target_abs_GHz``, ``target_gap_rel`` and ``g_floor_GHz`` carry through.
+        ``assume_subsystems_converged`` is reserved for hierarchical diagonalization
+        and is inert for a flat circuit.
+        """
+        if self.hierarchical_diagonalization:
+            raise NotImplementedError(
+                "convergence checking for hierarchically-diagonalized Circuits is "
+                "not yet supported; run the circuit without hierarchical "
+                "diagonalization (system_hierarchy=None), or check individual leaf "
+                "subsystems via circuit.subsystems[i].estimate_convergence(...)"
+            )
+        return ConvergenceCheckable.estimate_convergence(
+            self,
+            n_levels=n_levels,
+            mode=mode,
+            scope=scope,
+            target_abs_GHz=target_abs_GHz,
+            target_gap_rel=target_gap_rel,
+            g_floor_GHz=g_floor_GHz,
+        )
 
 
 class Subsystem(  # type: ignore[misc]
