@@ -41,6 +41,7 @@ from scqubits.core.convergence_report import (
     ConvergenceReport,
     ImplementationAudit,
     LevelVerdict,
+    ParameterSweepConvergence,
     ParamSweepConvergence,
 )
 from scqubits.core.cos2phi_qubit import Cos2PhiQubit

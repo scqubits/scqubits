@@ -1299,3 +1299,100 @@ class TestCircuitHD:
             n_levels=3, mode="quick", assume_subsystems_converged=True
         )
         assert report.derived is None
+
+
+# ------------------------------------------------------------- ParameterSweep
+
+
+def _ng_sweep(npoints=5):
+    """Build a transmon-resonator ParameterSweep over the transmon offset charge."""
+    tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
+    osc = sq.Oscillator(E_osc=5.0, truncated_dim=6)
+    hs = sq.HilbertSpace([tmon, osc])
+    hs.add_interaction(
+        g=0.1, op1=tmon.n_operator, op2=osc.creation_operator, add_hc=True
+    )
+
+    def update(ng):
+        tmon.ng = ng
+
+    sweep = sq.ParameterSweep(
+        hs, {"ng": np.linspace(0.0, 0.5, npoints)}, update, autorun=False
+    )
+    return sweep, tmon
+
+
+class TestParameterSweepConvergence:
+    def test_single_param_worst_case(self):
+        sweep, _ = _ng_sweep()
+        res = sweep.estimate_convergence(
+            n_levels=4, mode="verify", target_abs_GHz=1e-3, sample=3
+        )
+        assert isinstance(res, sq.ParameterSweepConvergence)
+        assert res.param_names == ("ng",)
+        assert len(res.reports) == 3
+        assert all(set(point) == {"ng"} for point in res.param_points)
+        assert res.worst_report() is res.reports[res.worst_index]
+        assert res.worst_point() == res.param_points[res.worst_index]
+        assert res.aggregate_status == res.reports[res.worst_index].aggregate_status
+
+    def test_extremes_sampled(self):
+        sweep, _ = _ng_sweep(npoints=5)
+        res = sweep.estimate_convergence(n_levels=4, mode="quick", sample=3)
+        vals = [point["ng"] for point in res.param_points]
+        assert 0.0 in vals and 0.5 in vals  # both endpoints (extremes)
+
+    def test_two_parameter_corners_included(self):
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
+        osc = sq.Oscillator(E_osc=5.0, truncated_dim=6)
+        hs = sq.HilbertSpace([tmon, osc])
+        hs.add_interaction(
+            g=0.1, op1=tmon.n_operator, op2=osc.creation_operator, add_hc=True
+        )
+
+        def update(ej, ng):
+            tmon.EJ = ej
+            tmon.ng = ng
+
+        sweep = sq.ParameterSweep(
+            hs,
+            {"EJ": np.linspace(18.0, 22.0, 3), "ng": np.linspace(0.0, 0.5, 3)},
+            update,
+            autorun=False,
+        )
+        res = sweep.estimate_convergence(n_levels=4, mode="quick", sample=6)
+        assert res.param_names == ("EJ", "ng")
+        corners = {(18.0, 0.0), (18.0, 0.5), (22.0, 0.0), (22.0, 0.5)}
+        got = {(point["EJ"], point["ng"]) for point in res.param_points}
+        assert corners <= got
+
+    def test_sample_none_checks_every_point(self):
+        sweep, _ = _ng_sweep(npoints=3)
+        res = sweep.estimate_convergence(n_levels=4, mode="quick", sample=None)
+        assert len(res.param_points) == 3
+
+    def test_sweep_state_restored(self):
+        sweep, tmon = _ng_sweep(npoints=5)
+        out_of_sync_before = sweep._out_of_sync
+        sweep.estimate_convergence(n_levels=4, mode="quick", sample=3)
+        assert tmon.ng == 0.0  # restored to the initial grid point
+        assert sweep._out_of_sync == out_of_sync_before
+
+    def test_assume_subsystems_converged_passthrough(self):
+        sweep, _ = _ng_sweep(npoints=3)
+        res = sweep.estimate_convergence(
+            n_levels=4,
+            mode="verify",
+            target_abs_GHz=1e-3,
+            sample=2,
+            assume_subsystems_converged=True,
+        )
+        # the per-point HilbertSpace reports skip the layer-1 subsystem checks
+        assert all(report.derived is None for report in res.reports)
+
+    def test_summary_and_str(self):
+        sweep, _ = _ng_sweep(npoints=3)
+        res = sweep.estimate_convergence(n_levels=4, mode="quick", sample=2)
+        text = res.summary()
+        assert "convergence across sweep" in text
+        assert str(res) == text

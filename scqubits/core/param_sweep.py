@@ -42,6 +42,11 @@ import scqubits.utils.misc as utils
 import scqubits.utils.plotting as plot
 
 from scqubits import settings as settings
+from scqubits.core.convergence import _status_rank
+from scqubits.core.convergence_report import (
+    ConvergenceReport,
+    ParameterSweepConvergence,
+)
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.namedslots_array import (
     NamedSlotsNdarray,
@@ -1357,6 +1362,129 @@ class ParameterSweep(
         """
         initial_parameters = tuple(paramvals[0] for paramvals in self._parameters)
         self._update_hilbertspace(self, *initial_parameters)
+
+    def estimate_convergence(
+        self,
+        n_levels: int = 6,
+        mode: str = "verify",
+        scope: str = "absolute",
+        target_abs_GHz: float | None = None,
+        target_gap_rel: float = 1e-3,
+        g_floor_GHz: float = 1e-3,
+        assume_subsystems_converged: bool = False,
+        sample: int | None = 8,
+    ) -> ParameterSweepConvergence:
+        """Estimate convergence across the sweep grid, returning the worst case.
+
+        A single :meth:`HilbertSpace.estimate_convergence` certifies one parameter
+        point; truncation convergence can vary across a sweep (e.g. fluxonium near
+        half flux). This applies the sweep's ``update_hilbertspace`` callback at
+        sampled grid points, runs the composite HilbertSpace convergence check at
+        each, and reports the worst-case point. The sweep's precomputed data is
+        left untouched (the parameter point and out-of-sync flag are restored).
+
+        Parameters
+        ----------
+        n_levels, mode, scope, target_abs_GHz, target_gap_rel, g_floor_GHz, assume_subsystems_converged:
+            Forwarded to :meth:`HilbertSpace.estimate_convergence` at each point.
+        sample:
+            Number of grid points to check. The grid corners (extreme parameter
+            values, often the worst case) come first, then evenly-spread interior
+            points up to this budget; ``sample=None`` checks every grid point. Each
+            point runs a full composite check, so keep this small.
+
+        Returns
+        -------
+        :class:`~scqubits.core.convergence_report.ParameterSweepConvergence`
+        """
+        names = tuple(self._parameters.names)
+        ranges = [np.asarray(paramvals) for paramvals in self._parameters]
+        points = self._convergence_sample_points(ranges, sample)
+        initial = tuple(paramvals[0] for paramvals in ranges)
+        out_of_sync = self._out_of_sync
+
+        reports: list[ConvergenceReport] = []
+        try:
+            for point in points:
+                self._update_hilbertspace(self, *point)
+                reports.append(
+                    self._hilbertspace.estimate_convergence(
+                        n_levels=n_levels,
+                        mode=mode,
+                        scope=scope,
+                        target_abs_GHz=target_abs_GHz,
+                        target_gap_rel=target_gap_rel,
+                        g_floor_GHz=g_floor_GHz,
+                        assume_subsystems_converged=assume_subsystems_converged,
+                    )
+                )
+        finally:
+            # Restore the sweep to its initial parameter point and clear the
+            # out-of-sync flag, so the precomputed sweep data stays valid.
+            self._update_hilbertspace(self, *initial)
+            self._out_of_sync = out_of_sync
+
+        worst_index = max(
+            range(len(reports)),
+            key=lambda index: _status_rank(reports[index].aggregate_status),
+        )
+        param_points = [
+            {name: float(value) for name, value in zip(names, point)}
+            for point in points
+        ]
+        return ParameterSweepConvergence(
+            param_names=names,
+            param_points=param_points,
+            reports=reports,
+            worst_index=worst_index,
+            aggregate_status=reports[worst_index].aggregate_status,
+        )
+
+    @staticmethod
+    def _convergence_sample_points(
+        ranges: list[ndarray], sample: int | None
+    ) -> list[tuple[float, ...]]:
+        """Return grid points to check: extremes first, then spread interior.
+
+        With ``sample=None`` every grid point is returned. Otherwise points are
+        collected by sampling each parameter at an increasing number of evenly
+        spaced indices (starting from the two endpoints, so the grid corners come
+        first) until the ``sample`` budget is reached. A single-valued parameter
+        contributes its one coordinate.
+        """
+        sizes = [len(paramvals) for paramvals in ranges]
+        if sample is None:
+            return [
+                tuple(float(paramvals[i]) for paramvals, i in zip(ranges, index))
+                for index in itertools.product(*[range(size) for size in sizes])
+            ]
+        points: list[tuple[float, ...]] = []
+        seen: set[tuple[int, ...]] = set()
+        max_size = max(sizes) if sizes else 1
+        per_param_count = 2
+        while len(points) < sample and per_param_count <= max_size:
+            per_param_idx = [
+                sorted(
+                    {
+                        int(round(value))
+                        for value in np.linspace(
+                            0, size - 1, min(per_param_count, size)
+                        )
+                    }
+                )
+                for size in sizes
+            ]
+            for index in itertools.product(*per_param_idx):
+                if index in seen:
+                    continue
+                seen.add(index)
+                points.append(
+                    tuple(float(paramvals[i]) for paramvals, i in zip(ranges, index))
+                )
+                if len(points) >= sample:
+                    break
+            per_param_count += 1
+        return points
 
     @classmethod
     def deserialize(cls, iodata: "IOData") -> "StoredSweep":  # type: ignore[override,empty-body]

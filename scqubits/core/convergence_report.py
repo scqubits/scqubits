@@ -278,6 +278,57 @@ class ParamSweepConvergence:
         return self.summary()
 
 
+@dataclass(frozen=True)
+class ParameterSweepConvergence:
+    """Worst-case convergence across a :class:`.ParameterSweep` grid.
+
+    Holds the per-point :class:`ConvergenceReport` at each sampled grid point of an
+    N-dimensional parameter sweep, and identifies the worst-case point -- the grid
+    point at which the fixed cutoffs are least trustworthy. Each point is a mapping
+    from swept-parameter name to value.
+    """
+
+    param_names: tuple[str, ...]
+    param_points: list[dict[str, float]]
+    reports: list[ConvergenceReport]
+    worst_index: int
+    aggregate_status: Status
+
+    def worst_point(self) -> dict[str, float]:
+        """Return the parameter point with the worst per-point aggregate status."""
+        return self.param_points[self.worst_index]
+
+    def worst_report(self) -> ConvergenceReport:
+        """Return the :class:`ConvergenceReport` at the worst-case grid point."""
+        return self.reports[self.worst_index]
+
+    def summary(self) -> str:
+        """Return a compact, human-readable summary across the sampled grid points.
+
+        Lists each sampled point (its swept-parameter coordinates) with the
+        per-point aggregate status, marks the worst-case point, and states the
+        overall worst status. The full per-point reports remain available in
+        :attr:`reports`.
+        """
+        names = self.param_names
+        worst = self.worst_point()
+        worst_coords = ", ".join(f"{name}={worst[name]:.4g}" for name in names)
+        lines = [
+            f"convergence across sweep of ({', '.join(names)}) "
+            f"({len(self.param_points)} points): worst = {self.aggregate_status} "
+            f"at {worst_coords}"
+        ]
+        for index, (point, report) in enumerate(zip(self.param_points, self.reports)):
+            coords = ", ".join(f"{name}={point[name]:.4g}" for name in names)
+            marker = "  <-- worst" if index == self.worst_index else ""
+            lines.append(f"  {coords}: {report.aggregate_status}{marker}")
+        return "\n".join(lines)
+
+    def __str__(self) -> str:
+        """Return :meth:`summary` so ``print(...)`` shows the readable form."""
+        return self.summary()
+
+
 # Ordered list used by callers wanting to filter on minimum evidence strength.
 EVIDENCE_ORDER: tuple[Evidence, ...] = (
     "verified_empirical",
