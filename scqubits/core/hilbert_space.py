@@ -780,7 +780,7 @@ class HilbertSpace(
     def estimate_convergence(  # type: ignore[override]
         self,
         n_levels: int = 6,
-        mode: str = "verify",
+        mode: str = "moderate",
         scope: str = "absolute",
         target_abs_GHz: float | None = None,
         target_gap_rel: float = 1e-3,
@@ -815,8 +815,8 @@ class HilbertSpace(
         n_levels:
             Number of lowest composite eigenvalues to assess.
         mode:
-            ``"quick"`` (no composite re-diagonalization; the composite verdict
-            is reported as verify-recommended), ``"verify"`` (one composite
+            ``"cheap"`` (no composite re-diagonalization; the composite verdict
+            is reported as moderate-recommended), ``"moderate"`` (one composite
             refinement; default), or ``"strict"`` (two-step ratio test).
         scope:
             ``"absolute"`` or ``"observed_gap_scale"``, as in
@@ -842,16 +842,16 @@ class HilbertSpace(
             )
 
         unrefinable = self._convergence_unrefinable_axes()
-        if mode == "quick":
+        if mode == "cheap":
             composite = self._convergence_unverified_report(
                 n_levels,
                 scope,
                 mode,
                 recommendations=[
-                    "composite truncation has no cheap estimate; run mode='verify' "
+                    "composite truncation has no cheap estimate; run mode='moderate' "
                     "for a composite truncation verdict"
                 ],
-                warning="composite_verify_recommended",
+                warning="composite_moderate_recommended",
             )
         elif unrefinable:
             # A fixed-matrix interaction operator prevents a truncated_dim

@@ -211,7 +211,7 @@ class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot, ConvergenceChe
     def estimate_convergence(  # type: ignore[override]
         self,
         n_levels: int = 6,
-        mode: str = "verify",
+        mode: str = "moderate",
         scope: str = "absolute",
         target_abs_GHz: float | None = None,
         target_gap_rel: float = 1e-3,
@@ -235,7 +235,7 @@ class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot, ConvergenceChe
         (which has no ``configure``) raises :class:`NotImplementedError`; the
         parent records that and continues.
 
-        Quick mode is verify-recommended (a coupled basis has no clean cheap
+        Cheap mode is moderate-recommended (a coupled basis has no clean cheap
         estimator). Parameters are as in
         :meth:`ConvergenceCheckable.estimate_convergence`.
         """
@@ -266,16 +266,16 @@ class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot, ConvergenceChe
                 "its leaf subsystems individually"
             )
 
-        if mode == "quick":
+        if mode == "cheap":
             composite = self._convergence_unverified_report(
                 n_levels,
                 scope,
                 mode,
                 recommendations=[
                     "hierarchical-diagonalization truncation has no cheap estimate; "
-                    "run mode='verify' for a dressed-spectrum verdict"
+                    "run mode='moderate' for a dressed-spectrum verdict"
                 ],
-                warning="composite_verify_recommended",
+                warning="composite_moderate_recommended",
             )
         else:
             composite = ConvergenceCheckable.estimate_convergence(

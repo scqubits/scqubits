@@ -198,9 +198,9 @@ class Transmon(
     ):
         """Finite-tail (Green-function) charge-truncation estimate for ``ncut``.
 
-        Lets quick mode report a ``perturbative`` per-level error estimate for the
-        charge tail, rather than only a boundary-amplitude diagnostic. Returns
-        ``None`` for an unrecognized axis.
+        Lets cheap mode report a per-level error estimate for the charge tail,
+        rather than only a boundary-amplitude diagnostic. Returns ``None`` for an
+        unrecognized axis.
         """
         if axis != "ncut":
             return None

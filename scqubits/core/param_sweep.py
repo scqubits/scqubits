@@ -1366,7 +1366,7 @@ class ParameterSweep(
     def estimate_convergence(
         self,
         n_levels: int = 6,
-        mode: str = "verify",
+        mode: str = "moderate",
         scope: str = "absolute",
         target_abs_GHz: float | None = None,
         target_gap_rel: float = 1e-3,

@@ -38,13 +38,11 @@ import scqubits.utils.convergence_utils as cutils
 from scqubits import settings
 from scqubits.core.convergence_report import (
     ConvergenceReport,
-    Evidence,
     ImplementationAudit,
     LevelVerdict,
     ParamSweepConvergence,
     Status,
     TruncationChannel,
-    evidence_at_least,
 )
 
 
@@ -176,7 +174,7 @@ class ConvergenceCheckable:
     def estimate_convergence(
         self,
         n_levels: int = 6,
-        mode: str = "verify",
+        mode: str = "moderate",
         scope: str = "absolute",
         target_abs_GHz: float | None = None,
         target_gap_rel: float = 1e-3,
@@ -192,10 +190,13 @@ class ConvergenceCheckable:
         n_levels:
             Number of lowest eigenvalues to assess.
         mode:
-            One of ``"quick"`` (cheap diagnostics only, no extra
-            diagonalizations), ``"verify"`` (one refinement at a bumped
-            cutoff; default), or ``"strict"`` (ratio test across two
-            successive refinements).
+            One of ``"cheap"`` (cheap diagnostics only, no extra
+            diagonalizations; verdicts cap at ``unverified``), ``"moderate"``
+            (one refinement at a bumped cutoff; default; verdicts cap at
+            ``maybe_converged``), or ``"strict"`` (ratio test across two
+            successive refinements; verdicts cap at ``likely_converged``).
+            A test can only dismiss convergence, never prove it; a more
+            rigorous mode wields a sharper dismissal test.
         scope:
             ``"absolute"`` (verdict applied to ``abs_err_est_GHz``) or
             ``"observed_gap_scale"`` (verdict applied to error normalized
@@ -213,13 +214,13 @@ class ConvergenceCheckable:
             If True, additionally assess the requested ``derived_quantities``
             and attach their per-level sub-reports under
             :attr:`ConvergenceReport.derived`. Requires ``mode`` of
-            ``"verify"`` or ``"strict"`` -- derived quantities need a
+            ``"moderate"`` or ``"strict"`` -- derived quantities need a
             refinement comparison.
         derived_quantities:
             Subset of ``{"wavefunctions", "matrix_elements", "coherence"}`` to
             assess when ``include_derived`` is set.
         refinement:
-            ``"one_step"`` for verify mode; ``"ratio_test"`` for strict
+            ``"one_step"`` for moderate mode; ``"ratio_test"`` for strict
             mode. Coerced to match ``mode`` if inconsistent.
 
         Returns
@@ -227,9 +228,9 @@ class ConvergenceCheckable:
         :class:`~scqubits.core.convergence_report.ConvergenceReport`
         """
         # -------- input validation
-        if mode not in ("quick", "verify", "strict"):
+        if mode not in ("cheap", "moderate", "strict"):
             raise ValueError(
-                f"mode must be 'quick', 'verify', or 'strict'; got {mode!r}"
+                f"mode must be 'cheap', 'moderate', or 'strict'; got {mode!r}"
             )
         if scope not in ("absolute", "observed_gap_scale"):
             raise ValueError(
@@ -241,9 +242,9 @@ class ConvergenceCheckable:
             )
         requested_derived: tuple[str, ...] = tuple(derived_quantities or ())
         if include_derived:
-            if mode == "quick":
+            if mode == "cheap":
                 raise ValueError(
-                    "include_derived requires mode='verify' or 'strict'; "
+                    "include_derived requires mode='moderate' or 'strict'; "
                     "derived quantities need a refinement comparison"
                 )
             if not requested_derived:
@@ -267,7 +268,8 @@ class ConvergenceCheckable:
                 "convergence checking is not implemented for this class."
             )
 
-        # In strict mode, ratio_test is the implied refinement.
+        # In strict mode, ratio_test is the implied refinement; the cheaper
+        # modes do at most one refinement.
         if mode == "strict" and refinement == "one_step":
             refinement = "ratio_test"
 
@@ -279,8 +281,8 @@ class ConvergenceCheckable:
         evals_n0, evecs_n0 = self.eigensys(evals_count=n_eigs)  # type: ignore[attr-defined]
 
         # -------- dispatch by mode
-        if mode == "quick":
-            return self._convergence_quick(
+        if mode == "cheap":
+            return self._convergence_cheap(
                 evals_n0=evals_n0,
                 evecs_n0=evecs_n0,
                 n_levels=n_levels,
@@ -444,7 +446,7 @@ class ConvergenceCheckable:
         """Build an all-levels-``unverified`` report with no truncation estimate.
 
         Shared by coupled-system classes (``HilbertSpace``, ``FullZeroPi``) for the
-        cases where there is no cheap composite estimate (quick mode) or where a
+        cases where there is no cheap composite estimate (cheap mode) or where a
         refinement cannot be carried out. Inner/layer-1 checks are attached
         separately by the caller.
         """
@@ -454,11 +456,10 @@ class ConvergenceCheckable:
                 level_index=k,
                 status="unverified",
                 status_scope=scope,  # type: ignore[arg-type]
-                evidence="diagnostic",
                 abs_err_est_GHz=None,
                 eps_gap_est=None,
                 truncation_channel=channel,
-                estimator_method="verify_recommended",
+                estimator_method="moderate_recommended",
                 warnings=(warning,),
             )
             for k in range(n_levels)
@@ -476,7 +477,7 @@ class ConvergenceCheckable:
 
     # ------------------------------------------------------------ mode handlers
 
-    def _convergence_quick(
+    def _convergence_cheap(
         self,
         evals_n0: npt.NDArray[np.float64],
         evecs_n0: npt.NDArray[np.float64],
@@ -486,13 +487,12 @@ class ConvergenceCheckable:
         target_gap_rel: float,
         g_floor_GHz: float,
     ) -> ConvergenceReport:
-        """Quick-mode report: cheap perturbative tail estimate or boundary diagnostic.
+        """Cheap-mode report: perturbative tail estimate or boundary diagnostic.
 
         If the qubit supplies a perturbative tail estimate (e.g. the charge
-        finite-tail), quick mode reports it with ``perturbative`` evidence;
-        otherwise it falls back to the bare boundary-amplitude diagnostic. Per the
-        published design, quick mode never returns an unqualified ``converged`` --
-        the best it can say is ``likely_converged``.
+        finite-tail), cheap mode reports it; otherwise it falls back to the bare
+        boundary-amplitude diagnostic. Cheap mode never makes a verification
+        claim -- the best verdict it returns is ``unverified``.
         """
         # Quick mode assesses the first (dominant) axis without refinement.
         axis = self._convergence_axes[0]
@@ -500,7 +500,7 @@ class ConvergenceCheckable:
 
         tail = self._convergence_tail_estimate((evals_n0, evecs_n0), axis)
         if tail is not None:
-            return self._convergence_quick_perturbative(
+            return self._convergence_cheap_perturbative(
                 tail=tail,
                 channel=channel,
                 evals_n0=evals_n0,
@@ -521,30 +521,25 @@ class ConvergenceCheckable:
         # Start worst-tracker at the best possible status; accumulate worse
         # as levels are inspected.
         worst_index: int = 0
-        worst_status: Status = "converged"
+        worst_status: Status = "likely_converged"
 
-        # Threshold under which a level is "likely_converged" from quick
-        # diagnostics alone. Conservative -- the published design only
-        # allows quick mode to escape "unverified" in clearly easy regimes.
+        # Boundary amplitude under which the cheap diagnostic raises no red flag.
+        # Conservative -- a larger amplitude triggers a recommendation to escalate.
         QUICK_BOUNDARY_THRESHOLD = 1e-6
 
         for k in range(n_levels):
             warnings: list[str] = []
+            # Cheap mode makes no verification claim; the best verdict is
+            # "unverified" (no dismissal). A red flag adds a warning/recommendation.
+            status: Status = "unverified"
             if boundary_amplitudes is None:
-                status: Status = "unverified"
-                ev: Evidence = "unverified"
                 warnings.append("no_boundary_diagnostic_available")
-            elif boundary_amplitudes[k] < QUICK_BOUNDARY_THRESHOLD:
-                status = "likely_converged"
-                ev = "diagnostic"
-            else:
-                status = "unverified"
-                ev = "diagnostic"
+            elif boundary_amplitudes[k] >= QUICK_BOUNDARY_THRESHOLD:
                 warnings.append("boundary_amplitude_above_threshold")
                 recommendations.append(
                     f"level {k}: boundary amplitude {boundary_amplitudes[k]:.2e} "
-                    f"exceeds quick-mode threshold {QUICK_BOUNDARY_THRESHOLD:.0e}; "
-                    f"re-run with mode='verify' to obtain an empirical estimate"
+                    f"exceeds cheap-mode threshold {QUICK_BOUNDARY_THRESHOLD:.0e}; "
+                    f"re-run with mode='moderate' to obtain an empirical estimate"
                 )
 
             per_level.append(
@@ -552,8 +547,7 @@ class ConvergenceCheckable:
                     level_index=k,
                     status=status,
                     status_scope=scope,  # type: ignore[arg-type]
-                    evidence=ev,
-                    abs_err_est_GHz=None,  # quick mode has no error estimate
+                    abs_err_est_GHz=None,  # cheap mode has no error estimate
                     eps_gap_est=None,
                     truncation_channel=channel,
                     estimator_method="boundary_diagnostic",
@@ -566,10 +560,6 @@ class ConvergenceCheckable:
                 worst_status = status
                 worst_index = k
 
-        # If no level escaped "unverified", aggregate is "unverified".
-        if worst_index is None:
-            worst_index = 0
-
         return ConvergenceReport(
             per_level=per_level,
             aggregate_status=worst_status,
@@ -578,11 +568,11 @@ class ConvergenceCheckable:
             clusters=[(k,) for k in range(n_levels)],
             recommendations=list(dict.fromkeys(recommendations)),  # dedupe
             implementation_audit=self._convergence_audit(
-                n_levels=n_levels, n_buffer=0, mode="quick", refinement="one_step"
+                n_levels=n_levels, n_buffer=0, mode="cheap", refinement="one_step"
             ),
         )
 
-    def _convergence_quick_perturbative(
+    def _convergence_cheap_perturbative(
         self,
         tail: tuple[
             npt.NDArray[np.float64], npt.NDArray[np.bool_], npt.NDArray[np.float64]
@@ -596,14 +586,12 @@ class ConvergenceCheckable:
         g_floor_GHz: float,
         axis: str,
     ) -> ConvergenceReport:
-        """Quick-mode report from a perturbative tail estimate.
+        """Cheap-mode report from a perturbative tail estimate.
 
-        Reports the per-level tail estimate with ``perturbative`` evidence and
-        the usual status ladder, but caps ``converged`` at ``likely_converged``
-        (quick mode never makes an unqualified convergence claim). A level whose
-        boundary probability is large, or whose tail is not in the perturbative
-        regime, is forced to ``underconverged`` / ``unverified`` regardless of the
-        estimate (design-spec edge cases).
+        Reports the per-level tail estimate but caps a passing verdict at
+        ``unverified`` (cheap mode never makes a verification claim). A level
+        whose boundary probability is large is dismissed to ``distrust``; a level
+        whose tail is not in the perturbative regime is ``unverified``.
         """
         estimate, perturbative_ok, boundary_prob = tail
         large_boundary_prob = _BOUNDARY_PROBABILITY_LARGE
@@ -626,32 +614,26 @@ class ConvergenceCheckable:
                 warnings.append("upper_gap_unavailable")
 
             if float(boundary_prob[k]) > large_boundary_prob:
-                status: Status = "underconverged"
-                evidence: Evidence = "perturbative"
+                # The kept eigenstate reaches the basis edge: a dismissal signal.
+                status: Status = "distrust"
                 warnings.append("boundary_probability_large")
             elif not bool(perturbative_ok[k]):
                 status = "unverified"
-                evidence = "unverified"
                 warnings.append("tail_not_perturbative")
             elif scope == "absolute" and target_abs_GHz is None:
-                # No absolute target: fall back to a target-free gut check -- a
-                # small perturbative tail with little boundary support is
-                # likely_converged (never an unqualified converged).
-                status = "likely_converged"
-                evidence = "perturbative"
+                # No absolute target: a cheap pass earns only "unverified".
+                status = "unverified"
             else:
                 status = _assign_status(est, eps, scope, target_abs_GHz, target_gap_rel)
-                evidence = "perturbative"
-                if status == "converged":
-                    # Quick mode never makes an unqualified convergence claim.
-                    status = "likely_converged"
+                # Cheap mode makes no verification claim: a pass caps at
+                # "unverified".
+                status = _apply_mode_ceiling(status, "cheap")
 
             per_level.append(
                 LevelVerdict(
                     level_index=k,
                     status=status,
                     status_scope=scope,  # type: ignore[arg-type]
-                    evidence=evidence,
                     abs_err_est_GHz=est,
                     eps_gap_est=eps,
                     truncation_channel=channel,
@@ -662,12 +644,12 @@ class ConvergenceCheckable:
 
         worst_idx, aggregate_status = _aggregate_worst(per_level)
         recommendations: list[str] = []
-        if any(v.status in ("underconverged", "unverified") for v in per_level):
+        if any(v.status in ("distrust", "marginal") for v in per_level):
             current = self._convergence_axis_value(axis)
             step = self._convergence_step(axis)
             recommendations.append(
                 f"increase {axis} from {current} to at least {current + step}, or "
-                f"re-run with mode='verify' for a refinement-verified estimate"
+                f"re-run with mode='moderate' for a refinement-verified estimate"
             )
 
         return ConvergenceReport(
@@ -678,7 +660,7 @@ class ConvergenceCheckable:
             clusters=[(k,) for k in range(n_levels)],
             recommendations=recommendations,
             implementation_audit=self._convergence_audit(
-                n_levels=n_levels, n_buffer=0, mode="quick", refinement="one_step"
+                n_levels=n_levels, n_buffer=0, mode="cheap", refinement="one_step"
             ),
         )
 
@@ -952,7 +934,6 @@ class ConvergenceCheckable:
 
         (
             per_level_abs_err,
-            per_level_evidence,
             per_level_estimator_method,
             per_level_warnings,
             per_level_non_asymptotic,
@@ -964,6 +945,7 @@ class ConvergenceCheckable:
             asymptotic_flag=asymptotic_flag,
             safety_factor=safety_factor,
             n_levels=n_levels,
+            cluster_max_diff_n2=cluster_max_diff_n2,
             precomputed_estimate=precomputed_estimate,
             precomputed_non_asymptotic=precomputed_non_asymptotic,
         )
@@ -982,7 +964,6 @@ class ConvergenceCheckable:
             n_levels=n_levels,
             per_level_abs_err=per_level_abs_err,
             eps_gap_est=eps_gap_est,
-            per_level_evidence=per_level_evidence,
             per_level_warnings=per_level_warnings,
             scope=scope,
             target_abs_GHz=target_abs_GHz,
@@ -1005,7 +986,6 @@ class ConvergenceCheckable:
                 level_index=k,
                 status=per_level_status[k],
                 status_scope=scope,  # type: ignore[arg-type]
-                evidence=per_level_evidence[k],
                 abs_err_est_GHz=float(per_level_abs_err[k]),
                 eps_gap_est=eps_gap_est[k],
                 transition_err_est_GHz={
@@ -1053,8 +1033,8 @@ class ConvergenceCheckable:
     ) -> list[str]:
         """Build channel-specific next-step recommendations for an energy report.
 
-        When a level is underconverged, the advice is tailored to the dominant
-        truncation channel (design spec): a charge tail grows ``ncut``, an HO
+        When a level is dismissed (``distrust``), the advice is tailored to the
+        dominant truncation channel (design spec): a charge tail grows ``ncut``, an HO
         tail grows the oscillator cutoff (or changes backend), an FD box must be
         enlarged rather than merely refined, and an FD stencil is refined at a
         fixed box. Levels carrying the ``boundary_probability_large`` warning are
@@ -1063,7 +1043,7 @@ class ConvergenceCheckable:
         when absolute-scope levels are unverified for lack of a target.
         """
         recommendations: list[str] = []
-        if any(v.status == "underconverged" for v in verdicts):
+        if any(v.status == "distrust" for v in verdicts):
             current_value = self._convergence_axis_value(axis)
             step = self._convergence_step(axis)
             channel = self._convergence_truncation_channel(axis)
@@ -1116,11 +1096,11 @@ class ConvergenceCheckable:
                 f"non-perturbative -- increase the cutoff aggressively"
             )
         if any(
-            v.status == "underconverged" and "cluster_index_ambiguity" in v.warnings
+            v.status == "distrust" and "cluster_index_ambiguity" in v.warnings
             for v in verdicts
         ):
             recommendations.append(
-                "an underconverged level lies in a near-degenerate cluster; "
+                "a dismissed level lies in a near-degenerate cluster; "
                 "compare clusters as sets (cluster-safe matching) rather than by "
                 "individual level labels, and refine the dominant cutoff"
             )
@@ -1409,17 +1389,43 @@ class ConvergenceCheckable:
 
 
 _STATUS_RANK: dict[Status, int] = {
-    "converged": 0,
-    "likely_converged": 1,
+    "likely_converged": 0,
+    "maybe_converged": 1,
     "marginal": 2,
-    "underconverged": 3,
-    "unverified": 4,
+    "unverified": 3,
+    "distrust": 4,
 }
+
+# The best verdict each mode is entitled to return for a passing estimate. A
+# test can only dismiss convergence, never prove it, so a "pass" rises only to
+# the ceiling set by how rigorous the mode was.
+_MODE_CEILING: dict[str, Status] = {
+    "cheap": "unverified",
+    "moderate": "maybe_converged",
+    "strict": "likely_converged",
+}
+
+# Refinement differences at or below this absolute size (GHz) are treated as
+# eigensolver noise rather than real movement, so a failed ratio test on them is
+# not read as a non-asymptotic dismissal.
+_REFINEMENT_NOISE_FLOOR_GHz: float = 1e-9
 
 
 def _status_rank(status: Status) -> int:
     """Rank for aggregating worst per-level status; higher is worse."""
     return _STATUS_RANK[status]
+
+
+def _apply_mode_ceiling(status: Status, mode: str) -> Status:
+    """Cap a passing verdict at the best the mode is entitled to claim.
+
+    A verdict better than the mode's ceiling is lowered to that ceiling; a
+    ``marginal`` or ``distrust`` verdict (a dismissal) is never raised.
+    """
+    ceiling = _MODE_CEILING[mode]
+    if _STATUS_RANK[status] < _STATUS_RANK[ceiling]:
+        return ceiling
+    return status
 
 
 def _local_isolation_gap(
@@ -1471,23 +1477,29 @@ def _assign_status(
     target_abs_GHz: float | None,
     target_gap_rel: float,
 ) -> Status:
-    """Assign a Status based on the configured scope and target."""
+    """Assign the best verdict an estimate supports, before mode capping.
+
+    Returns ``likely_converged`` for an estimate below the target, ``marginal``
+    for an estimate within a decade of it, and ``distrust`` for a clearly larger
+    estimate. The caller lowers a passing verdict to the mode ceiling via
+    :func:`_apply_mode_ceiling`; a missing target or metric yields ``unverified``.
+    """
     if scope == "absolute":
         if target_abs_GHz is None:
             return "unverified"
         if abs_err_est < target_abs_GHz:
-            return "converged"
+            return "likely_converged"
         if abs_err_est < 10.0 * target_abs_GHz:
             return "marginal"
-        return "underconverged"
+        return "distrust"
     # observed_gap_scale
     if eps_gap_est is None:
         return "unverified"
     if eps_gap_est < target_gap_rel:
-        return "converged"
+        return "likely_converged"
     if eps_gap_est < 10.0 * target_gap_rel:
         return "marginal"
-    return "underconverged"
+    return "distrust"
 
 
 def _per_cluster_energy_estimates(
@@ -1498,35 +1510,30 @@ def _per_cluster_energy_estimates(
     asymptotic_flag: npt.NDArray[np.bool_] | None,
     safety_factor: float,
     n_levels: int,
+    cluster_max_diff_n2: npt.NDArray[np.float64] | None = None,
     precomputed_estimate: npt.NDArray[np.float64] | None = None,
     precomputed_non_asymptotic: npt.NDArray[np.bool_] | None = None,
-) -> tuple[
-    npt.NDArray[np.float64], list[Evidence], list[str], list[list[str]], list[bool]
-]:
-    """Derive each level's error estimate, evidence, estimator method, and warnings.
+) -> tuple[npt.NDArray[np.float64], list[str], list[list[str]], list[bool]]:
+    """Derive each level's error estimate, estimator method, and warnings.
 
-    A one-step estimate (verify mode, or the strict-mode fallback) takes
-    ``safety_factor`` times the one-step refinement difference; with the spec-recommended
-    calibrated safety factor this is ``verified_empirical`` (design spec: a
-    single-step comparison becomes ``verified_empirical`` once the safety factor
-    is calibrated in the regime). A successful two-step ratio test is also
-    ``verified_empirical`` -- it adds the asymptoticity check the spec attaches to
-    that label -- and reports the geometric-tail estimate. When the ratio test
-    finds ``R >= 1`` (no reliable asymptotic regime), the level is flagged
-    non-asymptotic so the status logic can refuse a softened verdict. Every level
-    inherits the values of the cluster it belongs to.
+    A one-step estimate (moderate mode, or the strict-mode fallback) takes
+    ``safety_factor`` times the one-step refinement difference. A successful
+    two-step ratio test instead reports the geometric-tail estimate. When the
+    ratio test finds ``R >= 1`` (no reliable asymptotic regime), or a flat first
+    refinement is followed by real movement, the level is flagged non-asymptotic
+    so the status logic dismisses it. Refinement differences at or below the
+    eigensolver noise floor are treated as no movement, not a failed ratio test.
+    Every level inherits the values of the cluster it belongs to.
 
     When ``precomputed_estimate`` is supplied (a finite-difference axis used the
     Richardson estimator), it is the per-cluster absolute error already summed
     over axes and ``precomputed_non_asymptotic`` flags clusters whose per-axis
     test failed; these are used directly instead of the geometric path.
 
-    The fifth returned element flags, per level, a failed asymptoticity test on a
-    non-zero refinement difference; the status logic forces such levels to ``underconverged``
-    rather than ``marginal``.
+    The last returned element flags, per level, a failed asymptoticity test; the
+    status logic forces such levels to ``distrust``.
     """
     per_level_abs_err = np.empty(n_levels, dtype=np.float64)
-    per_level_evidence: list[Evidence] = []
     per_level_estimator_method: list[str] = []
     per_level_warnings: list[list[str]] = [[] for _ in range(n_levels)]
     per_level_non_asymptotic: list[bool] = [False] * n_levels
@@ -1538,7 +1545,6 @@ def _per_cluster_energy_estimates(
             # (Richardson for the FD-stencil channel, geometric elsewhere) has
             # already been summed over axes.
             est = float(precomputed_estimate[cluster_idx])
-            ev: Evidence = "verified_empirical"
             non_asymptotic = bool(
                 precomputed_non_asymptotic is not None
                 and precomputed_non_asymptotic[cluster_idx]
@@ -1551,32 +1557,32 @@ def _per_cluster_energy_estimates(
                 method = "richardson_composite"
         elif refinement == "ratio_test" and geometric_tail is not None:
             d0 = float(cluster_max_diff_n1[cluster_idx])
-            if asymptotic_flag is not None and asymptotic_flag[cluster_idx]:
-                # Ratio test confirmed the geometric (asymptotic) regime: the
-                # asymptoticity check is what makes this verified_empirical.
+            d1 = (
+                float(cluster_max_diff_n2[cluster_idx])
+                if cluster_max_diff_n2 is not None
+                else 0.0
+            )
+            if d0 <= _REFINEMENT_NOISE_FLOOR_GHz and d1 <= _REFINEMENT_NOISE_FLOOR_GHz:
+                # Both refinements are flat at the eigensolver noise floor: no
+                # real movement, so the undefined ratio is not a dismissal.
+                est = max(d0, d1)
+                method = "ratio_test_noise_floor"
+            elif asymptotic_flag is not None and asymptotic_flag[cluster_idx]:
+                # Ratio test confirmed the geometric (asymptotic) regime.
                 est = float(geometric_tail[cluster_idx])
-                ev = "verified_empirical"
-                method = "ratio_test"
-            elif d0 == 0.0:
-                # No refinement difference across the first refinement: already stable, so the
-                # ratio (0/0) is undefined rather than a failed asymptoticity test.
-                est = 0.0
-                ev = "verified_empirical"
                 method = "ratio_test"
             else:
-                # R >= 1: not a reliable asymptotic regime. The one-step refinement difference
-                # is only the observed refinement difference and the geometric extrapolation is
-                # inapplicable; flag the level so it cannot be reported converged
-                # or merely marginal.
-                est = float(safety_factor * d0)
-                ev = "verified_empirical"
+                # R >= 1, or a flat first refinement followed by real movement:
+                # not a reliable asymptotic regime. Flag the level so the status
+                # logic dismisses it; report the larger one-step movement as the
+                # (non-trustworthy) estimate.
+                est = float(safety_factor * max(d0, d1))
                 method = "ratio_test_failed_fallback_one_step"
                 non_asymptotic = True
                 for k in cluster:
                     per_level_warnings[k].append("ratio_test_not_asymptotic")
         else:
             est = float(safety_factor * cluster_max_diff_n1[cluster_idx])
-            ev = "verified_empirical"
             method = "one_step"
 
         # A multi-level (near-degenerate) cluster is compared as a sorted set,
@@ -1586,7 +1592,6 @@ def _per_cluster_energy_estimates(
 
         for k in cluster:
             per_level_abs_err[k] = est
-            per_level_evidence.append(ev)
             per_level_estimator_method.append(method)
             per_level_non_asymptotic[k] = non_asymptotic
             if cluster_ambiguous:
@@ -1594,7 +1599,6 @@ def _per_cluster_energy_estimates(
 
     return (
         per_level_abs_err,
-        per_level_evidence,
         per_level_estimator_method,
         per_level_warnings,
         per_level_non_asymptotic,
@@ -1641,7 +1645,6 @@ def _assign_level_statuses(
     n_levels: int,
     per_level_abs_err: npt.NDArray[np.float64],
     eps_gap_est: list[float | None],
-    per_level_evidence: list[Evidence],
     per_level_warnings: list[list[str]],
     scope: str,
     target_abs_GHz: float | None,
@@ -1649,19 +1652,14 @@ def _assign_level_statuses(
     mode: str,
     non_asymptotic: list[bool],
 ) -> list[Status]:
-    """Assign each level's Status from its error estimate and the active target.
+    """Assign each level's verdict from its estimate, the target, and the mode.
 
-    In strict mode a ``converged`` verdict backed by evidence weaker than
-    ``verified_empirical`` is downgraded to ``marginal`` and a
-    ``strict_mode_downgrade_insufficient_evidence`` warning is recorded.
-
-    A level whose two-step ratio test failed (``R >= 1`` on a non-zero refinement difference,
-    flagged in ``non_asymptotic``) cannot be reported as ``marginal``: the design
-    spec requires ``underconverged`` or ``unverified``, since the error estimate
-    is not trustworthy. Such a level is forced to ``underconverged`` and its
-    evidence is downgraded to ``unverified``. A level the ladder already rates
-    ``converged`` (estimate below target -- a stable, noise-floor level) is left
-    intact, carrying only its ``ratio_test_not_asymptotic`` warning.
+    A passing estimate is capped at the verdict the mode is entitled to make
+    (:func:`_apply_mode_ceiling`): a test can dismiss convergence, never prove
+    it. A level whose two-step ratio test failed (``R >= 1`` on real movement,
+    flagged in ``non_asymptotic``) is dismissed to ``distrust`` -- its error
+    estimate is not trustworthy -- regardless of how small the one-step movement
+    happened to be.
     """
     per_level_status: list[Status] = []
     for k in range(n_levels):
@@ -1672,15 +1670,9 @@ def _assign_level_statuses(
             target_abs_GHz=target_abs_GHz,
             target_gap_rel=target_gap_rel,
         )
-        if mode == "strict" and status == "converged":
-            if not evidence_at_least(per_level_evidence[k], "verified_empirical"):
-                status = "marginal"
-                per_level_warnings[k].append(
-                    "strict_mode_downgrade_insufficient_evidence"
-                )
-        if non_asymptotic[k] and status in ("marginal", "underconverged"):
-            status = "underconverged"
-            per_level_evidence[k] = "unverified"
+        status = _apply_mode_ceiling(status, mode)
+        if non_asymptotic[k]:
+            status = "distrust"
         per_level_status.append(status)
     return per_level_status
 
@@ -1777,13 +1769,12 @@ def _build_metric_report(
     refinement (overlap deficit, subspace angle, or relative matrix-element
     change). In ratio-test mode ``refinement_diff_second`` (the first-to-second
     refinement change) drives a geometric extrapolation; levels confirmed
-    asymptotic use the extrapolated tail (tagged ``verified_empirical`` -- the
-    asymptoticity check is what earns that label), the rest fall back to the
-    one-step refinement difference with a recorded warning. A failed ratio test (``R >= 1`` on
-    a non-zero refinement difference) cannot be reported as ``marginal``: the level is forced
-    to ``underconverged`` with ``unverified`` evidence, mirroring the energy
-    channel. Verdicts apply the observed-gap-scale ladder against
-    ``target_gap_rel``.
+    asymptotic use the extrapolated tail, the rest fall back to the one-step
+    refinement difference with a recorded warning. A failed ratio test
+    (``R >= 1``) dismisses the level to ``distrust``, mirroring the energy
+    channel. A passing verdict is capped at the mode ceiling (``maybe_converged``
+    for a one-step check, ``likely_converged`` for a ratio-tested one). Verdicts
+    apply the observed-gap-scale ladder against ``target_gap_rel``.
     """
     geometric_tail: npt.NDArray[np.float64] | None = None
     asymptotic: npt.NDArray[np.bool_] | None = None
@@ -1794,30 +1785,24 @@ def _build_metric_report(
 
     safety_factor = settings.CONVERGENCE_SAFETY_FACTOR
     per_level_eps = np.empty(n_levels, dtype=np.float64)
-    per_level_evidence: list[Evidence] = []
     per_level_method: list[str] = []
     per_level_warnings: list[list[str]] = [[] for _ in range(n_levels)]
     per_level_non_asymptotic: list[bool] = [False] * n_levels
 
     for k in range(n_levels):
         if geometric_tail is not None and asymptotic is not None and asymptotic[k]:
-            # Geometric tail is already an extrapolated remaining-error estimate;
-            # the asymptoticity check makes it verified_empirical.
+            # Geometric tail is already an extrapolated remaining-error estimate.
             per_level_eps[k] = float(geometric_tail[k])
-            per_level_evidence.append("verified_empirical")
             per_level_method.append(f"{estimator_method}_ratio_test")
         elif refinement == "ratio_test" and float(refinement_diff_first[k]) == 0.0:
-            # No refinement difference: already stable, the ratio is undefined rather than a
-            # failed asymptoticity test.
+            # No refinement difference: already stable, the ratio is undefined
+            # rather than a failed asymptoticity test.
             per_level_eps[k] = 0.0
-            per_level_evidence.append("verified_empirical")
             per_level_method.append(f"{estimator_method}_ratio_test")
         else:
-            # One-step refinement difference underestimates the remaining change; apply the
-            # same safety factor the energy channel uses so a derived "converged"
-            # carries the same margin.
+            # One-step refinement difference underestimates the remaining change;
+            # apply the same safety factor the energy channel uses.
             per_level_eps[k] = float(safety_factor * refinement_diff_first[k])
-            per_level_evidence.append("verified_empirical")
             if refinement == "ratio_test":
                 per_level_method.append(f"{estimator_method}_ratio_test_fallback")
                 per_level_warnings[k].append("ratio_test_not_asymptotic")
@@ -1825,6 +1810,9 @@ def _build_metric_report(
             else:
                 per_level_method.append(estimator_method)
 
+    # A one-step (moderate) derived check caps at maybe_converged; a ratio-tested
+    # (strict) one can reach likely_converged.
+    derived_mode = "strict" if refinement == "ratio_test" else "moderate"
     verdicts: list[LevelVerdict] = []
     for k in range(n_levels):
         status: Status = _assign_status(
@@ -1834,16 +1822,14 @@ def _build_metric_report(
             target_abs_GHz=None,
             target_gap_rel=target_gap_rel,
         )
-        evidence: Evidence = per_level_evidence[k]
-        if per_level_non_asymptotic[k] and status in ("marginal", "underconverged"):
-            status = "underconverged"
-            evidence = "unverified"
+        status = _apply_mode_ceiling(status, derived_mode)
+        if per_level_non_asymptotic[k]:
+            status = "distrust"
         verdicts.append(
             LevelVerdict(
                 level_index=k,
                 status=status,
                 status_scope="observed_gap_scale",
-                evidence=evidence,
                 abs_err_est_GHz=None,
                 eps_gap_est=None,
                 rel_change_est=float(per_level_eps[k]),
@@ -1855,7 +1841,7 @@ def _build_metric_report(
     worst_idx, aggregate_status = _aggregate_worst(verdicts)
 
     recommendations: list[str] = []
-    if any(v.status == "underconverged" for v in verdicts):
+    if any(v.status == "distrust" for v in verdicts):
         recommendations.append(
             f"increase {axis} from {current_value} to at least "
             f"{current_value + step} and re-run; a derived-quantity estimate "
@@ -1950,15 +1936,17 @@ def _build_coherence_report(
         verdicts.append(
             LevelVerdict(
                 level_index=idx,
-                status=_assign_status(
-                    abs_err_est=0.0,
-                    eps_gap_est=eps,
-                    scope="observed_gap_scale",
-                    target_abs_GHz=None,
-                    target_gap_rel=target_gap_rel,
+                status=_apply_mode_ceiling(
+                    _assign_status(
+                        abs_err_est=0.0,
+                        eps_gap_est=eps,
+                        scope="observed_gap_scale",
+                        target_abs_GHz=None,
+                        target_gap_rel=target_gap_rel,
+                    ),
+                    "moderate",
                 ),
                 status_scope="observed_gap_scale",
-                evidence="verified_empirical",
                 abs_err_est_GHz=None,
                 eps_gap_est=None,
                 rel_change_est=eps,
@@ -1974,7 +1962,7 @@ def _build_coherence_report(
         worst_idx, aggregate_status = 0, "unverified"
 
     recommendations: list[str] = []
-    if any(v.status == "underconverged" for v in verdicts):
+    if any(v.status == "distrust" for v in verdicts):
         recommendations.append(
             f"increase {axis} from {current_value} to at least "
             f"{current_value + step} and re-run; a noise-rate estimate exceeded "
@@ -2006,9 +1994,8 @@ def estimate_convergence(qubit: Any, **kwargs: Any) -> ConvergenceReport:
     """
     if not isinstance(qubit, ConvergenceCheckable):
         raise TypeError(
-            f"{type(qubit).__name__} does not implement convergence checking. "
-            "Subclasses of ConvergenceCheckable in this version: Transmon "
-            "(further qubits land in subsequent PRs)."
+            f"{type(qubit).__name__} does not support convergence checking; "
+            "it must subclass ConvergenceCheckable."
         )
     return qubit.estimate_convergence(**kwargs)
 

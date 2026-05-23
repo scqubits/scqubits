@@ -815,7 +815,7 @@ class FullZeroPi(
     def estimate_convergence(  # type: ignore[override]
         self,
         n_levels: int = 6,
-        mode: str = "verify",
+        mode: str = "moderate",
         scope: str = "absolute",
         target_abs_GHz: float | None = None,
         target_gap_rel: float = 1e-3,
@@ -840,8 +840,8 @@ class FullZeroPi(
         n_levels:
             Number of lowest coupled eigenvalues to assess.
         mode:
-            ``"quick"`` (no coupled re-diagonalization; verify-recommended),
-            ``"verify"`` (one refinement; default), or ``"strict"`` (ratio test).
+            ``"cheap"`` (no coupled re-diagonalization; moderate-recommended),
+            ``"moderate"`` (one refinement; default), or ``"strict"`` (ratio test).
         scope, target_abs_GHz, target_gap_rel, g_floor_GHz:
             As in :meth:`ConvergenceCheckable.estimate_convergence`.
         assume_inner_converged:
@@ -858,16 +858,16 @@ class FullZeroPi(
                 "zeta_cutoff"
             )
 
-        if mode == "quick":
+        if mode == "cheap":
             composite = self._convergence_unverified_report(
                 n_levels,
                 scope,
                 mode,
                 recommendations=[
-                    "coupled truncation has no cheap estimate; run mode='verify' "
+                    "coupled truncation has no cheap estimate; run mode='moderate' "
                     "for a coupled-spectrum verdict"
                 ],
-                warning="composite_verify_recommended",
+                warning="composite_moderate_recommended",
             )
         else:
             composite = ConvergenceCheckable.estimate_convergence(

@@ -11,11 +11,12 @@
 ############################################################################
 """Verdict and report data classes for the convergence-diagnostics framework.
 
-The three frozen dataclasses defined here form the return type of
+The frozen dataclasses defined here form the return type of
 :meth:`scqubits.core.convergence.ConvergenceCheckable.estimate_convergence`.
-The schema deliberately separates true (unknown) error from estimated error,
-separates absolute from observed-gap-scale error metrics, and attaches an
-explicit evidence label to every numerical conclusion.
+The schema deliberately separates true (unknown) error from estimated error and
+separates absolute from observed-gap-scale error metrics. A convergence test can
+only ever *dismiss* convergence (a negative result); a passing verdict means the
+applied test failed to dismiss the level, never that convergence is guaranteed.
 """
 
 from __future__ import annotations
@@ -26,13 +27,25 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 Status = Literal[
-    "converged", "likely_converged", "marginal", "underconverged", "unverified"
+    "likely_converged", "maybe_converged", "marginal", "unverified", "distrust"
 ]
-"""Convergence status, in order from best to worst.
+"""Convergence verdict, ordered from best to worst.
 
-``likely_converged`` is reserved for quick-mode reports based only on cheap
-diagnostics; an unqualified ``converged`` always implies at least
-``verified_empirical`` evidence.
+A test can only dismiss convergence, never prove it, so the verdict records how
+hard we *failed to dismiss* a level -- which depends on how rigorous the mode was:
+
+- ``likely_converged``: passed the ``strict`` ratio/asymptoticity test (the
+  strongest statement the framework makes; never an outright guarantee).
+- ``maybe_converged``: passed the ``moderate`` one-step refinement check.
+- ``marginal``: an estimate close to the requested target (borderline).
+- ``unverified``: no dismissal and no verification -- a ``cheap`` pass, or a
+  level that could not be assessed.
+- ``distrust``: a test actively dismissed convergence (the result is not
+  trustworthy at this cutoff).
+
+The best verdict a mode can return is capped by the mode: ``cheap`` ->
+``unverified``, ``moderate`` -> ``maybe_converged``, ``strict`` ->
+``likely_converged``.
 """
 
 StatusScope = Literal["absolute", "observed_gap_scale"]
@@ -41,27 +54,6 @@ StatusScope = Literal["absolute", "observed_gap_scale"]
 
 The basis-parameter scale (e.g. fluxonium ``omega_LC``) is intentionally not a
 reporting scope -- see the published design specification for the rationale.
-"""
-
-Evidence = Literal[
-    "verified_empirical",
-    "perturbative",
-    "diagnostic",
-    "unverified",
-]
-"""Evidence label, ordered from strongest to weakest.
-
-Meanings:
-
-- ``verified_empirical``: refinement or cross-representation comparison with
-  a ratio, asymptoticity, or stability check (the strongest label produced; an
-  unqualified ``converged`` status requires it).
-- ``perturbative``: derivation from perturbation theory or a block-resolvent
-  approximation with unverified runtime hypotheses.
-- ``diagnostic``: useful signal of possible failure, not an estimate of the
-  error itself.
-- ``unverified``: inputs unavailable, assumptions failed, or estimator
-  inapplicable.
 """
 
 TruncationChannel = Literal[
@@ -105,7 +97,6 @@ class LevelVerdict:
     level_index: int
     status: Status
     status_scope: StatusScope
-    evidence: Evidence
     abs_err_est_GHz: float | None
     eps_gap_est: float | None
     rel_change_est: float | None = None
@@ -135,7 +126,7 @@ class ImplementationAudit:
     nonpoly_backend: str | None
     n_levels_requested: int
     n_levels_buffer: int
-    mode: Literal["quick", "verify", "strict"]
+    mode: Literal["cheap", "moderate", "strict"]
     refinement: Literal["one_step", "ratio_test"]
 
 
@@ -143,9 +134,9 @@ class ImplementationAudit:
 class ConvergenceReport:
     """Structured convergence diagnostic for a qubit's lowest levels.
 
-    The ``derived`` field is reserved for sub-reports (currently only used
-    in later PRs for matrix-element and coherence sub-channels, and in a
-    future HilbertSpace-level extension to compose per-subsystem reports).
+    The ``derived`` field holds sub-reports: one per requested derived quantity
+    (wavefunctions, matrix elements, coherence rates) and, for composite
+    systems, one per subsystem.
     """
 
     per_level: list[LevelVerdict]
@@ -175,10 +166,10 @@ class ConvergenceReport:
     def summary(self) -> str:
         """Return a compact, human-readable multi-line summary of the report.
 
-        Lists the aggregate status and worst level, then per level the status,
-        evidence label, truncation channel, error estimate, and any warnings,
-        followed by the per-channel breakdown, the recommendations, and any
-        derived sub-reports (indented).
+        Lists the aggregate verdict and worst level, then per level the verdict,
+        truncation channel, error estimate, and any warnings, followed by the
+        per-channel breakdown, the recommendations, and any derived sub-reports
+        (indented).
 
         Returns
         -------
@@ -207,7 +198,6 @@ class ConvergenceReport:
             )
             lines.append(
                 f"  level {verdict.level_index}: {verdict.status:<16} "
-                f"evidence={verdict.evidence:<18} "
                 f"channel={str(verdict.truncation_channel):<18} "
                 f"abs_err={abs_err}  {metric}  "
                 f"via {verdict.estimator_method}{warns}"
@@ -327,21 +317,3 @@ class ParameterSweepConvergence:
     def __str__(self) -> str:
         """Return :meth:`summary` so ``print(...)`` shows the readable form."""
         return self.summary()
-
-
-# Ordered list used by callers wanting to filter on minimum evidence strength.
-EVIDENCE_ORDER: tuple[Evidence, ...] = (
-    "verified_empirical",
-    "perturbative",
-    "diagnostic",
-    "unverified",
-)
-
-
-def evidence_at_least(actual: Evidence, minimum: Evidence) -> bool:
-    """Return True if ``actual`` is at least as strong as ``minimum``.
-
-    Used by ``mode='strict'`` to gate which evidence levels may still claim
-    ``converged`` status.
-    """
-    return EVIDENCE_ORDER.index(actual) <= EVIDENCE_ORDER.index(minimum)

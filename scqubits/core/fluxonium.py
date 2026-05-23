@@ -169,10 +169,9 @@ class Fluxonium(
 
         Returns the squared amplitude in the highest harmonic-oscillator basis
         state, ``|c_{cutoff-1, k}|^2``, for each kept level ``k``. Large values
-        signal appreciable support at the top of the kept Fock space and so an
-        underconverged eigenstate; quick mode promotes a level out of
-        ``unverified`` only when this is well below a small threshold. Returns
-        ``None`` if ``axis`` is not ``"cutoff"``.
+        signal appreciable support at the top of the kept Fock space, a dismissal
+        signal; cheap mode raises a warning only when this exceeds a small
+        threshold. Returns ``None`` if ``axis`` is not ``"cutoff"``.
         """
         if axis != "cutoff":
             return None
