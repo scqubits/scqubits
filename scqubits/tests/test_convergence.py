@@ -1243,17 +1243,59 @@ class TestCircuit:
         report = circ.estimate_convergence(n_levels=4, mode="quick")
         assert report.aggregate_status != "converged"
 
-    def test_hierarchical_diagonalization_raises(self):
+    def test_n_levels_exceeding_truncated_dim_raises(self):
+        # A Circuit returns at most truncated_dim eigenvalues.
         circ = _zero_pi_circuit(cutoff_n=5, cutoff_ext=8)
-        circ.configure(
-            system_hierarchy=[[1], [2, 3]],
-            subsystem_trunc_dims=sq.truncation_template([[1], [2, 3]]),
-        )
-        assert circ.hierarchical_diagonalization
-        with pytest.raises(NotImplementedError, match="hierarchical"):
-            circ.estimate_convergence(n_levels=4, mode="verify", target_abs_GHz=1e-3)
+        circ.truncated_dim = 4
+        with pytest.raises(ValueError, match="truncated_dim"):
+            circ.estimate_convergence(n_levels=5, mode="verify", target_abs_GHz=1e-3)
 
     def test_top_level_shim(self):
         circ = _zero_pi_circuit(cutoff_n=5, cutoff_ext=8)
         report = sq.estimate_convergence(circ, n_levels=4, mode="quick")
         assert report.per_level
+
+
+# ------------------------------------------------- Circuit (hierarchical, Stage 3b)
+
+
+def _hd_zero_pi_circuit():
+    """Build a hierarchically-diagonalized zero-pi Circuit (two leaf subsystems)."""
+    circ = sq.Circuit(_ZERO_PI_YAML, from_file=False, ext_basis="discretized")
+    circ.configure(
+        system_hierarchy=[[1], [2, 3]],
+        subsystem_trunc_dims=sq.truncation_template([[1], [2, 3]]),
+    )
+    return circ
+
+
+class TestCircuitHD:
+    def test_two_layer_report(self):
+        # Layer 2: the dressed truncation is the composite_coupling channel;
+        # layer 1: one report per subsystem under derived.
+        circ = _hd_zero_pi_circuit()
+        report = circ.estimate_convergence(
+            n_levels=3, mode="verify", target_abs_GHz=0.5
+        )
+        assert {v.truncation_channel for v in report.per_level} == {
+            "composite_coupling"
+        }
+        assert report.derived is not None
+        keys = list(report.derived)
+        assert len(keys) == len(circ.subsystems)
+        assert all(k.startswith("subsystem:") for k in keys)
+
+    def test_quick_is_verify_recommended(self):
+        circ = _hd_zero_pi_circuit()
+        report = circ.estimate_convergence(n_levels=3, mode="quick")
+        assert report.aggregate_status == "unverified"
+        assert any("verify" in r for r in report.recommendations)
+        # layer-1 subsystem quick checks are still attached
+        assert report.derived is not None
+
+    def test_assume_subsystems_converged_skips_layer1(self):
+        circ = _hd_zero_pi_circuit()
+        report = circ.estimate_convergence(
+            n_levels=3, mode="quick", assume_subsystems_converged=True
+        )
+        assert report.derived is None

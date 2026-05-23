@@ -12,11 +12,12 @@
 
 from __future__ import annotations
 
+import dataclasses
 import re
 import warnings
 
 from collections.abc import Callable
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import numpy as np
 import sympy as sm
@@ -39,7 +40,7 @@ from scqubits.core.circuit_internals.sym_methods import CircuitSymMethods
 from scqubits.core.circuit_internals.utils import (
     get_trailing_number,
 )
-from scqubits.core.convergence import ConvergenceCheckable
+from scqubits.core.convergence import ConvergenceCheckable, _status_rank
 from scqubits.core.convergence_report import ConvergenceReport, TruncationChannel
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
 from scqubits.utils.misc import (
@@ -104,15 +105,65 @@ class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot, ConvergenceChe
 
     @property
     def _convergence_axes(self) -> tuple[str, ...]:  # type: ignore[override]
-        """Refinement axes for a flat circuit: the per-variable cutoff names.
+        """Refinement axes.
 
-        Returns the periodic/extended cutoff attribute names (``self.cutoff_names``)
-        when the circuit is not hierarchically diagonalized; otherwise ``()``
-        (hierarchical diagonalization is handled in :meth:`estimate_convergence`).
+        Flat circuit: the per-variable cutoff names (``self.cutoff_names``).
+        Hierarchically diagonalized circuit: one axis per top-level subsystem (its
+        ``id_str``), whose ``truncated_dim`` is the composite truncation refined in
+        layer 2.
         """
         if getattr(self, "hierarchical_diagonalization", False):
-            return ()
+            return tuple(sub.id_str for sub in self.subsystems)
         return tuple(self.cutoff_names)
+
+    def _convergence_subsystem_index(self, axis: str) -> int:
+        """Return the index of the subsystem whose ``id_str`` equals ``axis``."""
+        for index, sub in enumerate(self.subsystems):
+            if sub.id_str == axis:
+                return index
+        raise KeyError(f"no subsystem with id_str {axis!r}")
+
+    def _convergence_axis_value(self, axis: str) -> int:
+        """Current size of a refinement axis (cutoff, or subsystem ``truncated_dim``)."""
+        if self.hierarchical_diagonalization:
+            index = self._convergence_subsystem_index(axis)
+            return int(self.subsystems[index].truncated_dim)
+        return int(getattr(self, axis))
+
+    def _convergence_set_axis(
+        self, clone: "ConvergenceCheckable", axis: str, value: int
+    ) -> None:
+        """Set a refinement axis on ``clone``.
+
+        Flat circuit: assign the cutoff attribute. Hierarchically diagonalized
+        circuit: re-``configure`` the clone with the named subsystem's
+        ``truncated_dim`` bumped -- the consistent way to change an HD truncation
+        (a bare ``setattr`` leaves the dressed bookkeeping inconsistent).
+        """
+        if self.hierarchical_diagonalization:
+            clone_circuit = cast("Circuit", clone)
+            index = clone_circuit._convergence_subsystem_index(axis)
+            dims = [sub.truncated_dim for sub in clone_circuit.subsystems]
+            dims[index] = value
+            clone_circuit.configure(subsystem_trunc_dims=dims)
+        else:
+            setattr(clone, axis, value)
+
+    def _convergence_step(self, axis: str) -> int:
+        """Refinement step for an axis.
+
+        Flat cutoff axes use the default heuristic. A hierarchical-diagonalization
+        ``truncated_dim`` axis is capped at the subsystem's available size
+        (``hilbertdim - 2``, the ``_check_truncation_indices`` limit), even for the
+        two-step strict refinement.
+        """
+        if not self.hierarchical_diagonalization:
+            return max(4, self._convergence_axis_value(axis) // 4)
+        subsys = self.subsystems[self._convergence_subsystem_index(axis)]
+        current = int(subsys.truncated_dim)
+        step = max(2, current // 4)
+        headroom = int(subsys.hilbertdim()) - 2 - current
+        return min(step, max(1, headroom // 2))
 
     def _convergence_ext_basis(self, var_index: int) -> str:
         """Return the extended-variable basis (``"discretized"`` or ``"harmonic"``).
@@ -126,12 +177,15 @@ class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot, ConvergenceChe
         return ext_basis[self.var_categories["extended"].index(var_index)]
 
     def _convergence_truncation_channel(self, axis: str) -> TruncationChannel:
-        """Map a cutoff axis to its truncation channel.
+        """Map a refinement axis to its truncation channel.
 
-        ``cutoff_n_<i>`` -> ``charge_tail`` (periodic charge basis);
-        ``cutoff_ext_<i>`` -> ``FD_stencil`` for a discretized extended variable,
-        ``HO_tail`` for a harmonic one.
+        Hierarchical-diagonalization ``truncated_dim`` axes report
+        ``composite_coupling``. Flat cutoff axes: ``cutoff_n_<i>`` ->
+        ``charge_tail``; ``cutoff_ext_<i>`` -> ``FD_stencil`` for a discretized
+        extended variable, ``HO_tail`` for a harmonic one.
         """
+        if self.hierarchical_diagonalization:
+            return "composite_coupling"
         if axis.startswith("cutoff_n_"):
             return "charge_tail"
         var_index = int(axis.rsplit("_", 1)[1])
@@ -144,10 +198,11 @@ class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot, ConvergenceChe
 
         A discretized extended variable is a finite-difference grid refined by
         adding points at a fixed window, so its spacing error scales as
-        ``h**(STENCIL - 1)`` (exactly like ZeroPi's ``grid_spacing``). Charge and
-        harmonic axes converge geometrically and return ``None``.
+        ``h**(STENCIL - 1)`` (exactly like ZeroPi's ``grid_spacing``). Charge,
+        harmonic, and hierarchical-diagonalization axes converge geometrically and
+        return ``None``.
         """
-        if axis.startswith("cutoff_ext_"):
+        if not self.hierarchical_diagonalization and axis.startswith("cutoff_ext_"):
             var_index = int(axis.rsplit("_", 1)[1])
             if self._convergence_ext_basis(var_index) == "discretized":
                 return settings.STENCIL - 1
@@ -165,40 +220,144 @@ class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot, ConvergenceChe
     ) -> ConvergenceReport:
         """Estimate convergence of the lowest ``n_levels`` circuit eigenvalues.
 
-        For a flat (non-hierarchically-diagonalized) circuit, each per-variable
-        cutoff (``self.cutoff_names``) is refined and the spectrum re-diagonalized,
-        reusing the multi-axis engine; the dominant channel drives the
-        recommendation. Quick mode is verify-recommended (a coupled multi-coordinate
-        basis has no clean cheap estimator).
+        **Flat (non-hierarchically-diagonalized) circuit.** Each per-variable cutoff
+        (``self.cutoff_names``) is refined and the spectrum re-diagonalized, reusing
+        the multi-axis engine; the dominant channel drives the recommendation.
+        ``assume_subsystems_converged`` is inert here.
 
-        Hierarchically-diagonalized circuit support is not yet available
-        (Stage 3b); such circuits raise :class:`NotImplementedError`. Run the
-        circuit without hierarchical diagonalization (``system_hierarchy=None``),
-        or check individual leaf subsystems via
-        ``circuit.subsystems[i].estimate_convergence(...)``.
+        **Hierarchically diagonalized circuit.** Two layers, like
+        :meth:`HilbertSpace.estimate_convergence`: layer 2 refines each top-level
+        subsystem's ``truncated_dim`` (via ``configure``) and re-diagonalizes the
+        dressed spectrum; layer 1 delegates to each ``subsystems[i]``'s own
+        ``estimate_convergence`` (attached under ``derived["subsystem:<id>"]``,
+        skipped when ``assume_subsystems_converged=True``). The aggregate is the
+        worse of the two layers. A *nested* hierarchically-diagonalized subsystem
+        (which has no ``configure``) raises :class:`NotImplementedError`; the
+        parent records that and continues.
 
-        Parameters and return value are as in
-        :meth:`ConvergenceCheckable.estimate_convergence`; ``scope``,
-        ``target_abs_GHz``, ``target_gap_rel`` and ``g_floor_GHz`` carry through.
-        ``assume_subsystems_converged`` is reserved for hierarchical diagonalization
-        and is inert for a flat circuit.
+        Quick mode is verify-recommended (a coupled basis has no clean cheap
+        estimator). Parameters are as in
+        :meth:`ConvergenceCheckable.estimate_convergence`.
         """
-        if self.hierarchical_diagonalization:
-            raise NotImplementedError(
-                "convergence checking for hierarchically-diagonalized Circuits is "
-                "not yet supported; run the circuit without hierarchical "
-                "diagonalization (system_hierarchy=None), or check individual leaf "
-                "subsystems via circuit.subsystems[i].estimate_convergence(...)"
+        n_buffer = 1 if scope == "observed_gap_scale" else 0
+        if n_levels + n_buffer > self.truncated_dim:
+            raise ValueError(
+                f"n_levels={n_levels} (plus {n_buffer} buffer level for the "
+                f"observed-gap scope) exceeds truncated_dim={self.truncated_dim}; a "
+                "Circuit returns at most truncated_dim eigenvalues -- raise "
+                "truncated_dim or lower n_levels."
             )
-        return ConvergenceCheckable.estimate_convergence(
-            self,
-            n_levels=n_levels,
-            mode=mode,
-            scope=scope,
-            target_abs_GHz=target_abs_GHz,
-            target_gap_rel=target_gap_rel,
-            g_floor_GHz=g_floor_GHz,
+
+        if not self.hierarchical_diagonalization:
+            return ConvergenceCheckable.estimate_convergence(
+                self,
+                n_levels=n_levels,
+                mode=mode,
+                scope=scope,
+                target_abs_GHz=target_abs_GHz,
+                target_gap_rel=target_gap_rel,
+                g_floor_GHz=g_floor_GHz,
+            )
+
+        if not hasattr(self, "configure"):
+            raise NotImplementedError(
+                "convergence checking for a nested hierarchically-diagonalized "
+                "subsystem is not supported; check it via the top-level circuit, or "
+                "its leaf subsystems individually"
+            )
+
+        if mode == "quick":
+            composite = self._convergence_unverified_report(
+                n_levels,
+                scope,
+                mode,
+                recommendations=[
+                    "hierarchical-diagonalization truncation has no cheap estimate; "
+                    "run mode='verify' for a dressed-spectrum verdict"
+                ],
+                warning="composite_verify_recommended",
+            )
+        else:
+            composite = ConvergenceCheckable.estimate_convergence(
+                self,
+                n_levels=n_levels,
+                mode=mode,
+                scope=scope,
+                target_abs_GHz=target_abs_GHz,
+                target_gap_rel=target_gap_rel,
+                g_floor_GHz=g_floor_GHz,
+            )
+
+        subsystem_reports: dict[str, ConvergenceReport] = {}
+        extra_recommendations: list[str] = []
+        if not assume_subsystems_converged:
+            subsystem_reports, extra_recommendations = (
+                self._convergence_subsystem_reports(
+                    mode, scope, target_abs_GHz, target_gap_rel, g_floor_GHz
+                )
+            )
+
+        recommendations = list(composite.recommendations) + extra_recommendations
+        derived = dict(composite.derived or {})
+        aggregate = composite.aggregate_status
+        for key, subreport in subsystem_reports.items():
+            derived[key] = subreport
+            if _status_rank(subreport.aggregate_status) >= _status_rank("marginal"):
+                recommendations.append(
+                    f"{key} is {subreport.aggregate_status} at its own basis cutoff; "
+                    "converge it first -- the circuit cannot be more converged than "
+                    "its subsystems"
+                )
+            if _status_rank(subreport.aggregate_status) > _status_rank(aggregate):
+                aggregate = subreport.aggregate_status
+
+        return dataclasses.replace(
+            composite,
+            aggregate_status=aggregate,
+            recommendations=recommendations,
+            derived=derived or None,
         )
+
+    def _convergence_subsystem_reports(
+        self,
+        mode: str,
+        scope: str,
+        target_abs_GHz: float | None,
+        target_gap_rel: float,
+        g_floor_GHz: float,
+    ) -> tuple[dict[str, "ConvergenceReport"], list[str]]:
+        """Run the layer-1 check for each top-level subsystem (HD circuits).
+
+        Each subsystem is assessed over the ``truncated_dim`` levels it contributes
+        to the parent (a Circuit subsystem returns at most ``truncated_dim``
+        eigenvalues). A nested hierarchically-diagonalized subsystem (no
+        ``configure``) cannot be checked and is recorded as a recommendation
+        instead of crashing the parent.
+        """
+        reports: dict[str, ConvergenceReport] = {}
+        notes: list[str] = []
+        n_buffer = 1 if scope == "observed_gap_scale" else 0
+        for sub in self.subsystems:
+            # A Circuit subsystem returns at most truncated_dim eigenvalues, so the
+            # layer-1 check covers exactly the levels it contributes to the parent
+            # (minus the observed-gap buffer).
+            n_sub = max(1, int(sub.truncated_dim) - n_buffer)
+            try:
+                reports[f"subsystem:{sub.id_str}"] = sub.estimate_convergence(
+                    n_levels=n_sub,
+                    mode=mode,
+                    scope=scope,
+                    target_abs_GHz=target_abs_GHz,
+                    target_gap_rel=target_gap_rel,
+                    g_floor_GHz=g_floor_GHz,
+                )
+            except NotImplementedError:
+                notes.append(
+                    f"subsystem '{sub.id_str}' is itself hierarchically "
+                    "diagonalized; its internal convergence was not checked -- "
+                    "verify it separately"
+                )
+        return reports, notes
 
 
 class Subsystem(  # type: ignore[misc]
