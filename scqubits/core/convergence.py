@@ -530,10 +530,20 @@ class ConvergenceCheckable:
         for k in range(n_levels):
             warnings: list[str] = []
             # Cheap mode makes no verification claim; the best verdict is
-            # "unverified" (no dismissal). A red flag adds a warning/recommendation.
+            # "unverified" (no dismissal). A boundary amplitude large enough to
+            # signal a non-perturbative dropped tail is itself a dismissal
+            # (-> distrust); a smaller but non-negligible amplitude only warns.
             status: Status = "unverified"
             if boundary_amplitudes is None:
                 warnings.append("no_boundary_diagnostic_available")
+            elif boundary_amplitudes[k] > _BOUNDARY_PROBABILITY_LARGE:
+                status = "distrust"
+                warnings.append("boundary_probability_large")
+                recommendations.append(
+                    f"level {k}: boundary amplitude {boundary_amplitudes[k]:.2e} "
+                    f"exceeds {_BOUNDARY_PROBABILITY_LARGE:.0e}; the kept state reaches "
+                    f"the basis boundary -- increase the cutoff (or widen the box)"
+                )
             elif boundary_amplitudes[k] >= QUICK_BOUNDARY_THRESHOLD:
                 warnings.append("boundary_amplitude_above_threshold")
                 recommendations.append(
@@ -762,6 +772,8 @@ class ConvergenceCheckable:
                     _, est_raw, asymptotic = cutils.geometric_ratio_test(
                         diff_n1, diff_n2
                     )
+                    # Conservative margin on the extrapolated geometric tail.
+                    est_raw = safety_factor * est_raw
                 est_axis = np.where(
                     asymptotic, est_raw, safety_factor * diff_n1
                 ).astype(np.float64)
@@ -801,7 +813,7 @@ class ConvergenceCheckable:
 
         # Flag levels whose kept eigenstate reaches a basis boundary so strongly
         # that the dropped tail is non-perturbative -- a reliable underconvergence
-        # signal independent of the refinement refinement difference (design spec). Uses each
+        # signal independent of the refinement difference (design spec). Uses each
         # axis's cheap boundary diagnostic on the base eigensystem.
         boundary_large = [False] * n_levels
         for axis in axes:
@@ -1564,12 +1576,17 @@ def _per_cluster_energy_estimates(
             )
             if d0 <= _REFINEMENT_NOISE_FLOOR_GHz and d1 <= _REFINEMENT_NOISE_FLOOR_GHz:
                 # Both refinements are flat at the eigensolver noise floor: no
-                # real movement, so the undefined ratio is not a dismissal.
-                est = max(d0, d1)
+                # real movement, so the undefined ratio is not a dismissal. The
+                # safety factor keeps the (negligible) reported estimate a
+                # conservative bound on the residual movement.
+                est = safety_factor * max(d0, d1)
                 method = "ratio_test_noise_floor"
             elif asymptotic_flag is not None and asymptotic_flag[cluster_idx]:
-                # Ratio test confirmed the geometric (asymptotic) regime.
-                est = float(geometric_tail[cluster_idx])
+                # Ratio test confirmed the geometric (asymptotic) regime. Apply
+                # the safety factor to the extrapolated tail too, so a series that
+                # is not perfectly geometric (e.g. algebraic decay) is bounded
+                # conservatively rather than slightly under-estimated.
+                est = float(safety_factor * geometric_tail[cluster_idx])
                 method = "ratio_test"
             else:
                 # R >= 1, or a flat first refinement followed by real movement:
@@ -1791,8 +1808,9 @@ def _build_metric_report(
 
     for k in range(n_levels):
         if geometric_tail is not None and asymptotic is not None and asymptotic[k]:
-            # Geometric tail is already an extrapolated remaining-error estimate.
-            per_level_eps[k] = float(geometric_tail[k])
+            # Extrapolated remaining-error estimate; apply the safety factor for a
+            # conservative margin (matching the energy channel).
+            per_level_eps[k] = float(safety_factor * geometric_tail[k])
             per_level_method.append(f"{estimator_method}_ratio_test")
         elif refinement == "ratio_test" and float(refinement_diff_first[k]) == 0.0:
             # No refinement difference: already stable, the ratio is undefined

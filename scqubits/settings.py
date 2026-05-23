@@ -175,8 +175,8 @@ SYM_INVERSION_MAX_NODES = 3
 
 # Convergence-diagnostics settings (see scqubits.core.convergence) ----------------------
 # Default mode for estimate_convergence() when not explicitly specified.
-CONVERGENCE_DEFAULT_MODE = "verify"
-# Default floor on the local isolation gap (in GHz) used when normalising
+CONVERGENCE_DEFAULT_MODE = "moderate"
+# Default floor on the local isolation gap (in GHz) used when normalizing
 # convergence estimates by an observed spectral gap.
 CONVERGENCE_G_FLOOR_GHZ = 1e-3
 # Default dimensionless threshold for observed-gap-scale convergence verdicts.

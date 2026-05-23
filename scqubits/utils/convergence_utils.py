@@ -175,7 +175,7 @@ def geometric_ratio_test(
     diff_first: npt.NDArray[np.float64],
     diff_second: npt.NDArray[np.float64],
 ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.bool_]]:
-    """Run a per-cluster geometric ratio test on successive refinement refinement differences.
+    """Run a per-cluster geometric ratio test on successive refinement differences.
 
     Given the absolute spectral refinement differences between consecutive cutoffs --
     ``diff_first`` for the base-to-first-refinement step and ``diff_second`` for

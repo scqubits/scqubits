@@ -1088,25 +1088,33 @@ class HilbertSpace(
         g: float,
         g_floor: float,
     ) -> float:
-        """Return the largest hybridization ``eta`` over distinct kept product states."""
+        """Return the largest hybridization ``eta`` over distinct kept product states.
+
+        Vectorized over all product-state pairs ``(a, b) != (a', b')``: forming the
+        full eta tensor with NumPy avoids the per-pair Python loop, which is
+        O(td_p^2 * td_q^2) and dominates the screen at large truncated dimensions.
+        """
         a_abs = np.abs(np.asarray(mat_p))
         b_abs = np.abs(np.asarray(mat_q))
         e_p = np.asarray(evals_p, dtype=np.float64)
         e_q = np.asarray(evals_q, dtype=np.float64)
-        n_p, n_q = e_p.size, e_q.size
-        worst = 0.0
-        for a in range(n_p):
-            for a_prime in range(n_p):
-                for b in range(n_q):
-                    for b_prime in range(n_q):
-                        if a == a_prime and b == b_prime:
-                            continue
-                        delta = (e_p[a] + e_q[b]) - (e_p[a_prime] + e_q[b_prime])
-                        denom = abs(delta) if abs(delta) > g_floor else g_floor
-                        eta = g * a_abs[a_prime, a] * b_abs[b_prime, b] / denom
-                        if eta > worst:
-                            worst = eta
-        return float(worst)
+        if e_p.size == 0 or e_q.size == 0:
+            return 0.0
+        # delta[a, a', b, b'] = (E_p[a] - E_p[a']) + (E_q[b] - E_q[b'])
+        dp = e_p[:, None] - e_p[None, :]  # [a, a']
+        dq = e_q[:, None] - e_q[None, :]  # [b, b']
+        delta = dp[:, :, None, None] + dq[None, None, :, :]
+        denom = np.maximum(np.abs(delta), g_floor)
+        # Matrix elements A_{a', a} and B_{b', b}, broadcast over the pair indices.
+        num = a_abs.T[:, :, None, None] * b_abs.T[None, None, :, :]
+        eta = g * num / denom
+        # Exclude the identical product state (a == a' and b == b').
+        same_pair = (
+            np.eye(e_p.size, dtype=bool)[:, :, None, None]
+            & np.eye(e_q.size, dtype=bool)[None, None, :, :]
+        )
+        eta[same_pair] = 0.0
+        return float(eta.max())
 
     ###################################################################################
     # HilbertSpace: generate SpectrumLookup

@@ -86,7 +86,7 @@ def validate_stability_and_energies():
         meaningful = max(10.0 * noise, 1e-9)
         for ncut in TEST_NCUTS:
             tmon = scq.Transmon(EJ=EJ, EC=EC, ng=ng, ncut=ncut)
-            rep = tmon.estimate_convergence(n_levels=N_LEVELS, mode="verify")
+            rep = tmon.estimate_convergence(n_levels=N_LEVELS, mode="moderate")
             e_now = low_evals(EJ, EC, ng, ncut, N_LEVELS)
             worst_r = 0.0
             worst_k = -1
@@ -120,7 +120,10 @@ def validate_stability_and_energies():
 
 
 def validate_verdicts():
-    section("VERDICT SOUNDNESS (no dangerous false 'converged')")
+    section("VERDICT SOUNDNESS (no false 'likely_converged' in strict mode)")
+    # likely_converged is the only verdict that expresses confidence; the cardinal
+    # rule is that it must never be returned for a level whose true error exceeds
+    # the target. Only strict mode can reach likely_converged, so this gates strict.
     false_converged = 0
     checks = 0
     for label, EJ, EC, ng in PARAM_GRID:
@@ -130,22 +133,23 @@ def validate_verdicts():
             for target in (1e-2, 1e-4, 1e-6):
                 tmon = scq.Transmon(EJ=EJ, EC=EC, ng=ng, ncut=ncut)
                 rep = tmon.estimate_convergence(
-                    n_levels=N_LEVELS, mode="verify", target_abs_GHz=target
+                    n_levels=N_LEVELS, mode="strict", target_abs_GHz=target
                 )
                 e_now = low_evals(EJ, EC, ng, ncut, N_LEVELS)
                 for k, v in enumerate(rep.per_level):
-                    if v.status != "converged":
+                    if v.status != "likely_converged":
                         continue
                     checks += 1
                     true_err = abs(float(e_now[k]) - float(e_gt[k]))
                     if true_err > target + tol:
                         false_converged += 1
                         print(
-                            f"  FALSE CONVERGED: {label} ncut={ncut} level={k} "
+                            f"  FALSE likely_converged: {label} ncut={ncut} level={k} "
                             f"target={target:.0e} true_err={true_err:.2e}"
                         )
     print(
-        f"\nFalse 'converged' verdicts: {false_converged} of {checks} converged-level checks"
+        f"\nFalse 'likely_converged' verdicts: {false_converged} of {checks} "
+        f"likely_converged-level checks"
     )
     return false_converged == 0
 
@@ -153,20 +157,17 @@ def validate_verdicts():
 def validate_strict_ratio_test():
     section("STRICT-MODE RATIO TEST (asymptoticity detection)")
     # A moderately-converged transmon is in the geometric regime for the low
-    # levels. A strict 'converged' requires a ratio-tested 'verified_empirical'
-    # result, so strict mode must reach 'converged' backed by 'verified_empirical'
-    # via the ratio test.
+    # levels. Only strict mode runs the ratio test, and only it can reach
+    # likely_converged, so a converged transmon must reach likely_converged via
+    # the ratio test.
     tmon = scq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=16)
     rep = tmon.estimate_convergence(n_levels=4, mode="strict", target_abs_GHz=1e-4)
-    evid = [v.evidence for v in rep.per_level]
     methods = [v.estimator_method for v in rep.per_level]
-    all_verified = all(e == "verified_empirical" for e in evid)
     ran_ratio_test = any("ratio_test" in m for m in methods)
     print(f"  aggregate: {rep.aggregate_status}")
-    print(f"  evidence : {evid}")
     print(f"  methods  : {methods}")
-    print(f"  all verified_empirical={all_verified}  ran_ratio_test={ran_ratio_test}")
-    return rep.aggregate_status == "converged" and all_verified and ran_ratio_test
+    print(f"  ran_ratio_test={ran_ratio_test}")
+    return rep.aggregate_status == "likely_converged" and ran_ratio_test
 
 
 def validate_derived():
@@ -180,7 +181,7 @@ def validate_derived():
         tmon = scq.Transmon(EJ=EJ, EC=EC, ng=ng, ncut=ncut)
         rep = tmon.estimate_convergence(
             n_levels=n,
-            mode="verify",
+            mode="moderate",
             include_derived=True,
             derived_quantities=["wavefunctions", "matrix_elements", "coherence"],
         )
@@ -213,7 +214,7 @@ def validate_derived():
                 continue
             true_rate = abs(r1 - r0) / max(r1, RATE_FLOOR)
             if true_rate > 1e-9:
-                co_r = max(co_r, true_rate / max(v.eps_gap_est or 0.0, 1e-300))
+                co_r = max(co_r, true_rate / max(v.rel_change_est or 0.0, 1e-300))
 
         sound = wf_r <= 1.0 and me_r <= 1.0 and co_r <= 1.0
         all_sound = all_sound and sound
@@ -232,7 +233,9 @@ def _worst_ratio(true_per_level, sub_report):
             break
         if true_per_level[k] <= 1e-9:
             continue
-        worst = max(worst, float(true_per_level[k]) / max(v.eps_gap_est or 0.0, 1e-300))
+        worst = max(
+            worst, float(true_per_level[k]) / max(v.rel_change_est or 0.0, 1e-300)
+        )
     return worst
 
 
@@ -268,10 +271,10 @@ def validate_high_cutoff_check():
     ok = True
     for ncut in [60, 100, 150]:
         tmon = scq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=ncut)
-        rep = tmon.estimate_convergence(n_levels=4, mode="verify", target_abs_GHz=1e-6)
+        rep = tmon.estimate_convergence(n_levels=4, mode="strict", target_abs_GHz=1e-6)
         worst = max((v.abs_err_est_GHz or 0.0) for v in rep.per_level)
         status = rep.aggregate_status
-        good = worst < 1e-4 and status == "converged"
+        good = worst < 1e-4 and status == "likely_converged"
         ok = ok and good
         print(
             f"  ncut={ncut:3d}: aggregate={status:11s} worst abs_err_est={worst:.2e}  "
@@ -337,7 +340,7 @@ def validate_zeropi_fd_groundtruth():
                 est = v.abs_err_est_GHz or 0.0
                 if true_err > noise:  # only assess above the reference noise floor
                     worst_ratio = max(worst_ratio, true_err / max(est, 1e-30))
-                if v.status == "converged" and true_err >= target:
+                if v.status == "likely_converged" and true_err >= target:
                     false_converged += 1
             good = worst_ratio <= 1.0 and false_converged == 0
             ok = ok and good
@@ -387,13 +390,15 @@ def validate_fluxonium_groundtruth():
                 EJ=EJ, EC=EC, EL=EL, flux=flux, cutoff=cutoff, truncated_dim=n + 2
             )
             e_user = np.sort(flx.eigenvals(evals_count=n))
-            rep = flx.estimate_convergence(n_levels=n, target_abs_GHz=target)
+            rep = flx.estimate_convergence(
+                n_levels=n, mode="strict", target_abs_GHz=target
+            )
             for k, v in enumerate(rep.per_level):
                 true_err = abs(float(e_user[k] - e_ref[k]))
                 est = v.abs_err_est_GHz or 0.0
                 if true_err > noise:
                     worst_ratio = max(worst_ratio, true_err / max(est, 1e-30))
-                if v.status == "converged" and true_err >= target:
+                if v.status == "likely_converged" and true_err >= target:
                     false_converged += 1
         good = worst_ratio <= 1.0 and false_converged == 0
         ok = ok and good
@@ -438,7 +443,7 @@ def validate_hilbertspace_groundtruth():
         e_user = np.sort(hs.eigenvals(evals_count=n))
         rep = hs.estimate_convergence(
             n_levels=n,
-            mode="verify",
+            mode="strict",
             target_abs_GHz=target,
             assume_subsystems_converged=True,
         )
@@ -447,13 +452,49 @@ def validate_hilbertspace_groundtruth():
             est = v.abs_err_est_GHz or 0.0
             if true_err > noise:
                 worst_ratio = max(worst_ratio, true_err / max(est, 1e-30))
-            if v.status == "converged" and true_err >= target:
+            if v.status == "likely_converged" and true_err >= target:
                 false_converged += 1
     ok = worst_ratio <= 1.0 and false_converged == 0
     print(
         f"  transmon-resonator g={g}: worst true/est={worst_ratio:.2f}  "
         f"false_converged={false_converged}  (noise {noise:.1e})  "
         f"[{'ok' if ok else 'SUSPECT'}]"
+    )
+    return ok
+
+
+def validate_fluxonium_adversarial():
+    section("FLUXONIUM ADVERSARIAL (non-monotone; strict must dismiss, not pass)")
+    # Stiff fluxonium near half flux: the energy approaches its limit
+    # non-monotonically, so a single refinement step can land on a coincidentally
+    # small difference (this is the regime that produced a false 'converged' before
+    # the falsification redesign). A one-step (moderate) check can only hedge to
+    # 'maybe_converged'; the strict ratio test must detect R >= 1 and DISMISS
+    # (distrust) -- it must never claim 'likely_converged' for these levels.
+    EJ, EC, EL, flux = 20.0, 1.0, 0.2, 0.5
+    n, target, cutoff = 4, 1e-2, 34
+    e_ref = np.sort(
+        scq.Fluxonium(
+            EJ=EJ, EC=EC, EL=EL, flux=flux, cutoff=400, truncated_dim=n + 2
+        ).eigenvals(evals_count=n)
+    )
+    flx = scq.Fluxonium(
+        EJ=EJ, EC=EC, EL=EL, flux=flux, cutoff=cutoff, truncated_dim=n + 2
+    )
+    e_user = np.sort(flx.eigenvals(evals_count=n))
+    not_converged = [k for k in range(n) if abs(e_user[k] - e_ref[k]) >= target]
+    rep = flx.estimate_convergence(n_levels=n, mode="strict", target_abs_GHz=target)
+    verdicts = [rep.per_level[k].status for k in not_converged]
+    false_confident = sum(s == "likely_converged" for s in verdicts)
+    dismissed = all(s == "distrust" for s in verdicts)
+    ok = bool(not_converged) and false_confident == 0 and dismissed
+    print(
+        f"  cutoff={cutoff} target={target:.0e}: not-converged levels={not_converged} "
+        f"strict verdicts={verdicts}"
+    )
+    print(
+        f"  false 'likely_converged'={false_confident}  all dismissed={dismissed}  "
+        f"[{'ok' if ok else 'FAIL'}]"
     )
     return ok
 
@@ -467,6 +508,7 @@ def main():
         "high-cutoff check stability": validate_high_cutoff_check(),
         "zeropi FD ground truth": validate_zeropi_fd_groundtruth(),
         "fluxonium ground truth": validate_fluxonium_groundtruth(),
+        "fluxonium adversarial (BLOCKER)": validate_fluxonium_adversarial(),
         "hilbertspace ground truth": validate_hilbertspace_groundtruth(),
     }
     section("SUMMARY")
