@@ -39,6 +39,8 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as utils
 
+from scqubits.core.convergence import ConvergenceCheckable
+from scqubits.core.convergence_report import TruncationChannel
 from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NOISE_PARAMS, NoisySystem, calc_therm_ratio
 from scqubits.core.storage import WaveFunctionOnGrid
@@ -509,7 +511,12 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
 
 
 # -Cosine two phi qubit ----------------------------------------------------------------
-class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQubit):
+class Cos2PhiQubit(
+    base.QubitBaseClass,
+    serializers.Serializable,
+    NoisyCos2PhiQubit,
+    ConvergenceCheckable,
+):
     r"""Cosine Two Phi Qubit.
 
     | [1] Smith et al., NPJ Quantum Inf. 6, 8 (2020)
@@ -583,6 +590,19 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     ncut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
     zeta_cut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
     phi_cut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
+
+    # Three independent truncations in a flat product basis (phi/zeta Fock,
+    # theta charge): the theta charge cutoff and the two oscillator cutoffs. The
+    # multi-axis engine refines each, re-diagonalizes, and reports the dominant
+    # channel. Being multi-coordinate, quick mode has no clean cheap estimate, so
+    # it is verify-recommended (the default mixin behavior).
+    _convergence_axes: tuple[str, ...] = ("ncut", "phi_cut", "zeta_cut")
+    _convergence_basis: str = "charge(theta) x fock(phi) x fock(zeta)"
+
+    def _convergence_truncation_channel(self, axis: str) -> TruncationChannel:
+        """``ncut`` -> ``charge_tail`` (theta charge basis); ``phi_cut`` and
+        ``zeta_cut`` -> ``HO_tail`` (phi / zeta oscillator Fock bases)."""
+        return "charge_tail" if axis == "ncut" else "HO_tail"
 
     def __init__(
         self,

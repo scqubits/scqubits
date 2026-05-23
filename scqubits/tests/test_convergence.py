@@ -1132,3 +1132,51 @@ class TestFullZeroPi:
         fzp = _full_zeropi()
         report = sq.estimate_convergence(fzp, n_levels=4, mode="quick")
         assert report.aggregate_status == "unverified"
+
+
+# --------------------------------------------------- Cos2PhiQubit (multi-coordinate)
+
+
+def _cos2phi(ncut=8, phi_cut=7, zeta_cut=10):
+    """Build a Cos2PhiQubit with the given (small) truncation cutoffs."""
+    params = sq.Cos2PhiQubit.default_params()
+    params.update(ncut=ncut, phi_cut=phi_cut, zeta_cut=zeta_cut)
+    return sq.Cos2PhiQubit(**params)
+
+
+class TestCos2PhiQubit:
+    def test_converged(self):
+        # A flat 3-axis qubit (theta charge + phi/zeta Fock); generous cutoffs at
+        # a loose target are converged on the coupling-free channels.
+        q = _cos2phi(ncut=8, phi_cut=15, zeta_cut=30)
+        report = q.estimate_convergence(n_levels=4, mode="verify", target_abs_GHz=0.05)
+        assert report.aggregate_status == "converged"
+        assert {v.truncation_channel for v in report.per_level} <= {
+            "charge_tail",
+            "HO_tail",
+        }
+
+    def test_undersized_oscillator_is_underconverged(self):
+        # Too-small oscillator cutoffs dominate; the recommendation names an
+        # oscillator cutoff, and both truncation families appear in the breakdown.
+        q = _cos2phi(ncut=8, phi_cut=7, zeta_cut=10)
+        report = q.estimate_convergence(n_levels=4, mode="verify", target_abs_GHz=1e-5)
+        assert report.aggregate_status == "underconverged"
+        assert any(
+            "oscillator" in r and ("phi_cut" in r or "zeta_cut" in r)
+            for r in report.recommendations
+        )
+        assert "HO_tail" in report.channel_breakdown_GHz
+        assert "charge_tail" in report.channel_breakdown_GHz
+
+    def test_quick_is_not_converged(self):
+        # Multi-coordinate quick mode has no clean cheap estimate: never an
+        # unqualified converged.
+        q = _cos2phi(ncut=8, phi_cut=7, zeta_cut=10)
+        report = q.estimate_convergence(n_levels=4, mode="quick")
+        assert report.aggregate_status != "converged"
+
+    def test_top_level_shim(self):
+        q = _cos2phi(ncut=8, phi_cut=7, zeta_cut=10)
+        report = sq.estimate_convergence(q, n_levels=4, mode="quick")
+        assert report.per_level
