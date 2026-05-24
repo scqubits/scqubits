@@ -216,7 +216,7 @@ class ConvergenceReport:
                 f"{name}={value:.2e}"
                 for name, value in self.channel_breakdown_GHz.items()
             )
-            lines += ["", f"  channels (GHz): {breakdown}"]
+            lines += ["", f"  error by channel (GHz): {breakdown}"]
         for recommendation in self.recommendations:
             lines.append(f"  -> {recommendation}")
         if self.derived:
