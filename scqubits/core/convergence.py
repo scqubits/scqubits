@@ -37,6 +37,7 @@ import scqubits.utils.convergence_utils as cutils
 
 from scqubits import settings
 from scqubits.core.convergence_report import (
+    CheckOutcome,
     ConvergenceReport,
     ImplementationAudit,
     LevelVerdict,
@@ -623,6 +624,17 @@ class ConvergenceCheckable:
                     f"re-run with mode='moderate' to obtain an empirical estimate"
                 )
 
+            checks: list[CheckOutcome] = [
+                CheckOutcome("asymptoticity", "not_applicable", "strict mode only")
+            ]
+            if boundary_amplitudes is not None:
+                prob = float(boundary_amplitudes[k])
+                checks.append(
+                    CheckOutcome("boundary", "fail", f"P_edge={prob:.2g}")
+                    if prob > _BOUNDARY_PROBABILITY_LARGE
+                    else CheckOutcome("boundary", "pass", f"P_edge={prob:.2g}")
+                )
+
             per_level.append(
                 LevelVerdict(
                     level_index=k,
@@ -633,6 +645,7 @@ class ConvergenceCheckable:
                     truncation_channel=channel,
                     estimator_method="boundary_diagnostic",
                     warnings=tuple(warnings),
+                    checks=tuple(checks),
                 )
             )
 
@@ -710,6 +723,21 @@ class ConvergenceCheckable:
                 # "unverified".
                 status = _apply_mode_ceiling(status, "cheap")
 
+            checks: list[CheckOutcome] = [
+                CheckOutcome("asymptoticity", "not_applicable", "strict mode only")
+            ]
+            bprob = float(boundary_prob[k])
+            checks.append(
+                CheckOutcome("boundary", "fail", f"P_edge={bprob:.2g}")
+                if bprob > large_boundary_prob
+                else CheckOutcome("boundary", "pass", f"P_edge={bprob:.2g}")
+            )
+            checks.append(
+                CheckOutcome("perturbative_tail", "pass")
+                if bool(perturbative_ok[k])
+                else CheckOutcome("perturbative_tail", "fail", "tail not perturbative")
+            )
+
             per_level.append(
                 LevelVerdict(
                     level_index=k,
@@ -720,6 +748,7 @@ class ConvergenceCheckable:
                     truncation_channel=channel,
                     estimator_method="finite_tail_resolvent",
                     warnings=tuple(warnings),
+                    checks=tuple(checks),
                 )
             )
 
@@ -915,14 +944,19 @@ class ConvergenceCheckable:
         # signal independent of the refinement difference (design spec). Uses each
         # axis's cheap boundary diagnostic on the base eigensystem.
         boundary_large = [False] * n_levels
+        boundary_prob = [0.0] * n_levels
+        boundary_available = False
         for axis in axes:
             diagnostic = self._convergence_boundary_diagnostic(
                 (evals_n0, evecs_n0), axis
             )
             if diagnostic is None:
                 continue
+            boundary_available = True
             for k in range(n_levels):
-                if float(diagnostic[k]) > _BOUNDARY_PROBABILITY_LARGE:
+                value = float(diagnostic[k])
+                boundary_prob[k] = max(boundary_prob[k], value)
+                if value > _BOUNDARY_PROBABILITY_LARGE:
                     boundary_large[k] = True
 
         report = self._convergence_build_energy_report(
@@ -946,6 +980,9 @@ class ConvergenceCheckable:
             precomputed_non_asymptotic=combined_non_asymptotic,
             boundary_large=boundary_large,
             monotonicity_violation=monotonicity_violation,
+            boundary_available=boundary_available,
+            boundary_prob=boundary_prob,
+            monotonicity_applicable=("charge_tail" in channel_breakdown),
         )
 
         if not include_derived:
@@ -1012,6 +1049,9 @@ class ConvergenceCheckable:
         precomputed_non_asymptotic: npt.NDArray[np.bool_] | None = None,
         boundary_large: list[bool] | None = None,
         monotonicity_violation: npt.NDArray[np.bool_] | None = None,
+        boundary_available: bool = False,
+        boundary_prob: list[float] | None = None,
+        monotonicity_applicable: bool = False,
     ) -> ConvergenceReport:
         """Assemble the LevelVerdicts and ConvergenceReport from per-cluster
         refinement differences.
@@ -1103,6 +1143,20 @@ class ConvergenceCheckable:
                 if boundary_large[k]:
                     per_level_warnings[k].append("boundary_probability_large")
 
+        # Structured per-check record: which falsification tests ran for each
+        # level and how they fared (complements the verdict and estimator_method).
+        per_level_checks = _build_level_checks(
+            n_levels=n_levels,
+            refinement=refinement,
+            abs_err_est=per_level_abs_err,
+            non_asymptotic=per_level_non_asymptotic,
+            boundary_available=boundary_available,
+            boundary_large=boundary_large,
+            boundary_prob=boundary_prob,
+            monotonicity_applicable=monotonicity_applicable,
+            monotonicity_violation=per_level_monotonicity,
+        )
+
         # Per-level transition-error estimates: for a transition k -> j the
         # triangle inequality gives the bound errhat_k + errhat_j (design spec).
         per_level_verdicts = [
@@ -1120,6 +1174,7 @@ class ConvergenceCheckable:
                 truncation_channel=channel,
                 estimator_method=per_level_estimator_method[k],
                 warnings=tuple(per_level_warnings[k]),
+                checks=per_level_checks[k],
             )
             for k in range(n_levels)
         ]
@@ -1825,6 +1880,73 @@ def _assign_level_statuses(
             status = "distrust"
         per_level_status.append(status)
     return per_level_status
+
+
+def _build_level_checks(
+    n_levels: int,
+    refinement: str,
+    abs_err_est: npt.NDArray[np.float64],
+    non_asymptotic: list[bool],
+    boundary_available: bool,
+    boundary_large: list[bool] | None,
+    boundary_prob: list[float] | None,
+    monotonicity_applicable: bool,
+    monotonicity_violation: list[bool],
+) -> list[tuple[CheckOutcome, ...]]:
+    """Assemble the per-level structured check record for an energy report.
+
+    Each entry records a falsification test relevant to the current mode and
+    channel: the strict-mode asymptoticity (ratio/Richardson) test, the
+    basis-boundary amplitude test, and the charge-basis variational monotonicity
+    test. The mode-gated asymptoticity test is always recorded (``not_applicable``
+    outside strict mode); a boundary or monotonicity test that does not exist for
+    the qubit is simply omitted rather than reported as not-applicable.
+    """
+    noise_threshold = settings.CONVERGENCE_SAFETY_FACTOR * _REFINEMENT_NOISE_FLOOR_GHz
+    per_level: list[tuple[CheckOutcome, ...]] = []
+    for k in range(n_levels):
+        checks: list[CheckOutcome] = []
+        # Strict-mode two-step asymptoticity (geometric ratio or Richardson). A
+        # refinement at or below the eigensolver noise floor has no movement to
+        # test; this is keyed off the estimate magnitude so the geometric and
+        # Richardson estimators are labelled the same way.
+        if refinement != "ratio_test":
+            checks.append(
+                CheckOutcome("asymptoticity", "not_applicable", "strict mode only")
+            )
+        elif float(abs_err_est[k]) <= noise_threshold:
+            checks.append(
+                CheckOutcome(
+                    "asymptoticity", "not_applicable", "no movement above noise floor"
+                )
+            )
+        elif non_asymptotic[k]:
+            checks.append(
+                CheckOutcome("asymptoticity", "fail", "refinement not contracting")
+            )
+        else:
+            checks.append(
+                CheckOutcome("asymptoticity", "pass", "refinement contracting")
+            )
+        # Basis-boundary amplitude (only where a boundary diagnostic exists).
+        if boundary_available and boundary_large is not None:
+            prob = boundary_prob[k] if boundary_prob is not None else 0.0
+            outcome: CheckOutcome = (
+                CheckOutcome("boundary", "fail", f"P_edge={prob:.2g}")
+                if boundary_large[k]
+                else CheckOutcome("boundary", "pass", f"P_edge={prob:.2g}")
+            )
+            checks.append(outcome)
+        # Charge-basis variational monotonicity (only for a nested charge axis).
+        if monotonicity_applicable:
+            if monotonicity_violation[k]:
+                checks.append(
+                    CheckOutcome("monotonicity", "fail", "energy rose under refinement")
+                )
+            else:
+                checks.append(CheckOutcome("monotonicity", "pass"))
+        per_level.append(tuple(checks))
+    return per_level
 
 
 def _aggregate_worst(verdicts: list[LevelVerdict]) -> tuple[int, Status]:

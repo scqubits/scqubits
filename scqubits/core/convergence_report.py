@@ -80,6 +80,33 @@ Channels follow the design specification:
   multi-coordinate qubit's per-axis sum, or a composite Hilbert space).
 """
 
+CheckStatus = Literal["pass", "fail", "not_applicable"]
+"""Outcome of one convergence check applied to a level.
+
+- ``pass``: the check ran and did not dismiss the level.
+- ``fail``: the check ran and dismissed (or flagged) the level.
+- ``not_applicable``: the check does not apply in the chosen mode or for this
+  truncation channel.
+
+A ``fail`` is a falsification (the check caught a problem), consistent with the
+verdict ladder: tests dismiss convergence, they never prove it.
+"""
+
+
+@dataclass(frozen=True)
+class CheckOutcome:
+    """Outcome of a single named convergence check for a level.
+
+    Makes the per-check pass/fail picture first-class, complementing ``status``
+    (the overall verdict) and ``estimator_method`` (which estimator produced the
+    number). ``detail`` is a short human-readable note, e.g. a measured boundary
+    probability or why a check did not apply.
+    """
+
+    name: str
+    status: CheckStatus
+    detail: str = ""
+
 
 @dataclass(frozen=True)
 class LevelVerdict:
@@ -104,6 +131,7 @@ class LevelVerdict:
     truncation_channel: TruncationChannel = "charge_tail"
     estimator_method: str = "one_step"
     warnings: tuple[str, ...] = ()
+    checks: tuple[CheckOutcome, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -202,6 +230,14 @@ class ConvergenceReport:
                 f"abs_err={abs_err}  {metric}  "
                 f"via {verdict.estimator_method}{warns}"
             )
+            if verdict.checks:
+                shorthand = {"not_applicable": "n/a"}
+                parts = [
+                    f"{check.name}={shorthand.get(check.status, check.status)}"
+                    + (f"({check.detail})" if check.detail else "")
+                    for check in verdict.checks
+                ]
+                lines.append("      checks: " + "  ".join(parts))
         if self.channel_breakdown_GHz:
             breakdown = {
                 name: f"{value:.2e}"

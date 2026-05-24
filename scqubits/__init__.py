@@ -38,6 +38,7 @@ from scqubits.core.convergence import (
     estimate_convergence_vs_paramvals,
 )
 from scqubits.core.convergence_report import (
+    CheckOutcome,
     ConvergenceReport,
     ImplementationAudit,
     LevelVerdict,

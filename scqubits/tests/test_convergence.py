@@ -447,6 +447,76 @@ class TestMonotonicityCheck:
         assert any("variational bound" in rec for rec in report.recommendations)
 
 
+class TestCheckOutcomes:
+    """Structured per-check record (LevelVerdict.checks)."""
+
+    @staticmethod
+    def _by_name(verdict):
+        return {check.name: check.status for check in verdict.checks}
+
+    def test_moderate_records_boundary_and_monotonicity(self):
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
+        report = tmon.estimate_convergence(
+            n_levels=3, mode="moderate", target_abs_GHz=1e-4
+        )
+        names = self._by_name(report.level(0))
+        # The strict-only asymptoticity test is recorded as not applicable.
+        assert names.get("asymptoticity") == "not_applicable"
+        assert names.get("boundary") == "pass"
+        assert names.get("monotonicity") == "pass"
+
+    def test_strict_runs_asymptoticity_when_there_is_movement(self):
+        # Under-resolved: the refinement differences sit above the noise floor,
+        # so the ratio test actually runs (and here passes -- the series is
+        # contracting, even though the level fails the target grading).
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=6, truncated_dim=6)
+        report = tmon.estimate_convergence(
+            n_levels=3, mode="strict", target_abs_GHz=1e-6
+        )
+        assert self._by_name(report.level(2)).get("asymptoticity") in ("pass", "fail")
+
+    def test_cheap_records_perturbative_tail(self):
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
+        report = tmon.estimate_convergence(
+            n_levels=3, mode="cheap", target_abs_GHz=1e-4
+        )
+        assert "perturbative_tail" in self._by_name(report.level(0))
+
+    def test_ho_basis_omits_monotonicity_check(self):
+        # Fluxonium's HO basis is not a nested charge basis, so the monotonicity
+        # check does not apply and is omitted (not reported as not_applicable).
+        flx = sq.Fluxonium(
+            EJ=8.9, EC=2.5, EL=0.5, flux=0.5, cutoff=110, truncated_dim=6
+        )
+        report = flx.estimate_convergence(
+            n_levels=3, mode="moderate", target_abs_GHz=1e-4
+        )
+        assert "monotonicity" not in self._by_name(report.level(0))
+
+    def test_monotonicity_violation_recorded_as_fail(self, monkeypatch):
+        import scqubits.utils.convergence_utils as cutils
+
+        def fake(coarse, fine, clusters, rel_tol, floor):
+            flags = np.zeros(len(clusters), dtype=np.bool_)
+            if len(clusters):
+                flags[0] = True
+            return flags
+
+        monkeypatch.setattr(cutils, "nested_basis_monotonicity_violation", fake)
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
+        report = tmon.estimate_convergence(
+            n_levels=3, mode="moderate", target_abs_GHz=1e-4
+        )
+        assert self._by_name(report.level(0)).get("monotonicity") == "fail"
+
+    def test_summary_renders_checks_line(self):
+        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
+        report = tmon.estimate_convergence(
+            n_levels=2, mode="moderate", target_abs_GHz=1e-4
+        )
+        assert "checks:" in report.summary()
+
+
 class TestClusterIntegration:
     def test_clusters_field_partitions_levels(self):
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
