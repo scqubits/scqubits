@@ -1,0 +1,716 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb,amsthm,mathtools,bm}
+\usepackage{booktabs,longtable,array,tabularx}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{framed}
+\usepackage[colorlinks=true,linkcolor=blue!55!black,urlcolor=blue!55!black,citecolor=blue!55!black]{hyperref}
+\usepackage[nameinlink,noabbrev]{cleveref}
+
+\setlength{\parskip}{0.42em}
+\setlength{\parindent}{0pt}
+\emergencystretch=2.5em
+\setlist[itemize]{leftmargin=*,nosep}
+\setlist[enumerate]{leftmargin=*,nosep}
+
+\newcommand{\ket}[1]{\left|#1\right\rangle}
+\newcommand{\bra}[1]{\left\langle#1\right|}
+\newcommand{\braket}[2]{\left\langle#1\middle|#2\right\rangle}
+\newcommand{\me}[3]{\left\langle#1\middle|#2\middle|#3\right\rangle}
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+\newcommand{\abs}[1]{\left|#1\right|}
+\newcommand{\Hhat}{\widehat H}
+\newcommand{\Ohat}{\widehat O}
+\newcommand{\ncut}{n_{\rm cut}}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\EJ}{E_J}
+\newcommand{\EC}{E_C}
+\newcommand{\EL}{E_L}
+\newcommand{\wLC}{\Omega_{\rm LC}}
+\newcommand{\wplasma}{\omega_p}
+\newcommand{\zpf}{\varphi_{\rm zpf}}
+\newcommand{\errhat}{\widehat{\Delta E}}
+\newcommand{\errtrue}{\Delta E^{\rm ref}}
+\newcommand{\gfloor}{g_{\rm floor}}
+\newcommand{\giso}{g_{\rm iso}}
+\newcommand{\Pedge}{P_{\rm edge}}
+\newcommand{\code}[1]{\texttt{\detokenize{#1}}}
+
+\definecolor{shadecolor}{RGB}{249,247,240}
+\definecolor{listingbg}{RGB}{246,246,246}
+\newenvironment{principle}{\begin{shaded}\noindent\textbf{Principle.}\ }{\end{shaded}}
+\newenvironment{caution}{\begin{shaded}\noindent\textbf{Caution.}\ }{\end{shaded}}
+
+\lstdefinestyle{plain}{%
+  basicstyle=\ttfamily\small,%
+  backgroundcolor=\color{listingbg},%
+  frame=single,%
+  framesep=4pt,%
+  framerule=0pt,%
+  breaklines=true,%
+  columns=fullflexible,%
+  keepspaces=true%
+}
+\lstset{style=plain}
+
+\title{Automatic Convergence Diagnostics for Truncated Superconducting-Qubit Hamiltonians in \texttt{scqubits}}
+\author{Technical design specification}
+\date{2026-05-18}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Finite-dimensional truncation is unavoidable in numerical simulations of superconducting-qubit Hamiltonians.  This document specifies a self-contained, verified-first convergence diagnostic for \texttt{scqubits}.  The design separates the unknown true error from computable estimates, separates absolute estimates from observed-gap-relative error metrics, and records in each verdict how far the estimate can be trusted.  The primary user-facing convergence claim is an empirical refinement check with ratio tests and cluster-safe matching.  Cheaper basis-specific estimators are retained for fast diagnostics, cutoff recommendations, and screening, but they are not treated as certificates unless their hypotheses are checked.  The strategy covers charge-basis truncations, harmonic-oscillator truncations, finite-difference grids, multi-coordinate qubits, composite Hilbert spaces, and derived quantities such as matrix elements and relaxation rates.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Purpose and scope}
+
+\texttt{scqubits} represents infinite-dimensional superconducting-circuit Hamiltonians by finite matrices.  The relevant truncations fall into three broad types:
+\begin{itemize}
+\item charge-basis truncations, such as the transmon charge basis and charge-like coordinates in multi-coordinate circuits;
+\item harmonic-oscillator (HO) truncations, such as the oscillator basis used for fluxonium in the $E_C$-$E_L$ representation;
+\item finite-difference (FD) grids, in which a flux coordinate is restricted to a finite interval and then discretized.
+\end{itemize}
+
+The diagnostic proposed here answers four questions for a requested set of low-energy levels:
+\begin{enumerate}
+\item How large is the estimated energy error in GHz?
+\item How large is that error relative to the observed low-energy spectrum, when such a relative statement is useful?
+\item How was the estimate tested, and how far should it be trusted?
+\item Which action should the user take if the result is not reliable enough?
+\end{enumerate}
+
+The design is deliberately conservative.  The safest public claim is a verified comparison between the user's calculation and one or more systematically refined calculations.  Basis-specific cheap estimators are useful, but they are treated as estimators or diagnostics rather than as universal bounds.
+
+
+\section{Implementation baseline and version sensitivity}
+
+The convergence framework must record the implementation pathway it is diagnosing.  The current public \texttt{scqubits} documentation describes \texttt{Fluxonium} as a dense Hamiltonian in the $E_C$-$E_L$ harmonic-oscillator basis, with the cosine term handled through matrix exponentiation; the latest API page also states that fluxonium eigenvalues and eigensystems are calculated with \texttt{scipy.linalg.eigh} \cite{scqubits_fluxonium_api}.  The corresponding source on the main branch constructs \(\cos(\alpha\phi+\beta)\) with \texttt{scipy.linalg.cosm} and forms the Hamiltonian from a diagonal oscillator term minus \(E_J\) times this cosine matrix \cite{scqubits_fluxonium_source}.  The current transmon source uses SciPy tridiagonal eigensolvers for the one-island charge-basis Hamiltonian \cite{scqubits_transmon_source}, while the finite-difference module exposes central finite-difference stencils through \texttt{SECOND\_STENCIL\_COEFFS} \cite{scqubits_discretization_source}.  The general package paper describes \texttt{scqubits} as an open-source tool for spectra, matrix elements, coherence estimates, and composite Hilbert spaces \cite{scqubits_paper}.
+
+These implementation details are not mathematical invariants of the physical Hamiltonian.  A future backend could represent the same operator by a different matrix construction, and user-supplied eigensolvers may alter numerical behavior.  Therefore any warning about numerical stability must be tied to the backend actually used.  A convergence report should include:
+\begin{itemize}
+\item \texttt{scqubits} version and, where possible, the source commit or release tag;
+\item qubit class, basis, and diagonalization method;
+\item cutoff or grid parameters;
+\item FD stencil order and box interval, where applicable;
+\item operator-construction backend for non-polynomial operators, where applicable;
+\item number of requested levels and number of internally computed buffer levels.
+\end{itemize}
+
+The practical rule is simple: an implementation-specific diagnostic is admissible only for the implementation path that has actually been identified.  For example, cancellation warnings derived from a special-function expression for oscillator-basis cosine matrix elements should not be attached to a calculation whose cosine operator was constructed by dense matrix functions; for that path, the relevant checks are matrix-function stability, Hermiticity, cutoff sensitivity, and comparison against independent refinement.
+
+\section{Notation and reported quantities}
+\label{sec:notation}
+
+Let $\mathcal H$ denote the exact Hilbert space, and let $P_N$ be the finite-dimensional kept-space projector associated with a cutoff parameter $N$.  The complement is $Q_N=I-P_N$.  The truncated Hamiltonian is
+\begin{equation}
+  H_N=P_N\Hhat P_N.
+\end{equation}
+The computed Ritz pair is
+\begin{equation}
+  H_N u_{k,N}=E_{k,N}u_{k,N},\qquad u_{k,N}\in P_N\mathcal H,
+\end{equation}
+where $k=0,1,\ldots,n_{\rm levels}-1$.  The exact eigenvalue is denoted $E_k$ when the correspondence is unambiguous.  The true absolute truncation error is
+\begin{equation}
+  \Delta E_{k,N}=\abs{E_{k,N}-E_k}.
+\end{equation}
+This quantity is unavailable in production.  The reported estimate is
+\begin{equation}
+  \errhat_{k,N}\approx \Delta E_{k,N}.
+\end{equation}
+In validation against a trusted reference $E_{k,N_{\rm ref}}$ only,
+\begin{equation}
+  \errtrue_{k,N}=\abs{E_{k,N}-E_{k,N_{\rm ref}}}.
+\end{equation}
+The notation $\errtrue$ is reserved for validation against a reference.  Production reports use $\errhat$.
+
+
+\subsection{Error metrics and physical scales}
+
+The primary reported quantity is the absolute energy-error estimate
+\begin{equation}
+  \errhat_{k,N}\quad \text{in GHz}.
+\end{equation}
+This is the safest metric because it does not require choosing a normalization scale.  A user-facing absolute convergence claim requires an explicit target \(\Delta_\star\) in GHz:
+\begin{equation}
+  \errhat_{k,N}<\Delta_\star.
+\end{equation}
+The value of \(\Delta_\star\) is application dependent; it should not be hard-coded by the convergence diagnostic.
+
+For a relative statement, the appropriate denominator is a spectral quantity of the computed low-energy problem, not the spacing of an auxiliary basis.  Define a local isolation gap by
+\begin{equation}
+  \giso(k)=
+  \begin{cases}
+  E_{1,N}-E_{0,N}, & k=0,\\
+  \min\{E_{k,N}-E_{k-1,N},\,E_{k+1,N}-E_{k,N}\}, & 1\le k\le n_{\rm levels}-2,\\
+  \text{upper-gap available only if a buffer level is computed}, & k=n_{\rm levels}-1.
+  \end{cases}
+\end{equation}
+The implementation should compute at least one buffer eigenvalue when an observed-gap metric is requested.  If the upper gap is unavailable for the highest reported level, that level must carry a warning.  The observed-gap-normalized metric is
+\begin{equation}
+  \widetilde\eps_{{\rm gap},k,N}
+  =\frac{\errhat_{k,N}}{\max\{\giso(k),\gfloor\}},
+\end{equation}
+where \(\gfloor\) is a user-configurable floor, by default \(10^{-3}\) GHz, i.e. 1 MHz.
+
+For transition frequencies, it is often clearer to report a direct transition-error estimate.  For a transition \(i\to j\), the triangle inequality gives
+\begin{equation}
+  \widehat{\Delta\omega}_{ij,N}\le \errhat_{i,N}+\errhat_{j,N}.
+\end{equation}
+This quantity can be compared with an absolute transition-frequency target or normalized by \(\max\{|E_{j,N}-E_{i,N}|,\gfloor\}\) when a fractional transition error is desired.
+
+The oscillator frequency of the auxiliary fluxonium basis,
+\(\wLC=\sqrt{8E_LE_C}\), may enter the oscillator-basis Hamiltonian and rough estimates of high-lying omitted basis states.  It is not, however, a low-energy physical transition scale in general.  In deep or displaced fluxonium regimes the low-energy spectrum is governed by the wells of the full potential and by tunnel splittings; these scales can be far removed from \(\wLC\).  Consequently \(\wLC\) is not used to normalize the final fluxonium convergence verdict.  The same distinction applies more generally: basis parameters may be useful inside a truncation estimator without being appropriate denominators for user-facing convergence claims.
+
+\subsection{Verdict}
+
+A convergence test can only ever \emph{dismiss} convergence; a passing verdict
+means the applied test failed to dismiss the level, never that the true error is
+small.  The verdict is a single label, ordered best to worst,
+\begin{center}
+\small\texttt{likely\_converged} $>$ \texttt{maybe\_converged} $>$
+\texttt{marginal} $>$ \texttt{unverified} $>$ \texttt{distrust},
+\end{center}
+and the strongest verdict a run may return is capped by its mode --- a stronger
+claim requires more work: \texttt{cheap}$\to$\texttt{unverified},
+\texttt{moderate}$\to$\texttt{maybe\_converged},
+\texttt{strict}$\to$\texttt{likely\_converged}.
+
+The raw verdict from the estimate, before the mode cap, is assigned in an
+explicitly selected scope.  In absolute scope a target \(\Delta_\star\) in GHz is
+required:
+\begin{align}
+\errhat_{k,N}<\Delta_\star &\quad\Rightarrow\quad \text{pass (capped to the mode ceiling)},\\
+\Delta_\star\le \errhat_{k,N}<10\Delta_\star &\quad\Rightarrow\quad \texttt{marginal},\\
+\errhat_{k,N}\ge 10\Delta_\star &\quad\Rightarrow\quad \texttt{distrust}.
+\end{align}
+In observed-gap scope the same thresholds are applied to
+\(\widetilde\eps_{{\rm gap},k,N}\), with default target \(10^{-3}\).  A level the
+ratio test finds non-asymptotic (\(R_k\ge 1\) on movement above the noise floor),
+or one whose kept state reaches the basis boundary, is dismissed to
+\texttt{distrust} regardless of the estimate.  A missing target, or a level that
+cannot be assessed, yields \texttt{unverified}.
+
+A single-step cutoff comparison is not by itself a bound on the distance to the
+infinite-cutoff limit; the verdict name records how hard the level resisted
+dismissal --- \texttt{likely\_converged} survived the strict ratio/asymptoticity
+test, \texttt{maybe\_converged} a single moderate refinement, \texttt{unverified}
+only a cheap check or none.
+
+\section{Report schema}
+
+The public API should return a structured report rather than a scalar.  A minimal Python-style sketch is:
+
+\begin{lstlisting}[language=Python]
+@dataclass(frozen=True)
+class LevelVerdict:
+    level_index: int
+    status: Literal['likely_converged', 'maybe_converged', 'marginal',
+                    'unverified', 'distrust']
+    status_scope: Literal['absolute', 'observed_gap_scale']
+    abs_err_est_GHz: float | None
+    eps_gap_est: float | None
+    rel_change_est: float | None
+    transition_err_est_GHz: dict[tuple[int, int], float]
+    truncation_channel: Literal['charge_tail', 'HO_tail', 'FD_box',
+                                'FD_stencil', 'composite_coupling']
+    estimator_method: str
+    warnings: tuple[str, ...]
+
+@dataclass(frozen=True)
+class ConvergenceReport:
+    per_level: list[LevelVerdict]
+    aggregate_status: str
+    worst_level: int | None
+    channel_breakdown_GHz: dict[str, float]
+    clusters: list[tuple[int, ...]]
+    recommendations: list[str]
+    implementation_audit: dict[str, str]
+    derived: dict[str, 'DerivedVerdict'] | None
+\end{lstlisting}
+
+The channel vocabulary, method vocabulary, and warning vocabulary should be disjoint.  Aggregation uses the worst per-level status, but the report must retain the complete per-level information; convergence failure of a high requested level should not obscure reliable convergence of lower levels.
+
+\section{Verified refinement strategy}
+\label{sec:verified}
+
+The recommended publication-grade strategy is explicit refinement.  Cheap estimators are useful for routing and recommendations, but refinement directly tests the quantity the user computed.
+
+\subsection{One-step refinement}
+
+Let $N_0$ be the user's cutoff and $N_1>N_0$ a refined cutoff.  Define
+\begin{equation}
+  d_{0,k}=\abs{E_{k,N_1}-E_{k,N_0}}.
+\end{equation}
+A one-step estimate has the form
+\begin{equation}
+  \errhat_{k,N_0}=S\,d_{0,k},
+\end{equation}
+with a safety factor $S\ge 1$.  This is empirical.  It is not a theorem-level bound unless additional monotonicity, sign, and convergence-ratio hypotheses are established.  A default $S=2$ is reasonable only when the refinement ratio is confirmed (by the two-step ratio test) to be at most about $1/2$ in the relevant regime.
+
+\subsection{Two-step ratio test}
+
+A stricter refinement uses $N_0<N_1<N_2$ and
+\begin{equation}
+  R_k=\frac{\abs{E_{k,N_2}-E_{k,N_1}}}{\abs{E_{k,N_1}-E_{k,N_0}}}.
+\end{equation}
+If $R_k<1$ and the differences show consistent decrease, the geometric-tail estimate, carrying the same safety factor $S$ as the one-step estimate so that a not-perfectly-geometric series (e.g.\ algebraic decay) is bounded conservatively rather than slightly under-estimated, is
+\begin{equation}
+  \errhat_{k,N_0}\approx \frac{S\,d_{0,k}}{1-R_k}.
+\end{equation}
+If both refinement differences lie at or below an absolute noise floor (set by the diagonalizer's resolution), the level is treated as not moving rather than as a failed test.  If $R_k\ge 1$ on movement above that floor, the calculation is not in a reliable asymptotic regime and the level is dismissed to \texttt{distrust}, not softened to \texttt{marginal}.
+
+\subsection{Cluster-safe matching}
+
+Near degeneracies, index matching can be misleading.  Define clusters of consecutive levels whose internal gaps are small compared with neighboring external gaps.  Compare clusters as sorted sets of eigenvalues rather than as individually labeled levels.  If $U_{N_0}$ and $U_{N_1}$ are matrices whose columns span the two cluster subspaces, the subspace-angle diagnostic is
+\begin{equation}
+  \sin\Theta=\norm{(I-U_{N_0}U_{N_0}^\dagger)U_{N_1}}_2.
+\end{equation}
+The report should attach the same cluster-level error estimate to all members of the cluster and add a \code{cluster_index_ambiguity} warning.
+
+\subsection{Variational monotonicity}
+\label{sec:monotonicity}
+
+When the truncation enlarges a \emph{nested} basis --- the kept space at $N_0$ is contained in the kept space at $N_1>N_0$ --- the Rayleigh--Ritz (min--max) theorem forces each ordered eigenvalue downward,
+\begin{equation}
+  E_{k,N_1}\le E_{k,N_0}\qquad\text{for every ordered level }k.
+\end{equation}
+Refining a nested basis therefore comes with a near-free falsification test: an \emph{increase} of an ordered eigenvalue beyond
+\begin{equation}
+  \max\!\left(\tau_{\rm rel}\,\abs{E_{k,N_0}},\ \epsilon_{\rm floor}\right),
+\end{equation}
+with a small relative tolerance $\tau_{\rm rel}$ and the eigensolver noise floor $\epsilon_{\rm floor}$, cannot be mere truncation.  Such a violation signals a non-nested basis, an inconsistent operator construction, an eigenvalue-matching error, or backend instability; the level is dismissed to \texttt{distrust} in \emph{every} mode, since the test is cheap enough to always run.  Within a near-degenerate cluster the comparison is on sorted eigenvalue sets, so an intra-cluster rotation is not mistaken for a violation.
+
+The test applies only where the truncation is genuinely nested.  In \texttt{scqubits} this is the charge basis: increasing $\ncut$ borders the kept block with additional charge states, and because the Josephson terms are exact charge-shift (banded) hopping with cutoff-independent entries, the smaller Hamiltonian is an exact principal submatrix of the larger one --- in a multi-island qubit the charge mode is tensored with the other coordinates, which are held fixed during the refinement, so the nesting is preserved.  Either way the min--max chain holds.  It does \emph{not} hold for the harmonic-oscillator bases, whose potential terms are built from matrix functions (e.g.\ $\cos\hat\varphi$) of the \emph{truncated} quadrature operators: the kept block itself changes when the cutoff grows, and the ordered eigenvalues are observed to move non-monotonically even far from convergence.  Nor does it hold for finite-difference grids, which are non-variational.  Applying the monotonicity test on those axes would raise false alarms on perfectly acceptable calculations, so they are excluded.  This is a deliberately narrow but unambiguous test: where it fires, the result is known to be untrustworthy for a reason that a larger cutoff alone will not fix.
+
+\subsection{Finite-difference Richardson verification}
+
+For FD grids, if the leading error is $C h^p$, Richardson extrapolation is appropriate only in the asymptotic regime.  Let $h_0$ be the fine spacing and $h_1=rh_0$, $h_2=r^2h_0$ with $r>1$.  For a $p$th-order stencil,
+\begin{equation}
+  E_k(0)\equiv E_k(h_0),\quad E_k(1)\equiv E_k(h_1),\quad E_k(2)\equiv E_k(h_2),
+\end{equation}
+then
+\begin{equation}
+  \errhat_k^{\rm Rich}=\frac{\abs{E_k(0)-E_k(1)}}{r^p-1}.
+\end{equation}
+The asymptoticity test is
+\begin{equation}
+  \rho_k=\frac{\abs{E_k(1)-E_k(2)}}{\abs{E_k(0)-E_k(1)}}\approx r^p.
+\end{equation}
+If $\rho_k$ is not close to $r^p$, Richardson is a diagnostic, not a verified error estimate.  With a 5-point central second-derivative stencil, $p=4$.
+
+\section{General block-residual framework}
+\label{sec:block}
+
+Many truncation estimators share the same backbone.  Split the Hilbert space into kept and dropped parts, $\mathcal H=P\mathcal H\oplus Q\mathcal H$.  In block form,
+\begin{equation}
+  \Hhat=\begin{pmatrix}H_{PP}&H_{PQ}\\H_{QP}&H_{QQ}\end{pmatrix},\qquad H_{PP}u_{k,N}=E_{k,N}u_{k,N}.
+\end{equation}
+The dropped-space residual is
+\begin{equation}
+  r_{Q,k}=H_{QP}u_{k,N}.
+\end{equation}
+For an isolated level, second-order Feshbach or Rayleigh-Schroedinger perturbation theory gives
+\begin{equation}
+  \delta E^{(2)}_{k,N}=-\left\langle r_{Q,k},(H_{QQ}-E_{k,N}I_Q)^{-1}r_{Q,k}\right\rangle.
+\end{equation}
+If $H_{QQ}-E_{k,N}I_Q$ is positive on the relevant dropped subspace, this correction is negative and the absolute estimate is the magnitude of the quadratic form.
+
+In practice, $Q$ is too large or infinite.  Choose a dropped window $W\subset Q$ and form
+\begin{equation}
+  \eta_{W,k}=\left|\left\langle r_{W,k},(H_{WW}-E_{k,N}I_W)^{-1}r_{W,k}\right\rangle\right|,
+  \qquad r_{W,k}=\Pi_W r_{Q,k}.
+\end{equation}
+The omitted part $Q\setminus W$ must not be assumed harmless.  The estimator is acceptable only if at least one of the following holds:
+\begin{enumerate}
+\item $\eta_{W,k}$ stabilizes as $W$ is enlarged;
+\item a norm/gap bound on the omitted residual is available;
+\item refinement against a reference shows that the chosen window is sufficient in the current regime;
+\item explicit refinement verifies the final result.
+\end{enumerate}
+
+\begin{caution}
+A finite collar resolvent is not a certificate by itself.  It is a perturbative estimator unless the omitted residual and the spectral separation are controlled.
+\end{caution}
+
+\section{Charge-basis truncations}
+\label{sec:charge}
+
+For the transmon charge basis,
+\begin{equation}
+  \Hhat=4\EC(\hat n-n_g)^2-\EJ\cos\hat\varphi,
+\end{equation}
+with charge states $\ket n$ and hopping matrix elements $-\EJ/2$ between neighboring charge states.  The finite kept space is $\abs n\le \ncut$.
+
+The dropped space consists of two semi-infinite tails.  The residual has support only on the first dropped state on each side:
+\begin{equation}
+  r_{R,k}=-(\EJ/2)c_{R,k}\ket{\ncut+1},\qquad
+  r_{L,k}=-(\EJ/2)c_{L,k}\ket{-\ncut-1},
+\end{equation}
+where
+\begin{equation}
+  c_{R,k}=\braket{\ncut}{u_{k,N}},\qquad c_{L,k}=\braket{-\ncut}{u_{k,N}}.
+\end{equation}
+Let $T_R^{(d)}$ and $T_L^{(d)}$ be finite tridiagonal tail blocks of depth $d$, including the first $d$ dropped charges on each side.  Define the Green-function entries
+\begin{equation}
+  G_R^{(d)}(E)=\left[(T_R^{(d)}-EI)^{-1}\right]_{1,1},\qquad
+  G_L^{(d)}(E)=\left[(T_L^{(d)}-EI)^{-1}\right]_{1,1}.
+\end{equation}
+The finite-tail estimate is
+\begin{equation}
+  \errhat_{k,N}^{\rm ch}(d)=
+  \left|\frac{\EJ^2}{4}\left(|c_{R,k}|^2G_R^{(d)}(E_{k,N})+|c_{L,k}|^2G_L^{(d)}(E_{k,N})\right)\right|.
+\end{equation}
+The depth $d$ is increased until this estimate changes by less than a specified tolerance, for example one percent, or until a safety cap is reached.  For $d=1$, this reduces to the familiar boundary-denominator estimate with denominators
+\begin{equation}
+  4\EC(\ncut+1-n_g)^2-E_{k,N},\qquad
+  4\EC(\ncut+1+n_g)^2-E_{k,N}.
+\end{equation}
+
+Edge cases:
+\begin{itemize}
+\item If a denominator or a finite-tail eigenvalue lies at or below $E_{k,N}$, the tail is not perturbative and the verdict is \code{unverified} or \code{distrust}.
+\item If the boundary probability $|c_{R,k}|^2+|c_{L,k}|^2$ is large, the result is \code{distrust} regardless of the perturbative estimate.
+\item For multi-coordinate charge bases, the one-dimensional tridiagonal formula should not be reused blindly.  Instead, construct the appropriate boundary residual and finite dropped block for the actual basis.
+\end{itemize}
+
+A practical initial recommendation for transmon-like regimes can use the Gaussian charge width.  In the transmon limit, the approximate charge variance of the ground state is
+\begin{equation}
+  \sigma_n^2\approx \frac12\sqrt{\frac{\EJ}{8\EC}}.
+\end{equation}
+For the highest requested level $k_{\max}$, a conservative initial cutoff may be chosen proportional to
+\begin{equation}
+  \sigma_n\sqrt{2k_{\max}+1}\sqrt{2\log(1/\eps_\star)}.
+\end{equation}
+This is a recommendation heuristic, not an error certificate.
+
+\section{Harmonic-oscillator truncations}
+\label{sec:ho}
+
+For fluxonium in the auxiliary oscillator basis used by \texttt{scqubits}, write
+\begin{equation}
+  \Hhat=\wLC\left(a^\dagger a+\frac12\right)-\EJ\cos(\hat\varphi+\varphi_{\rm ext}),
+  \qquad \hat\varphi=\zpf(a+a^\dagger),
+\end{equation}
+where $\zpf=(8\EC/\EL)^{1/4}/\sqrt2$.  The kept space is spanned by $\ket 0,\ldots,\ket{N-1}$.  The frequency $\wLC$ defines the auxiliary oscillator basis and the diagonal part of this representation.  It is not assumed to approximate the spacing of the physical low-energy fluxonium spectrum and is not used as a reporting denominator.
+
+The cosine operator is not banded in the oscillator basis.  Consequently, a correct residual calculation must use the full kept vector,
+\begin{equation}
+  (r_{W,k})_m=\sum_{j=0}^{N-1}\me{m}{\Hhat}{j}c_{j,k},\qquad m\in W\subset\{N,N+1,\ldots\}.
+\end{equation}
+It is not sufficient to retain only $c_{N-1,k}$ or a fixed boundary band unless the omitted kept-to-window couplings have been measured to be negligible.
+
+The finite-window estimator is
+\begin{equation}
+  \eta_{W,k}^{\rm HO}=\left|\left\langle r_{W,k},(H_{WW}-E_{k,N}I_W)^{-1}r_{W,k}\right\rangle\right|.
+\end{equation}
+The window $W=\{N,\,\ldots,N+d-1\}$ is enlarged until the estimate stabilizes.  A second diagnostic should track omitted residual norm by extending the evaluated dropped window:
+\begin{equation}
+  \rho_{\rm tail}(d,t)=\sum_{m=N+d}^{N+d+t-1}\left|\sum_{j=0}^{N-1}\me{m}{\Hhat}{j}c_{j,k}\right|^2.
+\end{equation}
+If $\rho_{\rm tail}$ is not small relative to the resolved residual norm, the finite-window estimate is not reliable.
+
+Matrix-element stability is backend-dependent.  For a matrix-exponential cosine backend, useful checks include Hermiticity of the computed cosine and sine matrices, norm growth with cutoff, comparison of $\cos^2\hat\varphi+\sin^2\hat\varphi$ with the identity on a low-energy subspace, and agreement with a higher-precision or alternative construction on reference points.  For a special-function backend, cancellation diagnostics specific to that formula may be appropriate.  The report should state which diagnostic was used.
+
+The primary HO verification is direct cutoff refinement, with cluster-safe matching and a ratio test as in \cref{sec:verified}.  Cheap HO block-resolvent estimates are best used to choose the next cutoff and identify whether the failure is likely due to tail truncation or numerical backend instability.
+
+\section{Finite-difference grids}
+\label{sec:fd}
+
+An FD grid has two independent error channels: finite box size and finite grid spacing.  They require different tests.
+
+\subsection{Box support}
+
+Let the coordinate interval be $[-L,L]$ and let $h$ be the grid spacing.  A small endpoint value alone is not a rigorous bound on the error from imposing a wall at $\pm L$.  The wall changes the eigenfunction, and the stencil reaches inward from the boundary.  Use a physical edge-width diagnostic instead.  For an edge width $w_{\rm edge}$, define
+\begin{equation}
+  q=\left\lceil\frac{w_{\rm edge}}{h}\right\rceil,
+\end{equation}
+with $q$ at least a few stencil half-widths, and
+\begin{equation}
+  \Pedge(k;q)=\sum_{i=0}^{q-1}|c_{i,k}|^2+
+  \sum_{i=N_{\rm grid}-q}^{N_{\rm grid}-1}|c_{i,k}|^2.
+\end{equation}
+Large $\Pedge$ is a reliable warning that the box is too small.  Small $\Pedge$ is not a proof that the box is wide enough.
+
+The verification for box size is an expanded-box calculation at comparable grid spacing.  If $L$ changes but $h$ is held approximately fixed, a change in eigenvalues diagnoses the finite-box channel.  Increasing $N_{\rm grid}$ at fixed $L$ does not fix a box error.
+
+\subsection{Sizing the box-expansion check}
+
+A fixed expansion step can be fooled: a low-lying well sitting beyond the current
+box but more than one step away may not be reached by a single expansion, leaving
+the omitted state undetected.  The expansion is therefore sized to the physics.
+From the computed window energy $E_{\rm win}=\max_k E_{k,N}+\Delta_{\rm safety}$ and
+the effective potential along the discretized coordinate --- the bare potential
+minimized over the remaining coordinates, $V_{\rm eff}(\phi)=\min_{\{\phi'\}}V$,
+evaluable beyond the current box --- solve $V_{\rm eff}(\phi)=E_{\rm win}$ for the
+outermost turning points $\phi_L,\phi_R$ (searching outward past intervening
+barriers).  Take the expanded box wide enough to enclose $[\phi_L,\phi_R]$ with a
+buffer, and let the ordinary refinement comparison render the verdict: a low-lying
+well brought inside the enlarged box shifts the cluster-matched spectrum and the
+level is dismissed (\code{distrust}); a region that is classically allowed but
+quantum-empty leaves the spectrum unchanged and the box is accepted.  The test is
+target-aware and raises no false alarm.
+
+A standalone geometric test --- flag whenever the classical region is not
+contained in the box --- is deliberately \emph{not} used.  For a multi-coordinate
+system the envelope $\min_{\{\phi'\}}V$ discards the transverse zero-point energy,
+so it over-reports the reach of the low states and would dismiss boxes that are in
+fact converged.  Using the turning points only to \emph{size} an honest refinement
+keeps the recomputation, not the geometry, as the arbiter.
+
+\subsection{Stencil error}
+
+At fixed box, stencil error is tested by grid refinement.  If a 5-point second-derivative stencil is used, the leading discretization error is expected to scale as $h^4$ in the asymptotic regime.  Richardson extrapolation should be used only with the asymptoticity test described in \cref{sec:verified}.
+
+A same-grid comparison between 5-point and 7-point stencil Hamiltonians provides a useful residual or surrogate signal, but it does not by itself certify continuum convergence.  It can be used to route the diagnosis and to flag coarse-grid failure.
+
+\subsection{FD decision table}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}lXX@{}}
+\toprule
+Observation & Interpretation & Recommended action\\
+\midrule
+Large $\Pedge$ & state reaches the boundary & expand box at comparable $h$\\
+Small $\Pedge$, Richardson fails & grid not asymptotic & refine grid at fixed box\\
+Expanded box changes spectrum & finite-box error & increase $L$\\
+Refined grid changes spectrum & stencil error & increase $N_{\rm grid}$ or stencil order\\
+Both tests stable & FD truncation verified & \code{likely\_converged} (strict)\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section{Derived quantities}
+\label{sec:derived}
+
+Eigenvalue convergence does not automatically imply convergence of eigenvectors or matrix elements.  If a concrete residual $r_k$ is available for the operator of interest and the level is isolated by a gap $\delta_k$, Davis--Kahan gives
+\begin{equation}
+  \sin\theta_k\le \frac{\norm{r_k}_2}{\delta_k}.
+\end{equation}
+Kato--Temple-type estimates for eigenvalues scale quadratically in the residual under suitable isolation assumptions, while eigenvector angles scale linearly.  Thus eigenvectors and matrix elements can converge more slowly than eigenvalues.
+
+For a bounded operator on the relevant finite subspace,
+\begin{equation}
+\abs{\me{i}{\Ohat}{j}_{\rm exact}-\me{i}{\Ohat}{j}_{\rm trunc}}
+\lesssim \norm{\Ohat P_{\rm rel}}_2(\sin\theta_i+\sin\theta_j),
+\end{equation}
+where $P_{\rm rel}$ projects onto a subspace containing the states and their first-order corrections.  For unbounded operators such as $\hat n$ or $\hat\varphi$, the unrestricted operator norm is infinite; only the restricted norm is meaningful.  Relative matrix-element error can be large when the target matrix element is symmetry-suppressed or otherwise small.
+
+For derived quantities, the recommended procedure is direct comparison of the derived quantity under refinement.  For lifetimes, compare rates rather than lifetimes.  If $T=1/\Gamma$, the relative change of $T$ is ill-conditioned when $\Gamma$ is near zero.  Compare
+\begin{equation}
+  \frac{\abs{\Gamma_{N_1}-\Gamma_{N_0}}}{\max\{\abs{\Gamma_{N_1}},\Gamma_{\rm floor}\}}
+\end{equation}
+first; report $T$ only after rate convergence has been established.  The \texttt{scqubits} noise APIs expose rate-level output through a \code{get_rate} option for relevant methods \cite{scqubits_fluxonium_api}.
+
+\section{Multi-coordinate qubits and composite Hilbert spaces}
+\label{sec:composite}
+
+For a single multi-coordinate qubit with separable truncation channels, combine absolute estimates by the triangle inequality:
+\begin{equation}
+  \errhat_{k,N}^{\rm total}\le \sum_c \errhat_{c,k,N}.
+\end{equation}
+The maximum channel is useful for display, but the sum determines the status.
+
+For composite Hilbert spaces, define the kept space once, for the whole composite problem.  If $P=P_1\otimes P_2\otimes\cdots$ is the retained product space and $Q=I-P$, the mathematically clean omitted-space residual is
+\begin{equation}
+  r_{Q,k}^{\rm comp}=Q\Hhat_{\rm comp}P u_{k,N}^{\rm comp}.
+\end{equation}
+This residual includes subsystem leakage and coupling-induced leakage exactly once.  Summing subsystem leakage estimates and then adding a separate coupling-leakage estimate risks double counting.
+
+Two different composite checks should be distinguished:
+\begin{enumerate}
+\item A retained-manifold hybridization screen detects near resonances and strong mixing within the kept product space.  It is a basis-labeling and cluster-matching diagnostic, not a truncation-error estimate.
+\item An omitted-space truncation screen estimates or verifies the coupling of retained eigenstates to omitted states.  This is the actual convergence channel.
+\end{enumerate}
+
+For an interaction $g A\otimes B$, a useful retained-manifold hybridization parameter is
+\begin{equation}
+  \eta_{ab\to a'b'}=
+  \frac{|g|\,|\me{a'}{A}{a}|\,|\me{b'}{B}{b}|}
+       {\max\{|(E_a+E_b)-(E_{a'}+E_{b'})|,\gfloor\}}.
+\end{equation}
+Large $\eta$ means product labels are not stable and cluster-safe matching is required.  It does not, by itself, prove underconvergence of the truncated basis.  For publication-grade composite results, the preferred verification is a full composite direct compare after increasing the dominant subsystem cutoffs.
+
+\section{Cutoff recommendations}
+\label{sec:recommendations}
+
+Recommendations should be channel-specific:
+\begin{itemize}
+\item charge-tail failure: increase $\ncut$; if finite-tail denominators are small, increase more aggressively and warn about nonperturbative tail coupling;
+\item HO-tail failure: increase oscillator cutoff if backend stability is clean; otherwise recommend an alternative representation or backend;
+\item FD-box failure: expand the box, not just the number of grid points;
+\item FD-stencil failure: refine the grid at fixed box or increase stencil order;
+\item composite near-resonance: use cluster comparison and full composite refinement rather than product-state labels.
+\end{itemize}
+
+When a two-step ratio test is available, one can estimate the next cutoff by fitting the observed error model.  For geometric convergence, target $\eps_\star$ gives an extrapolated cutoff increment based on the observed ratio.  For FD stencils, the Richardson model predicts the grid spacing needed for the target.  All automatic recommendations should be validated by one follow-up check when used in strict mode.
+
+\section{Validation suite}
+
+A validation suite is part of the design, not an afterthought.  It checks the shipped error estimates and verdicts against trusted references, holding to one rule: false alarms are acceptable, false confidence is not.
+
+\subsection{Reference calculations}
+
+A reference must pass independent stability tests.  Suitable choices include:
+\begin{itemize}
+\item high charge cutoffs with spot checks at still higher cutoffs for transmon-like charge bases;
+\item cross-representation agreement for fluxonium, for example HO and FD calculations with both representations independently stabilized;
+\item separate box expansion and grid refinement for FD-only cases;
+\item full composite refinement for strongly coupled or near-resonant composite systems.
+\end{itemize}
+The reference criterion should include an absolute GHz tolerance and, where the result will be interpreted fractionally, an observed-gap-relative tolerance.  Tiny gaps should not be allowed to make an otherwise accurate absolute reference appear invalid, but they must activate observed-gap warnings and should be tested by transition-level comparisons when relevant.
+
+\subsection{Acceptance criteria}
+
+For each tested regime:
+\begin{enumerate}
+\item no result labeled \code{likely\_converged} in a stated scope may have reference error above the target in that scope;
+\item near the target threshold, the estimator-to-reference ratio should have median near one and a controlled upper quantile;
+\item false alarms are acceptable; false confidence is not;
+\item the per-level verdicts and warnings must be preserved in the report, not hidden by the aggregate.
+\end{enumerate}
+
+\subsection{Adversarial fixtures}
+
+The suite should include at least:
+\begin{itemize}
+\item deep fluxonium near half flux, to test that the auxiliary oscillator frequency is not used as a physical normalization scale and that observed-gap warnings are triggered;
+\item HO states where a single boundary coefficient is misleading, to test full-kept-vector residuals;
+\item large oscillator displacement, to test matrix-element backend stability;
+\item FD states with small endpoint values but appreciable edge mass;
+\item a shallow-parabola FD box that excludes a low-lying well beyond it, caught by sizing the box expansion to the classical turning points;
+\item Richardson tests on synthetic $h^4$ spectra and on actual FD Hamiltonians;
+\item two-channel truncation cases where sum-not-max matters;
+\item composite avoided crossings where index labels swap;
+\item lifetime calculations where rates converge but lifetimes diverge because the rate is near zero.
+\end{itemize}
+
+\section{Suggested API}
+
+\begin{lstlisting}[language=Python]
+def estimate_convergence(
+    qubit,
+    n_levels: int = 6,
+    mode: Literal['cheap', 'moderate', 'strict'] = 'moderate',
+    scope: Literal['absolute', 'observed_gap_scale'] = 'absolute',
+    target_abs_GHz: float | None = None,
+    target_gap_rel: float = 1e-3,
+    g_floor_GHz: float = 1e-3,
+    include_derived: bool = False,
+    derived_quantities: list[Callable] | None = None,
+    refinement: Literal['one_step', 'ratio_test'] = 'one_step',
+) -> ConvergenceReport:
+    ...
+\end{lstlisting}
+
+Mode semantics (each caps the best verdict it can return, because a test only
+dismisses convergence --- it never proves it):
+\begin{description}[leftmargin=2.6cm,style=nextline]
+\item[cheap] cheap diagnostics only; no extra diagonalizations; best verdict \texttt{unverified}, but a kept state reaching the basis boundary is still dismissed to \texttt{distrust};
+\item[moderate] default user-facing mode; one refinement calculation and cluster-safe matching; best verdict \texttt{maybe\_converged};
+\item[strict] two-step ratio/asymptoticity tests and implementation-audit checks; best verdict \texttt{likely\_converged}; \(R_k\ge 1\) is dismissed to \texttt{distrust}.
+\end{description}
+
+If \code{scope='absolute'}, \code{target_abs_GHz} is required for an automatic status assignment; otherwise the report may give \code{abs_err_est_GHz} without converting it into a verdict.  If \code{scope='observed_gap'}, \code{target_gap_rel} is the dimensionless threshold.  The report should always include the absolute estimate, even when the status is based on the observed-gap metric.
+
+\section{Implementation roadmap}
+
+A practical implementation can be staged:
+\begin{enumerate}
+\item Ship the report schema, implementation audit, and direct refinement verification for charge, HO, and FD bases.
+\item Add cluster-safe matching and derived-quantity direct comparisons, including rate-first handling for lifetimes.
+\item Add cheap charge-tail and HO finite-window residual estimators, used for routing and recommendations only.
+\item Add FD edge diagnostics, box-expansion verification, and Richardson/asymptoticity tests.
+\item Add composite Hilbert-space refinement and hybridization screening.
+\item Add automatic cutoff recommendations gated by a follow-up verification pass in strict mode.
+\end{enumerate}
+
+\section{Relation to established methods}
+\label{sec:alternatives}
+
+The estimators in this document are not new convergence theory.  Each operationalizes a standard piece of spectral-approximation theory for the specific truncations that arise in superconducting-qubit models.  This section records that correspondence and explains, for the standard alternatives, why a method is adopted, deferred, or deliberately not used.
+
+\paragraph{Residual-norm a posteriori estimates.}
+For a normalized approximate eigenpair $(\lambda,u)$ of a self-adjoint operator, the residual $r=\Hhat u-\lambda u$ obeys $\mathrm{dist}\!\big(\lambda,\mathrm{spec}(\Hhat)\big)\le\norm{r}$, and with an isolation gap it also controls the eigenvector error.  The block-residual framework of \cref{sec:block} is exactly this quantity in resolvent form; the charge-tail and HO-window estimators are its practical realizations.  A raw refined-space residual $\norm{(\Hhat_{N_1}-E_{k,N_0})\tilde u_{k,N_0}}$, the coarse Ritz vector embedded in the refined space, is a clean additive report field and a natural future addition; the same holds for an eigensolver residual $\norm{\Hhat_N u_{k,N}-E_{k,N}u_{k,N}}$, which separates solver error from truncation error.  The latter is most informative for sparse or iterative backends; for the dense default solver it sits at the solver's floor, which is why it is noted as outlook rather than a required field.
+
+\paragraph{A single falsification ladder, not a certified-bound taxonomy.}
+A natural suggestion is to label every estimate by a trust class --- certified bound, residual estimate, perturbative estimate, refinement estimate, heuristic warning.  We deliberately do not, because none of the estimators here is a certificate: each can only \emph{dismiss} convergence, never prove it (\cref{sec:verified}).  Promoting any of them to a ``bound'' rung would overstate what it delivers.  The report instead records, per level, the method that produced the estimate (\code{estimator_method}) and a single verdict on a falsification ladder whose top rung, \texttt{likely\_converged}, still means only ``not dismissed by the strict tests.''  A genuine two-sided bound would change this picture, which motivates the next point.
+
+\paragraph{Temple, Kato, and Lehmann bounds.}
+For isolated low-lying eigenvalues, Temple-type and related Kato/Lehmann inequalities give genuine two-sided error bounds under spectral-separation hypotheses.  They require a reliable bound on the neighboring spectrum and are therefore unsuitable as a default; they are appropriate as optional strict-mode tools when the hypotheses can be audited, and would be the only channel entitled to report a two-sided bound rather than an empirical estimate.
+
+\paragraph{Dirichlet/Neumann bracketing.}
+Where the operator and boundary conditions permit, comparing Dirichlet and Neumann conditions on the same finite-difference box brackets the boundary sensitivity: Dirichlet walls raise eigenvalues, Neumann boundaries supply lower-side information.  This is an optional box diagnostic, complementary to and kept separate from the default expanded-box comparison of \cref{sec:fd}.
+
+\paragraph{Spectral pollution.}
+Finite approximations of unbounded self-adjoint operators can produce spurious eigenvalues, particularly for non-variational discretizations.  Refinement agreement and residual diagnostics reduce this risk but do not turn an arbitrary non-variational discretization into a certified spectral approximation; the finite-difference channels should be read with this caveat.
+
+\paragraph{Representation choice.}
+Persistently slow finite-difference convergence on a smooth coordinate often indicates that a different representation --- a discrete-variable representation, a spectral or Fourier grid, a coordinate map, or a nonuniform mesh --- would be more efficient than enlarging a uniform box.  This is a backend-design consideration rather than part of the diagnostic API, and is noted as outlook.
+
+The framework thus does not invent convergence theory; it operationalizes the relevant parts of established spectral-approximation theory for \texttt{scqubits} truncations, while remaining explicit about which tests are dismissals, which are diagnostics, and which rigorous tools remain available as strict-mode or backend options.
+
+\section{Summary}
+
+The essential design choices are:
+\begin{itemize}
+\item report estimates, not unknowable true errors;
+\item report absolute error first and use observed spectral gaps for relative error statements;
+\item record in each verdict how the estimate was tested;
+\item use explicit refinement as the default user-facing convergence test;
+\item treat cheap estimators as diagnostics and recommendation engines, not as certificates;
+\item handle near degeneracies by cluster comparison, not naive index matching;
+\item compare derived quantities directly, and compare rates before lifetimes;
+\item for composite systems, form one composite omitted-space residual rather than double-counting leakage channels;
+\item maintain validation fixtures that stress exactly the cases where cheap reasoning is most likely to fail.
+\end{itemize}
+
+This strategy gives scqubits users a clear and conservative convergence answer: not merely whether a cutoff looks large, but what error is estimated, how it is interpreted, how far it can be trusted, and what to do next.
+
+\begin{thebibliography}{9}
+
+\bibitem{scqubits_paper}
+P. Groszkowski and J. Koch,
+\newblock \emph{Scqubits: a Python package for superconducting qubits},
+\newblock Quantum \textbf{5}, 583 (2021).
+\newblock \url{https://quantum-journal.org/papers/q-2021-11-17-583/}
+
+\bibitem{scqubits_fluxonium_api}
+\texttt{scqubits} documentation,
+\newblock Latest Fluxonium API documentation.
+\newblock \url{https://scqubits.readthedocs.io/en/latest/api-doc/_autosummary/scqubits.core.fluxonium.Fluxonium.html}
+
+\bibitem{scqubits_fluxonium_source}
+\texttt{scqubits} source code,
+\newblock \texttt{scqubits/core/fluxonium.py} on the main branch.
+\newblock \url{https://github.com/scqubits/scqubits/blob/main/scqubits/core/fluxonium.py}
+
+\bibitem{scqubits_transmon_source}
+\texttt{scqubits} source code,
+\newblock \texttt{scqubits/core/transmon.py} on the main branch.
+\newblock \url{https://github.com/scqubits/scqubits/blob/main/scqubits/core/transmon.py}
+
+\bibitem{scqubits_discretization_source}
+\texttt{scqubits} source code,
+\newblock \texttt{scqubits/core/discretization.py} on the main branch.
+\newblock \url{https://github.com/scqubits/scqubits/blob/main/scqubits/core/discretization.py}
+
+\bibitem{stewart_sun}
+G. W. Stewart and J. Sun,
+\newblock \emph{Matrix Perturbation Theory},
+\newblock Academic Press, 1990.
+
+\end{thebibliography}
+
+\end{document}
