@@ -499,6 +499,53 @@ def validate_fluxonium_adversarial():
     return ok
 
 
+def validate_zeropi_box_groundtruth():
+    section(
+        "ZEROPI FINITE-BOX (turning-point-sized refinement catches a too-small box)"
+    )
+    # A shallow parabola makes the classically allowed region of the low levels
+    # extend far beyond a modest box, so a +/-5pi box is genuinely too small. A
+    # large-box reference at the SAME spacing and charge cutoff isolates the box
+    # error. The turning-point-sized grid_box refinement must bound that error and
+    # dismiss the box -- never reporting a confident verdict for a wrong level.
+    EJ, EL, ECJ, EC, ng, flux = 10.0, 0.008, 20.0, 0.04, 0.1, 0.2
+    n, target, h, ncut = 3, 1e-3, 0.16, 12
+
+    def make(window):
+        pts = int(round(2.0 * window / h)) + 1
+        return scq.ZeroPi(
+            grid=scq.Grid1d(-window, window, pts),
+            EJ=EJ,
+            EL=EL,
+            ECJ=ECJ,
+            EC=EC,
+            ng=ng,
+            flux=flux,
+            ncut=ncut,
+            truncated_dim=n + 2,
+        )
+
+    e_ref = np.sort(make(16.0 * np.pi).eigenvals(evals_count=n))
+    zp = make(5.0 * np.pi)
+    e_user = np.sort(zp.eigenvals(evals_count=n))
+    rep = zp.estimate_convergence(n_levels=n, mode="moderate", target_abs_GHz=target)
+    worst_ratio = 0.0
+    false_confident = 0
+    for k, v in enumerate(rep.per_level):
+        true_err = abs(float(e_user[k] - e_ref[k]))
+        est = v.abs_err_est_GHz or 0.0
+        worst_ratio = max(worst_ratio, true_err / max(est, 1e-30))
+        if v.status in ("likely_converged", "maybe_converged") and true_err >= target:
+            false_confident += 1
+    dismissed = rep.aggregate_status == "distrust"
+    ok = worst_ratio <= 1.0 and false_confident == 0 and dismissed
+    print(
+        f"  +/-5pi (EL={EL}): agg={rep.aggregate_status}  worst true/est={worst_ratio:.2f}  "
+        f"false confident={false_confident}  dismissed={dismissed}  [{'ok' if ok else 'FAIL'}]"
+    )
+    return ok
+
+
 def main():
     results = {
         "energy soundness + stability": validate_stability_and_energies(),
@@ -509,6 +556,7 @@ def main():
         "zeropi FD ground truth": validate_zeropi_fd_groundtruth(),
         "fluxonium ground truth": validate_fluxonium_groundtruth(),
         "fluxonium adversarial (BLOCKER)": validate_fluxonium_adversarial(),
+        "zeropi finite-box ground truth": validate_zeropi_box_groundtruth(),
         "hilbertspace ground truth": validate_hilbertspace_groundtruth(),
     }
     section("SUMMARY")
