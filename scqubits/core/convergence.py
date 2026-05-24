@@ -2046,7 +2046,7 @@ def _build_metric_report(
     (``R >= 1``) dismisses the level to ``distrust``, mirroring the energy
     channel. A passing verdict is capped at the mode ceiling (``maybe_converged``
     for a one-step check, ``likely_converged`` for a ratio-tested one). Verdicts
-    apply the observed-gap-scale ladder against ``target_gap_rel``.
+    apply the observed-gap-scale thresholds against ``target_gap_rel``.
     """
     geometric_tail: npt.NDArray[np.float64] | None = None
     asymptotic: npt.NDArray[np.bool_] | None = None
@@ -2197,7 +2197,7 @@ def _build_coherence_report(
     its rate between cutoffs and ``estimator_method`` names the channel. Rates
     are assessed first: a channel whose refined rate is below the floor carries a
     ``noise_floor`` warning rather than a lifetime claim. Verdicts use the
-    observed-gap ladder against ``target_gap_rel``.
+    observed-gap thresholds against ``target_gap_rel``.
     """
     safety_factor = settings.CONVERGENCE_SAFETY_FACTOR
     verdicts: list[LevelVerdict] = []

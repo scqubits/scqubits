@@ -89,7 +89,7 @@ CheckStatus = Literal["pass", "fail", "not_applicable"]
   truncation channel.
 
 A ``fail`` is a falsification (the check caught a problem), consistent with the
-verdict ladder: tests dismiss convergence, they never prove it.
+falsification philosophy: tests dismiss convergence, they never prove it.
 """
 
 
