@@ -13,16 +13,15 @@
 
 This module contains backend-agnostic functions used by
 :mod:`scqubits.core.convergence`. Keeping them separate makes them
-unit-testable without instantiating a qubit.
-
-PR-1 scope: cluster detection, cluster-safe energy matching, and the
-geometric ratio test.
-PR-2 adds: charge-basis padding, subspace angle, and wavefunction overlap.
-PR-3 will add: rate-relative-error.
+unit-testable without instantiating a qubit: cluster detection, cluster-safe
+energy matching, the geometric ratio test, Richardson extrapolation,
+charge-basis padding, subspace angles, wavefunction overlaps, and
+finite-difference turning-point root-finding.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 
 import numpy as np
 import numpy.typing as npt
@@ -592,3 +591,61 @@ def wavefunction_overlap(
     for k in range(n_cols):
         overlaps[k] = float(np.abs(np.vdot(a[:, k], b[:, k])))
     return overlaps
+
+
+def outermost_turning_points(
+    v_eff: Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]],
+    e_win: float,
+    box_min: float,
+    box_max: float,
+    *,
+    max_grow: int = 20,
+    samples: int = 2048,
+) -> tuple[float, float] | None:
+    """Return the outermost classical turning points of ``V_eff(phi) = e_win``.
+
+    Searches outward from ``[box_min, box_max]`` until ``V_eff`` exceeds ``e_win``
+    at both ends (a confining potential guarantees this), then returns the
+    smallest and largest roots of ``V_eff(phi) - e_win`` -- the extent of the
+    classically allowed region at energy ``e_win``. ``v_eff`` must be vectorized
+    (accept and return a 1-D array). Returns ``None`` if the allowed region cannot
+    be bracketed within ``max_grow`` outward doublings (e.g. a non-confining
+    potential), so the caller does not over-interpret the result.
+    """
+    from scipy.optimize import brentq
+
+    def scalar(x: float) -> float:
+        return float(v_eff(np.array([x], dtype=np.float64))[0]) - e_win
+
+    tol = 1e-6 * max(box_max - box_min, 1.0)
+    span = max(box_max - box_min, 1.0)
+    lo, hi = box_min, box_max
+    last: tuple[float, float] | None = None
+    for _ in range(max_grow):
+        lo -= span
+        hi += span
+        span *= 2.0
+        phis = np.linspace(lo, hi, samples)
+        f = np.asarray(v_eff(phis), dtype=np.float64) - e_win
+        brackets = np.nonzero(f[:-1] * f[1:] < 0.0)[0]
+        if brackets.size == 0:
+            # The window is still entirely inside the classically allowed region
+            # (no crossing yet); grow it further rather than giving up.
+            continue
+        phi_left = float(brentq(scalar, phis[brackets[0]], phis[brackets[0] + 1]))
+        phi_right = float(brentq(scalar, phis[brackets[-1]], phis[brackets[-1] + 1]))
+        # Stop once the search window reaches into the forbidden region on both
+        # sides and growing it further no longer pushes the outermost roots out --
+        # so no classically allowed well lies beyond what has been found. Growing
+        # only until the *endpoints* exceed e_win is not enough: for an oscillatory
+        # potential an endpoint can sit on a barrier while a well lies beyond it.
+        endpoints_forbidden = bool(f[0] > 0.0 and f[-1] > 0.0)
+        stable = (
+            last is not None
+            and abs(phi_left - last[0]) <= tol
+            and abs(phi_right - last[1]) <= tol
+        )
+        if endpoints_forbidden and stable:
+            return phi_left, phi_right
+        last = (phi_left, phi_right)
+    return last

@@ -365,6 +365,46 @@ class ZeroPi(
 
     # ----- Convergence-diagnostics hooks ----------------------------------------------
 
+    def _convergence_potential_envelope(self, axis: str) -> (
+        tuple[
+            Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]],
+            float,
+            float,
+            float,
+        ]
+        | None
+    ):
+        r"""Effective phi-potential envelope for sizing the FD_box refinement.
+
+        Minimizing the zero-pi potential over theta gives
+
+            V_eff(phi) = E_L phi^2 + 2 E_J
+                         - E_J sqrt(4 cos^2(phi') + dEJ^2 sin^2(phi')),
+
+        with ``phi' = phi - pi * flux``, on the same energy reference as the
+        eigenvalues (the ``+2 E_J`` constant is retained).  The convergence engine
+        uses it to widen the ``grid_box`` refinement out to the classical turning
+        points of the computed window, so the refinement comparison cannot miss a
+        low-lying well excluded by a too-small box.  Only the ``grid_box`` axis
+        carries a box to size.
+        """
+        if axis != "grid_box":
+            return None
+        EL, EJ, dEJ = self.EL, self.EJ, self.dEJ
+        phi_shift = 2.0 * np.pi * self.flux / 2.0
+
+        def v_eff(phi: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+            arg = phi - phi_shift
+            return (
+                EL * phi**2
+                + 2.0 * EJ
+                - EJ * np.sqrt(4.0 * np.cos(arg) ** 2 + dEJ**2 * np.sin(arg) ** 2)
+            )
+
+        grid = self.grid
+        spacing = (grid.max_val - grid.min_val) / (grid.pt_count - 1)
+        return (v_eff, float(grid.min_val), float(grid.max_val), float(spacing))
+
     def _convergence_axis_value(self, axis: str) -> int:
         """Return the integer size of a truncation axis.
 

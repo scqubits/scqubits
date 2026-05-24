@@ -27,7 +27,7 @@ from __future__ import annotations
 import copy
 import dataclasses
 
-from typing import Any, Sequence
+from typing import Any, Callable, Sequence
 
 import numpy as np
 import numpy.typing as npt
@@ -119,6 +119,67 @@ class ConvergenceCheckable:
         geometrically -- charge and oscillator tails, and finite-box expansion.
         """
         return None
+
+    def _convergence_potential_envelope(self, axis: str) -> (
+        tuple[
+            Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]],
+            float,
+            float,
+            float,
+        ]
+        | None
+    ):
+        """Return ``(V_eff, box_min, box_max, grid_spacing)`` for a box axis.
+
+        ``V_eff(phi)`` is the potential along a discretized coordinate, minimized
+        over the other coordinates and on the same energy reference as the
+        eigenvalues, valid for any ``phi`` including beyond the current box.  It
+        powers the FD_box turning-point completeness check (does the box contain
+        the classically allowed region for the computed window?).  The default
+        returns ``None``; a qubit with a finite-difference box coordinate
+        overrides it for the relevant axis.
+        """
+        return None
+
+    def _convergence_box_refine_step(
+        self,
+        axis: str,
+        evals_n0: npt.NDArray[np.float64],
+        n_levels: int,
+    ) -> int:
+        """Refinement step (in axis units) for ``axis``.
+
+        For a box axis whose qubit supplies a potential envelope, widen the box
+        far enough that the refined grid encloses the full classically allowed
+        region for the computed window -- the outermost turning points of
+        ``V_eff(phi) = max_k E_k + margin``, plus a buffer -- but never less than
+        the ordinary step. Sizing the widening this way makes the refinement
+        comparison unable to miss a low-lying well excluded by a too-small box: if
+        such a well hosts a state, including it shifts the cluster-matched
+        spectrum; if it is quantum-empty, the comparison shows no change and the
+        box is accepted. Non-box axes use the ordinary step.
+        """
+        normal_step = self._convergence_step(axis)
+        envelope = self._convergence_potential_envelope(axis)
+        if envelope is None:
+            return normal_step
+        v_eff, box_min, box_max, spacing = envelope
+        evals = np.asarray(evals_n0[:n_levels], dtype=np.float64)
+        if evals.size == 0 or spacing <= 0.0:
+            return normal_step
+        e_win = float(np.max(evals)) + _box_completeness_margin(evals)
+        turning = cutils.outermost_turning_points(v_eff, e_win, box_min, box_max)
+        if turning is None:
+            return normal_step
+        phi_left, phi_right = turning
+        buffer = 3.0 * spacing
+        midpoint = 0.5 * (box_min + box_max)
+        needed_half = max(
+            midpoint - (phi_left - buffer), (phi_right + buffer) - midpoint
+        )
+        target_points = int(np.ceil(2.0 * needed_half / spacing)) + 1
+        current = self._convergence_axis_value(axis)
+        return max(target_points - current, normal_step)
 
     def _convergence_boundary_diagnostic(
         self, esys: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]], axis: str
@@ -291,7 +352,7 @@ class ConvergenceCheckable:
                 target_gap_rel=target_gap_rel,
                 g_floor_GHz=g_floor_GHz,
             )
-        # verify / strict
+        # moderate / strict
         return self._convergence_refine(
             evals_n0=evals_n0,
             evecs_n0=evecs_n0,
@@ -733,8 +794,8 @@ class ConvergenceCheckable:
         axis_refinements: dict[str, tuple[Any, ...]] = {}
 
         for axis in axes:
-            step = self._convergence_step(axis)
             current = self._convergence_axis_value(axis)
+            step = self._convergence_box_refine_step(axis, evals_n0, n_levels)
             clone_1 = self._convergence_clone_at({axis: current + step})
             evals_a1, evecs_a1 = clone_1.eigensys(evals_count=n_eigs)  # type: ignore[attr-defined]
             _, diff_n1 = cutils.cluster_safe_match_energies(
@@ -1438,6 +1499,17 @@ def _apply_mode_ceiling(status: Status, mode: str) -> Status:
     if _STATUS_RANK[status] < _STATUS_RANK[ceiling]:
         return ceiling
     return status
+
+
+def _box_completeness_margin(evals: npt.NDArray[np.float64]) -> float:
+    """Energy margin above the top requested level for the box-completeness check.
+
+    Uses the mean requested-level spacing, so the box is checked against the
+    classically allowed region for roughly one level beyond the requested window.
+    """
+    if evals.size < 2:
+        return 0.0
+    return float((float(np.max(evals)) - float(np.min(evals))) / (evals.size - 1))
 
 
 def _local_isolation_gap(

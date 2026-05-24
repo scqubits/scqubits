@@ -21,6 +21,7 @@ from scqubits.utils.convergence_utils import (
     detect_clusters,
     geometric_ratio_test,
     ho_window_resolvent_estimate,
+    outermost_turning_points,
     pad_charge_basis,
     richardson_estimate,
     subspace_angle,
@@ -366,3 +367,35 @@ class TestWavefunctionOverlap:
     def test_overlap_invariant_to_global_sign(self):
         c = np.asarray([[0.6], [0.0], [0.8]], dtype=np.float64)
         np.testing.assert_allclose(wavefunction_overlap(c, -c, 1, 1), [1.0], atol=1e-12)
+
+
+# ---------------------------------------------------- outermost_turning_points
+
+
+class TestOutermostTurningPoints:
+    def test_pure_parabola(self):
+        # V_eff = phi^2 at energy 4 has turning points +/- 2, found even from a
+        # box far smaller than the classically allowed region.
+        tp = outermost_turning_points(lambda phi: phi**2, 4.0, -0.5, 0.5)
+        assert tp is not None
+        assert tp[0] == pytest.approx(-2.0, abs=1e-3)
+        assert tp[1] == pytest.approx(2.0, abs=1e-3)
+
+    def test_searches_past_barriers(self):
+        # A shallow parabola plus a cosine: the box edges (+/- pi) sit on a
+        # barrier (V > e_win), but wells with bottoms below e_win exist far
+        # beyond, out to |phi| ~ 38.7. The outermost turning point must be found
+        # past the barrier -- the search must not stop just because the box edge
+        # is forbidden.
+        def v_eff(phi):
+            return 0.001 * phi**2 - np.cos(phi)
+
+        tp = outermost_turning_points(v_eff, 0.5, -np.pi, np.pi)
+        assert tp is not None
+        assert 30.0 < tp[1] < 45.0
+        assert -45.0 < tp[0] < -30.0
+
+    def test_non_confining_returns_none(self):
+        # A potential never exceeding e_win cannot be bracketed.
+        tp = outermost_turning_points(lambda phi: -np.ones_like(phi), 0.0, -1.0, 1.0)
+        assert tp is None

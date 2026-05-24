@@ -743,6 +743,44 @@ class TestZeroPi:
             truncated_dim=6,
         )
 
+    def test_box_refinement_sized_to_turning_point(self):
+        # The grid_box refinement is widened to enclose the classically allowed
+        # region for the computed window (its outermost turning points), so a
+        # too-small box cannot be silently accepted; a non-box axis keeps the
+        # ordinary step.
+        zp = self._make()
+        evals = zp.eigenvals(evals_count=4)
+        current = zp._convergence_axis_value("grid_box")
+        step = zp._convergence_box_refine_step("grid_box", evals, 4)
+        spacing = (zp.grid.max_val - zp.grid.min_val) / (zp.grid.pt_count - 1)
+        widened_half = 0.5 * spacing * (current + step - 1)
+        box_half = 0.5 * (zp.grid.max_val - zp.grid.min_val)
+        assert widened_half > box_half
+        assert zp._convergence_box_refine_step(
+            "grid_spacing", evals, 4
+        ) == zp._convergence_step("grid_spacing")
+
+    def test_too_small_box_is_distrusted(self):
+        # A shallow parabola makes the classical region far larger than a small
+        # box; widening to the turning point reveals the truncation error, so the
+        # verdict is distrust even at a loose target.
+        grid = sq.Grid1d(-2 * np.pi, 2 * np.pi, 60)
+        zp = sq.ZeroPi(
+            grid=grid,
+            EJ=10.0,
+            EL=0.01,
+            ECJ=20.0,
+            EC=0.04,
+            ng=0.1,
+            flux=0.2,
+            ncut=12,
+            truncated_dim=6,
+        )
+        report = zp.estimate_convergence(
+            n_levels=3, mode="moderate", target_abs_GHz=1e-2
+        )
+        assert report.aggregate_status == "distrust"
+
     def test_two_fd_channels_plus_charge(self):
         # ZeroPi's phi grid contributes two independent FD channels (finite box
         # and finite spacing); theta contributes a charge tail.
