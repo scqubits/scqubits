@@ -388,7 +388,7 @@ class ConvergenceCheckable:
     ) -> ParamSweepConvergence:
         """Assess convergence across a swept parameter, returning the worst case.
 
-        A single :meth:`estimate_convergence` call certifies only the current
+        A single :meth:`estimate_convergence` call assesses only the current
         parameter set. A plot such as ``plot_evals_vs_paramvals`` instead sweeps
         a parameter at a fixed cutoff, and truncation convergence can vary across
         that range (e.g. fluxonium near half flux). This runs the per-point check
