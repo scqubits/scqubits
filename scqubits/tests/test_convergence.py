@@ -112,9 +112,10 @@ class TestDataclasses:
         )
         text = report.summary()
         assert "aggregate: maybe_converged" in text
-        assert "level 0" in text
-        assert "charge_tail" in text
-        assert "recommendation: do X" in text
+        assert "lvl" in text and "charge_tail" in text
+        assert "-> do X" in text
+        # The inapplicable observed-gap metric is omitted, not shown as a placeholder.
+        assert "eps_gap" not in text
         # __str__ delegates to summary(), so print(report) shows the same text.
         assert str(report) == text
 
@@ -509,12 +510,16 @@ class TestCheckOutcomes:
         )
         assert self._by_name(report.level(0)).get("monotonicity") == "fail"
 
-    def test_summary_renders_checks_line(self):
-        tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        report = tmon.estimate_convergence(
-            n_levels=2, mode="moderate", target_abs_GHz=1e-4
-        )
-        assert "checks:" in report.summary()
+    def test_summary_table_omits_eps_gap_and_shows_checks(self):
+        # The aligned table drops the inapplicable eps_gap field, and shows the
+        # per-check record beneath a dismissed/borderline level.
+        small = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=6, truncated_dim=6)
+        text = small.estimate_convergence(
+            n_levels=3, mode="moderate", target_abs_GHz=1e-6
+        ).summary()
+        assert "eps_gap" not in text
+        assert "lvl" in text  # table header
+        assert "checks" in text  # per-check line under a dismissed/marginal level
 
 
 class TestClusterIntegration:

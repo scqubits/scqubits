@@ -194,63 +194,92 @@ class ConvergenceReport:
     def summary(self) -> str:
         """Return a compact, human-readable multi-line summary of the report.
 
-        Lists the aggregate verdict and worst level, then per level the verdict,
-        truncation channel, error estimate, and any warnings, followed by the
-        per-channel breakdown, the recommendations, and any derived sub-reports
-        (indented).
+        Shows the aggregate verdict and worst level, then an aligned per-level
+        table (level, status, channel, error estimate, estimator); the structured
+        per-check record is shown beneath any dismissed or borderline level. The
+        per-channel breakdown, recommendations, and any derived sub-reports
+        (indented) follow. Columns that do not apply to the report's scope are
+        omitted rather than printed as placeholders.
 
         Returns
         -------
         The formatted summary, the same text produced by ``print(report)``.
         """
         lines = [
-            f"aggregate: {self.aggregate_status}   (worst level: {self.worst_level})"
+            f"aggregate: {self.aggregate_status}   (worst: level {self.worst_level})"
         ]
-        for verdict in self.per_level:
-            abs_err = (
-                "  -  "
-                if verdict.abs_err_est_GHz is None
-                else f"{verdict.abs_err_est_GHz:.2e}"
-            )
-            # Energy levels report a gap-normalized eps_gap_est; derived
-            # quantities report a dimensionless rel_change_est. Show whichever
-            # applies.
-            if verdict.eps_gap_est is not None:
-                metric = f"eps_gap={verdict.eps_gap_est:.2e}"
-            elif verdict.rel_change_est is not None:
-                metric = f"rel_change={verdict.rel_change_est:.2e}"
-            else:
-                metric = "eps_gap=  -  "
-            warns = (
-                "  [" + ", ".join(verdict.warnings) + "]" if verdict.warnings else ""
-            )
-            lines.append(
-                f"  level {verdict.level_index}: {verdict.status:<16} "
-                f"channel={str(verdict.truncation_channel):<18} "
-                f"abs_err={abs_err}  {metric}  "
-                f"via {verdict.estimator_method}{warns}"
-            )
-            if verdict.checks:
-                shorthand = {"not_applicable": "n/a"}
-                parts = [
-                    f"{check.name}={shorthand.get(check.status, check.status)}"
-                    + (f"({check.detail})" if check.detail else "")
-                    for check in verdict.checks
-                ]
-                lines.append("      checks: " + "  ".join(parts))
+        if self.per_level:
+            lines.append("")
+            lines.extend(self._level_table())
         if self.channel_breakdown_GHz:
-            breakdown = {
-                name: f"{value:.2e}"
+            breakdown = "  ".join(
+                f"{name}={value:.2e}"
                 for name, value in self.channel_breakdown_GHz.items()
-            }
-            lines.append(f"  channel_breakdown_GHz: {breakdown}")
+            )
+            lines += ["", f"  channels (GHz): {breakdown}"]
         for recommendation in self.recommendations:
-            lines.append(f"  recommendation: {recommendation}")
+            lines.append(f"  -> {recommendation}")
         if self.derived:
             for name, sub_report in self.derived.items():
                 lines.append(f"  derived [{name}]:")
                 lines.append(textwrap.indent(sub_report.summary(), "    "))
         return "\n".join(lines)
+
+    def _level_table(self) -> list[str]:
+        """Render the per-level verdicts as an aligned text table.
+
+        The metric columns are chosen by what the report actually carries: an
+        energy report shows ``err (GHz)`` (and ``gap_rel`` in observed-gap scope);
+        a derived sub-report shows ``rel_chg``. Warnings trail the row; the
+        structured per-check record is shown on an indented line beneath any
+        ``distrust`` or ``marginal`` level (the full record is always available in
+        ``LevelVerdict.checks``).
+        """
+        levels = self.per_level
+
+        def fmt(value: float | None) -> str:
+            return "" if value is None else f"{value:.2e}"
+
+        # (header, cells, right-align); a metric column is shown only if populated.
+        cols: list[tuple[str, list[str], bool]] = [
+            ("lvl", [str(v.level_index) for v in levels], True),
+            ("status", [v.status for v in levels], False),
+            ("channel", [str(v.truncation_channel) for v in levels], False),
+        ]
+        if any(v.abs_err_est_GHz is not None for v in levels):
+            cols.append(("err (GHz)", [fmt(v.abs_err_est_GHz) for v in levels], True))
+        if any(v.eps_gap_est is not None for v in levels):
+            cols.append(("gap_rel", [fmt(v.eps_gap_est) for v in levels], True))
+        if any(v.rel_change_est is not None for v in levels):
+            cols.append(("rel_chg", [fmt(v.rel_change_est) for v in levels], True))
+        cols.append(("via", [v.estimator_method for v in levels], False))
+
+        widths = [
+            max(len(header), max(len(cell) for cell in cells))
+            for header, cells, _ in cols
+        ]
+
+        def render(row_cells: list[str]) -> str:
+            return "  " + "   ".join(
+                cell.rjust(width) if right else cell.ljust(width)
+                for cell, (_, _, right), width in zip(row_cells, cols, widths)
+            )
+
+        shorthand = {"not_applicable": "n/a"}
+        out = [render([header for header, _, _ in cols]).rstrip()]
+        for index, verdict in enumerate(levels):
+            row = render([cells[index] for _, cells, _ in cols])
+            if verdict.warnings:
+                row += "   [" + ", ".join(verdict.warnings) + "]"
+            out.append(row.rstrip())
+            if verdict.checks and verdict.status in ("distrust", "marginal"):
+                parts = [
+                    f"{check.name}={shorthand.get(check.status, check.status)}"
+                    + (f"({check.detail})" if check.detail else "")
+                    for check in verdict.checks
+                ]
+                out.append(f"      checks {verdict.level_index}: " + "  ".join(parts))
+        return out
 
     def __str__(self) -> str:
         """Return :meth:`summary` so ``print(report)`` shows the readable form."""
