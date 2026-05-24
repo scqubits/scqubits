@@ -102,11 +102,21 @@ class ConvergenceCheckable:
     def _convergence_truncation_channel(self, axis: str) -> TruncationChannel:
         """Return the physical channel label for ``axis``.
 
-        Defaults to ``"charge_tail"``. Concrete qubits override for HO bases
-        (``"HO_tail"``), finite-difference grids (``"FD_stencil"`` /
-        ``"FD_box"``), etc.
+        A concrete qubit maps each refinement axis to its truncation channel: a
+        charge tail (``"charge_tail"``), an oscillator tail (``"HO_tail"``), a
+        finite-difference grid (``"FD_stencil"`` / ``"FD_box"``), or a composite
+        coupling (``"composite_coupling"``). There is deliberately no default:
+        the channel selects channel-specific estimators and recommendations and,
+        for the charge basis alone, enables the variational monotonicity check
+        (the only exactly-nested truncation), so a permissive default would
+        silently mislabel a new qubit's axis and could enable that check on a
+        non-nested basis. A subclass mixing in ``ConvergenceCheckable`` must
+        implement this.
         """
-        return "charge_tail"
+        raise NotImplementedError(
+            f"{type(self).__name__} does not map convergence axis '{axis}' to a "
+            "truncation channel; override _convergence_truncation_channel."
+        )
 
     def _convergence_richardson_order(self, axis: str) -> int | None:
         """Return the Richardson error order ``p`` for a finite-difference axis.
@@ -773,6 +783,10 @@ class ConvergenceCheckable:
             if refinement == "ratio_test"
             else None
         )
+        # Per-cluster monotonicity flags: an exact (charge-basis) Galerkin
+        # truncation must not raise an ordered eigenvalue when enlarged. A
+        # violation dismisses the level in any mode.
+        monotonicity_violation = np.zeros(n_clusters, dtype=np.bool_)
         # When a finite-difference (Richardson) axis is present, the strict-mode
         # estimate must be formed per-axis (Richardson for the FD-stencil channel,
         # geometric elsewhere) and summed -- a single geometric test on the
@@ -795,6 +809,14 @@ class ConvergenceCheckable:
 
         for axis in axes:
             current = self._convergence_axis_value(axis)
+            axis_channel = self._convergence_truncation_channel(axis)
+            # Only the charge basis is an exact principal-submatrix (Galerkin)
+            # truncation, so enlarging it cannot raise an ordered eigenvalue
+            # (min-max). Harmonic-oscillator bases build the potential from
+            # matrix functions of truncated quadratures, and finite-difference
+            # grids are non-variational, so neither truncation is nested and a
+            # rise there is legitimate, not a bug -- both are excluded.
+            axis_is_nested_basis = axis_channel == "charge_tail"
             step = self._convergence_box_refine_step(axis, evals_n0, n_levels)
             clone_1 = self._convergence_clone_at({axis: current + step})
             evals_a1, evecs_a1 = clone_1.eigensys(evals_count=n_eigs)  # type: ignore[attr-defined]
@@ -802,6 +824,14 @@ class ConvergenceCheckable:
                 evals_n0[:n_levels], evals_a1[:n_levels], clusters
             )
             combined_diff_n1 += diff_n1
+            if axis_is_nested_basis:
+                monotonicity_violation |= cutils.nested_basis_monotonicity_violation(
+                    evals_n0[:n_levels],
+                    evals_a1[:n_levels],
+                    clusters,
+                    settings.CONVERGENCE_MONOTONICITY_REL_TOL,
+                    _REFINEMENT_NOISE_FLOOR_GHz,
+                )
 
             clone_2: ConvergenceCheckable | None = None
             evecs_a2: npt.NDArray[np.float64] | None = None
@@ -814,8 +844,16 @@ class ConvergenceCheckable:
                 )
                 assert combined_diff_n2 is not None
                 combined_diff_n2 += diff_n2
-
-            axis_channel = self._convergence_truncation_channel(axis)
+                if axis_is_nested_basis:
+                    monotonicity_violation |= (
+                        cutils.nested_basis_monotonicity_violation(
+                            evals_a1[:n_levels],
+                            evals_a2[:n_levels],
+                            clusters,
+                            settings.CONVERGENCE_MONOTONICITY_REL_TOL,
+                            _REFINEMENT_NOISE_FLOOR_GHz,
+                        )
+                    )
             if use_richardson and diff_n2 is not None:
                 # Per-axis absolute estimate (Richardson for an h**p FD-stencil
                 # axis, geometric otherwise), summed via the triangle inequality.
@@ -907,6 +945,7 @@ class ConvergenceCheckable:
             precomputed_estimate=combined_estimate,
             precomputed_non_asymptotic=combined_non_asymptotic,
             boundary_large=boundary_large,
+            monotonicity_violation=monotonicity_violation,
         )
 
         if not include_derived:
@@ -972,6 +1011,7 @@ class ConvergenceCheckable:
         precomputed_estimate: npt.NDArray[np.float64] | None = None,
         precomputed_non_asymptotic: npt.NDArray[np.bool_] | None = None,
         boundary_large: list[bool] | None = None,
+        monotonicity_violation: npt.NDArray[np.bool_] | None = None,
     ) -> ConvergenceReport:
         """Assemble the LevelVerdicts and ConvergenceReport from per-cluster
         refinement differences.
@@ -1023,6 +1063,16 @@ class ConvergenceCheckable:
             precomputed_non_asymptotic=precomputed_non_asymptotic,
         )
 
+        # Expand the per-cluster monotonicity flags to per-level: a variational
+        # basis whose ordered energies rose under refinement is dismissed.
+        per_level_monotonicity = [False] * n_levels
+        if monotonicity_violation is not None:
+            for cluster_idx, cluster in enumerate(clusters):
+                if monotonicity_violation[cluster_idx]:
+                    for k in cluster:
+                        per_level_monotonicity[k] = True
+                        per_level_warnings[k].append("monotonicity_violation")
+
         eps_gap_est = _observed_gap_eps(
             scope=scope,
             evals_n0=evals_n0,
@@ -1043,6 +1093,7 @@ class ConvergenceCheckable:
             target_gap_rel=target_gap_rel,
             mode=mode,
             non_asymptotic=per_level_non_asymptotic,
+            monotonicity_violation=per_level_monotonicity,
         )
 
         # A level reaching a basis boundary has a non-perturbative dropped tail:
@@ -1157,6 +1208,13 @@ class ConvergenceCheckable:
                     f"{bump} and re-run; the worst-level estimate exceeded the "
                     f"target threshold"
                 )
+        if any("monotonicity_violation" in v.warnings for v in verdicts):
+            recommendations.append(
+                "energies increased when the basis was enlarged, violating the "
+                "variational bound: this indicates a basis-construction, operator, "
+                "or eigensolver problem rather than simple undertruncation -- "
+                "verify the model setup and backend before trusting any level"
+            )
         flagged = [
             v.level_index
             for v in verdicts
@@ -1740,6 +1798,7 @@ def _assign_level_statuses(
     target_gap_rel: float,
     mode: str,
     non_asymptotic: list[bool],
+    monotonicity_violation: list[bool],
 ) -> list[Status]:
     """Assign each level's verdict from its estimate, the target, and the mode.
 
@@ -1748,7 +1807,9 @@ def _assign_level_statuses(
     it. A level whose two-step ratio test failed (``R >= 1`` on real movement,
     flagged in ``non_asymptotic``) is dismissed to ``distrust`` -- its error
     estimate is not trustworthy -- regardless of how small the one-step movement
-    happened to be.
+    happened to be. A level flagged in ``monotonicity_violation`` (a variational
+    basis whose ordered energies rose under refinement) is likewise dismissed to
+    ``distrust`` in every mode.
     """
     per_level_status: list[Status] = []
     for k in range(n_levels):
@@ -1760,7 +1821,7 @@ def _assign_level_statuses(
             target_gap_rel=target_gap_rel,
         )
         status = _apply_mode_ceiling(status, mode)
-        if non_asymptotic[k]:
+        if non_asymptotic[k] or monotonicity_violation[k]:
             status = "distrust"
         per_level_status.append(status)
     return per_level_status

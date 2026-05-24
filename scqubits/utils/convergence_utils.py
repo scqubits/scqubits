@@ -170,6 +170,64 @@ def cluster_safe_match_energies(
     return list(clusters_a), max_diffs
 
 
+def nested_basis_monotonicity_violation(
+    evals_coarse: npt.NDArray[np.float64],
+    evals_fine: npt.NDArray[np.float64],
+    clusters: list[tuple[int, ...]],
+    rel_tol: float,
+    abs_floor_GHz: float,
+) -> npt.NDArray[np.bool_]:
+    """Flag clusters whose energies rose when a nested variational basis grew.
+
+    For a Rayleigh-Ritz calculation in nested approximation spaces, the ordered
+    eigenvalues are non-increasing as the basis is enlarged: the min-max theorem
+    gives ``E_fine[k] <= E_coarse[k]`` for every ordered level. An upward move
+    larger than ``max(rel_tol * |E_coarse|, abs_floor_GHz)`` violates the
+    variational bound; in a representation where monotonicity should hold this
+    points to a non-nested basis, an inconsistent operator construction, an
+    eigenvalue-matching error, or backend instability, rather than mere
+    truncation. Within each cluster the comparison is on sorted eigenvalue sets,
+    matching :func:`cluster_safe_match_energies`.
+
+    Parameters
+    ----------
+    evals_coarse, evals_fine:
+        Eigenvalue arrays of the same length, sorted ascending, at the smaller
+        (``coarse``) and larger (``fine``) nested basis.
+    clusters:
+        Cluster partition for ``evals_coarse`` (as returned by
+        :func:`detect_clusters`).
+    rel_tol:
+        Relative tolerance on an upward move, scaled by ``|E_coarse|``.
+    abs_floor_GHz:
+        Absolute floor (GHz) below which an upward move is treated as roundoff.
+
+    Returns
+    -------
+    ndarray of bool
+        Entry ``k`` is ``True`` when some level in cluster ``k`` rose by more
+        than the tolerance.
+
+    Raises
+    ------
+    ValueError
+        If the two spectra have different lengths.
+    """
+    if len(evals_coarse) != len(evals_fine):
+        raise ValueError(
+            f"Spectra have different lengths: {len(evals_coarse)} vs {len(evals_fine)}"
+        )
+
+    violations = np.zeros(len(clusters), dtype=np.bool_)
+    for idx, cluster in enumerate(clusters):
+        sorted_coarse = np.sort(evals_coarse[list(cluster)])
+        sorted_fine = np.sort(evals_fine[list(cluster)])
+        upward = sorted_fine - sorted_coarse
+        tol = np.maximum(rel_tol * np.abs(sorted_coarse), abs_floor_GHz)
+        violations[idx] = bool(np.any(upward > tol))
+    return violations
+
+
 def geometric_ratio_test(
     diff_first: npt.NDArray[np.float64],
     diff_second: npt.NDArray[np.float64],

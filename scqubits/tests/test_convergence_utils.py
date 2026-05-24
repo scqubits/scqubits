@@ -21,6 +21,7 @@ from scqubits.utils.convergence_utils import (
     detect_clusters,
     geometric_ratio_test,
     ho_window_resolvent_estimate,
+    nested_basis_monotonicity_violation,
     outermost_turning_points,
     pad_charge_basis,
     richardson_estimate,
@@ -130,6 +131,73 @@ class TestClusterSafeMatchEnergies:
         # Within the cluster, only the third member moved (by 0.003).
         np.testing.assert_allclose(max_diffs[1], 0.003, rtol=1e-12)
         assert max_diffs[2] == 0.0
+
+
+# ----------------------------------------------- nested_basis_monotonicity_violation
+
+
+class TestNestedBasisMonotonicityViolation:
+    REL_TOL = 1e-7
+    FLOOR = 1e-9
+
+    def test_monotone_decrease_no_violation(self):
+        # Energies fall when the nested basis grows: variational, no violation.
+        coarse = np.asarray([1.0, 2.0, 3.0], dtype=np.float64)
+        fine = np.asarray([0.9, 1.9, 2.9], dtype=np.float64)
+        clusters = [(0,), (1,), (2,)]
+        out = nested_basis_monotonicity_violation(
+            coarse, fine, clusters, self.REL_TOL, self.FLOOR
+        )
+        np.testing.assert_array_equal(out, [False, False, False])
+
+    def test_upward_move_flagged(self):
+        # Level 0 rises by 0.5 -- a clear variational-bound violation.
+        coarse = np.asarray([1.0, 2.0], dtype=np.float64)
+        fine = np.asarray([1.5, 1.9], dtype=np.float64)
+        clusters = [(0,), (1,)]
+        out = nested_basis_monotonicity_violation(
+            coarse, fine, clusters, self.REL_TOL, self.FLOOR
+        )
+        np.testing.assert_array_equal(out, [True, False])
+
+    def test_roundoff_below_absolute_floor_no_violation(self):
+        # An upward wiggle below the eigensolver noise floor is roundoff.
+        coarse = np.asarray([1.0], dtype=np.float64)
+        fine = np.asarray([1.0 + 5e-10], dtype=np.float64)
+        out = nested_basis_monotonicity_violation(coarse, fine, [(0,)], 0.0, self.FLOOR)
+        np.testing.assert_array_equal(out, [False])
+
+    def test_relative_tolerance_scales_with_energy(self):
+        # tol = rel_tol * |E| = 1e-5 at E = 100; 5e-6 is below it, 2e-5 above.
+        coarse = np.asarray([100.0], dtype=np.float64)
+        below = nested_basis_monotonicity_violation(
+            coarse, coarse + 5e-6, [(0,)], self.REL_TOL, self.FLOOR
+        )
+        above = nested_basis_monotonicity_violation(
+            coarse, coarse + 2e-5, [(0,)], self.REL_TOL, self.FLOOR
+        )
+        np.testing.assert_array_equal(below, [False])
+        np.testing.assert_array_equal(above, [True])
+
+    def test_intracluster_rotation_is_not_a_violation(self):
+        # Two near-degenerate levels rotate within a cluster but the sorted
+        # set still falls: sorted-set comparison reports no violation.
+        coarse = np.asarray([1.0, 1.01], dtype=np.float64)
+        fine = np.asarray([1.005, 0.999], dtype=np.float64)  # sorted: 0.999, 1.005
+        out = nested_basis_monotonicity_violation(
+            coarse, fine, [(0, 1)], self.REL_TOL, self.FLOOR
+        )
+        np.testing.assert_array_equal(out, [False])
+
+    def test_mismatched_lengths_raises(self):
+        with pytest.raises(ValueError, match="different lengths"):
+            nested_basis_monotonicity_violation(
+                np.asarray([0.0, 1.0]),
+                np.asarray([0.0, 1.0, 2.0]),
+                [(0,), (1,)],
+                self.REL_TOL,
+                self.FLOOR,
+            )
 
 
 # ----------------------------------------------------------- geometric_ratio_test

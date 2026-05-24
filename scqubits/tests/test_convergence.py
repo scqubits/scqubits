@@ -24,7 +24,7 @@ import pytest
 
 import scqubits as sq
 
-from scqubits.core.convergence import _status_rank
+from scqubits.core.convergence import _assign_level_statuses, _status_rank
 from scqubits.core.convergence_report import (
     ConvergenceReport,
     ImplementationAudit,
@@ -377,6 +377,74 @@ class TestEnergyCheapMode:
 
 
 # ---------------------------------------------------------------- cluster tests
+
+
+class TestMonotonicityCheck:
+    """Nested-basis variational monotonicity falsification check."""
+
+    def test_assign_level_statuses_forces_distrust(self):
+        # A flagged level is dismissed to distrust regardless of how small its
+        # error estimate is; an unflagged level keeps its (passing) verdict.
+        statuses = _assign_level_statuses(
+            n_levels=2,
+            per_level_abs_err=np.array([1e-9, 1e-9]),
+            eps_gap_est=[None, None],
+            per_level_warnings=[[], []],
+            scope="absolute",
+            target_abs_GHz=1e-3,
+            target_gap_rel=1e-3,
+            mode="strict",
+            non_asymptotic=[False, False],
+            monotonicity_violation=[True, False],
+        )
+        assert statuses == ["distrust", "likely_converged"]
+
+    def test_no_false_alarm_on_converged_transmon(self):
+        tmon = sq.Transmon(EJ=30.0, EC=1.2, ng=0.0, ncut=30)
+        report = tmon.estimate_convergence(
+            n_levels=5, mode="strict", target_abs_GHz=1e-3
+        )
+        assert all("monotonicity_violation" not in v.warnings for v in report.per_level)
+
+    def test_ho_basis_axis_is_excluded(self):
+        # A harmonic-oscillator basis is not a nested Galerkin truncation (its
+        # potential is built from matrix functions of truncated quadratures), so
+        # it is excluded from the check even at a low, non-monotone cutoff.
+        flx = sq.Fluxonium(EJ=8.9, EC=2.5, EL=0.5, flux=0.5, cutoff=14)
+        report = flx.estimate_convergence(
+            n_levels=4, mode="moderate", target_abs_GHz=0.05
+        )
+        assert all("monotonicity_violation" not in v.warnings for v in report.per_level)
+
+    def test_no_false_alarm_on_tensored_charge_axis(self):
+        # A flat Circuit's periodic-charge axis (cutoff_n_*) is a nested charge
+        # basis tensored with the other, fixed coordinates; growing it lowers the
+        # energies and must not raise a monotonicity false alarm.
+        circ = _zero_pi_circuit(cutoff_n=9, cutoff_ext=8)
+        report = circ.estimate_convergence(
+            n_levels=4, mode="moderate", target_abs_GHz=1e-3
+        )
+        assert all("monotonicity_violation" not in v.warnings for v in report.per_level)
+
+    def test_violation_propagates_to_report(self, monkeypatch):
+        # Force the utility to flag the first cluster; the full pipeline should
+        # surface the warning, dismiss the level, and emit the dedicated advice.
+        import scqubits.utils.convergence_utils as cutils
+
+        def fake(coarse, fine, clusters, rel_tol, floor):
+            flags = np.zeros(len(clusters), dtype=np.bool_)
+            if len(clusters):
+                flags[0] = True
+            return flags
+
+        monkeypatch.setattr(cutils, "nested_basis_monotonicity_violation", fake)
+        tmon = sq.Transmon(EJ=30.0, EC=1.2, ng=0.0, ncut=30)
+        report = tmon.estimate_convergence(
+            n_levels=3, mode="moderate", target_abs_GHz=1e-3
+        )
+        assert report.per_level[0].status == "distrust"
+        assert "monotonicity_violation" in report.per_level[0].warnings
+        assert any("variational bound" in rec for rec in report.recommendations)
 
 
 class TestClusterIntegration:

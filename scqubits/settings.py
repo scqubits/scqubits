@@ -186,8 +186,14 @@ CONVERGENCE_DEFAULT_GAP_REL = 1e-3
 CONVERGENCE_CLUSTER_RATIO = 0.1
 # Safety factor S applied to one-step refinement estimates,
 # abs_err_est = S * |E(N+dN) - E(N)|. Default 2.0 corresponds to assuming a
-# refinement-ratio bound R <= 1/2 (calibration tightens or loosens as needed).
+# refinement-ratio bound R <= 1/2 (a larger factor is more conservative).
 CONVERGENCE_SAFETY_FACTOR = 2.0
+# Relative tolerance for the charge-basis variational monotonicity check. The
+# charge basis is an exact principal-submatrix truncation, so enlarging it must
+# not raise an ordered eigenvalue (min-max). An upward move larger than
+# max(CONVERGENCE_MONOTONICITY_REL_TOL * |E|, eigensolver noise floor) violates
+# the variational bound and dismisses the level (distrust).
+CONVERGENCE_MONOTONICITY_REL_TOL = 1e-7
 # Floor on rates (Hz) when comparing coherence channels; below this, the
 # rate-relative-error denominator is clamped to avoid divide-by-zero in
 # T = 1/Gamma reporting. (Used in PR-3.)
