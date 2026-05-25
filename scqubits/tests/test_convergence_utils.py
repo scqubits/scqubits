@@ -21,18 +21,13 @@ from scqubits.utils.convergence_utils import (
     detect_clusters,
     geometric_ratio_test,
     ho_window_resolvent_estimate,
-    nested_basis_monotonicity_violation,
+    galerkin_monotonicity_violation,
     outermost_turning_points,
     pad_charge_basis,
     richardson_estimate,
     subspace_angle,
     wavefunction_overlap,
 )
-
-# Mark all tests in this module as slow so they participate in the
-# `-m "not slow"` quick suite opt-out.
-pytestmark = pytest.mark.slow
-
 
 # --------------------------------------------------------------- detect_clusters
 
@@ -133,10 +128,10 @@ class TestClusterSafeMatchEnergies:
         assert max_diffs[2] == 0.0
 
 
-# ----------------------------------------------- nested_basis_monotonicity_violation
+# ----------------------------------------------- galerkin_monotonicity_violation
 
 
-class TestNestedBasisMonotonicityViolation:
+class TestGalerkinMonotonicityViolation:
     REL_TOL = 1e-7
     FLOOR = 1e-9
 
@@ -145,7 +140,7 @@ class TestNestedBasisMonotonicityViolation:
         coarse = np.asarray([1.0, 2.0, 3.0], dtype=np.float64)
         fine = np.asarray([0.9, 1.9, 2.9], dtype=np.float64)
         clusters = [(0,), (1,), (2,)]
-        out = nested_basis_monotonicity_violation(
+        out = galerkin_monotonicity_violation(
             coarse, fine, clusters, self.REL_TOL, self.FLOOR
         )
         np.testing.assert_array_equal(out, [False, False, False])
@@ -155,7 +150,7 @@ class TestNestedBasisMonotonicityViolation:
         coarse = np.asarray([1.0, 2.0], dtype=np.float64)
         fine = np.asarray([1.5, 1.9], dtype=np.float64)
         clusters = [(0,), (1,)]
-        out = nested_basis_monotonicity_violation(
+        out = galerkin_monotonicity_violation(
             coarse, fine, clusters, self.REL_TOL, self.FLOOR
         )
         np.testing.assert_array_equal(out, [True, False])
@@ -164,16 +159,16 @@ class TestNestedBasisMonotonicityViolation:
         # An upward wiggle below the eigensolver noise floor is roundoff.
         coarse = np.asarray([1.0], dtype=np.float64)
         fine = np.asarray([1.0 + 5e-10], dtype=np.float64)
-        out = nested_basis_monotonicity_violation(coarse, fine, [(0,)], 0.0, self.FLOOR)
+        out = galerkin_monotonicity_violation(coarse, fine, [(0,)], 0.0, self.FLOOR)
         np.testing.assert_array_equal(out, [False])
 
     def test_relative_tolerance_scales_with_energy(self):
         # tol = rel_tol * |E| = 1e-5 at E = 100; 5e-6 is below it, 2e-5 above.
         coarse = np.asarray([100.0], dtype=np.float64)
-        below = nested_basis_monotonicity_violation(
+        below = galerkin_monotonicity_violation(
             coarse, coarse + 5e-6, [(0,)], self.REL_TOL, self.FLOOR
         )
-        above = nested_basis_monotonicity_violation(
+        above = galerkin_monotonicity_violation(
             coarse, coarse + 2e-5, [(0,)], self.REL_TOL, self.FLOOR
         )
         np.testing.assert_array_equal(below, [False])
@@ -184,14 +179,14 @@ class TestNestedBasisMonotonicityViolation:
         # set still falls: sorted-set comparison reports no violation.
         coarse = np.asarray([1.0, 1.01], dtype=np.float64)
         fine = np.asarray([1.005, 0.999], dtype=np.float64)  # sorted: 0.999, 1.005
-        out = nested_basis_monotonicity_violation(
+        out = galerkin_monotonicity_violation(
             coarse, fine, [(0, 1)], self.REL_TOL, self.FLOOR
         )
         np.testing.assert_array_equal(out, [False])
 
     def test_mismatched_lengths_raises(self):
         with pytest.raises(ValueError, match="different lengths"):
-            nested_basis_monotonicity_violation(
+            galerkin_monotonicity_violation(
                 np.asarray([0.0, 1.0]),
                 np.asarray([0.0, 1.0, 2.0]),
                 [(0,), (1,)],

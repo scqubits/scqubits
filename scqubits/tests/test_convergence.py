@@ -10,9 +10,9 @@
 ############################################################################
 """Integration tests for the convergence-diagnostics framework.
 
-PR-1 scope: dataclass construction; moderate / strict / cheap mode energy
-convergence on Transmon; cheap-mode degradation; recommendations; the
-top-level ``estimate_convergence`` shim.
+Covers dataclass construction; cheap / moderate / strict energy convergence
+and degradation across the qubit classes; per-level checks; recommendations;
+and the top-level ``estimate_convergence`` shim.
 """
 
 from __future__ import annotations
@@ -438,7 +438,7 @@ class TestMonotonicityCheck:
                 flags[0] = True
             return flags
 
-        monkeypatch.setattr(cutils, "nested_basis_monotonicity_violation", fake)
+        monkeypatch.setattr(cutils, "galerkin_monotonicity_violation", fake)
         tmon = sq.Transmon(EJ=30.0, EC=1.2, ng=0.0, ncut=30)
         report = tmon.estimate_convergence(
             n_levels=3, mode="moderate", target_abs_GHz=1e-3
@@ -503,7 +503,7 @@ class TestCheckOutcomes:
                 flags[0] = True
             return flags
 
-        monkeypatch.setattr(cutils, "nested_basis_monotonicity_violation", fake)
+        monkeypatch.setattr(cutils, "galerkin_monotonicity_violation", fake)
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
         report = tmon.estimate_convergence(
             n_levels=3, mode="moderate", target_abs_GHz=1e-4
@@ -693,7 +693,7 @@ class TestCoherenceChannel:
         }
 
 
-# ------------------------------------------------------- TunableTransmon (Stage 2)
+# ------------------------------------------------------- TunableTransmon
 
 
 class TestTunableTransmon:
@@ -732,7 +732,7 @@ class TestTunableTransmon:
         assert report.aggregate_status in {"marginal", "distrust"}
 
 
-# ------------------------------------------------------------- Fluxonium (Stage 2)
+# ------------------------------------------------------------- Fluxonium
 
 
 class TestFluxonium:
@@ -809,7 +809,7 @@ class TestFluxonium:
         assert report.aggregate_status == "distrust"
 
 
-# ------------------------------------------------------------- FluxQubit (Stage 2)
+# ------------------------------------------------------------- FluxQubit
 
 
 class TestFluxQubit:
@@ -867,7 +867,7 @@ class TestFluxQubit:
         assert abs(complex(padded.sum()) - 1.0) < 1e-12
 
 
-# ---------------------------------------------------------------- ZeroPi (Stage 2)
+# ---------------------------------------------------------------- ZeroPi
 
 
 class TestZeroPi:
@@ -1442,7 +1442,7 @@ class TestCircuit:
         assert report.per_level
 
 
-# ------------------------------------------------- Circuit (hierarchical, Stage 3b)
+# ------------------------------------------------- Circuit (hierarchical)
 
 
 def _hd_zero_pi_circuit():

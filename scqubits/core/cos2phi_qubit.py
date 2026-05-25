@@ -594,8 +594,8 @@ class Cos2PhiQubit(
     # Three independent truncations in a flat product basis (phi/zeta Fock,
     # theta charge): the theta charge cutoff and the two oscillator cutoffs. The
     # multi-axis engine refines each, re-diagonalizes, and reports the dominant
-    # channel. Being multi-coordinate, quick mode has no clean cheap estimate, so
-    # it is verify-recommended (the default mixin behavior).
+    # channel. Being multi-coordinate, it has no clean cheap perturbative
+    # estimate, so moderate mode is recommended (the default mixin behavior).
     _convergence_axes: tuple[str, ...] = ("ncut", "phi_cut", "zeta_cut")
     _convergence_basis: str = "charge(theta) x fock(phi) x fock(zeta)"
 

@@ -119,6 +119,25 @@ class ConvergenceCheckable:
             "truncation channel; override _convergence_truncation_channel."
         )
 
+    def _convergence_axis_is_galerkin(self, axis: str) -> bool:
+        """Whether enlarging ``axis`` is a Galerkin (principal-submatrix) refinement.
+
+        The variational monotonicity check is sound only when the truncated
+        Hamiltonian is a principal submatrix of one fixed Hermitian matrix over a
+        nested sequence of subspaces: MacDonald's theorem (the eigenvalue form of
+        Cauchy interlacing) then guarantees each ordered eigenvalue is a
+        non-increasing upper bound as the cutoff grows, so an upward move is a
+        genuine red flag rather than ordinary truncation noise. The single-island
+        charge basis is the only such truncation in scqubits -- harmonic-
+        oscillator operators are built from matrix functions of truncated
+        quadratures and finite-difference grids are non-variational, so a nested
+        basis alone does not qualify. The default keys off the charge-tail
+        channel; a qubit whose charge axis is not an individual principal
+        submatrix (e.g. a tensored multi-island charge basis) must override this
+        to return ``False``.
+        """
+        return self._convergence_truncation_channel(axis) == "charge_tail"
+
     def _convergence_richardson_order(self, axis: str) -> int | None:
         """Return the Richardson error order ``p`` for a finite-difference axis.
 
@@ -199,7 +218,7 @@ class ConvergenceCheckable:
 
         For Transmon: ``|c_{-ncut, k}|^2 + |c_{+ncut, k}|^2`` for each kept
         level ``k``. Returns ``None`` if no cheap diagnostic is available
-        for this axis; quick mode then falls back to ``unverified``.
+        for this axis; cheap mode then falls back to ``unverified``.
         """
         return None
 
@@ -214,10 +233,10 @@ class ConvergenceCheckable:
         A qubit with a tractable dropped-space residual (e.g. a 1D charge tail)
         overrides this to return ``(estimate, perturbative_ok, boundary_prob)``
         per level: a second-order tail error estimate (GHz), a flag that the tail
-        is in the perturbative regime, and the boundary probability. Quick mode
+        is in the perturbative regime, and the boundary probability. Cheap mode
         then reports a ``perturbative`` estimate instead of a bare diagnostic.
         Returns ``None`` (the default) when no such estimate is available, in
-        which case quick mode falls back to the boundary diagnostic.
+        which case cheap mode falls back to the boundary diagnostic.
         """
         return None
 
@@ -566,7 +585,7 @@ class ConvergenceCheckable:
         boundary-amplitude diagnostic. Cheap mode never makes a verification
         claim -- the best verdict it returns is ``unverified``.
         """
-        # Quick mode assesses the first (dominant) axis without refinement.
+        # Cheap mode assesses the first (dominant) axis without refinement.
         axis = self._convergence_axes[0]
         channel: TruncationChannel = self._convergence_truncation_channel(axis)
 
@@ -597,7 +616,7 @@ class ConvergenceCheckable:
 
         # Boundary amplitude under which the cheap diagnostic raises no red flag.
         # Conservative -- a larger amplitude triggers a recommendation to escalate.
-        QUICK_BOUNDARY_THRESHOLD = 1e-6
+        CHEAP_BOUNDARY_THRESHOLD = 1e-6
 
         for k in range(n_levels):
             warnings: list[str] = []
@@ -616,11 +635,11 @@ class ConvergenceCheckable:
                     f"exceeds {_BOUNDARY_PROBABILITY_LARGE:.0e}; the kept state reaches "
                     f"the basis boundary -- increase the cutoff (or widen the box)"
                 )
-            elif boundary_amplitudes[k] >= QUICK_BOUNDARY_THRESHOLD:
+            elif boundary_amplitudes[k] >= CHEAP_BOUNDARY_THRESHOLD:
                 warnings.append("boundary_amplitude_above_threshold")
                 recommendations.append(
                     f"level {k}: boundary amplitude {boundary_amplitudes[k]:.2e} "
-                    f"exceeds cheap-mode threshold {QUICK_BOUNDARY_THRESHOLD:.0e}; "
+                    f"exceeds cheap-mode threshold {CHEAP_BOUNDARY_THRESHOLD:.0e}; "
                     f"re-run with mode='moderate' to obtain an empirical estimate"
                 )
 
@@ -691,7 +710,7 @@ class ConvergenceCheckable:
         large_boundary_prob = _BOUNDARY_PROBABILITY_LARGE
         # The perturbative tail estimate omits higher-order and far-tail
         # contributions, so it is not a bound; apply the same safety factor the
-        # refinement modes use so a quick verdict carries a comparable margin.
+        # refinement modes use so the cheap-mode verdict carries a comparable margin.
         safety_factor = settings.CONVERGENCE_SAFETY_FACTOR
 
         per_level: list[LevelVerdict] = []
@@ -789,7 +808,7 @@ class ConvergenceCheckable:
         include_derived: bool = False,
         derived_quantities: tuple[str, ...] = (),
     ) -> ConvergenceReport:
-        """Verify / strict mode: refine cutoff(s), compare cluster-matched energies.
+        """Moderate / strict mode: refine cutoff(s), compare cluster-matched energies.
 
         When ``include_derived`` is set, the refined eigenvectors (and clones,
         for matrix elements) are reused to build the requested derived per-level
@@ -820,7 +839,7 @@ class ConvergenceCheckable:
         # estimate must be formed per-axis (Richardson for the FD-stencil channel,
         # geometric elsewhere) and summed -- a single geometric test on the
         # summed refinement differences would misjudge the h**p stencil channel. Non-FD qubits
-        # and verify mode keep the summed-refinement difference path unchanged.
+        # and moderate mode keep the summed-refinement difference path unchanged.
         use_richardson = refinement == "ratio_test" and any(
             self._convergence_richardson_order(a) is not None for a in axes
         )
@@ -839,13 +858,9 @@ class ConvergenceCheckable:
         for axis in axes:
             current = self._convergence_axis_value(axis)
             axis_channel = self._convergence_truncation_channel(axis)
-            # Only the charge basis is an exact principal-submatrix (Galerkin)
-            # truncation, so enlarging it cannot raise an ordered eigenvalue
-            # (min-max). Harmonic-oscillator bases build the potential from
-            # matrix functions of truncated quadratures, and finite-difference
-            # grids are non-variational, so neither truncation is nested and a
-            # rise there is legitimate, not a bug -- both are excluded.
-            axis_is_nested_basis = axis_channel == "charge_tail"
+            # The monotonicity falsification check is sound only on a Galerkin
+            # (principal-submatrix) truncation; see _convergence_axis_is_galerkin.
+            axis_is_galerkin = self._convergence_axis_is_galerkin(axis)
             step = self._convergence_box_refine_step(axis, evals_n0, n_levels)
             clone_1 = self._convergence_clone_at({axis: current + step})
             evals_a1, evecs_a1 = clone_1.eigensys(evals_count=n_eigs)  # type: ignore[attr-defined]
@@ -853,8 +868,8 @@ class ConvergenceCheckable:
                 evals_n0[:n_levels], evals_a1[:n_levels], clusters
             )
             combined_diff_n1 += diff_n1
-            if axis_is_nested_basis:
-                monotonicity_violation |= cutils.nested_basis_monotonicity_violation(
+            if axis_is_galerkin:
+                monotonicity_violation |= cutils.galerkin_monotonicity_violation(
                     evals_n0[:n_levels],
                     evals_a1[:n_levels],
                     clusters,
@@ -873,15 +888,13 @@ class ConvergenceCheckable:
                 )
                 assert combined_diff_n2 is not None
                 combined_diff_n2 += diff_n2
-                if axis_is_nested_basis:
-                    monotonicity_violation |= (
-                        cutils.nested_basis_monotonicity_violation(
-                            evals_a1[:n_levels],
-                            evals_a2[:n_levels],
-                            clusters,
-                            settings.CONVERGENCE_MONOTONICITY_REL_TOL,
-                            _REFINEMENT_NOISE_FLOOR_GHz,
-                        )
+                if axis_is_galerkin:
+                    monotonicity_violation |= cutils.galerkin_monotonicity_violation(
+                        evals_a1[:n_levels],
+                        evals_a2[:n_levels],
+                        clusters,
+                        settings.CONVERGENCE_MONOTONICITY_REL_TOL,
+                        _REFINEMENT_NOISE_FLOOR_GHz,
                     )
             if use_richardson and diff_n2 is not None:
                 # Per-axis absolute estimate (Richardson for an h**p FD-stencil
@@ -2001,7 +2014,7 @@ def _matrix_element_refinement_diff(
             m1 = np.asarray(
                 qubit_b.matrixelement_table(op_name, evecs=evecs_b[:, :n_levels])
             )
-        except Exception:
+        except (NotImplementedError, AttributeError, ValueError):
             skipped.append(op_name)
             continue
         if m0.shape != (n_levels, n_levels) or m1.shape != (n_levels, n_levels):
@@ -2170,7 +2183,7 @@ def _coherence_rate_refinement_diff(
                 abs(float(getattr(qubit_b, channel)(get_rate=True, esys=esys_b)))
                 * to_hz
             )
-        except Exception:
+        except (NotImplementedError, AttributeError, ValueError):
             skipped.append(channel)
             continue
         names.append(channel)

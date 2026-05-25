@@ -97,7 +97,7 @@ class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot, ConvergenceChe
     product basis whose refinement axes are the per-variable cutoffs
     (``self.cutoff_names``): periodic charge cutoffs (``charge_tail``) and extended
     cutoffs (``FD_stencil`` for a discretized variable, ``HO_tail`` for a harmonic
-    one). Hierarchical diagonalization (Stage 3b) delegates to the circuit's
+    one). Hierarchical diagonalization delegates to the circuit's
     internal :class:`.HilbertSpace` -- handled in :meth:`estimate_convergence`.
     """
 

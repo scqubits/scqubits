@@ -141,8 +141,8 @@ def cluster_safe_match_energies(
     Returns
     -------
     clusters_b : list of tuple of int
-        The index partition for ``evals_b``; in this PR identical to
-        ``clusters_a`` (direct-index mapping).
+        The index partition for ``evals_b``; identical to ``clusters_a``
+        (direct-index mapping).
     max_diff_per_cluster : ndarray
         Entry ``k`` is the maximum of
         ``|sorted(evals_a[c]) - sorted(evals_b[c])|`` over the indices in
@@ -164,27 +164,26 @@ def cluster_safe_match_energies(
         sorted_b = np.sort(evals_b[list(cluster)])
         max_diffs[idx] = float(np.max(np.abs(sorted_a - sorted_b)))
 
-    # PR-1 uses direct-index mapping for cluster correspondence.
-    # PR-2 may add a centroid-overlap-based matching for cases where the
-    # cluster structure itself changes between cutoffs.
+    # Direct-index mapping: cluster ``c`` in A corresponds to the same indices in
+    # B, which holds when the cluster structure is stable across cutoffs.
     return list(clusters_a), max_diffs
 
 
-def nested_basis_monotonicity_violation(
+def galerkin_monotonicity_violation(
     evals_coarse: npt.NDArray[np.float64],
     evals_fine: npt.NDArray[np.float64],
     clusters: list[tuple[int, ...]],
     rel_tol: float,
     abs_floor_GHz: float,
 ) -> npt.NDArray[np.bool_]:
-    """Flag clusters whose energies rose when a nested variational basis grew.
+    """Flag clusters whose energies rose when a Galerkin truncation grew.
 
     For a Rayleigh-Ritz calculation in nested approximation spaces, the ordered
     eigenvalues are non-increasing as the basis is enlarged: the min-max theorem
     gives ``E_fine[k] <= E_coarse[k]`` for every ordered level. An upward move
     larger than ``max(rel_tol * |E_coarse|, abs_floor_GHz)`` violates the
     variational bound; in a representation where monotonicity should hold this
-    points to a non-nested basis, an inconsistent operator construction, an
+    points to a non-variational (non-principal-submatrix) truncation, an
     eigenvalue-matching error, or backend instability, rather than mere
     truncation. Within each cluster the comparison is on sorted eigenvalue sets,
     matching :func:`cluster_safe_match_energies`.

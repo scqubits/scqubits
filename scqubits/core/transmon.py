@@ -172,7 +172,7 @@ class Transmon(
         Returns ``|c_{-ncut, k}|^2 + |c_{+ncut, k}|^2`` per kept level
         ``k``. In the charge basis, large boundary amplitudes signal that
         the truncated eigenstate has appreciable support at the edge of
-        the kept space and is therefore suspect; quick mode promotes a
+        the kept space and is therefore suspect; cheap mode promotes a
         level out of ``unverified`` only when this signal is well below a
         small threshold.
 

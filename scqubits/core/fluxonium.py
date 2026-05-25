@@ -199,7 +199,7 @@ class Fluxonium(
         finite dropped window omits both the far-dropped residual and the Schur
         self-energy of the remaining dropped space, so it is not sign-definite. If
         the omitted-window residual is not small the level is reported unverified
-        in quick mode and should be checked by refinement. Returns ``None`` for an
+        in cheap mode and should be checked by refinement. Returns ``None`` for an
         unrecognized axis.
         """
         if axis != "cutoff":
