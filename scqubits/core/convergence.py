@@ -27,7 +27,7 @@ from __future__ import annotations
 import copy
 import dataclasses
 
-from typing import Any, Callable, Sequence
+from typing import Any, Callable, Sequence, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -41,8 +41,11 @@ from scqubits.core.convergence_report import (
     ConvergenceReport,
     ImplementationAudit,
     LevelVerdict,
+    Mode,
     ParamSweepConvergence,
+    Refinement,
     Status,
+    StatusScope,
     TruncationChannel,
 )
 
@@ -521,8 +524,8 @@ class ConvergenceCheckable:
             nonpoly_backend=None,
             n_levels_requested=n_levels,
             n_levels_buffer=n_buffer,
-            mode=mode,  # type: ignore[arg-type]
-            refinement=refinement,  # type: ignore[arg-type]
+            mode=cast(Mode, mode),
+            refinement=cast(Refinement, refinement),
         )
 
     def _convergence_unverified_report(
@@ -546,7 +549,7 @@ class ConvergenceCheckable:
             LevelVerdict(
                 level_index=k,
                 status="unverified",
-                status_scope=scope,  # type: ignore[arg-type]
+                status_scope=cast(StatusScope, scope),
                 abs_err_est_GHz=None,
                 eps_gap_est=None,
                 truncation_channel=channel,
@@ -658,7 +661,7 @@ class ConvergenceCheckable:
                 LevelVerdict(
                     level_index=k,
                     status=status,
-                    status_scope=scope,  # type: ignore[arg-type]
+                    status_scope=cast(StatusScope, scope),
                     abs_err_est_GHz=None,  # cheap mode has no error estimate
                     eps_gap_est=None,
                     truncation_channel=channel,
@@ -761,7 +764,7 @@ class ConvergenceCheckable:
                 LevelVerdict(
                     level_index=k,
                     status=status,
-                    status_scope=scope,  # type: ignore[arg-type]
+                    status_scope=cast(StatusScope, scope),
                     abs_err_est_GHz=est,
                     eps_gap_est=eps,
                     truncation_channel=channel,
@@ -1176,7 +1179,7 @@ class ConvergenceCheckable:
             LevelVerdict(
                 level_index=k,
                 status=per_level_status[k],
-                status_scope=scope,  # type: ignore[arg-type]
+                status_scope=cast(StatusScope, scope),
                 abs_err_est_GHz=float(per_level_abs_err[k]),
                 eps_gap_est=eps_gap_est[k],
                 transition_err_est_GHz={

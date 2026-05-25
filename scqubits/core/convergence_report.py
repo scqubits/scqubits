@@ -49,6 +49,10 @@ The best verdict a mode can return is capped by the mode: ``cheap`` ->
 """
 
 StatusScope = Literal["absolute", "observed_gap_scale"]
+
+Mode = Literal["cheap", "moderate", "strict"]
+
+Refinement = Literal["one_step", "ratio_test"]
 """Whether the convergence threshold was applied to an absolute energy error
 (in GHz) or to an error normalized by an observed local spectral gap.
 
@@ -154,8 +158,8 @@ class ImplementationAudit:
     nonpoly_backend: str | None
     n_levels_requested: int
     n_levels_buffer: int
-    mode: Literal["cheap", "moderate", "strict"]
-    refinement: Literal["one_step", "ratio_test"]
+    mode: Mode
+    refinement: Refinement
 
 
 @dataclass(frozen=True)
