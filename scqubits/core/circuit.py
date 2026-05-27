@@ -218,7 +218,7 @@ class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot, ConvergenceChe
         g_floor_GHz: float = 1e-3,
         assume_subsystems_converged: bool = False,
     ) -> ConvergenceReport:
-        """Estimate convergence of the lowest ``n_levels`` circuit eigenvalues.
+        """Check convergence of the lowest ``n_levels`` circuit eigenvalues.
 
         **Flat (non-hierarchically-diagonalized) circuit.** Each per-variable cutoff
         (``self.cutoff_names``) is refined and the spectrum re-diagonalized, reusing

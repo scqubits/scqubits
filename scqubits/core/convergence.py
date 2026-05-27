@@ -2294,18 +2294,33 @@ def _build_coherence_report(
     )
 
 
-def check_convergence(qubit: Any, **kwargs: Any) -> ConvergenceReport:
-    """Convenience top-level shim: forwards to ``qubit.check_convergence(...)``.
+def check_convergence(
+    obj: Any, **kwargs: Any
+) -> "ConvergenceReport | ParameterSweepConvergence":
+    """Convenience top-level shim: forwards to ``obj.check_convergence(...)``.
 
-    Raises ``TypeError`` if the qubit does not subclass
-    :class:`ConvergenceCheckable`.
+    Accepts any :class:`ConvergenceCheckable` (qubits,
+    :class:`~scqubits.core.hilbert_space.HilbertSpace`,
+    :class:`~scqubits.core.circuit.Circuit`,
+    :class:`~scqubits.core.zeropi_full.FullZeroPi`) and also a
+    :class:`~scqubits.core.param_sweep.ParameterSweep` (which supplies the same
+    :meth:`check_convergence` entry point but does not inherit
+    :class:`ConvergenceCheckable`, returning a
+    :class:`~scqubits.core.convergence_report.ParameterSweepConvergence`
+    instead of a :class:`ConvergenceReport`). Raises :class:`TypeError`
+    otherwise.
     """
-    if not isinstance(qubit, ConvergenceCheckable):
+    # Lazy import: ParameterSweep does not inherit ConvergenceCheckable but
+    # supplies the same entry point; imported here to avoid any package
+    # load-order coupling.
+    from scqubits.core.param_sweep import ParameterSweep
+
+    if not isinstance(obj, (ConvergenceCheckable, ParameterSweep)):
         raise TypeError(
-            f"{type(qubit).__name__} does not support convergence checking; "
-            "it must subclass ConvergenceCheckable."
+            f"{type(obj).__name__} does not support convergence checking; "
+            "it must be a ConvergenceCheckable or a ParameterSweep."
         )
-    return qubit.check_convergence(**kwargs)
+    return obj.check_convergence(**kwargs)
 
 
 def check_convergence_vs_paramvals(

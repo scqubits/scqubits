@@ -1374,7 +1374,7 @@ class ParameterSweep(
         assume_subsystems_converged: bool = False,
         sample: int | None = 8,
     ) -> ParameterSweepConvergence:
-        """Estimate convergence across the sweep grid, returning the worst case.
+        """Check convergence across the sweep grid, returning the worst case.
 
         A single :meth:`HilbertSpace.check_convergence` certifies one parameter
         point; truncation convergence can vary across a sweep (e.g. fluxonium near

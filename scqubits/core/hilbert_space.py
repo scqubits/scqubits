@@ -787,7 +787,7 @@ class HilbertSpace(
         g_floor_GHz: float = 1e-3,
         assume_subsystems_converged: bool = False,
     ) -> ConvergenceReport:
-        """Estimate convergence of the composite spectrum across two layers.
+        """Check convergence of the composite spectrum across two layers.
 
         Layer 1 (subsystem-internal): for each subsystem that supports it,
         delegate to ``subsystem.check_convergence`` to verify its own basis

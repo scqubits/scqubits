@@ -822,7 +822,7 @@ class FullZeroPi(
         g_floor_GHz: float = 1e-3,
         assume_inner_converged: bool = False,
     ) -> ConvergenceReport:
-        """Estimate convergence of the coupled FullZeroPi spectrum in two layers.
+        """Check convergence of the coupled FullZeroPi spectrum in two layers.
 
         Layer 1 (interior basis): unless ``assume_inner_converged=True``, delegate
         to the interior :class:`.ZeroPi`'s own ``check_convergence`` (the phi
