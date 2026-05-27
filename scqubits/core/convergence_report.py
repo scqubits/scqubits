@@ -320,9 +320,10 @@ class ParameterSweepConvergence:
         return self.reports[self.worst_index]
 
     # ----------------------------------------------------------- 1-D accessors
-    # Shims that preserve the original 1-D ``ParamSweepConvergence`` access
-    # pattern. They raise an informative ``ValueError`` on a genuine
-    # multi-parameter report rather than return a misleading scalar.
+    # Convenience accessors for the 1-D scan case (``param_name``,
+    # ``param_vals``, ``worst_param_val``). They raise an informative
+    # ``ValueError`` on a genuine multi-parameter report rather than return
+    # a misleading scalar.
 
     @property
     def param_name(self) -> str:
