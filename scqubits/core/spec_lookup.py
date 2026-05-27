@@ -716,7 +716,7 @@ class SpectrumLookupMixin(MixinCompatible):
     def _branch_analysis_LX_step(
         self,
         subsys_priority: list[int],
-        recusion_depth: int,
+        recursion_depth: int,
         init_drs_idx: int,
         init_state: qt.Qobj,
         remaining_drs_indices: list[int],
@@ -749,7 +749,7 @@ class SpectrumLookupMixin(MixinCompatible):
             the later a subsystem appears in the list, the deeper it lies in
             the recursion. A "branch" is a series of eigenstates formed by
             putting excitations into the last subsystem in the list.
-        recusion_depth:
+        recursion_depth:
             current depth of the recursion. Should be 0 at the start.
         init_drs_idx:
             dressed index of the initial state of this branch.
@@ -767,7 +767,7 @@ class SpectrumLookupMixin(MixinCompatible):
         """
 
         hspace = self.hilbertspace
-        mode_index = subsys_priority[recusion_depth]
+        mode_index = subsys_priority[recursion_depth]
         mode = hspace.subsystem_list[mode_index]
         terminate_branch_length = hspace.subsystem_dims[mode_index]
 
@@ -780,7 +780,7 @@ class SpectrumLookupMixin(MixinCompatible):
         branch_drs_indices: list[Any] = []
         branch_states: list[Any] = []
         while True:
-            if recusion_depth == len(subsys_priority) - 1:
+            if recursion_depth == len(subsys_priority) - 1:
                 # we are at the end of the depth-first search:
                 # just add the state to the branch
                 branch_drs_indices.append(current_drs_idx)
@@ -790,7 +790,7 @@ class SpectrumLookupMixin(MixinCompatible):
                 # recursively call the function and append all the branch states
                 _branch_drs_indices, _branch_states = self._branch_analysis_LX_step(
                     subsys_priority,
-                    recusion_depth + 1,
+                    recursion_depth + 1,
                     current_drs_idx,
                     current_state,
                     remaining_drs_indices,

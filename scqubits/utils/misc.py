@@ -86,7 +86,7 @@ def make_bare_labels(subsystem_count: int, *args) -> tuple[int, ...]:
 
 
 def drop_private_keys(full_dict: dict[str, Any]) -> dict[str, Any]:
-    """Filter for entries in the full dictionary that have numerical values."""
+    """Return a shallow copy of ``full_dict`` with underscore-prefixed (private) keys dropped."""
     return {key: value for key, value in full_dict.items() if key[0] != "_"}
 
 
