@@ -177,7 +177,7 @@ class ConvergenceCheckable:
     def _convergence_box_refine_step(
         self,
         axis: str,
-        evals_n0: npt.NDArray[np.float64],
+        evals_base: npt.NDArray[np.float64],
         n_levels: int,
     ) -> int:
         """Refinement step (in axis units) for ``axis``.
@@ -197,7 +197,7 @@ class ConvergenceCheckable:
         if envelope is None:
             return normal_step
         v_eff, box_min, box_max, spacing = envelope
-        evals = np.asarray(evals_n0[:n_levels], dtype=np.float64)
+        evals = np.asarray(evals_base[:n_levels], dtype=np.float64)
         if evals.size == 0 or spacing <= 0.0:
             return normal_step
         e_win = float(np.max(evals)) + _box_completeness_margin(evals)
@@ -372,13 +372,13 @@ class ConvergenceCheckable:
         # upper gap available for the observed-gap-scale denominator.
         n_buffer = 1 if scope == "observed_gap_scale" else 0
         n_eigs = n_levels + n_buffer
-        evals_n0, evecs_n0 = self.eigensys(evals_count=n_eigs)  # type: ignore[attr-defined]
+        evals_base, evecs_base = self.eigensys(evals_count=n_eigs)  # type: ignore[attr-defined]
 
         # -------- dispatch by mode
         if mode == "cheap":
             return self._convergence_cheap(
-                evals_n0=evals_n0,
-                evecs_n0=evecs_n0,
+                evals_base=evals_base,
+                evecs_base=evecs_base,
                 n_levels=n_levels,
                 scope=scope,
                 target_abs_GHz=target_abs_GHz,
@@ -387,8 +387,8 @@ class ConvergenceCheckable:
             )
         # moderate / strict
         return self._convergence_refine(
-            evals_n0=evals_n0,
-            evecs_n0=evecs_n0,
+            evals_base=evals_base,
+            evecs_base=evecs_base,
             n_levels=n_levels,
             n_buffer=n_buffer,
             mode=mode,
@@ -573,8 +573,8 @@ class ConvergenceCheckable:
 
     def _convergence_cheap(
         self,
-        evals_n0: npt.NDArray[np.float64],
-        evecs_n0: npt.NDArray[np.float64],
+        evals_base: npt.NDArray[np.float64],
+        evecs_base: npt.NDArray[np.float64],
         n_levels: int,
         scope: str,
         target_abs_GHz: float | None,
@@ -592,12 +592,12 @@ class ConvergenceCheckable:
         axis = self._convergence_axes[0]
         channel: TruncationChannel = self._convergence_truncation_channel(axis)
 
-        tail = self._convergence_tail_estimate((evals_n0, evecs_n0), axis)
+        tail = self._convergence_tail_estimate((evals_base, evecs_base), axis)
         if tail is not None:
             return self._convergence_cheap_perturbative(
                 tail=tail,
                 channel=channel,
-                evals_n0=evals_n0,
+                evals_base=evals_base,
                 n_levels=n_levels,
                 scope=scope,
                 target_abs_GHz=target_abs_GHz,
@@ -607,7 +607,7 @@ class ConvergenceCheckable:
             )
 
         boundary_amplitudes = self._convergence_boundary_diagnostic(
-            (evals_n0, evecs_n0), axis
+            (evals_base, evecs_base), axis
         )
 
         per_level: list[LevelVerdict] = []
@@ -694,7 +694,7 @@ class ConvergenceCheckable:
             npt.NDArray[np.float64], npt.NDArray[np.bool_], npt.NDArray[np.float64]
         ],
         channel: TruncationChannel,
-        evals_n0: npt.NDArray[np.float64],
+        evals_base: npt.NDArray[np.float64],
         n_levels: int,
         scope: str,
         target_abs_GHz: float | None,
@@ -721,7 +721,7 @@ class ConvergenceCheckable:
             warnings: list[str] = []
             est = safety_factor * float(estimate[k])
             gap = (
-                _local_isolation_gap(evals_n0, None, k, n_levels, g_floor_GHz)
+                _local_isolation_gap(evals_base, None, k, n_levels, g_floor_GHz)
                 if scope == "observed_gap_scale"
                 else None
             )
@@ -778,9 +778,9 @@ class ConvergenceCheckable:
         recommendations: list[str] = []
         if any(v.status in ("distrust", "marginal") for v in per_level):
             current = self._convergence_axis_value(axis)
-            step = self._convergence_step(axis)
+            axis_step = self._convergence_step(axis)
             recommendations.append(
-                f"increase {axis} from {current} to at least {current + step}, or "
+                f"increase {axis} from {current} to at least {current + axis_step}, or "
                 f"re-run with mode='moderate' for a refinement-verified estimate"
             )
 
@@ -798,8 +798,8 @@ class ConvergenceCheckable:
 
     def _convergence_refine(
         self,
-        evals_n0: npt.NDArray[np.float64],
-        evecs_n0: npt.NDArray[np.float64],
+        evals_base: npt.NDArray[np.float64],
+        evecs_base: npt.NDArray[np.float64],
         n_levels: int,
         n_buffer: int,
         mode: str,
@@ -821,15 +821,16 @@ class ConvergenceCheckable:
         n_eigs = n_levels + n_buffer
         safety_factor = settings.CONVERGENCE_SAFETY_FACTOR
         clusters = cutils.detect_clusters(
-            evals_n0[:n_levels], gap_ratio_threshold=settings.CONVERGENCE_CLUSTER_RATIO
+            evals_base[:n_levels],
+            gap_ratio_threshold=settings.CONVERGENCE_CLUSTER_RATIO,
         )
         n_clusters = len(clusters)
 
         # Refine each truncation axis independently (bump it, hold the others)
         # and sum the per-axis refinement differences -- a triangle-inequality upper bound on
         # the combined truncation error.
-        combined_diff_n1 = np.zeros(n_clusters, dtype=np.float64)
-        combined_diff_n2: npt.NDArray[np.float64] | None = (
+        combined_diff_step1 = np.zeros(n_clusters, dtype=np.float64)
+        combined_diff_step2: npt.NDArray[np.float64] | None = (
             np.zeros(n_clusters, dtype=np.float64)
             if refinement == "ratio_test"
             else None
@@ -864,64 +865,66 @@ class ConvergenceCheckable:
             # The monotonicity falsification check is sound only on a Galerkin
             # (principal-submatrix) truncation; see _convergence_axis_is_galerkin.
             axis_is_galerkin = self._convergence_axis_is_galerkin(axis)
-            step = self._convergence_box_refine_step(axis, evals_n0, n_levels)
-            clone_1 = self._convergence_clone_at({axis: current + step})
-            evals_a1, evecs_a1 = clone_1.eigensys(evals_count=n_eigs)  # type: ignore[attr-defined]
-            _, diff_n1 = cutils.cluster_safe_match_energies(
-                evals_n0[:n_levels], evals_a1[:n_levels], clusters
+            axis_step = self._convergence_box_refine_step(axis, evals_base, n_levels)
+            clone_step1 = self._convergence_clone_at({axis: current + axis_step})
+            evals_step1, evecs_step1 = clone_step1.eigensys(evals_count=n_eigs)  # type: ignore[attr-defined]
+            _, diff_step1 = cutils.cluster_safe_match_energies(
+                evals_base[:n_levels], evals_step1[:n_levels], clusters
             )
-            combined_diff_n1 += diff_n1
+            combined_diff_step1 += diff_step1
             if axis_is_galerkin:
                 monotonicity_violation |= cutils.galerkin_monotonicity_violation(
-                    evals_n0[:n_levels],
-                    evals_a1[:n_levels],
+                    evals_base[:n_levels],
+                    evals_step1[:n_levels],
                     clusters,
                     settings.CONVERGENCE_MONOTONICITY_REL_TOL,
                     _REFINEMENT_NOISE_FLOOR_GHz,
                 )
 
-            clone_2: ConvergenceCheckable | None = None
-            evecs_a2: npt.NDArray[np.float64] | None = None
-            diff_n2: npt.NDArray[np.float64] | None = None
+            clone_step2: ConvergenceCheckable | None = None
+            evecs_step2: npt.NDArray[np.float64] | None = None
+            diff_step2: npt.NDArray[np.float64] | None = None
             if refinement == "ratio_test":
-                clone_2 = self._convergence_clone_at({axis: current + 2 * step})
-                evals_a2, evecs_a2 = clone_2.eigensys(evals_count=n_eigs)  # type: ignore[attr-defined]
-                _, diff_n2 = cutils.cluster_safe_match_energies(
-                    evals_a1[:n_levels], evals_a2[:n_levels], clusters
+                clone_step2 = self._convergence_clone_at(
+                    {axis: current + 2 * axis_step}
                 )
-                assert combined_diff_n2 is not None
-                combined_diff_n2 += diff_n2
+                evals_step2, evecs_step2 = clone_step2.eigensys(evals_count=n_eigs)  # type: ignore[attr-defined]
+                _, diff_step2 = cutils.cluster_safe_match_energies(
+                    evals_step1[:n_levels], evals_step2[:n_levels], clusters
+                )
+                assert combined_diff_step2 is not None
+                combined_diff_step2 += diff_step2
                 if axis_is_galerkin:
                     monotonicity_violation |= cutils.galerkin_monotonicity_violation(
-                        evals_a1[:n_levels],
-                        evals_a2[:n_levels],
+                        evals_step1[:n_levels],
+                        evals_step2[:n_levels],
                         clusters,
                         settings.CONVERGENCE_MONOTONICITY_REL_TOL,
                         _REFINEMENT_NOISE_FLOOR_GHz,
                     )
-            if use_richardson and diff_n2 is not None:
+            if use_richardson and diff_step2 is not None:
                 # Per-axis absolute estimate (Richardson for an h**p FD-stencil
                 # axis, geometric otherwise), summed via the triangle inequality.
                 order = self._convergence_richardson_order(axis)
                 if order is not None:
                     est_raw, asymptotic = cutils.richardson_estimate(
-                        diff_n1,
-                        diff_n2,
+                        diff_step1,
+                        diff_step2,
                         current,
-                        current + step,
-                        current + 2 * step,
+                        current + axis_step,
+                        current + 2 * axis_step,
                         order,
                     )
                 else:
                     _, est_raw, asymptotic = cutils.geometric_ratio_test(
-                        diff_n1, diff_n2
+                        diff_step1, diff_step2
                     )
                     # Conservative margin on the extrapolated geometric tail.
                     est_raw = safety_factor * est_raw
                 est_axis = np.where(
-                    asymptotic, est_raw, safety_factor * diff_n1
+                    asymptotic, est_raw, safety_factor * diff_step1
                 ).astype(np.float64)
-                non_asymptotic_axis = (~asymptotic) & (diff_n1 > 0.0)
+                non_asymptotic_axis = (~asymptotic) & (diff_step1 > 0.0)
                 assert combined_estimate is not None
                 assert combined_non_asymptotic is not None
                 combined_estimate += est_axis
@@ -929,20 +932,20 @@ class ConvergenceCheckable:
                 axis_weight = float(np.max(est_axis)) if n_clusters else 0.0
             else:
                 axis_weight = (
-                    safety_factor * float(np.max(diff_n1)) if n_clusters else 0.0
+                    safety_factor * float(np.max(diff_step1)) if n_clusters else 0.0
                 )
             channel_breakdown[axis_channel] = (
                 channel_breakdown.get(axis_channel, 0.0) + axis_weight
             )
             per_axis_weight[axis] = axis_weight
             axis_refinements[axis] = (
-                clone_1,
-                evals_a1,
-                evecs_a1,
-                clone_2,
-                evecs_a2,
+                clone_step1,
+                evals_step1,
+                evecs_step1,
+                clone_step2,
+                evecs_step2,
                 current,
-                step,
+                axis_step,
             )
 
         multi_axis = len(axes) > 1
@@ -964,7 +967,7 @@ class ConvergenceCheckable:
         boundary_available = False
         for axis in axes:
             diagnostic = self._convergence_boundary_diagnostic(
-                (evals_n0, evecs_n0), axis
+                (evals_base, evecs_base), axis
             )
             if diagnostic is None:
                 continue
@@ -976,11 +979,11 @@ class ConvergenceCheckable:
                     boundary_large[k] = True
 
         report = self._convergence_build_energy_report(
-            evals_n0=evals_n0[:n_levels],
-            buffer_n0=evals_n0[n_levels:] if n_buffer > 0 else None,
+            evals_base=evals_base[:n_levels],
+            buffer_base=evals_base[n_levels:] if n_buffer > 0 else None,
             clusters=clusters,
-            cluster_max_diff_n1=combined_diff_n1,
-            cluster_max_diff_n2=combined_diff_n2,
+            cluster_max_diff_step1=combined_diff_step1,
+            cluster_max_diff_step2=combined_diff_step2,
             channel=per_level_channel,
             channel_breakdown=channel_breakdown,
             n_levels=n_levels,
@@ -992,8 +995,8 @@ class ConvergenceCheckable:
             g_floor_GHz=g_floor_GHz,
             refinement=refinement,
             dominant_axis=dominant_axis,
-            precomputed_estimate=combined_estimate,
-            precomputed_non_asymptotic=combined_non_asymptotic,
+            richardson_cluster_estimate=combined_estimate,
+            richardson_cluster_non_asymptotic=combined_non_asymptotic,
             boundary_large=boundary_large,
             monotonicity_violation=monotonicity_violation,
             boundary_available=boundary_available,
@@ -1008,8 +1011,8 @@ class ConvergenceCheckable:
             return self._attach_derived_reports_multiaxis(
                 report=report,
                 derived_quantities=derived_quantities,
-                evals_n0=evals_n0,
-                evecs_n0=evecs_n0,
+                evals_base=evals_base,
+                evecs_base=evecs_base,
                 axis_refinements=axis_refinements,
                 clusters=clusters,
                 n_levels=n_levels,
@@ -1020,21 +1023,27 @@ class ConvergenceCheckable:
             )
 
         axis = axes[0]
-        clone_1, evals_a1, evecs_a1, clone_2, evecs_a2, current, step = (
-            axis_refinements[axis]
-        )
+        (
+            clone_step1,
+            evals_step1,
+            evecs_step1,
+            clone_step2,
+            evecs_step2,
+            current,
+            axis_step,
+        ) = axis_refinements[axis]
         return self._attach_derived_reports(
             report=report,
             derived_quantities=derived_quantities,
-            evals_n0=evals_n0,
-            evals_n1=evals_a1,
-            evecs_n0=evecs_n0,
-            evecs_n1=evecs_a1,
-            evecs_n2=evecs_a2,
-            clone_1=clone_1,
-            clone_2=clone_2,
-            ncut_0=int(current),
-            step=step,
+            evals_base=evals_base,
+            evals_step1=evals_step1,
+            evecs_base=evecs_base,
+            evecs_step1=evecs_step1,
+            evecs_step2=evecs_step2,
+            clone_step1=clone_step1,
+            clone_step2=clone_step2,
+            axis_value_base=int(current),
+            axis_step=axis_step,
             n_levels=n_levels,
             n_buffer=n_buffer,
             mode=mode,
@@ -1045,11 +1054,11 @@ class ConvergenceCheckable:
 
     def _convergence_build_energy_report(
         self,
-        evals_n0: npt.NDArray[np.float64],
-        buffer_n0: npt.NDArray[np.float64] | None,
+        evals_base: npt.NDArray[np.float64],
+        buffer_base: npt.NDArray[np.float64] | None,
         clusters: list[tuple[int, ...]],
-        cluster_max_diff_n1: npt.NDArray[np.float64],
-        cluster_max_diff_n2: npt.NDArray[np.float64] | None,
+        cluster_max_diff_step1: npt.NDArray[np.float64],
+        cluster_max_diff_step2: npt.NDArray[np.float64] | None,
         channel: TruncationChannel,
         channel_breakdown: dict[str, float],
         n_levels: int,
@@ -1061,8 +1070,8 @@ class ConvergenceCheckable:
         g_floor_GHz: float,
         refinement: str,
         dominant_axis: str,
-        precomputed_estimate: npt.NDArray[np.float64] | None = None,
-        precomputed_non_asymptotic: npt.NDArray[np.bool_] | None = None,
+        richardson_cluster_estimate: npt.NDArray[np.float64] | None = None,
+        richardson_cluster_non_asymptotic: npt.NDArray[np.bool_] | None = None,
         boundary_large: list[bool] | None = None,
         monotonicity_violation: npt.NDArray[np.bool_] | None = None,
         boundary_available: bool = False,
@@ -1078,9 +1087,9 @@ class ConvergenceCheckable:
         channel for a multi-coordinate qubit), and the per-channel
         ``channel_breakdown``.
 
-        When ``precomputed_estimate`` is given (a finite-difference axis used the
+        When ``richardson_cluster_estimate`` is given (a finite-difference axis used the
         Richardson estimator), it is the per-cluster absolute error already summed
-        over axes, and ``precomputed_non_asymptotic`` flags clusters whose ratio
+        over axes, and ``richardson_cluster_non_asymptotic`` flags clusters whose ratio
         or Richardson test failed; the geometric ratio test on the summed
         refinement differences is then bypassed. ``boundary_large`` flags levels that reach a
         basis boundary so strongly that the dropped tail is non-perturbative; they
@@ -1094,11 +1103,11 @@ class ConvergenceCheckable:
         asymptotic_flag: npt.NDArray[np.bool_] | None = None
         if (
             refinement == "ratio_test"
-            and cluster_max_diff_n2 is not None
-            and precomputed_estimate is None
+            and cluster_max_diff_step2 is not None
+            and richardson_cluster_estimate is None
         ):
             _, geometric_tail, asymptotic_flag = cutils.geometric_ratio_test(
-                cluster_max_diff_n1, cluster_max_diff_n2
+                cluster_max_diff_step1, cluster_max_diff_step2
             )
 
         (
@@ -1108,15 +1117,15 @@ class ConvergenceCheckable:
             per_level_non_asymptotic,
         ) = _per_cluster_energy_estimates(
             clusters=clusters,
-            cluster_max_diff_n1=cluster_max_diff_n1,
+            cluster_max_diff_step1=cluster_max_diff_step1,
             refinement=refinement,
             geometric_tail=geometric_tail,
             asymptotic_flag=asymptotic_flag,
             safety_factor=safety_factor,
             n_levels=n_levels,
-            cluster_max_diff_n2=cluster_max_diff_n2,
-            precomputed_estimate=precomputed_estimate,
-            precomputed_non_asymptotic=precomputed_non_asymptotic,
+            cluster_max_diff_step2=cluster_max_diff_step2,
+            richardson_cluster_estimate=richardson_cluster_estimate,
+            richardson_cluster_non_asymptotic=richardson_cluster_non_asymptotic,
         )
 
         # Expand the per-cluster monotonicity flags to per-level: a variational
@@ -1131,8 +1140,8 @@ class ConvergenceCheckable:
 
         eps_gap_est = _observed_gap_eps(
             scope=scope,
-            evals_n0=evals_n0,
-            buffer_n0=buffer_n0,
+            evals_base=evals_base,
+            buffer_base=buffer_base,
             n_levels=n_levels,
             g_floor_GHz=g_floor_GHz,
             per_level_abs_err=per_level_abs_err,
@@ -1240,11 +1249,11 @@ class ConvergenceCheckable:
         recommendations: list[str] = []
         if any(v.status == "distrust" for v in verdicts):
             current_value = self._convergence_axis_value(axis)
-            step = self._convergence_step(axis)
+            axis_step = self._convergence_step(axis)
             channel = self._convergence_truncation_channel(axis)
             bump = (
                 f"increase {axis} from {current_value} to at least "
-                f"{current_value + step}"
+                f"{current_value + axis_step}"
             )
             if channel == "charge_tail":
                 recommendations.append(
@@ -1271,7 +1280,7 @@ class ConvergenceCheckable:
                 recommendations.append(
                     f"composite truncation dominates: increase truncated_dim of "
                     f"'{axis}' from {current_value} to at least "
-                    f"{current_value + step} and re-run (it sets how many of that "
+                    f"{current_value + axis_step} and re-run (it sets how many of that "
                     f"subsystem's levels enter the product space)"
                 )
             else:
@@ -1322,15 +1331,15 @@ class ConvergenceCheckable:
         self,
         report: ConvergenceReport,
         derived_quantities: tuple[str, ...],
-        evals_n0: npt.NDArray[np.float64],
-        evals_n1: npt.NDArray[np.float64],
-        evecs_n0: npt.NDArray[np.float64],
-        evecs_n1: npt.NDArray[np.float64],
-        evecs_n2: npt.NDArray[np.float64] | None,
-        clone_1: "ConvergenceCheckable",
-        clone_2: "ConvergenceCheckable | None",
-        ncut_0: int,
-        step: int,
+        evals_base: npt.NDArray[np.float64],
+        evals_step1: npt.NDArray[np.float64],
+        evecs_base: npt.NDArray[np.float64],
+        evecs_step1: npt.NDArray[np.float64],
+        evecs_step2: npt.NDArray[np.float64] | None,
+        clone_step1: "ConvergenceCheckable",
+        clone_step2: "ConvergenceCheckable | None",
+        axis_value_base: int,
+        axis_step: int,
         n_levels: int,
         n_buffer: int,
         mode: str,
@@ -1347,24 +1356,34 @@ class ConvergenceCheckable:
         """
         channel = self._convergence_truncation_channel(axis)
         clusters = cutils.detect_clusters(
-            evals_n0[:n_levels],
+            evals_base[:n_levels],
             gap_ratio_threshold=settings.CONVERGENCE_CLUSTER_RATIO,
         )
         audit = self._convergence_audit(
             n_levels=n_levels, n_buffer=n_buffer, mode=mode, refinement=refinement
         )
-        ncut_1 = ncut_0 + step
-        ncut_2 = ncut_0 + 2 * step
+        axis_value_step1 = axis_value_base + axis_step
+        axis_value_step2 = axis_value_base + 2 * axis_step
         derived: dict[str, ConvergenceReport] = {}
 
         if "wavefunctions" in derived_quantities:
             refinement_diff_first = self._convergence_wavefunction_refinement_diff(
-                evecs_n0, evecs_n1, ncut_0, ncut_1, clusters, n_levels
+                evecs_base,
+                evecs_step1,
+                axis_value_base,
+                axis_value_step1,
+                clusters,
+                n_levels,
             )
             refinement_diff_second: npt.NDArray[np.float64] | None = None
-            if refinement == "ratio_test" and evecs_n2 is not None:
+            if refinement == "ratio_test" and evecs_step2 is not None:
                 refinement_diff_second = self._convergence_wavefunction_refinement_diff(
-                    evecs_n1, evecs_n2, ncut_1, ncut_2, clusters, n_levels
+                    evecs_step1,
+                    evecs_step2,
+                    axis_value_step1,
+                    axis_value_step2,
+                    clusters,
+                    n_levels,
                 )
             derived["wavefunctions"] = _build_metric_report(
                 refinement_diff_first=refinement_diff_first,
@@ -1378,22 +1397,22 @@ class ConvergenceCheckable:
                 refinement=refinement,
                 audit=audit,
                 axis=axis,
-                current_value=ncut_0,
-                step=step,
+                current_value=axis_value_base,
+                axis_step=axis_step,
             )
 
         if "matrix_elements" in derived_quantities:
             me_refinement_diff_first, skipped = _matrix_element_refinement_diff(
-                self, clone_1, evecs_n0, evecs_n1, n_levels
+                self, clone_step1, evecs_base, evecs_step1, n_levels
             )
             me_refinement_diff_second: npt.NDArray[np.float64] | None = None
             if (
                 refinement == "ratio_test"
-                and clone_2 is not None
-                and evecs_n2 is not None
+                and clone_step2 is not None
+                and evecs_step2 is not None
             ):
                 me_refinement_diff_second, _ = _matrix_element_refinement_diff(
-                    clone_1, clone_2, evecs_n1, evecs_n2, n_levels
+                    clone_step1, clone_step2, evecs_step1, evecs_step2, n_levels
                 )
             derived["matrix_elements"] = _build_metric_report(
                 refinement_diff_first=me_refinement_diff_first,
@@ -1407,8 +1426,8 @@ class ConvergenceCheckable:
                 refinement=refinement,
                 audit=audit,
                 axis=axis,
-                current_value=ncut_0,
-                step=step,
+                current_value=axis_value_base,
+                axis_step=axis_step,
                 skipped=skipped,
             )
 
@@ -1419,9 +1438,9 @@ class ConvergenceCheckable:
             names, rate_refinement_diff, floor_flags, skipped_channels = (
                 _coherence_rate_refinement_diff(
                     self,
-                    clone_1,
-                    (evals_n0, evecs_n0),
-                    (evals_n1, evecs_n1),
+                    clone_step1,
+                    (evals_base, evecs_base),
+                    (evals_step1, evecs_step1),
                     channels,
                     settings.CONVERGENCE_RATE_FLOOR_HZ,
                 )
@@ -1434,8 +1453,8 @@ class ConvergenceCheckable:
                 target_gap_rel=target_gap_rel,
                 audit=audit,
                 axis=axis,
-                current_value=ncut_0,
-                step=step,
+                current_value=axis_value_base,
+                axis_step=axis_step,
                 skipped=skipped_channels,
             )
 
@@ -1481,8 +1500,8 @@ class ConvergenceCheckable:
         self,
         report: ConvergenceReport,
         derived_quantities: tuple[str, ...],
-        evals_n0: npt.NDArray[np.float64],
-        evecs_n0: npt.NDArray[np.float64],
+        evals_base: npt.NDArray[np.float64],
+        evecs_base: npt.NDArray[np.float64],
         axis_refinements: dict[str, tuple[Any, ...]],
         clusters: list[tuple[int, ...]],
         n_levels: int,
@@ -1518,7 +1537,7 @@ class ConvergenceCheckable:
             for refinement_data in axis_refinements.values():
                 clone_axis, evecs_axis = refinement_data[0], refinement_data[2]
                 refinement_diff, axis_skipped = _matrix_element_refinement_diff(
-                    self, clone_axis, evecs_n0, evecs_axis, n_levels
+                    self, clone_axis, evecs_base, evecs_axis, n_levels
                 )
                 combined += refinement_diff
                 skipped.update(axis_skipped)
@@ -1535,7 +1554,7 @@ class ConvergenceCheckable:
                 audit=audit,
                 axis=dominant_axis,
                 current_value=dom_current,
-                step=dom_step,
+                axis_step=dom_step,
                 skipped=sorted(skipped),
             )
 
@@ -1552,7 +1571,7 @@ class ConvergenceCheckable:
                     _coherence_rate_refinement_diff(
                         self,
                         clone_axis,
-                        (evals_n0, evecs_n0),
+                        (evals_base, evecs_base),
                         (evals_axis, evecs_axis),
                         channels,
                         settings.CONVERGENCE_RATE_FLOOR_HZ,
@@ -1580,7 +1599,7 @@ class ConvergenceCheckable:
                 audit=audit,
                 axis=dominant_axis,
                 current_value=dom_current,
-                step=dom_step,
+                axis_step=dom_step,
                 skipped=sorted(skipped_channels - set(final_names)),
             )
 
@@ -1642,8 +1661,8 @@ def _box_completeness_margin(evals: npt.NDArray[np.float64]) -> float:
 
 
 def _local_isolation_gap(
-    evals_n0: npt.NDArray[np.float64],
-    buffer_n0: npt.NDArray[np.float64] | None,
+    evals_base: npt.NDArray[np.float64],
+    buffer_base: npt.NDArray[np.float64] | None,
     k: int,
     n_levels: int,
     g_floor: float,
@@ -1654,7 +1673,7 @@ def _local_isolation_gap(
 
     - k == 0: ``E_1 - E_0``
     - 1 <= k <= n_levels - 2: ``min(E_k - E_{k-1}, E_{k+1} - E_k)``
-    - k == n_levels - 1: upper gap available only if ``buffer_n0`` is
+    - k == n_levels - 1: upper gap available only if ``buffer_base`` is
       supplied; otherwise return ``None``.
 
     The returned gap is floored at ``g_floor``.
@@ -1662,22 +1681,22 @@ def _local_isolation_gap(
     if k == 0:
         if n_levels < 2:
             return None
-        return max(float(evals_n0[1] - evals_n0[0]), g_floor)
+        return max(float(evals_base[1] - evals_base[0]), g_floor)
     if k < n_levels - 1:
         return max(
             min(
-                float(evals_n0[k] - evals_n0[k - 1]),
-                float(evals_n0[k + 1] - evals_n0[k]),
+                float(evals_base[k] - evals_base[k - 1]),
+                float(evals_base[k + 1] - evals_base[k]),
             ),
             g_floor,
         )
     # k == n_levels - 1
-    if buffer_n0 is None or len(buffer_n0) == 0:
+    if buffer_base is None or len(buffer_base) == 0:
         return None
     return max(
         min(
-            float(evals_n0[k] - evals_n0[k - 1]),
-            float(buffer_n0[0] - evals_n0[k]),
+            float(evals_base[k] - evals_base[k - 1]),
+            float(buffer_base[0] - evals_base[k]),
         ),
         g_floor,
     )
@@ -1717,15 +1736,15 @@ def _assign_status(
 
 def _per_cluster_energy_estimates(
     clusters: list[tuple[int, ...]],
-    cluster_max_diff_n1: npt.NDArray[np.float64],
+    cluster_max_diff_step1: npt.NDArray[np.float64],
     refinement: str,
     geometric_tail: npt.NDArray[np.float64] | None,
     asymptotic_flag: npt.NDArray[np.bool_] | None,
     safety_factor: float,
     n_levels: int,
-    cluster_max_diff_n2: npt.NDArray[np.float64] | None = None,
-    precomputed_estimate: npt.NDArray[np.float64] | None = None,
-    precomputed_non_asymptotic: npt.NDArray[np.bool_] | None = None,
+    cluster_max_diff_step2: npt.NDArray[np.float64] | None = None,
+    richardson_cluster_estimate: npt.NDArray[np.float64] | None = None,
+    richardson_cluster_non_asymptotic: npt.NDArray[np.bool_] | None = None,
 ) -> tuple[npt.NDArray[np.float64], list[str], list[list[str]], list[bool]]:
     """Derive each level's error estimate, estimator method, and warnings.
 
@@ -1738,9 +1757,9 @@ def _per_cluster_energy_estimates(
     eigensolver noise floor are treated as no movement, not a failed ratio test.
     Every level inherits the values of the cluster it belongs to.
 
-    When ``precomputed_estimate`` is supplied (a finite-difference axis used the
+    When ``richardson_cluster_estimate`` is supplied (a finite-difference axis used the
     Richardson estimator), it is the per-cluster absolute error already summed
-    over axes and ``precomputed_non_asymptotic`` flags clusters whose per-axis
+    over axes and ``richardson_cluster_non_asymptotic`` flags clusters whose per-axis
     test failed; these are used directly instead of the geometric path.
 
     The last returned element flags, per level, a failed asymptoticity test; the
@@ -1753,14 +1772,14 @@ def _per_cluster_energy_estimates(
 
     for cluster_idx, cluster in enumerate(clusters):
         non_asymptotic = False
-        if precomputed_estimate is not None:
+        if richardson_cluster_estimate is not None:
             # Strict mode with a finite-difference axis: the per-axis estimate
             # (Richardson for the FD-stencil channel, geometric elsewhere) has
             # already been summed over axes.
-            est = float(precomputed_estimate[cluster_idx])
+            est = float(richardson_cluster_estimate[cluster_idx])
             non_asymptotic = bool(
-                precomputed_non_asymptotic is not None
-                and precomputed_non_asymptotic[cluster_idx]
+                richardson_cluster_non_asymptotic is not None
+                and richardson_cluster_non_asymptotic[cluster_idx]
             )
             if non_asymptotic:
                 method = "richardson_composite_not_asymptotic"
@@ -1769,10 +1788,10 @@ def _per_cluster_energy_estimates(
             else:
                 method = "richardson_composite"
         elif refinement == "ratio_test" and geometric_tail is not None:
-            d0 = float(cluster_max_diff_n1[cluster_idx])
+            d0 = float(cluster_max_diff_step1[cluster_idx])
             d1 = (
-                float(cluster_max_diff_n2[cluster_idx])
-                if cluster_max_diff_n2 is not None
+                float(cluster_max_diff_step2[cluster_idx])
+                if cluster_max_diff_step2 is not None
                 else 0.0
             )
             if d0 <= _REFINEMENT_NOISE_FLOOR_GHz and d1 <= _REFINEMENT_NOISE_FLOOR_GHz:
@@ -1800,7 +1819,7 @@ def _per_cluster_energy_estimates(
                 for k in cluster:
                     per_level_warnings[k].append("ratio_test_not_asymptotic")
         else:
-            est = float(safety_factor * cluster_max_diff_n1[cluster_idx])
+            est = float(safety_factor * cluster_max_diff_step1[cluster_idx])
             method = "one_step"
 
         # A multi-level (near-degenerate) cluster is compared as a sorted set,
@@ -1825,8 +1844,8 @@ def _per_cluster_energy_estimates(
 
 def _observed_gap_eps(
     scope: str,
-    evals_n0: npt.NDArray[np.float64],
-    buffer_n0: npt.NDArray[np.float64] | None,
+    evals_base: npt.NDArray[np.float64],
+    buffer_base: npt.NDArray[np.float64] | None,
     n_levels: int,
     g_floor_GHz: float,
     per_level_abs_err: npt.NDArray[np.float64],
@@ -1845,8 +1864,8 @@ def _observed_gap_eps(
     eps_gap_est: list[float | None] = []
     for k in range(n_levels):
         gap = _local_isolation_gap(
-            evals_n0=evals_n0,
-            buffer_n0=buffer_n0,
+            evals_base=evals_base,
+            buffer_base=buffer_base,
             k=k,
             n_levels=n_levels,
             g_floor=g_floor_GHz,
@@ -2048,7 +2067,7 @@ def _build_metric_report(
     audit: ImplementationAudit,
     axis: str,
     current_value: int,
-    step: int,
+    axis_step: int,
     skipped: list[str] | None = None,
 ) -> ConvergenceReport:
     """Assemble a per-level ConvergenceReport for a dimensionless derived metric.
@@ -2133,7 +2152,7 @@ def _build_metric_report(
     if any(v.status == "distrust" for v in verdicts):
         recommendations.append(
             f"increase {axis} from {current_value} to at least "
-            f"{current_value + step} and re-run; a derived-quantity estimate "
+            f"{current_value + axis_step} and re-run; a derived-quantity estimate "
             f"exceeded the target threshold"
         )
     if skipped:
@@ -2204,7 +2223,7 @@ def _build_coherence_report(
     audit: ImplementationAudit,
     axis: str,
     current_value: int,
-    step: int,
+    axis_step: int,
     skipped: list[str],
 ) -> ConvergenceReport:
     """Assemble the per-noise-channel coherence convergence sub-report.
@@ -2254,7 +2273,7 @@ def _build_coherence_report(
     if any(v.status == "distrust" for v in verdicts):
         recommendations.append(
             f"increase {axis} from {current_value} to at least "
-            f"{current_value + step} and re-run; a noise-rate estimate exceeded "
+            f"{current_value + axis_step} and re-run; a noise-rate estimate exceeded "
             f"the target threshold"
         )
     if not verdicts:
