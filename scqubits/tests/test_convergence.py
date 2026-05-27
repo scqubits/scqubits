@@ -1049,7 +1049,7 @@ class TestParamSweep:
             "flux", np.linspace(0.0, 0.5, 11), sample=3, n_levels=3, target_abs_GHz=1e-3
         )
         text = sweep.summary()
-        assert "convergence vs flux" in text
+        assert "convergence across sweep of (flux)" in text
         assert str(sweep) == text
 
     def test_sweep_none_checks_every_value(self):

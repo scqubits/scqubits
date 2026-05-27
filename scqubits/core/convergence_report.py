@@ -291,60 +291,18 @@ class ConvergenceReport:
 
 
 @dataclass(frozen=True)
-class ParamSweepConvergence:
-    """Convergence across a swept parameter (e.g. a ``plot_..._vs_paramvals`` range).
-
-    Holds the per-point :class:`ConvergenceReport` at each sampled parameter
-    value, and identifies the worst-case point -- the value at which the fixed
-    cutoff is least trustworthy.
-    """
-
-    param_name: str
-    param_vals: list[float]
-    reports: list[ConvergenceReport]
-    worst_index: int
-    aggregate_status: Status
-
-    def worst_param_val(self) -> float:
-        """Return the parameter value with the worst per-point aggregate status."""
-        return self.param_vals[self.worst_index]
-
-    def worst_report(self) -> ConvergenceReport:
-        """Return the :class:`ConvergenceReport` at the worst-case parameter value."""
-        return self.reports[self.worst_index]
-
-    def summary(self) -> str:
-        """Return a compact, human-readable summary across the swept values.
-
-        Lists each sampled parameter value with its per-point aggregate status,
-        marks the worst-case point, and states the overall worst status. The
-        full per-point reports remain available in :attr:`reports`.
-        """
-        lines = [
-            f"convergence vs {self.param_name} ({len(self.param_vals)} points): "
-            f"worst = {self.aggregate_status} at "
-            f"{self.param_name}={self.worst_param_val():.4g}"
-        ]
-        for index, (value, report) in enumerate(zip(self.param_vals, self.reports)):
-            marker = "  <-- worst" if index == self.worst_index else ""
-            lines.append(
-                f"  {self.param_name}={value:<10.4g} {report.aggregate_status}{marker}"
-            )
-        return "\n".join(lines)
-
-    def __str__(self) -> str:
-        """Return :meth:`summary` so ``print(sweep)`` shows the readable form."""
-        return self.summary()
-
-
-@dataclass(frozen=True)
 class ParameterSweepConvergence:
-    """Worst-case convergence across a :class:`.ParameterSweep` grid.
+    """Worst-case convergence across a swept parameter or :class:`.ParameterSweep` grid.
 
-    Holds the per-point :class:`ConvergenceReport` at each sampled grid point of an
-    N-dimensional parameter sweep, and identifies the worst-case point -- the grid
-    point at which the fixed cutoffs are least trustworthy. Each point is a mapping
-    from swept-parameter name to value.
+    Holds the per-point :class:`ConvergenceReport` at each sampled point of a
+    parameter sweep (a one-parameter scan or an N-dimensional grid), and
+    identifies the worst-case point -- the point at which the fixed cutoffs are
+    least trustworthy. Each point is a mapping from swept-parameter name to
+    value (a one-key dict for a 1-D scan).
+
+    For 1-D scans, :attr:`param_name`, :attr:`param_vals`, and
+    :meth:`worst_param_val` give scalar access to the single swept value;
+    they raise a descriptive ``ValueError`` on a multi-parameter report.
     """
 
     param_names: tuple[str, ...]
@@ -358,16 +316,53 @@ class ParameterSweepConvergence:
         return self.param_points[self.worst_index]
 
     def worst_report(self) -> ConvergenceReport:
-        """Return the :class:`ConvergenceReport` at the worst-case grid point."""
+        """Return the :class:`ConvergenceReport` at the worst-case point."""
         return self.reports[self.worst_index]
 
-    def summary(self) -> str:
-        """Return a compact, human-readable summary across the sampled grid points.
+    # ----------------------------------------------------------- 1-D accessors
+    # Shims that preserve the original 1-D ``ParamSweepConvergence`` access
+    # pattern. They raise an informative ``ValueError`` on a genuine
+    # multi-parameter report rather than return a misleading scalar.
 
-        Lists each sampled point (its swept-parameter coordinates) with the
-        per-point aggregate status, marks the worst-case point, and states the
-        overall worst status. The full per-point reports remain available in
-        :attr:`reports`.
+    @property
+    def param_name(self) -> str:
+        """The single swept parameter's name (1-D reports only)."""
+        if len(self.param_names) != 1:
+            raise ValueError(
+                f"param_name is defined only for 1-D sweep-convergence reports; "
+                f"this report has {len(self.param_names)} parameters "
+                f"({list(self.param_names)}). Use param_names instead."
+            )
+        return self.param_names[0]
+
+    @property
+    def param_vals(self) -> list[float]:
+        """The single swept parameter's values (1-D reports only)."""
+        if len(self.param_names) != 1:
+            raise ValueError(
+                f"param_vals is defined only for 1-D sweep-convergence reports; "
+                f"this report has {len(self.param_names)} parameters. Use "
+                f"param_points (each entry is a dict of coordinates) instead."
+            )
+        name = self.param_names[0]
+        return [point[name] for point in self.param_points]
+
+    def worst_param_val(self) -> float:
+        """Return the worst-case parameter value (1-D reports only)."""
+        if len(self.param_names) != 1:
+            raise ValueError(
+                f"worst_param_val() is defined only for 1-D sweep-convergence "
+                f"reports; this report has {len(self.param_names)} parameters. "
+                f"Use worst_point() (returns the coordinate dict) instead."
+            )
+        return self.worst_point()[self.param_names[0]]
+
+    def summary(self) -> str:
+        """Return a compact, human-readable summary across the sampled points.
+
+        Renders as ``convergence across sweep of (a, b, ...)`` with one row per
+        point and a worst-case marker; the full per-point reports remain
+        available in :attr:`reports`.
         """
         names = self.param_names
         worst = self.worst_point()

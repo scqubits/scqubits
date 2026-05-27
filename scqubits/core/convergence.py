@@ -42,7 +42,7 @@ from scqubits.core.convergence_report import (
     ImplementationAudit,
     LevelVerdict,
     Mode,
-    ParamSweepConvergence,
+    ParameterSweepConvergence,
     Refinement,
     Status,
     StatusScope,
@@ -407,7 +407,7 @@ class ConvergenceCheckable:
         param_vals: npt.NDArray[np.float64],
         sample: int | None = 5,
         **kwargs: Any,
-    ) -> ParamSweepConvergence:
+    ) -> ParameterSweepConvergence:
         """Assess convergence across a swept parameter, returning the worst case.
 
         A single :meth:`estimate_convergence` call assesses only the current
@@ -438,7 +438,7 @@ class ConvergenceCheckable:
 
         Returns
         -------
-        :class:`~scqubits.core.convergence_report.ParamSweepConvergence`
+        :class:`~scqubits.core.convergence_report.ParameterSweepConvergence`
         """
         values = np.asarray(param_vals, dtype=np.float64)
         if values.ndim != 1 or values.size == 0:
@@ -466,9 +466,9 @@ class ConvergenceCheckable:
             range(len(reports)),
             key=lambda i: _status_rank(reports[i].aggregate_status),
         )
-        return ParamSweepConvergence(
-            param_name=param_name,
-            param_vals=sampled_vals,
+        return ParameterSweepConvergence(
+            param_names=(param_name,),
+            param_points=[{param_name: float(v)} for v in sampled_vals],
             reports=reports,
             worst_index=worst_index,
             aggregate_status=reports[worst_index].aggregate_status,
@@ -2294,7 +2294,7 @@ def estimate_convergence_vs_paramvals(
     param_name: str,
     param_vals: npt.NDArray[np.float64],
     **kwargs: Any,
-) -> ParamSweepConvergence:
+) -> ParameterSweepConvergence:
     """Top-level shim: forwards to ``qubit.estimate_convergence_vs_paramvals(...)``.
 
     Raises ``TypeError`` if the qubit does not subclass
