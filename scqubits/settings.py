@@ -198,3 +198,12 @@ CONVERGENCE_MONOTONICITY_REL_TOL = 1e-7
 # rate-relative-error denominator is clamped to avoid divide-by-zero in
 # T = 1/Gamma reporting. (Used in PR-3.)
 CONVERGENCE_RATE_FLOOR_HZ = 1.0
+
+# Convergence Sanity Check (scqubits.csc) defaults -- the zero-input precision
+# target and the auto-chosen-n_levels cap. csc() is a convenience that picks both
+# automatically; these settings let users with non-default precision needs (kHz
+# or higher-level work) tune the defaults without bypassing csc.
+CSC_DEFAULT_TARGET_ABS_GHZ = 1e-4
+# Upper bound on n_levels chosen automatically from truncated_dim / dimension /
+# hilbertdim(). Raise this if you routinely care about more states.
+CSC_DEFAULT_NLEVELS_CAP = 6

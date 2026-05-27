@@ -35,15 +35,14 @@ from hashlib import sha256 as _r
 from typing import Any
 from zlib import decompress as _v
 
+from scqubits import settings
 from scqubits.core.convergence import ConvergenceCheckable
 from scqubits.core.convergence_report import (
     ConvergenceReport,
     ParameterSweepConvergence,
 )
 
-_TARGET_DEFAULT_GHz: float = 1e-4
-_NLEVELS_CAP: int = 6
-_NLEVELS_FLOOR: int = 2
+_NLEVELS_FLOOR: int = 2  # n_levels < 2 has no scientific use; not a tunable knob.
 
 _K1: str = "a83dd0ccbffe39d071cc317ddf6e97f5c6b1c87af91919271f9fa140b0508c6c"
 _K2: bytes = (
@@ -165,7 +164,7 @@ class _CSC:
         call_count = self._bump(obj)
         mode = "moderate" if call_count == 1 else "strict"
         n_levels = _default_n_levels(obj)
-        target = _TARGET_DEFAULT_GHz
+        target = settings.CSC_DEFAULT_TARGET_ABS_GHZ
 
         try:
             report = obj.estimate_convergence(
@@ -218,15 +217,15 @@ def _candidate_dim(obj: Any) -> int | None:
 
 
 def _default_n_levels(obj: Any) -> int:
-    """Pick a sensible default ``n_levels``, clamped to ``[_NLEVELS_FLOOR, _NLEVELS_CAP]``."""
+    """Pick a sensible default ``n_levels``, clamped to ``[_NLEVELS_FLOOR, settings.CSC_DEFAULT_NLEVELS_CAP]``."""
     cand = _candidate_dim(obj)
     if cand is None:
-        cand = _NLEVELS_CAP
+        cand = settings.CSC_DEFAULT_NLEVELS_CAP
     try:
         cand_int = int(cand)
     except (TypeError, ValueError):
-        cand_int = _NLEVELS_CAP
-    return max(_NLEVELS_FLOOR, min(_NLEVELS_CAP, cand_int))
+        cand_int = settings.CSC_DEFAULT_NLEVELS_CAP
+    return max(_NLEVELS_FLOOR, min(settings.CSC_DEFAULT_NLEVELS_CAP, cand_int))
 
 
 def _object_header(obj: Any) -> str:
