@@ -174,7 +174,7 @@ OVERLAP_THRESHOLD = 0.5
 SYM_INVERSION_MAX_NODES = 3
 
 # Convergence-diagnostics settings (see scqubits.core.convergence) ----------------------
-# Default mode for estimate_convergence() when not explicitly specified.
+# Default mode for check_convergence() when not explicitly specified.
 CONVERGENCE_DEFAULT_MODE = "moderate"
 # Default floor on the local isolation gap (in GHz) used when normalizing
 # convergence estimates by an observed spectral gap.

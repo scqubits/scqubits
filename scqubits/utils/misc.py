@@ -484,8 +484,8 @@ def number_of_lists_in_list(list_object: list) -> int:
 
 def inspect_public_API(
     module: Any,
-    public_names: list[str] = [],
-    private_names: list[str] = [],
+    public_names: list[str] | None = None,
+    private_names: list[str] | None = None,
 ) -> list[str]:
     """Find all public names in a module.
 
@@ -498,6 +498,12 @@ def inspect_public_API(
     private_names:
         Names that should be excluded from the public API
     """
+    # Avoid the Python mutable-default-arg footgun: a fresh list per call,
+    # never one shared across calls.
+    if public_names is None:
+        public_names = []
+    if private_names is None:
+        private_names = []
     for name, obj in inspect.getmembers(module):
         if name.startswith("_") or name in public_names or name in private_names:
             continue

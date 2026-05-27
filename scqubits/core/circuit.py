@@ -98,7 +98,7 @@ class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot, ConvergenceChe
     (``self.cutoff_names``): periodic charge cutoffs (``charge_tail``) and extended
     cutoffs (``FD_stencil`` for a discretized variable, ``HO_tail`` for a harmonic
     one). Hierarchical diagonalization delegates to the circuit's
-    internal :class:`.HilbertSpace` -- handled in :meth:`estimate_convergence`.
+    internal :class:`.HilbertSpace` -- handled in :meth:`check_convergence`.
     """
 
     _convergence_basis: str = "circuit"
@@ -208,7 +208,7 @@ class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot, ConvergenceChe
                 return settings.STENCIL - 1
         return None
 
-    def estimate_convergence(  # type: ignore[override]
+    def check_convergence(  # type: ignore[override]
         self,
         n_levels: int = 6,
         mode: str = "moderate",
@@ -226,10 +226,10 @@ class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot, ConvergenceChe
         ``assume_subsystems_converged`` is inert here.
 
         **Hierarchically diagonalized circuit.** Two layers, like
-        :meth:`HilbertSpace.estimate_convergence`: layer 2 refines each top-level
+        :meth:`HilbertSpace.check_convergence`: layer 2 refines each top-level
         subsystem's ``truncated_dim`` (via ``configure``) and re-diagonalizes the
         dressed spectrum; layer 1 delegates to each ``subsystems[i]``'s own
-        ``estimate_convergence`` (attached under ``derived["subsystem:<id>"]``,
+        ``check_convergence`` (attached under ``derived["subsystem:<id>"]``,
         skipped when ``assume_subsystems_converged=True``). The aggregate is the
         worse of the two layers. A *nested* hierarchically-diagonalized subsystem
         (which has no ``configure``) raises :class:`NotImplementedError`; the
@@ -237,7 +237,7 @@ class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot, ConvergenceChe
 
         Cheap mode is moderate-recommended (a coupled basis has no clean cheap
         estimator). Parameters are as in
-        :meth:`ConvergenceCheckable.estimate_convergence`.
+        :meth:`ConvergenceCheckable.check_convergence`.
         """
         n_buffer = 1 if scope == "observed_gap_scale" else 0
         if n_levels + n_buffer > self.truncated_dim:
@@ -249,7 +249,7 @@ class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot, ConvergenceChe
             )
 
         if not self.hierarchical_diagonalization:
-            return ConvergenceCheckable.estimate_convergence(
+            return ConvergenceCheckable.check_convergence(
                 self,
                 n_levels=n_levels,
                 mode=mode,
@@ -278,7 +278,7 @@ class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot, ConvergenceChe
                 warning="composite_moderate_recommended",
             )
         else:
-            composite = ConvergenceCheckable.estimate_convergence(
+            composite = ConvergenceCheckable.check_convergence(
                 self,
                 n_levels=n_levels,
                 mode=mode,
@@ -343,7 +343,7 @@ class CircuitABC(CircuitRoutines, CircuitSymMethods, CircuitPlot, ConvergenceChe
             # (minus the observed-gap buffer).
             n_sub = max(1, int(sub.truncated_dim) - n_buffer)
             try:
-                reports[f"subsystem:{sub.id_str}"] = sub.estimate_convergence(
+                reports[f"subsystem:{sub.id_str}"] = sub.check_convergence(
                     n_levels=n_sub,
                     mode=mode,
                     scope=scope,

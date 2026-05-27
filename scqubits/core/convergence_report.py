@@ -12,7 +12,7 @@
 """Verdict and report data classes for the convergence-diagnostics framework.
 
 The frozen dataclasses defined here form the return type of
-:meth:`scqubits.core.convergence.ConvergenceCheckable.estimate_convergence`.
+:meth:`scqubits.core.convergence.ConvergenceCheckable.check_convergence`.
 The schema deliberately separates true (unknown) error from estimated error and
 separates absolute from observed-gap-scale error metrics. A convergence test can
 only ever *dismiss* convergence (a negative result); a passing verdict means the

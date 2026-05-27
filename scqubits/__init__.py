@@ -34,8 +34,8 @@ from scqubits import settings
 from scqubits.core.central_dispatch import CentralDispatch
 from scqubits.core.convergence import (
     ConvergenceCheckable,
-    estimate_convergence,
-    estimate_convergence_vs_paramvals,
+    check_convergence,
+    check_convergence_vs_paramvals,
 )
 from scqubits.core.convergence_report import (
     CheckOutcome,

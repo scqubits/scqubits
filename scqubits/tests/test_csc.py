@@ -132,9 +132,7 @@ class TestCheckable:
 class TestReportPassthrough:
     def test_existing_report_pretty_prints_without_header(self):
         q = _well_converged_transmon()
-        report = q.estimate_convergence(
-            n_levels=3, target_abs_GHz=1e-4, mode="moderate"
-        )
+        report = q.check_convergence(n_levels=3, target_abs_GHz=1e-4, mode="moderate")
         text = str(csc(report))
         # Should be exactly the report's own summary -- no csc framing.
         assert "csc --" not in text
@@ -142,9 +140,7 @@ class TestReportPassthrough:
 
     def test_report_passthrough_does_not_bump_registry(self):
         q = _well_converged_transmon()
-        report = q.estimate_convergence(
-            n_levels=3, target_abs_GHz=1e-4, mode="moderate"
-        )
+        report = q.check_convergence(n_levels=3, target_abs_GHz=1e-4, mode="moderate")
         _ = csc(report)
         # The qubit was not the argument to csc, so its registry entry is still
         # at zero; the next call on the qubit should be call #1.
@@ -168,7 +164,7 @@ class TestHilbertSpace:
 class TestParameterSweep:
     def test_parametersweep_is_routed_not_unsupported(self):
         # ParameterSweep does not inherit ConvergenceCheckable but supplies its
-        # own estimate_convergence; csc must route it (not the unsupported path).
+        # own check_convergence; csc must route it (not the unsupported path).
         import numpy as np
 
         tmon = scq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=4)
@@ -191,16 +187,16 @@ class TestParameterSweep:
 
 
 class TestFailureWrap:
-    def test_estimate_convergence_failure_is_wrapped(self):
-        # F3 contract: a narrowed except wraps expected estimate_convergence
+    def test_check_convergence_failure_is_wrapped(self):
+        # F3 contract: a narrowed except wraps expected check_convergence
         # failures into a friendly message rather than propagating.
         from scqubits.core.convergence import ConvergenceCheckable
 
         class _FailingCheckable(ConvergenceCheckable):
-            def estimate_convergence(self, **kwargs):
-                raise ValueError("simulated estimate_convergence failure")
+            def check_convergence(self, **kwargs):
+                raise ValueError("simulated check_convergence failure")
 
         text = str(csc(_FailingCheckable()))
         assert "could not assess" in text
-        assert "simulated estimate_convergence failure" in text
+        assert "simulated check_convergence failure" in text
         assert "ValueError" in text

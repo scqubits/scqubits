@@ -724,7 +724,7 @@ class HilbertSpace(
     ###################################################################################
     # The composite Hilbert space has two truncation layers. Layer 1 is each
     # subsystem's own basis cutoff (ncut, cutoff, grid), verified by delegating to
-    # the subsystem's own estimate_convergence. Layer 2 is the per-subsystem
+    # the subsystem's own check_convergence. Layer 2 is the per-subsystem
     # truncated_dim that sets how many subsystem levels enter the product space; it
     # is verified by the inherited multi-axis refinement engine, one axis per
     # subsystem, re-diagonalizing the whole composite so that subsystem and
@@ -777,7 +777,7 @@ class HilbertSpace(
         """Composite truncation is reported on the ``composite_coupling`` channel."""
         return "composite_coupling"
 
-    def estimate_convergence(  # type: ignore[override]
+    def check_convergence(  # type: ignore[override]
         self,
         n_levels: int = 6,
         mode: str = "moderate",
@@ -790,7 +790,7 @@ class HilbertSpace(
         """Estimate convergence of the composite spectrum across two layers.
 
         Layer 1 (subsystem-internal): for each subsystem that supports it,
-        delegate to ``subsystem.estimate_convergence`` to verify its own basis
+        delegate to ``subsystem.check_convergence`` to verify its own basis
         cutoff for the levels that enter the product space; the per-subsystem
         reports are attached under ``report.derived["subsystem:<id>"]``. Pass
         ``assume_subsystems_converged=True`` to skip this layer when subsystem
@@ -820,7 +820,7 @@ class HilbertSpace(
             refinement; default), or ``"strict"`` (two-step ratio test).
         scope:
             ``"absolute"`` or ``"observed_gap_scale"``, as in
-            :meth:`ConvergenceCheckable.estimate_convergence`.
+            :meth:`ConvergenceCheckable.check_convergence`.
         target_abs_GHz:
             Required for absolute-scope status assignment.
         target_gap_rel:
@@ -866,7 +866,7 @@ class HilbertSpace(
                 warning="composite_unrefinable_interaction",
             )
         else:
-            composite = ConvergenceCheckable.estimate_convergence(
+            composite = ConvergenceCheckable.check_convergence(
                 self,
                 n_levels=n_levels,
                 mode=mode,
@@ -916,7 +916,7 @@ class HilbertSpace(
             if mode == "strict":
                 reach *= 2
             n_sub = max(1, min(truncated + reach, int(subsys.hilbertdim())))
-            reports[axis] = subsys.estimate_convergence(
+            reports[axis] = subsys.check_convergence(
                 n_levels=n_sub,
                 mode=mode,
                 scope=scope,

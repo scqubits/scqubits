@@ -67,7 +67,7 @@
   {\fontsize{30}{34}\selectfont\bfseries Convergence diagnostics in \texttt{scqubits}};
 \node[anchor=north west, text=ink!75, font=\large, text width=49.8cm] at (0,-1.05)
   {A qubit's Hamiltonian acts on an infinite-dimensional Hilbert space; \texttt{scqubits} represents it as a \emph{finite matrix} in a truncated basis.
-   \texttt{estimate\_convergence} asks: \emph{for this cutoff, is there any reason to distrust the result --- and what should I grow if there is?}};
+   \texttt{check\_convergence} asks: \emph{for this cutoff, is there any reason to distrust the result --- and what should I grow if there is?}};
 
 % ===================== ROW 1 =====================
 % A: philosophy
@@ -85,11 +85,11 @@
 \node[zone=flow, anchor=north west] (B) at (\colB,\rowA) {\body{%
   \zt{flow!40!black}{2\, $\bullet$\, The workflow}
   \vspace{2.55cm}\par
-  \bk{\cd{report = q.estimate\_convergence(n\_levels, target\_abs\_GHz, mode)}}\par
+  \bk{\cd{report = q.check\_convergence(n\_levels, target\_abs\_GHz, mode)}}\par
   \bk{A passing aggregate ends the loop; a \textcolor{vdist!60!black}{\bfseries distrust} names the cutoff to grow.}
 }};
 \node[pill=flow, anchor=north west] (w1) at ($(B.north west)+(0.45,-1.05)$) {build qubit @ cutoff};
-\node[pill=flow, right=0.55cm of w1] (w2) {\cd{estimate\_convergence}};
+\node[pill=flow, right=0.55cm of w1] (w2) {\cd{check\_convergence}};
 \node[pill=flow, below=0.5cm of w2] (w3) {read the verdict};
 \node[pill=vdist, below=0.5cm of w1] (w4) {grow the named cutoff};
 \draw[fa] (w1) -- (w2);

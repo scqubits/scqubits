@@ -12,7 +12,7 @@
 """Verified-refinement convergence diagnostics for qubit classes.
 
 A concrete qubit that adds ``ConvergenceCheckable`` to its MRO and declares
-``_convergence_axes`` gains an :meth:`estimate_convergence` method returning a
+``_convergence_axes`` gains an :meth:`check_convergence` method returning a
 :class:`~scqubits.core.convergence_report.ConvergenceReport`. The engine assesses
 the energy spectrum and, on request, the derived wavefunction, matrix-element,
 and coherence channels.
@@ -51,7 +51,7 @@ from scqubits.core.convergence_report import (
 
 
 class ConvergenceCheckable:
-    """Mixin providing :meth:`estimate_convergence` for qubit classes.
+    """Mixin providing :meth:`check_convergence` for qubit classes.
 
     Concrete qubits opt in by:
 
@@ -265,7 +265,7 @@ class ConvergenceCheckable:
 
     # ----------------------------------------------------------------- public
 
-    def estimate_convergence(
+    def check_convergence(
         self,
         n_levels: int = 6,
         mode: str = "moderate",
@@ -401,7 +401,7 @@ class ConvergenceCheckable:
             derived_quantities=requested_derived,
         )
 
-    def estimate_convergence_vs_paramvals(
+    def check_convergence_vs_paramvals(
         self,
         param_name: str,
         param_vals: npt.NDArray[np.float64],
@@ -410,7 +410,7 @@ class ConvergenceCheckable:
     ) -> ParameterSweepConvergence:
         """Assess convergence across a swept parameter, returning the worst case.
 
-        A single :meth:`estimate_convergence` call assesses only the current
+        A single :meth:`check_convergence` call assesses only the current
         parameter set. A plot such as ``plot_evals_vs_paramvals`` instead sweeps
         a parameter at a fixed cutoff, and truncation convergence can vary across
         that range (e.g. fluxonium near half flux). This runs the per-point check
@@ -433,7 +433,7 @@ class ConvergenceCheckable:
             every value. Sampling keeps the check cheap relative to a full
             per-point sweep.
         **kwargs:
-            Forwarded to :meth:`estimate_convergence` (e.g. ``n_levels``,
+            Forwarded to :meth:`check_convergence` (e.g. ``n_levels``,
             ``mode``, ``target_abs_GHz``, ``scope``).
 
         Returns
@@ -458,7 +458,7 @@ class ConvergenceCheckable:
         try:
             for value in sampled_vals:
                 setattr(self, param_name, value)
-                reports.append(self.estimate_convergence(**kwargs))
+                reports.append(self.check_convergence(**kwargs))
         finally:
             setattr(self, param_name, original)
 
@@ -2294,8 +2294,8 @@ def _build_coherence_report(
     )
 
 
-def estimate_convergence(qubit: Any, **kwargs: Any) -> ConvergenceReport:
-    """Convenience top-level shim: forwards to ``qubit.estimate_convergence(...)``.
+def check_convergence(qubit: Any, **kwargs: Any) -> ConvergenceReport:
+    """Convenience top-level shim: forwards to ``qubit.check_convergence(...)``.
 
     Raises ``TypeError`` if the qubit does not subclass
     :class:`ConvergenceCheckable`.
@@ -2305,16 +2305,16 @@ def estimate_convergence(qubit: Any, **kwargs: Any) -> ConvergenceReport:
             f"{type(qubit).__name__} does not support convergence checking; "
             "it must subclass ConvergenceCheckable."
         )
-    return qubit.estimate_convergence(**kwargs)
+    return qubit.check_convergence(**kwargs)
 
 
-def estimate_convergence_vs_paramvals(
+def check_convergence_vs_paramvals(
     qubit: Any,
     param_name: str,
     param_vals: npt.NDArray[np.float64],
     **kwargs: Any,
 ) -> ParameterSweepConvergence:
-    """Top-level shim: forwards to ``qubit.estimate_convergence_vs_paramvals(...)``.
+    """Top-level shim: forwards to ``qubit.check_convergence_vs_paramvals(...)``.
 
     Raises ``TypeError`` if the qubit does not subclass
     :class:`ConvergenceCheckable`.
@@ -2323,4 +2323,4 @@ def estimate_convergence_vs_paramvals(
         raise TypeError(
             f"{type(qubit).__name__} does not implement convergence checking."
         )
-    return qubit.estimate_convergence_vs_paramvals(param_name, param_vals, **kwargs)
+    return qubit.check_convergence_vs_paramvals(param_name, param_vals, **kwargs)

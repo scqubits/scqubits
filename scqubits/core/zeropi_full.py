@@ -787,7 +787,7 @@ class FullZeroPi(
     # diagonalized and truncated to ``zeropi_cutoff`` levels, then coupled to a
     # zeta oscillator (``zeta_cutoff``). Convergence is therefore checked in two
     # layers, mirroring HilbertSpace: layer 1 delegates to the interior ZeroPi's
-    # own estimate_convergence (verifying the 0-pi basis, with its FD box/stencil
+    # own check_convergence (verifying the 0-pi basis, with its FD box/stencil
     # and edge diagnostics); layer 2 refines the coupling cutoffs zeropi_cutoff
     # and zeta_cutoff and re-diagonalizes the full coupled system.
     _convergence_axes: tuple[str, ...] = ("zeropi_cutoff", "zeta_cutoff")
@@ -812,7 +812,7 @@ class FullZeroPi(
             step = min(step, max(1, headroom // 2))
         return step
 
-    def estimate_convergence(  # type: ignore[override]
+    def check_convergence(  # type: ignore[override]
         self,
         n_levels: int = 6,
         mode: str = "moderate",
@@ -825,7 +825,7 @@ class FullZeroPi(
         """Estimate convergence of the coupled FullZeroPi spectrum in two layers.
 
         Layer 1 (interior basis): unless ``assume_inner_converged=True``, delegate
-        to the interior :class:`.ZeroPi`'s own ``estimate_convergence`` (the phi
+        to the interior :class:`.ZeroPi`'s own ``check_convergence`` (the phi
         grid box/spacing and theta charge cutoff) for the lowest ``zeropi_cutoff``
         plus refinement-reach levels, and attach it under
         ``report.derived["interior_zeropi"]``.
@@ -843,7 +843,7 @@ class FullZeroPi(
             ``"cheap"`` (no coupled re-diagonalization; moderate-recommended),
             ``"moderate"`` (one refinement; default), or ``"strict"`` (ratio test).
         scope, target_abs_GHz, target_gap_rel, g_floor_GHz:
-            As in :meth:`ConvergenceCheckable.estimate_convergence`.
+            As in :meth:`ConvergenceCheckable.check_convergence`.
         assume_inner_converged:
             If True, skip the layer-1 interior-ZeroPi check.
 
@@ -870,7 +870,7 @@ class FullZeroPi(
                 warning="composite_moderate_recommended",
             )
         else:
-            composite = ConvergenceCheckable.estimate_convergence(
+            composite = ConvergenceCheckable.check_convergence(
                 self,
                 n_levels=n_levels,
                 mode=mode,
@@ -889,7 +889,7 @@ class FullZeroPi(
         n_inner = max(
             1, min(self.zeropi_cutoff + reach, int(self._zeropi.hilbertdim()))
         )
-        inner = self._zeropi.estimate_convergence(
+        inner = self._zeropi.check_convergence(
             n_levels=n_inner,
             mode=mode,
             scope=scope,

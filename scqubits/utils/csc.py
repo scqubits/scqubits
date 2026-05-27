@@ -22,7 +22,7 @@ Defaults: ``n_levels`` is clamped to ``[2, 6]`` using ``truncated_dim``,
 ``dimension`` (composites), or ``hilbertdim()`` as the natural cap;
 ``target_abs_GHz = 1e-4`` (0.1 MHz, typical spectroscopic precision). The
 full
-:meth:`~scqubits.core.convergence.ConvergenceCheckable.estimate_convergence`
+:meth:`~scqubits.core.convergence.ConvergenceCheckable.check_convergence`
 API remains available when finer control is needed.
 """
 
@@ -153,7 +153,7 @@ class _CSC:
         if isinstance(obj, ConvergenceReport):
             return CSCResult(obj.summary())
 
-        # Lazy import: ParameterSweep duck-types `estimate_convergence` but does
+        # Lazy import: ParameterSweep duck-types `check_convergence` but does
         # not inherit ConvergenceCheckable. Imported here to avoid any package
         # load-order coupling.
         from scqubits.core.param_sweep import ParameterSweep
@@ -167,7 +167,7 @@ class _CSC:
         target = settings.CSC_DEFAULT_TARGET_ABS_GHZ
 
         try:
-            report = obj.estimate_convergence(
+            report = obj.check_convergence(
                 n_levels=n_levels,
                 target_abs_GHz=target,
                 mode=mode,
@@ -178,7 +178,7 @@ class _CSC:
                 f"(n_levels={n_levels}, target_abs_GHz={target:g}, "
                 f"mode={mode}):\n"
                 f"  {type(exc).__name__}: {exc}\n"
-                "  Use obj.estimate_convergence(...) with explicit arguments."
+                "  Use obj.check_convergence(...) with explicit arguments."
             )
 
         return CSCResult(

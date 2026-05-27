@@ -1363,7 +1363,7 @@ class ParameterSweep(
         initial_parameters = tuple(paramvals[0] for paramvals in self._parameters)
         self._update_hilbertspace(self, *initial_parameters)
 
-    def estimate_convergence(
+    def check_convergence(
         self,
         n_levels: int = 6,
         mode: str = "moderate",
@@ -1376,7 +1376,7 @@ class ParameterSweep(
     ) -> ParameterSweepConvergence:
         """Estimate convergence across the sweep grid, returning the worst case.
 
-        A single :meth:`HilbertSpace.estimate_convergence` certifies one parameter
+        A single :meth:`HilbertSpace.check_convergence` certifies one parameter
         point; truncation convergence can vary across a sweep (e.g. fluxonium near
         half flux). This applies the sweep's ``update_hilbertspace`` callback at
         sampled grid points, runs the composite HilbertSpace convergence check at
@@ -1386,7 +1386,7 @@ class ParameterSweep(
         Parameters
         ----------
         n_levels, mode, scope, target_abs_GHz, target_gap_rel, g_floor_GHz, assume_subsystems_converged:
-            Forwarded to :meth:`HilbertSpace.estimate_convergence` at each point.
+            Forwarded to :meth:`HilbertSpace.check_convergence` at each point.
         sample:
             Number of grid points to check. The grid corners (extreme parameter
             values, often the worst case) come first, then evenly-spread interior
@@ -1408,7 +1408,7 @@ class ParameterSweep(
             for point in points:
                 self._update_hilbertspace(self, *point)
                 reports.append(
-                    self._hilbertspace.estimate_convergence(
+                    self._hilbertspace.check_convergence(
                         n_levels=n_levels,
                         mode=mode,
                         scope=scope,

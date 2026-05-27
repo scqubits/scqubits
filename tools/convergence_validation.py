@@ -86,7 +86,7 @@ def validate_stability_and_energies():
         meaningful = max(10.0 * noise, 1e-9)
         for ncut in TEST_NCUTS:
             tmon = scq.Transmon(EJ=EJ, EC=EC, ng=ng, ncut=ncut)
-            rep = tmon.estimate_convergence(n_levels=N_LEVELS, mode="moderate")
+            rep = tmon.check_convergence(n_levels=N_LEVELS, mode="moderate")
             e_now = low_evals(EJ, EC, ng, ncut, N_LEVELS)
             worst_r = 0.0
             worst_k = -1
@@ -132,7 +132,7 @@ def validate_verdicts():
         for ncut in TEST_NCUTS:
             for target in (1e-2, 1e-4, 1e-6):
                 tmon = scq.Transmon(EJ=EJ, EC=EC, ng=ng, ncut=ncut)
-                rep = tmon.estimate_convergence(
+                rep = tmon.check_convergence(
                     n_levels=N_LEVELS, mode="strict", target_abs_GHz=target
                 )
                 e_now = low_evals(EJ, EC, ng, ncut, N_LEVELS)
@@ -161,7 +161,7 @@ def validate_strict_ratio_test():
     # likely_converged, so a converged transmon must reach likely_converged via
     # the ratio test.
     tmon = scq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=16)
-    rep = tmon.estimate_convergence(n_levels=4, mode="strict", target_abs_GHz=1e-4)
+    rep = tmon.check_convergence(n_levels=4, mode="strict", target_abs_GHz=1e-4)
     methods = [v.estimator_method for v in rep.per_level]
     ran_ratio_test = any("ratio_test" in m for m in methods)
     print(f"  aggregate: {rep.aggregate_status}")
@@ -179,7 +179,7 @@ def validate_derived():
     all_sound = True
     for ncut in [6, 10, 16, 24]:
         tmon = scq.Transmon(EJ=EJ, EC=EC, ng=ng, ncut=ncut)
-        rep = tmon.estimate_convergence(
+        rep = tmon.check_convergence(
             n_levels=n,
             mode="moderate",
             include_derived=True,
@@ -271,7 +271,7 @@ def validate_high_cutoff_check():
     ok = True
     for ncut in [60, 100, 150]:
         tmon = scq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=ncut)
-        rep = tmon.estimate_convergence(n_levels=4, mode="strict", target_abs_GHz=1e-6)
+        rep = tmon.check_convergence(n_levels=4, mode="strict", target_abs_GHz=1e-6)
         worst = max((v.abs_err_est_GHz or 0.0) for v in rep.per_level)
         status = rep.aggregate_status
         good = worst < 1e-4 and status == "likely_converged"
@@ -330,9 +330,7 @@ def validate_zeropi_fd_groundtruth():
                 truncated_dim=n + 2,
             )
             e_user = np.sort(zp.eigenvals(evals_count=n))
-            rep = zp.estimate_convergence(
-                n_levels=n, mode="strict", target_abs_GHz=target
-            )
+            rep = zp.check_convergence(n_levels=n, mode="strict", target_abs_GHz=target)
             worst_ratio = 0.0
             false_converged = 0
             for k, v in enumerate(rep.per_level):
@@ -390,7 +388,7 @@ def validate_fluxonium_groundtruth():
                 EJ=EJ, EC=EC, EL=EL, flux=flux, cutoff=cutoff, truncated_dim=n + 2
             )
             e_user = np.sort(flx.eigenvals(evals_count=n))
-            rep = flx.estimate_convergence(
+            rep = flx.check_convergence(
                 n_levels=n, mode="strict", target_abs_GHz=target
             )
             for k, v in enumerate(rep.per_level):
@@ -441,7 +439,7 @@ def validate_hilbertspace_groundtruth():
     for truncated in (3, 4, 6, 8):
         hs = make_hs(truncated)
         e_user = np.sort(hs.eigenvals(evals_count=n))
-        rep = hs.estimate_convergence(
+        rep = hs.check_convergence(
             n_levels=n,
             mode="strict",
             target_abs_GHz=target,
@@ -483,7 +481,7 @@ def validate_fluxonium_adversarial():
     )
     e_user = np.sort(flx.eigenvals(evals_count=n))
     not_converged = [k for k in range(n) if abs(e_user[k] - e_ref[k]) >= target]
-    rep = flx.estimate_convergence(n_levels=n, mode="strict", target_abs_GHz=target)
+    rep = flx.check_convergence(n_levels=n, mode="strict", target_abs_GHz=target)
     verdicts = [rep.per_level[k].status for k in not_converged]
     false_confident = sum(s == "likely_converged" for s in verdicts)
     dismissed = all(s == "distrust" for s in verdicts)
@@ -528,7 +526,7 @@ def validate_zeropi_box_groundtruth():
     e_ref = np.sort(make(16.0 * np.pi).eigenvals(evals_count=n))
     zp = make(5.0 * np.pi)
     e_user = np.sort(zp.eigenvals(evals_count=n))
-    rep = zp.estimate_convergence(n_levels=n, mode="moderate", target_abs_GHz=target)
+    rep = zp.check_convergence(n_levels=n, mode="moderate", target_abs_GHz=target)
     worst_ratio = 0.0
     false_confident = 0
     for k, v in enumerate(rep.per_level):

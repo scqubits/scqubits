@@ -12,7 +12,7 @@
 
 Covers dataclass construction; cheap / moderate / strict energy convergence
 and degradation across the qubit classes; per-level checks; recommendations;
-and the top-level ``estimate_convergence`` shim.
+and the top-level ``check_convergence`` shim.
 """
 
 from __future__ import annotations
@@ -149,31 +149,31 @@ class TestDataclasses:
 
 
 class TestAPIValidation:
-    def test_estimate_convergence_on_non_checkable_raises(self):
+    def test_check_convergence_on_non_checkable_raises(self):
         # Oscillator is not (yet) ConvergenceCheckable.
         osc = sq.Oscillator(E_osc=5.0, truncated_dim=3)
         with pytest.raises(TypeError, match="does not support convergence checking"):
-            sq.estimate_convergence(osc, n_levels=2, mode="moderate")
+            sq.check_convergence(osc, n_levels=2, mode="moderate")
 
     def test_invalid_mode_raises(self):
         tmon = sq.Transmon(EJ=15.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
         with pytest.raises(ValueError, match="mode must be"):
-            tmon.estimate_convergence(n_levels=3, mode="turbo")
+            tmon.check_convergence(n_levels=3, mode="turbo")
 
     def test_invalid_scope_raises(self):
         tmon = sq.Transmon(EJ=15.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
         with pytest.raises(ValueError, match="scope must be"):
-            tmon.estimate_convergence(n_levels=3, scope="LC_scale")
+            tmon.check_convergence(n_levels=3, scope="LC_scale")
 
     def test_include_derived_requires_derived_quantities(self):
         tmon = sq.Transmon(EJ=15.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
         with pytest.raises(ValueError, match="requires derived_quantities"):
-            tmon.estimate_convergence(n_levels=3, include_derived=True)
+            tmon.check_convergence(n_levels=3, include_derived=True)
 
     def test_include_derived_rejects_cheap_mode(self):
         tmon = sq.Transmon(EJ=15.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
         with pytest.raises(ValueError, match="moderate"):
-            tmon.estimate_convergence(
+            tmon.check_convergence(
                 n_levels=3,
                 mode="cheap",
                 include_derived=True,
@@ -183,7 +183,7 @@ class TestAPIValidation:
     def test_unknown_derived_quantity_raises(self):
         tmon = sq.Transmon(EJ=15.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
         with pytest.raises(ValueError, match="unknown derived_quantities"):
-            tmon.estimate_convergence(
+            tmon.check_convergence(
                 n_levels=3, include_derived=True, derived_quantities=["bogus"]
             )
 
@@ -194,7 +194,7 @@ class TestAPIValidation:
 class TestEnergyModerateMode:
     def test_well_converged_transmon_is_maybe_converged(self):
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        report = sq.estimate_convergence(
+        report = sq.check_convergence(
             tmon, n_levels=5, mode="moderate", target_abs_GHz=1e-4
         )
         assert report.aggregate_status == "maybe_converged"
@@ -207,7 +207,7 @@ class TestEnergyModerateMode:
 
     def test_undersized_transmon_is_distrust(self):
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=6, truncated_dim=6)
-        report = sq.estimate_convergence(
+        report = sq.check_convergence(
             tmon, n_levels=5, mode="moderate", target_abs_GHz=1e-6
         )
         assert report.aggregate_status == "distrust"
@@ -218,7 +218,7 @@ class TestEnergyModerateMode:
         # The report still contains abs_err_est_GHz per level, but status
         # defaults to unverified when no target is supplied.
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        report = sq.estimate_convergence(tmon, n_levels=3, mode="moderate")
+        report = sq.check_convergence(tmon, n_levels=3, mode="moderate")
         for v in report.per_level:
             assert v.status == "unverified"
             assert v.abs_err_est_GHz is not None
@@ -226,7 +226,7 @@ class TestEnergyModerateMode:
 
     def test_observed_gap_scope_uses_local_isolation(self):
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        report = sq.estimate_convergence(
+        report = sq.check_convergence(
             tmon, n_levels=4, mode="moderate", scope="observed_gap_scale"
         )
         # eps_gap_est is populated for every level (buffer ensures
@@ -239,7 +239,7 @@ class TestEnergyModerateMode:
 
     def test_per_level_count_matches_request(self):
         tmon = sq.Transmon(EJ=15.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        report = sq.estimate_convergence(
+        report = sq.check_convergence(
             tmon, n_levels=4, mode="moderate", target_abs_GHz=1e-4
         )
         assert len(report.per_level) == 4
@@ -248,7 +248,7 @@ class TestEnergyModerateMode:
         # Each level reports transition-error estimates to the other levels,
         # equal to the sum of the two absolute estimates (triangle inequality).
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        report = sq.estimate_convergence(
+        report = sq.check_convergence(
             tmon, n_levels=4, mode="moderate", target_abs_GHz=1e-4
         )
         err = [v.abs_err_est_GHz for v in report.per_level]
@@ -262,7 +262,7 @@ class TestEnergyModerateMode:
         # An undersized transmon's dominant channel is the charge tail, so the
         # recommendation must name the charge cutoff (not a generic axis bump).
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=6, truncated_dim=6)
-        report = sq.estimate_convergence(
+        report = sq.check_convergence(
             tmon, n_levels=4, mode="moderate", target_abs_GHz=1e-6
         )
         assert report.aggregate_status == "distrust"
@@ -273,7 +273,7 @@ class TestEnergyModerateMode:
         # carry the boundary_probability_large warning (their dropped tail is
         # non-perturbative), and a recommendation must call it out.
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=5, truncated_dim=6)
-        report = sq.estimate_convergence(tmon, n_levels=5, target_abs_GHz=1e-6)
+        report = sq.check_convergence(tmon, n_levels=5, target_abs_GHz=1e-6)
         assert any("boundary_probability_large" in v.warnings for v in report.per_level)
         assert any("boundary_probability_large" in r for r in report.recommendations)
 
@@ -287,7 +287,7 @@ class TestEnergyStrictMode:
         # should still produce a coherent report (the ratio test may or
         # may not detect asymptoticity at this small a problem).
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=8, truncated_dim=4)
-        report = sq.estimate_convergence(
+        report = sq.check_convergence(
             tmon, n_levels=3, mode="strict", target_abs_GHz=1e-6
         )
         assert report.implementation_audit.mode == "strict"
@@ -309,7 +309,7 @@ class TestEnergyStrictMode:
         # inversion mislabeled the asymptotic ratio test, so the strict-mode gate
         # wrongly downgraded every ratio-tested level to 'marginal'.
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=16, truncated_dim=6)
-        report = sq.estimate_convergence(
+        report = sq.check_convergence(
             tmon, n_levels=4, mode="strict", target_abs_GHz=1e-4
         )
         assert report.aggregate_status == "likely_converged"
@@ -323,7 +323,7 @@ class TestEnergyStrictMode:
 class TestEnergyCheapMode:
     def test_cheap_mode_never_says_converged(self):
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        report = sq.estimate_convergence(tmon, n_levels=5, mode="cheap")
+        report = sq.check_convergence(tmon, n_levels=5, mode="cheap")
         # Best possible cheap-mode status is "unverified".
         for v in report.per_level:
             assert v.status in {
@@ -336,7 +336,7 @@ class TestEnergyCheapMode:
 
     def test_cheap_mode_well_converged_is_unverified(self):
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        report = sq.estimate_convergence(tmon, n_levels=4, mode="cheap")
+        report = sq.check_convergence(tmon, n_levels=4, mode="cheap")
         assert report.aggregate_status == "unverified"
         # The charge finite-tail gives a perturbative estimate (not just a
         # boundary diagnostic), so an abs_err_est is provided even in cheap mode.
@@ -350,7 +350,7 @@ class TestEnergyCheapMode:
         # comparable to the true charge-truncation error.
         ref = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=200).eigenvals(evals_count=5)
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=6, truncated_dim=6)
-        report = sq.estimate_convergence(
+        report = sq.check_convergence(
             tmon, n_levels=5, mode="cheap", target_abs_GHz=1e-4
         )
         assert report.aggregate_status == "distrust"
@@ -363,7 +363,7 @@ class TestEnergyCheapMode:
 
     def test_cheap_mode_undersized_is_distrust(self):
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=4, truncated_dim=4)
-        report = sq.estimate_convergence(tmon, n_levels=3, mode="cheap")
+        report = sq.check_convergence(tmon, n_levels=3, mode="cheap")
         assert report.aggregate_status == "distrust"
         # The dominant levels sit hard against the charge boundary.
         assert any("boundary_probability_large" in v.warnings for v in report.per_level)
@@ -372,7 +372,7 @@ class TestEnergyCheapMode:
         # The audit field n_levels_buffer is 0 for cheap mode at
         # absolute scope (no buffer needed).
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        report = sq.estimate_convergence(tmon, n_levels=3, mode="cheap")
+        report = sq.check_convergence(tmon, n_levels=3, mode="cheap")
         assert report.implementation_audit.mode == "cheap"
         assert report.implementation_audit.n_levels_buffer == 0
 
@@ -402,9 +402,7 @@ class TestMonotonicityCheck:
 
     def test_no_false_alarm_on_converged_transmon(self):
         tmon = sq.Transmon(EJ=30.0, EC=1.2, ng=0.0, ncut=30)
-        report = tmon.estimate_convergence(
-            n_levels=5, mode="strict", target_abs_GHz=1e-3
-        )
+        report = tmon.check_convergence(n_levels=5, mode="strict", target_abs_GHz=1e-3)
         assert all("monotonicity_violation" not in v.warnings for v in report.per_level)
 
     def test_ho_basis_axis_is_excluded(self):
@@ -412,9 +410,7 @@ class TestMonotonicityCheck:
         # potential is built from matrix functions of truncated quadratures), so
         # it is excluded from the check even at a low, non-monotone cutoff.
         flx = sq.Fluxonium(EJ=8.9, EC=2.5, EL=0.5, flux=0.5, cutoff=14)
-        report = flx.estimate_convergence(
-            n_levels=4, mode="moderate", target_abs_GHz=0.05
-        )
+        report = flx.check_convergence(n_levels=4, mode="moderate", target_abs_GHz=0.05)
         assert all("monotonicity_violation" not in v.warnings for v in report.per_level)
 
     def test_no_false_alarm_on_tensored_charge_axis(self):
@@ -422,7 +418,7 @@ class TestMonotonicityCheck:
         # basis tensored with the other, fixed coordinates; growing it lowers the
         # energies and must not raise a monotonicity false alarm.
         circ = _zero_pi_circuit(cutoff_n=9, cutoff_ext=8)
-        report = circ.estimate_convergence(
+        report = circ.check_convergence(
             n_levels=4, mode="moderate", target_abs_GHz=1e-3
         )
         assert all("monotonicity_violation" not in v.warnings for v in report.per_level)
@@ -440,7 +436,7 @@ class TestMonotonicityCheck:
 
         monkeypatch.setattr(cutils, "galerkin_monotonicity_violation", fake)
         tmon = sq.Transmon(EJ=30.0, EC=1.2, ng=0.0, ncut=30)
-        report = tmon.estimate_convergence(
+        report = tmon.check_convergence(
             n_levels=3, mode="moderate", target_abs_GHz=1e-3
         )
         assert report.per_level[0].status == "distrust"
@@ -457,7 +453,7 @@ class TestCheckOutcomes:
 
     def test_moderate_records_boundary_and_monotonicity(self):
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        report = tmon.estimate_convergence(
+        report = tmon.check_convergence(
             n_levels=3, mode="moderate", target_abs_GHz=1e-4
         )
         names = self._by_name(report.level(0))
@@ -471,16 +467,12 @@ class TestCheckOutcomes:
         # so the ratio test actually runs (and here passes -- the series is
         # contracting, even though the level fails the target grading).
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=6, truncated_dim=6)
-        report = tmon.estimate_convergence(
-            n_levels=3, mode="strict", target_abs_GHz=1e-6
-        )
+        report = tmon.check_convergence(n_levels=3, mode="strict", target_abs_GHz=1e-6)
         assert self._by_name(report.level(2)).get("asymptoticity") in ("pass", "fail")
 
     def test_cheap_records_perturbative_tail(self):
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        report = tmon.estimate_convergence(
-            n_levels=3, mode="cheap", target_abs_GHz=1e-4
-        )
+        report = tmon.check_convergence(n_levels=3, mode="cheap", target_abs_GHz=1e-4)
         assert "perturbative_tail" in self._by_name(report.level(0))
 
     def test_ho_basis_omits_monotonicity_check(self):
@@ -489,9 +481,7 @@ class TestCheckOutcomes:
         flx = sq.Fluxonium(
             EJ=8.9, EC=2.5, EL=0.5, flux=0.5, cutoff=110, truncated_dim=6
         )
-        report = flx.estimate_convergence(
-            n_levels=3, mode="moderate", target_abs_GHz=1e-4
-        )
+        report = flx.check_convergence(n_levels=3, mode="moderate", target_abs_GHz=1e-4)
         assert "monotonicity" not in self._by_name(report.level(0))
 
     def test_monotonicity_violation_recorded_as_fail(self, monkeypatch):
@@ -505,7 +495,7 @@ class TestCheckOutcomes:
 
         monkeypatch.setattr(cutils, "galerkin_monotonicity_violation", fake)
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        report = tmon.estimate_convergence(
+        report = tmon.check_convergence(
             n_levels=3, mode="moderate", target_abs_GHz=1e-4
         )
         assert self._by_name(report.level(0)).get("monotonicity") == "fail"
@@ -514,7 +504,7 @@ class TestCheckOutcomes:
         # The aligned table drops the inapplicable eps_gap field, and shows the
         # per-check record beneath a dismissed/borderline level.
         small = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=6, truncated_dim=6)
-        text = small.estimate_convergence(
+        text = small.check_convergence(
             n_levels=3, mode="moderate", target_abs_GHz=1e-6
         ).summary()
         assert "eps_gap" not in text
@@ -525,7 +515,7 @@ class TestCheckOutcomes:
 class TestClusterIntegration:
     def test_clusters_field_partitions_levels(self):
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        report = sq.estimate_convergence(
+        report = sq.check_convergence(
             tmon, n_levels=4, mode="moderate", target_abs_GHz=1e-4
         )
         flattened = [k for c in report.clusters for k in c]
@@ -538,7 +528,7 @@ class TestClusterIntegration:
 class TestDerivedChannels:
     def test_wavefunctions_converged_at_high_cutoff(self):
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        report = tmon.estimate_convergence(
+        report = tmon.check_convergence(
             n_levels=4,
             mode="moderate",
             target_abs_GHz=1e-4,
@@ -559,7 +549,7 @@ class TestDerivedChannels:
 
     def test_matrix_elements_converged_at_high_cutoff(self):
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        report = tmon.estimate_convergence(
+        report = tmon.check_convergence(
             n_levels=4,
             mode="moderate",
             target_abs_GHz=1e-4,
@@ -575,7 +565,7 @@ class TestDerivedChannels:
 
     def test_both_channels_attached_together(self):
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        report = tmon.estimate_convergence(
+        report = tmon.check_convergence(
             n_levels=3,
             mode="moderate",
             target_abs_GHz=1e-4,
@@ -589,13 +579,13 @@ class TestDerivedChannels:
         # clearly undersized one.
         small = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=5, truncated_dim=4)
         large = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=25, truncated_dim=4)
-        rep_s = small.estimate_convergence(
+        rep_s = small.check_convergence(
             n_levels=3,
             mode="moderate",
             include_derived=True,
             derived_quantities=["wavefunctions"],
         )
-        rep_l = large.estimate_convergence(
+        rep_l = large.check_convergence(
             n_levels=3,
             mode="moderate",
             include_derived=True,
@@ -611,7 +601,7 @@ class TestDerivedChannels:
 
     def test_strict_mode_derived_runs_ratio_test(self):
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        report = tmon.estimate_convergence(
+        report = tmon.check_convergence(
             n_levels=3,
             mode="strict",
             target_abs_GHz=1e-4,
@@ -631,7 +621,7 @@ class TestDerivedChannels:
 class TestCoherenceChannel:
     def test_coherence_report_is_per_channel(self):
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        report = tmon.estimate_convergence(
+        report = tmon.check_convergence(
             n_levels=4,
             mode="moderate",
             include_derived=True,
@@ -653,7 +643,7 @@ class TestCoherenceChannel:
 
     def test_coherence_converged_at_high_cutoff(self):
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        report = tmon.estimate_convergence(
+        report = tmon.check_convergence(
             n_levels=4,
             mode="moderate",
             include_derived=True,
@@ -665,7 +655,7 @@ class TestCoherenceChannel:
         # At ng=0 the 1/f charge-noise dephasing rate vanishes by symmetry, so
         # its rate sits at the noise floor while a real channel does not.
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        report = tmon.estimate_convergence(
+        report = tmon.check_convergence(
             n_levels=3,
             mode="moderate",
             include_derived=True,
@@ -679,7 +669,7 @@ class TestCoherenceChannel:
 
     def test_all_three_derived_channels_together(self):
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        report = tmon.estimate_convergence(
+        report = tmon.check_convergence(
             n_levels=3,
             mode="moderate",
             target_abs_GHz=1e-4,
@@ -703,7 +693,7 @@ class TestTunableTransmon:
         tt = sq.TunableTransmon(
             EJmax=30.0, EC=0.3, d=0.1, flux=0.1, ng=0.0, ncut=31, truncated_dim=6
         )
-        report = tt.estimate_convergence(
+        report = tt.check_convergence(
             n_levels=4,
             mode="moderate",
             target_abs_GHz=1e-4,
@@ -726,9 +716,7 @@ class TestTunableTransmon:
         tt = sq.TunableTransmon(
             EJmax=30.0, EC=0.3, d=0.1, flux=0.3, ng=0.0, ncut=5, truncated_dim=6
         )
-        report = tt.estimate_convergence(
-            n_levels=5, mode="moderate", target_abs_GHz=1e-8
-        )
+        report = tt.check_convergence(n_levels=5, mode="moderate", target_abs_GHz=1e-8)
         assert report.aggregate_status in {"marginal", "distrust"}
 
 
@@ -741,7 +729,7 @@ class TestFluxonium:
         flx = sq.Fluxonium(
             EJ=8.9, EC=2.5, EL=0.5, flux=0.5, cutoff=110, truncated_dim=6
         )
-        report = flx.estimate_convergence(
+        report = flx.check_convergence(
             n_levels=5,
             mode="moderate",
             target_abs_GHz=1e-4,
@@ -758,9 +746,7 @@ class TestFluxonium:
 
     def test_undersized_is_underconverged(self):
         flx = sq.Fluxonium(EJ=8.9, EC=2.5, EL=0.5, flux=0.5, cutoff=12, truncated_dim=6)
-        report = flx.estimate_convergence(
-            n_levels=5, mode="moderate", target_abs_GHz=1e-8
-        )
+        report = flx.check_convergence(n_levels=5, mode="moderate", target_abs_GHz=1e-8)
         assert report.aggregate_status in {"marginal", "distrust"}
         assert any("cutoff" in r for r in report.recommendations)
 
@@ -784,9 +770,7 @@ class TestFluxonium:
         flx = sq.Fluxonium(
             EJ=8.9, EC=2.5, EL=0.2, flux=0.5, cutoff=110, truncated_dim=8
         )
-        report = flx.estimate_convergence(
-            n_levels=4, mode="moderate", target_abs_GHz=1e-4
-        )
+        report = flx.check_convergence(n_levels=4, mode="moderate", target_abs_GHz=1e-4)
         assert (0, 1) in report.clusters  # the doublet is one cluster
         for k in (0, 1):
             assert "cluster_index_ambiguity" in report.per_level[k].warnings
@@ -797,7 +781,7 @@ class TestFluxonium:
         flx = sq.Fluxonium(
             EJ=8.9, EC=2.5, EL=0.5, flux=0.5, cutoff=110, truncated_dim=6
         )
-        report = flx.estimate_convergence(n_levels=4, mode="cheap", target_abs_GHz=1e-4)
+        report = flx.check_convergence(n_levels=4, mode="cheap", target_abs_GHz=1e-4)
         assert report.aggregate_status == "unverified"
         for v in report.per_level:
             assert v.estimator_method == "finite_tail_resolvent"
@@ -805,7 +789,7 @@ class TestFluxonium:
 
     def test_cheap_mode_undersized_is_distrust(self):
         flx = sq.Fluxonium(EJ=8.9, EC=2.5, EL=0.5, flux=0.5, cutoff=12, truncated_dim=6)
-        report = flx.estimate_convergence(n_levels=4, mode="cheap", target_abs_GHz=1e-4)
+        report = flx.check_convergence(n_levels=4, mode="cheap", target_abs_GHz=1e-4)
         assert report.aggregate_status == "distrust"
 
 
@@ -835,7 +819,7 @@ class TestFluxQubit:
     def test_all_channels_converge(self):
         # FluxQubit uses a two-island charge basis of dimension (2*ncut+1)**2.
         fq = self._make(14)
-        report = fq.estimate_convergence(
+        report = fq.check_convergence(
             n_levels=4,
             mode="moderate",
             target_abs_GHz=1e-4,
@@ -851,9 +835,7 @@ class TestFluxQubit:
 
     def test_undersized_is_underconverged(self):
         fq = self._make(4)
-        report = fq.estimate_convergence(
-            n_levels=4, mode="moderate", target_abs_GHz=1e-8
-        )
+        report = fq.check_convergence(n_levels=4, mode="moderate", target_abs_GHz=1e-8)
         assert report.aggregate_status in {"marginal", "distrust"}
 
     def test_pad_eigenvectors_pads_both_charge_axes(self):
@@ -919,18 +901,14 @@ class TestZeroPi:
             ncut=12,
             truncated_dim=6,
         )
-        report = zp.estimate_convergence(
-            n_levels=3, mode="moderate", target_abs_GHz=1e-2
-        )
+        report = zp.check_convergence(n_levels=3, mode="moderate", target_abs_GHz=1e-2)
         assert report.aggregate_status == "distrust"
 
     def test_two_fd_channels_plus_charge(self):
         # ZeroPi's phi grid contributes two independent FD channels (finite box
         # and finite spacing); theta contributes a charge tail.
         zp = self._make()
-        report = zp.estimate_convergence(
-            n_levels=3, mode="moderate", target_abs_GHz=1e-2
-        )
+        report = zp.check_convergence(n_levels=3, mode="moderate", target_abs_GHz=1e-2)
         assert report.aggregate_status == "maybe_converged"
         assert set(report.channel_breakdown_GHz) == {
             "FD_box",
@@ -958,7 +936,7 @@ class TestZeroPi:
         # a fixed window cannot fix a box error, so the FD_box channel must
         # dominate the FD_stencil channel.
         snug = self._make(window=np.pi, pts=100, ncut=12)
-        report = snug.estimate_convergence(
+        report = snug.check_convergence(
             n_levels=3, mode="moderate", target_abs_GHz=1e-3
         )
         assert report.aggregate_status == "distrust"
@@ -969,7 +947,7 @@ class TestZeroPi:
 
     def test_cheap_mode_uses_pedge_and_never_converges(self):
         zp = self._make()
-        report = zp.estimate_convergence(n_levels=3, mode="cheap")
+        report = zp.check_convergence(n_levels=3, mode="cheap")
         # Cheap mode reports the FD_box edge-band (P_edge) diagnostic ...
         assert {v.truncation_channel for v in report.per_level} == {"FD_box"}
         # ... and never claims an unqualified 'maybe_converged' or 'likely_converged'.
@@ -1008,7 +986,7 @@ class TestZeroPi:
         zp = self._make()
         assert zp._convergence_richardson_order("grid_spacing") == settings.STENCIL - 1
         assert zp._convergence_richardson_order("grid_box") is None
-        report = zp.estimate_convergence(n_levels=3, mode="strict", target_abs_GHz=1e-2)
+        report = zp.check_convergence(n_levels=3, mode="strict", target_abs_GHz=1e-2)
         assert report.aggregate_status == "likely_converged"
         for v in report.per_level:
             assert v.status == "likely_converged"
@@ -1021,7 +999,7 @@ class TestZeroPi:
 class TestParamSweep:
     def test_sweep_samples_endpoints_and_restores_param(self):
         flx = sq.Fluxonium(EJ=8.9, EC=2.5, EL=0.5, flux=0.0, cutoff=30, truncated_dim=6)
-        sweep = flx.estimate_convergence_vs_paramvals(
+        sweep = flx.check_convergence_vs_paramvals(
             "flux",
             np.linspace(0.0, 0.5, 21),
             sample=5,
@@ -1045,7 +1023,7 @@ class TestParamSweep:
 
     def test_sweep_summary_and_str_delegate(self):
         flx = sq.Fluxonium(EJ=8.9, EC=2.5, EL=0.5, flux=0.0, cutoff=30, truncated_dim=6)
-        sweep = flx.estimate_convergence_vs_paramvals(
+        sweep = flx.check_convergence_vs_paramvals(
             "flux", np.linspace(0.0, 0.5, 11), sample=3, n_levels=3, target_abs_GHz=1e-3
         )
         text = sweep.summary()
@@ -1054,7 +1032,7 @@ class TestParamSweep:
 
     def test_sweep_none_checks_every_value(self):
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        sweep = tmon.estimate_convergence_vs_paramvals(
+        sweep = tmon.check_convergence_vs_paramvals(
             "ng",
             np.array([0.0, 0.25, 0.5]),
             sample=None,
@@ -1065,7 +1043,7 @@ class TestParamSweep:
 
     def test_top_level_sweep_shim(self):
         tmon = sq.Transmon(EJ=20.0, EC=0.3, ng=0.0, ncut=31, truncated_dim=6)
-        sweep = sq.estimate_convergence_vs_paramvals(
+        sweep = sq.check_convergence_vs_paramvals(
             tmon, "ng", np.array([0.0, 0.5]), n_levels=2, target_abs_GHz=1e-4
         )
         assert sweep.param_name == "ng"
@@ -1087,9 +1065,7 @@ def _transmon_resonator(td_t=6, td_o=6, ncut=31, g=0.1):
 class TestHilbertSpaceConvergence:
     def test_well_converged_composite_is_maybe_converged(self):
         hs, _, _ = _transmon_resonator(td_t=6, td_o=6)
-        report = hs.estimate_convergence(
-            n_levels=5, mode="moderate", target_abs_GHz=1e-3
-        )
+        report = hs.check_convergence(n_levels=5, mode="moderate", target_abs_GHz=1e-3)
         assert report.aggregate_status == "maybe_converged"
         # The composite truncation is reported on the composite_coupling channel.
         assert {v.truncation_channel for v in report.per_level} == {
@@ -1101,9 +1077,7 @@ class TestHilbertSpaceConvergence:
         # Layer 1 attaches each capable subsystem's own report under derived; the
         # oscillator has no internal cutoff and is skipped.
         hs, _, _ = _transmon_resonator(td_t=6, td_o=6)
-        report = hs.estimate_convergence(
-            n_levels=5, mode="moderate", target_abs_GHz=1e-3
-        )
+        report = hs.check_convergence(n_levels=5, mode="moderate", target_abs_GHz=1e-3)
         assert report.derived is not None
         keys = list(report.derived)
         assert len(keys) == 1
@@ -1112,7 +1086,7 @@ class TestHilbertSpaceConvergence:
 
     def test_assume_subsystems_converged_skips_layer1(self):
         hs, _, _ = _transmon_resonator(td_t=6, td_o=6)
-        report = hs.estimate_convergence(
+        report = hs.check_convergence(
             n_levels=5,
             mode="moderate",
             target_abs_GHz=1e-3,
@@ -1126,9 +1100,7 @@ class TestHilbertSpaceConvergence:
         # unconverged; the dominant axis is the oscillator and a recommendation
         # must name it.
         hs, _, _ = _transmon_resonator(td_t=6, td_o=3, g=0.6)
-        report = hs.estimate_convergence(
-            n_levels=4, mode="moderate", target_abs_GHz=1e-5
-        )
+        report = hs.check_convergence(n_levels=4, mode="moderate", target_abs_GHz=1e-5)
         assert report.aggregate_status == "distrust"
         assert any("Oscillator" in r for r in report.recommendations)
 
@@ -1141,9 +1113,7 @@ class TestHilbertSpaceConvergence:
         hs.add_interaction(
             g=0.1, op1=tmon.n_operator, op2=osc.creation_operator, add_hc=True
         )
-        report = hs.estimate_convergence(
-            n_levels=5, mode="moderate", target_abs_GHz=1e-6
-        )
+        report = hs.check_convergence(n_levels=5, mode="moderate", target_abs_GHz=1e-6)
         sub = report.derived["subsystem:" + tmon.id_str]
         assert _status_rank(sub.aggregate_status) >= _status_rank("marginal")
         assert _status_rank(report.aggregate_status) >= _status_rank(
@@ -1152,7 +1122,7 @@ class TestHilbertSpaceConvergence:
 
     def test_cheap_mode_is_moderate_recommended(self):
         hs, _, _ = _transmon_resonator(td_t=6, td_o=6)
-        report = hs.estimate_convergence(n_levels=5, mode="cheap")
+        report = hs.check_convergence(n_levels=5, mode="cheap")
         # No cheap composite estimate: the composite verdict is unverified and a
         # recommendation points to moderate mode. Layer-1 subsystem cheap checks
         # are still attached.
@@ -1166,11 +1136,11 @@ class TestHilbertSpaceConvergence:
     def test_n_levels_exceeding_dimension_raises(self):
         hs, _, _ = _transmon_resonator(td_t=2, td_o=2)  # composite dimension 4
         with pytest.raises(ValueError, match="exceeds the composite dimension"):
-            hs.estimate_convergence(n_levels=5, mode="moderate", target_abs_GHz=1e-3)
+            hs.check_convergence(n_levels=5, mode="moderate", target_abs_GHz=1e-3)
 
     def test_strict_mode_uses_composite_coupling_channel(self):
         hs, _, _ = _transmon_resonator(td_t=6, td_o=6)
-        report = hs.estimate_convergence(n_levels=5, mode="strict", target_abs_GHz=1e-3)
+        report = hs.check_convergence(n_levels=5, mode="strict", target_abs_GHz=1e-3)
         assert {v.truncation_channel for v in report.per_level} == {
             "composite_coupling"
         }
@@ -1178,7 +1148,7 @@ class TestHilbertSpaceConvergence:
 
     def test_top_level_shim_on_hilbertspace(self):
         hs, _, _ = _transmon_resonator(td_t=6, td_o=6)
-        report = sq.estimate_convergence(
+        report = sq.check_convergence(
             hs, n_levels=5, mode="moderate", target_abs_GHz=1e-3
         )
         assert report.aggregate_status == "maybe_converged"
@@ -1195,9 +1165,7 @@ class TestHilbertSpaceConvergence:
         hs.add_interaction(
             g=0.2, op1=tmon.n_operator, op2=osc.creation_operator, add_hc=True
         )
-        report = hs.estimate_convergence(
-            n_levels=5, mode="moderate", target_abs_GHz=1e-3
-        )
+        report = hs.check_convergence(n_levels=5, mode="moderate", target_abs_GHz=1e-3)
         assert any("hybridization" in r for r in report.recommendations)
 
     def test_hybridization_screen_silent_off_resonance(self):
@@ -1209,9 +1177,7 @@ class TestHilbertSpaceConvergence:
         hs.add_interaction(
             g=0.01, op1=tmon.n_operator, op2=osc.creation_operator, add_hc=True
         )
-        report = hs.estimate_convergence(
-            n_levels=5, mode="moderate", target_abs_GHz=1e-3
-        )
+        report = hs.check_convergence(n_levels=5, mode="moderate", target_abs_GHz=1e-3)
         assert not any("hybridization" in r for r in report.recommendations)
 
     def test_fixed_matrix_oscillator_interaction_degrades_gracefully(self):
@@ -1227,9 +1193,7 @@ class TestHilbertSpaceConvergence:
             op2=(osc.creation_operator(), osc),
             add_hc=True,
         )
-        report = hs.estimate_convergence(
-            n_levels=4, mode="moderate", target_abs_GHz=1e-3
-        )
+        report = hs.check_convergence(n_levels=4, mode="moderate", target_abs_GHz=1e-3)
         assert report.aggregate_status == "unverified"
         assert any("callable" in r for r in report.recommendations)
         assert all(
@@ -1265,9 +1229,7 @@ def _full_zeropi(zeropi_cutoff=8, zeta_cutoff=30, ncut=20, npts=100):
 class TestFullZeroPi:
     def test_converged_full_zeropi(self):
         fzp = _full_zeropi()
-        report = fzp.estimate_convergence(
-            n_levels=4, mode="moderate", target_abs_GHz=1e-2
-        )
+        report = fzp.check_convergence(n_levels=4, mode="moderate", target_abs_GHz=1e-2)
         assert report.aggregate_status == "maybe_converged"
         # Layer-2 coupling channels only (composite_coupling / HO_tail).
         assert {v.truncation_channel for v in report.per_level} <= {
@@ -1282,15 +1244,13 @@ class TestFullZeroPi:
         # A too-small interior basis (ncut, grid) leaves the 0-pi sector
         # underconverged; layer 1 catches it and the aggregate reflects it.
         fzp = _full_zeropi(ncut=6, npts=60)
-        report = fzp.estimate_convergence(
-            n_levels=4, mode="moderate", target_abs_GHz=1e-5
-        )
+        report = fzp.check_convergence(n_levels=4, mode="moderate", target_abs_GHz=1e-5)
         assert _status_rank(report.aggregate_status) >= _status_rank("marginal")
         assert "interior_zeropi" in (report.derived or {})
 
     def test_assume_inner_converged_skips_layer1(self):
         fzp = _full_zeropi()
-        report = fzp.estimate_convergence(
+        report = fzp.check_convergence(
             n_levels=4,
             mode="moderate",
             target_abs_GHz=1e-2,
@@ -1300,7 +1260,7 @@ class TestFullZeroPi:
 
     def test_cheap_is_moderate_recommended(self):
         fzp = _full_zeropi()
-        report = fzp.estimate_convergence(n_levels=4, mode="cheap")
+        report = fzp.check_convergence(n_levels=4, mode="cheap")
         assert report.aggregate_status == "unverified"
         assert any("moderate" in r for r in report.recommendations)
         assert "interior_zeropi" in (report.derived or {})
@@ -1308,11 +1268,11 @@ class TestFullZeroPi:
     def test_n_levels_exceeding_dimension_raises(self):
         fzp = _full_zeropi(zeropi_cutoff=2, zeta_cutoff=2)  # dimension 4
         with pytest.raises(ValueError, match="exceeds the FullZeroPi dimension"):
-            fzp.estimate_convergence(n_levels=5, mode="moderate", target_abs_GHz=1e-2)
+            fzp.check_convergence(n_levels=5, mode="moderate", target_abs_GHz=1e-2)
 
     def test_top_level_shim(self):
         fzp = _full_zeropi()
-        report = sq.estimate_convergence(fzp, n_levels=4, mode="cheap")
+        report = sq.check_convergence(fzp, n_levels=4, mode="cheap")
         assert report.aggregate_status == "unverified"
 
 
@@ -1331,9 +1291,7 @@ class TestCos2PhiQubit:
         # A flat 3-axis qubit (theta charge + phi/zeta Fock); generous cutoffs at
         # a loose target are maybe_converged on the coupling-free channels.
         q = _cos2phi(ncut=8, phi_cut=15, zeta_cut=30)
-        report = q.estimate_convergence(
-            n_levels=4, mode="moderate", target_abs_GHz=0.05
-        )
+        report = q.check_convergence(n_levels=4, mode="moderate", target_abs_GHz=0.05)
         assert report.aggregate_status == "maybe_converged"
         assert {v.truncation_channel for v in report.per_level} <= {
             "charge_tail",
@@ -1344,9 +1302,7 @@ class TestCos2PhiQubit:
         # Too-small oscillator cutoffs dominate; the recommendation names an
         # oscillator cutoff, and both truncation families appear in the breakdown.
         q = _cos2phi(ncut=8, phi_cut=7, zeta_cut=10)
-        report = q.estimate_convergence(
-            n_levels=4, mode="moderate", target_abs_GHz=1e-5
-        )
+        report = q.check_convergence(n_levels=4, mode="moderate", target_abs_GHz=1e-5)
         assert report.aggregate_status == "distrust"
         assert any(
             "oscillator" in r and ("phi_cut" in r or "zeta_cut" in r)
@@ -1359,12 +1315,12 @@ class TestCos2PhiQubit:
         # Multi-coordinate cheap mode has no clean cheap estimate: never
         # maybe_converged or likely_converged.
         q = _cos2phi(ncut=8, phi_cut=7, zeta_cut=10)
-        report = q.estimate_convergence(n_levels=4, mode="cheap")
+        report = q.check_convergence(n_levels=4, mode="cheap")
         assert report.aggregate_status not in {"maybe_converged", "likely_converged"}
 
     def test_top_level_shim(self):
         q = _cos2phi(ncut=8, phi_cut=7, zeta_cut=10)
-        report = sq.estimate_convergence(q, n_levels=4, mode="cheap")
+        report = sq.check_convergence(q, n_levels=4, mode="cheap")
         assert report.per_level
 
 
@@ -1401,7 +1357,7 @@ class TestCircuit:
         # dominates, both channel families appear, and the recommendation names a
         # cutoff_ext grid.
         circ = _zero_pi_circuit(cutoff_n=5, cutoff_ext=8)
-        report = circ.estimate_convergence(
+        report = circ.check_convergence(
             n_levels=4, mode="moderate", target_abs_GHz=1e-4
         )
         assert report.aggregate_status == "distrust"
@@ -1416,7 +1372,7 @@ class TestCircuit:
     def test_harmonic_basis_uses_ho_tail_channel(self):
         # An extended variable in the harmonic basis maps to the HO_tail channel.
         circ = _zero_pi_circuit(ext_basis="harmonic", cutoff_n=5, cutoff_ext=10)
-        report = circ.estimate_convergence(
+        report = circ.check_convergence(
             n_levels=4, mode="moderate", target_abs_GHz=1e-4
         )
         assert "HO_tail" in report.channel_breakdown_GHz
@@ -1426,7 +1382,7 @@ class TestCircuit:
 
     def test_cheap_is_not_converged(self):
         circ = _zero_pi_circuit(cutoff_n=5, cutoff_ext=8)
-        report = circ.estimate_convergence(n_levels=4, mode="cheap")
+        report = circ.check_convergence(n_levels=4, mode="cheap")
         assert report.aggregate_status not in {"maybe_converged", "likely_converged"}
 
     def test_n_levels_exceeding_truncated_dim_raises(self):
@@ -1434,11 +1390,11 @@ class TestCircuit:
         circ = _zero_pi_circuit(cutoff_n=5, cutoff_ext=8)
         circ.truncated_dim = 4
         with pytest.raises(ValueError, match="truncated_dim"):
-            circ.estimate_convergence(n_levels=5, mode="moderate", target_abs_GHz=1e-3)
+            circ.check_convergence(n_levels=5, mode="moderate", target_abs_GHz=1e-3)
 
     def test_top_level_shim(self):
         circ = _zero_pi_circuit(cutoff_n=5, cutoff_ext=8)
-        report = sq.estimate_convergence(circ, n_levels=4, mode="cheap")
+        report = sq.check_convergence(circ, n_levels=4, mode="cheap")
         assert report.per_level
 
 
@@ -1460,9 +1416,7 @@ class TestCircuitHD:
         # Layer 2: the dressed truncation is the composite_coupling channel;
         # layer 1: one report per subsystem under derived.
         circ = _hd_zero_pi_circuit()
-        report = circ.estimate_convergence(
-            n_levels=3, mode="moderate", target_abs_GHz=0.5
-        )
+        report = circ.check_convergence(n_levels=3, mode="moderate", target_abs_GHz=0.5)
         assert {v.truncation_channel for v in report.per_level} == {
             "composite_coupling"
         }
@@ -1473,7 +1427,7 @@ class TestCircuitHD:
 
     def test_cheap_is_moderate_recommended(self):
         circ = _hd_zero_pi_circuit()
-        report = circ.estimate_convergence(n_levels=3, mode="cheap")
+        report = circ.check_convergence(n_levels=3, mode="cheap")
         assert report.aggregate_status == "unverified"
         assert any("moderate" in r for r in report.recommendations)
         # layer-1 subsystem cheap checks are still attached
@@ -1481,7 +1435,7 @@ class TestCircuitHD:
 
     def test_assume_subsystems_converged_skips_layer1(self):
         circ = _hd_zero_pi_circuit()
-        report = circ.estimate_convergence(
+        report = circ.check_convergence(
             n_levels=3, mode="cheap", assume_subsystems_converged=True
         )
         assert report.derived is None
@@ -1511,7 +1465,7 @@ def _ng_sweep(npoints=5):
 class TestParameterSweepConvergence:
     def test_single_param_worst_case(self):
         sweep, _ = _ng_sweep()
-        res = sweep.estimate_convergence(
+        res = sweep.check_convergence(
             n_levels=4, mode="moderate", target_abs_GHz=1e-3, sample=3
         )
         assert isinstance(res, sq.ParameterSweepConvergence)
@@ -1524,7 +1478,7 @@ class TestParameterSweepConvergence:
 
     def test_extremes_sampled(self):
         sweep, _ = _ng_sweep(npoints=5)
-        res = sweep.estimate_convergence(n_levels=4, mode="cheap", sample=3)
+        res = sweep.check_convergence(n_levels=4, mode="cheap", sample=3)
         vals = [point["ng"] for point in res.param_points]
         assert 0.0 in vals and 0.5 in vals  # both endpoints (extremes)
 
@@ -1546,7 +1500,7 @@ class TestParameterSweepConvergence:
             update,
             autorun=False,
         )
-        res = sweep.estimate_convergence(n_levels=4, mode="cheap", sample=6)
+        res = sweep.check_convergence(n_levels=4, mode="cheap", sample=6)
         assert res.param_names == ("EJ", "ng")
         corners = {(18.0, 0.0), (18.0, 0.5), (22.0, 0.0), (22.0, 0.5)}
         got = {(point["EJ"], point["ng"]) for point in res.param_points}
@@ -1554,19 +1508,19 @@ class TestParameterSweepConvergence:
 
     def test_sample_none_checks_every_point(self):
         sweep, _ = _ng_sweep(npoints=3)
-        res = sweep.estimate_convergence(n_levels=4, mode="cheap", sample=None)
+        res = sweep.check_convergence(n_levels=4, mode="cheap", sample=None)
         assert len(res.param_points) == 3
 
     def test_sweep_state_restored(self):
         sweep, tmon = _ng_sweep(npoints=5)
         out_of_sync_before = sweep._out_of_sync
-        sweep.estimate_convergence(n_levels=4, mode="cheap", sample=3)
+        sweep.check_convergence(n_levels=4, mode="cheap", sample=3)
         assert tmon.ng == 0.0  # restored to the initial grid point
         assert sweep._out_of_sync == out_of_sync_before
 
     def test_assume_subsystems_converged_passthrough(self):
         sweep, _ = _ng_sweep(npoints=3)
-        res = sweep.estimate_convergence(
+        res = sweep.check_convergence(
             n_levels=4,
             mode="moderate",
             target_abs_GHz=1e-3,
@@ -1578,7 +1532,7 @@ class TestParameterSweepConvergence:
 
     def test_summary_and_str(self):
         sweep, _ = _ng_sweep(npoints=3)
-        res = sweep.estimate_convergence(n_levels=4, mode="cheap", sample=2)
+        res = sweep.check_convergence(n_levels=4, mode="cheap", sample=2)
         text = res.summary()
         assert "convergence across sweep" in text
         assert str(res) == text
