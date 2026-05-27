@@ -45,6 +45,7 @@ from scqubits.core.convergence_report import (
     ParameterSweepConvergence,
     ParamSweepConvergence,
 )
+from scqubits.utils.csc import CSCResult, csc
 from scqubits.core.cos2phi_qubit import Cos2PhiQubit
 from scqubits.core.diag import DIAG_METHODS
 from scqubits.core.discretization import Grid1d
