@@ -12,6 +12,8 @@
 
 from __future__ import annotations
 
+import os
+
 from collections.abc import Callable
 
 import scqubits.settings as settings
@@ -77,8 +79,30 @@ def _shutdown_pool(pool: object) -> None:
             pass
 
 
+def _apply_blas_thread_cap() -> None:
+    """Cap worker BLAS/OpenMP threads via the environment before workers spawn.
+
+    Spawn-based workers (the default on Windows) re-import numpy and read these
+    variables at import, so capping here keeps ``num_cpus`` workers from each
+    launching a full BLAS thread pool and oversubscribing the cores. No-op when
+    ``settings.MULTIPROC_BLAS_THREADS`` is ``None``.
+    """
+    threads = getattr(settings, "MULTIPROC_BLAS_THREADS", None)
+    if threads is None:
+        return
+    value = str(int(threads))
+    for var in (
+        "OPENBLAS_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "OMP_NUM_THREADS",
+        "NUMEXPR_NUM_THREADS",
+    ):
+        os.environ[var] = value
+
+
 def _new_pool(num_cpus: int) -> object:
     """Start a fresh pool of the configured kind."""
+    _apply_blas_thread_cap()
     if settings.MULTIPROC == "pathos":
         try:
             import dill
