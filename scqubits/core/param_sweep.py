@@ -1599,13 +1599,18 @@ class ParameterSweep(
         hilbertspace: HilbertSpace,
         evals_count: int,
         update_func: Callable,
-        paramindex_tuple: tuple[int],
+        work_item: tuple[tuple[int, ...], dict[int, list[ndarray]], dict[int, Any]],
     ) -> ndarray:
         """Update the HilbertSpace and compute dressed eigensystem at one grid point.
 
         Updates the parent :class:`HilbertSpace`, propagates the cached bare
         eigensystem of each subsystem (handling hierarchical-diagonalization
         children and parent updates), and returns the dressed eigensystem.
+
+        The per-point bare eigensystem is supplied through ``work_item`` rather
+        than read from ``self._data`` so that mapping this method over the grid
+        does not pickle the full bare-spectrum arrays of every grid point into
+        each worker task (see :meth:`_dressed_spectrum_sweep`).
 
         Parameters
         ----------
@@ -1616,25 +1621,20 @@ class ParameterSweep(
         update_func:
             callable used to update parameter-dependent attributes for the
             current grid point
-        paramindex_tuple:
-            tuple of integer indices selecting the grid point in the
-            multi-dimensional parameter sweep
+        work_item:
+            ``(paramindex_tuple, bare_esys, circuit_esys_point)`` for the grid
+            point: the integer index tuple, the per-subsystem ``[evals, evecs]``
+            bare eigensystem, and the per-subsystem circuit eigensystem used by
+            hierarchically diagonalized subsystems.
 
         Returns
         -------
         Object array of shape ``(2,)`` whose entries are the dressed
         eigenvalues array and the corresponding eigenvectors array.
         """
+        paramindex_tuple, bare_esys, circuit_esys_point = work_item
         paramval_tuple = self._parameters[paramindex_tuple]
         update_func(self, *paramval_tuple)
-        assert self._data is not None
-        bare_esys: dict[int, list[ndarray]] = {
-            subsys_index: [
-                self._data["bare_evals"][subsys_index][paramindex_tuple],
-                self._data["bare_evecs"][subsys_index][paramindex_tuple],
-            ]
-            for subsys_index, _ in enumerate(self.hilbertspace)
-        }
         # update the lookuptables for subsystems using hierarchical diagonalization
         for subsys_index, subsys in enumerate(hilbertspace.subsystem_list):
             if (
@@ -1642,7 +1642,7 @@ class ParameterSweep(
                 and subsys.hierarchical_diagonalization
             ):
                 subsys.set_bare_eigensys(  # type: ignore[union-attr]
-                    self._data["circuit_esys"][subsys_index][paramindex_tuple]
+                    circuit_esys_point[subsys_index]
                 )
 
             # if the subsys has a parent Circuit/Subsystem module, then update its hilbert_space
@@ -1685,27 +1685,60 @@ class ParameterSweep(
         target_map = cpu_switch.get_map_method(self._num_cpus)
         total_count = int(np.prod(self._parameters.counts))
 
-        with utils.InfoBar(
-            "Parallel compute dressed eigensys [num_cpus={}]".format(self._num_cpus),
-            self._num_cpus,
-        ) as p:
-            spectrum_data = list(
-                tqdm(
-                    target_map(
-                        functools.partial(
-                            self._update_and_compute_dressed_esys,
-                            self._hilbertspace,
-                            self._evals_count,
-                            self._update_hilbertspace,
+        # Ship only the current grid point's bare eigensystem to each worker.
+        # Reading these slices from ``self._data`` inside the worker would pickle
+        # the whole grid's bare-spectrum arrays into every task (O(N^2) IPC), so
+        # detach them here, pass per-point slices through the work items, and
+        # restore ``self._data`` afterwards.
+        bare_evals = self._data["bare_evals"]
+        bare_evecs = self._data["bare_evecs"]
+        circuit_esys = self._data["circuit_esys"]
+        subsys_count = len(self.hilbertspace)
+
+        def _work_items() -> Any:
+            for paramindex_tuple in itertools.product(*self._parameters.ranges):
+                bare_esys = {
+                    subsys_index: [
+                        bare_evals[subsys_index][paramindex_tuple],
+                        bare_evecs[subsys_index][paramindex_tuple],
+                    ]
+                    for subsys_index in range(subsys_count)
+                }
+                circuit_esys_point = {
+                    subsys_index: circuit_esys[subsys_index][paramindex_tuple]
+                    for subsys_index in range(subsys_count)
+                }
+                yield (paramindex_tuple, bare_esys, circuit_esys_point)
+
+        self._data["bare_evals"] = None
+        self._data["bare_evecs"] = None
+        self._data["circuit_esys"] = None
+        try:
+            with utils.InfoBar(
+                "Parallel compute dressed eigensys [num_cpus={}]".format(self._num_cpus),
+                self._num_cpus,
+            ) as p:
+                spectrum_data = list(
+                    tqdm(
+                        target_map(
+                            functools.partial(
+                                self._update_and_compute_dressed_esys,
+                                self._hilbertspace,
+                                self._evals_count,
+                                self._update_hilbertspace,
+                            ),
+                            _work_items(),
                         ),
-                        itertools.product(*self._parameters.ranges),
-                    ),
-                    total=total_count,
-                    desc="Dressed spectrum",
-                    leave=False,
-                    disable=self.tqdm_disabled,
+                        total=total_count,
+                        desc="Dressed spectrum",
+                        leave=False,
+                        disable=self.tqdm_disabled,
+                    )
                 )
-            )
+        finally:
+            self._data["bare_evals"] = bare_evals
+            self._data["bare_evecs"] = bare_evecs
+            self._data["circuit_esys"] = circuit_esys
 
         spectrum_data_ndarray = np.asarray(spectrum_data, dtype=object)
         spectrum_data_ndarray = spectrum_data_ndarray.reshape(
