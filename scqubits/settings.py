@@ -95,6 +95,15 @@ NUM_CPUS = 1
 #           'pathos'
 MULTIPROC = "pathos"
 
+# Cap BLAS/OpenMP threads *per worker process* during parallel sweeps
+# (num_cpus > 1). With the default (None) the environment is left untouched. When
+# many small diagonalizations are swept, the worker processes and the BLAS thread
+# pool otherwise oversubscribe the cores (num_cpus x BLAS-threads >> physical
+# cores); setting this to a small value (e.g. 1, or cores // num_cpus) avoids that.
+# Only affects worker pools created here, and only takes effect for spawn-based
+# workers that re-import numpy (the default on Windows).
+MULTIPROC_BLAS_THREADS: Any = None
+
 # Matplotlib options -------------------------------------------------------------------
 # select fonts
 FONT_SELECTED = None
