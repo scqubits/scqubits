@@ -15,7 +15,7 @@ from __future__ import annotations
 import cmath
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import qutip as qt
@@ -199,14 +199,34 @@ def get_matrixelement_table(
     """
     if isinstance(operator, qt.Qobj):
         operator = Qobj_to_scipy_csc_matrix(operator)
-    # Apple Accelerate (and some other BLAS builds) raise spurious divide/overflow/
-    # invalid floating-point flags from this matmul even though the inputs and the
-    # result are finite and bounded -- these are matrix elements of a bounded operator
-    # between normalized eigenstates. Suppress the spurious flags; the result is
-    # unchanged.
+    # safe_matmul suppresses spurious BLAS FP-exception flags (e.g. Apple Accelerate)
+    # for this bounded product of normalized states with a bounded operator.
+    return safe_matmul(state_table.conj().T, operator, state_table)
+
+
+def safe_matmul(*matrices: Any) -> np.ndarray:
+    """Chained matrix product that suppresses spurious BLAS FP-exception flags.
+
+    Some BLAS backends -- notably Apple Accelerate, the default numpy backend on Apple
+    Silicon -- raise spurious ``divide``/``overflow``/``invalid`` RuntimeWarnings from
+    matrix multiplication even when the operands and the result are finite and bounded.
+    This helper computes ``matrices[0] @ matrices[1] @ ...`` with those flags suppressed;
+    the result is identical to the plain product.
+
+    Parameters
+    ----------
+    matrices:
+        two or more arrays (or scipy sparse matrices) to multiply left to right.
+
+    Returns
+    -------
+    The chained matrix product.
+    """
     with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
-        mtable = state_table.conj().T @ operator @ state_table
-    return mtable
+        result = matrices[0]
+        for matrix in matrices[1:]:
+            result = result @ matrix
+        return result
 
 
 def closest_dressed_energy(

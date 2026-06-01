@@ -867,7 +867,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         n_vec = np.arange(-self.ncut, self.ncut + 1)
         theta_vec = theta_grid.make_linspace()
         a_n_theta = np.exp(1j * np.outer(n_vec, theta_vec)) / (2 * np.pi) ** 0.5
-        wavefunc_amplitudes = np.matmul(state_amplitudes, a_n_theta).T
+        wavefunc_amplitudes = utils.safe_matmul(state_amplitudes, a_n_theta).T
         wavefunc_amplitudes = utils.standardize_phases(wavefunc_amplitudes)
 
         grid2d = discretization.GridSpec(

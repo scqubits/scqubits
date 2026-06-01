@@ -540,7 +540,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
             4.0
             * ECmat[0, 0]
             * np.kron(
-                np.matmul(
+                spec_utils.safe_matmul(
                     self._n_operator() - self.ng1 * self._identity(),
                     self._n_operator() - self.ng1 * self._identity(),
                 ),
@@ -552,7 +552,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
             * ECmat[1, 1]
             * np.kron(
                 self._identity(),
-                np.matmul(
+                spec_utils.safe_matmul(
                     self._n_operator() - self.ng2 * self._identity(),
                     self._n_operator() - self.ng2 * self._identity(),
                 ),
@@ -1071,8 +1071,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         phi_vec = phi_grid.make_linspace()
         a_1_phi = np.exp(1j * np.outer(phi_vec, n_vec)) / (2 * np.pi) ** 0.5
         a_2_phi = a_1_phi.T
-        wavefunc_amplitudes = np.matmul(a_1_phi, state_amplitudes)
-        wavefunc_amplitudes = np.matmul(wavefunc_amplitudes, a_2_phi)
+        wavefunc_amplitudes = spec_utils.safe_matmul(a_1_phi, state_amplitudes, a_2_phi)
         wavefunc_amplitudes = spec_utils.standardize_phases(wavefunc_amplitudes)
 
         grid2d = discretization.GridSpec(
