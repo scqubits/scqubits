@@ -1,0 +1,137 @@
+# test_cpu_switch.py
+# meant to be run with 'pytest'
+#
+# This file is part of scqubits: a Python package for superconducting qubits,
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
+#
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
+#    All rights reserved.
+#
+#    This source code is licensed under the BSD-style license found in the
+#    LICENSE file in the root directory of this source tree.
+############################################################################
+
+import os
+
+import pytest
+
+import scqubits.settings as settings
+import scqubits.utils.cpu_switch as cpu_switch
+
+from scqubits.utils.cpu_switch import (
+    _BLAS_THREAD_ENV_VARS,
+    _capped_blas_threads,
+    _validated_blas_thread_cap,
+)
+
+
+class TestValidatedBlasThreadCap:
+    def test_none_returns_none(self, monkeypatch):
+        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", None)
+        assert _validated_blas_thread_cap() is None
+
+    def test_positive_int_passes_through(self, monkeypatch):
+        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", 3)
+        assert _validated_blas_thread_cap() == 3
+
+    @pytest.mark.parametrize("bad", [1.5, "2", [1], 2.0])
+    def test_non_int_rejected(self, monkeypatch, bad):
+        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", bad)
+        with pytest.raises(TypeError):
+            _validated_blas_thread_cap()
+
+    def test_bool_rejected(self, monkeypatch):
+        # bool is an int subclass; True must not be silently treated as 1
+        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", True)
+        with pytest.raises(TypeError):
+            _validated_blas_thread_cap()
+
+    @pytest.mark.parametrize("bad", [0, -1])
+    def test_non_positive_rejected(self, monkeypatch, bad):
+        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", bad)
+        with pytest.raises(ValueError):
+            _validated_blas_thread_cap()
+
+
+class TestCappedBlasThreads:
+    def test_noop_when_disabled(self, monkeypatch):
+        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", None)
+        monkeypatch.delenv("OPENBLAS_NUM_THREADS", raising=False)
+        with _capped_blas_threads():
+            assert "OPENBLAS_NUM_THREADS" not in os.environ
+
+    def test_sets_cap_inside_and_removes_after_when_unset_before(self, monkeypatch):
+        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", 2)
+        for var in _BLAS_THREAD_ENV_VARS:
+            monkeypatch.delenv(var, raising=False)
+        with _capped_blas_threads():
+            for var in _BLAS_THREAD_ENV_VARS:
+                assert os.environ[var] == "2"
+        # vars that were unset before the block must be removed again
+        for var in _BLAS_THREAD_ENV_VARS:
+            assert var not in os.environ
+
+    def test_restores_preexisting_value(self, monkeypatch):
+        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", 1)
+        monkeypatch.setenv("OPENBLAS_NUM_THREADS", "7")
+        with _capped_blas_threads():
+            assert os.environ["OPENBLAS_NUM_THREADS"] == "1"
+        # a value present before the block must be restored, not deleted
+        assert os.environ["OPENBLAS_NUM_THREADS"] == "7"
+
+    def test_restores_environment_on_exception(self, monkeypatch):
+        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", 1)
+        monkeypatch.delenv("OPENBLAS_NUM_THREADS", raising=False)
+        with pytest.raises(RuntimeError):
+            with _capped_blas_threads():
+                raise RuntimeError("boom")
+        assert "OPENBLAS_NUM_THREADS" not in os.environ
+
+
+class TestShutdownCachedPool:
+    def test_noop_when_no_pool(self, monkeypatch):
+        monkeypatch.setattr(settings, "POOL", None)
+        cpu_switch._shutdown_cached_pool()  # must not raise
+        assert settings.POOL is None
+
+    def test_shuts_down_and_clears_cached_pool(self, monkeypatch):
+        class FakePool:
+            def __init__(self):
+                self.terminated = False
+
+            def terminate(self):
+                self.terminated = True
+
+            def close(self):
+                pass
+
+            def clear(self):
+                pass
+
+        pool = FakePool()
+        monkeypatch.setattr(settings, "POOL", pool)
+        cpu_switch._shutdown_cached_pool()
+        assert pool.terminated is True
+        assert settings.POOL is None
+
+
+class TestShutdownPool:
+    def test_cleanup_failure_is_logged_not_raised(self, caplog):
+        class BadPool:
+            def terminate(self):
+                raise RuntimeError("boom")
+
+            def close(self):
+                pass
+
+            def clear(self):
+                pass
+
+        with caplog.at_level("WARNING"):
+            cpu_switch._shutdown_pool(BadPool())  # must not raise
+        assert any("cleanup" in record.message for record in caplog.records)
+
+
+class TestGetMapMethodSerial:
+    def test_num_cpus_one_returns_builtin_map(self):
+        assert cpu_switch.get_map_method(1) is map
