@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import warnings
 
-from typing import Any, Type
+from typing import Any, Optional, Type
 
 import matplotlib.font_manager as mpl_font
 import numpy as np
@@ -96,13 +96,23 @@ NUM_CPUS = 1
 MULTIPROC = "pathos"
 
 # Cap BLAS/OpenMP threads *per worker process* during parallel sweeps
-# (num_cpus > 1). With the default (None) the environment is left untouched. When
-# many small diagonalizations are swept, the worker processes and the BLAS thread
-# pool otherwise oversubscribe the cores (num_cpus x BLAS-threads >> physical
-# cores); setting this to a small value (e.g. 1, or cores // num_cpus) avoids that.
-# Only affects worker pools created here, and only takes effect for spawn-based
-# workers that re-import numpy (the default on Windows).
-MULTIPROC_BLAS_THREADS: Any = None
+# (num_cpus > 1). Must be a positive int or None; with the default (None) the
+# environment is left untouched. When many small diagonalizations are swept, the
+# worker processes and the BLAS thread pool otherwise oversubscribe the cores
+# (num_cpus x BLAS-threads >> physical cores); setting this to a small value
+# (e.g. 1, or cores // num_cpus) avoids that.
+#
+# IMPORTANT - this only takes effect for SPAWN-based workers whose numpy links
+# against OpenBLAS or MKL. It has no effect when:
+#   - workers are fork-based (the pathos/multiprocessing default on Linux, and on
+#     macOS where the pathos backend forces fork): forked workers inherit the
+#     parent's already-initialized BLAS thread pool and never re-read these vars;
+#   - numpy links against Apple Accelerate (the default on Apple Silicon), which
+#     ignores these environment variables entirely.
+# On those platforms, cap BLAS threads instead by exporting OPENBLAS_NUM_THREADS
+# (etc.) in the shell *before* importing scqubits/numpy. The cap is applied only
+# while the worker pool is created; the parent environment is restored afterwards.
+MULTIPROC_BLAS_THREADS: Optional[int] = None
 
 # Matplotlib options -------------------------------------------------------------------
 # select fonts
