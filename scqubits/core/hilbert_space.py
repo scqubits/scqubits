@@ -400,6 +400,39 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
             return hamiltonian + hamiltonian.dag()
 
 
+def _auto_sparse_diag_method(dim: int, evals_count: int, kind: str) -> str | None:
+    """Pick a default diagonalization method based on the problem size.
+
+    Returns the name of a sparse ``diag`` method (scipy ``eigsh``) when only a small
+    fraction of a large spectrum is requested -- the regime where sparse
+    diagonalization is much faster than dense -- and ``None`` to use the dense QuTiP
+    path otherwise. Controlled by ``settings.AUTO_SPARSE_DIAG`` and the
+    ``SPARSE_DIAG_*`` thresholds.
+
+    Parameters
+    ----------
+    dim:
+        dimension of the Hamiltonian to be diagonalized.
+    evals_count:
+        number of eigenvalues/eigenstates requested.
+    kind:
+        ``'evals'`` or ``'esys'``, selecting the eigenvalues-only or
+        eigenvalues-and-eigenvectors method.
+
+    Returns
+    -------
+    A key into :data:`scqubits.core.diag.DIAG_METHODS`, or ``None`` for the dense
+    default.
+    """
+    if (
+        not getattr(settings, "AUTO_SPARSE_DIAG", False)
+        or dim < settings.SPARSE_DIAG_MIN_DIM
+        or evals_count > max(1, int(dim * settings.SPARSE_DIAG_MAX_EVALS_FRAC))
+    ):
+        return None
+    return "{}_scipy_sparse".format(kind)
+
+
 class HilbertSpace(
     spec_lookup.SpectrumLookupMixin, dispatch.DispatchClient, serializers.Serializable
 ):
@@ -875,7 +908,18 @@ class HilbertSpace(
         hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)  # type: ignore[arg-type]
 
         if not hasattr(self, "evals_method") or self.evals_method is None:
-            evals = hamiltonian_mat.eigenenergies(eigvals=evals_count)
+            auto_method = _auto_sparse_diag_method(
+                hamiltonian_mat.shape[0], evals_count, "evals"
+            )
+            if auto_method is None:
+                evals = hamiltonian_mat.eigenenergies(eigvals=evals_count)
+            else:
+                try:
+                    evals = diag.DIAG_METHODS[auto_method](
+                        hamiltonian_mat, evals_count=evals_count
+                    )
+                except Exception:
+                    evals = hamiltonian_mat.eigenenergies(eigvals=evals_count)
         else:
             diagonalizer = (
                 diag.DIAG_METHODS[self.evals_method]
@@ -919,7 +963,18 @@ class HilbertSpace(
         hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)  # type: ignore[arg-type]
 
         if not hasattr(self, "esys_method") or self.esys_method is None:
-            evals, evecs = hamiltonian_mat.eigenstates(eigvals=evals_count)
+            auto_method = _auto_sparse_diag_method(
+                hamiltonian_mat.shape[0], evals_count, "esys"
+            )
+            if auto_method is None:
+                evals, evecs = hamiltonian_mat.eigenstates(eigvals=evals_count)
+            else:
+                try:
+                    evals, evecs = diag.DIAG_METHODS[auto_method](
+                        hamiltonian_mat, evals_count=evals_count
+                    )
+                except Exception:
+                    evals, evecs = hamiltonian_mat.eigenstates(eigvals=evals_count)
         else:
             diagonalizer = (
                 diag.DIAG_METHODS[self.esys_method]
