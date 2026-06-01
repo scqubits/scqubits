@@ -1681,6 +1681,17 @@ class ParameterSweep(
         Pair of :class:`NamedSlotsNdarray` instances with axes
         ``[<paramname1>, <paramname2>, ...]`` containing dressed eigenvalues
         and dressed eigenvectors, respectively.
+
+        Notes
+        -----
+        While the grid is being mapped, ``self._data["bare_evals"]``,
+        ``self._data["bare_evecs"]`` and ``self._data["circuit_esys"]`` are
+        temporarily set to ``None`` (restored in a ``finally`` block) so that the
+        bound worker callable does not pickle the whole grid's bare spectrum into
+        every task. A user-supplied ``update_hilbertspace`` callback must therefore
+        not read these ``self._data`` entries: it receives the parameter values it
+        needs as arguments, and the per-point bare eigensystem is delivered to the
+        worker through the work item instead.
         """
         target_map = cpu_switch.get_map_method(self._num_cpus)
         total_count = int(np.prod(self._parameters.counts))
@@ -1689,7 +1700,9 @@ class ParameterSweep(
         # Reading these slices from ``self._data`` inside the worker would pickle
         # the whole grid's bare-spectrum arrays into every task (O(N^2) IPC), so
         # detach them here, pass per-point slices through the work items, and
-        # restore ``self._data`` afterwards.
+        # restore ``self._data`` afterwards. While detached, these three entries
+        # are ``None``; a user ``update_hilbertspace`` callback must not read them
+        # (see the Notes in this method's docstring).
         bare_evals = self._data["bare_evals"]
         bare_evecs = self._data["bare_evecs"]
         circuit_esys = self._data["circuit_esys"]
@@ -1715,7 +1728,9 @@ class ParameterSweep(
         self._data["circuit_esys"] = None
         try:
             with utils.InfoBar(
-                "Parallel compute dressed eigensys [num_cpus={}]".format(self._num_cpus),
+                "Parallel compute dressed eigensys [num_cpus={}]".format(
+                    self._num_cpus
+                ),
                 self._num_cpus,
             ) as p:
                 spectrum_data = list(
