@@ -15,10 +15,11 @@ from __future__ import annotations
 import atexit
 import logging
 import os
+import warnings
 
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
-from typing import Optional
+from contextlib import contextmanager, nullcontext
+from typing import Any, ContextManager, Optional
 
 import scqubits.settings as settings
 
@@ -31,6 +32,9 @@ _BLAS_THREAD_ENV_VARS = (
     "OMP_NUM_THREADS",
     "NUMEXPR_NUM_THREADS",
 )
+
+# The "BLAS-thread cap cannot take effect" warning is emitted at most once.
+_blas_cap_ineffective_warned = False
 
 
 def get_map_method(num_cpus: int) -> Callable:
@@ -132,26 +136,110 @@ def _validated_blas_thread_cap() -> Optional[int]:
     return threads
 
 
+def _import_threadpoolctl() -> Optional[Any]:
+    """Return the ``threadpoolctl`` module if installed, else ``None``."""
+    try:
+        import threadpoolctl
+    except ImportError:
+        return None
+    return threadpoolctl
+
+
+def _worker_start_method() -> str:
+    """Return the process start method of the configured multiprocessing backend.
+
+    Returns
+    -------
+    ``'fork'``, ``'spawn'``, ``'forkserver'``, or ``''`` if it cannot be queried.
+    The pathos backend uses ``multiprocess``, whose default can differ from the
+    standard-library ``multiprocessing`` default (notably fork on macOS).
+    """
+    module_name = (
+        "multiprocess" if settings.MULTIPROC == "pathos" else "multiprocessing"
+    )
+    try:
+        import importlib
+
+        return importlib.import_module(module_name).get_start_method() or ""
+    except Exception:
+        return ""
+
+
+def _warn_blas_cap_ineffective(threads: int) -> None:
+    """Warn (once) when the requested BLAS-thread cap cannot take effect.
+
+    Capping relies on either ``threadpoolctl`` (which retunes OpenBLAS/MKL/OpenMP
+    in the parent before workers fork) or spawn-based workers that re-read the
+    environment. It cannot work when numpy's BLAS exposes no controller (e.g. Apple
+    Accelerate) or when workers are fork-based and ``threadpoolctl`` is unavailable.
+
+    Parameters
+    ----------
+    threads:
+        the requested per-worker thread cap, used only in the warning message.
+    """
+    global _blas_cap_ineffective_warned
+    if _blas_cap_ineffective_warned:
+        return
+    threadpoolctl = _import_threadpoolctl()
+    reason = ""
+    if threadpoolctl is not None:
+        if not threadpoolctl.threadpool_info():
+            reason = (
+                "numpy's BLAS backend exposes no thread control (e.g. Apple "
+                "Accelerate)"
+            )
+    elif _worker_start_method() == "fork":
+        reason = (
+            "workers are fork-based and 'threadpoolctl' is not installed; install "
+            "it (pip install threadpoolctl) to cap threads in forked workers, or "
+            "export OPENBLAS_NUM_THREADS/MKL_NUM_THREADS before importing scqubits"
+        )
+    if reason:
+        warnings.warn(
+            "settings.MULTIPROC_BLAS_THREADS={} has no effect here: {}.".format(
+                threads, reason
+            ),
+            stacklevel=3,
+        )
+        _blas_cap_ineffective_warned = True
+
+
 @contextmanager
 def _capped_blas_threads() -> Iterator[None]:
-    """Temporarily cap worker BLAS/OpenMP threads via the environment.
+    """Temporarily cap worker BLAS/OpenMP threads while a pool is created.
 
-    The thread-count environment variables are set on entry and restored to their
-    prior values on exit, so the cap applies only to worker processes created
-    inside the ``with`` block (they capture the capped environment as they fork or
-    spawn) and never permanently alters the parent process's environment. No-op
-    when ``settings.MULTIPROC_BLAS_THREADS`` is ``None``.
+    Two mechanisms are combined so the cap reaches workers regardless of start
+    method:
+
+    - the thread-count environment variables are set on entry and restored on
+      exit, which spawn-based workers re-read when they re-import numpy;
+    - if ``threadpoolctl`` is installed, the parent's BLAS/OpenMP thread count is
+      limited for the duration of the block, so fork-based workers inherit the
+      reduced count.
+
+    Neither the parent environment nor its thread-pool settings are altered after
+    the block exits. No-op when ``settings.MULTIPROC_BLAS_THREADS`` is ``None``; a
+    warning is emitted when the cap cannot take effect on the current platform.
     """
     threads = _validated_blas_thread_cap()
     if threads is None:
         yield
         return
+    _warn_blas_cap_ineffective(threads)
     value = str(threads)
     saved = {var: os.environ.get(var) for var in _BLAS_THREAD_ENV_VARS}
     for var in _BLAS_THREAD_ENV_VARS:
         os.environ[var] = value
+    threadpoolctl = _import_threadpoolctl()
+    limiter: ContextManager[Any] = (
+        threadpoolctl.threadpool_limits(limits=threads)
+        if threadpoolctl is not None
+        else nullcontext()
+    )
     try:
-        yield
+        with limiter:
+            yield
     finally:
         for var, original in saved.items():
             if original is None:
