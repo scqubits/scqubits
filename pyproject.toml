@@ -55,6 +55,7 @@ gui = [
 develop = [
     "pytest", "traitlets", "h5py (>=2.10)",
     "mypy", "types-tqdm", "scipy-stubs==1.15.2.2",
+    "threadpoolctl",
 ]
 
 [project.urls]
@@ -106,5 +107,7 @@ module = [
     "qutip.*",
     "sympy",
     "sympy.*",
+    # Optional BLAS-thread limiter used by cpu_switch for fork-based worker caps
+    "threadpoolctl",
 ]
 ignore_missing_imports = true

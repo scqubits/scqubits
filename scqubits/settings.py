@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import warnings
 
-from typing import Any, Type
+from typing import Any, Optional, Type
 
 import matplotlib.font_manager as mpl_font
 import numpy as np
@@ -108,6 +108,25 @@ SPARSE_DIAG_MIN_DIM = 1000
 # Auto sparse is used only when evals_count <= SPARSE_DIAG_MAX_EVALS_FRAC * dim
 # (sparse `eigsh` only pays off when computing few of many eigenstates).
 SPARSE_DIAG_MAX_EVALS_FRAC = 0.1
+
+# Cap BLAS/OpenMP threads *per worker process* during parallel sweeps
+# (num_cpus > 1). Must be a positive int or None; with the default (None) the
+# environment is left untouched. When many small diagonalizations are swept, the
+# worker processes and the BLAS thread pool otherwise oversubscribe the cores
+# (num_cpus x BLAS-threads >> physical cores); setting this to a small value
+# (e.g. 1, or cores // num_cpus) avoids that.
+#
+# IMPORTANT - this only takes effect for SPAWN-based workers whose numpy links
+# against OpenBLAS or MKL. It has no effect when:
+#   - workers are fork-based (the pathos/multiprocessing default on Linux, and on
+#     macOS where the pathos backend forces fork): forked workers inherit the
+#     parent's already-initialized BLAS thread pool and never re-read these vars;
+#   - numpy links against Apple Accelerate (the default on Apple Silicon), which
+#     ignores these environment variables entirely.
+# On those platforms, cap BLAS threads instead by exporting OPENBLAS_NUM_THREADS
+# (etc.) in the shell *before* importing scqubits/numpy. The cap is applied only
+# while the worker pool is created; the parent environment is restored afterwards.
+MULTIPROC_BLAS_THREADS: Optional[int] = None
 
 # Matplotlib options -------------------------------------------------------------------
 # select fonts
