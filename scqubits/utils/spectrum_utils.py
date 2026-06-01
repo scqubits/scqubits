@@ -199,7 +199,13 @@ def get_matrixelement_table(
     """
     if isinstance(operator, qt.Qobj):
         operator = Qobj_to_scipy_csc_matrix(operator)
-    mtable = state_table.conj().T @ operator @ state_table
+    # Apple Accelerate (and some other BLAS builds) raise spurious divide/overflow/
+    # invalid floating-point flags from this matmul even though the inputs and the
+    # result are finite and bounded -- these are matrix elements of a bounded operator
+    # between normalized eigenstates. Suppress the spurious flags; the result is
+    # unchanged.
+    with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+        mtable = state_table.conj().T @ operator @ state_table
     return mtable
 
 
