@@ -71,16 +71,31 @@ import scqubits.core.qubit_base as qubit_base
 import scqubits.settings as settings
 import scqubits.utils.cpu_switch as cpu_switch
 
-
 # Reference eigenvalues for sweep["evals"][1, 1] with the "light" system below
 # and evals_count=20. Copied from scqubits/tests/test_parametersweep.py so the
 # benchmarked computation can be sanity-checked for correctness.
 _REFERENCE_EVALS_11 = np.array(
     [
-        -38.24067872, -34.80636811, -33.70287551, -31.50027076, -31.23467726,
-        -30.28547786, -29.16544659, -27.80039104, -27.08317259, -26.69778263,
-        -25.76389721, -24.59864846, -24.49435409, -24.43639473, -23.2803766,
-        -22.63621727, -22.16084701, -21.00224623, -21.00053542, -20.07811164,
+        -38.24067872,
+        -34.80636811,
+        -33.70287551,
+        -31.50027076,
+        -31.23467726,
+        -30.28547786,
+        -29.16544659,
+        -27.80039104,
+        -27.08317259,
+        -26.69778263,
+        -25.76389721,
+        -24.59864846,
+        -24.49435409,
+        -24.43639473,
+        -23.2803766,
+        -22.63621727,
+        -22.16084701,
+        -21.00224623,
+        -21.00053542,
+        -20.07811164,
     ]
 )
 
@@ -103,12 +118,22 @@ def _build_components() -> tuple[Any, Any, Any]:
     """Return the two tunable transmons and the oscillator for the active profile."""
     p = PROFILES[PROFILE]
     tmon1 = scq.TunableTransmon(
-        EJmax=40.0, EC=0.2, d=0.1, flux=0.0, ng=0.3,
-        ncut=p["ncut1"], truncated_dim=p["dim1"],
+        EJmax=40.0,
+        EC=0.2,
+        d=0.1,
+        flux=0.0,
+        ng=0.3,
+        ncut=p["ncut1"],
+        truncated_dim=p["dim1"],
     )
     tmon2 = scq.TunableTransmon(
-        EJmax=15.0, EC=0.15, d=0.2, flux=0.0, ng=0.0,
-        ncut=p["ncut2"], truncated_dim=p["dim2"],
+        EJmax=15.0,
+        EC=0.15,
+        d=0.2,
+        flux=0.0,
+        ng=0.0,
+        ncut=p["ncut2"],
+        truncated_dim=p["dim2"],
     )
     resonator = scq.Oscillator(E_osc=4.5, truncated_dim=p["res_dim"])
     return tmon1, tmon2, resonator
@@ -118,10 +143,16 @@ def _build_hilbertspace(tmon1: Any, tmon2: Any, resonator: Any) -> Any:
     """Assemble the coupled HilbertSpace used throughout the benchmark."""
     hilbertspace = scq.HilbertSpace([tmon1, tmon2, resonator])
     hilbertspace.add_interaction(
-        g_strength=0.1, op1=tmon1.n_operator, op2=resonator.creation_operator, add_hc=True
+        g_strength=0.1,
+        op1=tmon1.n_operator,
+        op2=resonator.creation_operator,
+        add_hc=True,
     )
     hilbertspace.add_interaction(
-        g_strength=0.2, op1=tmon2.n_operator, op2=resonator.creation_operator, add_hc=True
+        g_strength=0.2,
+        op1=tmon2.n_operator,
+        op2=resonator.creation_operator,
+        add_hc=True,
     )
     return hilbertspace
 
@@ -266,50 +297,67 @@ def _time_callable(
     }
 
 
-def _run_isolated(scenario: str, num_cpus: int, args: argparse.Namespace) -> dict[str, Any]:
+def _run_isolated(
+    scenario: str, num_cpus: int, args: argparse.Namespace
+) -> dict[str, Any]:
     """Measure one config in a fresh subprocess (no leftover-pool contamination)."""
     cmd = [
-        sys.executable, os.path.abspath(__file__),
-        "--single", scenario, str(num_cpus),
-        "--profile", PROFILE,
-        "--grid", str(args.grid),
-        "--repeats", str(args.repeats),
-        "--evals-count", str(args.evals_count),
+        sys.executable,
+        os.path.abspath(__file__),
+        "--single",
+        scenario,
+        str(num_cpus),
+        "--profile",
+        PROFILE,
+        "--grid",
+        str(args.grid),
+        "--repeats",
+        str(args.repeats),
+        "--evals-count",
+        str(args.evals_count),
     ]
     if args.blas_threads is not None:
         cmd += ["--blas-threads", str(args.blas_threads)]
     proc = subprocess.run(cmd, capture_output=True, text=True)
     for line in proc.stdout.splitlines():
         if line.startswith("__RESULT__"):
-            return json.loads(line[len("__RESULT__"):])
+            return json.loads(line[len("__RESULT__") :])
     raise RuntimeError(
         f"isolated run failed for {scenario}/{num_cpus} (exit {proc.returncode}).\n"
         f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
     )
 
 
-def _runner_for(scenario: str, args: argparse.Namespace, num_cpus: int) -> Callable[[], Any]:
+def _runner_for(
+    scenario: str, args: argparse.Namespace, num_cpus: int
+) -> Callable[[], Any]:
     """Return a zero-arg callable that builds + runs one scenario at `num_cpus`."""
     if scenario == "sweep":
+
         def run() -> Any:
             sweep = _build_sweep(args.grid, args.evals_count, num_cpus)
             sweep.run()
             return sweep
+
         return run
     if scenario == "hspace":
+
         def run() -> Any:
             hspace, flux_vals, update = _build_hspace_scan(args.grid)
             return hspace.get_spectrum_vs_paramvals(
                 flux_vals, update, evals_count=args.evals_count, num_cpus=num_cpus
             )
+
         return run
     if scenario == "qubit":
+
         def run() -> Any:
             tmon, _, _ = _build_components()
             flux_vals = np.linspace(0.0, 2.0, max(args.grid, 50))
             return tmon.get_spectrum_vs_paramvals(
                 "flux", flux_vals, evals_count=args.evals_count, num_cpus=num_cpus
             )
+
         return run
     raise ValueError(f"unknown scenario: {scenario}")
 
@@ -361,8 +409,10 @@ def _verify(num_cpus: int) -> bool:
     finally:
         PROFILE = saved_profile
     ok = bool(np.allclose(_REFERENCE_EVALS_11, calculated))
-    print(f"[verify] sweep evals[1,1] vs reference (num_cpus={num_cpus}): "
-          f"{'PASS' if ok else 'FAIL'}")
+    print(
+        f"[verify] sweep evals[1,1] vs reference (num_cpus={num_cpus}): "
+        f"{'PASS' if ok else 'FAIL'}"
+    )
     return ok
 
 
@@ -403,29 +453,61 @@ def main(argv: list[str] | None = None) -> int:
     global PROFILE
 
     parser = argparse.ArgumentParser(description="scqubits multiprocessing benchmark.")
-    parser.add_argument("--scenario", default="all",
-                        choices=["sweep", "hspace", "qubit", "all"])
-    parser.add_argument("--profile", default="light", choices=["light", "heavy"],
-                        help="workload size (heavy => MP can pay off)")
-    parser.add_argument("--num-cpus", default="1,2,4",
-                        help="comma-separated worker counts, e.g. '1,2,4'")
-    parser.add_argument("--grid", type=int, default=11,
-                        help="number of flux points (ng axis fixed at 3 for sweep)")
+    parser.add_argument(
+        "--scenario", default="all", choices=["sweep", "hspace", "qubit", "all"]
+    )
+    parser.add_argument(
+        "--profile",
+        default="light",
+        choices=["light", "heavy"],
+        help="workload size (heavy => MP can pay off)",
+    )
+    parser.add_argument(
+        "--num-cpus",
+        default="1,2,4",
+        help="comma-separated worker counts, e.g. '1,2,4'",
+    )
+    parser.add_argument(
+        "--grid",
+        type=int,
+        default=11,
+        help="number of flux points (ng axis fixed at 3 for sweep)",
+    )
     parser.add_argument("--repeats", type=int, default=5)
     parser.add_argument("--evals-count", type=int, default=20)
-    parser.add_argument("--verify", action="store_true",
-                        help="run the light 11x3 correctness guard against reference evals")
-    parser.add_argument("--json", nargs="?", const="<auto>", default=None,
-                        help="write results JSON (optional path; default under "
-                             "tools/benchmark_results/)")
-    parser.add_argument("--isolate", action="store_true",
-                        help="run each (scenario, num_cpus) in a fresh subprocess "
-                             "for contamination-free wall times")
-    parser.add_argument("--blas-threads", type=int, default=None,
-                        help="cap BLAS/OpenMP threads per worker via "
-                             "settings.MULTIPROC_BLAS_THREADS during num_cpus>1 runs")
-    parser.add_argument("--single", nargs=2, default=None,
-                        metavar=("SCENARIO", "NUMCPUS"), help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--verify",
+        action="store_true",
+        help="run the light 11x3 correctness guard against reference evals",
+    )
+    parser.add_argument(
+        "--json",
+        nargs="?",
+        const="<auto>",
+        default=None,
+        help="write results JSON (optional path; default under "
+        "tools/benchmark_results/)",
+    )
+    parser.add_argument(
+        "--isolate",
+        action="store_true",
+        help="run each (scenario, num_cpus) in a fresh subprocess "
+        "for contamination-free wall times",
+    )
+    parser.add_argument(
+        "--blas-threads",
+        type=int,
+        default=None,
+        help="cap BLAS/OpenMP threads per worker via "
+        "settings.MULTIPROC_BLAS_THREADS during num_cpus>1 runs",
+    )
+    parser.add_argument(
+        "--single",
+        nargs=2,
+        default=None,
+        metavar=("SCENARIO", "NUMCPUS"),
+        help=argparse.SUPPRESS,
+    )
     args = parser.parse_args(argv)
 
     PROFILE = args.profile
@@ -435,6 +517,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         import dill  # noqa: F401
         import pathos  # noqa: F401
+
         backend_available = True
     except ImportError:
         backend_available = False
@@ -450,19 +533,27 @@ def main(argv: list[str] | None = None) -> int:
         single_scenario, single_cpus = args.single[0], int(args.single[1])
         with _MapInstrument() as instrument:
             timing = _time_callable(
-                _runner_for(single_scenario, args, single_cpus), args.repeats, instrument
+                _runner_for(single_scenario, args, single_cpus),
+                args.repeats,
+                instrument,
             )
         print("__RESULT__" + json.dumps(timing))
         return 0
 
     num_cpus_list = _parse_num_cpus(args.num_cpus, backend_available)
-    scenarios = ["sweep", "hspace", "qubit"] if args.scenario == "all" else [args.scenario]
+    scenarios = (
+        ["sweep", "hspace", "qubit"] if args.scenario == "all" else [args.scenario]
+    )
 
-    print(f"platform={platform.platform()}  cpu_count={os.cpu_count()}  "
-          f"MULTIPROC={settings.MULTIPROC}  scqubits={scq.__version__}")
-    print(f"profile={PROFILE}  num_cpus={num_cpus_list}  grid={args.grid}  "
-          f"repeats={args.repeats}  evals_count={args.evals_count}  "
-          f"blas_threads_per_worker={settings.MULTIPROC_BLAS_THREADS}")
+    print(
+        f"platform={platform.platform()}  cpu_count={os.cpu_count()}  "
+        f"MULTIPROC={settings.MULTIPROC}  scqubits={scq.__version__}"
+    )
+    print(
+        f"profile={PROFILE}  num_cpus={num_cpus_list}  grid={args.grid}  "
+        f"repeats={args.repeats}  evals_count={args.evals_count}  "
+        f"blas_threads_per_worker={settings.MULTIPROC_BLAS_THREADS}"
+    )
 
     if args.verify:
         _verify(num_cpus=1)
@@ -486,7 +577,9 @@ def main(argv: list[str] | None = None) -> int:
                     "scenario": scenario,
                     "profile": PROFILE,
                     "num_cpus": num_cpus,
-                    "grid_points": args.grid * 3 if scenario == "sweep" else max(args.grid, 50),
+                    "grid_points": (
+                        args.grid * 3 if scenario == "sweep" else max(args.grid, 50)
+                    ),
                     "evals_count": args.evals_count,
                     "repeats": args.repeats,
                     "speedup_vs_1": speedup,
@@ -500,8 +593,10 @@ def main(argv: list[str] | None = None) -> int:
     serialization = _measure_serialization(args)
     print("\n=== serialization payload (dill) ===")
     if serialization.get("available"):
-        print(f"HilbertSpace: {serialization['hilbertspace_bytes']:,} bytes  "
-              f"(dumps {serialization['hilbertspace_dumps_s'] * 1e3:.1f} ms)")
+        print(
+            f"HilbertSpace: {serialization['hilbertspace_bytes']:,} bytes  "
+            f"(dumps {serialization['hilbertspace_dumps_s'] * 1e3:.1f} ms)"
+        )
         print(f"update closure: {serialization['update_func_bytes']:,} bytes")
     else:
         print("dill unavailable; skipped.")
