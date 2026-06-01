@@ -61,7 +61,6 @@ for _p in (_REPO_ROOT, _TOOLS_DIR):
 
 import benchmark_multiprocessing as bench  # system builders + pool cleanup
 
-
 _BLAS_ENV_VARS = (
     "OPENBLAS_NUM_THREADS",
     "MKL_NUM_THREADS",
@@ -95,8 +94,12 @@ def _stats(times: list[float]) -> dict[str, float]:
     }
 
 
-def _timed(make_and_run: Callable[[], Any], min_repeats: int, max_repeats: int,
-           cv_target: float) -> dict[str, float]:
+def _timed(
+    make_and_run: Callable[[], Any],
+    min_repeats: int,
+    max_repeats: int,
+    cv_target: float,
+) -> dict[str, float]:
     """Warm up once, then repeat until CV < cv_target (>= min_repeats) or max_repeats."""
     bench._cleanup_pool()
     make_and_run()  # warm-up: pays first-spawn / import cost, discarded
@@ -107,7 +110,8 @@ def _timed(make_and_run: Callable[[], Any], min_repeats: int, max_repeats: int,
         start = time.perf_counter()
         make_and_run()
         times.append(time.perf_counter() - start)
-        if len(times) >= min_repeats:
+        # CV needs >= 2 samples; never early-stop on a single data point.
+        if len(times) >= max(2, min_repeats):
             mean = statistics.fmean(times)
             cv = (statistics.stdev(times) / mean) if mean else 0.0
             if cv < cv_target:
@@ -123,7 +127,9 @@ def _parse_int_list(raw: str, cores: int) -> list[int]:
     return sorted({min(int(tok), cores) for tok in raw.split(",") if tok.strip()})
 
 
-def _build_configs(num_cpus_list: list[int], blas_spec: str, cores: int) -> list[tuple[int, int]]:
+def _build_configs(
+    num_cpus_list: list[int], blas_spec: str, cores: int
+) -> list[tuple[int, int]]:
     """Return (num_cpus, blas_threads) configs, pruned to product <= cores.
 
     ``blas_spec`` is a comma list of ints and/or the token ``auto`` (=
@@ -168,25 +174,35 @@ def _measure_in_process(args: argparse.Namespace, num_cpus: int) -> dict[str, fl
     return _timed(make_and_run, args.min_repeats, args.max_repeats, args.cv_target)
 
 
-def _run_config_isolated(args: argparse.Namespace, num_cpus: int, blas: int) -> dict[str, Any]:
+def _run_config_isolated(
+    args: argparse.Namespace, num_cpus: int, blas: int
+) -> dict[str, Any]:
     """Launch a fresh subprocess with BLAS threads preset; return its stats."""
     env = dict(os.environ)
     for var in _BLAS_ENV_VARS:
         env[var] = str(blas)
     cmd = [
-        sys.executable, os.path.abspath(__file__),
-        "--measure", str(num_cpus),
-        "--profile", args.profile,
-        "--grid", str(args.grid),
-        "--evals-count", str(args.evals_count),
-        "--min-repeats", str(args.min_repeats),
-        "--max-repeats", str(args.max_repeats),
-        "--cv-target", str(args.cv_target),
+        sys.executable,
+        os.path.abspath(__file__),
+        "--measure",
+        str(num_cpus),
+        "--profile",
+        args.profile,
+        "--grid",
+        str(args.grid),
+        "--evals-count",
+        str(args.evals_count),
+        "--min-repeats",
+        str(args.min_repeats),
+        "--max-repeats",
+        str(args.max_repeats),
+        "--cv-target",
+        str(args.cv_target),
     ]
     proc = subprocess.run(cmd, capture_output=True, text=True, env=env)
     for line in proc.stdout.splitlines():
         if line.startswith("__RESULT__"):
-            return json.loads(line[len("__RESULT__"):])
+            return json.loads(line[len("__RESULT__") :])
     raise RuntimeError(
         f"measurement failed for num_cpus={num_cpus} blas={blas} (exit {proc.returncode}).\n"
         f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
@@ -199,6 +215,7 @@ def _run_config_isolated(args: argparse.Namespace, num_cpus: int, blas: int) -> 
 def _blas_backend() -> str:
     try:
         from threadpoolctl import threadpool_info
+
         pools = threadpool_info()
         if pools:
             return ", ".join(
@@ -212,6 +229,7 @@ def _blas_backend() -> str:
 def _start_method() -> str:
     try:
         import multiprocessing
+
         return multiprocessing.get_start_method(allow_none=True) or "default"
     except Exception:
         return "unknown"
@@ -247,19 +265,32 @@ def main(argv: list[str] | None = None) -> int:
         description="Auto-tune num_cpus x BLAS-threads for scqubits sweeps."
     )
     parser.add_argument("--profile", default="heavy", choices=["light", "heavy"])
-    parser.add_argument("--grid", type=int, default=24, help="flux points (ng axis = 3)")
+    parser.add_argument(
+        "--grid", type=int, default=24, help="flux points (ng axis = 3)"
+    )
     parser.add_argument("--evals-count", type=int, default=20)
-    parser.add_argument("--num-cpus", default=None,
-                        help="comma list (default: 1,2,4,8,... up to cpu_count)")
-    parser.add_argument("--blas", default="1,auto",
-                        help="comma list of BLAS threads/worker and/or 'auto' (=cores//num_cpus)")
+    parser.add_argument(
+        "--num-cpus",
+        default=None,
+        help="comma list (default: 1,2,4,8,... up to cpu_count)",
+    )
+    parser.add_argument(
+        "--blas",
+        default="1,auto",
+        help="comma list of BLAS threads/worker and/or 'auto' (=cores//num_cpus)",
+    )
     parser.add_argument("--min-repeats", type=int, default=3)
     parser.add_argument("--max-repeats", type=int, default=8)
-    parser.add_argument("--cv-target", type=float, default=0.05,
-                        help="stop repeating a config once CV drops below this")
+    parser.add_argument(
+        "--cv-target",
+        type=float,
+        default=0.05,
+        help="stop repeating a config once CV drops below this",
+    )
     parser.add_argument("--json", nargs="?", const="<auto>", default=None)
-    parser.add_argument("--measure", type=int, default=None,
-                        help=argparse.SUPPRESS)  # internal: one config in a preset env
+    parser.add_argument(
+        "--measure", type=int, default=None, help=argparse.SUPPRESS
+    )  # internal: one config in a preset env
     args = parser.parse_args(argv)
 
     # Internal worker: BLAS env was preset by the launcher; time one config.
@@ -276,11 +307,15 @@ def main(argv: list[str] | None = None) -> int:
     configs = _build_configs(num_cpus_list, args.blas, cores)
 
     meta = _env_metadata(args, cores)
-    print(f"autotune: {meta['platform']}  cores={cores}  BLAS={meta['blas_backend']}  "
-          f"start_method={meta['start_method']}  scqubits={meta['scqubits_version']}")
-    print(f"profile={args.profile}  grid={args.grid} ({args.grid * 3} pts)  "
-          f"evals_count={args.evals_count}  cv_target={args.cv_target}  "
-          f"repeats={args.min_repeats}-{args.max_repeats}")
+    print(
+        f"autotune: {meta['platform']}  cores={cores}  BLAS={meta['blas_backend']}  "
+        f"start_method={meta['start_method']}  scqubits={meta['scqubits_version']}"
+    )
+    print(
+        f"profile={args.profile}  grid={args.grid} ({args.grid * 3} pts)  "
+        f"evals_count={args.evals_count}  cv_target={args.cv_target}  "
+        f"repeats={args.min_repeats}-{args.max_repeats}"
+    )
     print(f"searching {len(configs)} configs (num_cpus x BLAS, product <= {cores}):")
 
     results: list[dict[str, Any]] = []
@@ -289,34 +324,67 @@ def main(argv: list[str] | None = None) -> int:
         row = {"num_cpus": num_cpus, "blas_threads": blas, **stats}
         results.append(row)
         warn = "  [!] noisy" if stats["cv"] >= 0.10 else ""
-        print(f"  num_cpus={num_cpus:>3}  blas={blas:>3}  "
-              f"median={stats['median_s']:7.3f}s  min={stats['min_s']:7.3f}s  "
-              f"cv={stats['cv']:.1%}  n={stats['n_used']}{warn}")
+        print(
+            f"  num_cpus={num_cpus:>3}  blas={blas:>3}  "
+            f"median={stats['median_s']:7.3f}s  min={stats['min_s']:7.3f}s  "
+            f"cv={stats['cv']:.1%}  n={stats['n_used']}{warn}"
+        )
 
     # Default a user gets out of the box: num_cpus=1, BLAS uncapped (= cores).
+    # If that config is not in the search set, leave speedup-vs-default undefined
+    # rather than comparing against the slowest measured config (which would
+    # silently inflate the reported speedups).
     default = next(
         (r for r in results if r["num_cpus"] == 1 and r["blas_threads"] == cores), None
     )
-    default_median = default["median_s"] if default else max(r["median_s"] for r in results)
+    default_median = default["median_s"] if default else None
     for r in results:
-        r["speedup_vs_default"] = default_median / r["median_s"]
+        r["speedup_vs_default"] = (
+            default_median / r["median_s"] if default_median is not None else None
+        )
 
     best = min(results, key=lambda r: r["median_s"])
     print("\n=== recommendation (this machine + workload only) ===")
-    print(f"  num_cpus={best['num_cpus']}, BLAS-threads/worker={best['blas_threads']}  "
-          f"-> {best['median_s']:.3f}s")
-    if default:
-        print(f"  {best['speedup_vs_default']:.2f}x faster than the default "
-              f"(num_cpus=1, BLAS={cores}): {default_median:.3f}s")
-    print(f"  Apply with: scqubits.settings.NUM_CPUS = {best['num_cpus']}  and set "
-          f"OPENBLAS_NUM_THREADS={best['blas_threads']} before importing scqubits.")
+    print(
+        f"  num_cpus={best['num_cpus']}, BLAS-threads/worker={best['blas_threads']}  "
+        f"-> {best['median_s']:.3f}s"
+    )
+    if default is not None:
+        print(
+            f"  {best['speedup_vs_default']:.2f}x faster than the default "
+            f"(num_cpus=1, BLAS={cores}): {default_median:.3f}s"
+        )
+    else:
+        print(
+            f"  [!] baseline config (num_cpus=1, BLAS={cores}) was not in the "
+            "search set; speedup-vs-default not computed. Add '1' to --num-cpus "
+            "and the uncapped BLAS value (or 'auto') to --blas to measure it."
+        )
+    print(
+        f"  Apply with: scqubits.settings.NUM_CPUS = {best['num_cpus']}  and set "
+        f"OPENBLAS_NUM_THREADS={best['blas_threads']} before importing scqubits."
+    )
     if best["cv"] >= 0.10:
-        print("  [!] best config was noisy (CV >= 10%); rerun with higher --max-repeats.")
+        print(
+            "  [!] best config was noisy (CV >= 10%); rerun with higher --max-repeats."
+        )
+    n_used_values = [r["n_used"] for r in results]
+    if n_used_values and max(n_used_values) - min(n_used_values) >= 3:
+        print(
+            f"  [!] configs used {min(n_used_values)}-{max(n_used_values)} repeats; "
+            "faster configs stop earlier (fewer samples), which can bias close "
+            "rankings. Raise --min-repeats to sample all configs more evenly."
+        )
 
     if args.json is not None:
-        report = {"meta": meta, "configs": results,
-                  "recommendation": {k: best[k] for k in
-                                     ("num_cpus", "blas_threads", "median_s", "speedup_vs_default")}}
+        report = {
+            "meta": meta,
+            "configs": results,
+            "recommendation": {
+                k: best[k]
+                for k in ("num_cpus", "blas_threads", "median_s", "speedup_vs_default")
+            },
+        }
         results_dir = os.path.join(_TOOLS_DIR, "benchmark_results")
         os.makedirs(results_dir, exist_ok=True)
         if args.json == "<auto>":
