@@ -15,6 +15,7 @@ from __future__ import annotations
 import functools
 import importlib
 import re
+import warnings
 
 from collections.abc import Callable, Iterator
 from typing import TYPE_CHECKING, Any, Literal, cast, overload
@@ -431,6 +432,51 @@ def _auto_sparse_diag_method(dim: int, evals_count: int, kind: str) -> str | Non
     ):
         return None
     return "{}_scipy_sparse".format(kind)
+
+
+def _diagonalize_default(
+    hamiltonian_mat: qt.Qobj,
+    evals_count: int,
+    kind: str,
+    dense_fallback: Callable[[], Any],
+) -> Any:
+    """Diagonalize via the size-based default method, sparse with dense fallback.
+
+    Used by :meth:`HilbertSpace.eigenvals` / :meth:`HilbertSpace.eigensys` when no
+    explicit ``evals_method`` / ``esys_method`` is set. Uses sparse ``eigsh`` when
+    :func:`_auto_sparse_diag_method` selects it, otherwise the dense QuTiP path; on
+    any sparse-solver failure it warns once and falls back to dense.
+
+    Parameters
+    ----------
+    hamiltonian_mat:
+        Hamiltonian to diagonalize.
+    evals_count:
+        number of eigenvalues/eigenstates requested.
+    kind:
+        ``'evals'`` or ``'esys'``.
+    dense_fallback:
+        zero-argument callable returning the dense result (``eigenenergies`` or
+        ``eigenstates`` of ``hamiltonian_mat``).
+
+    Returns
+    -------
+    The eigenvalues (``kind == 'evals'``) or ``(eigenvalues, eigenvectors)``
+    (``kind == 'esys'``).
+    """
+    auto_method = _auto_sparse_diag_method(hamiltonian_mat.shape[0], evals_count, kind)
+    if auto_method is None:
+        return dense_fallback()
+    try:
+        return diag.DIAG_METHODS[auto_method](hamiltonian_mat, evals_count=evals_count)
+    except Exception:
+        warnings.warn(
+            "scqubits: automatic sparse diagonalization failed; falling back to "
+            "dense. Set scqubits.settings.AUTO_SPARSE_DIAG = False to disable "
+            "automatic sparse diagonalization.",
+            RuntimeWarning,
+        )
+        return dense_fallback()
 
 
 class HilbertSpace(
@@ -891,8 +937,12 @@ class HilbertSpace(
     ) -> ndarray:
         """Calculate eigenvalues of the full Hamiltonian.
 
-        Qutip's :meth:`qutip.Qobj.eigenenergies` is used by default, unless
-        :attr:`evals_method` has been set to something other than ``None``.
+        By default (``evals_method`` is ``None``) a size-based heuristic selects the
+        diagonalizer: sparse scipy ``eigsh`` for large Hamiltonians where only a
+        small fraction of the spectrum is requested (see
+        ``settings.AUTO_SPARSE_DIAG``), otherwise QuTiP's dense
+        :meth:`qutip.Qobj.eigenenergies`. Setting :attr:`evals_method` to a method
+        name or callable overrides this choice.
 
         Parameters
         ----------
@@ -902,24 +952,15 @@ class HilbertSpace(
             optional precomputed bare eigensystems for each subsystem, supplied as
             a dict ``{subsys_index: esys}``; speeds up computation when available.
         """
-        # hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
-        # return hamiltonian_mat.eigenenergies(eigvals=evals_count)
-
         hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)  # type: ignore[arg-type]
 
         if not hasattr(self, "evals_method") or self.evals_method is None:
-            auto_method = _auto_sparse_diag_method(
-                hamiltonian_mat.shape[0], evals_count, "evals"
+            evals = _diagonalize_default(
+                hamiltonian_mat,
+                evals_count,
+                "evals",
+                lambda: hamiltonian_mat.eigenenergies(eigvals=evals_count),
             )
-            if auto_method is None:
-                evals = hamiltonian_mat.eigenenergies(eigvals=evals_count)
-            else:
-                try:
-                    evals = diag.DIAG_METHODS[auto_method](
-                        hamiltonian_mat, evals_count=evals_count
-                    )
-                except Exception:
-                    evals = hamiltonian_mat.eigenenergies(eigvals=evals_count)
         else:
             diagonalizer = (
                 diag.DIAG_METHODS[self.evals_method]
@@ -944,8 +985,12 @@ class HilbertSpace(
     ) -> tuple[ndarray, QutipEigenstates]:
         """Calculate eigenvalues and eigenvectors of the full Hamiltonian.
 
-        Qutip's :meth:`qutip.Qobj.eigenstates` is used by default, unless
-        :attr:`esys_method` has been set to something other than ``None``.
+        By default (``esys_method`` is ``None``) a size-based heuristic selects the
+        diagonalizer: sparse scipy ``eigsh`` for large Hamiltonians where only a
+        small fraction of the spectrum is requested (see
+        ``settings.AUTO_SPARSE_DIAG``), otherwise QuTiP's dense
+        :meth:`qutip.Qobj.eigenstates`. Setting :attr:`esys_method` to a method name
+        or callable overrides this choice.
 
         Parameters
         ----------
@@ -958,23 +1003,25 @@ class HilbertSpace(
         Returns
         -------
         eigenvalues and eigenvectors of the full Hamiltonian.
-        """
 
+        Notes
+        -----
+        Eigenvalues and physical observables (matrix elements, lookup energies) are
+        independent of the diagonalizer. Eigenvectors spanning a degenerate
+        eigenspace are, however, only defined up to a basis choice within that
+        space, so the integer dressed-state labels assigned to degenerate states by
+        the overlap-based lookup may depend on the diagonalization method. Reference
+        states by their bare-state labels rather than by hard-coded dressed indices.
+        """
         hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)  # type: ignore[arg-type]
 
         if not hasattr(self, "esys_method") or self.esys_method is None:
-            auto_method = _auto_sparse_diag_method(
-                hamiltonian_mat.shape[0], evals_count, "esys"
+            evals, evecs = _diagonalize_default(
+                hamiltonian_mat,
+                evals_count,
+                "esys",
+                lambda: hamiltonian_mat.eigenstates(eigvals=evals_count),
             )
-            if auto_method is None:
-                evals, evecs = hamiltonian_mat.eigenstates(eigvals=evals_count)
-            else:
-                try:
-                    evals, evecs = diag.DIAG_METHODS[auto_method](
-                        hamiltonian_mat, evals_count=evals_count
-                    )
-                except Exception:
-                    evals, evecs = hamiltonian_mat.eigenstates(eigvals=evals_count)
         else:
             diagonalizer = (
                 diag.DIAG_METHODS[self.esys_method]
