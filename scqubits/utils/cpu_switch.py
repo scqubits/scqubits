@@ -42,6 +42,9 @@ _BLAS_THREAD_ENV_VARS = (
 # The "BLAS-thread cap cannot take effect" warning is emitted at most once.
 _blas_cap_ineffective_warned = False
 
+# The "spawn needs a __main__ guard" notice is emitted at most once per process.
+_spawn_guard_warned = False
+
 
 def get_map_method(num_cpus: int) -> Callable:
     """Selects the correct `.map` method depending on the specified number of desired
@@ -286,6 +289,39 @@ def _capped_blas_threads() -> Iterator[None]:
                 os.environ[var] = original
 
 
+def _warn_spawn_guard(method: str) -> None:
+    """Warn (once) that spawn/forkserver workers require a ``__main__`` guard.
+
+    With ``spawn``/``forkserver`` (the default on macOS and Windows), worker processes
+    re-import the program's entry module, so a plain script that triggers parallel
+    computation must guard its entry point with ``if __name__ == "__main__":`` or it
+    raises a ``RuntimeError`` when the workers start. Jupyter/IPython need no guard. This
+    proactive notice pre-empts that confusing failure; it is a no-op under fork and under
+    IPython.
+
+    Parameters
+    ----------
+    method:
+        the start method the pool will use.
+    """
+    global _spawn_guard_warned
+    if _spawn_guard_warned or method not in ("spawn", "forkserver"):
+        return
+    if getattr(settings, "IN_IPYTHON", False):
+        return  # interactive shells provide an importable entry point already
+    warnings.warn(
+        "scqubits is starting worker processes with the {!r} start method (the safe "
+        "default on macOS, where fork-after-threads is unsafe). If you are running a "
+        "plain Python script, its entry point must be guarded:\n\n"
+        '    if __name__ == "__main__":\n'
+        "        ...   # code that triggers num_cpus > 1\n\n"
+        "Jupyter/IPython need no guard. To use fork instead, set "
+        "scqubits.settings.MULTIPROC_START_METHOD = 'fork'.".format(method),
+        stacklevel=3,
+    )
+    _spawn_guard_warned = True
+
+
 def _new_pool(num_cpus: int) -> object:
     """Start a fresh worker pool of the configured backend and start method.
 
@@ -316,6 +352,7 @@ def _new_pool(num_cpus: int) -> object:
             )
         )
     method = _resolve_start_method()
+    _warn_spawn_guard(method)
     with _capped_blas_threads():
         if settings.MULTIPROC == "pathos":
             try:

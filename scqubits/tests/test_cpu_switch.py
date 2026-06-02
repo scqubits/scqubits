@@ -12,6 +12,7 @@
 ############################################################################
 
 import os
+import warnings
 
 import pytest
 
@@ -161,6 +162,32 @@ class TestResolveStartMethod:
         else:
             # macOS / Windows default to spawn (fork-after-threads is unsafe on macOS)
             assert method == "spawn"
+
+
+class TestSpawnGuardWarning:
+    def test_warns_once_under_spawn_non_ipython(self, monkeypatch):
+        monkeypatch.setattr(settings, "IN_IPYTHON", False)
+        monkeypatch.setattr(cpu_switch, "_spawn_guard_warned", False)
+        with pytest.warns(UserWarning, match="__main__"):
+            cpu_switch._warn_spawn_guard("spawn")
+        # second call is a no-op (no warning)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            cpu_switch._warn_spawn_guard("spawn")
+
+    def test_silent_under_ipython(self, monkeypatch):
+        monkeypatch.setattr(settings, "IN_IPYTHON", True)
+        monkeypatch.setattr(cpu_switch, "_spawn_guard_warned", False)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            cpu_switch._warn_spawn_guard("spawn")
+
+    def test_silent_under_fork(self, monkeypatch):
+        monkeypatch.setattr(settings, "IN_IPYTHON", False)
+        monkeypatch.setattr(cpu_switch, "_spawn_guard_warned", False)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            cpu_switch._warn_spawn_guard("fork")
 
 
 class TestPoolReuseSignature:
