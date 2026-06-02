@@ -171,10 +171,11 @@ def _backend_module() -> Any:
 def _resolve_start_method() -> str:
     """Return the process start method the worker pool will use.
 
-    Uses ``settings.MULTIPROC_START_METHOD`` when set, otherwise a platform default:
-    ``'fork'`` on Linux, ``'spawn'`` on macOS and Windows (fork-after-threads is
-    unsafe on macOS). Falls back to an available method if the requested one is not
-    supported by the backend on this platform.
+    This is a platform fact, not a tuning knob: ``'fork'`` on Linux, ``'spawn'`` on
+    macOS and Windows. macOS uses spawn because fork-after-threads is unsafe with
+    Apple's frameworks (Accelerate/GCD, the Objective-C runtime) and can crash or
+    hang; Windows supports only spawn. Falls back to an available method if the
+    platform default is somehow unsupported by the backend.
 
     Returns
     -------
@@ -184,12 +185,10 @@ def _resolve_start_method() -> str:
         available = set(_backend_module().get_all_start_methods())
     except Exception:
         available = set()
-    requested = getattr(settings, "MULTIPROC_START_METHOD", None)
-    if requested is None:
-        requested = "fork" if sys.platform.startswith("linux") else "spawn"
-    if available and requested not in available:
-        requested = "spawn" if "spawn" in available else next(iter(available))
-    return requested
+    method = "fork" if sys.platform.startswith("linux") else "spawn"
+    if available and method not in available:
+        method = "spawn" if "spawn" in available else next(iter(available))
+    return method
 
 
 def _worker_start_method() -> str:
@@ -220,21 +219,20 @@ def _warn_blas_cap_ineffective(threads: int) -> None:
     # import, so the env-var cap is effective regardless of the BLAS backend.
     if _worker_start_method() in ("spawn", "forkserver"):
         return
-    # fork: workers inherit the parent's already-initialized BLAS; the env-var cap is
-    # inert, so capping relies on threadpoolctl being able to retune the loaded BLAS.
+    # fork (Linux): workers inherit the parent's already-initialized BLAS; the env-var
+    # cap is inert, so capping relies on threadpoolctl retuning the loaded BLAS.
     threadpoolctl = _import_threadpoolctl()
     reason = ""
     if threadpoolctl is None:
         reason = (
             "workers are fork-based and 'threadpoolctl' is not installed; install it "
-            "(pip install threadpoolctl), export OPENBLAS_NUM_THREADS/MKL_NUM_THREADS "
-            "before importing scqubits, or set "
-            "scqubits.settings.MULTIPROC_START_METHOD = 'spawn'"
+            "(pip install threadpoolctl), or export OPENBLAS_NUM_THREADS/MKL_NUM_THREADS "
+            "before importing scqubits"
         )
     elif not threadpoolctl.threadpool_info():
         reason = (
-            "workers are fork-based and numpy's BLAS exposes no thread control (e.g. "
-            "Apple Accelerate); set scqubits.settings.MULTIPROC_START_METHOD = 'spawn'"
+            "workers are fork-based and numpy's BLAS exposes no thread control; export "
+            "OPENBLAS_NUM_THREADS/MKL_NUM_THREADS before importing scqubits"
         )
     if reason:
         warnings.warn(
@@ -315,8 +313,7 @@ def _warn_spawn_guard(method: str) -> None:
         "plain Python script, its entry point must be guarded:\n\n"
         '    if __name__ == "__main__":\n'
         "        ...   # code that triggers num_cpus > 1\n\n"
-        "Jupyter/IPython need no guard. To use fork instead, set "
-        "scqubits.settings.MULTIPROC_START_METHOD = 'fork'.".format(method),
+        "Jupyter/IPython need no guard.".format(method),
         stacklevel=3,
     )
     _spawn_guard_warned = True

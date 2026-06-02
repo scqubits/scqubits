@@ -140,27 +140,20 @@ class TestGetMapMethodSerial:
 
 
 class TestResolveStartMethod:
-    def test_explicit_override(self, monkeypatch):
-        for method in cpu_switch._backend_module().get_all_start_methods():
-            monkeypatch.setattr(settings, "MULTIPROC_START_METHOD", method)
-            assert _resolve_start_method() == method
-
-    def test_unavailable_override_falls_back(self, monkeypatch):
-        monkeypatch.setattr(settings, "MULTIPROC_START_METHOD", "not-a-method")
+    def test_resolves_to_available_method(self):
         assert (
             _resolve_start_method()
             in cpu_switch._backend_module().get_all_start_methods()
         )
 
-    def test_platform_default(self, monkeypatch):
+    def test_platform_default(self):
         import sys
 
-        monkeypatch.setattr(settings, "MULTIPROC_START_METHOD", None)
         method = _resolve_start_method()
         if sys.platform.startswith("linux"):
             assert method == "fork"
         else:
-            # macOS / Windows default to spawn (fork-after-threads is unsafe on macOS)
+            # macOS / Windows use spawn (fork-after-threads is unsafe on macOS)
             assert method == "spawn"
 
 
@@ -193,7 +186,6 @@ class TestSpawnGuardWarning:
 class TestPoolReuseSignature:
     def test_reusable_matches_signature(self, monkeypatch):
         monkeypatch.setattr(settings, "MULTIPROC", "pathos")
-        monkeypatch.setattr(settings, "MULTIPROC_START_METHOD", None)
         method = _resolve_start_method()
         monkeypatch.setattr(cpu_switch, "_pool_signature", ("pathos", method, 4))
         assert cpu_switch._pool_is_reusable(object(), 4) is True
