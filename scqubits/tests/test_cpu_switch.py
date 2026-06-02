@@ -21,6 +21,7 @@ import scqubits.utils.cpu_switch as cpu_switch
 from scqubits.utils.cpu_switch import (
     _BLAS_THREAD_ENV_VARS,
     _capped_blas_threads,
+    _resolve_start_method,
     _validated_blas_thread_cap,
 )
 
@@ -135,3 +136,42 @@ class TestShutdownPool:
 class TestGetMapMethodSerial:
     def test_num_cpus_one_returns_builtin_map(self):
         assert cpu_switch.get_map_method(1) is map
+
+
+class TestResolveStartMethod:
+    def test_explicit_override(self, monkeypatch):
+        for method in cpu_switch._backend_module().get_all_start_methods():
+            monkeypatch.setattr(settings, "MULTIPROC_START_METHOD", method)
+            assert _resolve_start_method() == method
+
+    def test_unavailable_override_falls_back(self, monkeypatch):
+        monkeypatch.setattr(settings, "MULTIPROC_START_METHOD", "not-a-method")
+        assert (
+            _resolve_start_method()
+            in cpu_switch._backend_module().get_all_start_methods()
+        )
+
+    def test_platform_default(self, monkeypatch):
+        import sys
+
+        monkeypatch.setattr(settings, "MULTIPROC_START_METHOD", None)
+        method = _resolve_start_method()
+        if sys.platform.startswith("linux"):
+            assert method == "fork"
+        else:
+            # macOS / Windows default to spawn (fork-after-threads is unsafe on macOS)
+            assert method == "spawn"
+
+
+class TestPoolReuseSignature:
+    def test_reusable_matches_signature(self, monkeypatch):
+        monkeypatch.setattr(settings, "MULTIPROC", "pathos")
+        monkeypatch.setattr(settings, "MULTIPROC_START_METHOD", None)
+        method = _resolve_start_method()
+        monkeypatch.setattr(cpu_switch, "_pool_signature", ("pathos", method, 4))
+        assert cpu_switch._pool_is_reusable(object(), 4) is True
+        assert cpu_switch._pool_is_reusable(object(), 2) is False  # different cpu count
+
+    def test_not_reusable_when_unset(self, monkeypatch):
+        monkeypatch.setattr(cpu_switch, "_pool_signature", None)
+        assert cpu_switch._pool_is_reusable(object(), 4) is False
