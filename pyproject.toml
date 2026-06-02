@@ -94,6 +94,8 @@ module = [
     "matplotlib_inline",
     "matplotlib_inline.*",
     "mpl_toolkits.*",
+    "multiprocess",
+    "multiprocess.*",
     "pathos",
     "pathos.*",
     # Optional acceleration backends imported inside diag.py fallbacks

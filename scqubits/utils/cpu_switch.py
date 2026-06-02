@@ -13,8 +13,10 @@
 from __future__ import annotations
 
 import atexit
+import importlib
 import logging
 import os
+import sys
 import warnings
 
 from collections.abc import Callable, Iterator
@@ -24,6 +26,10 @@ from typing import Any, ContextManager, Optional
 import scqubits.settings as settings
 
 LOGGER = logging.getLogger(__name__)
+
+# Backend + start method + cpu count of the pool cached in settings.POOL, so reuse
+# does not depend on reading private pool attributes.
+_pool_signature: Optional[tuple] = None
 
 # Environment variables read by the common BLAS/OpenMP backends at numpy import.
 _BLAS_THREAD_ENV_VARS = (
@@ -77,12 +83,16 @@ def get_map_method(num_cpus: int) -> Callable:
 
 
 def _pool_is_reusable(pool: object, num_cpus: int) -> bool:
-    """Return True if the cached pool matches the configured backend and cpu count."""
-    if settings.MULTIPROC == "pathos":
-        return getattr(pool, "nodes", None) == num_cpus
-    if settings.MULTIPROC == "multiprocessing":
-        return getattr(pool, "_processes", None) == num_cpus
-    return False
+    """Return True if the cached pool matches the requested backend, start method, cpu count.
+
+    Parameters
+    ----------
+    pool:
+        the cached pool object (unused; reuse is tracked via ``_pool_signature``).
+    num_cpus:
+        number of worker processes requested by the caller.
+    """
+    return _pool_signature == (settings.MULTIPROC, _resolve_start_method(), num_cpus)
 
 
 def _shutdown_pool(pool: object) -> None:
@@ -145,22 +155,44 @@ def _import_threadpoolctl() -> Optional[Any]:
     return threadpoolctl
 
 
-def _worker_start_method() -> str:
-    """Return the process start method of the configured multiprocessing backend.
+def _backend_module() -> Any:
+    """Return the multiprocessing backend module.
+
+    ``multiprocess`` (the dill-backed engine) for the pathos backend, otherwise the
+    standard-library ``multiprocessing``.
+    """
+    name = "multiprocess" if settings.MULTIPROC == "pathos" else "multiprocessing"
+    return importlib.import_module(name)
+
+
+def _resolve_start_method() -> str:
+    """Return the process start method the worker pool will use.
+
+    Uses ``settings.MULTIPROC_START_METHOD`` when set, otherwise a platform default:
+    ``'fork'`` on Linux, ``'spawn'`` on macOS and Windows (fork-after-threads is
+    unsafe on macOS). Falls back to an available method if the requested one is not
+    supported by the backend on this platform.
 
     Returns
     -------
-    ``'fork'``, ``'spawn'``, ``'forkserver'``, or ``''`` if it cannot be queried.
-    The pathos backend uses ``multiprocess``, whose default can differ from the
-    standard-library ``multiprocessing`` default (notably fork on macOS).
+    One of ``'fork'``, ``'spawn'``, ``'forkserver'``.
     """
-    module_name = (
-        "multiprocess" if settings.MULTIPROC == "pathos" else "multiprocessing"
-    )
     try:
-        import importlib
+        available = set(_backend_module().get_all_start_methods())
+    except Exception:
+        available = set()
+    requested = getattr(settings, "MULTIPROC_START_METHOD", None)
+    if requested is None:
+        requested = "fork" if sys.platform.startswith("linux") else "spawn"
+    if available and requested not in available:
+        requested = "spawn" if "spawn" in available else next(iter(available))
+    return requested
 
-        return importlib.import_module(module_name).get_start_method() or ""
+
+def _worker_start_method() -> str:
+    """Return the start method the worker pool will use, or ``''`` if it can't be queried."""
+    try:
+        return _resolve_start_method()
     except Exception:
         return ""
 
@@ -181,19 +213,25 @@ def _warn_blas_cap_ineffective(threads: int) -> None:
     global _blas_cap_ineffective_warned
     if _blas_cap_ineffective_warned:
         return
+    # spawn/forkserver workers re-import numpy/scipy and read the thread env vars at
+    # import, so the env-var cap is effective regardless of the BLAS backend.
+    if _worker_start_method() in ("spawn", "forkserver"):
+        return
+    # fork: workers inherit the parent's already-initialized BLAS; the env-var cap is
+    # inert, so capping relies on threadpoolctl being able to retune the loaded BLAS.
     threadpoolctl = _import_threadpoolctl()
     reason = ""
-    if threadpoolctl is not None:
-        if not threadpoolctl.threadpool_info():
-            reason = (
-                "numpy's BLAS backend exposes no thread control (e.g. Apple "
-                "Accelerate)"
-            )
-    elif _worker_start_method() == "fork":
+    if threadpoolctl is None:
         reason = (
-            "workers are fork-based and 'threadpoolctl' is not installed; install "
-            "it (pip install threadpoolctl) to cap threads in forked workers, or "
-            "export OPENBLAS_NUM_THREADS/MKL_NUM_THREADS before importing scqubits"
+            "workers are fork-based and 'threadpoolctl' is not installed; install it "
+            "(pip install threadpoolctl), export OPENBLAS_NUM_THREADS/MKL_NUM_THREADS "
+            "before importing scqubits, or set "
+            "scqubits.settings.MULTIPROC_START_METHOD = 'spawn'"
+        )
+    elif not threadpoolctl.threadpool_info():
+        reason = (
+            "workers are fork-based and numpy's BLAS exposes no thread control (e.g. "
+            "Apple Accelerate); set scqubits.settings.MULTIPROC_START_METHOD = 'spawn'"
         )
     if reason:
         warnings.warn(
@@ -249,11 +287,17 @@ def _capped_blas_threads() -> Iterator[None]:
 
 
 def _new_pool(num_cpus: int) -> object:
-    """Start a fresh pool of the configured kind.
+    """Start a fresh worker pool of the configured backend and start method.
 
-    The BLAS/OpenMP thread cap is applied only while the worker processes are
-    created (they capture the capped environment as they spawn or fork); the parent
-    process's environment is restored immediately afterwards.
+    The pool is created from an explicit process context (see
+    :func:`_resolve_start_method`) so the start method is *chosen* rather than
+    inherited -- notably ``'spawn'`` on macOS, where fork-after-threads is unsafe.
+    The pathos backend uses ``multiprocess`` (dill-backed), so worker closures still
+    pickle under spawn.
+
+    The BLAS/OpenMP thread cap is applied only while the worker processes are created
+    (they capture the capped environment as they spawn or fork); the parent process's
+    environment is restored immediately afterwards.
 
     Parameters
     ----------
@@ -262,30 +306,32 @@ def _new_pool(num_cpus: int) -> object:
 
     Returns
     -------
-    A freshly started pathos or multiprocessing pool, selected by
-    ``settings.MULTIPROC``.
+    A freshly started pool whose ``.map`` method is used by the caller.
     """
+    global _pool_signature
+    if settings.MULTIPROC not in ("pathos", "multiprocessing"):
+        raise ValueError(
+            "Unknown multiprocessing type: settings.MULTIPROC = {}".format(
+                settings.MULTIPROC
+            )
+        )
+    method = _resolve_start_method()
     with _capped_blas_threads():
         if settings.MULTIPROC == "pathos":
             try:
                 import dill
-                import pathos
+                import multiprocess as backend
             except ImportError:
                 raise ImportError(
                     "scqubits multiprocessing mode set to 'pathos'. Need but cannot"
                     " find 'pathos'/'dill'!"
                 )
             dill.settings["recurse"] = True
-            return pathos.pools.ProcessPool(nodes=num_cpus)
-        if settings.MULTIPROC == "multiprocessing":
-            import multiprocessing
-
-            return multiprocessing.Pool(processes=num_cpus)
-    raise ValueError(
-        "Unknown multiprocessing type: settings.MULTIPROC = {}".format(
-            settings.MULTIPROC
-        )
-    )
+        else:
+            import multiprocessing as backend
+        pool = backend.get_context(method).Pool(processes=num_cpus)
+    _pool_signature = (settings.MULTIPROC, method, num_cpus)
+    return pool
 
 
 @atexit.register
@@ -295,7 +341,9 @@ def _shutdown_cached_pool() -> None:
     Without this, the reused pool's worker processes outlive the interpreter and
     are only reaped by the operating system.
     """
+    global _pool_signature
     pool = settings.POOL
     if pool is not None:
         _shutdown_pool(pool)
         settings.POOL = None
+        _pool_signature = None

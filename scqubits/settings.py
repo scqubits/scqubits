@@ -95,6 +95,17 @@ NUM_CPUS = 1
 #           'pathos'
 MULTIPROC = "pathos"
 
+# Process start method for the worker pool.
+# Options:  None (platform default), 'fork', 'spawn', 'forkserver'.
+# The default (None) selects 'fork' on Linux and 'spawn' on macOS and Windows.
+# 'spawn' is used on macOS because fork-after-threads is unsafe with Apple's
+# frameworks (Accelerate/GCD, the Objective-C runtime) and can crash or hang.
+# NOTE: with 'spawn'/'forkserver', worker processes re-import the entry module, so
+# a plain script that triggers parallel computation must guard its entry point with
+# ``if __name__ == "__main__":`` (Jupyter/IPython are unaffected). Set this to
+# 'fork' to restore the previous behavior.
+MULTIPROC_START_METHOD: Optional[str] = None
+
 # Cap BLAS/OpenMP threads *per worker process* during parallel sweeps
 # (num_cpus > 1). Must be a positive int or None; with the default (None) the
 # environment is left untouched. When many small diagonalizations are swept, the
