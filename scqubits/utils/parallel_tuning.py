@@ -267,6 +267,151 @@ def _descriptors_from_system(
     )
 
 
+# --------------------------------------------------------------------------------------
+# Machine-calibration consumption (optional; see scqubits.utils.parallel_calibration)
+# --------------------------------------------------------------------------------------
+# Cache the loaded calibration keyed by file modification time so the per-sweep auto
+# hook does not re-read the file on every call.
+_calibration_cache: dict[str, tuple[float, Any]] = {}
+
+
+def _get_calibration() -> Any:
+    """Return the persisted machine calibration, or ``None`` if absent.
+
+    The result is cached and invalidated when the calibration file's modification
+    time changes.
+    """
+    from scqubits.utils.parallel_calibration import (
+        default_calibration_path,
+        load_calibration,
+    )
+
+    path = default_calibration_path()
+    try:
+        mtime = os.path.getmtime(path)
+    except OSError:
+        _calibration_cache.pop(path, None)
+        return None
+    cached = _calibration_cache.get(path)
+    if cached is not None and cached[0] == mtime:
+        return cached[1]
+    calibration = load_calibration(path)
+    _calibration_cache[path] = (mtime, calibration)
+    return calibration
+
+
+def _recommend_calibrated(
+    dimension: int,
+    total_points: int,
+    evals_count: int,
+    is_sparse: bool,
+    cores: int,
+    calibration: Any,
+) -> Optional[ParallelConfig]:
+    """Return a recommendation from measured overhead/per-point cost, or ``None``.
+
+    Returns ``None`` when the calibration has no per-point cost sample matching the
+    regime, so the caller can fall back to the default tiered heuristic. Parallelism
+    is chosen only when the per-point work removed by adding workers exceeds the
+    measured per-task dispatch overhead.
+
+    Parameters
+    ----------
+    dimension:
+        Hilbert-space dimension diagonalized per grid point.
+    total_points:
+        total number of grid points in the sweep.
+    evals_count:
+        number of eigenvalues/eigenstates requested per point.
+    is_sparse:
+        whether sparse diagonalization will be used per point.
+    cores:
+        number of cores to plan against.
+    calibration:
+        a ``MachineCalibration`` providing measured overhead and per-point cost.
+    """
+    if total_points <= 1 or cores <= 1:
+        return ParallelConfig(1, None, "serial: trivial workload")
+
+    cost = calibration.estimated_cost_per_point(dimension, is_sparse)
+    if cost is None:
+        return None
+
+    dense_big = (not is_sparse) and dimension >= _LARGE_DENSE_DIM
+    if dense_big and total_points < cores:
+        return ParallelConfig(
+            1,
+            None,
+            "{} points of a large dense system (dim {}): one process with uncapped "
+            "BLAS uses all {} cores".format(total_points, dimension, cores),
+        )
+
+    num_cpus = min(cores, total_points, max(2, total_points // _POINTS_PER_WORKER))
+    overhead = calibration.overhead_s
+    startup = getattr(calibration, "pool_startup_s", 0.0)
+    # Per-point gain from adding workers, and the total it must accumulate to repay
+    # the one-time pool startup (the spawn re-import paid once per sweep).
+    per_point_gain = cost * (1.0 - 1.0 / num_cpus) - overhead
+    if per_point_gain <= 0 or total_points * per_point_gain <= startup:
+        return ParallelConfig(
+            1,
+            None,
+            "measured: {} points x per-point gain {:.4f}s does not repay the "
+            "{:.3f}s pool startup: serial".format(
+                total_points, max(0.0, per_point_gain), startup
+            ),
+        )
+
+    light_per_point = is_sparse or dimension < _MEDIUM_DIM
+    blas_threads = 1 if light_per_point else max(1, cores // num_cpus)
+    while num_cpus > 1 and num_cpus * blas_threads > cores:
+        num_cpus -= 1
+        if not light_per_point:
+            blas_threads = max(1, cores // num_cpus)
+    reason = (
+        "measured: {} points x per-point gain {:.4f}s repays the {:.3f}s startup "
+        "-> {} workers x {} BLAS thread(s) (<= {} cores)".format(
+            total_points, per_point_gain, startup, num_cpus, blas_threads, cores
+        )
+    )
+    return ParallelConfig(num_cpus, blas_threads, reason)
+
+
+def _decide(
+    dimension: int,
+    total_points: int,
+    evals_count: int,
+    is_sparse: bool,
+    cores: int,
+) -> ParallelConfig:
+    """Return a recommendation, using a machine calibration when one is available.
+
+    Falls back to the default tiered heuristic (:func:`_recommend`) when no
+    calibration is present or it lacks a matching cost sample.
+
+    Parameters
+    ----------
+    dimension:
+        Hilbert-space dimension diagonalized per grid point.
+    total_points:
+        total number of grid points in the sweep.
+    evals_count:
+        number of eigenvalues/eigenstates requested per point.
+    is_sparse:
+        whether sparse diagonalization will be used per point.
+    cores:
+        number of cores to plan against.
+    """
+    calibration = _get_calibration()
+    if calibration is not None:
+        calibrated = _recommend_calibrated(
+            dimension, total_points, evals_count, is_sparse, cores, calibration
+        )
+        if calibrated is not None:
+            return calibrated
+    return _recommend(dimension, total_points, evals_count, is_sparse, cores)
+
+
 def recommend_parallelization(
     system: Any = None,
     *,
@@ -280,6 +425,7 @@ def recommend_parallelization(
     cores: Optional[int] = None,
     apply: bool = False,
     explain: bool = False,
+    measure: bool = False,
 ) -> ParallelConfig:
     """Recommend ``num_cpus`` and a per-worker BLAS-thread cap for a sweep.
 
@@ -326,6 +472,12 @@ def recommend_parallelization(
         ``settings.MULTIPROC_BLAS_THREADS`` for the current session.
     explain:
         if ``True``, print the recommendation and its reason.
+    measure:
+        if ``True`` and no machine calibration exists yet, run
+        :func:`scqubits.calibrate_parallelization` first (which times a short battery
+        of sweeps in subprocesses) so the recommendation uses measured break-evens.
+        Off by default; the calibration spawns processes, so in a plain script guard
+        the entry point with ``if __name__ == "__main__":``.
 
     Returns
     -------
@@ -355,7 +507,16 @@ def recommend_parallelization(
         is_sparse = _default_is_sparse(dimension, evals_count)
     resolved_cores = _resolve_cores(cores)
 
-    config = _recommend(
+    if measure:
+        from scqubits.utils.parallel_calibration import (
+            calibrate_parallelization,
+            default_calibration_path,
+        )
+
+        if not os.path.exists(default_calibration_path()):
+            calibrate_parallelization(persist=True, explain=explain)
+
+    config = _decide(
         int(dimension), int(num_points), int(evals_count), is_sparse, resolved_cores
     )
 
@@ -376,7 +537,8 @@ def _auto_config(dimension: int, total_points: int, evals_count: int) -> Paralle
 
     Helper used by the sweep/spectrum methods when ``num_cpus="auto"`` (or
     ``settings.AUTO_PARALLEL`` with ``num_cpus`` left unset). Detects the sparse
-    regime and plans against ``os.cpu_count()``.
+    regime, plans against ``os.cpu_count()``, and uses a machine calibration when one
+    is present.
 
     Parameters
     ----------
@@ -388,7 +550,7 @@ def _auto_config(dimension: int, total_points: int, evals_count: int) -> Paralle
         number of eigenvalues/eigenstates requested per point.
     """
     is_sparse = _default_is_sparse(dimension, evals_count)
-    return _recommend(
+    return _decide(
         dimension, total_points, evals_count, is_sparse, _resolve_cores(None)
     )
 

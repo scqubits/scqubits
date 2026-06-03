@@ -122,6 +122,12 @@ MULTIPROC_BLAS_THREADS: Optional[int] = None
 # guard. Per-call opt-in via num_cpus="auto" works regardless of this flag.
 AUTO_PARALLEL = False
 
+# Where the one-time machine calibration produced by
+# scqubits.calibrate_parallelization() is stored and read from. None uses the
+# default ~/.scqubits/parallel_calibration.json. When a calibration is present the
+# parallelization heuristic replaces its default break-even with a measured one.
+PARALLEL_CALIBRATION_PATH: Optional[str] = None
+
 # Automatic sparse diagonalization (prototype) -----------------------------------------
 # When evals_method / esys_method are left at their default (None), use sparse
 # scipy `eigsh` instead of dense QuTiP diagonalization when only a small fraction of a
