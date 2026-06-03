@@ -4,31 +4,20 @@
 for measuring the parallelized code paths in scqubits and tracking the effect of
 optimizations.
 
-## Recommended: auto-tune on your machine
+## For users: the shipped heuristic and calibration
 
-The fastest configuration is **machine- and workload-specific** (core count, BLAS
-library, OS, matrix size), so do not copy numbers from this file -- measure.
-`autotune_multiprocessing.py` searches the `num_cpus x BLAS-threads-per-worker`
-frontier and reports the optimum for *your* system, with CV-based early stopping
-and full environment metadata:
+End users do not need this maintainer harness. scqubits ships a workload-aware
+recommendation, `scqubits.recommend_parallelization(...)` (plus the per-sweep
+`num_cpus="auto"` sentinel and the `settings.AUTO_PARALLEL` flag), and a one-time
+machine calibration, `scqubits.calibrate_parallelization()`, which measures per-task
+dispatch overhead, pool-startup cost, and per-point diagonalization cost and feeds the
+recommendation a measured break-even. See the *Parallel Processing* page of the user
+guide. Portable lesson it encodes: **cap BLAS threads, and add worker processes only
+once the grid is large enough to amortize the pool startup** -- with the crossover
+measured per machine.
 
-```bash
-python tools/autotune_multiprocessing.py --profile heavy --grid 24 --json
-```
-
-It prints a ranked table and a recommendation. The optimum is strongly grid-size
-dependent -- e.g. on a 20-core OpenBLAS/Windows box:
-
-| sweep size | fastest config              | vs default (num_cpus=1, BLAS=all) |
-|------------|-----------------------------|-----------------------------------|
-| 24 points  | num_cpus=1, BLAS=1 (no MP)  | 2.7x                              |
-| 72 points  | num_cpus=4, BLAS=1          | ~3.6x                             |
-
-Portable lesson: **cap BLAS threads, and add worker processes only once the grid
-is large enough to amortize spawn overhead** -- but the crossover and exact
-optimum must be measured per machine. Apply the recommendation by setting
-`OPENBLAS_NUM_THREADS` / `MKL_NUM_THREADS` in the environment *before importing
-scqubits*, and `scqubits.settings.NUM_CPUS`.
+`benchmark_multiprocessing.py` below is the deeper maintainer tool for measuring the
+parallelized code paths and tracking the effect of optimizations.
 
 ## Running
 
@@ -157,11 +146,11 @@ test_spectrumlookup.py` pass (`test_circuit` covers hierarchical diagonalization
 > covered by `test_circuit` but warrants a domain review before release.
 
 ## Remaining optimization targets
-- **BLAS-thread coordination (highest impact).** `MULTIPROC_BLAS_THREADS` is a
-  prototype: opt-in, spawn-only, and worker-pools-only. Productionizing it means a
-  `threadpoolctl`-based worker initializer (portable to fork), a sensible auto
-  default (`cores // num_cpus`), and a documented hook for the serial
-  `num_cpus=1` case. This is the real runtime lever; the items below are minor.
+- **BLAS-thread coordination — largely addressed.** `MULTIPROC_BLAS_THREADS` now
+  reaches fork-based (Linux) workers via `threadpoolctl`, and the shipped
+  `recommend_parallelization` heuristic supplies a sensible auto cap
+  (~`cores // num_cpus`, scoped per sweep). Still open: a documented cap for the
+  serial `num_cpus=1` path (the parent's BLAS is currently left uncapped).
 - **Chunking — investigated, no lever.** `pool.map` (unlike `imap`) already
   auto-computes `chunksize = ceil(n_tasks / (4 * num_workers))` when none is given
   (see `multiprocess.pool.Pool._map_async`), so scqubits already gets sensible
