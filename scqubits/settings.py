@@ -113,6 +113,15 @@ MULTIPROC = "pathos"
 # parent environment is restored afterwards.
 MULTIPROC_BLAS_THREADS: Optional[int] = None
 
+# Auto-parallelization (opt-in) --------------------------------------------------------
+# When True, sweep/spectrum methods called WITHOUT an explicit num_cpus behave as if
+# num_cpus="auto": the parallel-tuning heuristic (scqubits.recommend_parallelization)
+# picks num_cpus plus a per-worker BLAS-thread cap from the workload and applies them
+# live, with no kernel restart. Default False keeps current behavior and avoids
+# surprising plain scripts, where spawning workers needs an `if __name__ == "__main__":`
+# guard. Per-call opt-in via num_cpus="auto" works regardless of this flag.
+AUTO_PARALLEL = False
+
 # Automatic sparse diagonalization (prototype) -----------------------------------------
 # When evals_method / esys_method are left at their default (None), use sparse
 # scipy `eigsh` instead of dense QuTiP diagonalization when only a small fraction of a

@@ -186,10 +186,21 @@ class TestSpawnGuardWarning:
 class TestPoolReuseSignature:
     def test_reusable_matches_signature(self, monkeypatch):
         monkeypatch.setattr(settings, "MULTIPROC", "pathos")
+        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", None)
         method = _resolve_start_method()
-        monkeypatch.setattr(cpu_switch, "_pool_signature", ("pathos", method, 4))
+        monkeypatch.setattr(cpu_switch, "_pool_signature", ("pathos", method, 4, None))
         assert cpu_switch._pool_is_reusable(object(), 4) is True
         assert cpu_switch._pool_is_reusable(object(), 2) is False  # different cpu count
+
+    def test_not_reusable_with_different_blas_cap(self, monkeypatch):
+        monkeypatch.setattr(settings, "MULTIPROC", "pathos")
+        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", None)
+        method = _resolve_start_method()
+        monkeypatch.setattr(cpu_switch, "_pool_signature", ("pathos", method, 4, 1))
+        # same num_cpus but the cached pool was built with a BLAS cap of 1
+        assert cpu_switch._pool_is_reusable(object(), 4, blas_threads=1) is True
+        assert cpu_switch._pool_is_reusable(object(), 4, blas_threads=2) is False
+        assert cpu_switch._pool_is_reusable(object(), 4) is False  # cap None != 1
 
     def test_not_reusable_when_unset(self, monkeypatch):
         monkeypatch.setattr(cpu_switch, "_pool_signature", None)

@@ -1254,9 +1254,26 @@ class ParameterSweep(
         ignore_low_overlap: bool = False,
         autorun: bool = settings.AUTORUN_SWEEP,
         deepcopy: bool = False,
-        num_cpus: int | None = None,
+        num_cpus: int | str | None = None,
     ) -> None:
-        num_cpus = num_cpus or settings.NUM_CPUS
+        if num_cpus == "auto" or (
+            num_cpus is None and getattr(settings, "AUTO_PARALLEL", False)
+        ):
+            # decide before the autorun, from the constructor arguments
+            from scqubits.utils.parallel_tuning import _auto_config
+
+            counts = [len(vals) for vals in paramvals_by_name.values()]
+            total_points = int(np.prod(counts)) if counts else 1
+            auto = _auto_config(hilbertspace.dimension, total_points, evals_count)
+            num_cpus = auto.num_cpus
+            blas_threads = auto.blas_threads
+        else:
+            num_cpus = (
+                num_cpus
+                if isinstance(num_cpus, int) and num_cpus
+                else settings.NUM_CPUS
+            )
+            blas_threads = None
         self._parameters: Parameters = Parameters(paramvals_by_name)
         self._hilbertspace = hilbertspace
         self._evals_count: int = evals_count
@@ -1270,6 +1287,7 @@ class ParameterSweep(
         self._ignore_low_overlap = ignore_low_overlap
         self._deepcopy = deepcopy
         self._num_cpus = num_cpus
+        self._blas_threads = blas_threads
 
         self._out_of_sync = False
         self.reset_preslicing()
@@ -1558,7 +1576,7 @@ class ParameterSweep(
             np.prod([len(param_vals) for param_vals in reduced_parameters])
         )
 
-        target_map = cpu_switch.get_map_method(self._num_cpus)
+        target_map = cpu_switch.get_map_method(self._num_cpus, self._blas_threads)
 
         with utils.InfoBar(
             "Parallel compute bare eigensys for subsystem {} [num_cpus={}]".format(
@@ -1693,7 +1711,7 @@ class ParameterSweep(
         needs as arguments, and the per-point bare eigensystem is delivered to the
         worker through the work item instead.
         """
-        target_map = cpu_switch.get_map_method(self._num_cpus)
+        target_map = cpu_switch.get_map_method(self._num_cpus, self._blas_threads)
         total_count = int(np.prod(self._parameters.counts))
 
         # Ship only the current grid point's bare eigensystem to each worker.
