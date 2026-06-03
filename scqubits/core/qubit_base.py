@@ -816,7 +816,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         subtract_ground: bool = False,
         get_eigenstates: bool = False,
         filename: str | None = None,
-        num_cpus: int | None = None,
+        num_cpus: int | str | None = None,
     ) -> SpectrumData:
         """Calculate eigenvalues/eigenstates for a range of parameter values.
 
@@ -843,7 +843,21 @@ class QubitBaseClass(QuantumSystem, ABC):
             number of cores to be used for computation
             (default: settings.NUM_CPUS)
         """
-        num_cpus = num_cpus or settings.NUM_CPUS
+        if num_cpus == "auto" or (
+            num_cpus is None and getattr(settings, "AUTO_PARALLEL", False)
+        ):
+            from scqubits.utils.parallel_tuning import _auto_config
+
+            auto = _auto_config(self.hilbertdim(), len(param_vals), evals_count)
+            num_cpus = auto.num_cpus
+            blas_threads = auto.blas_threads
+        else:
+            num_cpus = (
+                num_cpus
+                if isinstance(num_cpus, int) and num_cpus
+                else settings.NUM_CPUS
+            )
+            blas_threads = None
         previous_paramval = getattr(self, param_name)
         tqdm_disable = settings.PROGRESSBAR_DISABLED
 
@@ -851,7 +865,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         # serial, pool.imap when parallel), so wrapping its output iterator in tqdm
         # gives a live progress bar that advances as each grid point completes --
         # in serial and parallel alike.
-        target_map = get_map_method(num_cpus, total=len(param_vals))
+        target_map = get_map_method(num_cpus, blas_threads, total=len(param_vals))
         if not get_eigenstates:
             func_evals = functools.partial(
                 self._evals_for_paramval, param_name=param_name, evals_count=evals_count
