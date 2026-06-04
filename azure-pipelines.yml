@@ -12,6 +12,7 @@ trigger:
       - Danny_vchos
       - devel_peterg
       - peterg_qutip5
+      - perf/multiprocessing
 
 jobs:
 - job: Linux
