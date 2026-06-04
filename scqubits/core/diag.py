@@ -270,7 +270,7 @@ def evals_scipy_sparse(
     options = _dict_merge(
         dict(
             which="SA",
-            v0=settings.RANDOM_ARRAY[: matrix.shape[0]],
+            v0=settings.arpack_v0(matrix.shape[0]),
             return_eigenvectors=False,
         ),
         kwargs,
@@ -325,7 +325,7 @@ def esys_scipy_sparse(
     options = _dict_merge(
         dict(
             which="SA",
-            v0=settings.RANDOM_ARRAY[: matrix.shape[0]],
+            v0=settings.arpack_v0(matrix.shape[0]),
             return_eigenvectors=True,
         ),
         kwargs,

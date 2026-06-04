@@ -240,3 +240,32 @@ class TestPoolReuseSignature:
     def test_not_reusable_when_unset(self, monkeypatch):
         monkeypatch.setattr(cpu_switch, "_pool_signature", None)
         assert cpu_switch._pool_is_reusable(object(), 4) is False
+
+
+class TestArpackV0NotPickledIntoWorkers:
+    # The ARPACK/eigsh start vector used to be a 10M-element module global
+    # (settings.RANDOM_ARRAY, ~80 MB). With dill recurse, that array got pulled into
+    # every worker-task pickle during parallel sweeps (measured ~80 MB/task for
+    # hierarchical-diagonalization Circuits). It is now generated on demand.
+    def test_arpack_v0_deterministic_and_prefix_consistent(self):
+        import numpy as np
+
+        import scqubits.settings as settings
+
+        v = settings.arpack_v0(7)
+        assert v.shape == (7,)
+        assert np.array_equal(v, settings.arpack_v0(7))  # deterministic
+        # prefix-consistent: equals a fixed-seed draw truncated to dim (the old slice)
+        assert np.array_equal(settings.arpack_v0(7)[:3], settings.arpack_v0(3))
+
+    def test_no_large_array_in_settings_module(self):
+        import numpy as np
+
+        import scqubits.settings as settings
+
+        big = [
+            name
+            for name, val in vars(settings).items()
+            if isinstance(val, np.ndarray) and val.nbytes > 1_000_000
+        ]
+        assert big == [], f"large settings arrays leak into worker pickles: {big}"
