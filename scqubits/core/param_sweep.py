@@ -1285,6 +1285,7 @@ class ParameterSweep(
         self._deepcopy = deepcopy
         self._num_cpus = num_cpus
         self._blas_threads = blas_threads
+        self._progress_bars: list = []
 
         self._out_of_sync = False
         self.reset_preslicing()
@@ -1354,6 +1355,43 @@ class ParameterSweep(
         """Return whether the tqdm progress bar should be disabled for this sweep."""
         return settings.PROGRESSBAR_DISABLED
 
+    def _consume_with_bar(self, mapped: Any, total: int, desc: str) -> list:
+        """Collect the mapped results, driving a tqdm progress bar.
+
+        In Jupyter/IPython the finished bar is kept on screen and registered in
+        ``self._progress_bars``, so the bare-spectrum bar(s) stay visible above the
+        dressed-spectrum bar; all phase bars are then cleared together at the end of
+        :meth:`run` by :meth:`_close_progress_bars`. In a terminal the bar is closed
+        as soon as its phase finishes, preserving the previous sequential display.
+
+        Parameters
+        ----------
+        mapped:
+            iterator of per-grid-point results (the output of the pool ``imap`` or the
+            built-in ``map``), yielded in grid order.
+        total:
+            number of grid points, used for the bar length.
+        desc:
+            progress-bar label for this phase.
+        """
+        bar = tqdm(total=total, desc=desc, leave=False, disable=self.tqdm_disabled)
+        results = []
+        for item in mapped:
+            results.append(item)
+            bar.update(1)
+        if settings.IN_IPYTHON:
+            bar.refresh()
+            self._progress_bars.append(bar)
+        else:
+            bar.close()
+        return results
+
+    def _close_progress_bars(self) -> None:
+        """Clear all deferred phase progress bars together (see :meth:`_consume_with_bar`)."""
+        for bar in self._progress_bars:
+            bar.close()
+        self._progress_bars = []
+
     def faulty_interactionterm_suspected(self) -> bool:
         """Check if any interaction terms are specified as fixed matrices."""
         for interactionterm in self._hilbertspace.interaction_list:
@@ -1418,13 +1456,22 @@ class ParameterSweep(
             self.cause_dispatch()
         settings.DISPATCH_ENABLED = False
 
-        (
-            self._data["bare_evals"],
-            self._data["bare_evecs"],
-            self._data["circuit_esys"],
-        ) = self._bare_spectrum_sweep()
+        # Phase progress bars (bare, then dressed) are kept open and cleared together
+        # once the dressed sweep finishes; see _consume_with_bar / _close_progress_bars.
+        self._progress_bars = []
+        try:
+            (
+                self._data["bare_evals"],
+                self._data["bare_evecs"],
+                self._data["circuit_esys"],
+            ) = self._bare_spectrum_sweep()
+            if not self._bare_only:
+                self._data["evals"], self._data["evecs"] = (
+                    self._dressed_spectrum_sweep()
+                )
+        finally:
+            self._close_progress_bars()
         if not self._bare_only:
-            self._data["evals"], self._data["evecs"] = self._dressed_spectrum_sweep()
             self._data["dressed_indices"] = self.generate_lookup(
                 ordering=self._labeling_scheme,
                 subsys_priority=self._labeling_subsys_priority,
@@ -1577,22 +1624,21 @@ class ParameterSweep(
             self._num_cpus, self._blas_threads, total=total_count
         )
 
-        bare_eigendata_iter: Any = tqdm(
-            target_map(
-                functools.partial(
-                    self._update_subsys_compute_esys,
-                    self._update_hilbertspace,
-                    subsystem,
+        bare_eigendata = np.asarray(
+            self._consume_with_bar(
+                target_map(
+                    functools.partial(
+                        self._update_subsys_compute_esys,
+                        self._update_hilbertspace,
+                        subsystem,
+                    ),
+                    itertools.product(*reduced_parameters.paramvals_list),
                 ),
-                itertools.product(*reduced_parameters.paramvals_list),
+                total_count,
+                "Bare spectra [{}]".format(subsystem.id_str),
             ),
-            total=total_count,
-            desc="Bare spectra [{}]".format(subsystem.id_str),
-            leave=False,
-            disable=self.tqdm_disabled,
+            dtype=object,
         )
-
-        bare_eigendata = np.asarray(list(bare_eigendata_iter), dtype=object)
         bare_eigendata = bare_eigendata.reshape((*reduced_parameters.counts, 2))
 
         # Bare spectral data was only computed once for each parameter that has no
@@ -1740,22 +1786,18 @@ class ParameterSweep(
         self._data["bare_evecs"] = None
         self._data["circuit_esys"] = None
         try:
-            spectrum_data = list(
-                tqdm(
-                    target_map(
-                        functools.partial(
-                            self._update_and_compute_dressed_esys,
-                            self._hilbertspace,
-                            self._evals_count,
-                            self._update_hilbertspace,
-                        ),
-                        _work_items(),
+            spectrum_data = self._consume_with_bar(
+                target_map(
+                    functools.partial(
+                        self._update_and_compute_dressed_esys,
+                        self._hilbertspace,
+                        self._evals_count,
+                        self._update_hilbertspace,
                     ),
-                    total=total_count,
-                    desc="Dressed spectrum",
-                    leave=False,
-                    disable=self.tqdm_disabled,
-                )
+                    _work_items(),
+                ),
+                total_count,
+                "Dressed spectrum",
             )
         finally:
             self._data["bare_evals"] = bare_evals
