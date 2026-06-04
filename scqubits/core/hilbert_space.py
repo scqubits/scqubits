@@ -434,6 +434,66 @@ def _auto_sparse_diag_method(dim: int, evals_count: int, kind: str) -> str | Non
     return "{}_scipy_sparse".format(kind)
 
 
+# Residual/sanity thresholds for the auto sparse-diagonalization guard. A converged
+# `eigsh` eigenpair has a residual ||H v - lambda v|| of ~1e-10 (relative to the
+# eigenvalue scale); a silently mis-converged one has an O(1) residual, so this
+# generous relative tolerance cleanly separates the two without false positives on
+# good results. Only a few eigenpairs are checked (a handful of sparse mat-vecs,
+# negligible next to the solve).
+_SPARSE_RESIDUAL_RTOL = 1e-6
+_SPARSE_RESIDUAL_CHECK_STATES = 3
+
+
+def _sparse_result_trustworthy(
+    hamiltonian_mat: qt.Qobj, kind: str, result: Any, evals_count: int
+) -> bool:
+    """Cheap correctness check on an auto sparse-``eigsh`` result.
+
+    Sparse ``eigsh`` raises on non-convergence (caught by the dense fallback in
+    :func:`_diagonalize_default`), but in rare cases -- clustered spectra, too few
+    Lanczos vectors -- it can return a wrong subspace *without* raising. This guard
+    catches that silent case: it checks the eigenvalues are finite and the expected
+    count, and -- when eigenvectors are available (``kind == 'esys'``) -- that the
+    residual ``||H v - lambda v||`` of a few eigenpairs is small relative to the
+    eigenvalue scale. (Eigenvalue *ordering* is intentionally not checked:
+    :func:`~scqubits.core.diag.esys_scipy_sparse` does not return eigenvalues sorted,
+    a known ``eigsh`` ``return_eigenvectors=True`` quirk.)
+
+    Parameters
+    ----------
+    hamiltonian_mat:
+        the Hamiltonian that was diagonalized.
+    kind:
+        ``'evals'`` or ``'esys'``.
+    result:
+        the value returned by the sparse method (eigenvalues, or a
+        ``(eigenvalues, eigenvectors)`` tuple).
+    evals_count:
+        number of eigenvalues/eigenstates that were requested.
+
+    Returns
+    -------
+    ``True`` if the result passes the sanity/residual checks, ``False`` otherwise.
+    """
+    evals = np.asarray(result[0] if kind == "esys" else result, dtype=float)
+    if evals.shape[0] != evals_count or not np.all(np.isfinite(evals)):
+        return False
+    if kind != "esys":
+        return True  # eigenvalues only: no eigenvectors to form a residual from
+    evecs = result[1]
+    # check the lowest few states (which="SA" targets these) plus the highest
+    # requested one (weakest convergence under SA)
+    check_indices = sorted(
+        set(range(min(evals_count, _SPARSE_RESIDUAL_CHECK_STATES))) | {evals_count - 1}
+    )
+    for i in check_indices:
+        vec = evecs[i]
+        residual = (hamiltonian_mat * vec - evals[i] * vec).norm()
+        if residual > _SPARSE_RESIDUAL_RTOL * (1.0 + abs(float(evals[i]))):
+            return False
+    return True
+
+
 def _diagonalize_default(
     hamiltonian_mat: qt.Qobj,
     evals_count: int,
@@ -444,8 +504,9 @@ def _diagonalize_default(
 
     Used by :meth:`HilbertSpace.eigenvals` / :meth:`HilbertSpace.eigensys` when no
     explicit ``evals_method`` / ``esys_method`` is set. Uses sparse ``eigsh`` when
-    :func:`_auto_sparse_diag_method` selects it, otherwise the dense QuTiP path; on
-    any sparse-solver failure it warns once and falls back to dense.
+    :func:`_auto_sparse_diag_method` selects it, otherwise the dense QuTiP path. Falls
+    back to dense (with a warning) if the sparse solver raises *or* returns a result
+    that fails :func:`_sparse_result_trustworthy`.
 
     Parameters
     ----------
@@ -468,15 +529,27 @@ def _diagonalize_default(
     if auto_method is None:
         return dense_fallback()
     try:
-        return diag.DIAG_METHODS[auto_method](hamiltonian_mat, evals_count=evals_count)
+        result = diag.DIAG_METHODS[auto_method](
+            hamiltonian_mat, evals_count=evals_count
+        )
     except Exception:
         warnings.warn(
-            "scqubits: automatic sparse diagonalization failed; falling back to "
+            "scqubits: automatic sparse diagonalization raised; falling back to "
             "dense. Set scqubits.settings.AUTO_SPARSE_DIAG = False to disable "
             "automatic sparse diagonalization.",
             RuntimeWarning,
         )
         return dense_fallback()
+    if not _sparse_result_trustworthy(hamiltonian_mat, kind, result, evals_count):
+        warnings.warn(
+            "scqubits: automatic sparse diagonalization returned a result that "
+            "failed a residual check; falling back to dense. Set "
+            "scqubits.settings.AUTO_SPARSE_DIAG = False to disable automatic sparse "
+            "diagonalization.",
+            RuntimeWarning,
+        )
+        return dense_fallback()
+    return result
 
 
 class HilbertSpace(
