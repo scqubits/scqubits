@@ -166,10 +166,29 @@ DESPINE = True
 # This is a setting for number of points in stencil to approximate derivatives
 STENCIL = 7
 
-# global random number generator for consistent initial state vector v0 in ARPACK
+# Fixed seed for the ARPACK/eigsh start vector, so sparse diagonalization is
+# reproducible. The start vector is generated on demand (see arpack_v0) rather than
+# stored as a large module-global array: such an array gets pulled into every
+# worker-task pickle during parallel sweeps (dill's recurse reaches the settings
+# module), e.g. ~80 MB per task for hierarchical-diagonalization Circuits.
 _SEED = 63142
-_RNG = np.random.default_rng(seed=_SEED)
-RANDOM_ARRAY = _RNG.random(size=10000000)
+
+
+def arpack_v0(dim: int) -> np.ndarray:
+    """Return a deterministic ARPACK/``eigsh`` start vector of length ``dim``.
+
+    A fixed start vector makes sparse diagonalization reproducible. It is computed on
+    demand from a fixed seed rather than sliced from a large module-global array, so it
+    stays small and is not shipped into worker-task pickles during parallel sweeps.
+    Numerically identical to a fixed-seed draw truncated to ``dim``.
+
+    Parameters
+    ----------
+    dim:
+        length of the start vector (the dimension of the matrix being diagonalized).
+    """
+    return np.random.default_rng(_SEED).random(dim)
+
 
 # toggle fuzzy value-based slicing and warnings about it on and off
 FUZZY_SLICING = False
