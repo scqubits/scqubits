@@ -44,10 +44,7 @@ from scqubits.core.namedslots_array import NamedSlotsNdarray, Parameters
 from scqubits.core.storage import SpectrumData
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
-if settings.IN_IPYTHON:
-    from tqdm.notebook import tqdm
-else:
-    from tqdm import tqdm  # type: ignore[assignment]
+from tqdm.auto import tqdm
 
 if TYPE_CHECKING:
     from scqubits.io_utils.fileio import IOData
@@ -1306,28 +1303,27 @@ class HilbertSpace(
                 else settings.NUM_CPUS
             )
             blas_threads = None
-        target_map = cpu_switch.get_map_method(num_cpus, blas_threads)
+        # get_map_method returns a lazy, order-preserving map (built-in map when
+        # serial, pool.imap when parallel); wrapping its output in tqdm gives a live
+        # progress bar that advances as each grid point completes.
+        target_map = cpu_switch.get_map_method(
+            num_cpus, blas_threads, total=len(param_vals)
+        )
         if get_eigenstates:
             func = functools.partial(
                 self._esys_for_paramval,
                 update_hilbertspace=update_hilbertspace,
                 evals_count=evals_count,
             )
-            with utils.InfoBar(
-                "Parallel computation of eigenvalues [num_cpus={}]".format(num_cpus),
-                num_cpus,
-            ):
-                eigensystem_mapdata = list(
-                    target_map(
-                        func,
-                        tqdm(
-                            param_vals,
-                            desc="Spectral data",
-                            leave=False,
-                            disable=(num_cpus > 1) or settings.PROGRESSBAR_DISABLED,
-                        ),
-                    )
+            eigensystem_mapdata = list(
+                tqdm(
+                    target_map(func, param_vals),
+                    total=len(param_vals),
+                    desc="Spectral data",
+                    leave=False,
+                    disable=settings.PROGRESSBAR_DISABLED,
                 )
+            )
             eigenvalue_table, eigenstate_table = spec_utils.recast_esys_mapdata(
                 eigensystem_mapdata
             )
@@ -1337,23 +1333,17 @@ class HilbertSpace(
                 update_hilbertspace=update_hilbertspace,
                 evals_count=evals_count,
             )
-            with utils.InfoBar(
-                "Parallel computation of eigensystems [num_cpus={}]".format(num_cpus),
-                num_cpus,
-            ):
-                eigenvalue_table = np.asarray(
-                    list(
-                        target_map(
-                            func,
-                            tqdm(
-                                param_vals,
-                                desc="Spectral data",
-                                leave=False,
-                                disable=(num_cpus > 1) or settings.PROGRESSBAR_DISABLED,
-                            ),
-                        )
+            eigenvalue_table = np.asarray(
+                list(
+                    tqdm(
+                        target_map(func, param_vals),
+                        total=len(param_vals),
+                        desc="Spectral data",
+                        leave=False,
+                        disable=settings.PROGRESSBAR_DISABLED,
                     )
                 )
+            )
             eigenstate_table = None
 
         return storage.SpectrumData(

@@ -56,10 +56,7 @@ from scqubits.core.storage import SpectrumData
 if TYPE_CHECKING:
     from scqubits.io_utils.fileio import IOData
 
-if settings.IN_IPYTHON:
-    from tqdm.notebook import tqdm
-else:
-    from tqdm import tqdm  # type: ignore[assignment]
+from tqdm.auto import tqdm
 
 from scqubits.utils.typedefs import GIndexTuple, NpIndices
 
@@ -1355,7 +1352,7 @@ class ParameterSweep(
     @property
     def tqdm_disabled(self) -> bool:
         """Return whether the tqdm progress bar should be disabled for this sweep."""
-        return settings.PROGRESSBAR_DISABLED or (self._num_cpus > 1)
+        return settings.PROGRESSBAR_DISABLED
 
     def faulty_interactionterm_suspected(self) -> bool:
         """Check if any interaction terms are specified as fixed matrices."""
@@ -1576,28 +1573,24 @@ class ParameterSweep(
             np.prod([len(param_vals) for param_vals in reduced_parameters])
         )
 
-        target_map = cpu_switch.get_map_method(self._num_cpus, self._blas_threads)
+        target_map = cpu_switch.get_map_method(
+            self._num_cpus, self._blas_threads, total=total_count
+        )
 
-        with utils.InfoBar(
-            "Parallel compute bare eigensys for subsystem {} [num_cpus={}]".format(
-                subsystem.id_str, self._num_cpus
-            ),
-            self._num_cpus,
-        ) as p:
-            bare_eigendata_iter: Any = tqdm(
-                target_map(
-                    functools.partial(
-                        self._update_subsys_compute_esys,
-                        self._update_hilbertspace,
-                        subsystem,
-                    ),
-                    itertools.product(*reduced_parameters.paramvals_list),
+        bare_eigendata_iter: Any = tqdm(
+            target_map(
+                functools.partial(
+                    self._update_subsys_compute_esys,
+                    self._update_hilbertspace,
+                    subsystem,
                 ),
-                total=total_count,
-                desc="Bare spectra",
-                leave=False,
-                disable=self.tqdm_disabled,
-            )
+                itertools.product(*reduced_parameters.paramvals_list),
+            ),
+            total=total_count,
+            desc="Bare spectra [{}]".format(subsystem.id_str),
+            leave=False,
+            disable=self.tqdm_disabled,
+        )
 
         bare_eigendata = np.asarray(list(bare_eigendata_iter), dtype=object)
         bare_eigendata = bare_eigendata.reshape((*reduced_parameters.counts, 2))
@@ -1711,8 +1704,10 @@ class ParameterSweep(
         needs as arguments, and the per-point bare eigensystem is delivered to the
         worker through the work item instead.
         """
-        target_map = cpu_switch.get_map_method(self._num_cpus, self._blas_threads)
         total_count = int(np.prod(self._parameters.counts))
+        target_map = cpu_switch.get_map_method(
+            self._num_cpus, self._blas_threads, total=total_count
+        )
 
         # Ship only the current grid point's bare eigensystem to each worker.
         # Reading these slices from ``self._data`` inside the worker would pickle
@@ -1745,29 +1740,23 @@ class ParameterSweep(
         self._data["bare_evecs"] = None
         self._data["circuit_esys"] = None
         try:
-            with utils.InfoBar(
-                "Parallel compute dressed eigensys [num_cpus={}]".format(
-                    self._num_cpus
-                ),
-                self._num_cpus,
-            ) as p:
-                spectrum_data = list(
-                    tqdm(
-                        target_map(
-                            functools.partial(
-                                self._update_and_compute_dressed_esys,
-                                self._hilbertspace,
-                                self._evals_count,
-                                self._update_hilbertspace,
-                            ),
-                            _work_items(),
+            spectrum_data = list(
+                tqdm(
+                    target_map(
+                        functools.partial(
+                            self._update_and_compute_dressed_esys,
+                            self._hilbertspace,
+                            self._evals_count,
+                            self._update_hilbertspace,
                         ),
-                        total=total_count,
-                        desc="Dressed spectrum",
-                        leave=False,
-                        disable=self.tqdm_disabled,
-                    )
+                        _work_items(),
+                    ),
+                    total=total_count,
+                    desc="Dressed spectrum",
+                    leave=False,
+                    disable=self.tqdm_disabled,
                 )
+            )
         finally:
             self._data["bare_evals"] = bare_evals
             self._data["bare_evecs"] = bare_evecs

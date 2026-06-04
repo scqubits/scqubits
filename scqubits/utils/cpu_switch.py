@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import atexit
+import functools
 import importlib
 import logging
 import os
@@ -47,7 +48,32 @@ _blas_cap_ineffective_warned = False
 _spawn_guard_warned = False
 
 
-def get_map_method(num_cpus: int, blas_threads: Optional[int] = None) -> Callable:
+def _imap_with_chunksize(pool: Any, num_cpus: int, total: Optional[int]) -> Callable:
+    """Return ``pool.imap`` bound with a ``map``-style chunksize.
+
+    Batching the worker dispatch (rather than ``imap``'s default ``chunksize=1``)
+    recovers ``pool.map``'s throughput, while ``imap`` still yields results one at a
+    time so a wrapping ``tqdm`` advances per grid point. The chunksize matches the
+    one ``pool.map`` computes (``ceil(total / (4 * num_cpus))``).
+
+    Parameters
+    ----------
+    pool:
+        the worker pool whose ``imap`` is used.
+    num_cpus:
+        worker count, used to size the chunks.
+    total:
+        number of items to be mapped; ``None`` leaves ``chunksize`` at the default.
+    """
+    if total is None:
+        return pool.imap
+    chunksize = max(1, -(-int(total) // (4 * num_cpus)))
+    return functools.partial(pool.imap, chunksize=chunksize)
+
+
+def get_map_method(
+    num_cpus: int, blas_threads: Optional[int] = None, total: Optional[int] = None
+) -> Callable:
     """Selects the correct `.map` method depending on the specified number of desired
     cores. If num_cpus>1, a multiprocessing/pathos pool is used.
 
@@ -68,13 +94,19 @@ def get_map_method(num_cpus: int, blas_threads: Optional[int] = None) -> Callabl
         ``settings.MULTIPROC_BLAS_THREADS``; an explicit value overrides it for
         this pool only (used by the auto-parallelization heuristic to scope a cap
         to a single sweep without mutating global settings).
+    total:
+        number of items the caller will map, used to size the ``imap`` chunks so the
+        parallel path keeps ``pool.map``'s batching. ``None`` uses ``imap``'s default
+        ``chunksize=1`` (finest-grained progress, more dispatch overhead).
 
     Returns
     -------
-    A ``.map``-style callable to be used by the caller.  For
-    ``num_cpus == 1`` this is the built-in ``map``; otherwise it is
-    the bound ``map`` method of a cached or freshly-started pathos or
-    multiprocessing pool (selected by ``settings.MULTIPROC``).
+    A lazy, order-preserving ``map``-style callable. For ``num_cpus == 1`` this is
+    the built-in ``map``; otherwise it is the bound ``imap`` method of a cached or
+    freshly-started pathos or multiprocessing pool (selected by
+    ``settings.MULTIPROC``). ``imap`` (not ``map``) is used so the caller can wrap
+    the returned iterator in ``tqdm`` and get a live progress bar that advances as
+    workers finish, while results are still yielded in input order.
     """
     if num_cpus == 1:
         return map
@@ -83,12 +115,12 @@ def get_map_method(num_cpus: int, blas_threads: Optional[int] = None) -> Callabl
     existing_pool = settings.POOL
     if existing_pool is not None:
         if _pool_is_reusable(existing_pool, num_cpus, blas_threads):
-            return existing_pool.map
+            return _imap_with_chunksize(existing_pool, num_cpus, total)
         _shutdown_pool(existing_pool)
         settings.POOL = None
 
     settings.POOL = _new_pool(num_cpus, blas_threads)
-    return settings.POOL.map
+    return _imap_with_chunksize(settings.POOL, num_cpus, total)
 
 
 def _effective_blas_cap(blas_threads: Optional[int]) -> Optional[int]:
