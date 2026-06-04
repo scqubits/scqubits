@@ -159,16 +159,19 @@ class TestImapChunksize:
 
 
 class TestPoolPickleReduction:
-    def test_worker_pools_pickle_to_none(self):
-        # dill recurse can pull settings.POOL into a worker task (e.g. for circuits);
-        # raw multiprocess pools must reduce to None rather than raise on pickle.
-        import pickle
+    # dill recurse can pull settings.POOL into a worker task (e.g. for circuits);
+    # raw multiprocess pools must reduce to None rather than raise on pickle.
+    def test_reduction_reconstructs_none(self):
+        func, args = cpu_switch._pool_reduces_to_none(object())
+        assert func(*args) is None
 
-        cpu_switch._register_pool_pickle_reduction()
+    def test_pool_classes_registered_in_copyreg(self):
+        import copyreg
+
         from multiprocess.pool import Pool as MpPool
 
-        pool = MpPool.__new__(MpPool)  # uninitialized instance, no workers started
-        assert pickle.loads(pickle.dumps(pool)) is None
+        cpu_switch._register_pool_pickle_reduction()
+        assert copyreg.dispatch_table.get(MpPool) is cpu_switch._pool_reduces_to_none
 
 
 class TestResolveStartMethod:
@@ -218,10 +221,21 @@ class TestSpawnGuardWarning:
 class TestPoolReuseSignature:
     def test_reusable_matches_signature(self, monkeypatch):
         monkeypatch.setattr(settings, "MULTIPROC", "pathos")
+        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", None)
         method = _resolve_start_method()
-        monkeypatch.setattr(cpu_switch, "_pool_signature", ("pathos", method, 4))
+        monkeypatch.setattr(cpu_switch, "_pool_signature", ("pathos", method, 4, None))
         assert cpu_switch._pool_is_reusable(object(), 4) is True
         assert cpu_switch._pool_is_reusable(object(), 2) is False  # different cpu count
+
+    def test_not_reusable_with_different_blas_cap(self, monkeypatch):
+        monkeypatch.setattr(settings, "MULTIPROC", "pathos")
+        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", None)
+        method = _resolve_start_method()
+        monkeypatch.setattr(cpu_switch, "_pool_signature", ("pathos", method, 4, 1))
+        # same num_cpus but the cached pool was built with a BLAS cap of 1
+        assert cpu_switch._pool_is_reusable(object(), 4, blas_threads=1) is True
+        assert cpu_switch._pool_is_reusable(object(), 4, blas_threads=2) is False
+        assert cpu_switch._pool_is_reusable(object(), 4) is False  # cap None != 1
 
     def test_not_reusable_when_unset(self, monkeypatch):
         monkeypatch.setattr(cpu_switch, "_pool_signature", None)
