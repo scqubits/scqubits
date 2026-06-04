@@ -391,6 +391,50 @@ def _warn_spawn_guard(method: str) -> None:
     _spawn_guard_warned = True
 
 
+def _reconstruct_none() -> None:
+    """Unpickle target for a worker pool (pools are never sent to workers)."""
+    return None
+
+
+def _pool_reduces_to_none(_pool: Any) -> tuple:
+    """Reduce a worker pool to ``None`` for pickling.
+
+    Parameters
+    ----------
+    _pool:
+        the pool being pickled (its identity is irrelevant; it becomes ``None``).
+    """
+    return (_reconstruct_none, ())
+
+
+_pool_reduction_registered = False
+
+
+def _register_pool_pickle_reduction() -> None:
+    """Make worker pools pickle to ``None`` instead of raising.
+
+    With ``dill.settings['recurse'] = True``, pickling a worker task can pull the
+    cached ``settings.POOL`` into the graph (e.g. a ``Circuit``'s lambdified functions
+    reference module globals that reach it). A raw ``multiprocess``/``multiprocessing``
+    pool refuses to be pickled, which would break parallel sweeps of such systems.
+    A worker never needs the parent's pool, so reduce any pool to ``None`` for
+    serialization -- the pathos pool used previously reduced cleanly, so this restores
+    that behavior. Registered once, idempotently.
+    """
+    global _pool_reduction_registered
+    if _pool_reduction_registered:
+        return
+    import copyreg
+
+    for module_name in ("multiprocess.pool", "multiprocessing.pool"):
+        try:
+            pool_cls = importlib.import_module(module_name).Pool
+        except Exception:
+            continue
+        copyreg.pickle(pool_cls, _pool_reduces_to_none)
+    _pool_reduction_registered = True
+
+
 def _new_pool(num_cpus: int, blas_threads: Optional[int] = None) -> object:
     """Start a fresh worker pool of the configured backend and start method.
 
@@ -424,6 +468,7 @@ def _new_pool(num_cpus: int, blas_threads: Optional[int] = None) -> object:
                 settings.MULTIPROC
             )
         )
+    _register_pool_pickle_reduction()
     method = _resolve_start_method()
     _warn_spawn_guard(method)
     with _capped_blas_threads(blas_threads):
