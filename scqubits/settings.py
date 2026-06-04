@@ -128,13 +128,14 @@ AUTO_PARALLEL = False
 # parallelization heuristic replaces its default break-even with a measured one.
 PARALLEL_CALIBRATION_PATH: Optional[str] = None
 
-# Automatic sparse diagonalization (prototype) -----------------------------------------
+# Automatic sparse diagonalization --------------------------------------------------
 # When evals_method / esys_method are left at their default (None), use sparse
 # scipy `eigsh` instead of dense QuTiP diagonalization when only a small fraction of a
 # large spectrum is requested -- the regime of dressed spectra of composite
 # HilbertSpaces, where sparse `eigsh` is dramatically faster than dense (and dense may
 # not even fit in memory). Falls back to the dense QuTiP path if the sparse solver
-# raises. Set AUTO_SPARSE_DIAG = False to restore the always-dense default.
+# raises or returns a result that fails a residual check. Set AUTO_SPARSE_DIAG = False
+# to restore the always-dense default.
 AUTO_SPARSE_DIAG = True
 # Minimum Hilbert-space dimension at which auto sparse diagonalization is considered.
 SPARSE_DIAG_MIN_DIM = 1000
