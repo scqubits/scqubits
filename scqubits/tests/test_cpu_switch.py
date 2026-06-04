@@ -139,6 +139,25 @@ class TestGetMapMethodSerial:
         assert cpu_switch.get_map_method(1) is map
 
 
+class TestImapChunksize:
+    class _FakePool:
+        def imap(self, func, iterable, chunksize=1):
+            return ("imap", chunksize)
+
+    def test_total_none_uses_default_chunksize(self):
+        mapper = cpu_switch._imap_with_chunksize(self._FakePool(), 4, None)
+        assert mapper("f", "it")[1] == 1  # imap's own default
+
+    def test_chunksize_matches_map_heuristic(self):
+        # pool.map uses ceil(total / (4 * num_cpus)); 384 / 16 -> 24
+        mapper = cpu_switch._imap_with_chunksize(self._FakePool(), 4, 384)
+        assert mapper("f", "it")[1] == 24
+
+    def test_chunksize_floored_at_one(self):
+        mapper = cpu_switch._imap_with_chunksize(self._FakePool(), 4, 3)
+        assert mapper("f", "it")[1] == 1
+
+
 class TestResolveStartMethod:
     def test_resolves_to_available_method(self):
         assert (
