@@ -1285,7 +1285,6 @@ class ParameterSweep(
         self._deepcopy = deepcopy
         self._num_cpus = num_cpus
         self._blas_threads = blas_threads
-        self._progress_bars: list = []
 
         self._out_of_sync = False
         self.reset_preslicing()
@@ -1355,14 +1354,20 @@ class ParameterSweep(
         """Return whether the tqdm progress bar should be disabled for this sweep."""
         return settings.PROGRESSBAR_DISABLED
 
-    def _consume_with_bar(self, mapped: Any, total: int, desc: str) -> list:
+    def _consume_with_bar(
+        self, mapped: Any, total: int, desc: str, progress_bars: list
+    ) -> list:
         """Collect the mapped results, driving a tqdm progress bar.
 
-        In Jupyter/IPython the finished bar is kept on screen and registered in
-        ``self._progress_bars``, so the bare-spectrum bar(s) stay visible above the
-        dressed-spectrum bar; all phase bars are then cleared together at the end of
-        :meth:`run` by :meth:`_close_progress_bars`. In a terminal the bar is closed
-        as soon as its phase finishes, preserving the previous sequential display.
+        In Jupyter/IPython the finished bar is kept on screen and appended to
+        ``progress_bars`` (a list owned by :meth:`run`), so the bare-spectrum bar(s)
+        stay visible above the dressed-spectrum bar; :meth:`run` clears them together
+        once the dressed sweep finishes. In a terminal the bar is closed as soon as
+        its phase finishes, preserving the previous sequential display.
+
+        The bars live in a caller-owned list, never on the instance: a ``tqdm`` bar is
+        not picklable, and the worker tasks pickle ``self``, so a bar stored on
+        ``self`` would break parallel dispatch.
 
         Parameters
         ----------
@@ -1373,6 +1378,8 @@ class ParameterSweep(
             number of grid points, used for the bar length.
         desc:
             progress-bar label for this phase.
+        progress_bars:
+            caller-owned list collecting bars to clear together at the end of the run.
         """
         bar = tqdm(total=total, desc=desc, leave=False, disable=self.tqdm_disabled)
         results = []
@@ -1381,16 +1388,10 @@ class ParameterSweep(
             bar.update(1)
         if settings.IN_IPYTHON:
             bar.refresh()
-            self._progress_bars.append(bar)
+            progress_bars.append(bar)
         else:
             bar.close()
         return results
-
-    def _close_progress_bars(self) -> None:
-        """Clear all deferred phase progress bars together (see :meth:`_consume_with_bar`)."""
-        for bar in self._progress_bars:
-            bar.close()
-        self._progress_bars = []
 
     def faulty_interactionterm_suspected(self) -> bool:
         """Check if any interaction terms are specified as fixed matrices."""
@@ -1457,20 +1458,23 @@ class ParameterSweep(
         settings.DISPATCH_ENABLED = False
 
         # Phase progress bars (bare, then dressed) are kept open and cleared together
-        # once the dressed sweep finishes; see _consume_with_bar / _close_progress_bars.
-        self._progress_bars = []
+        # once the dressed sweep finishes; see _consume_with_bar. The list is local
+        # (not on self) because tqdm bars are not picklable and self is shipped to
+        # workers during parallel dispatch.
+        progress_bars: list = []
         try:
             (
                 self._data["bare_evals"],
                 self._data["bare_evecs"],
                 self._data["circuit_esys"],
-            ) = self._bare_spectrum_sweep()
+            ) = self._bare_spectrum_sweep(progress_bars)
             if not self._bare_only:
-                self._data["evals"], self._data["evecs"] = (
-                    self._dressed_spectrum_sweep()
+                self._data["evals"], self._data["evecs"] = self._dressed_spectrum_sweep(
+                    progress_bars
                 )
         finally:
-            self._close_progress_bars()
+            for bar in progress_bars:
+                bar.close()
         if not self._bare_only:
             self._data["dressed_indices"] = self.generate_lookup(
                 ordering=self._labeling_scheme,
@@ -1487,7 +1491,7 @@ class ParameterSweep(
         settings.DISPATCH_ENABLED = True
 
     def _bare_spectrum_sweep(
-        self,
+        self, progress_bars: list
     ) -> tuple[NamedSlotsNdarray, NamedSlotsNdarray, NamedSlotsNdarray]:
         """Compute bare eigenvalues, eigenvectors, and circuit ``esys`` arrays.
 
@@ -1513,7 +1517,7 @@ class ParameterSweep(
         circuit_esys = np.empty((self.subsystem_count,), dtype=object)
 
         for subsys_index, subsystem in enumerate(self.hilbertspace):
-            bare_esys = self._subsys_bare_spectrum_sweep(subsystem)
+            bare_esys = self._subsys_bare_spectrum_sweep(subsystem, progress_bars)
             if (
                 hasattr(subsystem, "hierarchical_diagonalization")
                 and subsystem.hierarchical_diagonalization
@@ -1601,7 +1605,9 @@ class ParameterSweep(
         ]
         return list(set(self._parameters.names) - set(updating_parameters))
 
-    def _subsys_bare_spectrum_sweep(self, subsystem: QuantumSystem) -> ndarray:
+    def _subsys_bare_spectrum_sweep(
+        self, subsystem: QuantumSystem, progress_bars: list
+    ) -> ndarray:
         """Compute the bare eigensystem of ``subsystem`` over the full parameter grid.
 
         Parameters
@@ -1636,6 +1642,7 @@ class ParameterSweep(
                 ),
                 total_count,
                 "Bare spectra [{}]".format(subsystem.id_str),
+                progress_bars,
             ),
             dtype=object,
         )
@@ -1729,7 +1736,7 @@ class ParameterSweep(
         return esys_array
 
     def _dressed_spectrum_sweep(
-        self,
+        self, progress_bars: list
     ) -> tuple[NamedSlotsNdarray, NamedSlotsNdarray]:
         """Compute dressed eigenvalues and eigenvectors over the full parameter grid.
 
@@ -1798,6 +1805,7 @@ class ParameterSweep(
                 ),
                 total_count,
                 "Dressed spectrum",
+                progress_bars,
             )
         finally:
             self._data["bare_evals"] = bare_evals
