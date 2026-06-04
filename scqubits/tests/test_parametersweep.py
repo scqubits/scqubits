@@ -229,3 +229,41 @@ class TestParameterSweep:
         # Tuple-shape errors still fire.
         with pytest.raises(ValueError, match="number of subsystems"):
             sweep._validate_states(initial=(0, 0), final=None)
+
+
+class TestProgressBarParallelDispatch:
+    """Progress bars must never be stored on the ParameterSweep instance.
+
+    A tqdm bar holds an unpicklable lock (and, as a notebook widget, an ipywidgets
+    comm), while the worker tasks pickle ``self`` during parallel dispatch. With the
+    deferred-close path active (IN_IPYTHON) a multi-subsystem ``num_cpus > 1`` sweep
+    pickles ``self`` after the first phase bar would have been registered, so storing
+    bars on the instance breaks the sweep.
+    """
+
+    def test_parallel_multisubsys_sweep_with_bars_pickles(self, monkeypatch):
+        monkeypatch.setattr(scq.settings, "IN_IPYTHON", True)
+        monkeypatch.setattr(scq.settings, "PROGRESSBAR_DISABLED", False)
+
+        q1 = scq.TunableTransmon(
+            EJmax=30.0, EC=0.2, d=0.1, flux=0.0, ng=0.0, ncut=30, truncated_dim=4
+        )
+        q2 = scq.TunableTransmon(
+            EJmax=20.0, EC=0.2, d=0.1, flux=0.0, ng=0.0, ncut=30, truncated_dim=4
+        )
+        hs = scq.HilbertSpace([q1, q2])
+        hs.add_interaction(g_strength=0.1, op1=q1.n_operator, op2=q2.n_operator)
+
+        def update(flux):
+            q1.flux = flux
+
+        sweep = scq.ParameterSweep(
+            hilbertspace=hs,
+            paramvals_by_name={"flux": np.linspace(0.0, 0.4, 6)},
+            update_hilbertspace=update,
+            evals_count=8,
+            num_cpus=2,  # real parallel dispatch -> pickles self
+        )
+        # completed without a pickling error, and self retains no progress bars
+        assert not hasattr(sweep, "_progress_bars")
+        assert sweep["evals"].shape[0] == 6
