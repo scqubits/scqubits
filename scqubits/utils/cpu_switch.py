@@ -28,8 +28,9 @@ import scqubits.settings as settings
 
 LOGGER = logging.getLogger(__name__)
 
-# Backend + start method + cpu count of the pool cached in settings.POOL, so reuse
-# does not depend on reading private pool attributes.
+# Backend + start method + cpu count + effective BLAS-thread cap of the pool cached in
+# settings.POOL, so reuse does not depend on reading private pool attributes (and a pool
+# built with a different per-worker BLAS cap is not reused).
 _pool_signature: Optional[tuple] = None
 
 # Environment variables read by the common BLAS/OpenMP backends at numpy import.
@@ -88,6 +89,31 @@ def get_map_method(
         number of worker processes requested by the caller; ``1``
         returns the built-in ``map``, ``> 1`` uses a multiprocessing
         pool of the configured kind.
+    blas_threads:
+        per-worker BLAS/OpenMP thread cap for this pool. ``None`` falls back to
+        ``settings.MULTIPROC_BLAS_THREADS``; an explicit value overrides it for
+        this pool only (used by the auto-parallelization heuristic to scope a cap
+        to a single sweep without mutating global settings).
+    total:
+        number of items the caller will map, used to size the ``imap`` chunks so the
+        parallel path keeps ``pool.map``'s batching. ``None`` uses ``imap``'s default
+        ``chunksize=1`` (finest-grained progress, more dispatch overhead).
+
+    Returns
+    -------
+    A lazy, order-preserving ``map``-style callable. For ``num_cpus == 1`` this is
+    the built-in ``map``; otherwise it is the bound ``imap`` method of a cached or
+    freshly-started pathos or multiprocessing pool (selected by
+    ``settings.MULTIPROC``). ``imap`` (not ``map``) is used so the caller can wrap
+    the returned iterator in ``tqdm`` and get a live progress bar that advances as
+    workers finish, while results are still yielded in input order.
+    """
+    if num_cpus == 1:
+        return map
+
+    # num_cpus > 1 -----------------
+    existing_pool = settings.POOL
+    if existing_pool is not None:
         if _pool_is_reusable(existing_pool, num_cpus, blas_threads):
             return _imap_with_chunksize(existing_pool, num_cpus, total)
         _shutdown_pool(existing_pool)
@@ -97,8 +123,27 @@ def get_map_method(
     return _imap_with_chunksize(settings.POOL, num_cpus, total)
 
 
-def _pool_is_reusable(pool: object, num_cpus: int) -> bool:
-    """Return True if the cached pool matches the requested backend, start method, cpu count.
+def _effective_blas_cap(blas_threads: Optional[int]) -> Optional[int]:
+    """Return the BLAS-thread cap that will actually be applied to a worker pool.
+
+    An explicit ``blas_threads`` override takes precedence; otherwise the configured
+    ``settings.MULTIPROC_BLAS_THREADS`` is used.
+
+    Parameters
+    ----------
+    blas_threads:
+        per-pool override, or ``None`` to defer to the global setting.
+    """
+    if blas_threads is not None:
+        return blas_threads
+    return _validated_blas_thread_cap()
+
+
+def _pool_is_reusable(
+    pool: object, num_cpus: int, blas_threads: Optional[int] = None
+) -> bool:
+    """Return True if the cached pool matches the requested backend, start method,
+    cpu count, and BLAS-thread cap.
 
     Parameters
     ----------
@@ -106,8 +151,17 @@ def _pool_is_reusable(pool: object, num_cpus: int) -> bool:
         the cached pool object (unused; reuse is tracked via ``_pool_signature``).
     num_cpus:
         number of worker processes requested by the caller.
+    blas_threads:
+        per-pool BLAS-thread override, or ``None`` to defer to the global setting.
+        A pool built with a different effective cap is not reused, since the cap is
+        baked into the workers at spawn time.
     """
-    return _pool_signature == (settings.MULTIPROC, _resolve_start_method(), num_cpus)
+    return _pool_signature == (
+        settings.MULTIPROC,
+        _resolve_start_method(),
+        num_cpus,
+        _effective_blas_cap(blas_threads),
+    )
 
 
 def _shutdown_pool(pool: object) -> None:
@@ -257,7 +311,7 @@ def _warn_blas_cap_ineffective(threads: int) -> None:
 
 
 @contextmanager
-def _capped_blas_threads() -> Iterator[None]:
+def _capped_blas_threads(override: Optional[int] = None) -> Iterator[None]:
     """Temporarily cap worker BLAS/OpenMP threads while a pool is created.
 
     Two mechanisms are combined so the cap reaches workers regardless of start
@@ -270,10 +324,16 @@ def _capped_blas_threads() -> Iterator[None]:
       reduced count.
 
     Neither the parent environment nor its thread-pool settings are altered after
-    the block exits. No-op when ``settings.MULTIPROC_BLAS_THREADS`` is ``None``; a
-    warning is emitted when the cap cannot take effect on the current platform.
+    the block exits. No-op when the effective cap is ``None``; a warning is emitted
+    when the cap cannot take effect on the current platform.
+
+    Parameters
+    ----------
+    override:
+        per-pool cap that takes precedence over ``settings.MULTIPROC_BLAS_THREADS``;
+        ``None`` defers to the global setting.
     """
-    threads = _validated_blas_thread_cap()
+    threads = override if override is not None else _validated_blas_thread_cap()
     if threads is None:
         yield
         return
@@ -331,7 +391,51 @@ def _warn_spawn_guard(method: str) -> None:
     _spawn_guard_warned = True
 
 
-def _new_pool(num_cpus: int) -> object:
+def _reconstruct_none() -> None:
+    """Unpickle target for a worker pool (pools are never sent to workers)."""
+    return None
+
+
+def _pool_reduces_to_none(_pool: Any) -> tuple:
+    """Reduce a worker pool to ``None`` for pickling.
+
+    Parameters
+    ----------
+    _pool:
+        the pool being pickled (its identity is irrelevant; it becomes ``None``).
+    """
+    return (_reconstruct_none, ())
+
+
+_pool_reduction_registered = False
+
+
+def _register_pool_pickle_reduction() -> None:
+    """Make worker pools pickle to ``None`` instead of raising.
+
+    With ``dill.settings['recurse'] = True``, pickling a worker task can pull the
+    cached ``settings.POOL`` into the graph (e.g. a ``Circuit``'s lambdified functions
+    reference module globals that reach it). A raw ``multiprocess``/``multiprocessing``
+    pool refuses to be pickled, which would break parallel sweeps of such systems.
+    A worker never needs the parent's pool, so reduce any pool to ``None`` for
+    serialization -- the pathos pool used previously reduced cleanly, so this restores
+    that behavior. Registered once, idempotently.
+    """
+    global _pool_reduction_registered
+    if _pool_reduction_registered:
+        return
+    import copyreg
+
+    for module_name in ("multiprocess.pool", "multiprocessing.pool"):
+        try:
+            pool_cls = importlib.import_module(module_name).Pool
+        except Exception:
+            continue
+        copyreg.pickle(pool_cls, _pool_reduces_to_none)
+    _pool_reduction_registered = True
+
+
+def _new_pool(num_cpus: int, blas_threads: Optional[int] = None) -> object:
     """Start a fresh worker pool of the configured backend and start method.
 
     The pool is created from an explicit process context (see
@@ -348,6 +452,10 @@ def _new_pool(num_cpus: int) -> object:
     ----------
     num_cpus:
         number of worker processes for the new pool.
+    blas_threads:
+        per-pool BLAS-thread override; ``None`` defers to
+        ``settings.MULTIPROC_BLAS_THREADS``. Baked into the pool signature so a
+        differently-capped pool is not reused.
 
     Returns
     -------
@@ -360,9 +468,10 @@ def _new_pool(num_cpus: int) -> object:
                 settings.MULTIPROC
             )
         )
+    _register_pool_pickle_reduction()
     method = _resolve_start_method()
     _warn_spawn_guard(method)
-    with _capped_blas_threads():
+    with _capped_blas_threads(blas_threads):
         if settings.MULTIPROC == "pathos":
             try:
                 import dill
@@ -376,7 +485,12 @@ def _new_pool(num_cpus: int) -> object:
         else:
             import multiprocessing as backend
         pool = backend.get_context(method).Pool(processes=num_cpus)
-    _pool_signature = (settings.MULTIPROC, method, num_cpus)
+    _pool_signature = (
+        settings.MULTIPROC,
+        method,
+        num_cpus,
+        _effective_blas_cap(blas_threads),
+    )
     return pool
 
 

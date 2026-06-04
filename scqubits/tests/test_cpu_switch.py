@@ -158,6 +158,19 @@ class TestImapChunksize:
         assert mapper("f", "it")[1] == 1
 
 
+class TestPoolPickleReduction:
+    def test_worker_pools_pickle_to_none(self):
+        # dill recurse can pull settings.POOL into a worker task (e.g. for circuits);
+        # raw multiprocess pools must reduce to None rather than raise on pickle.
+        import pickle
+
+        cpu_switch._register_pool_pickle_reduction()
+        from multiprocess.pool import Pool as MpPool
+
+        pool = MpPool.__new__(MpPool)  # uninitialized instance, no workers started
+        assert pickle.loads(pickle.dumps(pool)) is None
+
+
 class TestResolveStartMethod:
     def test_resolves_to_available_method(self):
         assert (
