@@ -1365,9 +1365,15 @@ class ParameterSweep(
         """
         bar = tqdm(total=total, desc=desc, leave=False, disable=self.tqdm_disabled)
         results = []
-        for item in mapped:
-            results.append(item)
-            bar.update(1)
+        try:
+            for item in mapped:
+                results.append(item)
+                bar.update(1)
+        except BaseException:
+            # the mapped iterator raised mid-sweep: close this bar so it does not leak
+            # (it was never registered in progress_bars, which only happens on success)
+            bar.close()
+            raise
         if settings.IN_IPYTHON:
             bar.refresh()
             progress_bars.append(bar)
@@ -1439,38 +1445,42 @@ class ParameterSweep(
             self.cause_dispatch()
         settings.DISPATCH_ENABLED = False
 
-        # Phase progress bars (bare, then dressed) are kept open and cleared together
-        # once the dressed sweep finishes; see _consume_with_bar. The list is local
-        # (not on self) because tqdm bars are not picklable and self is shipped to
-        # workers during parallel dispatch.
+        # The outer try restores global state (DISPATCH_ENABLED, the deepcopied
+        # hilbertspace) even if a sweep raises. The inner try closes the phase progress
+        # bars right when the dressed sweep finishes -- the bare bar(s) stay stacked
+        # above the dressed bar until then; see _consume_with_bar. progress_bars is a
+        # local (not on self) because tqdm bars are not picklable and self is shipped
+        # to workers during parallel dispatch.
         progress_bars: list = []
         try:
-            (
-                self._data["bare_evals"],
-                self._data["bare_evecs"],
-                self._data["circuit_esys"],
-            ) = self._bare_spectrum_sweep(progress_bars)
+            try:
+                (
+                    self._data["bare_evals"],
+                    self._data["bare_evecs"],
+                    self._data["circuit_esys"],
+                ) = self._bare_spectrum_sweep(progress_bars)
+                if not self._bare_only:
+                    self._data["evals"], self._data["evecs"] = (
+                        self._dressed_spectrum_sweep(progress_bars)
+                    )
+            finally:
+                for bar in progress_bars:
+                    bar.close()
             if not self._bare_only:
-                self._data["evals"], self._data["evecs"] = self._dressed_spectrum_sweep(
-                    progress_bars
+                self._data["dressed_indices"] = self.generate_lookup(
+                    ordering=self._labeling_scheme,
+                    subsys_priority=self._labeling_subsys_priority,
+                    BEs_count=self._labeling_BEs_count,
                 )
+                (
+                    self._data["lamb"],
+                    self._data["chi"],
+                    self._data["kerr"],
+                ) = self._dispersive_coefficients()
         finally:
-            for bar in progress_bars:
-                bar.close()
-        if not self._bare_only:
-            self._data["dressed_indices"] = self.generate_lookup(
-                ordering=self._labeling_scheme,
-                subsys_priority=self._labeling_subsys_priority,
-                BEs_count=self._labeling_BEs_count,
-            )
-            (
-                self._data["lamb"],
-                self._data["chi"],
-                self._data["kerr"],
-            ) = self._dispersive_coefficients()
-        if self._deepcopy:
-            self._hilbertspace = stored_hilbertspace  # restore original state
-        settings.DISPATCH_ENABLED = True
+            if self._deepcopy:
+                self._hilbertspace = stored_hilbertspace  # restore original state
+            settings.DISPATCH_ENABLED = True
 
     def _bare_spectrum_sweep(
         self, progress_bars: list
