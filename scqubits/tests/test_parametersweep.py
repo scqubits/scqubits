@@ -267,3 +267,69 @@ class TestProgressBarParallelDispatch:
         # completed without a pickling error, and self retains no progress bars
         assert not hasattr(sweep, "_progress_bars")
         assert sweep["evals"].shape[0] == 6
+
+
+class TestRunExceptionSafety:
+    def test_dispatch_enabled_restored_when_sweep_raises(self, monkeypatch):
+        # A sweep that raises mid-run must still restore settings.DISPATCH_ENABLED,
+        # or every later sweep in the kernel is silently poisoned.
+        monkeypatch.setattr(scq.settings, "DISPATCH_ENABLED", True)
+        q = scq.TunableTransmon(
+            EJmax=30.0, EC=0.2, d=0.1, flux=0.0, ng=0.0, ncut=20, truncated_dim=3
+        )
+        hs = scq.HilbertSpace([q])
+
+        def boom(flux):
+            raise RuntimeError("boom")
+
+        sweep = scq.ParameterSweep(
+            hilbertspace=hs,
+            paramvals_by_name={"flux": np.linspace(0.0, 0.4, 4)},
+            update_hilbertspace=boom,
+            evals_count=3,
+            num_cpus=1,
+            autorun=False,
+        )
+        with pytest.raises(RuntimeError, match="boom"):
+            sweep.run()
+        assert scq.settings.DISPATCH_ENABLED is True
+
+    def test_consume_with_bar_closes_bar_on_exception(self, monkeypatch):
+        import scqubits.core.param_sweep as ps_mod
+
+        closed = {"value": False}
+
+        class FakeBar:
+            def __init__(self, **kwargs):
+                pass
+
+            def update(self, n):
+                pass
+
+            def refresh(self):
+                pass
+
+            def close(self):
+                closed["value"] = True
+
+        monkeypatch.setattr(ps_mod, "tqdm", lambda **kwargs: FakeBar(**kwargs))
+        q = scq.TunableTransmon(
+            EJmax=30.0, EC=0.2, d=0.1, flux=0.0, ng=0.0, ncut=20, truncated_dim=3
+        )
+        hs = scq.HilbertSpace([q])
+        sweep = scq.ParameterSweep(
+            hilbertspace=hs,
+            paramvals_by_name={"flux": np.array([0.0, 0.1])},
+            update_hilbertspace=lambda f: setattr(q, "flux", f),
+            evals_count=3,
+            num_cpus=1,
+            autorun=False,
+        )
+
+        def raising():
+            yield 1
+            raise RuntimeError("boom")
+
+        with pytest.raises(RuntimeError, match="boom"):
+            sweep._consume_with_bar(raising(), 2, "x", [])
+        assert closed["value"] is True
