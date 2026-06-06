@@ -21,7 +21,9 @@ import scqubits.utils.cpu_switch as cpu_switch
 
 from scqubits.utils.cpu_switch import (
     _BLAS_THREAD_ENV_VARS,
+    _auto_blas_cap,
     _capped_blas_threads,
+    _effective_blas_cap,
     _resolve_start_method,
     _validated_blas_thread_cap,
 )
@@ -32,11 +34,15 @@ class TestValidatedBlasThreadCap:
         monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", None)
         assert _validated_blas_thread_cap() is None
 
+    def test_auto_passes_through(self, monkeypatch):
+        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", "auto")
+        assert _validated_blas_thread_cap() == "auto"
+
     def test_positive_int_passes_through(self, monkeypatch):
         monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", 3)
         assert _validated_blas_thread_cap() == 3
 
-    @pytest.mark.parametrize("bad", [1.5, "2", [1], 2.0])
+    @pytest.mark.parametrize("bad", [1.5, "2", "foo", [1], 2.0])
     def test_non_int_rejected(self, monkeypatch, bad):
         monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", bad)
         with pytest.raises(TypeError):
@@ -55,18 +61,45 @@ class TestValidatedBlasThreadCap:
             _validated_blas_thread_cap()
 
 
+class TestEffectiveBlasCap:
+    def test_none_setting_disables_cap(self, monkeypatch):
+        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", None)
+        assert _effective_blas_cap(num_cpus=4, blas_threads=None) is None
+
+    def test_int_setting_used_as_is(self, monkeypatch):
+        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", 2)
+        assert _effective_blas_cap(num_cpus=8, blas_threads=None) == 2
+
+    def test_auto_setting_splits_cores_across_workers(self, monkeypatch):
+        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", "auto")
+        monkeypatch.setattr(cpu_switch.os, "cpu_count", lambda: 8)
+        assert _effective_blas_cap(num_cpus=4, blas_threads=None) == 2
+
+    def test_auto_never_drops_below_one(self, monkeypatch):
+        # more workers than cores must still leave each worker at least 1 thread
+        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", "auto")
+        monkeypatch.setattr(cpu_switch.os, "cpu_count", lambda: 4)
+        assert _effective_blas_cap(num_cpus=16, blas_threads=None) == 1
+
+    def test_override_takes_precedence_over_setting(self, monkeypatch):
+        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", "auto")
+        assert _effective_blas_cap(num_cpus=4, blas_threads=3) == 3
+
+    def test_auto_cap_helper(self, monkeypatch):
+        monkeypatch.setattr(cpu_switch.os, "cpu_count", lambda: 12)
+        assert _auto_blas_cap(num_cpus=4) == 3
+
+
 class TestCappedBlasThreads:
     def test_noop_when_disabled(self, monkeypatch):
-        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", None)
         monkeypatch.delenv("OPENBLAS_NUM_THREADS", raising=False)
-        with _capped_blas_threads():
+        with _capped_blas_threads(None):
             assert "OPENBLAS_NUM_THREADS" not in os.environ
 
     def test_sets_cap_inside_and_removes_after_when_unset_before(self, monkeypatch):
-        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", 2)
         for var in _BLAS_THREAD_ENV_VARS:
             monkeypatch.delenv(var, raising=False)
-        with _capped_blas_threads():
+        with _capped_blas_threads(2):
             for var in _BLAS_THREAD_ENV_VARS:
                 assert os.environ[var] == "2"
         # vars that were unset before the block must be removed again
@@ -74,18 +107,16 @@ class TestCappedBlasThreads:
             assert var not in os.environ
 
     def test_restores_preexisting_value(self, monkeypatch):
-        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", 1)
         monkeypatch.setenv("OPENBLAS_NUM_THREADS", "7")
-        with _capped_blas_threads():
+        with _capped_blas_threads(1):
             assert os.environ["OPENBLAS_NUM_THREADS"] == "1"
         # a value present before the block must be restored, not deleted
         assert os.environ["OPENBLAS_NUM_THREADS"] == "7"
 
     def test_restores_environment_on_exception(self, monkeypatch):
-        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", 1)
         monkeypatch.delenv("OPENBLAS_NUM_THREADS", raising=False)
         with pytest.raises(RuntimeError):
-            with _capped_blas_threads():
+            with _capped_blas_threads(1):
                 raise RuntimeError("boom")
         assert "OPENBLAS_NUM_THREADS" not in os.environ
 

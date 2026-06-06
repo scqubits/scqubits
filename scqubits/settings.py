@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import warnings
 
-from typing import Any, Optional, Type
+from typing import Any, Type
 
 import matplotlib.font_manager as mpl_font
 import numpy as np
@@ -96,22 +96,27 @@ NUM_CPUS = 1
 MULTIPROC = "pathos"
 
 # Cap BLAS/OpenMP threads *per worker process* during parallel sweeps
-# (num_cpus > 1). Must be a positive int or None; with the default (None) the
-# environment is left untouched. When many small diagonalizations are swept, the
-# worker processes and the BLAS thread pool otherwise oversubscribe the cores
-# (num_cpus x BLAS-threads >> physical cores); setting this to a small value
-# (e.g. 1, or cores // num_cpus) avoids that.
+# (num_cpus > 1). Without a cap, every worker's BLAS spawns as many threads as
+# there are cores, so num_cpus workers oversubscribe the machine
+# (num_cpus x cores threads competing for cores) -- the cause of the large
+# slowdowns on dense workloads. Accepts:
+#   "auto" (default) -- cap each worker to max(1, cores // num_cpus), so the
+#                       workers together use about one thread per core and never
+#                       oversubscribe; the safe choice for parallel sweeps.
+#   a positive int   -- a fixed per-worker cap (e.g. 1 for many small
+#                       diagonalizations).
+#   None             -- leave the environment untouched (opt out, e.g. if you
+#                       tune BLAS threads yourself).
 #
 # The cap reaches workers via the thread-count environment variables, which
 # spawn-based workers (macOS, Windows) re-read when they re-import numpy/scipy.
 # On Linux, where workers are fork-based, the cap relies on 'threadpoolctl'
-# retuning the already-loaded BLAS in the parent before the fork; without it,
-# export OPENBLAS_NUM_THREADS (etc.) in the shell *before* importing scqubits.
-# It has no effect on a BLAS that exposes no thread control (e.g. numpy on Apple
+# retuning the already-loaded BLAS in the parent before the fork. It has no
+# effect on a BLAS that exposes no thread control (e.g. numpy on Apple
 # Accelerate), but scqubits' eigensolvers use scipy's OpenBLAS, which is
 # controllable. The cap is applied only while the worker pool is created; the
 # parent environment is restored afterwards.
-MULTIPROC_BLAS_THREADS: Optional[int] = None
+MULTIPROC_BLAS_THREADS: "int | str | None" = "auto"
 
 # Matplotlib options -------------------------------------------------------------------
 # select fonts

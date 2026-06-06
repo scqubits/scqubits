@@ -123,20 +123,42 @@ def get_map_method(
     return _imap_with_chunksize(settings.POOL, num_cpus, total)
 
 
-def _effective_blas_cap(blas_threads: Optional[int]) -> Optional[int]:
-    """Return the BLAS-thread cap that will actually be applied to a worker pool.
+def _auto_blas_cap(num_cpus: int) -> int:
+    """Per-worker BLAS-thread cap that splits the cores evenly across workers.
 
-    An explicit ``blas_threads`` override takes precedence; otherwise the configured
-    ``settings.MULTIPROC_BLAS_THREADS`` is used.
+    ``max(1, cores // num_cpus)`` keeps the workers' combined thread count at about
+    one per core, so ``num_cpus`` workers never oversubscribe the machine.
 
     Parameters
     ----------
+    num_cpus:
+        number of worker processes the cap is being divided among.
+    """
+    cores = os.cpu_count() or 1
+    return max(1, cores // num_cpus)
+
+
+def _effective_blas_cap(num_cpus: int, blas_threads: Optional[int]) -> Optional[int]:
+    """Return the concrete BLAS-thread cap that will be applied to a worker pool.
+
+    An explicit ``blas_threads`` override takes precedence; otherwise
+    ``settings.MULTIPROC_BLAS_THREADS`` decides: ``"auto"`` resolves to
+    :func:`_auto_blas_cap`, a positive int is used as-is, and ``None`` disables
+    capping.
+
+    Parameters
+    ----------
+    num_cpus:
+        worker count, used to resolve the ``"auto"`` setting.
     blas_threads:
         per-pool override, or ``None`` to defer to the global setting.
     """
     if blas_threads is not None:
         return blas_threads
-    return _validated_blas_thread_cap()
+    setting = _validated_blas_thread_cap()
+    if isinstance(setting, str):  # the "auto" sentinel
+        return _auto_blas_cap(num_cpus)
+    return setting
 
 
 def _pool_is_reusable(
@@ -160,7 +182,7 @@ def _pool_is_reusable(
         settings.MULTIPROC,
         _resolve_start_method(),
         num_cpus,
-        _effective_blas_cap(blas_threads),
+        _effective_blas_cap(num_cpus, blas_threads),
     )
 
 
@@ -191,26 +213,27 @@ def _shutdown_pool(pool: object) -> None:
             )
 
 
-def _validated_blas_thread_cap() -> Optional[int]:
+def _validated_blas_thread_cap() -> "int | str | None":
     """Return the validated ``settings.MULTIPROC_BLAS_THREADS`` value.
 
     Returns
     -------
-    The configured positive thread cap, or ``None`` when capping is disabled.
+    ``"auto"`` (resolve the cap per pool from the core count), a positive int
+    (a fixed per-worker cap), or ``None`` (capping disabled).
     """
-    threads = getattr(settings, "MULTIPROC_BLAS_THREADS", None)
-    if threads is None:
-        return None
+    threads = getattr(settings, "MULTIPROC_BLAS_THREADS", "auto")
+    if threads is None or threads == "auto":
+        return threads
     # bool is an int subclass; reject it explicitly to avoid True -> 1 surprises.
     if isinstance(threads, bool) or not isinstance(threads, int):
         raise TypeError(
-            "settings.MULTIPROC_BLAS_THREADS must be a positive int or None, got "
-            "{!r}".format(threads)
+            "settings.MULTIPROC_BLAS_THREADS must be 'auto', a positive int, or None, "
+            "got {!r}".format(threads)
         )
     if threads < 1:
         raise ValueError(
-            "settings.MULTIPROC_BLAS_THREADS must be a positive int or None, got "
-            "{}".format(threads)
+            "settings.MULTIPROC_BLAS_THREADS must be 'auto', a positive int, or None, "
+            "got {}".format(threads)
         )
     return threads
 
@@ -311,7 +334,7 @@ def _warn_blas_cap_ineffective(threads: int) -> None:
 
 
 @contextmanager
-def _capped_blas_threads(override: Optional[int] = None) -> Iterator[None]:
+def _capped_blas_threads(threads: Optional[int]) -> Iterator[None]:
     """Temporarily cap worker BLAS/OpenMP threads while a pool is created.
 
     Two mechanisms are combined so the cap reaches workers regardless of start
@@ -324,16 +347,15 @@ def _capped_blas_threads(override: Optional[int] = None) -> Iterator[None]:
       reduced count.
 
     Neither the parent environment nor its thread-pool settings are altered after
-    the block exits. No-op when the effective cap is ``None``; a warning is emitted
-    when the cap cannot take effect on the current platform.
+    the block exits. No-op when ``threads`` is ``None``; a warning is emitted when
+    the cap cannot take effect on the current platform.
 
     Parameters
     ----------
-    override:
-        per-pool cap that takes precedence over ``settings.MULTIPROC_BLAS_THREADS``;
-        ``None`` defers to the global setting.
+    threads:
+        the concrete per-worker thread cap to apply (as resolved by
+        :func:`_effective_blas_cap`), or ``None`` to leave the environment untouched.
     """
-    threads = override if override is not None else _validated_blas_thread_cap()
     if threads is None:
         yield
         return
@@ -471,7 +493,8 @@ def _new_pool(num_cpus: int, blas_threads: Optional[int] = None) -> object:
     _register_pool_pickle_reduction()
     method = _resolve_start_method()
     _warn_spawn_guard(method)
-    with _capped_blas_threads(blas_threads):
+    cap = _effective_blas_cap(num_cpus, blas_threads)
+    with _capped_blas_threads(cap):
         if settings.MULTIPROC == "pathos":
             try:
                 import dill
@@ -489,7 +512,7 @@ def _new_pool(num_cpus: int, blas_threads: Optional[int] = None) -> object:
         settings.MULTIPROC,
         method,
         num_cpus,
-        _effective_blas_cap(blas_threads),
+        cap,
     )
     return pool
 
