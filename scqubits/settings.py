@@ -146,7 +146,7 @@ AUTO_PARALLEL = False
 # scqubits.calibrate_parallelization() is stored and read from. None uses the
 # default ~/.scqubits/parallel_calibration.json. When a calibration is present the
 # parallelization heuristic replaces its default break-even with a measured one.
-PARALLEL_CALIBRATION_PATH: Optional[str] = None
+PARALLEL_CALIBRATION_PATH: "str | None" = None
 
 # Matplotlib options -------------------------------------------------------------------
 # select fonts
