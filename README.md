@@ -6,7 +6,7 @@ scqubits: superconducting qubits in Python
 [![codecov](https://codecov.io/gh/scqubits/scqubits/branch/main/graph/badge.svg?token=PUBXSHF6HU)](https://codecov.io/gh/scqubits/scqubits)
 
 
-[J. Koch](https://github.com/jkochNU), [P. Groszkowski](https://github.com/petergthatsme)
+[J. Koch](https://github.com/kochjens), [P. Groszkowski](https://github.com/petergthatsme)
 
 <br>
 
