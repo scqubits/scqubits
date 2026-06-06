@@ -176,7 +176,9 @@ def _save_calibration(calibration: MachineCalibration, path: str) -> None:
     path:
         destination file.
     """
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    directory = os.path.dirname(path)
+    if directory:  # empty for a bare filename; os.makedirs("") would raise
+        os.makedirs(directory, exist_ok=True)
     with open(path, "w", encoding="utf-8") as handle:
         json.dump(asdict(calibration), handle, indent=2)
 
@@ -352,7 +354,9 @@ def calibrate_parallelization(
     The measured :class:`MachineCalibration`.
     """
     cores = os.cpu_count() or 1
-    workers = max(2, cores)
+    # Use all cores as the parallel worker count; on a single-core machine this is 1
+    # (a serial measurement) rather than oversubscribing with 2 workers on 1 core.
+    workers = cores
 
     if explain:
         print("scqubits: calibrating parallelization on this machine...")

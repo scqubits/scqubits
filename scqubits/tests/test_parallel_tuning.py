@@ -121,6 +121,18 @@ class TestRecommendParallelizationPublic:
         assert settings.NUM_CPUS == cfg.num_cpus
         assert settings.MULTIPROC_BLAS_THREADS == cfg.blas_threads
 
+    def test_apply_serial_keeps_global_blas_cap(self, monkeypatch):
+        # a serial recommendation has blas_threads=None; apply must not clobber the
+        # global cap (default "auto") that governs later parallel sweeps
+        monkeypatch.setattr(settings, "NUM_CPUS", 4)
+        monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", "auto")
+        cfg = recommend_parallelization(
+            dimension=216, num_points=4, evals_count=20, cores=8, apply=True
+        )
+        assert cfg.num_cpus == 1 and cfg.blas_threads is None
+        assert settings.NUM_CPUS == 1
+        assert settings.MULTIPROC_BLAS_THREADS == "auto"  # left intact
+
     def test_no_apply_leaves_settings_untouched(self, monkeypatch):
         monkeypatch.setattr(settings, "NUM_CPUS", 1)
         recommend_parallelization(dimension=216, num_points=384, evals_count=20)

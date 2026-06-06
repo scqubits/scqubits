@@ -76,6 +76,12 @@ class TestPersistence:
         assert back.pool_startup_s == cal.pool_startup_s
         assert back.cost_samples == cal.cost_samples
 
+    def test_save_bare_filename_no_dir(self, tmp_path, monkeypatch):
+        # a path with no directory component must not crash on os.makedirs("")
+        monkeypatch.chdir(tmp_path)
+        pc._save_calibration(_make_calibration(), "cal.json")
+        assert load_calibration("cal.json") is not None
+
     def test_load_missing_returns_none(self, tmp_path):
         assert load_calibration(str(tmp_path / "absent.json")) is None
 

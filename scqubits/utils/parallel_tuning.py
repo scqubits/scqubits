@@ -524,7 +524,12 @@ def recommend_parallelization(
 
     if apply:
         settings.NUM_CPUS = config.num_cpus
-        settings.MULTIPROC_BLAS_THREADS = config.blas_threads
+        # Only override the global BLAS cap when recommending parallelism. A serial
+        # recommendation has blas_threads=None (the cap is irrelevant at num_cpus==1);
+        # writing it would clobber the user's global cap (default "auto") for later
+        # parallel sweeps.
+        if config.blas_threads is not None:
+            settings.MULTIPROC_BLAS_THREADS = config.blas_threads
     if explain:
         print(
             "scqubits parallelization: num_cpus={}, blas_threads={} -- {}".format(

@@ -1357,8 +1357,11 @@ class HilbertSpace(
             name for the parameter that is varied in ``param_vals``
             (default: ``"external_parameter"``).
         num_cpus:
-            number of cores to use for computation (default:
-            ``settings.NUM_CPUS``).
+            number of cores to use for computation, or ``"auto"`` to let scqubits
+            choose the core count (and a per-worker BLAS-thread cap) from the
+            workload via :func:`~scqubits.recommend_parallelization`. With
+            ``settings.AUTO_PARALLEL = True`` an unspecified ``num_cpus`` is chosen
+            the same way (default: ``settings.NUM_CPUS``).
         """
         if num_cpus == "auto" or (
             num_cpus is None and getattr(settings, "AUTO_PARALLEL", False)
