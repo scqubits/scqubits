@@ -481,7 +481,9 @@ def _new_pool(num_cpus: int, blas_threads: Optional[int] = None) -> object:
 
     Returns
     -------
-    A freshly started pool whose ``.map`` method is used by the caller.
+    A freshly started pool; the caller (:func:`get_map_method`) drives it through
+    ``.imap`` (with a ``map``-style chunksize) so a wrapping ``tqdm`` can advance
+    as workers finish.
     """
     global _pool_signature
     if settings.MULTIPROC not in ("pathos", "multiprocessing"):
