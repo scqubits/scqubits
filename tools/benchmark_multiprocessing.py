@@ -202,43 +202,37 @@ class _MapInstrument:
 
     def __init__(self) -> None:
         self._orig = cpu_switch.get_map_method
-        self._pathos_pools: Any = None
-        self._orig_pool_cls: Any = None
+        self._orig_new_pool = cpu_switch._new_pool
         self.calls = 0
         self.pool_spawn_s = 0.0
         self.pools_created = 0
 
-    def _wrapped(self, num_cpus: int) -> Callable:
+    def _wrapped(self, num_cpus: int, *args: Any, **kwargs: Any) -> Callable:
+        # forward total=/blas_threads= so the wrapper matches get_map_method's signature
         self.calls += 1
         start = time.perf_counter()
-        method = self._orig(num_cpus)
+        method = self._orig(num_cpus, *args, **kwargs)
         self.pool_spawn_s += time.perf_counter() - start
         return method
+
+    def _counting_new_pool(self, *args: Any, **kwargs: Any) -> Any:
+        self.pools_created += 1
+        return self._orig_new_pool(*args, **kwargs)
 
     def __enter__(self) -> "_MapInstrument":
         cpu_switch.get_map_method = self._wrapped
         qubit_base.get_map_method = self._wrapped  # qubit_base imported it by name
-        try:
-            import pathos.pools as pathos_pools
-
-            self._pathos_pools = pathos_pools
-            self._orig_pool_cls = pathos_pools.ProcessPool
-            instrument = self
-
-            def _counting_pool(*args: Any, **kwargs: Any) -> Any:
-                instrument.pools_created += 1
-                return instrument._orig_pool_cls(*args, **kwargs)
-
-            pathos_pools.ProcessPool = _counting_pool
-        except Exception:
-            self._pathos_pools = None
+        # _new_pool is the single point in cpu_switch where a real pool is built
+        # (it is skipped on reuse), so counting its calls is the true construction
+        # count -- and unlike patching the Pool class, it does not disturb the
+        # multiprocessing internals that reference Pool by module-global name.
+        cpu_switch._new_pool = self._counting_new_pool
         return self
 
     def __exit__(self, *exc: Any) -> None:
         cpu_switch.get_map_method = self._orig
         qubit_base.get_map_method = self._orig
-        if self._pathos_pools is not None and self._orig_pool_cls is not None:
-            self._pathos_pools.ProcessPool = self._orig_pool_cls
+        cpu_switch._new_pool = self._orig_new_pool
 
     def reset(self) -> None:
         self.calls = 0

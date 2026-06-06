@@ -2,7 +2,7 @@
 scqubits: superconducting qubits in Python
 ===========================================
 
-[J. Koch](https://github.com/jkochNU), [P. Groszkowski](https://github.com/petergthatsme)
+[J. Koch](https://github.com/kochjens), [P. Groszkowski](https://github.com/petergthatsme)
 
 scqubits is an open-source Python library for simulating superconducting qubits.
 It is meant to give the user a convenient way to obtain energy spectra of common
@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import warnings
 
-from typing import Any, Optional, Type
+from typing import Any, Type
 
 import matplotlib.font_manager as mpl_font
 import numpy as np
@@ -96,22 +96,42 @@ NUM_CPUS = 1
 MULTIPROC = "pathos"
 
 # Cap BLAS/OpenMP threads *per worker process* during parallel sweeps
-# (num_cpus > 1). Must be a positive int or None; with the default (None) the
-# environment is left untouched. When many small diagonalizations are swept, the
-# worker processes and the BLAS thread pool otherwise oversubscribe the cores
-# (num_cpus x BLAS-threads >> physical cores); setting this to a small value
-# (e.g. 1, or cores // num_cpus) avoids that.
+# (num_cpus > 1). Without a cap, every worker's BLAS spawns as many threads as
+# there are cores, so num_cpus workers oversubscribe the machine
+# (num_cpus x cores threads competing for cores) -- the cause of the large
+# slowdowns on dense workloads. Accepts:
+#   "auto" (default) -- cap each worker to max(1, cores // num_cpus), so the
+#                       workers together use about one thread per core and never
+#                       oversubscribe; the safe choice for parallel sweeps.
+#   a positive int   -- a fixed per-worker cap (e.g. 1 for many small
+#                       diagonalizations).
+#   None             -- leave the environment untouched (opt out, e.g. if you
+#                       tune BLAS threads yourself).
 #
 # The cap reaches workers via the thread-count environment variables, which
 # spawn-based workers (macOS, Windows) re-read when they re-import numpy/scipy.
 # On Linux, where workers are fork-based, the cap relies on 'threadpoolctl'
-# retuning the already-loaded BLAS in the parent before the fork; without it,
-# export OPENBLAS_NUM_THREADS (etc.) in the shell *before* importing scqubits.
-# It has no effect on a BLAS that exposes no thread control (e.g. numpy on Apple
+# retuning the already-loaded BLAS in the parent before the fork. It has no
+# effect on a BLAS that exposes no thread control (e.g. numpy on Apple
 # Accelerate), but scqubits' eigensolvers use scipy's OpenBLAS, which is
 # controllable. The cap is applied only while the worker pool is created; the
 # parent environment is restored afterwards.
-MULTIPROC_BLAS_THREADS: Optional[int] = None
+MULTIPROC_BLAS_THREADS: "int | str | None" = "auto"
+
+# Automatic sparse diagonalization --------------------------------------------------
+# When evals_method / esys_method are left at their default (None), use sparse
+# scipy `eigsh` instead of dense QuTiP diagonalization when only a small fraction of a
+# large spectrum is requested -- the regime of dressed spectra of composite
+# HilbertSpaces, where sparse `eigsh` is dramatically faster than dense (and dense may
+# not even fit in memory). Falls back to the dense QuTiP path if the sparse solver
+# raises or returns a result that fails a residual check. Set AUTO_SPARSE_DIAG = False
+# to restore the always-dense default.
+AUTO_SPARSE_DIAG = True
+# Minimum Hilbert-space dimension at which auto sparse diagonalization is considered.
+SPARSE_DIAG_MIN_DIM = 1000
+# Auto sparse is used only when evals_count <= SPARSE_DIAG_MAX_EVALS_FRAC * dim
+# (sparse `eigsh` only pays off when computing few of many eigenstates).
+SPARSE_DIAG_MAX_EVALS_FRAC = 0.1
 
 # Auto-parallelization (opt-in) --------------------------------------------------------
 # When True, sweep/spectrum methods called WITHOUT an explicit num_cpus behave as if
@@ -185,10 +205,29 @@ DESPINE = True
 # This is a setting for number of points in stencil to approximate derivatives
 STENCIL = 7
 
-# global random number generator for consistent initial state vector v0 in ARPACK
+# Fixed seed for the ARPACK/eigsh start vector, so sparse diagonalization is
+# reproducible. The start vector is generated on demand (see arpack_v0) rather than
+# stored as a large module-global array: such an array gets pulled into every
+# worker-task pickle during parallel sweeps (dill's recurse reaches the settings
+# module), e.g. ~80 MB per task for hierarchical-diagonalization Circuits.
 _SEED = 63142
-_RNG = np.random.default_rng(seed=_SEED)
-RANDOM_ARRAY = _RNG.random(size=10000000)
+
+
+def arpack_v0(dim: int) -> np.ndarray:
+    """Return a deterministic ARPACK/``eigsh`` start vector of length ``dim``.
+
+    A fixed start vector makes sparse diagonalization reproducible. It is computed on
+    demand from a fixed seed rather than sliced from a large module-global array, so it
+    stays small and is not shipped into worker-task pickles during parallel sweeps.
+    Numerically identical to a fixed-seed draw truncated to ``dim``.
+
+    Parameters
+    ----------
+    dim:
+        length of the start vector (the dimension of the matrix being diagonalized).
+    """
+    return np.random.default_rng(_SEED).random(dim)
+
 
 # toggle fuzzy value-based slicing and warnings about it on and off
 FUZZY_SLICING = False

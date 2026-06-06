@@ -45,6 +45,7 @@ dependencies = [
     "scipy>=1.5 ; sys_platform != 'darwin'",
     "scipy>=1.5,<=1.13.1 ; sys_platform == 'darwin'",
     "sympy",
+    "threadpoolctl",
     "tqdm",
 ]
 
@@ -55,7 +56,6 @@ gui = [
 develop = [
     "pytest", "traitlets", "h5py (>=2.10)",
     "mypy", "types-tqdm", "scipy-stubs==1.15.2.2",
-    "threadpoolctl",
 ]
 
 [project.urls]

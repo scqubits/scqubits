@@ -1359,11 +1359,13 @@ class ParameterSweep(
     ) -> list:
         """Collect the mapped results, driving a tqdm progress bar.
 
-        In Jupyter/IPython the finished bar is kept on screen and appended to
+        Under IPython (a Jupyter notebook or a terminal IPython shell, i.e.
+        ``settings.IN_IPYTHON``) the finished bar is kept on screen and appended to
         ``progress_bars`` (a list owned by :meth:`run`), so the bare-spectrum bar(s)
         stay visible above the dressed-spectrum bar; :meth:`run` clears them together
-        once the dressed sweep finishes. In a terminal the bar is closed as soon as
-        its phase finishes, preserving the previous sequential display.
+        once the dressed sweep finishes. Otherwise (a plain Python interpreter or
+        script) the bar is closed as soon as its phase finishes, preserving the
+        previous sequential display.
 
         The bars live in a caller-owned list, never on the instance: a ``tqdm`` bar is
         not picklable, and the worker tasks pickle ``self``, so a bar stored on

@@ -3,7 +3,7 @@ name: Bug report
 about: Create a bug report to help us improve scqubits
 title: "[Bug report]"
 labels: ''
-assignees: jkochNU
+assignees: kochjens
 
 ---
 
