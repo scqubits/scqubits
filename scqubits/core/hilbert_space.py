@@ -452,9 +452,8 @@ def _sparse_result_trustworthy(
     catches that silent case: it checks the eigenvalues are finite and the expected
     count, and -- when eigenvectors are available (``kind == 'esys'``) -- that the
     residual ``||H v - lambda v||`` of a few eigenpairs is small relative to the
-    eigenvalue scale. (Eigenvalue *ordering* is intentionally not checked:
-    :func:`~scqubits.core.diag.esys_scipy_sparse` does not return eigenvalues sorted,
-    a known ``eigsh`` ``return_eigenvectors=True`` quirk.)
+    eigenvalue scale. (Convergence, not eigenvalue ordering, is what is verified;
+    the sparse methods return eigenvalues ascending, like the dense path.)
 
     Parameters
     ----------

@@ -278,8 +278,9 @@ def evals_scipy_sparse(
     )
     evals = sp.sparse.linalg.eigsh(m, k=evals_count, **options)
 
-    # have to reverse order if return_eigenvectors=False and which="SA"
-    return evals[::-1]
+    # eigsh's eigenvalue order depends on return_eigenvectors (scipy/scipy#9082) and
+    # is not reliably ascending; sort explicitly to honor the documented convention.
+    return np.sort(evals)
 
 
 def esys_scipy_sparse(
@@ -332,6 +333,12 @@ def esys_scipy_sparse(
         overwrite=True,
     )
     evals, evecs = sp.sparse.linalg.eigsh(m, k=evals_count, **options)
+
+    # eigsh's eigenvalue order depends on return_eigenvectors (scipy/scipy#9082) and
+    # is not reliably ascending; sort explicitly (keeping evecs aligned) so that, like
+    # the dense path, the i-th returned state is the i-th lowest in energy.
+    order = np.argsort(evals)
+    evals, evecs = evals[order], evecs[:, order]
 
     if has_degeneracy(evals):
         evecs, _ = sp.linalg.qr(evecs, mode="economic")
