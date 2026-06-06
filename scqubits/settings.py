@@ -118,6 +118,21 @@ MULTIPROC = "pathos"
 # parent environment is restored afterwards.
 MULTIPROC_BLAS_THREADS: "int | str | None" = "auto"
 
+# Automatic sparse diagonalization --------------------------------------------------
+# When evals_method / esys_method are left at their default (None), use sparse
+# scipy `eigsh` instead of dense QuTiP diagonalization when only a small fraction of a
+# large spectrum is requested -- the regime of dressed spectra of composite
+# HilbertSpaces, where sparse `eigsh` is dramatically faster than dense (and dense may
+# not even fit in memory). Falls back to the dense QuTiP path if the sparse solver
+# raises or returns a result that fails a residual check. Set AUTO_SPARSE_DIAG = False
+# to restore the always-dense default.
+AUTO_SPARSE_DIAG = True
+# Minimum Hilbert-space dimension at which auto sparse diagonalization is considered.
+SPARSE_DIAG_MIN_DIM = 1000
+# Auto sparse is used only when evals_count <= SPARSE_DIAG_MAX_EVALS_FRAC * dim
+# (sparse `eigsh` only pays off when computing few of many eigenstates).
+SPARSE_DIAG_MAX_EVALS_FRAC = 0.1
+
 # Matplotlib options -------------------------------------------------------------------
 # select fonts
 FONT_SELECTED = None
@@ -175,10 +190,29 @@ DESPINE = True
 # This is a setting for number of points in stencil to approximate derivatives
 STENCIL = 7
 
-# global random number generator for consistent initial state vector v0 in ARPACK
+# Fixed seed for the ARPACK/eigsh start vector, so sparse diagonalization is
+# reproducible. The start vector is generated on demand (see arpack_v0) rather than
+# stored as a large module-global array: such an array gets pulled into every
+# worker-task pickle during parallel sweeps (dill's recurse reaches the settings
+# module), e.g. ~80 MB per task for hierarchical-diagonalization Circuits.
 _SEED = 63142
-_RNG = np.random.default_rng(seed=_SEED)
-RANDOM_ARRAY = _RNG.random(size=10000000)
+
+
+def arpack_v0(dim: int) -> np.ndarray:
+    """Return a deterministic ARPACK/``eigsh`` start vector of length ``dim``.
+
+    A fixed start vector makes sparse diagonalization reproducible. It is computed on
+    demand from a fixed seed rather than sliced from a large module-global array, so it
+    stays small and is not shipped into worker-task pickles during parallel sweeps.
+    Numerically identical to a fixed-seed draw truncated to ``dim``.
+
+    Parameters
+    ----------
+    dim:
+        length of the start vector (the dimension of the matrix being diagonalized).
+    """
+    return np.random.default_rng(_SEED).random(dim)
+
 
 # toggle fuzzy value-based slicing and warnings about it on and off
 FUZZY_SLICING = False
