@@ -85,6 +85,16 @@ class TestEffectiveBlasCap:
         monkeypatch.setattr(settings, "MULTIPROC_BLAS_THREADS", "auto")
         assert _effective_blas_cap(num_cpus=4, blas_threads=3) == 3
 
+    def test_override_bool_rejected(self, monkeypatch):
+        # bool is an int subclass; True must not slip through as 1
+        with pytest.raises(TypeError):
+            _effective_blas_cap(num_cpus=4, blas_threads=True)
+
+    @pytest.mark.parametrize("bad", [0, -1])
+    def test_override_non_positive_rejected(self, monkeypatch, bad):
+        with pytest.raises(ValueError):
+            _effective_blas_cap(num_cpus=4, blas_threads=bad)
+
     def test_auto_cap_helper(self, monkeypatch):
         monkeypatch.setattr(cpu_switch.os, "cpu_count", lambda: 12)
         assert _auto_blas_cap(num_cpus=4) == 3

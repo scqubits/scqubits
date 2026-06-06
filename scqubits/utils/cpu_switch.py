@@ -138,13 +138,35 @@ def _auto_blas_cap(num_cpus: int) -> int:
     return max(1, cores // num_cpus)
 
 
+def _validate_positive_thread_int(value: Any, requirement: str) -> int:
+    """Return ``value`` if it is a positive int, else raise.
+
+    ``bool`` is an int subclass and is rejected explicitly, so ``True`` is not
+    silently treated as ``1``.
+
+    Parameters
+    ----------
+    value:
+        candidate per-worker thread count.
+    requirement:
+        the "<name> must be ..." clause used in the error message.
+    """
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError("{}, got {!r}".format(requirement, value))
+    if value < 1:
+        raise ValueError("{}, got {}".format(requirement, value))
+    return value
+
+
 def _effective_blas_cap(num_cpus: int, blas_threads: Optional[int]) -> Optional[int]:
     """Return the concrete BLAS-thread cap that will be applied to a worker pool.
 
     An explicit ``blas_threads`` override takes precedence; otherwise
     ``settings.MULTIPROC_BLAS_THREADS`` decides: ``"auto"`` resolves to
     :func:`_auto_blas_cap`, a positive int is used as-is, and ``None`` disables
-    capping.
+    capping. An explicit override is validated by the same rules as the setting
+    (positive int, ``bool`` rejected), so a stray ``True``/``0`` cannot reach the
+    thread-count env vars or ``threadpoolctl``.
 
     Parameters
     ----------
@@ -154,7 +176,9 @@ def _effective_blas_cap(num_cpus: int, blas_threads: Optional[int]) -> Optional[
         per-pool override, or ``None`` to defer to the global setting.
     """
     if blas_threads is not None:
-        return blas_threads
+        return _validate_positive_thread_int(
+            blas_threads, "blas_threads override must be a positive int or None"
+        )
     setting = _validated_blas_thread_cap()
     if isinstance(setting, str):  # the "auto" sentinel
         return _auto_blas_cap(num_cpus)
@@ -224,18 +248,10 @@ def _validated_blas_thread_cap() -> "int | str | None":
     threads = getattr(settings, "MULTIPROC_BLAS_THREADS", "auto")
     if threads is None or threads == "auto":
         return threads
-    # bool is an int subclass; reject it explicitly to avoid True -> 1 surprises.
-    if isinstance(threads, bool) or not isinstance(threads, int):
-        raise TypeError(
-            "settings.MULTIPROC_BLAS_THREADS must be 'auto', a positive int, or None, "
-            "got {!r}".format(threads)
-        )
-    if threads < 1:
-        raise ValueError(
-            "settings.MULTIPROC_BLAS_THREADS must be 'auto', a positive int, or None, "
-            "got {}".format(threads)
-        )
-    return threads
+    return _validate_positive_thread_int(
+        threads,
+        "settings.MULTIPROC_BLAS_THREADS must be 'auto', a positive int, or None",
+    )
 
 
 def _import_threadpoolctl() -> Optional[Any]:
