@@ -56,10 +56,7 @@ from scqubits.core.storage import SpectrumData
 if TYPE_CHECKING:
     from scqubits.io_utils.fileio import IOData
 
-if settings.IN_IPYTHON:
-    from tqdm.notebook import tqdm
-else:
-    from tqdm import tqdm  # type: ignore[assignment]
+from tqdm.auto import tqdm
 
 from scqubits.utils.typedefs import GIndexTuple, NpIndices
 
@@ -1337,7 +1334,54 @@ class ParameterSweep(
     @property
     def tqdm_disabled(self) -> bool:
         """Return whether the tqdm progress bar should be disabled for this sweep."""
-        return settings.PROGRESSBAR_DISABLED or (self._num_cpus > 1)
+        return settings.PROGRESSBAR_DISABLED
+
+    def _consume_with_bar(
+        self, mapped: Any, total: int, desc: str, progress_bars: list
+    ) -> list:
+        """Collect the mapped results, driving a tqdm progress bar.
+
+        Under IPython (a Jupyter notebook or a terminal IPython shell, i.e.
+        ``settings.IN_IPYTHON``) the finished bar is kept on screen and appended to
+        ``progress_bars`` (a list owned by :meth:`run`), so the bare-spectrum bar(s)
+        stay visible above the dressed-spectrum bar; :meth:`run` clears them together
+        once the dressed sweep finishes. Otherwise (a plain Python interpreter or
+        script) the bar is closed as soon as its phase finishes, preserving the
+        previous sequential display.
+
+        The bars live in a caller-owned list, never on the instance: a ``tqdm`` bar is
+        not picklable, and the worker tasks pickle ``self``, so a bar stored on
+        ``self`` would break parallel dispatch.
+
+        Parameters
+        ----------
+        mapped:
+            iterator of per-grid-point results (the output of the pool ``imap`` or the
+            built-in ``map``), yielded in grid order.
+        total:
+            number of grid points, used for the bar length.
+        desc:
+            progress-bar label for this phase.
+        progress_bars:
+            caller-owned list collecting bars to clear together at the end of the run.
+        """
+        bar = tqdm(total=total, desc=desc, leave=False, disable=self.tqdm_disabled)
+        results = []
+        try:
+            for item in mapped:
+                results.append(item)
+                bar.update(1)
+        except BaseException:
+            # the mapped iterator raised mid-sweep: close this bar so it does not leak
+            # (it was never registered in progress_bars, which only happens on success)
+            bar.close()
+            raise
+        if settings.IN_IPYTHON:
+            bar.refresh()
+            progress_bars.append(bar)
+        else:
+            bar.close()
+        return results
 
     def faulty_interactionterm_suspected(self) -> bool:
         """Check if any interaction terms are specified as fixed matrices."""
@@ -1403,29 +1447,45 @@ class ParameterSweep(
             self.cause_dispatch()
         settings.DISPATCH_ENABLED = False
 
-        (
-            self._data["bare_evals"],
-            self._data["bare_evecs"],
-            self._data["circuit_esys"],
-        ) = self._bare_spectrum_sweep()
-        if not self._bare_only:
-            self._data["evals"], self._data["evecs"] = self._dressed_spectrum_sweep()
-            self._data["dressed_indices"] = self.generate_lookup(
-                ordering=self._labeling_scheme,
-                subsys_priority=self._labeling_subsys_priority,
-                BEs_count=self._labeling_BEs_count,
-            )
-            (
-                self._data["lamb"],
-                self._data["chi"],
-                self._data["kerr"],
-            ) = self._dispersive_coefficients()
-        if self._deepcopy:
-            self._hilbertspace = stored_hilbertspace  # restore original state
-        settings.DISPATCH_ENABLED = True
+        # The outer try restores global state (DISPATCH_ENABLED, the deepcopied
+        # hilbertspace) even if a sweep raises. The inner try closes the phase progress
+        # bars right when the dressed sweep finishes -- the bare bar(s) stay stacked
+        # above the dressed bar until then; see _consume_with_bar. progress_bars is a
+        # local (not on self) because tqdm bars are not picklable and self is shipped
+        # to workers during parallel dispatch.
+        progress_bars: list = []
+        try:
+            try:
+                (
+                    self._data["bare_evals"],
+                    self._data["bare_evecs"],
+                    self._data["circuit_esys"],
+                ) = self._bare_spectrum_sweep(progress_bars)
+                if not self._bare_only:
+                    self._data["evals"], self._data["evecs"] = (
+                        self._dressed_spectrum_sweep(progress_bars)
+                    )
+            finally:
+                for bar in progress_bars:
+                    bar.close()
+            if not self._bare_only:
+                self._data["dressed_indices"] = self.generate_lookup(
+                    ordering=self._labeling_scheme,
+                    subsys_priority=self._labeling_subsys_priority,
+                    BEs_count=self._labeling_BEs_count,
+                )
+                (
+                    self._data["lamb"],
+                    self._data["chi"],
+                    self._data["kerr"],
+                ) = self._dispersive_coefficients()
+        finally:
+            if self._deepcopy:
+                self._hilbertspace = stored_hilbertspace  # restore original state
+            settings.DISPATCH_ENABLED = True
 
     def _bare_spectrum_sweep(
-        self,
+        self, progress_bars: list
     ) -> tuple[NamedSlotsNdarray, NamedSlotsNdarray, NamedSlotsNdarray]:
         """Compute bare eigenvalues, eigenvectors, and circuit ``esys`` arrays.
 
@@ -1451,7 +1511,7 @@ class ParameterSweep(
         circuit_esys = np.empty((self.subsystem_count,), dtype=object)
 
         for subsys_index, subsystem in enumerate(self.hilbertspace):
-            bare_esys = self._subsys_bare_spectrum_sweep(subsystem)
+            bare_esys = self._subsys_bare_spectrum_sweep(subsystem, progress_bars)
             if (
                 hasattr(subsystem, "hierarchical_diagonalization")
                 and subsystem.hierarchical_diagonalization
@@ -1539,7 +1599,9 @@ class ParameterSweep(
         ]
         return list(set(self._parameters.names) - set(updating_parameters))
 
-    def _subsys_bare_spectrum_sweep(self, subsystem: QuantumSystem) -> ndarray:
+    def _subsys_bare_spectrum_sweep(
+        self, subsystem: QuantumSystem, progress_bars: list
+    ) -> ndarray:
         """Compute the bare eigensystem of ``subsystem`` over the full parameter grid.
 
         Parameters
@@ -1558,15 +1620,10 @@ class ParameterSweep(
             np.prod([len(param_vals) for param_vals in reduced_parameters])
         )
 
-        target_map = cpu_switch.get_map_method(self._num_cpus)
+        target_map = cpu_switch.get_map_method(self._num_cpus, total=total_count)
 
-        with utils.InfoBar(
-            "Parallel compute bare eigensys for subsystem {} [num_cpus={}]".format(
-                subsystem.id_str, self._num_cpus
-            ),
-            self._num_cpus,
-        ) as p:
-            bare_eigendata_iter: Any = tqdm(
+        bare_eigendata = np.asarray(
+            self._consume_with_bar(
                 target_map(
                     functools.partial(
                         self._update_subsys_compute_esys,
@@ -1575,13 +1632,12 @@ class ParameterSweep(
                     ),
                     itertools.product(*reduced_parameters.paramvals_list),
                 ),
-                total=total_count,
-                desc="Bare spectra",
-                leave=False,
-                disable=self.tqdm_disabled,
-            )
-
-        bare_eigendata = np.asarray(list(bare_eigendata_iter), dtype=object)
+                total_count,
+                "Bare spectra [{}]".format(subsystem.id_str),
+                progress_bars,
+            ),
+            dtype=object,
+        )
         bare_eigendata = bare_eigendata.reshape((*reduced_parameters.counts, 2))
 
         # Bare spectral data was only computed once for each parameter that has no
@@ -1599,13 +1655,18 @@ class ParameterSweep(
         hilbertspace: HilbertSpace,
         evals_count: int,
         update_func: Callable,
-        paramindex_tuple: tuple[int],
+        work_item: tuple[tuple[int, ...], dict[int, list[ndarray]], dict[int, Any]],
     ) -> ndarray:
         """Update the HilbertSpace and compute dressed eigensystem at one grid point.
 
         Updates the parent :class:`HilbertSpace`, propagates the cached bare
         eigensystem of each subsystem (handling hierarchical-diagonalization
         children and parent updates), and returns the dressed eigensystem.
+
+        The per-point bare eigensystem is supplied through ``work_item`` rather
+        than read from ``self._data`` so that mapping this method over the grid
+        does not pickle the full bare-spectrum arrays of every grid point into
+        each worker task (see :meth:`_dressed_spectrum_sweep`).
 
         Parameters
         ----------
@@ -1616,25 +1677,20 @@ class ParameterSweep(
         update_func:
             callable used to update parameter-dependent attributes for the
             current grid point
-        paramindex_tuple:
-            tuple of integer indices selecting the grid point in the
-            multi-dimensional parameter sweep
+        work_item:
+            ``(paramindex_tuple, bare_esys, circuit_esys_point)`` for the grid
+            point: the integer index tuple, the per-subsystem ``[evals, evecs]``
+            bare eigensystem, and the per-subsystem circuit eigensystem used by
+            hierarchically diagonalized subsystems.
 
         Returns
         -------
         Object array of shape ``(2,)`` whose entries are the dressed
         eigenvalues array and the corresponding eigenvectors array.
         """
+        paramindex_tuple, bare_esys, circuit_esys_point = work_item
         paramval_tuple = self._parameters[paramindex_tuple]
         update_func(self, *paramval_tuple)
-        assert self._data is not None
-        bare_esys: dict[int, list[ndarray]] = {
-            subsys_index: [
-                self._data["bare_evals"][subsys_index][paramindex_tuple],
-                self._data["bare_evecs"][subsys_index][paramindex_tuple],
-            ]
-            for subsys_index, _ in enumerate(self.hilbertspace)
-        }
         # update the lookuptables for subsystems using hierarchical diagonalization
         for subsys_index, subsys in enumerate(hilbertspace.subsystem_list):
             if (
@@ -1642,7 +1698,7 @@ class ParameterSweep(
                 and subsys.hierarchical_diagonalization
             ):
                 subsys.set_bare_eigensys(  # type: ignore[union-attr]
-                    self._data["circuit_esys"][subsys_index][paramindex_tuple]
+                    circuit_esys_point[subsys_index]
                 )
 
             # if the subsys has a parent Circuit/Subsystem module, then update its hilbert_space
@@ -1672,7 +1728,7 @@ class ParameterSweep(
         return esys_array
 
     def _dressed_spectrum_sweep(
-        self,
+        self, progress_bars: list
     ) -> tuple[NamedSlotsNdarray, NamedSlotsNdarray]:
         """Compute dressed eigenvalues and eigenvectors over the full parameter grid.
 
@@ -1681,31 +1737,70 @@ class ParameterSweep(
         Pair of :class:`NamedSlotsNdarray` instances with axes
         ``[<paramname1>, <paramname2>, ...]`` containing dressed eigenvalues
         and dressed eigenvectors, respectively.
-        """
-        target_map = cpu_switch.get_map_method(self._num_cpus)
-        total_count = int(np.prod(self._parameters.counts))
 
-        with utils.InfoBar(
-            "Parallel compute dressed eigensys [num_cpus={}]".format(self._num_cpus),
-            self._num_cpus,
-        ) as p:
-            spectrum_data = list(
-                tqdm(
-                    target_map(
-                        functools.partial(
-                            self._update_and_compute_dressed_esys,
-                            self._hilbertspace,
-                            self._evals_count,
-                            self._update_hilbertspace,
-                        ),
-                        itertools.product(*self._parameters.ranges),
+        Notes
+        -----
+        While the grid is being mapped, ``self._data["bare_evals"]``,
+        ``self._data["bare_evecs"]`` and ``self._data["circuit_esys"]`` are
+        temporarily set to ``None`` (restored in a ``finally`` block) so that the
+        bound worker callable does not pickle the whole grid's bare spectrum into
+        every task. A user-supplied ``update_hilbertspace`` callback must therefore
+        not read these ``self._data`` entries: it receives the parameter values it
+        needs as arguments, and the per-point bare eigensystem is delivered to the
+        worker through the work item instead.
+        """
+        total_count = int(np.prod(self._parameters.counts))
+        target_map = cpu_switch.get_map_method(self._num_cpus, total=total_count)
+
+        # Ship only the current grid point's bare eigensystem to each worker.
+        # Reading these slices from ``self._data`` inside the worker would pickle
+        # the whole grid's bare-spectrum arrays into every task (O(N^2) IPC), so
+        # detach them here, pass per-point slices through the work items, and
+        # restore ``self._data`` afterwards. While detached, these three entries
+        # are ``None``; a user ``update_hilbertspace`` callback must not read them
+        # (see the Notes in this method's docstring).
+        bare_evals = self._data["bare_evals"]
+        bare_evecs = self._data["bare_evecs"]
+        circuit_esys = self._data["circuit_esys"]
+        subsys_count = len(self.hilbertspace)
+
+        def _work_items() -> Any:
+            for paramindex_tuple in itertools.product(*self._parameters.ranges):
+                bare_esys = {
+                    subsys_index: [
+                        bare_evals[subsys_index][paramindex_tuple],
+                        bare_evecs[subsys_index][paramindex_tuple],
+                    ]
+                    for subsys_index in range(subsys_count)
+                }
+                circuit_esys_point = {
+                    subsys_index: circuit_esys[subsys_index][paramindex_tuple]
+                    for subsys_index in range(subsys_count)
+                }
+                yield (paramindex_tuple, bare_esys, circuit_esys_point)
+
+        self._data["bare_evals"] = None
+        self._data["bare_evecs"] = None
+        self._data["circuit_esys"] = None
+        try:
+            spectrum_data = self._consume_with_bar(
+                target_map(
+                    functools.partial(
+                        self._update_and_compute_dressed_esys,
+                        self._hilbertspace,
+                        self._evals_count,
+                        self._update_hilbertspace,
                     ),
-                    total=total_count,
-                    desc="Dressed spectrum",
-                    leave=False,
-                    disable=self.tqdm_disabled,
-                )
+                    _work_items(),
+                ),
+                total_count,
+                "Dressed spectrum",
+                progress_bars,
             )
+        finally:
+            self._data["bare_evals"] = bare_evals
+            self._data["bare_evecs"] = bare_evecs
+            self._data["circuit_esys"] = circuit_esys
 
         spectrum_data_ndarray = np.asarray(spectrum_data, dtype=object)
         spectrum_data_ndarray = spectrum_data_ndarray.reshape(

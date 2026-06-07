@@ -45,6 +45,7 @@ dependencies = [
     "scipy>=1.5 ; sys_platform != 'darwin'",
     "scipy>=1.5,<=1.13.1 ; sys_platform == 'darwin'",
     "sympy",
+    "threadpoolctl",
     "tqdm",
 ]
 
@@ -93,6 +94,8 @@ module = [
     "matplotlib_inline",
     "matplotlib_inline.*",
     "mpl_toolkits.*",
+    "multiprocess",
+    "multiprocess.*",
     "pathos",
     "pathos.*",
     # Optional acceleration backends imported inside diag.py fallbacks
@@ -106,5 +109,7 @@ module = [
     "qutip.*",
     "sympy",
     "sympy.*",
+    # Optional BLAS-thread limiter used by cpu_switch for fork-based worker caps
+    "threadpoolctl",
 ]
 ignore_missing_imports = true

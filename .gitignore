@@ -39,3 +39,6 @@ scqubits/.vscode/settings.json
 /docstring_fixer.py
 /modernize_types.py
 /monkeytype.sqlite3
+
+# local, machine-specific benchmark outputs
+/tools/benchmark_results/
