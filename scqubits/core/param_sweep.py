@@ -2058,7 +2058,7 @@ class StoredSweep(
         evals_count: int = 6,
         subsys_update_info: dict[str, list[QuantumSystem]] | None = None,
         autorun: bool = settings.AUTORUN_SWEEP,
-        num_cpus: int | None = None,
+        num_cpus: int | str | None = None,
     ) -> ParameterSweep:
         """Create a new :class:`ParameterSweep` reusing this sweep's :class:`HilbertSpace`.
 
@@ -2078,7 +2078,9 @@ class StoredSweep(
             if ``True``, immediately run the sweep upon construction
             (default: ``settings.AUTORUN_SWEEP``)
         num_cpus:
-            number of CPU cores to use; defaults to ``settings.NUM_CPUS``
+            number of CPU cores to use, or ``"auto"`` to let scqubits choose
+            from the workload (see :func:`~scqubits.recommend_parallelization`);
+            defaults to ``settings.NUM_CPUS``.
         """
         return ParameterSweep(
             self.hilbertspace,

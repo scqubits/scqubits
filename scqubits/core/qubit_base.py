@@ -929,7 +929,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         transitions_tuple: TransitionsTuple = ((0, 1),),
         levels_tuple: LevelsTuple | None = None,
         point_count: int = 50,
-        num_cpus: int | None = None,
+        num_cpus: int | str | None = None,
     ) -> tuple[ndarray, ndarray]:
         """Compute eigenenergies and dispersion for the requested transitions or levels.
 
@@ -953,8 +953,11 @@ class QubitBaseClass(QuantumSystem, ABC):
             number of points scanned for the dispersion parameter for
             determining min and max values of transition energies (default: 50)
         num_cpus:
-            number of cores to be used for computation
-            (default: settings.NUM_CPUS)
+            number of cores to use for computation, or ``"auto"`` to let
+            scqubits choose the core count (and a per-worker BLAS-thread cap)
+            from the workload via :func:`~scqubits.recommend_parallelization`.
+            With ``settings.AUTO_PARALLEL = True`` an unspecified ``num_cpus`` is
+            chosen the same way (default: ``settings.NUM_CPUS``).
 
         Returns
         -------
@@ -1014,7 +1017,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         transitions: Transition | TransitionsTuple = (0, 1),
         levels: int | LevelsTuple | None = None,
         point_count: int = 50,
-        num_cpus: int | None = None,
+        num_cpus: int | str | None = None,
     ) -> SpectrumData:
         """Calculate eigenvalues and dispersion for a range of parameter values.
 
@@ -1045,8 +1048,11 @@ class QubitBaseClass(QuantumSystem, ABC):
             number of points scanned for the dispersion parameter for determining min
             and max values of transition energies (default: 50)
         num_cpus:
-            number of cores to be used for computation
-            (default: settings.NUM_CPUS)
+            number of cores to use for computation, or ``"auto"`` to let
+            scqubits choose the core count (and a per-worker BLAS-thread cap)
+            from the workload via :func:`~scqubits.recommend_parallelization`.
+            With ``settings.AUTO_PARALLEL = True`` an unspecified ``num_cpus`` is
+            chosen the same way (default: ``settings.NUM_CPUS``).
         """
         if levels is not None:
             if isinstance(levels, int):
@@ -1108,7 +1114,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         param_name: str,
         param_vals: ndarray,
         evals_count: int = 6,
-        num_cpus: int | None = None,
+        num_cpus: int | str | None = None,
     ) -> SpectrumData:
         """Calculate matrix elements for a range of parameter values.
 
@@ -1127,10 +1133,12 @@ class QubitBaseClass(QuantumSystem, ABC):
             number of desired eigenvalues (sorted from smallest to largest)
             (default: 6)
         num_cpus:
-            number of cores to be used for computation
-            (default: settings.NUM_CPUS)
+            number of cores to use for computation, or ``"auto"`` to let
+            scqubits choose the core count (and a per-worker BLAS-thread cap)
+            from the workload via :func:`~scqubits.recommend_parallelization`.
+            With ``settings.AUTO_PARALLEL = True`` an unspecified ``num_cpus`` is
+            chosen the same way (default: ``settings.NUM_CPUS``).
         """
-        num_cpus = num_cpus or settings.NUM_CPUS
         spectrumdata = self.get_spectrum_vs_paramvals(
             param_name,
             param_vals,
@@ -1163,7 +1171,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         param_vals: ndarray,
         evals_count: int = 6,
         subtract_ground: bool = False,
-        num_cpus: int | None = None,
+        num_cpus: int | str | None = None,
         **kwargs,
     ) -> tuple[Figure, Axes]:
         """Plot a set of eigenvalues as a function of one parameter.
@@ -1184,12 +1192,14 @@ class QubitBaseClass(QuantumSystem, ABC):
             whether to subtract ground state energy from all eigenvalues
             (default: False)
         num_cpus:
-            number of cores to be used for computation
-            (default: settings.NUM_CPUS)
+            number of cores to use for computation, or ``"auto"`` to let
+            scqubits choose the core count (and a per-worker BLAS-thread cap)
+            from the workload via :func:`~scqubits.recommend_parallelization`.
+            With ``settings.AUTO_PARALLEL = True`` an unspecified ``num_cpus`` is
+            chosen the same way (default: ``settings.NUM_CPUS``).
         **kwargs:
             standard plotting option (see separate documentation)
         """
-        num_cpus = num_cpus or settings.NUM_CPUS
         specdata = self.get_spectrum_vs_paramvals(
             param_name,
             param_vals,
@@ -1209,7 +1219,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         transitions: Transition | TransitionsTuple = (0, 1),
         levels: int | LevelsTuple | None = None,
         point_count: int = 50,
-        num_cpus: int | None = None,
+        num_cpus: int | str | None = None,
         **kwargs,
     ) -> tuple[Figure, Axes]:
         """Plot the charge or flux dispersion of transition energies.
@@ -1238,8 +1248,11 @@ class QubitBaseClass(QuantumSystem, ABC):
             number of points scanned for the dispersion parameter for determining min
             and max values of transition energies (default: 50)
         num_cpus:
-            number of cores to be used for computation
-            (default: settings.NUM_CPUS)
+            number of cores to use for computation, or ``"auto"`` to let
+            scqubits choose the core count (and a per-worker BLAS-thread cap)
+            from the workload via :func:`~scqubits.recommend_parallelization`.
+            With ``settings.AUTO_PARALLEL = True`` an unspecified ``num_cpus`` is
+            chosen the same way (default: ``settings.NUM_CPUS``).
         **kwargs:
             standard plotting option (see separate documentation)
         """
@@ -1339,7 +1352,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         param_vals: ndarray,
         select_elems: int | list[tuple[int, int]] = 4,
         mode: str = "abs",
-        num_cpus: int | None = None,
+        num_cpus: int | str | None = None,
         **kwargs,
     ) -> tuple[Figure, Axes]:
         """Plot matrix elements of ``operator`` as a function of one parameter.
@@ -1363,12 +1376,14 @@ class QubitBaseClass(QuantumSystem, ABC):
             key from :data:`constants.MODE_FUNC_DICT`, e.g., ``'abs'`` for absolute
             value (default: ``'abs'``)
         num_cpus:
-            number of cores to be used for computation
-            (default: settings.NUM_CPUS)
+            number of cores to use for computation, or ``"auto"`` to let
+            scqubits choose the core count (and a per-worker BLAS-thread cap)
+            from the workload via :func:`~scqubits.recommend_parallelization`.
+            With ``settings.AUTO_PARALLEL = True`` an unspecified ``num_cpus`` is
+            chosen the same way (default: ``settings.NUM_CPUS``).
         **kwargs:
             standard plotting option (see separate documentation)
         """
-        num_cpus = num_cpus or settings.NUM_CPUS
         if isinstance(select_elems, int):
             evals_count = select_elems
         else:
