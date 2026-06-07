@@ -241,19 +241,15 @@ class _MapInstrument:
 
 
 def _cleanup_pool() -> None:
-    """Terminate, join, and forget any global pool so the next config spawns fresh.
+    """Shut down and forget any cached global pool so the next config spawns fresh.
 
-    pathos caches pools; ``clear()`` removes the cached server and reaps its
-    workers, which is what stops leftover processes from contaminating later
-    timings. For true isolation use ``--isolate`` (a fresh subprocess per config).
+    Delegates to the library's own teardown (:func:`cpu_switch._shutdown_pool`), so
+    the benchmark stays correct whatever pool backend ``settings.POOL`` holds, and
+    leftover workers don't contaminate later timings. For true isolation use
+    ``--isolate`` (a fresh subprocess per config).
     """
-    pool = settings.POOL
-    if pool is not None:
-        for method_name in ("terminate", "join", "clear", "close"):
-            try:
-                getattr(pool, method_name)()
-            except Exception:
-                pass
+    if settings.POOL is not None:
+        cpu_switch._shutdown_pool(settings.POOL)
     settings.POOL = None
 
 
