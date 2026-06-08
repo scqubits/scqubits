@@ -348,11 +348,52 @@ def _recommend_calibrated(
             "BLAS uses all {} cores".format(total_points, dimension, cores),
         )
 
-    num_cpus = min(cores, total_points, max(2, total_points // _POINTS_PER_WORKER))
     overhead = calibration.overhead_s
-    startup = getattr(calibration, "pool_startup_s", 0.0)
-    # Per-point gain from adding workers, and the total it must accumulate to repay
-    # the one-time pool startup (the spawn re-import paid once per sweep).
+    startup_base = getattr(calibration, "pool_startup_base_s", 0.0)
+    startup_per_worker = getattr(calibration, "pool_startup_per_worker_s", 0.0)
+    if startup_base == 0.0 and startup_per_worker == 0.0:
+        # Older calibration without the startup-vs-workers fit: flat fallback.
+        startup_base = getattr(calibration, "pool_startup_s", 0.0)
+
+    def _startup(num_workers: int) -> float:
+        # Pool startup grows with the worker count under spawn (each re-imports).
+        return max(0.0, startup_base + startup_per_worker * num_workers)
+
+    light_per_point = is_sparse or dimension < _MEDIUM_DIM
+
+    if light_per_point:
+        # Each worker uses one BLAS thread, so distributing points across workers is
+        # ~linear speedup. Startup grows with the worker count, so choose the count
+        # that minimizes predicted wall time rather than parallelizing maximally.
+        serial_time = total_points * cost
+        best_n, best_time = 1, serial_time
+        for num_workers in range(2, min(cores, total_points) + 1):
+            predicted = _startup(num_workers) + total_points * (
+                cost / num_workers + overhead
+            )
+            if predicted < best_time:
+                best_n, best_time = num_workers, predicted
+        if best_n == 1:
+            return ParallelConfig(
+                1,
+                None,
+                "measured: {} points x {:.4f}s/point never beats serial once pool "
+                "startup ({:.3f}s + {:.3f}s/worker) is paid: serial".format(
+                    total_points, cost, startup_base, startup_per_worker
+                ),
+            )
+        reason = (
+            "measured: {} points x {:.4f}s/point -> {} workers x 1 BLAS thread "
+            "(predicted {:.2f}s vs {:.2f}s serial; startup {:.2f}s)".format(
+                total_points, cost, best_n, best_time, serial_time, _startup(best_n)
+            )
+        )
+        return ParallelConfig(best_n, 1, reason)
+
+    # Dense per-point: parallel workers split the BLAS pool, so speedup is weak. Keep
+    # the points-based worker count but charge the worker-count-scaled startup.
+    num_cpus = min(cores, total_points, max(2, total_points // _POINTS_PER_WORKER))
+    startup = _startup(num_cpus)
     per_point_gain = cost * (1.0 - 1.0 / num_cpus) - overhead
     if per_point_gain <= 0 or total_points * per_point_gain <= startup:
         return ParallelConfig(
@@ -363,13 +404,10 @@ def _recommend_calibrated(
                 total_points, max(0.0, per_point_gain), startup
             ),
         )
-
-    light_per_point = is_sparse or dimension < _MEDIUM_DIM
-    blas_threads = 1 if light_per_point else max(1, cores // num_cpus)
+    blas_threads = max(1, cores // num_cpus)
     while num_cpus > 1 and num_cpus * blas_threads > cores:
         num_cpus -= 1
-        if not light_per_point:
-            blas_threads = max(1, cores // num_cpus)
+        blas_threads = max(1, cores // num_cpus)
     reason = (
         "measured: {} points x per-point gain {:.4f}s repays the {:.3f}s startup "
         "-> {} workers x {} BLAS thread(s) (<= {} cores)".format(

@@ -83,7 +83,14 @@ class MachineCalibration:
     pool_startup_s:
         measured one-time cost in seconds of starting the worker pool for a sweep
         (dominated by the ``spawn`` re-import on macOS/Windows); must be amortized
-        before parallelism pays off.
+        before parallelism pays off. Measured at the full core count; for a
+        worker-count-aware estimate use the base/per-worker fit below.
+    pool_startup_base_s:
+        fixed part of the pool-startup cost (seconds), independent of worker count.
+    pool_startup_per_worker_s:
+        marginal pool-startup cost (seconds) added per worker. Under ``spawn`` each
+        worker re-imports, so startup grows with the worker count; the heuristic
+        estimates it as ``pool_startup_base_s + pool_startup_per_worker_s * n``.
     cost_samples:
         list of ``{"dimension", "is_sparse", "seconds_per_point"}`` entries sampling
         the per-point diagonalization cost.
@@ -100,6 +107,8 @@ class MachineCalibration:
     cores: int
     overhead_s: float
     pool_startup_s: float = 0.0
+    pool_startup_base_s: float = 0.0
+    pool_startup_per_worker_s: float = 0.0
     cost_samples: list[dict[str, Any]] = field(default_factory=list)
     platform: str = ""
     blas_backend: str = ""
@@ -371,6 +380,19 @@ def calibrate_parallelization(
         0.0, (tiny_par["warm_s"] - tiny_ser["warm_s"] / workers) / overhead_points
     )
     pool_startup_s = max(0.0, tiny_par["cold_s"] - tiny_par["warm_s"])
+    # Pool startup grows with the worker count under spawn (each worker re-imports),
+    # so a flat figure overcharges small pools. Measure a second, small-worker point
+    # and fit startup(n) = base + per_worker * n so the heuristic can price the cost
+    # of whatever worker count it is actually considering.
+    low_workers = min(2, workers)
+    if low_workers < workers:
+        tiny_lo = _measure("tiny", low_workers, overhead_points, blas=1)
+        startup_lo = max(0.0, tiny_lo["cold_s"] - tiny_lo["warm_s"])
+        per_worker = max(0.0, (pool_startup_s - startup_lo) / (workers - low_workers))
+        startup_base = max(0.0, startup_lo - per_worker * low_workers)
+    else:  # single-core machine: no parallelism to model
+        per_worker = 0.0
+        startup_base = pool_startup_s
 
     cost_samples: list[dict[str, Any]] = []
     cost_points = 24
@@ -404,6 +426,8 @@ def calibrate_parallelization(
         cores=cores,
         overhead_s=overhead_s,
         pool_startup_s=pool_startup_s,
+        pool_startup_base_s=startup_base,
+        pool_startup_per_worker_s=per_worker,
         cost_samples=cost_samples,
         platform=platform.platform(),
         blas_backend=_blas_backend(),
@@ -413,9 +437,9 @@ def calibrate_parallelization(
 
     if explain:
         print(
-            "  per-task overhead: {:.4f} s  pool startup: {:.3f} s  "
+            "  per-task overhead: {:.4f} s  pool startup: {:.3f}s + {:.3f}s/worker  "
             "(cores={}, BLAS={})".format(
-                overhead_s, pool_startup_s, cores, calibration.blas_backend
+                overhead_s, startup_base, per_worker, cores, calibration.blas_backend
             )
         )
 
