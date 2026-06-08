@@ -44,8 +44,8 @@ if _HAS_IPYVUETIFY:
 
     for name in gui_icon_filenames:
         full_path = os.path.join(path, name)
-        file = open(full_path, "rb")
-        image = file.read()
+        with open(full_path, "rb") as file:
+            image = file.read()
         image_base64 = base64.b64encode(image).decode("ascii")
         icons[name] = v.Img(src=f"data:image/png;base64,{image_base64}", width=50)
 
