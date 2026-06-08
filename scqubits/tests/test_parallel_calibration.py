@@ -118,6 +118,24 @@ class TestCalibrateOrchestration:
         for sample in cal.cost_samples:
             assert sample["seconds_per_point"] == pytest.approx(0.01, abs=1e-9)
 
+    def test_fits_startup_growth_with_worker_count(self, monkeypatch):
+        # cold pool startup grows with worker count: startup(n) = 0.5 + 0.1 * n.
+        monkeypatch.setattr(pc.os, "cpu_count", lambda: 8)
+
+        def fake_measure(profile, num_cpus, n_points, blas):
+            if profile == "tiny":
+                if num_cpus == 1:
+                    return {"warm_s": 0.10, "cold_s": 0.10}
+                warm = 0.04
+                return {"warm_s": warm, "cold_s": warm + 0.5 + 0.1 * num_cpus}
+            return {"warm_s": 0.24, "cold_s": 0.30}
+
+        monkeypatch.setattr(pc, "_measure", fake_measure)
+        cal = calibrate_parallelization(persist=False, explain=False)
+        # two-point fit from startup(2)=0.7 and startup(8)=1.3 -> base 0.5, slope 0.1
+        assert cal.pool_startup_per_worker_s == pytest.approx(0.1, abs=1e-6)
+        assert cal.pool_startup_base_s == pytest.approx(0.5, abs=1e-6)
+
 
 class TestHeuristicConsumesCalibration:
     def test_measured_model_drives_break_even(self, monkeypatch, tmp_path):
@@ -136,6 +154,53 @@ class TestHeuristicConsumesCalibration:
         assert few.num_cpus == 1
         assert many.num_cpus > 1
         assert "measured" in many.reason
+
+    def test_scaled_startup_picks_moderate_worker_count(self, monkeypatch, tmp_path):
+        # startup grows with workers (2.0s + 0.4s/worker): for many cheap *light*
+        # points the heuristic should pick a moderate count, not all cores, because
+        # extra workers cost more startup than they save.
+        cal = MachineCalibration(
+            cores=20,
+            overhead_s=0.001,
+            pool_startup_s=10.0,
+            pool_startup_base_s=2.0,
+            pool_startup_per_worker_s=0.4,
+            cost_samples=[
+                {"dimension": 216, "is_sparse": False, "seconds_per_point": 0.03}
+            ],
+        )
+        path = str(tmp_path / "cal.json")
+        with open(path, "w") as handle:
+            json.dump(pc.asdict(cal), handle)
+        monkeypatch.setattr(settings, "PARALLEL_CALIBRATION_PATH", path)
+        pt._calibration_cache.clear()
+        cfg = scq.recommend_parallelization(
+            dimension=216, num_points=192, evals_count=20, cores=20
+        )
+        assert 1 < cfg.num_cpus < 20  # moderate, not max and not serial
+        assert cfg.blas_threads == 1
+
+    def test_cheap_startup_uses_all_cores_for_light_work(self, monkeypatch, tmp_path):
+        # fork-like: startup ~0.1s flat -> light many-point work should use all cores.
+        cal = MachineCalibration(
+            cores=8,
+            overhead_s=0.0005,
+            pool_startup_s=0.1,
+            pool_startup_base_s=0.1,
+            pool_startup_per_worker_s=0.0,
+            cost_samples=[
+                {"dimension": 216, "is_sparse": False, "seconds_per_point": 0.05}
+            ],
+        )
+        path = str(tmp_path / "cal.json")
+        with open(path, "w") as handle:
+            json.dump(pc.asdict(cal), handle)
+        monkeypatch.setattr(settings, "PARALLEL_CALIBRATION_PATH", path)
+        pt._calibration_cache.clear()
+        cfg = scq.recommend_parallelization(
+            dimension=216, num_points=400, evals_count=20, cores=8
+        )
+        assert cfg.num_cpus == 8
 
     def test_falls_back_to_tiers_without_calibration(self, monkeypatch, tmp_path):
         # point at a non-existent calibration file -> static tier heuristic
