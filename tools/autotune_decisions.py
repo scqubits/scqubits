@@ -17,6 +17,8 @@ Before running, on each machine:
 Run:  python tools/autotune_decisions.py
 """
 
+import contextlib
+import io
 import os
 
 import numpy as np
@@ -93,23 +95,28 @@ def main():
     print("\ncorrectness check: num_cpus='auto' vs serial")
     hilbertspace, update = build_hilbertspace(3, 11, 50)
     flux_vals = np.linspace(0.0, 0.4, 24)
-    serial = scq.ParameterSweep(
-        hilbertspace=hilbertspace,
-        paramvals_by_name={"flux": flux_vals},
-        update_hilbertspace=update,
-        evals_count=20,
-        num_cpus=1,
-    )
-    auto = scq.ParameterSweep(
-        hilbertspace=hilbertspace,
-        paramvals_by_name={"flux": flux_vals},
-        update_hilbertspace=update,
-        evals_count=20,
-        num_cpus="auto",
-    )
-    identical = np.allclose(
-        np.sort(serial["evals"][:].ravel()), np.sort(auto["evals"][:].ravel())
-    )
+    # The sweeps mutate the qubit flux, so scqubits emits a forced "parameters have
+    # been changed / spectrum data could be outdated" warning (and a spawn-guard
+    # notice) to stderr. They are expected here and only clutter the report, so run
+    # the comparison with stderr captured and print just the result.
+    with contextlib.redirect_stderr(io.StringIO()):
+        serial = scq.ParameterSweep(
+            hilbertspace=hilbertspace,
+            paramvals_by_name={"flux": flux_vals},
+            update_hilbertspace=update,
+            evals_count=20,
+            num_cpus=1,
+        )
+        auto = scq.ParameterSweep(
+            hilbertspace=hilbertspace,
+            paramvals_by_name={"flux": flux_vals},
+            update_hilbertspace=update,
+            evals_count=20,
+            num_cpus="auto",
+        )
+        identical = np.allclose(
+            np.sort(serial["evals"][:].ravel()), np.sort(auto["evals"][:].ravel())
+        )
     print("  spectra identical (auto == serial):", bool(identical))
 
 

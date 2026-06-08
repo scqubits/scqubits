@@ -1,0 +1,39 @@
+# Throwaway probe (eval branch only): collects Linux/fork autotuning data so we can
+# read calibration + decisions + timing from the Actions log via `gh run view --log`.
+# Not for merge.
+name: autotune-linux-probe
+
+on:
+  push:
+    branches: [test/autotune-eval]
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install scqubits
+        run: pip install ".[develop]"
+      - name: Machine info (cores, BLAS, start method)
+        run: |
+          echo "nproc=$(nproc)"
+          python - <<'PY'
+          import os, scqubits as scq
+          import scqubits.utils.cpu_switch as cs
+          print("cpu_count:", os.cpu_count())
+          print("start method:", cs._resolve_start_method())
+          print("MULTIPROC_BLAS_THREADS default:", scq.settings.MULTIPROC_BLAS_THREADS)
+          import numpy as np; np.show_config()
+          PY
+      - name: Calibrate (two-point startup fit)
+        run: |
+          rm -f ~/.scqubits/parallel_calibration.json
+          python -c "import scqubits as scq; scq.calibrate_parallelization()"
+      - name: Decisions
+        run: python tools/autotune_decisions.py
+      - name: Timing (quick)
+        run: python tools/autotune_timing.py --quick
