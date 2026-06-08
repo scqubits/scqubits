@@ -97,13 +97,6 @@ def measure(spec, num_cpus):
     return time.perf_counter() - start
 
 
-# Child mode: measure one config and print a machine-readable result line.
-if len(sys.argv) >= 4 and sys.argv[1] == "--measure":
-    dt = measure(workloads(QUICK)[sys.argv[2]], sys.argv[3])
-    print("__R__" + json.dumps({"dt": dt}))
-    sys.exit(0)
-
-
 def run_child(wl, num_cpus, timeout=300):
     """Run one measurement in an isolated process group; return its wall time or inf."""
     args = [sys.executable, __file__, "--measure", wl, num_cpus] + (
@@ -165,4 +158,14 @@ def main():
 
 
 if __name__ == "__main__":
+    # The --measure dispatch MUST live under this guard. A measurement subprocess
+    # creates a worker Pool; under the 'spawn' start method (macOS/Windows) each
+    # worker re-imports this module *with the parent's sys.argv*. If the dispatch
+    # ran at module level it would re-run measure() in every worker -> each spawns
+    # its own Pool -> recursive pool creation (a fork bomb). Importing as
+    # __mp_main__ skips this block, so workers only pick up the function defs.
+    if len(sys.argv) >= 4 and sys.argv[1] == "--measure":
+        dt = measure(workloads(QUICK)[sys.argv[2]], sys.argv[3])
+        print("__R__" + json.dumps({"dt": dt}))
+        sys.exit(0)
     main()
