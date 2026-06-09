@@ -52,6 +52,20 @@ def _make_hilbertspace():
     return hs, update
 
 
+@pytest.fixture(autouse=True)
+def _isolate_calibration(monkeypatch, tmp_path):
+    """Point the calibration at a nonexistent file so the auto-config path uses the
+    pure tier heuristic deterministically, regardless of any real calibration written
+    on the developer's machine (otherwise auto-config == pure-heuristic comparisons
+    are machine-dependent and flaky)."""
+    monkeypatch.setattr(
+        settings, "PARALLEL_CALIBRATION_PATH", str(tmp_path / "no-calibration.json")
+    )
+    import scqubits.utils.parallel_tuning as _pt
+
+    _pt._calibration_cache.clear()
+
+
 class TestRecommendHeuristic:
     """The pure heuristic core, with cores injected for determinism."""
 
@@ -230,3 +244,78 @@ class TestAutoHookBeforeRun:
         )
         assert sweep._num_cpus == 1
         assert sweep._blas_threads is None
+
+
+class TestNumCpusValidation:
+    """An explicit num_cpus is validated at the boundary, not silently coerced."""
+
+    def test_resolve_explicit_rejects_bool(self):
+        from scqubits.utils.cpu_switch import _resolve_explicit_num_cpus
+
+        with pytest.raises(TypeError):
+            _resolve_explicit_num_cpus(True)
+
+    def test_resolve_explicit_rejects_negative(self):
+        from scqubits.utils.cpu_switch import _resolve_explicit_num_cpus
+
+        with pytest.raises(ValueError):
+            _resolve_explicit_num_cpus(-2)
+
+    def test_resolve_explicit_rejects_zero(self):
+        from scqubits.utils.cpu_switch import _resolve_explicit_num_cpus
+
+        with pytest.raises(ValueError):
+            _resolve_explicit_num_cpus(0)
+
+    def test_resolve_explicit_rejects_typo_sentinel(self):
+        from scqubits.utils.cpu_switch import _resolve_explicit_num_cpus
+
+        with pytest.raises(ValueError):
+            _resolve_explicit_num_cpus("Auto")
+
+    def test_resolve_explicit_none_uses_global_default(self, monkeypatch):
+        from scqubits.utils.cpu_switch import _resolve_explicit_num_cpus
+
+        monkeypatch.setattr(settings, "NUM_CPUS", 3)
+        assert _resolve_explicit_num_cpus(None) == 3
+
+    def test_resolve_explicit_passes_positive_int(self):
+        from scqubits.utils.cpu_switch import _resolve_explicit_num_cpus
+
+        assert _resolve_explicit_num_cpus(4) == 4
+
+    def test_get_map_method_rejects_zero(self):
+        from scqubits.utils.cpu_switch import get_map_method
+
+        with pytest.raises(ValueError):
+            get_map_method(0)
+
+    def test_sweep_rejects_bool_num_cpus(self):
+        hs, update = _make_hilbertspace()
+        with pytest.raises(TypeError):
+            scq.ParameterSweep(
+                hilbertspace=hs,
+                paramvals_by_name={"flux": np.linspace(0.0, 0.5, 6)},
+                update_hilbertspace=update,
+                evals_count=20,
+                num_cpus=True,
+                autorun=False,
+            )
+
+    def test_sweep_rejects_typo_sentinel(self):
+        hs, update = _make_hilbertspace()
+        with pytest.raises(ValueError):
+            scq.ParameterSweep(
+                hilbertspace=hs,
+                paramvals_by_name={"flux": np.linspace(0.0, 0.5, 6)},
+                update_hilbertspace=update,
+                evals_count=20,
+                num_cpus="Auto",
+                autorun=False,
+            )
+
+    def test_recommend_rejects_nonpositive_dimension(self):
+        with pytest.raises(ValueError):
+            recommend_parallelization(dimension=-1, num_points=100)
+        with pytest.raises(ValueError):
+            recommend_parallelization(dimension=216, num_points=0)

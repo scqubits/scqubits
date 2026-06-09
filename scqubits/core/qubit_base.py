@@ -51,7 +51,7 @@ from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import DataStore, SpectrumData
 from scqubits.settings import matplotlib_settings
-from scqubits.utils.cpu_switch import get_map_method
+from scqubits.utils.cpu_switch import _resolve_explicit_num_cpus, get_map_method
 from scqubits.utils.misc import process_which
 from scqubits.utils.spectrum_utils import (
     get_matrixelement_table,
@@ -855,11 +855,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             num_cpus = auto.num_cpus
             blas_threads = auto.blas_threads
         else:
-            num_cpus = (
-                num_cpus
-                if isinstance(num_cpus, int) and num_cpus
-                else settings.NUM_CPUS
-            )
+            num_cpus = _resolve_explicit_num_cpus(num_cpus)
             blas_threads = None
         previous_paramval = getattr(self, param_name)
         tqdm_disable = settings.PROGRESSBAR_DISABLED

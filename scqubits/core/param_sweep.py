@@ -1265,11 +1265,7 @@ class ParameterSweep(
             num_cpus = auto.num_cpus
             blas_threads = auto.blas_threads
         else:
-            num_cpus = (
-                num_cpus
-                if isinstance(num_cpus, int) and num_cpus
-                else settings.NUM_CPUS
-            )
+            num_cpus = cpu_switch._resolve_explicit_num_cpus(num_cpus)
             blas_threads = None
         self._parameters: Parameters = Parameters(paramvals_by_name)
         self._hilbertspace = hilbertspace

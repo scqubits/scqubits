@@ -540,6 +540,11 @@ def recommend_parallelization(
             "recommend_parallelization needs a workload: pass a HilbertSpace/qubit/"
             "ParameterSweep, or explicit dimension and num_points."
         )
+    if int(dimension) < 1 or int(num_points) < 1:
+        raise ValueError(
+            "recommend_parallelization needs positive dimension and num_points; got "
+            "dimension={!r}, num_points={!r}.".format(dimension, num_points)
+        )
     if evals_count is None:
         evals_count = 6
 
