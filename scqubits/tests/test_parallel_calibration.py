@@ -231,3 +231,147 @@ class TestMeasureSubprocess:
         result = pc._measure("tiny", 1, 8, blas=1)
         assert "warm_s" in result and "cold_s" in result
         assert result["warm_s"] >= 0.0
+
+
+class TestCostInterpolation:
+    """estimated_cost_per_point interpolates instead of jumping at the midpoint."""
+
+    def test_interpolates_strictly_between_samples(self):
+        cal = _make_calibration()  # dense: dim 216 -> 0.30, dim 1296 -> 0.05
+        mid = cal.estimated_cost_per_point(540, False)
+        assert mid is not None
+        assert 0.05 < mid < 0.30
+
+    def test_no_discontinuity_at_old_nearest_neighbor_boundary(self):
+        # nearest-neighbor jumped 6x at the arithmetic midpoint (~756) of 216 and
+        # 1296; log-log interpolation is continuous there.
+        cal = _make_calibration()
+        lo = cal.estimated_cost_per_point(755, False)
+        hi = cal.estimated_cost_per_point(757, False)
+        assert lo is not None and hi is not None
+        assert abs(hi - lo) < 0.02
+
+    def test_endpoints_return_sampled_cost(self):
+        cal = _make_calibration()
+        assert cal.estimated_cost_per_point(216, False) == 0.30
+        assert cal.estimated_cost_per_point(1296, False) == 0.05
+
+    def test_zero_cost_sample_ignored(self):
+        cal = MachineCalibration(
+            cores=8,
+            overhead_s=0.001,
+            cost_samples=[
+                {"dimension": 216, "is_sparse": False, "seconds_per_point": 0.0}
+            ],
+        )
+        # a 0 s/point sample would imply infinite speedup; it is skipped -> None
+        assert cal.estimated_cost_per_point(216, False) is None
+
+
+class TestValueValidation:
+    """Corrupt calibration values fail fast (and the loader maps that to None)."""
+
+    def test_rejects_zero_cores(self):
+        with pytest.raises(ValueError):
+            MachineCalibration(cores=0, overhead_s=0.001)
+
+    def test_rejects_negative_overhead(self):
+        with pytest.raises(ValueError):
+            MachineCalibration(cores=8, overhead_s=-0.1)
+
+    def test_rejects_negative_cost(self):
+        with pytest.raises(ValueError):
+            MachineCalibration(
+                cores=8,
+                overhead_s=0.001,
+                cost_samples=[
+                    {"dimension": 216, "is_sparse": False, "seconds_per_point": -1.0}
+                ],
+            )
+
+    def test_rejects_cost_sample_missing_key(self):
+        with pytest.raises(ValueError):
+            MachineCalibration(
+                cores=8,
+                overhead_s=0.001,
+                cost_samples=[{"dimension": 216, "is_sparse": False}],
+            )
+
+    def test_load_corrupt_values_returns_none(self, tmp_path):
+        path = tmp_path / "bad.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "cores": 8,
+                    "overhead_s": 0.001,
+                    "cost_samples": [
+                        {
+                            "dimension": 216,
+                            "is_sparse": False,
+                            "seconds_per_point": -5,
+                        }
+                    ],
+                }
+            )
+        )
+        assert load_calibration(str(path)) is None
+
+    def test_load_wrong_type_returns_none(self, tmp_path):
+        path = tmp_path / "bad.json"
+        path.write_text(json.dumps({"cores": "eight", "overhead_s": 0.001}))
+        assert load_calibration(str(path)) is None
+
+
+class TestStartMethodGuard:
+    """A calibration from a different process start method is not reused."""
+
+    def test_mismatched_start_method_ignored(self, tmp_path):
+        cal_dict = pc.asdict(_make_calibration())
+        cal_dict["start_method"] = "not-this-machines-method"
+        path = tmp_path / "cal.json"
+        path.write_text(json.dumps(cal_dict))
+        with pytest.warns(RuntimeWarning, match="start method"):
+            assert load_calibration(str(path)) is None
+
+    def test_empty_start_method_accepted(self, tmp_path):
+        # files predating the field (start_method == "") load fine
+        cal_dict = pc.asdict(_make_calibration())
+        cal_dict["start_method"] = ""
+        path = tmp_path / "cal.json"
+        path.write_text(json.dumps(cal_dict))
+        assert load_calibration(str(path)) is not None
+
+    def test_matching_start_method_accepted(self, tmp_path):
+        from scqubits.utils.cpu_switch import _resolve_start_method
+
+        cal_dict = pc.asdict(_make_calibration())
+        cal_dict["start_method"] = _resolve_start_method()
+        path = tmp_path / "cal.json"
+        path.write_text(json.dumps(cal_dict))
+        assert load_calibration(str(path)) is not None
+
+
+class TestStartupFit:
+    """The two-point pool-startup fit handles noisy/inverted measurements."""
+
+    def test_normal_fit(self):
+        base, per = pc._fit_pool_startup(
+            pool_startup_s=1.3, startup_lo=0.7, workers=8, low_workers=2
+        )
+        assert per == pytest.approx(0.1, abs=1e-9)
+        assert base == pytest.approx(0.5, abs=1e-9)
+
+    def test_inverted_fit_warns_and_flattens(self):
+        with pytest.warns(RuntimeWarning, match="throttling"):
+            base, per = pc._fit_pool_startup(
+                pool_startup_s=0.9, startup_lo=1.2, workers=8, low_workers=2
+            )
+        assert per == 0.0
+        assert base == pytest.approx(1.2, abs=1e-9)
+
+    def test_single_core_is_flat(self):
+        base, per = pc._fit_pool_startup(
+            pool_startup_s=0.5, startup_lo=0.5, workers=1, low_workers=1
+        )
+        assert per == 0.0
+        assert base == 0.5

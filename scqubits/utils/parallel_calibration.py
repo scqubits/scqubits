@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import platform
 import subprocess
@@ -48,6 +49,8 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Optional
 
 import scqubits.settings as settings
+
+from scqubits.utils.cpu_switch import _resolve_start_method
 
 # Environment variables the common BLAS/OpenMP backends read at numpy import.
 _BLAS_ENV_VARS = (
@@ -98,6 +101,10 @@ class MachineCalibration:
         platform string of the calibrated machine.
     blas_backend:
         short description of the BLAS backend seen during calibration.
+    start_method:
+        process start method (``"fork"``/``"spawn"``) in effect at calibration time.
+        The pool-startup model is start-method specific, so a calibration is only
+        reused on a machine whose start method matches.
     scqubits_version:
         scqubits version at calibration time.
     timestamp:
@@ -112,16 +119,78 @@ class MachineCalibration:
     cost_samples: list[dict[str, Any]] = field(default_factory=list)
     platform: str = ""
     blas_backend: str = ""
+    start_method: str = ""
     scqubits_version: str = ""
     timestamp: str = ""
+
+    def __post_init__(self) -> None:
+        """Reject corrupt values so a malformed file/object fails fast (loader maps to ``None``)."""
+        if (
+            isinstance(self.cores, bool)
+            or not isinstance(self.cores, int)
+            or self.cores < 1
+        ):
+            raise ValueError(
+                "calibration cores must be a positive int, got {!r}".format(self.cores)
+            )
+        for name in (
+            "overhead_s",
+            "pool_startup_s",
+            "pool_startup_base_s",
+            "pool_startup_per_worker_s",
+        ):
+            value = getattr(self, name)
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+                or value < 0
+            ):
+                raise ValueError(
+                    "calibration {} must be a finite, non-negative number, "
+                    "got {!r}".format(name, value)
+                )
+        if not isinstance(self.cost_samples, list):
+            raise ValueError("calibration cost_samples must be a list")
+        required = {"dimension", "is_sparse", "seconds_per_point"}
+        for sample in self.cost_samples:
+            if not isinstance(sample, dict) or not required <= set(sample):
+                raise ValueError(
+                    "calibration cost_sample must be a dict with keys "
+                    "{}, got {!r}".format(sorted(required), sample)
+                )
+            dim = sample["dimension"]
+            spp = sample["seconds_per_point"]
+            if isinstance(dim, bool) or not isinstance(dim, int) or dim < 1:
+                raise ValueError(
+                    "calibration cost_sample dimension must be a positive int, "
+                    "got {!r}".format(dim)
+                )
+            if (
+                isinstance(spp, bool)
+                or not isinstance(spp, (int, float))
+                or not math.isfinite(spp)
+                or spp < 0
+            ):
+                raise ValueError(
+                    "calibration cost_sample seconds_per_point must be finite and "
+                    "non-negative, got {!r}".format(spp)
+                )
 
     def estimated_cost_per_point(
         self, dimension: int, is_sparse: bool
     ) -> Optional[float]:
         """Return an estimated per-point cost (seconds) for a workload, or ``None``.
 
-        Uses the calibration sample of matching sparsity whose dimension is closest
-        to ``dimension`` (no extrapolation model -- a coarse but measured estimate).
+        Among the calibration samples of matching sparsity, interpolates the
+        per-point cost on a log-log scale between the two samples bracketing
+        ``dimension`` (diagonalization cost grows roughly as a power of the
+        dimension, so log-log interpolation tracks that better than picking the
+        nearest sample, which would jump discontinuously midway between samples).
+        Outside the sampled range -- but within a generous factor -- the nearest
+        endpoint is used; beyond that factor, returns ``None`` so the caller falls
+        back to the default tiered heuristic instead of extrapolating from an
+        unrelated sample.
 
         Parameters
         ----------
@@ -130,18 +199,32 @@ class MachineCalibration:
         is_sparse:
             whether the target workload diagonalizes sparsely.
         """
-        matching = [s for s in self.cost_samples if bool(s["is_sparse"]) == is_sparse]
-        if not matching:
+        points = sorted(
+            (int(s["dimension"]), float(s["seconds_per_point"]))
+            for s in self.cost_samples
+            if bool(s["is_sparse"]) == is_sparse and float(s["seconds_per_point"]) > 0
+        )
+        if not points:
             return None
-        dims = [int(s["dimension"]) for s in matching]
-        # Trust the measured cost only within a generous factor of the sampled
-        # dimension range; outside it (e.g. a much cheaper or much larger system),
-        # return None so the caller falls back to the default tiered heuristic rather
-        # than over/under-estimating from an unrelated sample.
-        if dimension < min(dims) / 4 or dimension > max(dims) * 4:
+        dims = [dim for dim, _ in points]
+        if dimension < dims[0] / 4 or dimension > dims[-1] * 4:
             return None
-        nearest = min(matching, key=lambda s: abs(int(s["dimension"]) - dimension))
-        return float(nearest["seconds_per_point"])
+        if dimension <= dims[0]:
+            return points[0][1]
+        if dimension >= dims[-1]:
+            return points[-1][1]
+        for (dim_lo, cost_lo), (dim_hi, cost_hi) in zip(points, points[1:]):
+            if dim_lo <= dimension <= dim_hi:
+                if dim_hi == dim_lo:
+                    return cost_lo
+                frac = (math.log(dimension) - math.log(dim_lo)) / (
+                    math.log(dim_hi) - math.log(dim_lo)
+                )
+                log_cost = math.log(cost_lo) + frac * (
+                    math.log(cost_hi) - math.log(cost_lo)
+                )
+                return math.exp(log_cost)
+        return points[-1][1]  # defensive; the loop covers the in-range case
 
 
 def default_calibration_path() -> str:
@@ -170,9 +253,27 @@ def load_calibration(path: Optional[str] = None) -> Optional[MachineCalibration]
     try:
         with open(path, encoding="utf-8") as handle:
             data = json.load(handle)
-        return MachineCalibration(**data)
+        calibration = MachineCalibration(**data)
     except (OSError, ValueError, TypeError):
         return None
+
+    # The pool-startup model is start-method specific (spawn re-imports per worker;
+    # fork does not), so a calibration measured under a different start method -- e.g.
+    # a Windows/macOS spawn file synced onto a Linux fork machine -- would misprice
+    # startup. Ignore it (the caller falls back to the tiered heuristic) rather than
+    # apply a model from the wrong process regime. Files predating this field
+    # (start_method == "") are accepted for backward compatibility.
+    current = _resolve_start_method()
+    if calibration.start_method and calibration.start_method != current:
+        warnings.warn(
+            "ignoring calibration in {}: it was measured with the {!r} process "
+            "start method but this machine uses {!r}. Re-run "
+            "scqubits.calibrate_parallelization() here to calibrate for this "
+            "machine.".format(path, calibration.start_method, current),
+            RuntimeWarning,
+        )
+        return None
+    return calibration
 
 
 def _save_calibration(calibration: MachineCalibration, path: str) -> None:
@@ -328,6 +429,51 @@ def _blas_backend() -> str:
     return "unknown"
 
 
+def _fit_pool_startup(
+    pool_startup_s: float, startup_lo: float, workers: int, low_workers: int
+) -> "tuple[float, float]":
+    """Fit ``startup(n) = base + per_worker * n`` from two pool-startup measurements.
+
+    Solves the line through the full-worker startup (``pool_startup_s`` at
+    ``workers``) and the low-worker startup (``startup_lo`` at ``low_workers``). A
+    transiently loaded or throttled machine can measure the low-worker pool as
+    *slower* than the full-worker pool, inverting the fit; that case is warned about
+    and the slope clamped to zero (flat startup), rather than modeling startup as
+    shrinking with worker count.
+
+    Parameters
+    ----------
+    pool_startup_s:
+        measured startup at ``workers`` workers (seconds).
+    startup_lo:
+        measured startup at ``low_workers`` workers (seconds).
+    workers:
+        full worker count of the first measurement.
+    low_workers:
+        worker count of the second, smaller measurement.
+
+    Returns
+    -------
+    ``(base, per_worker)`` for ``startup(n) = base + per_worker * n``.
+    """
+    if low_workers >= workers:
+        return pool_startup_s, 0.0
+    per_worker_raw = (pool_startup_s - startup_lo) / (workers - low_workers)
+    if per_worker_raw < 0:
+        warnings.warn(
+            "calibration: pool startup at {} workers ({:.3f}s) exceeded startup at "
+            "{} workers ({:.3f}s), likely transient CPU load or throttling. Modeling "
+            "pool startup as flat; re-run calibrate_parallelization() on an idle, "
+            "plugged-in machine for a worker-count-aware fit.".format(
+                low_workers, startup_lo, workers, pool_startup_s
+            ),
+            RuntimeWarning,
+        )
+    per_worker = max(0.0, per_worker_raw)
+    base = max(0.0, startup_lo - per_worker * low_workers)
+    return base, per_worker
+
+
 def calibrate_parallelization(
     *,
     persist: bool = True,
@@ -388,8 +534,9 @@ def calibrate_parallelization(
     if low_workers < workers:
         tiny_lo = _measure("tiny", low_workers, overhead_points, blas=1)
         startup_lo = max(0.0, tiny_lo["cold_s"] - tiny_lo["warm_s"])
-        per_worker = max(0.0, (pool_startup_s - startup_lo) / (workers - low_workers))
-        startup_base = max(0.0, startup_lo - per_worker * low_workers)
+        startup_base, per_worker = _fit_pool_startup(
+            pool_startup_s, startup_lo, workers, low_workers
+        )
     else:  # single-core machine: no parallelism to model
         per_worker = 0.0
         startup_base = pool_startup_s
@@ -431,6 +578,7 @@ def calibrate_parallelization(
         cost_samples=cost_samples,
         platform=platform.platform(),
         blas_backend=_blas_backend(),
+        start_method=_resolve_start_method(),
         scqubits_version=getattr(__import__("scqubits"), "__version__", ""),
         timestamp=timestamp or "",
     )
