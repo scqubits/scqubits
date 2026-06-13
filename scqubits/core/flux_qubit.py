@@ -959,6 +959,148 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         )
         return storage.WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
 
+    def restored_full_param_spec(
+        self,
+        spec_reduced: storage.SpectrumData,
+        get_eigenstates: bool,
+        mapping_periods: ndarray,
+        param_vals_mapped_reflected: ndarray,
+        is_reflected: ndarray,
+        param_vals_reduced: ndarray,
+        param_name: str,
+    ) -> Tuple[ndarray, Optional[ndarray]]:
+
+        param_vals_len = param_vals_mapped_reflected.shape[0]
+        dim = self.hilbertdim()
+        evals_count = spec_reduced.energy_table.shape[1]
+
+        energy_restore = np.zeros((param_vals_len, evals_count), dtype=float)
+        state_restore = np.zeros((param_vals_len, dim, evals_count), dtype=complex)
+
+        for idx, val in enumerate(param_vals_reduced):
+            mask = np.isclose(param_vals_mapped_reflected, val, atol=1e-8)
+            energy_restore[mask, :] = spec_reduced.energy_table[idx, :]
+            if get_eigenstates:
+                state_restore[mask, :, :] = spec_reduced.state_table[idx, :, :]
+
+        if not get_eigenstates:
+            return energy_restore, None
+
+        if param_name == "flux":
+            state_restore[is_reflected] = np.conj(state_restore[is_reflected])
+        elif param_name in ["ng1", "ng2"]:
+            n_dim = 2 * self.ncut + 1
+            state_restore_reshaped = state_restore.reshape((param_vals_len, n_dim, n_dim, evals_count))
+            
+            for idx, shift in enumerate(mapping_periods):
+                if shift != 0:
+                    if param_name == "ng1":
+                        if shift > 0:
+                            state_restore_reshaped[idx, shift:, :, :] = state_restore_reshaped[idx, :-shift, :, :]
+                            state_restore_reshaped[idx, :shift, :, :] = 0
+                        else:  # shift < 0
+                            state_restore_reshaped[idx, :shift, :, :] = state_restore_reshaped[idx, -shift:, :, :]
+                            state_restore_reshaped[idx, shift:, :, :] = 0
+                    elif param_name == "ng2":
+                        if shift > 0:
+                            state_restore_reshaped[idx, :, shift:, :] = state_restore_reshaped[idx, :, :-shift, :]
+                            state_restore_reshaped[idx, :, :shift, :] = 0
+                        else:  # shift < 0
+                            state_restore_reshaped[idx, :, :shift, :] = state_restore_reshaped[idx, :, -shift:, :]
+                            state_restore_reshaped[idx, :, shift:, :] = 0
+
+            state_restore = state_restore_reshaped.reshape((param_vals_len, dim, evals_count))
+
+        return energy_restore, state_restore
+
+    def get_spectrum_vs_paramvals(
+        self,
+        param_name: str,
+        param_vals: ndarray,
+        evals_count: int = 6,
+        subtract_ground: bool = False,
+        get_eigenstates: bool = False,
+        filename: str = None,
+        num_cpus: Optional[int] = None,
+    ) -> storage.SpectrumData:
+        """Calculates eigenvalues/eigenstates for a varying system parameter, given an
+        array of parameter values. Returns a :class:`SpectrumData` object with
+        `energy_table[n]` containing eigenvalues calculated for parameter value
+        `param_vals[n]`.
+
+        Parameters
+        ----------
+        param_name:
+            name of parameter to be varied
+        param_vals:
+            parameter values to be plugged in
+        evals_count:
+            number of desired eigenvalues (sorted from smallest to largest)
+            (default value = 6)
+        subtract_ground:
+            if True, eigenvalues are returned relative to the ground state eigenvalue
+            (default value = False)
+        get_eigenstates:
+            return eigenstates along with eigenvalues (default value = False)
+        filename:
+            file name if direct output to disk is wanted
+        num_cpus:
+            number of cores to be used for computation
+            (default value: settings.NUM_CPUS)
+        """
+        if param_name not in ["flux", "ng1", "ng2"]:
+            return super().get_spectrum_vs_paramvals(
+                param_name,
+                param_vals,
+                evals_count,
+                subtract_ground,
+                get_eigenstates,
+                filename,
+                num_cpus,
+            )
+
+        if param_name == "flux":
+            mapping_periods = np.round(param_vals + 0.5).astype(int)
+            param_vals_mapped = param_vals - mapping_periods
+            is_reflected = param_vals_mapped < 0
+            param_vals_mapped_reflected = np.round(np.abs(param_vals_mapped), decimals=8)
+            param_vals_reduced = np.unique(param_vals_mapped_reflected)
+        else:
+            mapping_periods = np.round(param_vals).astype(int)
+            param_vals_mapped = param_vals - mapping_periods
+            is_reflected = np.zeros_like(param_vals_mapped, dtype=bool)
+            param_vals_mapped_reflected = np.round(param_vals_mapped, decimals=8)
+            param_vals_reduced = np.unique(param_vals_mapped_reflected)
+
+        spec_reduced = super().get_spectrum_vs_paramvals(
+            param_name,
+            param_vals_reduced,
+            evals_count,
+            subtract_ground,
+            get_eigenstates,
+            num_cpus=num_cpus,
+            filename=None,
+        )
+        eigenvalue_table, eigenstate_table = self.restored_full_param_spec(
+            spec_reduced,
+            get_eigenstates,
+            mapping_periods,
+            param_vals_mapped_reflected,
+            is_reflected,
+            param_vals_reduced,
+            param_name,
+        )
+        specdata = storage.SpectrumData(
+            eigenvalue_table,
+            self.get_initdata(),
+            param_name,
+            param_vals,
+            state_table=eigenstate_table,
+        )
+        if filename:
+            specdata.filewrite(filename)
+        return specdata
+
     def plot_wavefunction(
         self,
         esys: Tuple[ndarray, ndarray] = None,
