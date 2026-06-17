@@ -47,9 +47,11 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import json
 import os
 import platform
 import statistics
+import subprocess
 import sys
 import time
 
@@ -239,14 +241,15 @@ class _MapInstrument:
 
 
 def _cleanup_pool() -> None:
-    """Terminate and forget any global pool so the next config spawns fresh."""
-    pool = settings.POOL
-    if pool is not None:
-        for method_name in ("terminate", "close", "clear"):
-            try:
-                getattr(pool, method_name)()
-            except Exception:
-                pass
+    """Shut down and forget any cached global pool so the next config spawns fresh.
+
+    Delegates to the library's own teardown (:func:`cpu_switch._shutdown_pool`), so
+    the benchmark stays correct whatever pool backend ``settings.POOL`` holds, and
+    leftover workers don't contaminate later timings. For true isolation use
+    ``--isolate`` (a fresh subprocess per config).
+    """
+    if settings.POOL is not None:
+        cpu_switch._shutdown_pool(settings.POOL)
     settings.POOL = None
 
 
@@ -282,6 +285,37 @@ def _time_callable(
         "pools_created": last_pools,
         "pool_spawn_s": last_spawn,
     }
+
+
+def _run_isolated(
+    scenario: str, num_cpus: int, args: argparse.Namespace
+) -> dict[str, Any]:
+    """Measure one config in a fresh subprocess (no leftover-pool contamination)."""
+    cmd = [
+        sys.executable,
+        os.path.abspath(__file__),
+        "--single",
+        scenario,
+        str(num_cpus),
+        "--profile",
+        PROFILE,
+        "--grid",
+        str(args.grid),
+        "--repeats",
+        str(args.repeats),
+        "--evals-count",
+        str(args.evals_count),
+    ]
+    if args.blas_threads is not None:
+        cmd += ["--blas-threads", str(args.blas_threads)]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    for line in proc.stdout.splitlines():
+        if line.startswith("__RESULT__"):
+            return json.loads(line[len("__RESULT__") :])
+    raise RuntimeError(
+        f"isolated run failed for {scenario}/{num_cpus} (exit {proc.returncode}).\n"
+        f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+    )
 
 
 def _runner_for(
@@ -444,9 +478,31 @@ def main(argv: list[str] | None = None) -> int:
         help="write results JSON (optional path; default under "
         "tools/benchmark_results/)",
     )
+    parser.add_argument(
+        "--isolate",
+        action="store_true",
+        help="run each (scenario, num_cpus) in a fresh subprocess "
+        "for contamination-free wall times",
+    )
+    parser.add_argument(
+        "--blas-threads",
+        type=int,
+        default=None,
+        help="cap BLAS/OpenMP threads per worker via "
+        "settings.MULTIPROC_BLAS_THREADS during num_cpus>1 runs",
+    )
+    parser.add_argument(
+        "--single",
+        nargs=2,
+        default=None,
+        metavar=("SCENARIO", "NUMCPUS"),
+        help=argparse.SUPPRESS,
+    )
     args = parser.parse_args(argv)
 
     PROFILE = args.profile
+    if args.blas_threads is not None:
+        settings.MULTIPROC_BLAS_THREADS = args.blas_threads
 
     try:
         import dill  # noqa: F401
@@ -461,6 +517,19 @@ def main(argv: list[str] | None = None) -> int:
         if hasattr(settings, flag):
             setattr(settings, flag, True)
 
+    # Internal single-config worker used by --isolate: measure one config in this
+    # fresh process and emit a single machine-readable result line.
+    if args.single is not None:
+        single_scenario, single_cpus = args.single[0], int(args.single[1])
+        with _MapInstrument() as instrument:
+            timing = _time_callable(
+                _runner_for(single_scenario, args, single_cpus),
+                args.repeats,
+                instrument,
+            )
+        print("__RESULT__" + json.dumps(timing))
+        return 0
+
     num_cpus_list = _parse_num_cpus(args.num_cpus, backend_available)
     scenarios = (
         ["sweep", "hspace", "qubit"] if args.scenario == "all" else [args.scenario]
@@ -472,7 +541,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     print(
         f"profile={PROFILE}  num_cpus={num_cpus_list}  grid={args.grid}  "
-        f"repeats={args.repeats}  evals_count={args.evals_count}"
+        f"repeats={args.repeats}  evals_count={args.evals_count}  "
+        f"blas_threads_per_worker={settings.MULTIPROC_BLAS_THREADS}"
     )
 
     if args.verify:
@@ -484,9 +554,12 @@ def main(argv: list[str] | None = None) -> int:
             rows: list[dict[str, Any]] = []
             baseline_median: float | None = None
             for num_cpus in num_cpus_list:
-                timing = _time_callable(
-                    _runner_for(scenario, args, num_cpus), args.repeats, instrument
-                )
+                if args.isolate:
+                    timing = _run_isolated(scenario, num_cpus, args)
+                else:
+                    timing = _time_callable(
+                        _runner_for(scenario, args, num_cpus), args.repeats, instrument
+                    )
                 if baseline_median is None:
                     baseline_median = timing["wall_median_s"]
                 speedup = baseline_median / timing["wall_median_s"]
@@ -531,8 +604,6 @@ def main(argv: list[str] | None = None) -> int:
             "results": all_results,
             "serialization": serialization,
         }
-        import json
-
         results_dir = os.path.join(os.path.dirname(__file__), "benchmark_results")
         os.makedirs(results_dir, exist_ok=True)
         if args.json == "<auto>":

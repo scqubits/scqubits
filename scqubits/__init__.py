@@ -96,6 +96,10 @@ from scqubits.utils.misc import about, cite
 # spectrum utils
 from scqubits.utils.spectrum_utils import identity_wrap
 
+# multiprocessing tuning
+from scqubits.utils.parallel_tuning import ParallelConfig, recommend_parallelization
+from scqubits.utils.parallel_calibration import calibrate_parallelization
+
 # Import of custom-circuit modules needs to take place after other imports to
 # avoid circular import issues. The isort markers below preserve this
 # ordering — do not remove.
