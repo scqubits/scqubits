@@ -777,7 +777,7 @@ class NoisySystem(ABC):
         Returns
         -------
         decoherence time in units of :math:`2\pi` (system units), or rate
-         in inverse units.
+        in inverse units.
         """
         common_noise_options = (
             {} if common_noise_options is None else common_noise_options
@@ -878,9 +878,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or
-            rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or
+        rate in inverse units.
         """
         common_noise_options = (
             {} if common_noise_options is None else common_noise_options
@@ -997,9 +996,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units),
-            or rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units),
+        or rate in inverse units.
         """
         # Sanity check
         if i == j or i < 0 or j < 0:
@@ -1073,9 +1071,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or
-            rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or
+        rate in inverse units.
         """
 
         if "tphi_1_over_f_flux" not in self.supported_noise_channels():
@@ -1120,9 +1117,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or
-            rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or
+        rate in inverse units.
         """
 
         if "tphi_1_over_f_cc" not in self.supported_noise_channels():
@@ -1167,9 +1163,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or rate
-            in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or rate
+        in inverse units.
         """
         if "tphi_1_over_f_ng" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -1237,9 +1232,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or rate
-            in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or rate
+        in inverse units.
         """
 
         if settings.T1_DEFAULT_WARNING:
@@ -1332,9 +1326,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or rate
-             in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or rate
+        in inverse units.
         """
         if "t1_capacitive" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -1433,8 +1426,7 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or rate in inverse units.
         """
         if "t1_charge_impedance" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -1523,9 +1515,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units),
-            or rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units),
+        or rate in inverse units.
         """
         if "t1_flux_bias_line" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -1610,9 +1601,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or rate
-            in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or rate
+        in inverse units.
         """
         if "t1_inductive" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -1729,8 +1719,7 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or rate in inverse units.
         """
         if "t1_quasiparticle_tunneling" not in self.supported_noise_channels():
             raise RuntimeError(

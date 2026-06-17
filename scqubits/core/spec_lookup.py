@@ -139,7 +139,8 @@ class SpectrumLookupMixin(MixinCompatible):
         - Dressed Energy (``ordering="DE"``): traverse the eigenstates
           in the order of their dressed energy, and find the corresponding bare
           state label by overlaps (default).
-        - Lexical (``ordering="LX"``): traverse the bare states in `lexical order`_,
+        - Lexical (``ordering="LX"``): traverse the bare states in
+          `lexical order <https://en.wikipedia.org/wiki/Lexicographic_order#Cartesian_products>`__,
           and perform the branch analysis generalized from Dumas et al. (2024).
         - Bare Energy (``ordering="BE"``): traverse the bare states in order
           of their energy before coupling and perform label assignment.
@@ -170,8 +171,6 @@ class SpectrumLookupMixin(MixinCompatible):
         indices organized by the bare indices. E.g. if the dimensions of the
         subsystems are D0, D1 and D2, the returned array will be ravelled from
         the shape ``(D0, D1, D2)``.
-
-        .. _lexical order: https://en.wikipedia.org/wiki/Lexicographic_order#Cartesian_products/
         """
         if ordering == "LX" or ordering == "BE":
             return self._branch_analysis(
@@ -1060,7 +1059,8 @@ class SpectrumLookupMixin(MixinCompatible):
         Two ordering methods for the labeling are provided:
 
         - Lexical (``ordering="LX"``): traverse the bare states in
-          `lexical order`_ and perform the branch analysis generalized from
+          `lexical order <https://en.wikipedia.org/wiki/Lexicographic_order#Cartesian_products>`__
+          and perform the branch analysis generalized from
           Dumas et al. (2024).
         - Bare Energy (``ordering="BE"``): traverse the bare states in order
           of their energy before coupling and perform label assignment.
@@ -1095,8 +1095,6 @@ class SpectrumLookupMixin(MixinCompatible):
         indices organized by the bare indices. E.g. if the dimensions of the
         subsystems are D0, D1 and D2, the returned array will be ravelled from
         the shape ``(D0, D1, D2)``.
-
-        .. _lexical order: https://en.wikipedia.org/wiki/Lexicographic_order#Cartesian_products/
         """
         dressed_indices = np.empty(shape=self._parameters.counts, dtype=object)
 

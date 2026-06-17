@@ -15,6 +15,7 @@ from __future__ import annotations
 import functools
 import importlib
 import re
+import warnings
 
 from collections.abc import Callable, Iterator
 from typing import TYPE_CHECKING, Any, Literal, cast, overload
@@ -43,10 +44,7 @@ from scqubits.core.namedslots_array import NamedSlotsNdarray, Parameters
 from scqubits.core.storage import SpectrumData
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
-if settings.IN_IPYTHON:
-    from tqdm.notebook import tqdm
-else:
-    from tqdm import tqdm  # type: ignore[assignment]
+from tqdm.auto import tqdm
 
 if TYPE_CHECKING:
     from scqubits.io_utils.fileio import IOData
@@ -398,6 +396,156 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
             return hamiltonian
         else:
             return hamiltonian + hamiltonian.dag()
+
+
+def _auto_sparse_diag_method(dim: int, evals_count: int, kind: str) -> str | None:
+    """Pick a default diagonalization method based on the problem size.
+
+    Returns the name of a sparse ``diag`` method (scipy ``eigsh``) when only a small
+    fraction of a large spectrum is requested -- the regime where sparse
+    diagonalization is much faster than dense -- and ``None`` to use the dense QuTiP
+    path otherwise. Controlled by ``settings.AUTO_SPARSE_DIAG`` and the
+    ``SPARSE_DIAG_*`` thresholds.
+
+    Parameters
+    ----------
+    dim:
+        dimension of the Hamiltonian to be diagonalized.
+    evals_count:
+        number of eigenvalues/eigenstates requested.
+    kind:
+        ``'evals'`` or ``'esys'``, selecting the eigenvalues-only or
+        eigenvalues-and-eigenvectors method.
+
+    Returns
+    -------
+    A key into :data:`scqubits.core.diag.DIAG_METHODS`, or ``None`` for the dense
+    default.
+    """
+    if (
+        not getattr(settings, "AUTO_SPARSE_DIAG", False)
+        or dim < settings.SPARSE_DIAG_MIN_DIM
+        or evals_count > max(1, int(dim * settings.SPARSE_DIAG_MAX_EVALS_FRAC))
+    ):
+        return None
+    return "{}_scipy_sparse".format(kind)
+
+
+# Residual/sanity thresholds for the auto sparse-diagonalization guard. A converged
+# `eigsh` eigenpair has a residual ||H v - lambda v|| of ~1e-10 (relative to the
+# eigenvalue scale); a silently mis-converged one has an O(1) residual, so this
+# generous relative tolerance cleanly separates the two without false positives on
+# good results. Only a few eigenpairs are checked (a handful of sparse mat-vecs,
+# negligible next to the solve).
+_SPARSE_RESIDUAL_RTOL = 1e-6
+_SPARSE_RESIDUAL_CHECK_STATES = 3
+
+
+def _sparse_result_trustworthy(
+    hamiltonian_mat: qt.Qobj, kind: str, result: Any, evals_count: int
+) -> bool:
+    """Cheap correctness check on an auto sparse-``eigsh`` result.
+
+    Sparse ``eigsh`` raises on non-convergence (caught by the dense fallback in
+    :func:`_diagonalize_default`), but in rare cases -- clustered spectra, too few
+    Lanczos vectors -- it can return a wrong subspace *without* raising. This guard
+    catches that silent case: it checks the eigenvalues are finite and the expected
+    count, and -- when eigenvectors are available (``kind == 'esys'``) -- that the
+    residual ``||H v - lambda v||`` of a few eigenpairs is small relative to the
+    eigenvalue scale. (Convergence, not eigenvalue ordering, is what is verified;
+    the sparse methods return eigenvalues ascending, like the dense path.)
+
+    Parameters
+    ----------
+    hamiltonian_mat:
+        the Hamiltonian that was diagonalized.
+    kind:
+        ``'evals'`` or ``'esys'``.
+    result:
+        the value returned by the sparse method (eigenvalues, or a
+        ``(eigenvalues, eigenvectors)`` tuple).
+    evals_count:
+        number of eigenvalues/eigenstates that were requested.
+
+    Returns
+    -------
+    ``True`` if the result passes the sanity/residual checks, ``False`` otherwise.
+    """
+    evals = np.asarray(result[0] if kind == "esys" else result, dtype=float)
+    if evals.shape[0] != evals_count or not np.all(np.isfinite(evals)):
+        return False
+    if kind != "esys":
+        return True  # eigenvalues only: no eigenvectors to form a residual from
+    evecs = result[1]
+    # check the lowest few states (which="SA" targets these) plus the highest
+    # requested one (weakest convergence under SA)
+    check_indices = sorted(
+        set(range(min(evals_count, _SPARSE_RESIDUAL_CHECK_STATES))) | {evals_count - 1}
+    )
+    for i in check_indices:
+        vec = evecs[i]
+        residual = (hamiltonian_mat * vec - evals[i] * vec).norm()
+        if residual > _SPARSE_RESIDUAL_RTOL * (1.0 + abs(float(evals[i]))):
+            return False
+    return True
+
+
+def _diagonalize_default(
+    hamiltonian_mat: qt.Qobj,
+    evals_count: int,
+    kind: str,
+    dense_fallback: Callable[[], Any],
+) -> Any:
+    """Diagonalize via the size-based default method, sparse with dense fallback.
+
+    Used by :meth:`HilbertSpace.eigenvals` / :meth:`HilbertSpace.eigensys` when no
+    explicit ``evals_method`` / ``esys_method`` is set. Uses sparse ``eigsh`` when
+    :func:`_auto_sparse_diag_method` selects it, otherwise the dense QuTiP path. Falls
+    back to dense (with a warning) if the sparse solver raises *or* returns a result
+    that fails :func:`_sparse_result_trustworthy`.
+
+    Parameters
+    ----------
+    hamiltonian_mat:
+        Hamiltonian to diagonalize.
+    evals_count:
+        number of eigenvalues/eigenstates requested.
+    kind:
+        ``'evals'`` or ``'esys'``.
+    dense_fallback:
+        zero-argument callable returning the dense result (``eigenenergies`` or
+        ``eigenstates`` of ``hamiltonian_mat``).
+
+    Returns
+    -------
+    The eigenvalues (``kind == 'evals'``) or ``(eigenvalues, eigenvectors)``
+    (``kind == 'esys'``).
+    """
+    auto_method = _auto_sparse_diag_method(hamiltonian_mat.shape[0], evals_count, kind)
+    if auto_method is None:
+        return dense_fallback()
+    try:
+        result = diag.DIAG_METHODS[auto_method](
+            hamiltonian_mat, evals_count=evals_count
+        )
+    except Exception:
+        warnings.warn(
+            "scqubits: automatic sparse diagonalization raised; falling back to "
+            "dense. Set scqubits.settings.AUTO_SPARSE_DIAG = False to disable "
+            "automatic sparse diagonalization.",
+            RuntimeWarning,
+        )
+        return dense_fallback()
+    if not _sparse_result_trustworthy(hamiltonian_mat, kind, result, evals_count):
+        warnings.warn(
+            "scqubits: automatic sparse diagonalization returned a result that "
+            "failed a residual check; falling back to dense. Set "
+            "scqubits.settings.AUTO_SPARSE_DIAG = False to disable automatic sparse "
+            "diagonalization.",
+            RuntimeWarning,
+        )
+        return dense_fallback()
+    return result
 
 
 class HilbertSpace(
@@ -858,8 +1006,12 @@ class HilbertSpace(
     ) -> ndarray:
         """Calculate eigenvalues of the full Hamiltonian.
 
-        Qutip's :meth:`qutip.Qobj.eigenenergies` is used by default, unless
-        :attr:`evals_method` has been set to something other than ``None``.
+        By default (``evals_method`` is ``None``) a size-based heuristic selects the
+        diagonalizer: sparse scipy ``eigsh`` for large Hamiltonians where only a
+        small fraction of the spectrum is requested (see
+        ``settings.AUTO_SPARSE_DIAG``), otherwise QuTiP's dense
+        :meth:`qutip.Qobj.eigenenergies`. Setting :attr:`evals_method` to a method
+        name or callable overrides this choice.
 
         Parameters
         ----------
@@ -869,13 +1021,15 @@ class HilbertSpace(
             optional precomputed bare eigensystems for each subsystem, supplied as
             a dict ``{subsys_index: esys}``; speeds up computation when available.
         """
-        # hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
-        # return hamiltonian_mat.eigenenergies(eigvals=evals_count)
-
         hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)  # type: ignore[arg-type]
 
         if not hasattr(self, "evals_method") or self.evals_method is None:
-            evals = hamiltonian_mat.eigenenergies(eigvals=evals_count)
+            evals = _diagonalize_default(
+                hamiltonian_mat,
+                evals_count,
+                "evals",
+                lambda: hamiltonian_mat.eigenenergies(eigvals=evals_count),
+            )
         else:
             diagonalizer = (
                 diag.DIAG_METHODS[self.evals_method]
@@ -900,8 +1054,12 @@ class HilbertSpace(
     ) -> tuple[ndarray, QutipEigenstates]:
         """Calculate eigenvalues and eigenvectors of the full Hamiltonian.
 
-        Qutip's :meth:`qutip.Qobj.eigenstates` is used by default, unless
-        :attr:`esys_method` has been set to something other than ``None``.
+        By default (``esys_method`` is ``None``) a size-based heuristic selects the
+        diagonalizer: sparse scipy ``eigsh`` for large Hamiltonians where only a
+        small fraction of the spectrum is requested (see
+        ``settings.AUTO_SPARSE_DIAG``), otherwise QuTiP's dense
+        :meth:`qutip.Qobj.eigenstates`. Setting :attr:`esys_method` to a method name
+        or callable overrides this choice.
 
         Parameters
         ----------
@@ -914,12 +1072,25 @@ class HilbertSpace(
         Returns
         -------
         eigenvalues and eigenvectors of the full Hamiltonian.
-        """
 
+        Notes
+        -----
+        Eigenvalues and physical observables (matrix elements, lookup energies) are
+        independent of the diagonalizer. Eigenvectors spanning a degenerate
+        eigenspace are, however, only defined up to a basis choice within that
+        space, so the integer dressed-state labels assigned to degenerate states by
+        the overlap-based lookup may depend on the diagonalization method. Reference
+        states by their bare-state labels rather than by hard-coded dressed indices.
+        """
         hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)  # type: ignore[arg-type]
 
         if not hasattr(self, "esys_method") or self.esys_method is None:
-            evals, evecs = hamiltonian_mat.eigenstates(eigvals=evals_count)
+            evals, evecs = _diagonalize_default(
+                hamiltonian_mat,
+                evals_count,
+                "esys",
+                lambda: hamiltonian_mat.eigenstates(eigvals=evals_count),
+            )
         else:
             diagonalizer = (
                 diag.DIAG_METHODS[self.esys_method]
@@ -1190,28 +1361,25 @@ class HilbertSpace(
             ``settings.NUM_CPUS``).
         """
         num_cpus = num_cpus or settings.NUM_CPUS
-        target_map = cpu_switch.get_map_method(num_cpus)
+        # get_map_method returns a lazy, order-preserving map (built-in map when
+        # serial, pool.imap when parallel); wrapping its output in tqdm gives a live
+        # progress bar that advances as each grid point completes.
+        target_map = cpu_switch.get_map_method(num_cpus, total=len(param_vals))
         if get_eigenstates:
             func = functools.partial(
                 self._esys_for_paramval,
                 update_hilbertspace=update_hilbertspace,
                 evals_count=evals_count,
             )
-            with utils.InfoBar(
-                "Parallel computation of eigenvalues [num_cpus={}]".format(num_cpus),
-                num_cpus,
-            ):
-                eigensystem_mapdata = list(
-                    target_map(
-                        func,
-                        tqdm(
-                            param_vals,
-                            desc="Spectral data",
-                            leave=False,
-                            disable=(num_cpus > 1) or settings.PROGRESSBAR_DISABLED,
-                        ),
-                    )
+            eigensystem_mapdata = list(
+                tqdm(
+                    target_map(func, param_vals),
+                    total=len(param_vals),
+                    desc="Spectral data",
+                    leave=False,
+                    disable=settings.PROGRESSBAR_DISABLED,
                 )
+            )
             eigenvalue_table, eigenstate_table = spec_utils.recast_esys_mapdata(
                 eigensystem_mapdata
             )
@@ -1221,23 +1389,17 @@ class HilbertSpace(
                 update_hilbertspace=update_hilbertspace,
                 evals_count=evals_count,
             )
-            with utils.InfoBar(
-                "Parallel computation of eigensystems [num_cpus={}]".format(num_cpus),
-                num_cpus,
-            ):
-                eigenvalue_table = np.asarray(
-                    list(
-                        target_map(
-                            func,
-                            tqdm(
-                                param_vals,
-                                desc="Spectral data",
-                                leave=False,
-                                disable=(num_cpus > 1) or settings.PROGRESSBAR_DISABLED,
-                            ),
-                        )
+            eigenvalue_table = np.asarray(
+                list(
+                    tqdm(
+                        target_map(func, param_vals),
+                        total=len(param_vals),
+                        desc="Spectral data",
+                        leave=False,
+                        disable=settings.PROGRESSBAR_DISABLED,
                     )
                 )
+            )
             eigenstate_table = None
 
         return storage.SpectrumData(

@@ -29,15 +29,6 @@ import scipy as sp
 
 from matplotlib import get_backend as get_matplotlib_backend
 
-import scqubits.settings
-
-from scqubits.settings import IN_IPYTHON
-
-if IN_IPYTHON:
-    from tqdm.notebook import tqdm
-else:
-    from tqdm import tqdm  # type: ignore[assignment]
-
 
 def process_which(which: int | Iterable[int], max_index: int) -> list[int]:
     """Processes different ways of specifying the selection of  wanted
@@ -88,36 +79,6 @@ def make_bare_labels(subsystem_count: int, *args) -> tuple[int, ...]:
 def drop_private_keys(full_dict: dict[str, Any]) -> dict[str, Any]:
     """Filter for entries in the full dictionary that have numerical values."""
     return {key: value for key, value in full_dict.items() if key[0] != "_"}
-
-
-class InfoBar:
-    """Static "progress" bar used whenever multiprocessing is involved.
-
-    Parameters
-    ----------
-    desc:
-        Description text to be displayed on the static information bar.
-    num_cpus:
-        Number of CPUS/cores employed in underlying calculation.
-    """
-
-    def __init__(self, desc: str, num_cpus: int) -> None:
-        self.desc = desc
-        self.num_cpus = num_cpus
-        self.tqdm_bar: Any = None
-
-    def __enter__(self) -> None:
-        self.tqdm_bar = tqdm(
-            total=0,
-            disable=(self.num_cpus == 1) or scqubits.settings.PROGRESSBAR_DISABLED,
-            leave=False,
-            desc=self.desc,
-            bar_format="{desc}",
-        )
-
-    def __exit__(self, *args) -> None:
-        if self.tqdm_bar:
-            self.tqdm_bar.close()
 
 
 class Required:

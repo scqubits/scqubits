@@ -45,7 +45,7 @@ def eigsh_safe(*args, **kwargs):
         eigenvectors properly.
     """
     mat_size = args[0].shape[0]
-    kwargs["v0"] = settings.RANDOM_ARRAY[:mat_size]
+    kwargs["v0"] = settings.arpack_v0(mat_size)
 
     if kwargs.get("return_eigenvectors"):
         evals, evecs = sp.sparse.linalg.eigsh(*args, **kwargs)

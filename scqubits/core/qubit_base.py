@@ -50,9 +50,9 @@ import scqubits.utils.plotting as plot
 from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import DataStore, SpectrumData
-from scqubits.settings import IN_IPYTHON, matplotlib_settings
+from scqubits.settings import matplotlib_settings
 from scqubits.utils.cpu_switch import get_map_method
-from scqubits.utils.misc import InfoBar, process_which
+from scqubits.utils.misc import process_which
 from scqubits.utils.spectrum_utils import (
     get_matrixelement_table,
     order_eigensystem,
@@ -60,10 +60,7 @@ from scqubits.utils.spectrum_utils import (
     standardize_sign,
 )
 
-if IN_IPYTHON:
-    from tqdm.notebook import tqdm
-else:
-    from tqdm import tqdm  # type: ignore[assignment]
+from tqdm.auto import tqdm
 
 if TYPE_CHECKING:
     from scqubits.core.storage import WaveFunction
@@ -848,53 +845,45 @@ class QubitBaseClass(QuantumSystem, ABC):
         """
         num_cpus = num_cpus or settings.NUM_CPUS
         previous_paramval = getattr(self, param_name)
-        tqdm_disable = num_cpus > 1 or settings.PROGRESSBAR_DISABLED
+        tqdm_disable = settings.PROGRESSBAR_DISABLED
 
-        target_map = get_map_method(num_cpus)
+        # get_map_method returns a lazy, order-preserving map (built-in map when
+        # serial, pool.imap when parallel), so wrapping its output iterator in tqdm
+        # gives a live progress bar that advances as each grid point completes --
+        # in serial and parallel alike.
+        target_map = get_map_method(num_cpus, total=len(param_vals))
         if not get_eigenstates:
             func_evals = functools.partial(
                 self._evals_for_paramval, param_name=param_name, evals_count=evals_count
             )
-            with InfoBar(
-                "Parallel computation of eigensystems [num_cpus={}]".format(num_cpus),
-                num_cpus,
-            ):
-                eigenvalue_table = np.asarray(
-                    list(
-                        target_map(
-                            func_evals,
-                            tqdm(
-                                param_vals,
-                                desc="Spectral data",
-                                leave=False,
-                                disable=tqdm_disable,
-                            ),
-                        )
+            eigenvalue_table = np.asarray(
+                list(
+                    tqdm(
+                        target_map(func_evals, param_vals),
+                        total=len(param_vals),
+                        desc="Spectral data",
+                        leave=False,
+                        disable=tqdm_disable,
                     )
                 )
+            )
             eigenstate_table = None
         else:
             func_esys = functools.partial(
                 self._esys_for_paramval, param_name=param_name, evals_count=evals_count
             )
-            with InfoBar(
-                "Parallel computation of eigenvalues [num_cpus={}]".format(num_cpus),
-                num_cpus,
-            ):
-                # Note that it is useful here that the outermost eigenstate object is
-                # a list, as for certain applications the necessary hilbert space
-                # dimension can vary with paramvals
-                eigensystem_mapdata = list(
-                    target_map(
-                        func_esys,
-                        tqdm(
-                            param_vals,
-                            desc="Spectral data",
-                            leave=False,
-                            disable=tqdm_disable,
-                        ),
-                    )
+            # Note that it is useful here that the outermost eigenstate object is
+            # a list, as for certain applications the necessary hilbert space
+            # dimension can vary with paramvals
+            eigensystem_mapdata = list(
+                tqdm(
+                    target_map(func_esys, param_vals),
+                    total=len(param_vals),
+                    desc="Spectral data",
+                    leave=False,
+                    disable=tqdm_disable,
                 )
+            )
             eigenvalue_table, eigenstate_table = recast_esys_mapdata(
                 eigensystem_mapdata
             )

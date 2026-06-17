@@ -598,9 +598,8 @@ class NoisyCircuit(NoisySystem, ABC):
 
             Returns
             -------
-            time or rate: float
-                decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
-                in inverse units.
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
+            in inverse units.
             """
             tphi_times = []
             for flux_sym in self.offset_charges:
@@ -904,8 +903,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
             Returns
             -------
-            time or rate: float
-                decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
             """
             return NoisySystem.t1_quasiparticle_tunneling(
                 self=self,
@@ -978,8 +976,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
             Returns
             -------
-            time or rate: float
-                decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
             """
             parent_circuit = self.return_parent_circuit()
             branch_var_expr = parent_circuit.symbolic_circuit._branch_sym_expr(
@@ -1091,9 +1088,8 @@ class NoisyCircuit(NoisySystem, ABC):
 
                 Returns
                 -------
-                time or rate: float
-                    decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
-                    in inverse units.
+                decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
+                in inverse units.
                 """
                 parent_circuit = self.return_parent_circuit()
                 branch_charge_expr = (
@@ -1160,9 +1156,8 @@ class NoisyCircuit(NoisySystem, ABC):
 
                 Returns
                 -------
-                time or rate: float
-                    decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
-                    in inverse units.
+                decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
+                in inverse units.
                 """
                 parent_circuit = self.return_parent_circuit()
                 branch_var_expr = parent_circuit.symbolic_circuit._branch_flux_expr(
@@ -1283,8 +1278,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
             Returns
             -------
-            time or rate: float
-                decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
             """
             t1_times = []
             for branch in [b for b in self.branches if "JJ" in b.type]:
@@ -1390,9 +1384,8 @@ class NoisyCircuit(NoisySystem, ABC):
 
             Returns
             -------
-            time or rate: float
-                decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
-                in inverse units.
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
+            in inverse units.
             """
             t1_times = []
             parent_circuit = self.return_parent_circuit()
@@ -1491,9 +1484,8 @@ class NoisyCircuit(NoisySystem, ABC):
 
             Returns
             -------
-            time or rate: float
-                decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
-                in inverse units.
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
+            in inverse units.
             """
             t1_times = []
             parent_circuit = self.return_parent_circuit()
@@ -1589,8 +1581,7 @@ class NoisyCircuit(NoisySystem, ABC):
 
             Returns
             -------
-            time or rate: float
-                decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
             """
             t1_times = []
             parent_circuit = self.return_parent_circuit()
@@ -1688,9 +1679,8 @@ class NoisyCircuit(NoisySystem, ABC):
 
             Returns
             -------
-            time or rate: float
-                decoherence time in units of :math:`2\pi ({\rm system\,\,units})`,
-                or rate in inverse units.
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`,
+            or rate in inverse units.
             """
             t1_times = []
             for external_flux_sym in self.external_fluxes:
