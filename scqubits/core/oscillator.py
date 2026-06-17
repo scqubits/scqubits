@@ -133,7 +133,9 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         self.l_osc: float | None = l_osc  # type: ignore[no-redef, assignment]
         self.E_osc = E_osc
         self._image_filename = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "qubit_img/oscillator.jpg"
+            os.path.dirname(os.path.abspath(__file__)),
+            "qubit_img",
+            type(self).__name__ + ".jpg",
         )
 
     @staticmethod
@@ -269,7 +271,9 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         )
 
         self._image_filename = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "qubit_img/KerrOscillator.jpg"
+            os.path.dirname(os.path.abspath(__file__)),
+            "qubit_img",
+            type(self).__name__ + ".jpg",
         )
 
     @staticmethod
