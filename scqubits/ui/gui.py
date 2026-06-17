@@ -885,17 +885,27 @@ class GUI:
                 "multi_state_selector"
             ].v_model
 
+        # Most qubits expose a single ``_default_grid``; Cos2PhiQubit instead has
+        # separate ``_default_phi_grid``/``_default_theta_grid``. Fall back to the
+        # per-axis grid when ``_default_grid`` is absent so its wavefunction plots
+        # do not raise AttributeError in the GUI.
         if isinstance(self.active_qubit, QUBITS_WITH_PHI_GRID):
+            phi_default = getattr(self.active_qubit, "_default_grid", None) or getattr(
+                self.active_qubit, "_default_phi_grid"
+            )
             value_dict["phi_grid"] = Grid1d(
                 min_val=cast(float, self.dict_v_ranges["phi"]["min"].num_value),
                 max_val=cast(float, self.dict_v_ranges["phi"]["max"].num_value),
-                pt_count=self.active_qubit._default_grid.pt_count,
+                pt_count=phi_default.pt_count,
             )
         if isinstance(self.active_qubit, QUBITS_WITH_THETA_GRID):
+            theta_default = getattr(
+                self.active_qubit, "_default_grid", None
+            ) or getattr(self.active_qubit, "_default_theta_grid")
             value_dict["theta_grid"] = Grid1d(
                 min_val=cast(float, self.dict_v_ranges["theta"]["min"].num_value),
                 max_val=cast(float, self.dict_v_ranges["theta"]["max"].num_value),
-                pt_count=self.active_qubit._default_grid.pt_count,
+                pt_count=theta_default.pt_count,
             )
         self.wavefunctions_plot(**value_dict)
 
