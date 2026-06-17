@@ -10,45 +10,33 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
 import collections
 
-from typing import (
-    TYPE_CHECKING,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    OrderedDict,
-)
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, OrderedDict
 
 import matplotlib as mp
 
 import scqubits.utils.misc as utils
 
-try:
-    import ipyvuetify as v
-    import ipywidgets
-    import traitlets
-except ImportError:
-    _HAS_IPYVUETIFY = False
-else:
-    _HAS_IPYVUETIFY = True
-
-try:
-    from IPython.display import display
-except ImportError:
-    _HAS_IPYTHON = False
-else:
-    _HAS_IPYTHON = True
+from scqubits.utils._optional_deps import (
+    _HAS_IPYTHON,
+    _HAS_IPYVUETIFY,
+    display,
+    ipywidgets,
+    traitlets,
+    v,
+)
 
 if TYPE_CHECKING:
     from scqubits.explorer.explorer_widget import PlotID
 
-
 if _HAS_IPYTHON and _HAS_IPYVUETIFY:
 
     class ValidatedNumberField(v.TextField):
-        _typecheck_func: callable = None
+        _typecheck_func: Callable[..., bool] | None = None
         _type = None
 
         num_value = None  # must determine appropriate traitlet type dynamically
@@ -85,15 +73,11 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             self.v_max = v_max
 
             super().__init__(v_model=v_model, filled=filled, **kwargs)
+            self.on_event("input", self._on_input)
 
         @traitlets.validate("v_model")
         def _validate_v_model(self, state):
-            if self.is_valid():
-                self.error = False
-                self.rules = []
-            else:
-                self.error = True
-                self.rules = ["invalid"]
+            self._refresh_validity(state["value"])
             return state["value"]
 
         @traitlets.observe("v_model")
@@ -101,17 +85,31 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             if not self.error:
                 self.set_trait("num_value", self._type(change["new"]))
 
-        def is_valid(self):
+        def _on_input(self, widget, event, data):
+            # React to the per-keystroke ``input`` event: ipyvuetify syncs
+            # ``v_model`` (and so re-runs ``_validate_v_model``) only on
+            # blur, so without this the "invalid" marker stays stale while
+            # typing.  ``data`` is the field's current text -- except that
+            # ipyvue coerces an empty string to ``{}`` (``data or {}``), so
+            # an empty field arrives here as a dict.
+            text = "" if isinstance(data, dict) else data
+            self._refresh_validity(text)
+
+        def _refresh_validity(self, value):
+            if self.is_valid(value):
+                self.error = False
+                self.rules = []
+            else:
+                self.error = True
+                self.rules = ["invalid"]
+
+        def is_valid(self, value=None):
+            if value is None:
+                value = self.v_model
             if (
-                not self._typecheck_func(self.v_model)
-                or (
-                    self.v_min not in [None, ""]
-                    and self._type(self.v_model) < self.v_min
-                )
-                or (
-                    self.v_max not in [None, ""]
-                    and self._type(self.v_model) > self.v_max
-                )
+                not self._typecheck_func(value)
+                or (self.v_min not in [None, ""] and self._type(value) < self.v_min)
+                or (self.v_max not in [None, ""] and self._type(value) > self.v_max)
             ):
                 return False
             return True
@@ -269,12 +267,12 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
                 children=[v.Icon(children=[icon_name])],
             )
 
-    def flex_row(widgets: List[v.VuetifyWidget], class_="", **kwargs) -> v.Container:
+    def flex_row(widgets: list[v.VuetifyWidget], class_="", **kwargs) -> v.Container:
         return v.Container(
             class_="d-flex flex-row " + class_, children=widgets, **kwargs
         )
 
-    def flex_column(widgets: List[v.VuetifyWidget], class_="", **kwargs) -> v.Container:
+    def flex_column(widgets: list[v.VuetifyWidget], class_="", **kwargs) -> v.Container:
         return v.Container(
             class_="d-flex flex-column " + class_, children=widgets, **kwargs
         )
@@ -301,7 +299,9 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             self.content_row.children = content_list
 
     class ClosablePanel(PanelBase):
-        def __init__(self, panel_id: "PlotID" = None, content_list=None, width="49.5%"):
+        def __init__(
+            self, panel_id: "PlotID | None" = None, content_list=None, width="49.5%"
+        ):
             super().__init__(panel_id=panel_id, content_list=content_list, width=width)
 
             self.btn = v.Btn(
@@ -339,7 +339,7 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             self,
             fig: mp.figure.Figure,
             axes: mp.axes.Axes,
-            panel_id: Optional["PlotID"] = None,
+            panel_id: "PlotID" | None = None,
             width="49%",
         ):
             self.fig = fig
@@ -362,10 +362,10 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
     class PlotPanelCollection:
         def __init__(
             self,
-            toggle_switches_by_plot_id: Dict["PlotID", v.Switch],
+            toggle_switches_by_plot_id: dict["PlotID", v.Switch],
             ncols: int = 2,
-            plot_choice_dialog: Callable = None,
-            plot_settings_dialog: Callable = None,
+            plot_choice_dialog: Callable[..., Any] | None = None,
+            plot_settings_dialog: Callable[..., Any] | None = None,
         ):
             self.ncols = ncols
             self.plot_choice_dialog = plot_choice_dialog
@@ -373,7 +373,7 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             self.panel_by_btn: OrderedDict[v.Btn, ClosablePlotPanel] = (
                 collections.OrderedDict()
             )
-            self.panel_by_id: OrderedDict[str, ClosablePlotPanel] = (
+            self.panel_by_id: OrderedDict["PlotID", ClosablePlotPanel] = (
                 collections.OrderedDict()
             )
             self.toggle_switches_by_plot_id = toggle_switches_by_plot_id
@@ -389,10 +389,10 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             if self.plot_choice_dialog:
                 self.plot_choice_dialog()
 
-        def axes_list(self) -> List[mp.axes.Axes]:
+        def axes_list(self) -> list[mp.axes.Axes]:
             return [panel.axes for panel in self.panel_by_btn.values()]
 
-        def card_list(self) -> List[v.Card]:
+        def card_list(self) -> list[v.Card]:
             """Returns the list of all the cards in the deck.
 
             Returns
@@ -402,7 +402,7 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             cards = [panel.card for panel in self.panel_by_btn.values()]
             return cards
 
-        def id_list(self) -> List[str]:
+        def id_list(self) -> "list[PlotID]":
             """Returns the list of all the ids in the deck.
 
             Returns
@@ -411,7 +411,7 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
             """
             return list(self.panel_by_id.keys())
 
-        def setup_card(self, new_panel: ClosablePanel):
+        def setup_card(self, new_panel: ClosablePlotPanel):
             """Sets up a new card, connecting its close button to the card collection's
             `close_card` method."""
             card = new_panel.card
@@ -448,6 +448,8 @@ if _HAS_IPYTHON and _HAS_IPYVUETIFY:
 
         def settings_dialog(self, settings_btn: LinkedButton, *args, **kwargs):
             """Bring up plot panel settings dialog."""
+            if self.plot_settings_dialog is None:
+                return
             self.plot_settings_dialog(settings_btn.ref)
 
         def resize_all(self, width=None, height=None):

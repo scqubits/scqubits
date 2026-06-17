@@ -1,0 +1,1119 @@
+# hamiltonian_assembly.py
+#
+# This file is part of scqubits: a Python package for superconducting qubits,
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
+#
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
+#    All rights reserved.
+#
+#    This source code is licensed under the BSD-style license found in the
+#    LICENSE file in the root directory of this source tree.
+############################################################################
+"""Build per-variable operator methods, assemble the Hamiltonian, diagonalise.
+
+This mixin owns the path from ``self.hamiltonian_symbolic`` to numerical
+output:
+
+* per-variable operator methods, dynamically created and bound during
+  ``_configure`` (``_set_operators``, ``_generate_operator_methods``, the
+  ``_build_*_operators_*`` family, the ``make_*_method`` factories);
+* Thin wrappers delegating Josephson cosine/sine evaluation to
+  :mod:`~scqubits.core.circuit_internals.junction_assembly`
+  (``_evaluate_matrix_cosine_terms``);
+* Hamiltonian assembly
+  (``_hamiltonian_for_*``, ``_evaluate_hamiltonian``, ``hamiltonian``);
+* eigenvalue / eigensystem computation
+  (``_evals_calc``, ``_esys_calc``, ``_eigenvals_for_purely_harmonic``).
+
+Symbolic-side preprocessing that produces the inputs above
+(``_diagonalize_purely_harmonic_hamiltonian``, ``_transform_hamiltonian``,
+``_set_vars``, ``_set_vars_no_hd``) also lives here, as does the small
+bridge helper ``_operator_from_sym_expr_wrapper`` consumed by
+:class:`SubsystemTreeMixin._update_interactions`.
+"""
+
+from __future__ import annotations
+
+import re
+
+from abc import ABC
+from collections.abc import Callable
+from types import MethodType
+from typing import TYPE_CHECKING, Any, Literal
+
+import numpy as np
+import qutip as qt
+import scipy as sp
+import sympy as sm
+
+from numpy import ndarray
+from scipy import sparse
+from scipy.sparse import csc_matrix
+
+import scqubits.core.diag as diag
+import scqubits.core.discretization as discretization
+import scqubits.utils.spectrum_utils as utils
+
+from scqubits.core import operators as op
+from scqubits.core.circuit_internals.charge_basis_operators import (
+    _cos_theta,
+    _exp_i_theta_operator,
+    _n_theta_operator,
+    _sin_theta,
+)
+from scqubits.core.circuit_internals.discretized_phi_operators import (
+    _cos_phi,
+    _i_d2_dphi2_operator,
+    _i_d_dphi_operator,
+    _phi_operator,
+    _sin_phi,
+)
+from scqubits.core.circuit_internals import junction_assembly
+from scqubits.core.circuit_internals._protocols import CircuitProtocol
+from scqubits.core.circuit_internals.operator_factories import (
+    make_basis_operator_method,
+    make_grid_operator_method,
+    make_hierarchical_diag_method,
+)
+from scqubits.core.circuit_internals.sympy_helpers import (
+    _generate_symbols_list,
+    round_symbolic_expr,
+)
+from scqubits.core.circuit_internals.utils import get_trailing_number
+from scqubits.utils.misc import (
+    Qobj_to_scipy_csc_matrix,
+    check_sync_status_circuit,
+    flatten_list_recursive,
+    unique_elements_in_list,
+)
+from scqubits.utils.spectrum_utils import (
+    convert_matrix_to_qobj,
+    identity_wrap,
+    order_eigensystem,
+)
+
+if TYPE_CHECKING:
+    from scqubits.core.circuit import Subsystem
+    from scqubits.core.circuit_internals.routines import CircuitRoutines
+
+__all__ = [
+    "HamiltonianAssemblyMixin",
+]
+
+
+# Lookup of bare-operator factories (functions that build a sparse matrix
+# given a basis size) keyed by the short operator-name used in the symbolic
+# variable categories. Periodic variables live in the charge basis.
+_PERIODIC_OP_FUNCS: dict[str, Callable[..., Any]] = {
+    "sin": _sin_theta,
+    "cos": _cos_theta,
+    "number": _n_theta_operator,
+}
+
+
+class HamiltonianAssemblyMixin(ABC, CircuitProtocol):
+    """Mixin: numerical operator + Hamiltonian + eigensystem assembly.
+
+    Cross-mixin attributes and methods are inherited from
+    :class:`~scqubits.core.circuit_internals._protocols.CircuitProtocol`,
+    which is the single source of truth for the cross-mixin surface. At
+    runtime ``CircuitProtocol`` is an empty class (its body is gated
+    under ``TYPE_CHECKING``); the inheritance is a no-op.
+    """
+
+    def _diagonalize_purely_harmonic_hamiltonian(self, return_osc_dict: bool = False):
+        """Decouple harmonic oscillators in purely harmonic Hamiltonians.
+
+        Mutates several instance attributes (``normal_mode_freqs``,
+        ``_hamiltonian_sym_for_numerics``, ``osc_lengths``, ``osc_freqs``,
+        ``osc_eigvecs``, ``undiagonalized_osc_params``). Uses
+        :func:`numpy.linalg.eig` on a non-Hermitian product, so the returned
+        eigenvalues may in principle be complex; their square roots are taken
+        as normal-mode frequencies.
+
+        Parameters
+        ----------
+        return_osc_dict:
+            if ``True``, return a dictionary with the diagonalization data
+            (normal-mode frequencies, eigenvectors and oscillator lengths).
+        """
+        if not self.is_purely_harmonic:
+            raise ValueError("The Subsystem Hamiltonian is not purely harmonic.")
+        num_oscs = len(self.var_categories["extended"])
+        # Construct capacitance and inductance matrices from the symbolic hamiltonian
+        EC = np.zeros([num_oscs, num_oscs])
+        EL = np.zeros([num_oscs, num_oscs])
+        # substitute all external fluxes in the symbolic Hamiltonian
+        hamiltonian = self.hamiltonian_symbolic
+        for param in (
+            self.external_fluxes
+            + list(self.symbolic_params.keys())
+            + self.offset_charges
+            + self.free_charges
+        ):
+            hamiltonian = hamiltonian.subs(param, getattr(self, param.name))
+        ext_var_indices = self.var_categories["extended"]
+        # filling the matrices
+        for i in range(num_oscs):
+            for j in range(num_oscs):
+                if i == j:
+                    EC[i, j] = hamiltonian.coeff(f"Q{ext_var_indices[i]}**2") / 4
+                    EL[i, j] = hamiltonian.coeff(f"θ{ext_var_indices[i]}**2") * 2
+                else:
+                    EC[i, j] = (
+                        hamiltonian.coeff(
+                            f"Q{ext_var_indices[i]}*Q{ext_var_indices[j]}"
+                        )
+                        / 8
+                    )
+                    EL[i, j] = hamiltonian.coeff(
+                        f"θ{ext_var_indices[i]}*θ{ext_var_indices[j]}"
+                    )
+        # diagonalizing the matrices
+        normal_mode_freqs_sq, eig_vecs = np.linalg.eig(8 * EC @ EL)
+
+        self.normal_mode_freqs = normal_mode_freqs_sq**0.5
+
+        self._hamiltonian_sym_for_numerics = round_symbolic_expr(
+            self._transform_hamiltonian(self.hamiltonian_symbolic, eig_vecs).expand(),
+            12,
+        )
+        for flux in self.external_fluxes:
+            self._hamiltonian_sym_for_numerics = (
+                self._hamiltonian_sym_for_numerics.subs(flux, flux * np.pi * 2)
+            )
+        # storing the annihilation operators in the eigenbasis
+        osc_lengths = (
+            np.diagonal(
+                8
+                * np.linalg.inv(eig_vecs.T @ np.linalg.inv(EC) @ eig_vecs)
+                @ np.linalg.inv(eig_vecs.T @ EL @ eig_vecs)
+            )
+            ** 0.25
+        )
+        old_osc_lengths, old_osc_freqs = self._set_harmonic_basis_osc_params(
+            hamiltonian=self.hamiltonian_symbolic
+        )
+        self.osc_lengths = dict(zip(self.var_categories["extended"], osc_lengths))
+        self.osc_freqs = dict(
+            zip(self.var_categories["extended"], normal_mode_freqs_sq**0.5)
+        )
+        self.osc_eigvecs = eig_vecs
+        self.undiagonalized_osc_params = {
+            "osc_freqs": old_osc_freqs,
+            "osc_lengths": old_osc_lengths,
+        }
+
+        if return_osc_dict:
+            osc_dict = {
+                "normal_mode_freqs": normal_mode_freqs_sq**0.5,
+                "eig_vecs": eig_vecs,
+                "osc_lengths": osc_lengths,
+            }
+            return osc_dict
+
+    def _transform_hamiltonian(
+        self,
+        hamiltonian: sm.Expr,
+        transformation_matrix: ndarray,
+        return_transformed_exprs: bool = False,
+    ):
+        """Transform the Hamiltonian to a new set of variables.
+
+        Parameters
+        ----------
+        hamiltonian:
+            symbolic Hamiltonian to transform
+        transformation_matrix:
+            matrix relating the original to the new (extended) coordinates
+        return_transformed_exprs:
+            if ``True``, return only the transformed ``Q`` and ``θ``
+            expressions; otherwise return the substituted Hamiltonian.
+        """
+        ext_var_indices = self.var_categories["extended"]
+        num_vars = len(ext_var_indices)
+        Q_vars = [sm.symbols(f"Q{var_idx}") for var_idx in ext_var_indices]
+        θ_vars = [sm.symbols(f"θ{var_idx}") for var_idx in ext_var_indices]
+
+        Qn_vars = [sm.symbols(f"Qn{var_idx}") for var_idx in ext_var_indices]
+        θn_vars = [sm.symbols(f"θn{var_idx}") for var_idx in ext_var_indices]
+
+        Q_exprs = np.linalg.inv(transformation_matrix.T).dot(Qn_vars)
+        θ_exprs = transformation_matrix.dot(θn_vars)
+        if return_transformed_exprs:
+            return np.linalg.inv(transformation_matrix.T).dot(
+                Q_vars
+            ), transformation_matrix.dot(θ_vars)
+
+        for idx in range(num_vars):
+            hamiltonian = hamiltonian.subs(Q_vars[idx], Q_exprs[idx]).subs(
+                θ_vars[idx], θ_exprs[idx]
+            )
+        for idx in range(num_vars):
+            hamiltonian = hamiltonian.subs(Qn_vars[idx], Q_vars[idx]).subs(
+                θn_vars[idx], θ_vars[idx]
+            )
+
+        return hamiltonian
+
+    def _operator_from_sym_expr_wrapper(self, sym_expr: sm.Expr):
+        """Return a closure that evaluates ``sym_expr`` to a numerical operator.
+
+        Parameters
+        ----------
+        sym_expr:
+            sympy expression to be evaluated when the closure is called.
+        """
+
+        def wrapper_func(self=self, sym_expr=sym_expr, bare_esys=None):
+            # The bare esys here is a dict of esys for each of the subsystem present under hilbert_space
+            return self._evaluate_symbolic_expr(sym_expr, bare_esys=bare_esys)
+
+        return wrapper_func
+
+    def _set_vars(self):
+        """Set :attr:`vars` to map operator types to their sympy ``Symbol`` lists."""
+        if not self.hierarchical_diagonalization:
+            return self._set_vars_no_hd()
+        vars = {"periodic": {}, "extended": {}, "identity": [sm.symbols("I")]}
+        for subsys in self.subsystems:
+            subsys._set_vars()
+            for var_type in ["periodic", "extended"]:
+                for operator_type in subsys.vars[var_type]:
+                    if operator_type not in vars[var_type]:
+                        vars[var_type][operator_type] = subsys.vars[var_type][
+                            operator_type
+                        ]
+                    else:
+                        vars[var_type][operator_type] = unique_elements_in_list(
+                            vars[var_type][operator_type]
+                            + subsys.vars[var_type][operator_type]
+                        )
+        self.vars = vars
+
+    def _set_vars_no_hd(self):
+        """Populate :attr:`vars` for the no-hierarchical-diagonalization case."""
+        # Defining the list of variables for periodic operators
+        periodic_symbols_sin = _generate_symbols_list(
+            "sinθ", self.var_categories["periodic"]
+        )
+
+        periodic_symbols_cos = _generate_symbols_list(
+            "cosθ", self.var_categories["periodic"]
+        )
+        periodic_symbols_n = _generate_symbols_list(
+            "n", self.var_categories["periodic"]
+        )
+
+        # Defining the list of discretized_ext variables
+        y_symbols = _generate_symbols_list("θ", self.var_categories["extended"])
+        p_symbols = _generate_symbols_list("Q", self.var_categories["extended"])
+
+        if self.ext_basis == "discretized":
+            ps_symbols = [
+                sm.symbols("Qs" + str(i)) for i in self.var_categories["extended"]
+            ]
+            sin_symbols = [
+                sm.symbols(f"sinθ{i}") for i in self.var_categories["extended"]
+            ]
+            cos_symbols = [
+                sm.symbols(f"cosθ{i}") for i in self.var_categories["extended"]
+            ]
+
+        elif self.ext_basis == "harmonic":
+            a_symbols = [sm.symbols(f"a{i}") for i in self.var_categories["extended"]]
+            ad_symbols = [sm.symbols(f"ad{i}") for i in self.var_categories["extended"]]
+            Nh_symbols = [sm.symbols(f"Nh{i}") for i in self.var_categories["extended"]]
+            pos_symbols = [sm.symbols(f"θ{i}") for i in self.var_categories["extended"]]
+            sin_symbols = [
+                sm.symbols(f"sinθ{i}") for i in self.var_categories["extended"]
+            ]
+            cos_symbols = [
+                sm.symbols(f"cosθ{i}") for i in self.var_categories["extended"]
+            ]
+            momentum_symbols = [
+                sm.symbols(f"Q{i}") for i in self.var_categories["extended"]
+            ]
+
+        # setting the attribute self.vars
+        self.vars: dict[str, Any] = {
+            "periodic": {
+                "sin": periodic_symbols_sin,
+                "cos": periodic_symbols_cos,
+                "number": periodic_symbols_n,
+            },
+            "identity": [sm.symbols("I")],
+        }
+
+        if self.ext_basis == "discretized":
+            self.vars["extended"] = {
+                "position": y_symbols,
+                "momentum": p_symbols,
+                "momentum_squared": ps_symbols,
+                "sin": sin_symbols,
+                "cos": cos_symbols,
+            }
+        elif self.ext_basis == "harmonic":
+            self.vars["extended"] = {
+                "annihilation": a_symbols,
+                "creation": ad_symbols,
+                "number": Nh_symbols,
+                "position": pos_symbols,
+                "momentum": momentum_symbols,
+                "sin": sin_symbols,
+                "cos": cos_symbols,
+            }
+
+    def exp_i_operator(
+        self, var_sym: sm.Symbol, prefactor: float
+    ) -> csc_matrix | ndarray:
+        r"""Return the bare operator :math:`\exp(i\,\theta\,\text{prefactor})`.
+
+        The result is *not* identity-wrapped (no Kronecker product applied).
+        Requires the oscillator lengths to be set in :attr:`osc_lengths` when
+        ``ext_basis`` is set to ``"harmonic"``.
+
+        Parameters
+        ----------
+        var_sym:
+            sympy symbol identifying the variable (e.g. ``θ1`` or ``Q1``).
+        prefactor:
+            real prefactor multiplying the variable inside the exponential.
+        """
+        var_index = get_trailing_number(var_sym.name)
+        var_basis = self._basis_for_var_index(var_index)
+
+        if var_basis == "periodic":
+            # Periodic-variable invariant: prefactor must be an integer (the
+            # diagonal offset of the resulting dia_matrix).
+            exp_i_theta = _exp_i_theta_operator(
+                self.cutoffs_dict()[var_index], int(prefactor)
+            )
+        elif var_basis == "discretized":
+            phi_grid = discretization.Grid1d(
+                self.discretized_phi_range[var_index][0],
+                self.discretized_phi_range[var_index][1],
+                self.cutoffs_dict()[var_index],
+            )
+            if "θ" in var_sym.name:
+                diagonal = np.exp(phi_grid.make_linspace() * prefactor * 1j)
+                exp_i_theta = sparse.dia_matrix(
+                    (diagonal, [0]), shape=(phi_grid.pt_count, phi_grid.pt_count)
+                ).tocsc()
+            elif "Q" in var_sym.name:
+                exp_i_theta = sp.linalg.expm(  # type: ignore[assignment]
+                    _i_d_dphi_operator(phi_grid).toarray() * prefactor * 1j
+                )
+        elif var_basis == "harmonic":
+            osc_length = self.get_osc_param(var_index, which_param="length")
+            if "θ" in var_sym.name:
+                exp_argument_op = op.a_plus_adag_sparse(
+                    self.cutoffs_dict()[var_index],
+                    prefactor=(osc_length / 2**0.5),
+                )
+            elif "Q" in var_sym.name:
+                exp_argument_op = op.iadag_minus_ia_sparse(
+                    self.cutoffs_dict()[var_index],
+                    prefactor=(osc_length * 2**0.5) ** -1,
+                )
+            exp_i_theta = sparse.linalg.expm(exp_argument_op * prefactor * 1j)
+
+        return self._sparsity_adaptive(exp_i_theta)
+
+    def _evaluate_matrix_cosine_terms(
+        self, junction_potential: sm.Expr, bare_esys: dict[int, tuple] | None = None
+    ) -> qt.Qobj:
+        """Evaluate symbolic Josephson cosine/sine terms to a :class:`qutip.Qobj`.
+
+        Thin wrapper around
+        :func:`~scqubits.core.circuit_internals.junction_assembly.evaluate_matrix_cosine_terms`;
+        kept on the mixin so callers (notably ``CircuitSymMethods._evaluate_symbolic_expr``)
+        can continue to invoke ``self._evaluate_matrix_cosine_terms(...)``.
+
+        Parameters
+        ----------
+        junction_potential:
+            symbolic expression containing ``cos`` and/or ``sin`` terms.
+        bare_esys:
+            optional precomputed dict of bare eigensystems for subsystems.
+        """
+        return junction_assembly.evaluate_matrix_cosine_terms(
+            self, junction_potential, bare_esys
+        )
+
+    def _set_harmonic_basis_osc_params(self, hamiltonian: sm.Expr | None = None):
+        """Compute oscillator lengths and frequencies for the extended variables.
+
+        Parameters
+        ----------
+        hamiltonian:
+            optional symbolic Hamiltonian to extract :math:`E_C` and
+            :math:`E_L` coefficients from. If provided, the computed
+            ``(osc_lengths, osc_freqs)`` are returned without mutating
+            :attr:`osc_lengths`/:attr:`osc_freqs`. If ``None``, the cached
+            ``_hamiltonian_sym_for_numerics`` is used and the instance
+            attributes are updated in place.
+        """
+        osc_lengths = {}
+        osc_freqs = {}
+        hamiltonian_sym = hamiltonian or self._hamiltonian_sym_for_numerics
+        # substitute all the parameter values
+        hamiltonian_sym = hamiltonian_sym.subs(
+            [
+                (param, getattr(self, str(param)))
+                for param in list(self.symbolic_params.keys())
+                + self.external_fluxes
+                + self.offset_charges
+                + self.free_charges
+            ]
+        )
+        for list_idx, var_index in enumerate(self.var_categories["extended"]):
+            ECi = float(hamiltonian_sym.coeff(f"Q{var_index}**2").cancel()) / 4
+            ELi = float(hamiltonian_sym.coeff(f"θ{var_index}**2").cancel()) * 2
+            osc_freqs[var_index] = (8 * ELi * ECi) ** 0.5
+            osc_lengths[var_index] = (8.0 * ECi / ELi) ** 0.25
+        if hamiltonian is not None:
+            return osc_lengths, osc_freqs
+        self.osc_lengths = osc_lengths
+        self.osc_freqs = osc_freqs
+
+    def _make_purely_harmonic_operator_method(self, operator_name: str):
+        """Build the operator method ``<operator_name>_operator`` for a harmonic system.
+
+        Parameters
+        ----------
+        operator_name:
+            name of the symbolic operator (e.g. ``"Q1"``, ``"θ2"``, ``"a1"``,
+            ``"ad1"`` or ``"Nh1"``) to produce a method for.
+        """
+
+        def purely_harmonic_operator_func(
+            self: "Subsystem", energy_esys: bool | tuple[ndarray, ndarray] = False
+        ):
+            """Returns the operator <op_name> (corresponds to the name of the method
+            "<op_name>_operator") for the Circuit/Subsystem instance.
+
+            Parameters
+            ----------
+            energy_esys:
+                If `False` (default), returns charge operator n in the charge basis.
+                If `True`, energy eigenspectrum is computed, returns charge operator n in the energy eigenbasis.
+                If `energy_esys = esys`, where `esys` is a tuple containing two ndarrays (eigenvalues and energy
+                eigenvectors), returns charge operator n in the energy eigenbasis, and does not have to recalculate the
+                eigenspectrum.
+
+            Returns
+            -------
+                Returns the operator <op_name>(corresponds to the name of the method "<op_name>_operator").
+                For `energy_esys=True`, n has dimensions of :attr:`truncated_dim` x :attr:`truncated_dim`.
+                If an actual eigensystem is handed to `energy_sys`, then `n` has dimensions of m x m,
+                where m is the number of given eigenvectors.
+            """
+            var_index = get_trailing_number(operator_name)
+            Q_new, θ_new = self._transform_hamiltonian(
+                hamiltonian=self.hamiltonian_symbolic,
+                transformation_matrix=self.osc_eigvecs,
+                return_transformed_exprs=True,
+            )
+            main_op_type = [
+                optypename
+                for optypename in ["Q", "θ", "ad", "a", "Nh"]
+                if optypename in operator_name
+            ][0]
+            op_exprs = dict(
+                zip(
+                    ["Q", "θ"],
+                    [
+                        Q_new[self.var_categories["extended"].index(var_index)],
+                        θ_new[self.var_categories["extended"].index(var_index)],
+                    ],
+                )
+            )
+            ops: dict[str, Any] = dict.fromkeys(["Q", "θ"])
+            for optype in ops:
+                terms = op_exprs[optype].as_ordered_terms()
+                operator: Any = 0
+                for term in terms:
+                    sym_var_index = get_trailing_number(term.free_symbols.pop().name)
+                    term_op: csc_matrix | ndarray
+                    if optype == "Q":
+                        term_op = op.iadag_minus_ia_sparse(
+                            getattr(self, f"cutoff_ext_{sym_var_index}"),
+                            prefactor=1 / (self.osc_lengths[sym_var_index] * 2**0.5),
+                        ) * float(term.as_coeff_Mul()[0])
+                    if optype == "θ":
+                        term_op = op.a_plus_adag(
+                            getattr(self, f"cutoff_ext_{sym_var_index}"),
+                            prefactor=self.osc_lengths[sym_var_index] / 2**0.5,
+                        ) * float(term.as_coeff_Mul()[0])
+                    operator += self._kron_operator(term_op, sym_var_index)
+                if optype == main_op_type:
+                    return operator
+                ops[optype] = operator
+            old_osc_length = self.undiagonalized_osc_params["osc_lengths"][var_index]
+            annihilation_operator = (
+                1
+                / 2**0.5
+                * (ops["θ"] / old_osc_length + 1j * ops["Q"] * old_osc_length)
+            )
+            if main_op_type == "a":
+                operator = annihilation_operator
+            elif main_op_type == "ad":
+                operator = annihilation_operator.T
+            elif main_op_type == "Nh":
+                operator = annihilation_operator.T * annihilation_operator
+            return self.process_op(native_op=operator, energy_esys=energy_esys)
+
+        return purely_harmonic_operator_func
+
+    def _generate_operator_methods(self) -> dict[str, Callable]:
+        """Build the dict of operator functions to attach to a :class:`Circuit`."""
+        return {
+            **self._build_periodic_operator_methods(),
+            **self._build_extended_operator_methods(),
+            # ``type(self)._identity`` is the unbound ``_identity`` method
+            # inherited from the residual ``CircuitRoutines`` (or whichever
+            # sibling defines it). The dict's values must be unbound so
+            # that ``_set_operators`` can attach them with ``MethodType``.
+            "I_operator": type(self)._identity,
+        }
+
+    def _build_extended_operator_methods(self) -> dict[str, Callable]:
+        """Dispatch to the basis-appropriate builder for extended-variable operators."""
+        if self.hierarchical_diagonalization:
+            return self._build_extended_operators_hierarchical()
+        if self.ext_basis == "discretized":
+            return self._build_extended_operators_discretized()
+        if self.ext_basis == "harmonic":
+            if self.is_purely_harmonic:
+                return self._build_extended_operators_purely_harmonic()
+            return self._build_extended_operators_harmonic()
+        return {}
+
+    def _build_periodic_operator_methods(self) -> dict[str, Callable]:
+        """Dispatch for periodic-variable operators."""
+        if self.hierarchical_diagonalization:
+            return self._build_periodic_operators_hierarchical()
+        return self._build_periodic_operators_charge_basis()
+
+    def _build_extended_operators_hierarchical(self) -> dict[str, Callable]:
+        """Extended-variable operators when hierarchical diagonalization is active."""
+        extended_vars = self.vars["extended"]
+        return {
+            sym_variable.name
+            + "_operator": make_hierarchical_diag_method(sym_variable.name)
+            for var_type in extended_vars
+            for sym_variable in extended_vars[var_type]
+        }
+
+    def _build_extended_operators_discretized(self) -> dict[str, Callable]:
+        """Extended-variable operators in the discretized-phi basis."""
+        nonwrapped_ops: dict[str, Callable[..., Any]] = {
+            "position": _phi_operator,
+            "cos": _cos_phi,
+            "sin": _sin_phi,
+            "momentum": _i_d_dphi_operator,
+            "momentum_squared": _i_d2_dphi2_operator,
+        }
+        extended_vars = self.vars["extended"]
+        return {
+            sym_variable.name
+            + "_operator": make_grid_operator_method(
+                op_func, int(get_trailing_number(sym_variable.name))
+            )
+            for short_op_name, op_func in nonwrapped_ops.items()
+            for sym_variable in extended_vars[short_op_name]
+        }
+
+    def _build_extended_operators_harmonic(self) -> dict[str, Callable]:
+        """Extended-variable operators in the (non-purely-harmonic) harmonic basis."""
+        self._set_harmonic_basis_osc_params()
+        nonwrapped_ops: dict[str, Callable[..., Any]] = {
+            "creation": op.creation_sparse,
+            "annihilation": op.annihilation_sparse,
+            "number": op.number_sparse,
+            "position": op.a_plus_adag_sparse,
+            "sin": op.sin_theta_harmonic,
+            "cos": op.cos_theta_harmonic,
+            "momentum": op.iadag_minus_ia_sparse,
+        }
+        extended_vars = self.vars["extended"]
+        operators: dict[str, Callable] = {}
+        for list_idx, var_index in enumerate(self.var_categories["extended"]):
+            for short_op_name, op_func in nonwrapped_ops.items():
+                sym_variable = extended_vars[short_op_name][list_idx]
+                operators[sym_variable.name + "_operator"] = make_basis_operator_method(
+                    op_func, var_index, op_type=short_op_name
+                )
+        return operators
+
+    def _build_extended_operators_purely_harmonic(self) -> dict[str, Callable]:
+        """Extended-variable operators when the system is purely harmonic."""
+        self._set_harmonic_basis_osc_params()
+        extended_vars = self.vars["extended"]
+        operators: dict[str, Callable] = {}
+        for list_idx, _var_index in enumerate(self.var_categories["extended"]):
+            for short_op_name in (
+                "position",
+                "momentum",
+                "number",
+                "annihilation",
+                "creation",
+            ):
+                sym_variable = extended_vars[short_op_name][list_idx]
+                operators[sym_variable.name + "_operator"] = (
+                    self._make_purely_harmonic_operator_method(sym_variable.name)
+                )
+        return operators
+
+    def _build_periodic_operators_hierarchical(self) -> dict[str, Callable]:
+        """Periodic-variable operators when hierarchical diagonalization is active."""
+        periodic_vars = self.vars["periodic"]
+        return {
+            sym_variable.name
+            + "_operator": make_hierarchical_diag_method(sym_variable.name)
+            for short_op_name in _PERIODIC_OP_FUNCS
+            for sym_variable in periodic_vars[short_op_name]
+        }
+
+    def _build_periodic_operators_charge_basis(self) -> dict[str, Callable]:
+        """Periodic-variable operators in the charge basis."""
+        periodic_vars = self.vars["periodic"]
+        return {
+            sym_variable.name
+            + "_operator": make_basis_operator_method(
+                op_func, get_trailing_number(sym_variable.name)
+            )
+            for short_op_name, op_func in _PERIODIC_OP_FUNCS.items()
+            for sym_variable in periodic_vars[short_op_name]
+        }
+
+    def offset_free_charge_values(self) -> list[float]:
+        """Return the current values of all offset and free charge attributes."""
+        return [
+            getattr(self, charge_var.name)
+            for charge_var in self.offset_charges + self.free_charges
+        ]
+
+    def _set_operators(self) -> dict[str, Callable]:
+        """Create the operator methods `<name>_operator` for the circuit."""
+
+        if self.hierarchical_diagonalization:
+            for subsys in self.subsystems:
+                subsys.operators_by_name = subsys._set_operators()
+
+        op_func_by_name = self._generate_operator_methods()
+        for op_name, op_func in op_func_by_name.items():
+            setattr(self, op_name, MethodType(op_func, self))
+
+        return {func_name: getattr(self, func_name) for func_name in op_func_by_name}
+
+    def operator(
+        self,
+        name: str,
+        *,
+        energy_esys: bool | tuple[ndarray, ndarray] = False,
+    ) -> Any:
+        """Return the named per-variable operator on this Circuit / Subsystem.
+
+        Typed dispatcher for the dynamic ``<name>_operator`` methods that
+        :meth:`_set_operators` binds during ``_configure``. Use this in
+        preference to ``getattr(qubit, f"{name}_operator")()`` or to
+        calling ``qubit.n1_operator()`` directly when you want
+        ``mypy`` / IDE support — the dynamic methods are invisible to
+        static tooling because they are bound at runtime via
+        ``types.MethodType``.
+
+        On a hierarchically-diagonalised parent the per-variable
+        operator methods are bound on the *subsystems*, not on the
+        parent — call ``self.subsystems[i].operator(name)`` for the
+        bare-basis operator on the owning subsystem, or use
+        :meth:`get_operator_by_name` for the wrapped operator on the
+        parent's full Hilbert space.
+
+        Parameters
+        ----------
+        name:
+            Operator name without the ``_operator`` suffix. The naming
+            convention is documented in the developer's manual §8: e.g.
+            ``"n1"`` (charge in periodic basis), ``"θ1"`` (phase),
+            ``"cosθ1"`` / ``"sinθ1"`` (trig of phase), ``"Q1"`` (charge
+            in extended basis), ``"a1"`` / ``"ad1"`` / ``"Nh1"``
+            (annihilation / creation / number in harmonic basis), or
+            ``"I"`` (identity).
+        energy_esys:
+            ``False`` (default) returns the operator in its native
+            basis. ``True`` triggers an :meth:`eigensys` call and
+            returns the operator in the energy eigenbasis. If a
+            precomputed ``(evals, evecs)`` tuple is supplied, uses
+            those instead of recomputing.
+
+        Returns
+        -------
+        The operator in its basis-dependent native form. ``ext_basis``
+        and the per-variable basis kind determine the concrete type:
+        ``scipy.sparse.csc_matrix`` for periodic charge / discretized
+        extended operators when ``type_of_matrices == "sparse"``,
+        ``numpy.ndarray`` for harmonic-basis operators, or
+        ``qutip.Qobj`` when the basis-specific factory wraps via qutip.
+
+        Raises
+        ------
+        AttributeError
+            If no ``<name>_operator`` method is bound on this instance.
+            The error message lists the available operator names in
+            the form the caller would pass back to this method
+            (``_operator`` suffix stripped).
+        """
+        method = getattr(self, f"{name}_operator", None)
+        if method is None:
+            available: list[str] = sorted(
+                op_name.removesuffix("_operator")
+                for op_name in (self.operators_by_name or {})
+            )
+            raise AttributeError(
+                f"No operator named {name!r} on {type(self).__name__}; "
+                f"available operators: {available}"
+            )
+        return method(energy_esys=energy_esys)
+
+    def is_subsystem(self, instance: "CircuitRoutines") -> bool:
+        """Return ``True`` if ``instance`` shares any variable index with ``self``.
+
+        Parameters
+        ----------
+        instance:
+            another Circuit/Subsystem instance to test against ``self``.
+        """
+        if len(set(self.dynamic_var_indices) & set(instance.dynamic_var_indices)) > 0:
+            return True
+        return False
+
+    def identity_wrap_for_hd(
+        self,
+        operator: csc_matrix | ndarray | None,
+        child_instance: "CircuitRoutines",
+        bare_esys: dict[int, tuple] | None = None,
+    ) -> qt.Qobj:
+        r"""Return an identity-wrapped operator of size :meth:`hilbertdim`.
+
+        Only converts an operator that belongs to a specific variable index.
+        For example, :math:`Q_1` or :math:`\cos(\theta_1)`, but not
+        :math:`Q_1 Q_2`.
+
+        Parameters
+        ----------
+        operator:
+            operator in the form of :class:`scipy.sparse.csc_matrix` or
+            :class:`numpy.ndarray`.
+        child_instance:
+            the subsystem to which the operator belongs.
+        bare_esys:
+            dict containing subsystem indices starting from 0, paired with the
+            bare eigensystem for each of the subsystems.
+
+        Returns
+        -------
+        Identity-wrapped operator as a :class:`qutip.Qobj`.
+        """
+        if not self.hierarchical_diagonalization:
+            return qt.Qobj(operator)
+
+        subsystem_index = [
+            subsys_index
+            for subsys_index, subsys in enumerate(self.subsystems)
+            if subsys.is_subsystem(child_instance)
+        ][0]
+        subsystem = self.subsystems[subsystem_index]
+        operator = subsystem.identity_wrap_for_hd(operator, child_instance)
+
+        return identity_wrap(
+            operator,
+            subsystem,
+            self.subsystems,
+            evecs=(
+                bare_esys[subsystem_index][1]
+                if bare_esys
+                else subsystem.eigensys(evals_count=subsystem.truncated_dim)[1]
+            ),
+            op_in_eigenbasis=False,
+        )
+
+    @check_sync_status_circuit
+    def get_operator_by_name(
+        self,
+        operator_name: str,
+        power: int | None = None,
+        bare_esys: dict[int, tuple] | None = None,
+    ) -> qt.Qobj:
+        """Return the operator named ``operator_name`` for this instance.
+
+        The returned operator has dimension :meth:`hilbertdim`.
+
+        Parameters
+        ----------
+        operator_name:
+            Name of a sympy ``Symbol`` object which should be one of the
+            symbols collected in the attribute :attr:`vars`.
+        power:
+            If requesting an operator raised to a certain power; ``None``
+            defaults to 1.
+        bare_esys:
+            optional precomputed dict of bare eigensystems for nested
+            subsystems, keyed by subsystem index.
+
+        Returns
+        -------
+        Operator identified by ``operator_name``.
+        """
+        if not self.hierarchical_diagonalization:
+            # if the operator_name is a Qsn operator (which is possible when self is a
+            # purely harmonic subsystem when using HD) then return the operator
+            # constructed using ladder operators
+            if re.fullmatch(r"Qs\d+", operator_name) and self.is_purely_harmonic:
+                var_index = get_trailing_number(operator_name)
+                return self.get_operator_by_name(f"Q{var_index}") ** 2
+
+            return qt.Qobj(getattr(self, operator_name + "_operator")()) ** (
+                power if power else 1
+            )
+
+        var_index = get_trailing_number(operator_name)
+        assert var_index
+        subsystem_index = self.get_subsystem_index(var_index)
+        subsystem = self.subsystems[subsystem_index]
+        subsys_bare_esys = None
+        if bare_esys and subsystem.hierarchical_diagonalization:
+            subsys_bare_esys = {
+                sys_index: (
+                    subsystem.hilbert_space["bare_evals"][sys_index][0],
+                    subsystem.hilbert_space["bare_evecs"][sys_index][0],
+                )
+                for sys_index, sys in enumerate(subsystem.hilbert_space.subsystem_list)
+            }
+
+        operator = subsystem.get_operator_by_name(
+            operator_name, power=power, bare_esys=subsys_bare_esys
+        )
+
+        return identity_wrap(
+            operator,
+            subsystem,
+            self.subsystems,
+            op_in_eigenbasis=False,
+            evecs=(
+                bare_esys[subsystem_index][1]
+                if bare_esys
+                else subsystem.eigensys(evals_count=subsystem.truncated_dim)[1]
+            ),
+        )
+
+    def _evaluate_hamiltonian(self) -> csc_matrix | ndarray:
+        """Substitute parameter values and return the numerical Hamiltonian matrix.
+
+        General-purpose path used by all non-purely-harmonic circuits.
+        Walks ``self._hamiltonian_sym_for_numerics`` term-by-term via
+        sympy ``subs`` (replacing parameter symbols with their current
+        numerical values and the identity placeholder ``I`` with ``1``)
+        and then delegates to :meth:`_evaluate_symbolic_expr` (defined
+        on :class:`CircuitSymMethods`), which iterates the term
+        coefficients and assembles the matrix from per-variable operator
+        methods.
+
+        Does **not** use ``eval``.  The ``eval``-based assembly path is
+        only taken by :meth:`_hamiltonian_for_purely_harmonic` (for
+        circuits where every extended variable is in the harmonic
+        basis and there are no JJ cosines) — see that method's
+        docstring.
+        """
+        hamiltonian = self._hamiltonian_sym_for_numerics
+        hamiltonian = hamiltonian.subs(
+            [
+                (param, getattr(self, str(param)))
+                for param in list(self.symbolic_params.keys())
+                + self.external_fluxes
+                + self.offset_charges
+                + self.free_charges
+            ]
+        )
+        hamiltonian = hamiltonian.subs("I", 1)
+
+        return self._sparsity_adaptive(
+            Qobj_to_scipy_csc_matrix(self._evaluate_symbolic_expr(hamiltonian))
+        )
+
+    @check_sync_status_circuit
+    def _hamiltonian_for_purely_harmonic(self) -> csc_matrix | ndarray:
+        """Hamiltonian for purely harmonic systems when ext_basis is set to harmonic.
+
+        Specialized assembly path for circuits where every extended
+        variable lives in the harmonic-oscillator basis and the
+        Hamiltonian contains no Josephson cosine / sine terms.  In
+        that regime the symbolic Hamiltonian is a polynomial in the
+        per-variable position / momentum operators and can be
+        evaluated by building per-variable ``Qobj`` operators in
+        ``operator_dict`` and ``eval()``-ing the stringified
+        expression in that scope.
+
+        This is the **only** circuit-Hamiltonian path that uses
+        ``eval``; the general path is :meth:`_evaluate_hamiltonian`.
+
+        Returns
+        -------
+        :class:`scipy.sparse.csc_matrix` or dense :class:`numpy.ndarray`,
+        depending on :attr:`type_of_matrices`.
+        """
+        hamiltonian = self._hamiltonian_sym_for_numerics
+        # substitute parameters
+        for sym_param in (
+            self.offset_charges
+            + self.free_charges
+            + self.external_fluxes
+            + list(self.symbolic_params.keys())
+        ):
+            hamiltonian = hamiltonian.subs(sym_param, getattr(self, sym_param.name))
+        hamiltonian = hamiltonian.subs("I", 1)
+        operator_dict = {}
+        for var_index in self.dynamic_var_indices:
+            cutoff = getattr(self, f"cutoff_ext_{var_index}")
+            theta_operator: csc_matrix | ndarray = op.a_plus_adag_sparse(
+                cutoff,
+                prefactor=(self.osc_lengths[var_index] / 2**0.5),
+            )
+            theta_operator = self._kron_operator(theta_operator, var_index)
+            Q_operator: csc_matrix | ndarray = op.iadag_minus_ia_sparse(
+                cutoff,
+                prefactor=1 / (self.osc_lengths[var_index] * 2**0.5),
+            )
+            Q_operator = self._kron_operator(Q_operator, var_index)
+            operator_dict[f"Q{var_index}"] = qt.Qobj(Q_operator)
+            operator_dict[f"θ{var_index}"] = qt.Qobj(theta_operator)
+        return self._sparsity_adaptive(
+            Qobj_to_scipy_csc_matrix(
+                eval(str(hamiltonian), {"__builtins__": {}}, operator_dict)
+            )
+        )
+
+    def _eigenvals_for_purely_harmonic(self, evals_count: int):
+        """Eigenenergies for purely harmonic circuits (hierarchical diag disabled).
+
+        Parameters
+        ----------
+        evals_count:
+            Number of eigenenergies to return.
+        """
+        operator_for_var_index: list[csc_matrix | ndarray] = []
+        for idx, var_index in enumerate(self.var_categories["extended"]):
+            cutoff = getattr(self, f"cutoff_ext_{var_index}")
+            evals = (0.5 + np.arange(0, cutoff)) * self.normal_mode_freqs[idx]
+            H_osc = sp.sparse.dia_matrix(
+                (evals, [0]), shape=(cutoff, cutoff), dtype=np.float64
+            ).tocsc()
+            operator_for_var_index.append(self._kron_operator(H_osc, var_index))
+        # sum() of sparse/dense matrices produces the same sparse/dense sum at runtime;
+        # mypy's Iterable[SupportsAdd] stub can't narrow this — safe to ignore.
+        H = sum(operator_for_var_index)  # type: ignore[arg-type]
+        unsorted_eigs = H.diagonal()  # type: ignore[attr-defined]
+        dressed_indices = np.argsort(unsorted_eigs)[:evals_count]
+        return unsorted_eigs[dressed_indices]
+
+    @check_sync_status_circuit
+    def hamiltonian(self) -> csc_matrix | ndarray:
+        """Return the Hamiltonian of the Circuit."""
+        if not self.hierarchical_diagonalization:
+            if self.is_purely_harmonic and self.ext_basis == "harmonic":
+                return self._hamiltonian_for_purely_harmonic()
+            else:
+                return self._evaluate_hamiltonian()
+
+        else:
+            bare_esys = {
+                sys_index: (
+                    self.hilbert_space["bare_evals"][sys_index][0],
+                    self.hilbert_space["bare_evecs"][sys_index][0],
+                )
+                for sys_index, sys in enumerate(self.hilbert_space.subsystem_list)
+            }
+            hamiltonian = self.hilbert_space.hamiltonian(bare_esys=bare_esys)
+            if self.type_of_matrices == "dense":
+                return hamiltonian.full()
+            if self.type_of_matrices == "sparse":
+                return Qobj_to_scipy_csc_matrix(hamiltonian)
+            raise ValueError(f"Unexpected type_of_matrices: {self.type_of_matrices!r}")
+
+    def _evals_calc(self, evals_count: int) -> ndarray:
+        """Compute the lowest ``evals_count`` eigenenergies (sorted, real).
+
+        Parameters
+        ----------
+        evals_count:
+            number of eigenvalues to return.
+        """
+        if self.is_child and not self._is_diagonalization_necessary():
+            subsys_index = self.parent.subsystems.index(self)
+            return self.parent.hilbert_space["bare_evals"][subsys_index][0][
+                :evals_count
+            ]
+
+        if self.is_purely_harmonic and not self.hierarchical_diagonalization:
+            return self._eigenvals_for_purely_harmonic(evals_count=evals_count)
+
+        hamiltonian_mat = self.hamiltonian()
+        if self.evals_method is None:
+            if self.type_of_matrices == "sparse":
+                evals_method = "evals_scipy_sparse"
+            elif self.type_of_matrices == "dense":
+                evals_method = "evals_scipy_dense"
+
+        evals_method = self.evals_method or evals_method
+
+        diagonalizer = (
+            diag.DIAG_METHODS[evals_method]
+            if isinstance(evals_method, str)
+            else evals_method
+        )
+        evals = diagonalizer(
+            hamiltonian_mat,
+            evals_count=evals_count,
+            **({} if self.evals_method_options is None else self.evals_method_options),
+        )
+        return np.sort(evals)
+
+    def _esys_calc(self, evals_count: int) -> tuple[ndarray, ndarray]:
+        """Compute eigenenergies and eigenvectors via the configured diagonalizer.
+
+        Parameters
+        ----------
+        evals_count:
+            number of eigenvalues/eigenvectors to return.
+        """
+        if self.is_child and not self._is_diagonalization_necessary():
+            subsys_index = self.parent.subsystems.index(self)
+            return (
+                self.parent.hilbert_space["bare_evals"][subsys_index][0][:evals_count],
+                self.parent.hilbert_space["bare_evecs"][subsys_index][0][
+                    :, :evals_count
+                ],
+            )
+
+        hamiltonian_mat = self.hamiltonian()
+
+        if self.esys_method is None:
+            if self.type_of_matrices == "sparse":
+                esys_method = "esys_scipy_sparse"
+            elif self.type_of_matrices == "dense":
+                esys_method = "esys_scipy_dense"
+
+        esys_method = self.esys_method or esys_method
+
+        diagonalizer = (
+            diag.DIAG_METHODS[esys_method]
+            if isinstance(esys_method, str)
+            else esys_method
+        )
+        evals, evecs = diagonalizer(
+            hamiltonian_mat,
+            evals_count=evals_count,
+            **({} if self.esys_method_options is None else self.esys_method_options),
+        )
+        return order_eigensystem(evals, evecs, standardize_phase=True)

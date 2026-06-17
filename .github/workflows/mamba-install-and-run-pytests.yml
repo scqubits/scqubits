@@ -1,11 +1,6 @@
 name: Locally install scqubits with mambabuild and run pytests
 
-on: 
-  push: 
-    branches:
-      - main
-      - devel_peterg
-      - spc-main-devel
+on:
   workflow_dispatch:
 
 jobs:
@@ -19,7 +14,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest", "macos-latest", "windows-latest"]
-        python-version: ['3.9', '3.10', '3.11', '3.12']
+        python-version: ['3.10', '3.11', '3.12']
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
