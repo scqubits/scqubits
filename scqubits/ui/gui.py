@@ -890,9 +890,8 @@ class GUI:
         # per-axis grid when ``_default_grid`` is absent so its wavefunction plots
         # do not raise AttributeError in the GUI.
         if isinstance(self.active_qubit, QUBITS_WITH_PHI_GRID):
-            phi_default = (
-                getattr(self.active_qubit, "_default_grid", None)
-                or self.active_qubit._default_phi_grid
+            phi_default = getattr(self.active_qubit, "_default_grid", None) or getattr(
+                self.active_qubit, "_default_phi_grid"
             )
             value_dict["phi_grid"] = Grid1d(
                 min_val=cast(float, self.dict_v_ranges["phi"]["min"].num_value),
@@ -900,10 +899,9 @@ class GUI:
                 pt_count=phi_default.pt_count,
             )
         if isinstance(self.active_qubit, QUBITS_WITH_THETA_GRID):
-            theta_default = (
-                getattr(self.active_qubit, "_default_grid", None)
-                or self.active_qubit._default_theta_grid
-            )
+            theta_default = getattr(
+                self.active_qubit, "_default_grid", None
+            ) or getattr(self.active_qubit, "_default_theta_grid")
             value_dict["theta_grid"] = Grid1d(
                 min_val=cast(float, self.dict_v_ranges["theta"]["min"].num_value),
                 max_val=cast(float, self.dict_v_ranges["theta"]["max"].num_value),
