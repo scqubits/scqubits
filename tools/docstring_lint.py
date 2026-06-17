@@ -302,9 +302,10 @@ _PARAM_TYPE_LINE = re.compile(
 # Heuristic for a numpydoc *Returns* entry that names both a value and its type,
 # e.g. ``time or rate : float`` / ``result: ndarray``.  Unlike a parameter name,
 # the value name may be a free-text phrase, so the name group is permissive; the
-# RHS is type-checked by ``_looks_like_a_type`` before flagging.  Non-greedy name
-# stops at the first ``:`` so a description with an embedded ``:math:`` role does
-# not match.
+# RHS is type-checked by ``_looks_like_a_type`` before flagging.  The non-greedy
+# name stops at the first ``:``, so a description with an embedded ``:math:`` role
+# still matches (split before the role) but is not flagged, because its RHS is not
+# a bare type.
 _RETURNS_NAMED_TYPE_LINE = re.compile(r"^(?P<name>.+?)\s*:\s*(?P<rhs>\S.*)$")
 
 

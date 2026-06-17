@@ -777,7 +777,7 @@ class NoisySystem(ABC):
         Returns
         -------
         decoherence time in units of :math:`2\pi` (system units), or rate
-         in inverse units.
+        in inverse units.
         """
         common_noise_options = (
             {} if common_noise_options is None else common_noise_options
@@ -1327,7 +1327,7 @@ class NoisySystem(ABC):
         Returns
         -------
         decoherence time in units of :math:`2\pi` (system units), or rate
-         in inverse units.
+        in inverse units.
         """
         if "t1_capacitive" not in self.supported_noise_channels():
             raise RuntimeError(
