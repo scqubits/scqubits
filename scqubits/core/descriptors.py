@@ -16,9 +16,36 @@ from __future__ import annotations
 
 from typing import Any, Generic, Type, TypeVar
 
+import numpy as np
+
 from scqubits.core.central_dispatch import DispatchClient
 
 TargetType = TypeVar("TargetType")
+
+
+def _values_equal(new_value: Any, old_value: Any) -> bool:
+    """Return whether two watched-property values are equal.
+
+    Handles array-like values (where ``==`` yields an element-wise array) by
+    reducing with :func:`numpy.all`, and treats any comparison that cannot be
+    evaluated as "not equal" so the assignment is allowed to proceed.
+
+    Parameters
+    ----------
+    new_value:
+        value being assigned.
+    old_value:
+        value currently stored.
+    """
+    if new_value is old_value:
+        return True
+    try:
+        result = new_value == old_value
+        if isinstance(result, np.ndarray) or hasattr(result, "__iter__"):
+            return bool(np.all(result))
+        return bool(result)
+    except (TypeError, ValueError):
+        return False
 
 
 class ReadOnlyProperty(Generic[TargetType]):
@@ -153,11 +180,13 @@ class WatchedProperty(Generic[TargetType]):
             return self.getter(instance)
 
     def __set__(self, instance: DispatchClient, value: TargetType) -> None:
-        """Set the watched value and trigger ``broadcast`` of ``self.event``.
+        """Store the watched value and broadcast ``self.event`` when it changes.
 
         Dispatches through ``fset``/``inner`` if configured. The broadcast is
         suppressed on the first assignment (when neither ``attr_name`` nor
-        ``_attr_name`` is yet present on the instance).
+        ``_attr_name`` is yet present on the instance) and on any later
+        reassignment whose value equals the one already stored; the value is
+        still written on the first assignment regardless.
 
         Parameters
         ----------
@@ -172,18 +201,21 @@ class WatchedProperty(Generic[TargetType]):
             # Rely on inner_instance.attr_name to do the broadcasting.
         else:
             assert self.attr_name
-            if (
+            first_assignment = (
                 self.attr_name not in instance.__dict__
                 and f"_{self.attr_name}" not in instance.__dict__
+            )
+            # Always initialize on the first assignment; afterwards, write and
+            # broadcast only when the value actually changes. The old value is
+            # read through __get__ so it works for both plain and fget/fset
+            # (``_attr_name``-backed) properties. The ``or`` short-circuits, so
+            # __get__ is never called before the value exists.
+            if first_assignment or not _values_equal(
+                value, self.__get__(instance, type(instance))
             ):
                 if self.setter is None:
                     instance.__dict__[self.attr_name] = value
                 else:
                     self.setter(instance, value, name=self.attr_name)
-                # Rely on inner_instance.attr_name to do the broadcasting.
-            else:
-                if self.setter is None:
-                    instance.__dict__[self.attr_name] = value
-                else:
-                    self.setter(instance, value, name=self.attr_name)
-                instance.broadcast(self.event)
+                if not first_assignment:
+                    instance.broadcast(self.event)
