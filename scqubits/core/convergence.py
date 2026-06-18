@@ -1506,9 +1506,11 @@ class ConvergenceCheckable:
         Both eigenvector sets are embedded into the larger basis via the
         qubit's :meth:`_convergence_pad_eigenvectors` hook. Isolated levels use
         the overlap deficit ``1 - |<a_k | b_k>|`` (invariant to each vector's
-        global phase); near-degenerate clusters use the subspace angle, assigned
-        to every member, which is robust to eigenvector rotations within the
-        block.
+        global phase); near-degenerate clusters use the subspace angle of the
+        cluster's eigenvector block ``U_N`` at the two cutoffs (the ``sin(Theta)``
+        diagnostic; see :func:`~scqubits.utils.convergence_utils.subspace_angle`),
+        assigned to every member, which is robust to eigenvector rotations within
+        the block.
         """
         value_max = max(value_a, value_b)
         a = self._convergence_pad_eigenvectors(

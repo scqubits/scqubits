@@ -587,20 +587,36 @@ def pad_charge_basis(
 def subspace_angle(
     subspace_a: npt.NDArray[np.float64], subspace_b: npt.NDArray[np.float64]
 ) -> float:
-    """Return the sine of the largest principal angle between two subspaces.
+    r"""Return the sine of the largest principal angle between two subspaces.
 
-    The subspaces are the column spans of ``subspace_a`` and ``subspace_b`` --
-    tall matrices with matching row dimension and orthonormal columns. The value
-    ``||(I - A A^H) B||_2`` is 0 when the spans coincide and 1 when ``B`` has a
-    direction orthogonal to all of ``A``. This is the cluster-level analogue of
-    one minus a wavefunction overlap, robust to eigenvector rotations within a
-    near-degenerate block.
+    This is the cluster-level convergence diagnostic written ``U_N`` in the design
+    notes. For a near-degenerate cluster, ``subspace_a`` and ``subspace_b`` are the
+    blocks of eigenvector columns spanning that cluster at two cutoffs -- i.e. the
+    relevant columns of the diagonalizing unitary (the cluster's ``U_N`` at cutoff
+    ``N``), orthonormal and embedded in a common basis. Individual eigenvectors
+    inside a (near-)degenerate block are not physically well-defined: they can
+    rotate arbitrarily among themselves between cutoffs, which would make a
+    vector-by-vector overlap spuriously report change. The diagnostic therefore
+    compares the *spans* of the blocks instead.
+
+    With ``A = subspace_a`` and ``B = subspace_b``, the returned value is
+
+        sin(Theta) = || (I - A A^H) B ||_2,
+
+    the sine of the largest principal angle between the two spans: ``0`` when the
+    spans coincide (the cluster's eigenspace did not move under refinement) and
+    ``1`` when ``B`` has a direction orthogonal to all of ``A``. It is the
+    cluster-level analogue of one minus a wavefunction overlap, invariant to any
+    unitary rotation of the eigenvectors within the block. Being built from
+    eigenvectors alone, it is dimensionless and independent of the active energy
+    unit (:func:`scqubits.set_units`).
 
     Parameters
     ----------
     subspace_a, subspace_b:
-        Tall matrices with the same number of rows and orthonormal columns; the
-        caller pads them to a common basis first if the cutoffs differ.
+        The cluster's eigenvector blocks at two cutoffs (orthonormal columns,
+        same number of rows); the caller pads them to a common basis first if the
+        cutoffs differ.
 
     Returns
     -------
