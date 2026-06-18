@@ -50,6 +50,22 @@ from scqubits.core.convergence_report import (
 )
 
 
+def _GHz_factor() -> float:
+    """Multiplier converting an energy value from the active unit system to GHz.
+
+    The convergence diagnostics report energy quantities (the ``*_GHz`` error
+    estimates and channel weights) in GHz. Eigenvalues -- and every energy
+    derived from them -- come out of ``eigensys`` in the active unit system (see
+    :func:`scqubits.set_units`). Internal computation is kept in the active units
+    so it stays consistent with the qubit parameters and the physics hooks
+    (potential-envelope box refinement, the perturbative tail estimate, coherence
+    ``esys``); this factor converts the per-level error estimates to GHz only at
+    the reporting boundary. It is ``1.0`` when the active units are already GHz.
+    The coherence path normalizes rates to Hz for the same reason.
+    """
+    return units.units_scale_factor() / 1e9
+
+
 class ConvergenceCheckable:
     """Mixin providing :meth:`check_convergence` for qubit classes.
 
@@ -728,6 +744,10 @@ class ConvergenceCheckable:
             eps = est / gap if gap is not None else None
             if scope == "observed_gap_scale" and gap is None:
                 warnings.append("upper_gap_unavailable")
+            # ``eps`` (a dimensionless est/gap ratio) was formed in the active
+            # units; convert the absolute estimate to GHz for the target check
+            # and the reported abs_err_est_GHz field. Identity under GHz.
+            est = est * _GHz_factor()
 
             if float(boundary_prob[k]) > large_boundary_prob:
                 # The kept eigenstate reaches the basis edge: a dismissal signal.
@@ -878,7 +898,7 @@ class ConvergenceCheckable:
                     evals_step1[:n_levels],
                     clusters,
                     settings.CONVERGENCE_MONOTONICITY_REL_TOL,
-                    _REFINEMENT_NOISE_FLOOR_GHz,
+                    _REFINEMENT_NOISE_FLOOR_GHz / _GHz_factor(),
                 )
 
             clone_step2: ConvergenceCheckable | None = None
@@ -900,7 +920,7 @@ class ConvergenceCheckable:
                         evals_step2[:n_levels],
                         clusters,
                         settings.CONVERGENCE_MONOTONICITY_REL_TOL,
-                        _REFINEMENT_NOISE_FLOOR_GHz,
+                        _REFINEMENT_NOISE_FLOOR_GHz / _GHz_factor(),
                     )
             if use_richardson and diff_step2 is not None:
                 # Per-axis absolute estimate (Richardson for an h**p FD-stencil
@@ -1147,6 +1167,18 @@ class ConvergenceCheckable:
             per_level_abs_err=per_level_abs_err,
             per_level_warnings=per_level_warnings,
         )
+
+        # ``per_level_abs_err`` and ``eps_gap_est`` were computed in the active
+        # unit system (eigenvalue differences). ``eps_gap_est`` is a dimensionless
+        # ratio and stays correct; convert the absolute estimate to GHz now -- after
+        # the ratio, before the target check and the abs_err_est_GHz / transition /
+        # channel-breakdown report fields. Identity under GHz.
+        ghz_factor = _GHz_factor()
+        per_level_abs_err = per_level_abs_err * ghz_factor
+        channel_breakdown = {
+            channel: weight * ghz_factor
+            for channel, weight in channel_breakdown.items()
+        }
 
         per_level_status = _assign_level_statuses(
             n_levels=n_levels,
@@ -1678,6 +1710,11 @@ def _local_isolation_gap(
 
     The returned gap is floored at ``g_floor``.
     """
+    # ``g_floor`` is specified in GHz, but the gaps are eigenvalue differences in
+    # the active unit system; rescale it to the active units so the floor binds at
+    # the same physical gap (and the resulting eps = err/gap stays unit-invariant)
+    # regardless of set_units. Identity under GHz.
+    g_floor = g_floor / _GHz_factor()
     if k == 0:
         if n_levels < 2:
             return None
@@ -1794,7 +1831,8 @@ def _per_cluster_energy_estimates(
                 if cluster_max_diff_step2 is not None
                 else 0.0
             )
-            if d0 <= _REFINEMENT_NOISE_FLOOR_GHz and d1 <= _REFINEMENT_NOISE_FLOOR_GHz:
+            noise_floor = _REFINEMENT_NOISE_FLOOR_GHz / _GHz_factor()
+            if d0 <= noise_floor and d1 <= noise_floor:
                 # Both refinements are flat at the eigensolver noise floor: no
                 # real movement, so the undefined ratio is not a dismissal. The
                 # safety factor keeps the (negligible) reported estimate a
