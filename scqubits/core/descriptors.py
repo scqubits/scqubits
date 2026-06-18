@@ -41,11 +41,8 @@ def _values_equal(new_value: Any, old_value: Any) -> bool:
         return True
     try:
         result = new_value == old_value
-    except (TypeError, ValueError):
-        return False
-    if isinstance(result, np.ndarray) or hasattr(result, "__iter__"):
-        return bool(np.all(result))
-    try:
+        if isinstance(result, np.ndarray) or hasattr(result, "__iter__"):
+            return bool(np.all(result))
         return bool(result)
     except (TypeError, ValueError):
         return False
