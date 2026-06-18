@@ -898,7 +898,7 @@ class ConvergenceCheckable:
                     evals_step1[:n_levels],
                     clusters,
                     settings.CONVERGENCE_MONOTONICITY_REL_TOL,
-                    _REFINEMENT_NOISE_FLOOR_GHz,
+                    _REFINEMENT_NOISE_FLOOR_GHz / _GHz_factor(),
                 )
 
             clone_step2: ConvergenceCheckable | None = None
@@ -920,7 +920,7 @@ class ConvergenceCheckable:
                         evals_step2[:n_levels],
                         clusters,
                         settings.CONVERGENCE_MONOTONICITY_REL_TOL,
-                        _REFINEMENT_NOISE_FLOOR_GHz,
+                        _REFINEMENT_NOISE_FLOOR_GHz / _GHz_factor(),
                     )
             if use_richardson and diff_step2 is not None:
                 # Per-axis absolute estimate (Richardson for an h**p FD-stencil
@@ -1710,6 +1710,11 @@ def _local_isolation_gap(
 
     The returned gap is floored at ``g_floor``.
     """
+    # ``g_floor`` is specified in GHz, but the gaps are eigenvalue differences in
+    # the active unit system; rescale it to the active units so the floor binds at
+    # the same physical gap (and the resulting eps = err/gap stays unit-invariant)
+    # regardless of set_units. Identity under GHz.
+    g_floor = g_floor / _GHz_factor()
     if k == 0:
         if n_levels < 2:
             return None
@@ -1826,7 +1831,8 @@ def _per_cluster_energy_estimates(
                 if cluster_max_diff_step2 is not None
                 else 0.0
             )
-            if d0 <= _REFINEMENT_NOISE_FLOOR_GHz and d1 <= _REFINEMENT_NOISE_FLOOR_GHz:
+            noise_floor = _REFINEMENT_NOISE_FLOOR_GHz / _GHz_factor()
+            if d0 <= noise_floor and d1 <= noise_floor:
                 # Both refinements are flat at the eigensolver noise floor: no
                 # real movement, so the undefined ratio is not a dismissal. The
                 # safety factor keeps the (negligible) reported estimate a

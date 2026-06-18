@@ -244,6 +244,41 @@ class TestEnergyModerateMode:
         # the verdict must not depend on the unit system either
         assert rep_ghz.aggregate_status == rep_mhz.aggregate_status
 
+    def test_eps_gap_is_unit_invariant_when_floor_binds(self):
+        # observed-gap-scale eps = err / gap, with a large g_floor_GHz that floors
+        # the isolation gap. The GHz floor must be rescaled into the active units
+        # so eps stays unit-invariant even when the floor binds (regression for
+        # the floor-rescaling raised in #316 review).
+        original_units = sq.get_units()
+        kw = dict(
+            n_levels=4,
+            mode="moderate",
+            scope="observed_gap_scale",
+            g_floor_GHz=10.0,
+            target_gap_rel=1e-3,
+        )
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", UserWarning)
+                sq.set_units("GHz")
+                rep_ghz = sq.Transmon(
+                    EJ=15.0, EC=0.3, ng=0.0, ncut=5, truncated_dim=6
+                ).check_convergence(**kw)
+                sq.set_units("MHz")
+                rep_mhz = sq.Transmon(
+                    EJ=15000.0, EC=300.0, ng=0.0, ncut=5, truncated_dim=6
+                ).check_convergence(**kw)
+        finally:
+            sq.set_units(original_units)
+        eps_ghz = [
+            v.eps_gap_est for v in rep_ghz.per_level if v.eps_gap_est is not None
+        ]
+        eps_mhz = [
+            v.eps_gap_est for v in rep_mhz.per_level if v.eps_gap_est is not None
+        ]
+        assert eps_ghz
+        np.testing.assert_allclose(eps_ghz, eps_mhz, rtol=1e-9)
+
     def test_absolute_scope_without_target_returns_unverified(self):
         # The report still contains abs_err_est_GHz per level, but status
         # defaults to unverified when no target is supplied.
