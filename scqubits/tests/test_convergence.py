@@ -18,6 +18,7 @@ and the top-level ``check_convergence`` shim.
 from __future__ import annotations
 
 import dataclasses
+import warnings
 
 import numpy as np
 import pytest
@@ -213,6 +214,35 @@ class TestEnergyModerateMode:
         assert report.aggregate_status == "distrust"
         # Recommendation should propose increasing ncut.
         assert any("ncut" in r for r in report.recommendations)
+
+    @pytest.mark.parametrize("mode", ["cheap", "moderate", "strict"])
+    def test_abs_err_estimate_is_unit_invariant(self, mode):
+        # The same physical transmon expressed in GHz vs MHz must yield the same
+        # abs_err_est_GHz and the same verdict: the energy diagnostics report in
+        # GHz regardless of the active unit system (regression for the
+        # GHz-hardcoding raised in issue #306). under-converged (ncut=5) so the
+        # error is a real truncation error, well above the eigensolver floor.
+        original_units = sq.get_units()
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", UserWarning)
+                sq.set_units("GHz")
+                rep_ghz = sq.Transmon(
+                    EJ=15.0, EC=0.3, ng=0.0, ncut=5, truncated_dim=6
+                ).check_convergence(n_levels=4, mode=mode, target_abs_GHz=1e-3)
+                sq.set_units("MHz")
+                rep_mhz = sq.Transmon(
+                    EJ=15000.0, EC=300.0, ng=0.0, ncut=5, truncated_dim=6
+                ).check_convergence(n_levels=4, mode=mode, target_abs_GHz=1e-3)
+        finally:
+            sq.set_units(original_units)
+        err_ghz = [v.abs_err_est_GHz for v in rep_ghz.per_level]
+        err_mhz = [v.abs_err_est_GHz for v in rep_mhz.per_level]
+        assert err_ghz and all(e is not None for e in err_ghz)
+        assert all(e is not None for e in err_mhz)
+        np.testing.assert_allclose(err_ghz, err_mhz, rtol=1e-9)
+        # the verdict must not depend on the unit system either
+        assert rep_ghz.aggregate_status == rep_mhz.aggregate_status
 
     def test_absolute_scope_without_target_returns_unverified(self):
         # The report still contains abs_err_est_GHz per level, but status
