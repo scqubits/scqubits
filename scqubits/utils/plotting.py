@@ -451,6 +451,16 @@ def matrix2d(
     return fig, axes
 
 
+def _repeat_curve_columns(
+    columns: np.ndarray | list[np.ndarray],
+    n_curves: int,
+) -> np.ndarray:
+    """Repeat a single curve column for multi-curve broadcasting."""
+    if isinstance(columns, np.ndarray):
+        return np.repeat(columns, n_curves, axis=0)
+    return np.array(columns * n_curves)
+
+
 @mpl.rc_context(matplotlib_settings)
 def data_vs_paramvals(
     xdata: np.ndarray,
@@ -487,9 +497,9 @@ def data_vs_paramvals(
     # Broadcast: if one side has a single column, reuse it for every column of the other.
     n_curves = max(len(x_cols), len(y_cols))
     if len(x_cols) == 1:
-        x_cols = x_cols * n_curves
+        x_cols = _repeat_curve_columns(x_cols, n_curves)
     if len(y_cols) == 1:
-        y_cols = y_cols * n_curves
+        y_cols = _repeat_curve_columns(y_cols, n_curves)
 
     if label_list is None:
         for xdataset, ydataset in zip(x_cols, y_cols):
