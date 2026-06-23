@@ -1321,10 +1321,10 @@ class SpectrumLookupMixin(MixinCompatible):
             State indices for all modes other than ``primary_mode_idx``.
             A single branch index may be given as an ``int`` (2 subsystems), a
             ``tuple[int, ...]``, or a ``list[int]`` of length
-            ``subsystem_count - 1`` (3+ subsystems). Multiple branch indices 
+            ``subsystem_count - 1`` (3+ subsystems). Multiple branch indices
             may be given as a ``list[int]`` (2 subsystems), or as a
-            ``list[tuple[int, ...]]`` (3+ subsystems). When multiple branch 
-            indices are given, return the smallest ``n_crit`` found across all 
+            ``list[tuple[int, ...]]`` (3+ subsystems). When multiple branch
+            indices are given, return the smallest ``n_crit`` found across all
             branches.
         primary_mode_idx:
             Subsystem index of the primary mode.

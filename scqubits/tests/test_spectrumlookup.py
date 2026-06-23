@@ -338,9 +338,7 @@ class TestParameterSweep:
 class TestBranchAnalysisVisualization:
     @staticmethod
     def three_subsystem_hilbertspace():
-        CPB1 = qubit.Transmon(
-            EJ=40.0, EC=0.2, ng=0.3, ncut=40, truncated_dim=3
-        )
+        CPB1 = qubit.Transmon(EJ=40.0, EC=0.2, ng=0.3, ncut=40, truncated_dim=3)
         CPB2 = qubit.Transmon(EJ=30.0, EC=0.15, ng=0.0, ncut=10, truncated_dim=4)
         resonator = qubit.Oscillator(E_osc=6.0, truncated_dim=4)
         hilbertspace = HilbertSpace([CPB1, CPB2, resonator])
@@ -360,9 +358,7 @@ class TestBranchAnalysisVisualization:
 
     @staticmethod
     def two_subsystem_hilbertspace():
-        transmon = qubit.Transmon(
-            EJ=40.0, EC=0.2, ng=0.0, ncut=15, truncated_dim=3
-        )
+        transmon = qubit.Transmon(EJ=40.0, EC=0.2, ng=0.0, ncut=15, truncated_dim=3)
         resonator = qubit.Oscillator(E_osc=6.0, truncated_dim=4)
         hilbertspace = HilbertSpace([transmon, resonator])
         hilbertspace.add_interaction(
@@ -433,7 +429,9 @@ class TestBranchAnalysisVisualization:
 
         # Along one branch, primary-mode ⟨N⟩ tracks bare resonator index.
         branch_x = x_n[0, :]
-        np.testing.assert_allclose(branch_x, np.arange(resonator.truncated_dim), atol=0.1)
+        np.testing.assert_allclose(
+            branch_x, np.arange(resonator.truncated_dim), atol=0.1
+        )
 
     def test_branch_analysis_exp_vals_three_subsystems(self):
         hilbertspace = self.three_subsystem_hilbertspace()
@@ -477,12 +475,8 @@ class TestBranchAnalysisVisualization:
             np.delete(hilbertspace.subsystem_dims, primary_mode_idx)
         )
 
-        x_plot = np.moveaxis(x_val, primary_mode_idx, 0).reshape(
-            primary_mode_dim, -1
-        )
-        y_plot = np.moveaxis(y_val, primary_mode_idx, 0).reshape(
-            primary_mode_dim, -1
-        )
+        x_plot = np.moveaxis(x_val, primary_mode_idx, 0).reshape(primary_mode_dim, -1)
+        y_plot = np.moveaxis(y_val, primary_mode_idx, 0).reshape(primary_mode_dim, -1)
         for col, line in enumerate(ax.get_lines()):
             np.testing.assert_allclose(line.get_xdata(), x_plot[:, col])
             np.testing.assert_allclose(line.get_ydata(), y_plot[:, col])

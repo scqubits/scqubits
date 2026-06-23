@@ -22,9 +22,7 @@ class TestDataVsParamvals:
             np.testing.assert_array_equal(line.get_xdata(), np.arange(5))
 
         np.testing.assert_array_equal(ax.get_lines()[0].get_ydata(), np.arange(5))
-        np.testing.assert_array_equal(
-            ax.get_lines()[1].get_ydata(), np.arange(5) + 10
-        )
+        np.testing.assert_array_equal(ax.get_lines()[1].get_ydata(), np.arange(5) + 10)
 
     def test_broadcast_single_column_list_x(self):
         x = np.linspace(0, 1, 5)
