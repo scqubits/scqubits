@@ -564,7 +564,7 @@ class SpectrumLookupMixin(MixinCompatible):
             product_state_list.append(qt.basis(dim, state_index))
         return qt.tensor(*product_state_list)
 
-    def all_params_fixed(self, param_indices: slice | tuple) -> bool:
+    def all_params_fixed(self, param_indices: int | slice | tuple) -> bool:
         """Return whether the provided indices fix every parameter.
 
         Parameters
@@ -1294,26 +1294,24 @@ class SpectrumLookupMixin(MixinCompatible):
             The critical primary-mode occupation index, or None if not reached.
         """
         # grab a column of the N_matrix (branch)
-        if not isinstance(branch, list):
-            branches = [branch]
+        branches: list[int | tuple[int, ...]]
+        if isinstance(branch, list):
+            branches = [entry for entry in branch]
         else:
-            branches = branch
+            branches = [branch]
 
-        n_crit_list = []
+        n_crit_list: list[int | None] = []
         for br in branches:
-            if isinstance(br, int):
-                br = [br]
-            elif isinstance(br, tuple):
-                br = list(br)
-            branch_slice = list(br)
-            if len(branch_slice) != len(self.hilbertspace.subsystem_list) - 1:
+            br_indices: list[int] = [br] if isinstance(br, int) else list(br)
+            if len(br_indices) != len(self.hilbertspace.subsystem_list) - 1:
                 raise ValueError(
                     "Branch must specify one bare index per non-primary subsystem "
                     f"(expected {len(self.hilbertspace.subsystem_list) - 1} "
-                    f"entries, got {len(branch_slice)})."
+                    f"entries, got {len(br_indices)})."
                 )
-            branch_slice.insert(primary_mode_idx, slice(None))
-            branch_slice = tuple(branch_slice)
+            slice_list: list[int | slice] = list(br_indices)
+            slice_list.insert(primary_mode_idx, slice(None))
+            branch_slice = tuple(slice_list)
 
             N_branch = N_matrix[branch_slice]
 
@@ -1322,12 +1320,12 @@ class SpectrumLookupMixin(MixinCompatible):
             )
 
             # find the critical photon number for the primary mode
-            N_threshold = br[secondary_branch_idx] + occupation_threshold
+            N_threshold = br_indices[secondary_branch_idx] + occupation_threshold
             true_indices = np.where(N_branch > N_threshold)[0]
             if len(true_indices) == 0:
                 n_crit_list.append(None)  # no critical point found
             else:
-                n_crit_list.append(true_indices[0])
+                n_crit_list.append(int(true_indices[0]))
 
         # Filter out None values and return min if there is any, else return None
         n_crit_filtered = [val for val in n_crit_list if val is not None]
