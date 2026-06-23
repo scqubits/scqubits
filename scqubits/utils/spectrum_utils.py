@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 
 from scqubits.utils.typedefs import QuantumSys
 from scqubits.utils.misc import Qobj_to_scipy_csc_matrix
+from scqubits.utils.cuquantum_utils import get_cuquantum_workstream
 
 
 def eigsh_safe(*args, **kwargs):
@@ -402,12 +403,48 @@ def recast_esys_mapdata(
     return eigenenergy_table, eigenstate_table
 
 
+def _to_cuoperator(subsys_operator: Qobj) -> Qobj:
+    """Convert a Qobj to a CuOperator with optimal format for cuQuantum.
+
+    Determines the best storage format (dense/dia/csr) based on operator
+    dimension and sparsity, then wraps as a CuOperator.
+    """
+    dim = subsys_operator.shape[0]
+
+    if dim <= 16:
+        fmt = "dense"
+    else:
+        sparse_op = subsys_operator.to("csr").data.as_scipy()
+        nnz = sparse_op.nnz
+        num_occupied_diags = len(sparse_op.todia().offsets)
+
+        if num_occupied_diags <= 16:
+            fmt = "dia"
+        elif nnz / (num_occupied_diags * dim) > 0.8:
+            fmt = "dia"
+        else:
+            fmt = "csr"
+
+    subsys_operator = subsys_operator.to(fmt)
+
+    try:
+        import qutip_cuquantum as qcu
+    except ImportError:
+        raise ImportError(
+            "Package qutip-cuquantum is required when use_cuquantum=True."
+        )
+    ctx = get_cuquantum_workstream()
+    with qcu.CuQuantumBackend(ctx):
+        return qt.Qobj(qcu.CuOperator(subsys_operator.data))
+
+
 def identity_wrap(
     operator: Union[str, ndarray, Qobj, Callable],
     subsystem: "QuantumSys",
     subsys_list: List["QuantumSys"],
     op_in_eigenbasis: bool = False,
     evecs: Optional[ndarray] = None,
+    use_cuquantum: bool = False,
 ) -> Qobj:
     """Takes the `operator` belonging to `subsystem` and "wraps" it in identities. The
     full Hilbert space is taken to consist of all subsystems given as `subsys_list`.
@@ -429,6 +466,9 @@ def identity_wrap(
         `operator` is assumed to be in the internal QuantumSystem basis.
     evecs:
         internal `QuantumSystem` eigenstates, used to convert `operator` into eigenbasis
+    use_cuquantum:
+        if True, automatically format the operator and wrap as CuOperator for
+        GPU-accelerated tensor product dispatch.
 
     Returns
     -------
@@ -443,6 +483,10 @@ def identity_wrap(
     subsys_operator = convert_operator_to_qobj(
         operator, subsystem, op_in_eigenbasis, evecs  # type:ignore
     )
+
+    if use_cuquantum:
+        subsys_operator = _to_cuoperator(subsys_operator)
+
     operator_identitywrap_list = [
         qt.operators.qeye(the_subsys.truncated_dim) for the_subsys in subsys_list
     ]
