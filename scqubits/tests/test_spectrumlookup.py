@@ -12,9 +12,16 @@
 ############################################################################
 
 import numpy as np
+import pytest
+
+import matplotlib
+
+matplotlib.use("Agg")
 
 import scqubits as qubit
 
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.param_sweep import ParameterSweep
 
@@ -328,7 +335,7 @@ class TestParameterSweep:
         assert np.allclose(reference, sweep["bare_evecs"]["subsys":0][21])
 
 
-class TestBranchAnalysis:
+class TestBranchAnalysisVisualization:
     @staticmethod
     def three_subsystem_hilbertspace():
         CPB1 = qubit.Transmon(
@@ -401,3 +408,93 @@ class TestBranchAnalysis:
         expected = min(n_crit_filtered) if n_crit_filtered else None
 
         assert n_crit_multi == expected
+
+    def test_branch_analysis_exp_vals_two_subsystems(self):
+        hilbertspace = self.two_subsystem_hilbertspace()
+        hilbertspace.generate_lookup(ordering="LX")
+        resonator = hilbertspace[1]
+
+        x_n, y_n = hilbertspace.branch_analysis_exp_vals(
+            primary_mode=resonator,
+            observable="N",
+        )
+        x_em, y_em = hilbertspace.branch_analysis_exp_vals(
+            primary_mode=resonator,
+            observable="EM",
+        )
+
+        assert x_n.shape == tuple(hilbertspace.subsystem_dims)
+        assert y_n.shape == x_n.shape
+        assert x_em.shape == x_n.shape
+        assert y_em.shape == x_n.shape
+        assert np.isfinite(x_n).all()
+        assert np.isfinite(y_n).all()
+        assert not np.allclose(y_n, y_em)
+
+        # Along one branch, primary-mode ⟨N⟩ tracks bare resonator index.
+        branch_x = x_n[0, :]
+        np.testing.assert_allclose(branch_x, np.arange(resonator.truncated_dim), atol=0.1)
+
+    def test_branch_analysis_exp_vals_three_subsystems(self):
+        hilbertspace = self.three_subsystem_hilbertspace()
+        hilbertspace.generate_lookup(ordering="LX")
+        resonator = hilbertspace[2]
+        cpb1 = hilbertspace[0]
+
+        with pytest.raises(ValueError, match="secondary_mode is required"):
+            hilbertspace.branch_analysis_exp_vals(
+                primary_mode=resonator,
+                observable="N",
+            )
+
+        x_val, y_val = hilbertspace.branch_analysis_exp_vals(
+            primary_mode=resonator,
+            secondary_mode=cpb1,
+            observable="N",
+        )
+
+        assert x_val.shape == tuple(hilbertspace.subsystem_dims)
+        assert y_val.shape == x_val.shape
+        assert np.isfinite(x_val).all()
+        assert np.isfinite(y_val).all()
+
+    def test_plot_branch_analysis_matches_exp_vals(self):
+        hilbertspace = self.two_subsystem_hilbertspace()
+        hilbertspace.generate_lookup(ordering="LX")
+        resonator = hilbertspace[1]
+        primary_mode_idx = hilbertspace.subsystem_list.index(resonator)
+        primary_mode_dim = hilbertspace.subsystem_dims[primary_mode_idx]
+
+        x_val, y_val = hilbertspace.branch_analysis_exp_vals(
+            primary_mode=resonator,
+            observable="N",
+        )
+        fig, ax = hilbertspace.plot_branch_analysis(resonator, y_axis="N")
+
+        assert isinstance(fig, Figure)
+        assert isinstance(ax, Axes)
+        assert len(ax.get_lines()) == np.prod(
+            np.delete(hilbertspace.subsystem_dims, primary_mode_idx)
+        )
+
+        x_plot = np.moveaxis(x_val, primary_mode_idx, 0).reshape(
+            primary_mode_dim, -1
+        )
+        y_plot = np.moveaxis(y_val, primary_mode_idx, 0).reshape(
+            primary_mode_dim, -1
+        )
+        for col, line in enumerate(ax.get_lines()):
+            np.testing.assert_allclose(line.get_xdata(), x_plot[:, col])
+            np.testing.assert_allclose(line.get_ydata(), y_plot[:, col])
+
+    def test_plot_branch_analysis_em_axis(self):
+        hilbertspace = self.two_subsystem_hilbertspace()
+        hilbertspace.generate_lookup(ordering="LX")
+        resonator = hilbertspace[1]
+
+        fig, ax = hilbertspace.plot_branch_analysis(resonator, y_axis="EM")
+
+        assert isinstance(fig, Figure)
+        assert isinstance(ax, Axes)
+        assert len(ax.get_lines()) == hilbertspace.subsystem_dims[0]
+        assert "mod" in ax.get_ylabel()
