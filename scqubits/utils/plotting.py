@@ -526,9 +526,11 @@ def data_vs_paramvals(
     _process_options(fig, axes, **kwargs)
 
     # Ensures that np.nan entries (as present in transition energy plots)
-    # cannot reduce the intended x range
-    x_ref = xdata[:, 0] if xdata.ndim == 2 else xdata
-    axes.update_datalim(np.c_[x_ref, [0] * len(x_ref)], updatey=False)
+    # cannot reduce the intended x range. Use the full x span so multi-curve
+    # plots (e.g. branch analysis) are not clipped to the first column only.
+    x_min = np.nanmin(xdata)
+    x_max = np.nanmax(xdata)
+    axes.update_datalim(np.array([[x_min, 0.0], [x_max, 0.0]]), updatey=False)
     axes.autoscale()
 
     return fig, axes
