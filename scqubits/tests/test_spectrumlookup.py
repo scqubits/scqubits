@@ -326,3 +326,78 @@ class TestParameterSweep:
             ]
         )
         assert np.allclose(reference, sweep["bare_evecs"]["subsys":0][21])
+
+
+class TestBranchAnalysis:
+    @staticmethod
+    def three_subsystem_hilbertspace():
+        CPB1 = qubit.Transmon(
+            EJ=40.0, EC=0.2, ng=0.3, ncut=40, truncated_dim=3
+        )
+        CPB2 = qubit.Transmon(EJ=30.0, EC=0.15, ng=0.0, ncut=10, truncated_dim=4)
+        resonator = qubit.Oscillator(E_osc=6.0, truncated_dim=4)
+        hilbertspace = HilbertSpace([CPB1, CPB2, resonator])
+        hilbertspace.add_interaction(
+            g_strength=0.1,
+            op1=CPB1.n_operator,
+            op2=resonator.creation_operator,
+            add_hc=True,
+        )
+        hilbertspace.add_interaction(
+            g_strength=0.2,
+            op1=CPB2.n_operator,
+            op2=resonator.creation_operator,
+            add_hc=True,
+        )
+        return hilbertspace
+
+    @staticmethod
+    def two_subsystem_hilbertspace():
+        transmon = qubit.Transmon(
+            EJ=40.0, EC=0.2, ng=0.0, ncut=15, truncated_dim=3
+        )
+        resonator = qubit.Oscillator(E_osc=6.0, truncated_dim=4)
+        hilbertspace = HilbertSpace([transmon, resonator])
+        hilbertspace.add_interaction(
+            g_strength=0.1,
+            op1=transmon.n_operator,
+            op2=resonator.creation_operator,
+            add_hc=True,
+        )
+        return hilbertspace
+
+    def test_branch_analysis_n_crit_single_branch_list_matches_tuple(self):
+        hilbertspace = self.three_subsystem_hilbertspace()
+        hilbertspace.generate_lookup(ordering="LX")
+        resonator = hilbertspace[2]
+
+        n_crit_list = hilbertspace.branch_analysis_n_crit(
+            primary_mode=resonator,
+            branch=[0, 0],
+            secondary_mode=hilbertspace[0],
+        )
+        n_crit_tuple = hilbertspace.branch_analysis_n_crit(
+            primary_mode=resonator,
+            branch=(0, 0),
+            secondary_mode=hilbertspace[0],
+        )
+
+        assert n_crit_list == n_crit_tuple
+
+    def test_branch_analysis_n_crit_multiple_branches_two_subsystems(self):
+        hilbertspace = self.two_subsystem_hilbertspace()
+        hilbertspace.generate_lookup(ordering="LX")
+        resonator = hilbertspace[1]
+
+        n_crit_multi = hilbertspace.branch_analysis_n_crit(
+            primary_mode=resonator,
+            branch=[0, 1],
+        )
+        n_crit_branches = [
+            hilbertspace.branch_analysis_n_crit(primary_mode=resonator, branch=branch)
+            for branch in (0, 1)
+        ]
+        n_crit_filtered = [val for val in n_crit_branches if val is not None]
+        expected = min(n_crit_filtered) if n_crit_filtered else None
+
+        assert n_crit_multi == expected

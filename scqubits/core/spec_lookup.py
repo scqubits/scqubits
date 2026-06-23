@@ -44,6 +44,46 @@ if TYPE_CHECKING:
     from scqubits.utils.typedefs import QuantumSys
 
 
+def _normalize_ba_branch_index(
+    branch: int | tuple[int, ...] | list[int] | list[tuple[int, ...]],
+    non_primary_count: int,
+) -> list[int | tuple[int, ...]]:
+    """Normalize ``branch`` into a list of branch indices.
+
+    For a Hilbert space with two subsystems (``non_primary_count == 1``):
+
+    - One branch: an ``int``, a one-element ``tuple[int, ...]``, or a
+      one-element ``list[int]`` (e.g. ``0``, ``(0,)``, or ``[0]``).
+    - Multiple branches: a ``list[int]`` with more than one entry (e.g.
+      ``[0, 1, 2]``).
+
+    For a Hilbert space with three or more subsystems
+    (``non_primary_count > 1``):
+
+    - One branch: a ``tuple[int, ...]``, or a ``list[int]`` whose length
+      equals ``non_primary_count`` (e.g. ``(0, 1)`` or ``[0, 1]``).
+    - Multiple branches: a ``list[tuple[int, ...]]`` (e.g.
+      ``[(0, 0), (0, 1)]``).
+    """
+    if isinstance(branch, int):
+        return [branch]
+    if isinstance(branch, tuple):
+        return [branch]
+    if not branch:
+        raise ValueError("branch must not be empty.")
+    if all(isinstance(entry, tuple) for entry in branch):
+        return list(branch)
+    if all(isinstance(entry, int) for entry in branch):
+        int_branch = [entry for entry in branch if isinstance(entry, int)]
+        if len(int_branch) == non_primary_count:
+            return [tuple(int_branch)]
+        branches_out: list[int | tuple[int, ...]] = []
+        for entry in int_branch:
+            branches_out.append(entry)
+        return branches_out
+    raise ValueError("branch list must contain either all ints or all tuples.")
+
+
 class MixinCompatible(Protocol):
     """Structural protocol describing attributes required by :class:`SpectrumLookupMixin`.
 
@@ -1279,7 +1319,13 @@ class SpectrumLookupMixin(MixinCompatible):
             ⟨N_secondary⟩ on the bare product grid (subsystem dimensions).
         branch:
             State indices for all modes other than ``primary_mode_idx``.
-            If a list of branches is given, return the smallest ``n_crit`` found.
+            A single branch index may be given as an ``int`` (2 subsystems), a
+            ``tuple[int, ...]``, or a ``list[int]`` of length
+            ``subsystem_count - 1`` (3+ subsystems). Multiple branch indices 
+            may be given as a ``list[int]`` (2 subsystems), or as a
+            ``list[tuple[int, ...]]`` (3+ subsystems). When multiple branch 
+            indices are given, return the smallest ``n_crit`` found across all 
+            branches.
         primary_mode_idx:
             Subsystem index of the primary mode.
         secondary_mode_idx:
@@ -1294,11 +1340,8 @@ class SpectrumLookupMixin(MixinCompatible):
             The critical primary-mode occupation index, or None if not reached.
         """
         # grab a column of the N_matrix (branch)
-        branches: list[int | tuple[int, ...]]
-        if isinstance(branch, list):
-            branches = [entry for entry in branch]
-        else:
-            branches = [branch]
+        non_primary_count = len(self.hilbertspace.subsystem_list) - 1
+        branches = _normalize_ba_branch_index(branch, non_primary_count)
 
         n_crit_list: list[int | None] = []
         for br in branches:
@@ -1371,9 +1414,12 @@ class SpectrumLookupMixin(MixinCompatible):
             The subsystem (index or instance) whose excitations form branches,
             typically the resonator.
         branch:
-            Branch indices for the non-primary modes (as a tuple or list of tuples).
-            The critical photon number is evaluated for the specified branch.
-            If a list of branches is provided, the smallest critical occupation
+            Branch indices for the non-primary modes. A single branch may be
+            given as an ``int`` (two subsystems), a ``tuple[int, ...]``, or a
+            ``list[int]`` of length ``subsystem_count - 1``. Multiple branches
+            may be given as a ``list[int]`` when there is only one non-primary
+            subsystem, or as a ``list[tuple[int, ...]]`` otherwise. When
+            multiple branches are provided, the smallest critical occupation
             number across all branches is returned.
         secondary_mode:
             The subsystem (index or instance) whose ⟨N⟩ enters the threshold
