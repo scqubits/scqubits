@@ -467,7 +467,7 @@ class TestBranchAnalysisVisualization:
             primary_mode=resonator,
             observable="N",
         )
-        fig, ax = hilbertspace.plot_branch_analysis(resonator, y_axis="N")
+        fig, ax = hilbertspace.plot_branch_analysis(resonator, observable="N")
 
         assert isinstance(fig, Figure)
         assert isinstance(ax, Axes)
@@ -481,12 +481,12 @@ class TestBranchAnalysisVisualization:
             np.testing.assert_allclose(line.get_xdata(), x_plot[:, col])
             np.testing.assert_allclose(line.get_ydata(), y_plot[:, col])
 
-    def test_plot_branch_analysis_em_axis(self):
+    def test_plot_branch_analysis_em_observable(self):
         hilbertspace = self.two_subsystem_hilbertspace()
         hilbertspace.generate_lookup(ordering="LX")
         resonator = hilbertspace[1]
 
-        fig, ax = hilbertspace.plot_branch_analysis(resonator, y_axis="EM")
+        fig, ax = hilbertspace.plot_branch_analysis(resonator, observable="EM")
 
         assert isinstance(fig, Figure)
         assert isinstance(ax, Axes)

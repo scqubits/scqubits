@@ -1205,6 +1205,10 @@ class SpectrumLookupMixin(MixinCompatible):
         - ``"N"``: the occupation number of ``secondary_mode``
         - ``"EM"``: eigenenergy modulo the bare energy of the ``primary_mode``
 
+        See also :meth:`plot_branch_analysis`, which plots the same quantities
+        with the x-axis fixed to ⟨N_primary⟩ and ``observable`` selecting the
+        y-axis.
+
         Parameters
         ----------
         primary_mode:
@@ -1466,16 +1470,20 @@ class SpectrumLookupMixin(MixinCompatible):
         self,
         primary_mode: "int | QuantumSys",
         secondary_mode: "int | QuantumSys | None" = None,
-        y_axis: Literal["N", "EM"] = "N",
+        observable: Literal["N", "EM"] = "N",
         param_npindices: int | slice | tuple[int, ...] | tuple[slice, ...] = 0,
         **kwargs,
     ) -> tuple[Figure, Axes]:
         """
         Plot branch analysis results where each point corresponds to a system
-        eigenstate. The x-axis represents the occupation number of the primary
-        mode (typically the resonator). The y-axis can be set to one of two options:
+        eigenstate.
+
+        The x-axis is always the expectation value of the primary-mode number
+        operator ⟨N_primary⟩. The y-axis is controlled by ``observable``, using
+        the same options as :meth:`branch_analysis_exp_vals`:
+
         - ``"N"``: expectation value of the ``secondary_mode`` number operator
-        - ``"EM"``: eigenenergy modulo the bare energy of the primary mode
+        - ``"EM"``: eigenenergy modulo the bare energy of the ``primary_mode``
 
         Requires LX branch labeling so ``dressed_indices`` assigns a dressed
         eigenstate index to each bare product label—either from
@@ -1488,11 +1496,11 @@ class SpectrumLookupMixin(MixinCompatible):
             The subsystem (index or instance) whose excitations form branches,
             typically the resonator.
         secondary_mode:
-            The subsystem (index or instance) whose occupation number is plotted
-            on the y-axis when ``y_axis="N"``.
-            Required when y_axis="N" and the Hilbert space has more than two subsystems.
-        y_axis:
-            Choice of y-axis for the plot, either ``"N"`` or ``"EM"``.
+            Subsystem whose ⟨N⟩ is plotted on the y-axis when ``observable="N"``.
+            Required when ``observable="N"`` and the Hilbert space has more
+            than two subsystems.
+        observable:
+            Choice of quantity for the y-axis, either ``"N"`` or ``"EM"``.
         param_npindices:
             Parameter sweep indices to select for the plot.
         **kwargs:
@@ -1506,7 +1514,7 @@ class SpectrumLookupMixin(MixinCompatible):
         x_val, y_val = self.branch_analysis_exp_vals(
             primary_mode,
             secondary_mode=secondary_mode,
-            observable=y_axis,
+            observable=observable,
             param_npindices=param_npindices,
         )
 
@@ -1536,7 +1544,7 @@ class SpectrumLookupMixin(MixinCompatible):
             "linewidth": 1,
             "xlabel": rf"$\langle N_\text{{{primary_mode.id_str}}} \rangle$",
         }
-        if y_axis == "N":
+        if observable == "N":
             if secondary_mode is None:
                 _, secondary_for_label = self._branch_analysis_parse_mode(
                     1 - primary_mode_idx, "Secondary"
