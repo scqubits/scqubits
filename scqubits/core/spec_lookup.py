@@ -24,13 +24,17 @@ import qutip as qt
 
 from numpy import ndarray
 from qutip import Qobj
+from matplotlib.figure import Figure
+from matplotlib.axes import Axes
 
 import scqubits.settings as settings
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
 
 from scqubits.core.namedslots_array import NamedSlotsNdarray, convert_to_std_npindex
+import scqubits.core.units as units
 from scqubits.utils.spectrum_utils import identity_wrap
+import scqubits.utils.plotting as plot
 from scqubits.utils.typedefs import NpIndexTuple, NpIndices
 
 if TYPE_CHECKING:
@@ -38,6 +42,46 @@ if TYPE_CHECKING:
     from scqubits.core.descriptors import WatchedProperty
     from scqubits.core.param_sweep import Parameters
     from scqubits.utils.typedefs import QuantumSys
+
+
+def _normalize_ba_branch_index(
+    branch: int | tuple[int, ...] | list[int] | list[tuple[int, ...]],
+    non_primary_count: int,
+) -> list[int | tuple[int, ...]]:
+    """Normalize ``branch`` into a list of branch indices.
+
+    For a Hilbert space with two subsystems (``non_primary_count == 1``):
+
+    - One branch: an ``int``, a one-element ``tuple[int, ...]``, or a
+      one-element ``list[int]`` (e.g. ``0``, ``(0,)``, or ``[0]``).
+    - Multiple branches: a ``list[int]`` with more than one entry (e.g.
+      ``[0, 1, 2]``).
+
+    For a Hilbert space with three or more subsystems
+    (``non_primary_count > 1``):
+
+    - One branch: a ``tuple[int, ...]``, or a ``list[int]`` whose length
+      equals ``non_primary_count`` (e.g. ``(0, 1)`` or ``[0, 1]``).
+    - Multiple branches: a ``list[tuple[int, ...]]`` (e.g.
+      ``[(0, 0), (0, 1)]``).
+    """
+    if isinstance(branch, int):
+        return [branch]
+    if isinstance(branch, tuple):
+        return [branch]
+    if not branch:
+        raise ValueError("branch must not be empty.")
+    if all(isinstance(entry, tuple) for entry in branch):
+        return list(branch)
+    if all(isinstance(entry, int) for entry in branch):
+        int_branch = [entry for entry in branch if isinstance(entry, int)]
+        if len(int_branch) == non_primary_count:
+            return [tuple(int_branch)]
+        branches_out: list[int | tuple[int, ...]] = []
+        for entry in int_branch:
+            branches_out.append(entry)
+        return branches_out
+    raise ValueError("branch list must contain either all ints or all tuples.")
 
 
 class MixinCompatible(Protocol):
@@ -560,7 +604,7 @@ class SpectrumLookupMixin(MixinCompatible):
             product_state_list.append(qt.basis(dim, state_index))
         return qt.tensor(*product_state_list)
 
-    def all_params_fixed(self, param_indices: slice | tuple) -> bool:
+    def all_params_fixed(self, param_indices: int | slice | tuple) -> bool:
         """Return whether the provided indices fix every parameter.
 
         Parameters
@@ -1125,3 +1169,398 @@ class SpectrumLookupMixin(MixinCompatible):
             dressed_indices.reshape(shape + (-1,)),
             parameter_dict,
         )
+
+    def _branch_analysis_parse_mode(
+        self, mode: "int | QuantumSys", name: str
+    ) -> tuple[int, "QuantumSys"]:
+        """Resolve a subsystem index or :class:`QuantumSys` instance to ``(index, subsys)``."""
+        if isinstance(mode, int):
+            if not (0 <= mode < self.hilbertspace.subsystem_count):
+                raise ValueError(f"{name} mode index is out of range.")
+            mode_idx = mode
+            mode_subsys = self.hilbertspace.subsystem_list[mode_idx]
+        else:
+            if mode not in self.hilbertspace.subsystem_list:
+                raise ValueError(f"{name} mode is not found in the HilbertSpace.")
+            mode_subsys = mode
+            mode_idx = self.hilbertspace.subsystem_list.index(mode_subsys)
+        return mode_idx, mode_subsys
+
+    def branch_analysis_exp_vals(
+        self,
+        primary_mode: "int | QuantumSys",
+        secondary_mode: "int | QuantumSys | None" = None,
+        observable: Literal["N", "EM"] = "N",
+        param_npindices: int | slice | tuple[int, ...] | tuple[slice, ...] = 0,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Compute observable expectation values for doing branch analysis.
+
+        Returns two arrays where each element corresponds to
+        an eigenstate of the system.
+
+        The first array is the expectation value of the primary-mode number
+        operator for each eigenstate.
+        The second array is controlled by ``observable``:
+        - ``"N"``: the occupation number of ``secondary_mode``
+        - ``"EM"``: eigenenergy modulo the bare energy of the ``primary_mode``
+
+        See also :meth:`plot_branch_analysis`, which plots the same quantities
+        with the x-axis fixed to ⟨N_primary⟩ and ``observable`` selecting the
+        y-axis.
+
+        Parameters
+        ----------
+        primary_mode:
+            The subsystem (index or instance) whose excitations form branches,
+            typically the resonator.
+        secondary_mode:
+            Subsystem whose ⟨N⟩ is returned when ``observable="N"``.
+            If ``observable="N"`` and the Hilbert space has more than two
+            subsystems, ``secondary_mode`` must be given.
+        observable:
+            Choice of observable, either ``"N"`` or ``"EM"``.
+        param_npindices:
+            Parameter sweep indices; all parameters must be fixed.
+
+        Returns
+        -------
+        x_val, y_val:
+            ``⟨N_prim⟩`` and the selected ``observable`` quantity, shaped like
+            ``hilbertspace.subsystem_dims``.
+        """
+        if not self.all_params_fixed(param_npindices):
+            raise ValueError("Not all parameters are fixed.")
+
+        if self.hilbertspace.subsystem_count <= 1:
+            raise ValueError(
+                "For evaluating branch analysis observables, "
+                "the HilbertSpace must have at least 2 subsystems."
+            )
+
+        if observable not in ("N", "EM"):
+            raise ValueError(f"observable must be 'N' or 'EM', got {observable!r}")
+
+        dims = self.hilbertspace.subsystem_dims
+        branch_indices = self["dressed_indices"][param_npindices].reshape(dims)
+
+        primary_mode_idx, primary_subsys = self._branch_analysis_parse_mode(
+            primary_mode, "Primary"
+        )
+
+        if observable == "N":
+            if secondary_mode is None:
+                if self.hilbertspace.subsystem_count > 2:
+                    raise ValueError(
+                        'secondary_mode is required when observable="N" and the '
+                        "HilbertSpace has more than 2 subsystems."
+                    )
+                secondary_mode = 1 - primary_mode_idx
+            secondary_mode_idx, secondary_subsys = self._branch_analysis_parse_mode(
+                secondary_mode, "Secondary"
+            )
+            if secondary_mode_idx == primary_mode_idx:
+                raise ValueError("Primary and secondary modes cannot be the same.")
+
+        x_N_op = identity_wrap(
+            qt.num(primary_subsys.truncated_dim),
+            primary_subsys,
+            self.hilbertspace.subsystem_list,
+            op_in_eigenbasis=True,
+        )
+
+        evecs = self["evecs"][param_npindices]
+        x_val_arr = np.zeros_like(branch_indices, dtype=float)
+        y_val_arr = np.zeros_like(branch_indices, dtype=float)
+
+        if observable == "N":
+            y_N_op = identity_wrap(
+                qt.num(secondary_subsys.truncated_dim),
+                secondary_subsys,
+                self.hilbertspace.subsystem_list,
+                op_in_eigenbasis=True,
+            )
+            for idx, drs_idx in np.ndenumerate(branch_indices):
+                if drs_idx is None:
+                    x_val_arr[idx] = np.nan
+                    y_val_arr[idx] = np.nan
+                    continue
+                ket = evecs[drs_idx]
+                x_val_arr[idx] = qt.expect(x_N_op, ket)
+                y_val_arr[idx] = qt.expect(y_N_op, ket)
+        else:
+            bare_primary = self["bare_evals"][primary_mode_idx][param_npindices]
+            y_E_mod = bare_primary[1] - bare_primary[0]
+            evals = self["evals"][param_npindices]
+            for idx, drs_idx in np.ndenumerate(branch_indices):
+                if drs_idx is None:
+                    x_val_arr[idx] = np.nan
+                    y_val_arr[idx] = np.nan
+                    continue
+                ket = evecs[drs_idx]
+                x_val_arr[idx] = qt.expect(x_N_op, ket)
+                y_val_arr[idx] = evals[drs_idx] % y_E_mod
+
+        return x_val_arr, y_val_arr
+
+    def _evaluate_BA_n_crit(
+        self,
+        N_matrix: np.ndarray,
+        branch: int | tuple[int, ...] | list[int] | list[tuple[int, ...]],
+        primary_mode_idx: int,
+        secondary_mode_idx: int,
+        occupation_threshold: float = 2,
+    ) -> int | None:
+        """
+        Helper for branch analysis: critical primary-mode occupation for a branch.
+
+        ``N_matrix`` holds ⟨N_secondary⟩ per bare eigenstate label (aligned with
+        :meth:`branch_analysis_exp_vals` with ``observable="N"``).
+
+        Parameters
+        ----------
+        N_matrix:
+            ⟨N_secondary⟩ on the bare product grid (subsystem dimensions).
+        branch:
+            State indices for all modes other than ``primary_mode_idx``.
+            A single branch index may be given as an ``int`` (2 subsystems), a
+            ``tuple[int, ...]``, or a ``list[int]`` of length
+            ``subsystem_count - 1`` (3+ subsystems). Multiple branch indices
+            may be given as a ``list[int]`` (2 subsystems), or as a
+            ``list[tuple[int, ...]]`` (3+ subsystems). When multiple branch
+            indices are given, return the smallest ``n_crit`` found across all
+            branches.
+        primary_mode_idx:
+            Subsystem index of the primary mode.
+        secondary_mode_idx:
+            Subsystem index of the mode whose number operator expectation is in
+            ``N_matrix`` when ``observable="N"``.
+        occupation_threshold:
+            Offset added to the secondary mode's bare index in the inequality.
+
+        Returns
+        -------
+        n_crit
+            The critical primary-mode occupation index, or None if not reached.
+        """
+        # grab a column of the N_matrix (branch)
+        non_primary_count = len(self.hilbertspace.subsystem_list) - 1
+        branches = _normalize_ba_branch_index(branch, non_primary_count)
+
+        n_crit_list: list[int | None] = []
+        for br in branches:
+            br_indices: list[int] = [br] if isinstance(br, int) else list(br)
+            if len(br_indices) != len(self.hilbertspace.subsystem_list) - 1:
+                raise ValueError(
+                    "Branch must specify one bare index per non-primary subsystem "
+                    f"(expected {len(self.hilbertspace.subsystem_list) - 1} "
+                    f"entries, got {len(br_indices)})."
+                )
+            slice_list: list[int | slice] = list(br_indices)
+            slice_list.insert(primary_mode_idx, slice(None))
+            branch_slice = tuple(slice_list)
+
+            N_branch = N_matrix[branch_slice]
+
+            secondary_branch_idx = sum(
+                1 for i in range(secondary_mode_idx) if i != primary_mode_idx
+            )
+
+            # find the critical photon number for the primary mode
+            N_threshold = br_indices[secondary_branch_idx] + occupation_threshold
+            true_indices = np.where(N_branch > N_threshold)[0]
+            if len(true_indices) == 0:
+                n_crit_list.append(None)  # no critical point found
+            else:
+                n_crit_list.append(int(true_indices[0]))
+
+        # Filter out None values and return min if there is any, else return None
+        n_crit_filtered = [val for val in n_crit_list if val is not None]
+        if not n_crit_filtered:
+            return None
+        return min(n_crit_filtered)
+
+    def branch_analysis_n_crit(
+        self,
+        primary_mode: "int | QuantumSys",
+        branch: int | tuple[int, ...] | list[int] | list[tuple[int, ...]],
+        secondary_mode: "int | QuantumSys | None" = None,
+        param_npindices: int | slice | tuple[int, ...] | tuple[slice, ...] = 0,
+        occupation_threshold: float = 2,
+    ) -> int | None:
+        """
+        Determine the critical occupation number for a given branch from the
+        branch analysis results.
+
+        Definition
+        ----------
+        Eigenstates of the full system are labeled by the bare indices
+        (i, j, ..., k, n), where n is the occupation number of the primary mode.
+        Let N_sec be the number operator for ``secondary_mode``. For the branch
+        given by bare indices of all non-primary modes
+        ``(i, j, ..., k)``, the critical primary occupation ``n_crit`` is the
+        smallest n such that
+
+        ``⟨ i, j, ..., k, n | N_sec | i, j, ..., k, n ⟩``
+        ``> bare_index(sec) + occupation_threshold``
+
+        where ``bare_index(sec)`` is the component of `(i,j,...,k)` that labels
+        ``secondary_mode``.
+
+        Requires LX branch labeling so ``dressed_indices`` assigns a dressed
+        eigenstate index to each bare product label—either from
+        ``HilbertSpace.generate_lookup(ordering='LX')`` or
+        ``ParameterSweep(..., labeling_scheme='LX')``.
+
+        Parameters
+        ----------
+        primary_mode:
+            The subsystem (index or instance) whose excitations form branches,
+            typically the resonator.
+        branch:
+            Branch indices for the non-primary modes. A single branch may be
+            given as an ``int`` (two subsystems), a ``tuple[int, ...]``, or a
+            ``list[int]`` of length ``subsystem_count - 1``. Multiple branches
+            may be given as a ``list[int]`` when there is only one non-primary
+            subsystem, or as a ``list[tuple[int, ...]]`` otherwise. When
+            multiple branches are provided, the smallest critical occupation
+            number across all branches is returned.
+        secondary_mode:
+            The subsystem (index or instance) whose ⟨N⟩ enters the threshold
+            comparison (same as the second return value of
+            :meth:`branch_analysis_exp_vals` with ``observable="N"``).
+            Required when the Hilbert space has more than two subsystems.
+        param_npindices:
+            Parameter sweep indices to select for the analysis.
+        occupation_threshold:
+            The threshold for the occupation number that determines the critical
+            point.
+
+        Returns
+        -------
+        n_crit
+            Critical occupation number for the specified branch(es). When
+            no critical number is found up to the truncation dimension, None
+            is returned.
+        """
+        _, N_matrix = self.branch_analysis_exp_vals(
+            primary_mode,
+            secondary_mode=secondary_mode,
+            observable="N",
+            param_npindices=param_npindices,
+        )
+
+        primary_mode_idx, _ = self._branch_analysis_parse_mode(primary_mode, "Primary")
+        if secondary_mode is None:
+            secondary_mode_idx = 1 - primary_mode_idx
+        else:
+            secondary_mode_idx, _ = self._branch_analysis_parse_mode(
+                secondary_mode, "Secondary"
+            )
+
+        return self._evaluate_BA_n_crit(
+            N_matrix,
+            branch,
+            primary_mode_idx,
+            secondary_mode_idx,
+            occupation_threshold=occupation_threshold,
+        )
+
+    def plot_branch_analysis(
+        self,
+        primary_mode: "int | QuantumSys",
+        secondary_mode: "int | QuantumSys | None" = None,
+        observable: Literal["N", "EM"] = "N",
+        param_npindices: int | slice | tuple[int, ...] | tuple[slice, ...] = 0,
+        **kwargs,
+    ) -> tuple[Figure, Axes]:
+        """
+        Plot branch analysis results where each point corresponds to a system
+        eigenstate.
+
+        The x-axis is always the expectation value of the primary-mode number
+        operator ⟨N_primary⟩. The y-axis is controlled by ``observable``, using
+        the same options as :meth:`branch_analysis_exp_vals`:
+
+        - ``"N"``: expectation value of the ``secondary_mode`` number operator
+        - ``"EM"``: eigenenergy modulo the bare energy of the ``primary_mode``
+
+        Requires LX branch labeling so ``dressed_indices`` assigns a dressed
+        eigenstate index to each bare product label—either from
+        ``HilbertSpace.generate_lookup(ordering='LX')`` or
+        ``ParameterSweep(..., labeling_scheme='LX')``.
+
+        Parameters
+        ----------
+        primary_mode:
+            The subsystem (index or instance) whose excitations form branches,
+            typically the resonator.
+        secondary_mode:
+            Subsystem whose ⟨N⟩ is plotted on the y-axis when ``observable="N"``.
+            Required when ``observable="N"`` and the Hilbert space has more
+            than two subsystems.
+        observable:
+            Choice of quantity for the y-axis, either ``"N"`` or ``"EM"``.
+        param_npindices:
+            Parameter sweep indices to select for the plot.
+        **kwargs:
+            Additional keyword arguments passed to ``plot.data_vs_paramvals``.
+
+        Returns
+        -------
+        fig, ax:
+            Matplotlib figure and axes objects containing the plot.
+        """
+        x_val, y_val = self.branch_analysis_exp_vals(
+            primary_mode,
+            secondary_mode=secondary_mode,
+            observable=observable,
+            param_npindices=param_npindices,
+        )
+
+        dims = self.hilbertspace.subsystem_dims
+        primary_mode_idx, primary_subsys = self._branch_analysis_parse_mode(
+            primary_mode, "Primary"
+        )
+        primary_mode = primary_subsys
+        primary_mode_dim = dims[primary_mode_idx]
+        x_val = np.moveaxis(x_val, primary_mode_idx, 0)
+        y_val = np.moveaxis(y_val, primary_mode_idx, 0)
+
+        # Labels
+        new_shape = x_val.shape
+        label_list = [
+            ", ".join(f"{idx}" for idx in indices)
+            for indices in np.ndindex(*new_shape[1:])
+        ]
+
+        # reshape
+        x_val = x_val.reshape(primary_mode_dim, -1)
+        y_val = y_val.reshape(primary_mode_dim, -1)
+
+        kwargs_default = {
+            "marker": "o",
+            "markersize": 2,
+            "linewidth": 1,
+            "xlabel": rf"$\langle N_\text{{{primary_mode.id_str}}} \rangle$",
+        }
+        if observable == "N":
+            if secondary_mode is None:
+                _, secondary_for_label = self._branch_analysis_parse_mode(
+                    1 - primary_mode_idx, "Secondary"
+                )
+            else:
+                _, secondary_for_label = self._branch_analysis_parse_mode(
+                    secondary_mode, "Secondary"
+                )
+            kwargs_default["ylabel"] = (
+                rf"$\langle N_\text{{{secondary_for_label.id_str}}} \rangle$"
+            )
+        else:
+            kwargs_default["ylabel"] = (
+                rf"$(E \ \text{{mod}} \ E_\text{{{primary_mode.id_str}}}) / h$  "
+                f"[{units.get_units()}]"
+            )
+        kwargs_default.update(kwargs)
+
+        return plot.data_vs_paramvals(x_val, y_val, label_list, **kwargs_default)
