@@ -10,8 +10,10 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import Any, Dict, List, Optional, Tuple, Union, Callable
+from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 
@@ -36,21 +38,26 @@ from scqubits.core.noise import NoisySystem
 
 
 class NoisyFullZeroPi(NoisySystem):
+    """Noise mixin for :class:`FullZeroPi`."""
+
     pass
 
 
 class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi):
-    r"""Zero-Pi qubit [Brooks2013]_ [Dempster2014]_ including coupling to the :math:`\zeta` mode.
-    The circuit is described by the Hamiltonian
-    :math:`H = H_{0-\pi} + H_\text{int} + H_\zeta`, where
+    r"""Zero-Pi qubit including coupling to the :math:`\zeta` mode.
+
+    See [Brooks2013]_ and [Dempster2014]_. The circuit is described by the
+    Hamiltonian :math:`H = H_{0-\pi} + H_\text{int} + H_\zeta`, where
 
     .. math::
 
-        &H_{0-\pi} = -2E_\text{CJ}\partial_\phi^2+2E_{\text{C}\Sigma}(i\partial_\theta-n_g)^2
+        &H_{0-\pi} = -2E_\text{CJ}\partial_\phi^2
+                     +2E_{\text{C}\Sigma}(i\partial_\theta-n_g)^2
                      +2E_{C\Sigma}dC_J\,\partial_\phi\partial_\theta\\
         &\qquad\qquad\qquad+2E_{C\Sigma}(\delta C_J/C_J)\partial_\phi\partial_\theta
                      +2\,\delta E_J \sin\theta\sin(\phi-\varphi_\text{ext}/2)\\
-        &H_\text{int} = 2E_{C\Sigma}dC\,\partial_\theta\partial_\zeta + E_L dE_L \phi\,\zeta\\
+        &H_\text{int} = 2E_{C\Sigma}dC\,\partial_\theta\partial_\zeta
+                     + E_L dE_L \phi\,\zeta\\
         &H_\zeta = E_{\zeta} a^\dagger a
 
     expressed in phase basis. The definition of the relevant charging energies
@@ -58,7 +65,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
     Josephson energies :math:`E_\text{J}`, inductive energies :math:`E_\text{L}`,
     and relative amounts of disorder :math:`dC_\text{J}`, :math:`dE_\text{J}`,
     :math:`dC`, :math:`dE_\text{L}` follows [Groszkowski2018]_. Internally,
-    the `FullZeroPi` class formulates the Hamiltonian matrix via the
+    the :class:`FullZeroPi` class formulates the Hamiltonian matrix via the
     product basis of the decoupled Zero-Pi qubit (see :class:`ZeroPi`)  on one hand, and the
     zeta LC oscillator on the other hand.
 
@@ -71,7 +78,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
     ECJ:
         charging energy associated with the two junctions
     EC:
-        charging energy of the large shunting capacitances; set to `None` if `ECS` is
+        charging energy of the large shunting capacitances; set to ``None`` if `ECS` is
         provided instead
     dEJ:
         relative disorder in EJ, i.e., (EJ1-EJ2)/EJavg
@@ -100,7 +107,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
         optional string by which this instance can be referred to in :class:`HilbertSpace`
-        and `ParameterSweep`. If not provided, an id is auto-generated.
+        and :class:`ParameterSweep`. If not provided, an id is auto-generated.
     esys_method:
         method for esys diagonalization, callable or string representation
     esys_method_options:
@@ -169,13 +176,13 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         zeta_cutoff: int,
         grid: Grid1d,
         ncut: int,
-        ECS: float = None,
+        ECS: float | None = None,
         truncated_dim: int = 6,
-        id_str: Optional[str] = None,
-        evals_method: Union[Callable, str, None] = None,
-        evals_method_options: Union[dict, None] = None,
-        esys_method: Union[Callable, str, None] = None,
-        esys_method_options: Union[dict, None] = None,
+        id_str: str | None = None,
+        evals_method: Callable | str | None = None,
+        evals_method_options: dict | None = None,
+        esys_method: Callable | str | None = None,
+        esys_method_options: dict | None = None,
     ) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
         self._zeropi = scqubits.ZeroPi(
@@ -209,7 +216,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         dispatch.CENTRAL_DISPATCH.register("GRID_UPDATE", self)
 
     @staticmethod
-    def default_params() -> Dict[str, Any]:
+    def default_params() -> dict[str, Any]:
+        """Return a default-parameter dict suitable for instantiating the class."""
         return {
             "EJ": 10.0,
             "EL": 0.04,
@@ -229,6 +237,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
     @classmethod
     def create(cls) -> "FullZeroPi":
+        """Use ipywidgets to instantiate a :class:`FullZeroPi` interactively."""
         phi_grid = discretization.Grid1d(-25.0, 25.0, 360)
         init_params = cls.default_params()
         init_params["grid"] = phi_grid
@@ -237,7 +246,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return zeropi
 
     @classmethod
-    def supported_noise_channels(cls) -> List[str]:
+    def supported_noise_channels(cls) -> list[str]:
         """Return a list of supported noise channels."""
         return [
             "tphi_1_over_f_cc",
@@ -247,7 +256,14 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             "t1_inductive",
         ]
 
-    def widget(self, params: Dict[str, Any] = None) -> None:
+    def widget(self, params: dict[str, Any] | None = None) -> None:
+        """Use ipywidgets to modify parameters of class instance.
+
+        Parameters
+        ----------
+        params:
+            optional initial parameters; if None, uses :meth:`get_initdata`
+        """
         init_params = params or self.get_initdata()
         init_params.pop("id_str", None)
         del init_params["grid"]
@@ -258,7 +274,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             self.set_params_from_gui, init_params, image_filename=self._image_filename
         )
 
-    def set_params_from_gui(self, **kwargs) -> None:
+    def set_params_from_gui(self, **kwargs) -> None:  # type: ignore[override]
+        """Set instance parameters from GUI-provided keyword arguments."""
         for param_name, param_val in kwargs.items():
             if "grid_" in param_name:
                 setattr(self.grid, param_name[5:], param_val)
@@ -266,10 +283,20 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
                 setattr(self, param_name, param_val)
 
     def receive(self, event: str, sender: object, **kwargs) -> None:
+        """Re-broadcast a ``QUANTUMSYSTEM_UPDATE`` when the inner grid changes.
+
+        Parameters
+        ----------
+        event:
+            name of the dispatched event
+        sender:
+            object that fired the event
+        """
         if sender is self._zeropi.grid:
             self.broadcast("QUANTUMSYSTEM_UPDATE")
 
     def __str__(self) -> str:
+        """Return human-readable summary including subsystem dimensions."""
         output = super().__str__()
         output = output[: output.rfind("\n")]
         output = output[: output.rfind("\n")]
@@ -288,60 +315,106 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return output
 
     def set_EC_via_ECS(self, ECS: float) -> None:
-        """Helper function to set :attr:`EC` by providing `ECS`, keeping `ECJ` constant."""
+        """Set :attr:`EC` by providing `ECS`, keeping `ECJ` constant.
+
+        Parameters
+        ----------
+        ECS:
+            target value of the total charging energy
+        """
         self._zeropi.set_EC_via_ECS(ECS)
 
     @property
     def E_zeta(self) -> float:
-        """Returns energy quantum of the zeta mode."""
+        """Return the energy quantum of the zeta mode."""
         return (8.0 * self.EL * self.EC) ** 0.5
 
     def set_E_zeta(self, value: float) -> None:
+        """Reject attempts to set :attr:`E_zeta` directly; raises :class:`ValueError`.
+
+        Parameters
+        ----------
+        value:
+            ignored; provided for setter signature compatibility
+        """
         raise ValueError(
             "Cannot directly set `E_zeta`. Instead one can set its value through :attr:`EL`"
             " or :attr:`EC`."
         )
 
     @property
-    def esys_method(self) -> Union[Callable, str, None]:
+    def esys_method(self) -> Callable | str | None:
+        """Method used for esys diagonalization on the inner :class:`ZeroPi`."""
         return self._zeropi.esys_method
 
     @esys_method.setter
-    def esys_method(self, value: Union[Callable, str, None] = None) -> None:
+    def esys_method(self, value: Callable | str | None = None) -> None:
+        """Forward the new esys diagonalization method to the inner :class:`ZeroPi`.
+
+        Parameters
+        ----------
+        value:
+            method for esys diagonalization, callable or string representation
+        """
         self._zeropi.esys_method = value
 
     @property
-    def esys_method_options(self) -> Union[dict, None]:
+    def esys_method_options(self) -> dict | None:
+        """Options dictionary for the esys diagonalization method."""
         return self._zeropi.esys_method_options
 
     @esys_method_options.setter
-    def esys_method_options(self, value: Union[dict, None] = None) -> None:
+    def esys_method_options(self, value: dict | None = None) -> None:
+        """Forward the new esys options dict to the inner :class:`ZeroPi`.
+
+        Parameters
+        ----------
+        value:
+            dictionary with esys diagonalization options
+        """
         self._zeropi.esys_method_options = value
 
     @property
-    def evals_method(self) -> Union[Callable, str, None]:
+    def evals_method(self) -> Callable | str | None:
+        """Method used for evals diagonalization on the inner :class:`ZeroPi`."""
         return self._zeropi.evals_method
 
     @evals_method.setter
-    def evals_method(self, value: Union[Callable, str, None] = None) -> None:
+    def evals_method(self, value: Callable | str | None = None) -> None:
+        """Forward the new evals diagonalization method to the inner :class:`ZeroPi`.
+
+        Parameters
+        ----------
+        value:
+            method for evals diagonalization, callable or string representation
+        """
         self._zeropi.evals_method = value
 
     @property
-    def evals_method_options(self) -> Union[dict, None]:
+    def evals_method_options(self) -> dict | None:
+        """Options dictionary for the evals diagonalization method."""
         return self._zeropi.evals_method_options
 
     @evals_method_options.setter
-    def evals_method_options(self, value: Union[dict, None] = None) -> None:
+    def evals_method_options(self, value: dict | None = None) -> None:
+        """Forward the new evals options dict to the inner :class:`ZeroPi`.
+
+        Parameters
+        ----------
+        value:
+            dictionary with evals diagonalization options
+        """
         self._zeropi.evals_method_options = value
 
     def hamiltonian(
         self,
         return_parts: bool = False,
-        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
-    ) -> Union[csc_matrix, Tuple[csc_matrix, ndarray, ndarray, ndarray]]:
-        r"""Returns Hamiltonian in basis obtained by discretizing :math:`\phi`, employing
-        charge basis for :math:`\theta`, and Fock basis for :math:`\zeta`, or in the
-        eigenenergy basis.
+        energy_esys: bool | tuple[ndarray, ndarray] = False,
+    ) -> ndarray | csc_matrix | tuple[ndarray | csc_matrix, ndarray, ndarray, ndarray]:
+        r"""Return Hamiltonian in product or eigenenergy basis.
+
+        The product basis is obtained by discretizing :math:`\phi`, employing
+        charge basis for :math:`\theta`, and Fock basis for :math:`\zeta`.
 
         Parameters
         ----------
@@ -349,17 +422,19 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             If set to true, `hamiltonian` returns
             [hamiltonian, evals, evecs, g_coupling_matrix]
         energy_esys:
-            If `False` (default), returns Hamiltonian in native Hamiltonian basis
-            If `True`, the energy eigenspectrum is computed, returns Hamiltonian in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns Hamiltonian in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns Hamiltonian in native Hamiltonian basis.
+            If ``True``, the energy eigenspectrum is computed, returns Hamiltonian in
+            the energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays
+            (eigenvalues and energy eigenvectors), returns Hamiltonian in the energy
+            eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            Hamiltonian in chosen basis as csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, the Hamiltonian has dimensions of :attr:`truncated_dim`
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, Hamiltonian has dimensions of m x m,
-            for m given eigenvectors.
+        Hamiltonian in chosen basis as csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, the Hamiltonian has dimensions of
+        :attr:`truncated_dim` x :attr:`truncated_dim`. Otherwise, if eigenenergy basis
+        is chosen, Hamiltonian has dimensions of m x m, for m given eigenvectors.
         """
         zeropi_dim = self.zeropi_cutoff
         zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
@@ -408,38 +483,41 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
     def d_hamiltonian_d_flux(
         self,
-        zeropi_evecs: ndarray = None,
-        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
-    ) -> Union[ndarray, csc_matrix]:
-        r"""Calculates a derivative of the Hamiltonian w.r.t flux, at the current value
-        of flux, as stored in the object. The returned operator is in the product basis
-        or eigenenergy basis.
+        zeropi_evecs: ndarray | None = None,
+        energy_esys: bool | tuple[ndarray, ndarray] = False,
+    ) -> ndarray | csc_matrix:
+        r"""Return derivative of the Hamiltonian w.r.t flux in product or eigenenergy basis.
 
-        Helper method _zeropi_operator_in_product_basis is employed which converts
-        a zeropi operator into one in the product basis. If user already has zeropi eigenvectors, user can input
-        as zeropi_evecs=ndarray.
+        Helper method :meth:`_zeropi_operator_in_product_basis` is employed which
+        converts a zeropi operator into one in the product basis. If the user already
+        has zeropi eigenvectors, they can be supplied via ``zeropi_evecs=ndarray``.
 
         Parameters
         ----------
         zeropi_evecs:
-            If None (default), helper method _zeropi_operator_in_product_basis calculates zeropi eigenvectors and uses
-            them to convert operator to the product basis, if product basis is chosen.
-            If zeropi_evecs = zeropievecs, where zeropievecs is an ndarray, and product basis is chosen,
-            helper method _zeropi_operator_in_product_basis uses zeropievecs to convert the operator
-            to the product basis.
+            If None (default), helper method :meth:`_zeropi_operator_in_product_basis`
+            calculates zeropi eigenvectors and uses them to convert operator to the
+            product basis, if product basis is chosen.
+            If ``zeropi_evecs = zeropievecs``, where ``zeropievecs`` is an ndarray,
+            and product basis is chosen, helper method
+            :meth:`_zeropi_operator_in_product_basis` uses ``zeropievecs`` to convert
+            the operator to the product basis.
         energy_esys:
-            If `False` (default), returns operator in the product basis.
-            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns operator in the product basis.
+            If ``True``, the energy eigenspectrum is computed, returns operator in the
+            energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays
+            (eigenvalues and energy eigenvectors), returns operator in the energy
+            eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            Operator in chosen basis. If product basis is chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
-            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        Operator in chosen basis. If product basis is chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of
+        :attr:`truncated_dim` x :attr:`truncated_dim`, and is returned as an ndarray.
+        Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
+        for m given eigenvectors, and is returned as an ndarray.
         """
         native = self._zeropi_operator_in_product_basis(
             self._zeropi.d_hamiltonian_d_flux(), zeropi_evecs=zeropi_evecs
@@ -448,37 +526,41 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
     def d_hamiltonian_d_EJ(
         self,
-        zeropi_evecs: ndarray = None,
-        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
-    ) -> Union[ndarray, csc_matrix]:
-        r"""Calculates a derivative of the Hamiltonian w.r.t EJ. The returned operator is
-        in the product basis or eigenenergy basis.
+        zeropi_evecs: ndarray | None = None,
+        energy_esys: bool | tuple[ndarray, ndarray] = False,
+    ) -> ndarray | csc_matrix:
+        r"""Return derivative of the Hamiltonian w.r.t EJ in product or eigenenergy basis.
 
-        Helper method _zeropi_operator_in_product_basis is employed which converts
-        a zeropi operator into one in the product basis. If user already has zeropi eigenvectors, user can input
-        as zeropi_evecs=ndarray.
+        Helper method :meth:`_zeropi_operator_in_product_basis` is employed which
+        converts a zeropi operator into one in the product basis. If the user already
+        has zeropi eigenvectors, they can be supplied via ``zeropi_evecs=ndarray``.
 
         Parameters
         ----------
         zeropi_evecs:
-            If None (default), helper method _zeropi_operator_in_product_basis calculates zeropi eigenvectors and uses
-            them to convert operator to the product basis, if product basis is chosen.
-            If zeropi_evecs = zeropievecs, where zeropievecs is an ndarray, and product basis is chosen,
-            helper method _zeropi_operator_in_product_basis uses zeropievecs to convert the operator
-            to the product basis.
+            If None (default), helper method :meth:`_zeropi_operator_in_product_basis`
+            calculates zeropi eigenvectors and uses them to convert operator to the
+            product basis, if product basis is chosen.
+            If ``zeropi_evecs = zeropievecs``, where ``zeropievecs`` is an ndarray,
+            and product basis is chosen, helper method
+            :meth:`_zeropi_operator_in_product_basis` uses ``zeropievecs`` to convert
+            the operator to the product basis.
         energy_esys:
-            If `False` (default), returns operator in the product basis.
-            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns operator in the product basis.
+            If ``True``, the energy eigenspectrum is computed, returns operator in the
+            energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays
+            (eigenvalues and energy eigenvectors), returns operator in the energy
+            eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            Operator in chosen basis. If product basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
-            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        Operator in chosen basis. If product basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of
+        :attr:`truncated_dim` x :attr:`truncated_dim`, and is returned as an ndarray.
+        Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
+        for m given eigenvectors, and is returned as an ndarray.
         """
         native = self._zeropi_operator_in_product_basis(
             self._zeropi.d_hamiltonian_d_EJ(), zeropi_evecs=zeropi_evecs
@@ -486,39 +568,50 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def d_hamiltonian_d_ng(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> Union[ndarray, csc_matrix]:
-        r"""Calculates a derivative of the Hamiltonian w.r.t ng. Returns matrix
-        representing a derivative of the Hamiltonian in the native Hamiltonian basis or
-        eigenenergy basis.
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
+        r"""Return derivative of the Hamiltonian w.r.t ng in native or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator in the native basis.
-            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns operator in the native basis.
+            If ``True``, the energy eigenspectrum is computed, returns operator in the
+            energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays
+            (eigenvalues and energy eigenvectors), returns operator in the energy
+            eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            Operator in chosen basis. If native basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
-            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        Operator in chosen basis. If native basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of
+        :attr:`truncated_dim` x :attr:`truncated_dim`, and is returned as an ndarray.
+        Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
+        for m given eigenvectors, and is returned as an ndarray.
         """
         native = -8 * self.EC * self.n_theta_operator()
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def _zeropi_operator_in_product_basis(
-        self, zeropi_operator, zeropi_evecs: ndarray = None
+        self,
+        zeropi_operator: ndarray | csc_matrix,
+        zeropi_evecs: ndarray | None = None,
     ) -> csc_matrix:
-        """Helper method that converts a zeropi operator into one in the product basis.
+        """Convert a zeropi operator into one in the product basis.
+
+        Parameters
+        ----------
+        zeropi_operator:
+            operator acting in the zeropi Hilbert space (sparse matrix or ndarray)
+        zeropi_evecs:
+            eigenvectors of the inner :class:`ZeroPi` to use when transforming;
+            if None (default), they are calculated on the fly
 
         Returns
         -------
-            operator written in the product basis
+        operator written in the product basis
         """
         zeropi_dim = self.zeropi_cutoff
         zeta_dim = self.zeta_cutoff
@@ -535,7 +628,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             for m in range(zeropi_dim):
                 op_eigen_basis += op_zeropi[n, m] * op.hubbard_sparse(n, m, zeropi_dim)
 
-        return sparse.kron(
+        return sparse.kron(  # type: ignore[return-value]
             op_eigen_basis,
             sparse.identity(zeta_dim, format="csc", dtype=np.complex128),
             format="csc",
@@ -543,36 +636,41 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
     def i_d_dphi_operator(
         self,
-        zeropi_evecs: ndarray = None,
-        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
-    ) -> Union[ndarray, csc_matrix]:
-        r"""Returns :math:`i d/d\phi` operator in the product or eigenenergy basis.
+        zeropi_evecs: ndarray | None = None,
+        energy_esys: bool | tuple[ndarray, ndarray] = False,
+    ) -> ndarray | csc_matrix:
+        r"""Return :math:`i\,d/d\phi` operator in the product or eigenenergy basis.
 
-        Helper method _zeropi_operator_in_product_basis is employed which converts
-        a zeropi operator into one in the product basis. If user already has zeropi eigenvectors, user can input
-        as zeropi_evecs=ndarray.
+        Helper method :meth:`_zeropi_operator_in_product_basis` is employed which
+        converts a zeropi operator into one in the product basis. If the user already
+        has zeropi eigenvectors, they can be supplied via ``zeropi_evecs=ndarray``.
 
         Parameters
         ----------
         zeropi_evecs:
-            If None (default), helper method _zeropi_operator_in_product_basis calculates zeropi eigenvectors and uses
-            them to convert operator to the product basis, if product basis is chosen.
-            If zeropi_evecs = zeropievecs, where zeropievecs is an ndarray, and product basis is chosen,
-            helper method _zeropi_operator_in_product_basis uses zeropievecs to convert the operator
-            to the product basis.
+            If None (default), helper method :meth:`_zeropi_operator_in_product_basis`
+            calculates zeropi eigenvectors and uses them to convert operator to the
+            product basis, if product basis is chosen.
+            If ``zeropi_evecs = zeropievecs``, where ``zeropievecs`` is an ndarray,
+            and product basis is chosen, helper method
+            :meth:`_zeropi_operator_in_product_basis` uses ``zeropievecs`` to convert
+            the operator to the product basis.
         energy_esys:
-            If `False` (default), returns operator in the product basis.
-            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns operator in the product basis.
+            If ``True``, the energy eigenspectrum is computed, returns operator in the
+            energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays
+            (eigenvalues and energy eigenvectors), returns operator in the energy
+            eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            Operator in chosen basis. If product basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
-            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        Operator in chosen basis. If product basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of
+        :attr:`truncated_dim` x :attr:`truncated_dim`, and is returned as an ndarray.
+        Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
+        for m given eigenvectors, and is returned as an ndarray.
         """
         native = self._zeropi_operator_in_product_basis(
             self._zeropi.i_d_dphi_operator(), zeropi_evecs=zeropi_evecs
@@ -581,36 +679,41 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
     def n_theta_operator(
         self,
-        zeropi_evecs: ndarray = None,
-        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
-    ) -> Union[ndarray, csc_matrix]:
-        r"""Returns :math:`n_\theta`  operator in the product or eigenenergy basis.
+        zeropi_evecs: ndarray | None = None,
+        energy_esys: bool | tuple[ndarray, ndarray] = False,
+    ) -> ndarray | csc_matrix:
+        r"""Return :math:`n_\theta` operator in the product or eigenenergy basis.
 
-        Helper method _zeropi_operator_in_product_basis is employed which converts
-        a zeropi operator into one in the product basis. If user already has zeropi eigenvectors, user can input
-        as zeropi_evecs=ndarray.
+        Helper method :meth:`_zeropi_operator_in_product_basis` is employed which
+        converts a zeropi operator into one in the product basis. If the user already
+        has zeropi eigenvectors, they can be supplied via ``zeropi_evecs=ndarray``.
 
         Parameters
         ----------
         zeropi_evecs:
-            If None (default), helper method _zeropi_operator_in_product_basis calculates zeropi eigenvectors and uses
-            them to convert operator to the product basis, if product basis is chosen.
-            If zeropi_evecs = zeropievecs, where zeropievecs is an ndarray, and product basis is chosen,
-            helper method _zeropi_operator_in_product_basis uses zeropievecs to convert the operator
-            to the product basis.
+            If None (default), helper method :meth:`_zeropi_operator_in_product_basis`
+            calculates zeropi eigenvectors and uses them to convert operator to the
+            product basis, if product basis is chosen.
+            If ``zeropi_evecs = zeropievecs``, where ``zeropievecs`` is an ndarray,
+            and product basis is chosen, helper method
+            :meth:`_zeropi_operator_in_product_basis` uses ``zeropievecs`` to convert
+            the operator to the product basis.
         energy_esys:
-            If `False` (default), returns operator in the product basis.
-            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns operator in the product basis.
+            If ``True``, the energy eigenspectrum is computed, returns operator in the
+            energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays
+            (eigenvalues and energy eigenvectors), returns operator in the energy
+            eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            Operator in chosen basis. If product basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
-            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        Operator in chosen basis. If product basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of
+        :attr:`truncated_dim` x :attr:`truncated_dim`, and is returned as an ndarray.
+        Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
+        for m given eigenvectors, and is returned as an ndarray.
         """
         native = self._zeropi_operator_in_product_basis(
             self._zeropi.n_theta_operator(), zeropi_evecs=zeropi_evecs
@@ -619,36 +722,41 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
     def phi_operator(
         self,
-        zeropi_evecs: ndarray = None,
-        energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False,
-    ) -> Union[ndarray, csc_matrix]:
-        r"""Returns :math:`\phi`  operator in the product or eigenenergy basis.
+        zeropi_evecs: ndarray | None = None,
+        energy_esys: bool | tuple[ndarray, ndarray] = False,
+    ) -> ndarray | csc_matrix:
+        r"""Return :math:`\phi` operator in the product or eigenenergy basis.
 
-        Helper method _zeropi_operator_in_product_basis is employed which converts
-        a zeropi operator into one in the product basis. If user already has zeropi eigenvectors, user can input
-        as zeropi_evecs=ndarray.
+        Helper method :meth:`_zeropi_operator_in_product_basis` is employed which
+        converts a zeropi operator into one in the product basis. If the user already
+        has zeropi eigenvectors, they can be supplied via ``zeropi_evecs=ndarray``.
 
         Parameters
         ----------
         zeropi_evecs:
-            If None (default), helper method _zeropi_operator_in_product_basis calculates zeropi eigenvectors and uses
-            them to convert operator to the product basis, if product basis is chosen.
-            If zeropi_evecs = zeropievecs, where zeropievecs is an ndarray, and product basis is chosen,
-            helper method _zeropi_operator_in_product_basis uses zeropievecs to convert the operator
-            to the product basis.
+            If None (default), helper method :meth:`_zeropi_operator_in_product_basis`
+            calculates zeropi eigenvectors and uses them to convert operator to the
+            product basis, if product basis is chosen.
+            If ``zeropi_evecs = zeropievecs``, where ``zeropievecs`` is an ndarray,
+            and product basis is chosen, helper method
+            :meth:`_zeropi_operator_in_product_basis` uses ``zeropievecs`` to convert
+            the operator to the product basis.
         energy_esys:
-            If `False` (default), returns operator in the product basis.
-            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns operator in the product basis.
+            If ``True``, the energy eigenspectrum is computed, returns operator in the
+            energy eigenbasis.
+            If `energy_esys = esys`, where esys is a tuple containing two ndarrays
+            (eigenvalues and energy eigenvectors), returns operator in the energy
+            eigenbasis, and does not have to recalculate eigenspectrum.
 
         Returns
         -------
-            Operator in chosen basis. If product basis chosen, operator
-            returned as a csc_matrix. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x truncated_dim, and is returned as an ndarray. Otherwise, if eigenenergy basis is chosen,
-            operator has dimensions of m x m, for m given eigenvectors, and is returned as an ndarray.
+        Operator in chosen basis. If product basis chosen, operator
+        returned as a csc_matrix. If the eigenenergy basis is chosen,
+        unless `energy_esys` is specified, operator has dimensions of
+        :attr:`truncated_dim` x :attr:`truncated_dim`, and is returned as an ndarray.
+        Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
+        for m given eigenvectors, and is returned as an ndarray.
         """
         native = self._zeropi_operator_in_product_basis(
             self._zeropi.phi_operator(), zeropi_evecs=zeropi_evecs
@@ -656,19 +764,33 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def hilbertdim(self) -> int:
-        """Returns Hilbert space dimension.
+        """Return the Hilbert space dimension.
 
         Returns
         -------
-        int
+        Product ``zeropi_cutoff * zeta_cutoff`` -- the dimension of the
+        full ``ZeroPi`` Hilbert space (zero-pi sector tensor zeta-mode).
         """
         return self.zeropi_cutoff * self.zeta_cutoff
 
     def _evals_calc(
-        self, evals_count: int, hamiltonian_mat: csc_matrix = None
+        self, evals_count: int, hamiltonian_mat: csc_matrix | None = None
     ) -> ndarray:
+        """Return the lowest ``evals_count`` eigenvalues, sorted ascending.
+
+        Uses :func:`scqubits.utils.spectrum_utils.eigsh_safe` with ``which="SA"``
+        and an explicit :func:`numpy.sort` pass to enforce ascending order.
+
+        Parameters
+        ----------
+        evals_count:
+            number of desired eigenvalues
+        hamiltonian_mat:
+            optional precomputed Hamiltonian matrix; if None, :meth:`hamiltonian`
+            is called to construct it
+        """
         if hamiltonian_mat is None:
-            hamiltonian_mat = self.hamiltonian()
+            hamiltonian_mat = self.hamiltonian()  # type: ignore[assignment]
         evals = spec_utils.eigsh_safe(
             hamiltonian_mat,
             k=evals_count,
@@ -679,10 +801,24 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return np.sort(evals)
 
     def _esys_calc(
-        self, evals_count: int, hamiltonian_mat: csc_matrix = None
-    ) -> Tuple[ndarray, ndarray]:
+        self, evals_count: int, hamiltonian_mat: csc_matrix | None = None
+    ) -> tuple[ndarray, ndarray]:
+        """Return the lowest ``evals_count`` eigenvalues and corresponding eigenvectors.
+
+        Uses :func:`scqubits.utils.spectrum_utils.eigsh_safe` with ``which="SA"``
+        followed by :func:`scqubits.utils.spectrum_utils.order_eigensystem` to
+        return ascending eigenvalues with matching eigenvectors.
+
+        Parameters
+        ----------
+        evals_count:
+            number of desired eigenvalues
+        hamiltonian_mat:
+            optional precomputed Hamiltonian matrix; if None, :meth:`hamiltonian`
+            is called to construct it
+        """
         if hamiltonian_mat is None:
-            hamiltonian_mat = self.hamiltonian()
+            hamiltonian_mat = self.hamiltonian()  # type: ignore[assignment]
         evals, evecs = spec_utils.eigsh_safe(
             hamiltonian_mat,
             k=evals_count,
@@ -694,10 +830,15 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return evals, evecs
 
     def g_phi_coupling_matrix(self, zeropi_states: ndarray) -> ndarray:
-        r"""Returns a matrix of coupling strengths :math:`g^\phi_{ll'}`
-        [cmp. Dempster et al., Eq. (18)], using the states from the list
-        `zeropi_states`. Most commonly, `zeropi_states` will contain eigenvectors of the
-        `DisorderedZeroPi` type.
+        r"""Return matrix of coupling strengths :math:`g^\phi_{ll'}`.
+
+        See [Dempster2014]_, Eq. (18). Most commonly, `zeropi_states` will contain
+        eigenvectors of the `DisorderedZeroPi` type.
+
+        Parameters
+        ----------
+        zeropi_states:
+            array of zeropi eigenvectors used to evaluate the matrix elements
         """
         prefactor = self.EL * (self.dEL / 2.0) * (8.0 * self.EC / self.EL) ** 0.25
         return prefactor * spec_utils.get_matrixelement_table(
@@ -705,9 +846,14 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         )
 
     def g_theta_coupling_matrix(self, zeropi_states: ndarray) -> ndarray:
-        r"""Returns a matrix of coupling strengths :math:`ig^\theta_{ll'}`
-        [cmp. Dempster et al., Eq. (17)], using the states from the list
-        'zeropi_states'.
+        r"""Return matrix of coupling strengths :math:`ig^\theta_{ll'}`.
+
+        See [Dempster2014]_, Eq. (17).
+
+        Parameters
+        ----------
+        zeropi_states:
+            array of zeropi eigenvectors used to evaluate the matrix elements
         """
         prefactor = 1j * self.ECS * (self.dC / 2.0) * (32.0 * self.EL / self.EC) ** 0.25
         return prefactor * spec_utils.get_matrixelement_table(
@@ -715,13 +861,22 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         )
 
     def g_coupling_matrix(
-        self, zeropi_states: ndarray = None, evals_count: int = None
+        self, zeropi_states: ndarray | None = None, evals_count: int | None = None
     ) -> ndarray:
-        r"""Returns a matrix of coupling strengths :math:`g_{ll'}` [cmp. Dempster et al., text
-        above Eq. (17)], using the states from 'zeropi_states'. If
-        `zeropi_states==None`, then a set of `self.zeropi` eigenstates is calculated.
-        Only in that case is `which` used for the eigenstate number (and hence the
-        coupling matrix size).
+        r"""Return matrix of coupling strengths :math:`g_{ll'}`.
+
+        See [Dempster2014]_, text above Eq. (17). If `zeropi_states==None`, then a set
+        of `self.zeropi` eigenstates is calculated. Only in that case is `evals_count`
+        used for the eigenstate number (and hence the coupling matrix size).
+
+        Parameters
+        ----------
+        zeropi_states:
+            array of zeropi eigenvectors used to evaluate the matrix elements; if
+            None, eigenstates are computed from the inner :class:`ZeroPi`
+        evals_count:
+            number of zeropi eigenstates to compute when `zeropi_states` is None;
+            defaults to ``self._zeropi.truncated_dim``
         """
         if evals_count is None:
             evals_count = self._zeropi.truncated_dim

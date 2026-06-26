@@ -19,8 +19,6 @@ jobs:
     vmImage: 'ubuntu-latest'
   strategy:
     matrix:
-      Python39:
-        python.version: '3.9'
       Python310:
         python.version: '3.10'
       Python311:
@@ -58,8 +56,6 @@ jobs:
     vmImage: 'windows-latest'
   strategy:
     matrix:
-      Python39:
-        python.version: '3.9'
       Python310:
         python.version: '3.10'
       Python311:
@@ -97,8 +93,6 @@ jobs:
     vmImage: "macos-latest"
   strategy:
     matrix:
-      Python39:
-        python.version: '3.9'
       Python310:
         python.version: '3.10'
       Python311:

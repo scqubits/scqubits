@@ -10,34 +10,31 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import Any, Callable, Dict, Optional
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import Any
 
 import scqubits.core.units as units
 import scqubits.utils.misc as utils
 
+from scqubits.utils._optional_deps import (
+    _HAS_IPYTHON,
+    _HAS_IPYVUETIFY,
+    display,
+    ipywidgets,
+)
+from scqubits.utils._optional_deps import v as ipyvuetify
 
-try:
-    import ipyvuetify
-    import ipywidgets
+if _HAS_IPYVUETIFY:
     from scqubits.ui.gui_custom_widgets import ValidatedNumberField
-except ImportError:
-    _HAS_IPYVUETIFY = False
-else:
-    _HAS_IPYVUETIFY = True
-
-try:
-    from IPython.display import display
-except ImportError:
-    _HAS_IPYTHON = False
-else:
-    _HAS_IPYTHON = True
 
 
 @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
 def create_widget(
     callback_func: Callable,
-    init_params: Dict[str, Any],
-    image_filename: Optional[str] = None,
+    init_params: dict[str, Any],
+    image_filename: str | None = None,
 ) -> None:
     """Displays ipyvuetify for initialization of a QuantumSystem object.
 

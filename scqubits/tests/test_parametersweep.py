@@ -199,3 +199,137 @@ class TestParameterSweep:
             dtype=object,
         )
         assert np.all(indices_LX[..., 9] == ref_indices_LX)
+
+    def test_validate_states_accepts_dressed_index(self, num_cpus):
+        """Regression: ``_validate_states`` must accept ``int`` (dressed-state
+        index) as well as ``tuple`` (bare-product-state label).
+
+        Pre-fix, the Explorer's ``Transitions`` panel crashed with
+        ``TypeError: object of type 'int' has no len()`` whenever the
+        ``initial_bare_dressed_toggle`` widget was switched to "by
+        dressed index", because ``plot_transitions`` passes the
+        integer index straight into ``_validate_states``.
+        """
+        sweep = self.initialize(num_cpus)
+
+        # int form: dressed-state index (no crash).
+        sweep._validate_states(initial=0, final=None)
+        sweep._validate_states(initial=3, final=5)
+
+        # None form: "no state specified" (the default) must be a no-op.
+        sweep._validate_states(initial=None, final=None)
+
+        # tuple form: bare-product-state label (existing behavior preserved).
+        sweep._validate_states(initial=(0, 0, 0), final=None)
+        sweep._validate_states(initial=(0, 0, 0), final=(1, 0, 0))
+
+        # Mixed: tuple initial, int final.
+        sweep._validate_states(initial=(0, 0, 0), final=3)
+
+        # Tuple-shape errors still fire.
+        with pytest.raises(ValueError, match="number of subsystems"):
+            sweep._validate_states(initial=(0, 0), final=None)
+
+
+class TestProgressBarParallelDispatch:
+    """Progress bars must never be stored on the ParameterSweep instance.
+
+    A tqdm bar holds an unpicklable lock (and, as a notebook widget, an ipywidgets
+    comm), while the worker tasks pickle ``self`` during parallel dispatch. With the
+    deferred-close path active (IN_IPYTHON) a multi-subsystem ``num_cpus > 1`` sweep
+    pickles ``self`` after the first phase bar would have been registered, so storing
+    bars on the instance breaks the sweep.
+    """
+
+    def test_parallel_multisubsys_sweep_with_bars_pickles(self, monkeypatch):
+        monkeypatch.setattr(scq.settings, "IN_IPYTHON", True)
+        monkeypatch.setattr(scq.settings, "PROGRESSBAR_DISABLED", False)
+
+        q1 = scq.TunableTransmon(
+            EJmax=30.0, EC=0.2, d=0.1, flux=0.0, ng=0.0, ncut=30, truncated_dim=4
+        )
+        q2 = scq.TunableTransmon(
+            EJmax=20.0, EC=0.2, d=0.1, flux=0.0, ng=0.0, ncut=30, truncated_dim=4
+        )
+        hs = scq.HilbertSpace([q1, q2])
+        hs.add_interaction(g_strength=0.1, op1=q1.n_operator, op2=q2.n_operator)
+
+        def update(flux):
+            q1.flux = flux
+
+        sweep = scq.ParameterSweep(
+            hilbertspace=hs,
+            paramvals_by_name={"flux": np.linspace(0.0, 0.4, 6)},
+            update_hilbertspace=update,
+            evals_count=8,
+            num_cpus=2,  # real parallel dispatch -> pickles self
+        )
+        # completed without a pickling error, and self retains no progress bars
+        assert not hasattr(sweep, "_progress_bars")
+        assert sweep["evals"].shape[0] == 6
+
+
+class TestRunExceptionSafety:
+    def test_dispatch_enabled_restored_when_sweep_raises(self, monkeypatch):
+        # A sweep that raises mid-run must still restore settings.DISPATCH_ENABLED,
+        # or every later sweep in the kernel is silently poisoned.
+        monkeypatch.setattr(scq.settings, "DISPATCH_ENABLED", True)
+        q = scq.TunableTransmon(
+            EJmax=30.0, EC=0.2, d=0.1, flux=0.0, ng=0.0, ncut=20, truncated_dim=3
+        )
+        hs = scq.HilbertSpace([q])
+
+        def boom(flux):
+            raise RuntimeError("boom")
+
+        sweep = scq.ParameterSweep(
+            hilbertspace=hs,
+            paramvals_by_name={"flux": np.linspace(0.0, 0.4, 4)},
+            update_hilbertspace=boom,
+            evals_count=3,
+            num_cpus=1,
+            autorun=False,
+        )
+        with pytest.raises(RuntimeError, match="boom"):
+            sweep.run()
+        assert scq.settings.DISPATCH_ENABLED is True
+
+    def test_consume_with_bar_closes_bar_on_exception(self, monkeypatch):
+        import scqubits.core.param_sweep as ps_mod
+
+        closed = {"value": False}
+
+        class FakeBar:
+            def __init__(self, **kwargs):
+                pass
+
+            def update(self, n):
+                pass
+
+            def refresh(self):
+                pass
+
+            def close(self):
+                closed["value"] = True
+
+        monkeypatch.setattr(ps_mod, "tqdm", lambda **kwargs: FakeBar(**kwargs))
+        q = scq.TunableTransmon(
+            EJmax=30.0, EC=0.2, d=0.1, flux=0.0, ng=0.0, ncut=20, truncated_dim=3
+        )
+        hs = scq.HilbertSpace([q])
+        sweep = scq.ParameterSweep(
+            hilbertspace=hs,
+            paramvals_by_name={"flux": np.array([0.0, 0.1])},
+            update_hilbertspace=lambda f: setattr(q, "flux", f),
+            evals_count=3,
+            num_cpus=1,
+            autorun=False,
+        )
+
+        def raising():
+            yield 1
+            raise RuntimeError("boom")
+
+        with pytest.raises(RuntimeError, match="boom"):
+            sweep._consume_with_bar(raising(), 2, "x", [])
+        assert closed["value"] is True

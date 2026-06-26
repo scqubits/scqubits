@@ -10,32 +10,34 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
 import math
 import warnings
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
+from collections.abc import Callable
+from typing import Any, cast
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy as sp
 import qutip as qt
+import scipy as sp
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.offsetbox import AnchoredText
 from numpy import ndarray
 from scipy.sparse import csc_matrix
-from sympy import csc, sec
 
 import scqubits.core.units as units
 import scqubits.settings as settings
 import scqubits.utils.plotting as plotting
-from scqubits.utils.misc import Qobj_to_scipy_csc_matrix
 
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import matplotlib_settings
+from scqubits.utils.misc import Qobj_to_scipy_csc_matrix
 
 # flag that lets us show a warning about the default t1 behavior
 # (i.e., total=True setting) only once. Using the standard warnings
@@ -46,24 +48,22 @@ _t1_default_warning_given_flag = False
 def calc_therm_ratio(
     omega: float, T: float, omega_in_standard_units: bool = False
 ) -> float:
-    r"""Returns the ratio.
+    r"""Return the thermal ratio :math:`\beta \omega = \hbar \omega / (k_B T)`.
 
-    :math:`\beta \omega = \frac{\hbar \omega}{k_B T}`
-
-    after converting `\omega` from system units, to standard units.
+    Converts ``omega`` from system units to standard units before evaluating.
 
     Parameters
     ----------
     omega:
-        angular frequency in system units
+        angular frequency in system units.
     T:
-        temperature in Kelvin
+        temperature in Kelvin.
     omega_in_standard_units:
-        is omega given in standard units (i.e. Hz)
+        whether ``omega`` is already given in standard units (i.e. Hz).
 
     Returns
     -------
-    float
+    Dimensionless thermal ratio :math:`\\hbar \\omega / (k_B T)`.
     """
     omega = units.to_standard_units(omega) if not omega_in_standard_units else omega
     return (sp.constants.hbar * omega) / (sp.constants.k * T)
@@ -75,11 +75,11 @@ def convert_eV_to_Hz(val: float) -> float:
     Parameters
     ----------
     val:
-        number in electron volts
+        number in electron volts.
 
     Returns
     -------
-        number in Hz
+    number in Hz.
     """
     return val * sp.constants.e / sp.constants.h
 
@@ -107,19 +107,38 @@ CONSTANTS = {
 
 
 class NoisySystem(ABC):
+    """Mixin base class providing noise-channel and coherence-time methods.
+
+    Subclasses must implement :meth:`supported_noise_channels` and
+    :meth:`set_and_return`. Concrete qubit classes inherit this mixin to gain
+    :math:`T_1`, :math:`T_\\phi`, and effective coherence-time methods, along
+    with associated plotting utilities.
+    """
+
     @classmethod
     @abstractmethod
-    def supported_noise_channels(cls) -> List[str]:
-        pass
+    def supported_noise_channels(cls) -> list[str]:
+        """Return the list of noise-channel method names supported by this system."""
 
     @abstractmethod
     def set_and_return(self, attr_name: str, value: Any) -> object:
-        pass
+        """Set attribute ``attr_name`` to ``value`` and return ``self``.
+
+        Parameters
+        ----------
+        attr_name:
+            name of the attribute to update.
+        value:
+            new value to assign to the attribute.
+        """
 
     @classmethod
-    def effective_noise_channels(cls) -> List[str]:
-        """Return a list of noise channels that are used when calculating the effective
-        noise (i.e. via `t1_effective` and `t2_effective`."""
+    def effective_noise_channels(cls) -> list[str]:
+        """Return list of noise channels used in effective-noise calculations.
+
+        These channels are used when computing the effective coherence times
+        via :meth:`t1_effective` and :meth:`t2_effective`.
+        """
         return cls.supported_noise_channels()
 
     @mpl.rc_context(matplotlib_settings)
@@ -127,15 +146,14 @@ class NoisySystem(ABC):
         self,
         param_name: str,
         param_vals: ndarray,
-        noise_channels: Optional[Union[str, List[str], List[Tuple[str, Dict]]]] = None,
-        common_noise_options: Optional[Dict] = None,
-        spectrum_data: Optional[SpectrumData] = None,
+        noise_channels: str | list[str] | list[tuple[str, dict]] | None = None,
+        common_noise_options: dict | None = None,
+        spectrum_data: SpectrumData | None = None,
         scale: float = 1,
-        num_cpus: Optional[int] = None,
+        num_cpus: int | None = None,
         **kwargs,
-    ) -> Tuple[Figure, Union[Axes, ndarray]]:
-        r"""Show plots of coherence for various channels supported by the qubit as they
-        vary as a function of a changing parameter.
+    ) -> tuple[Figure, Axes | ndarray]:
+        r"""Show coherence-vs-parameter plots for the qubit's noise channels.
 
         For example, assuming `qubit` is a qubit object with :attr:`flux` being one of its
         parameters, one can see how coherence due to various noise channels vary as
@@ -146,28 +164,28 @@ class NoisySystem(ABC):
                                               scale=1e-3,
                                               ylabel=r"$\mu s$");
 
-
         Parameters
         ----------
         param_name:
-            name of parameter to be varied
+            name of the parameter to be varied.
         param_vals:
-            parameter values to be plugged in
+            parameter values to be plugged in.
         noise_channels:
-            channels to be plotted, if None then noise channels given by
-            `supported_noise_channels` are used
+            channels to be plotted; if ``None``, the noise channels returned
+            by :meth:`supported_noise_channels` are used.
         common_noise_options:
-            common options used when calculating coherence times
+            common options used when calculating coherence times.
         spectrum_data:
-            spectral data used during noise calculations
-        scale: float
-            a number that all data is multiplied by before being plotted
+            spectral data used during noise calculations.
+        scale:
+            a number that all data is multiplied by before being plotted.
         num_cpus:
-            number of cores to be used for computation
+            number of cores to be used for computation.
 
         Returns
         -------
-        Figure, Axes
+        Matplotlib ``Figure`` and ``Axes`` (or array of axes) for the
+        rendered plot, suitable for further customisation.
         """
         num_cpus = num_cpus or settings.NUM_CPUS
         common_noise_options = (
@@ -184,7 +202,7 @@ class NoisySystem(ABC):
         # if we only have a single noise channel to consider (and hence are given a
         # str), put it into a one element list
         noise_channels = cast(
-            List,
+            list,
             ([noise_channels] if isinstance(noise_channels, str) else noise_channels),
         )
 
@@ -201,8 +219,8 @@ class NoisySystem(ABC):
                     opts = noise_channel[1]
                     max_level = max(max_level, opts.get("i", 1), opts.get("j", 1))
 
-            spectrum_data = self.get_spectrum_vs_paramvals(  # type:ignore
-                param_name,  # type: ignore
+            spectrum_data = self.get_spectrum_vs_paramvals(  # type: ignore[attr-defined]
+                param_name,
                 param_vals,
                 evals_count=max_level + 1,
                 subtract_ground=True,
@@ -249,7 +267,7 @@ class NoisySystem(ABC):
         # remember current value of param_name
         current_val = getattr(self, param_name)
 
-        for channel_idx, noise_channel in enumerate(noise_channels):  # type:ignore
+        for channel_idx, noise_channel in enumerate(cast(list, noise_channels)):
             # case 1: noise_channel is a string representing the noise method
             if isinstance(noise_channel, str):
                 noise_channel_method = noise_channel
@@ -263,8 +281,8 @@ class NoisySystem(ABC):
                             noise_channel_method,
                         )(
                             esys=(
-                                spectrum_data.energy_table[param_idx, :],  # type:ignore
-                                spectrum_data.state_table[param_idx],  # type:ignore
+                                spectrum_data.energy_table[param_idx, :],
+                                spectrum_data.state_table[param_idx],  # type: ignore[index]
                             ),
                             **common_noise_options,
                         )
@@ -292,8 +310,8 @@ class NoisySystem(ABC):
                             noise_channel_method,
                         )(
                             esys=(
-                                spectrum_data.energy_table[param_idx, :],  # type:ignore
-                                spectrum_data.state_table[param_idx],  # type:ignore
+                                spectrum_data.energy_table[param_idx, :],
+                                spectrum_data.state_table[param_idx],  # type: ignore[index]
                             ),
                             **options,
                         )
@@ -338,26 +356,25 @@ class NoisySystem(ABC):
         self,
         param_name: str,
         param_vals: ndarray,
-        noise_channels: Union[str, List[str], List[Tuple[str, Dict]]] = None,
-        common_noise_options: Dict = None,
-        spectrum_data: SpectrumData = None,
+        noise_channels: str | list[str] | list[tuple[str, dict]] | None = None,
+        common_noise_options: dict | None = None,
+        spectrum_data: SpectrumData | None = None,
         get_rate: bool = False,
         scale: float = 1,
-        num_cpus: Optional[int] = None,
+        num_cpus: int | None = None,
         **kwargs,
-    ) -> Tuple[Figure, Axes]:
-        r"""Plot effective :math:`T_1` coherence time (rate) as a function of changing
-        parameter.
+    ) -> tuple[Figure, Axes]:
+        r"""Plot effective :math:`T_1` coherence time (rate) vs. changing parameter.
 
         The effective :math:`T_1` is calculated by considering a variety of
         depolarizing noise channels, according to the formula:
 
         .. math::
-            \frac{1}{T_{1}^{\rm eff}} = \frac{1}{2} \sum_k \frac{1}{T_{1}^{k}}
+            \frac{1}{T_{1}^{\rm eff}} = \sum_k \frac{1}{T_{1}^{k}}
 
         where :math:`k` runs over the channels that can contribute to the effective
-        noise. By default all the depolarizing noise channels given by the method
-        `effective_noise_channels` are included.
+        noise. By default, all depolarizing noise channels returned by
+        :meth:`effective_noise_channels` are included.
 
         For example, assuming `qubit` is a qubit object with :attr:`flux` being one of its
         parameters, one can see how the effective :math:`T_1` varies as the :attr:`flux`
@@ -370,26 +387,27 @@ class NoisySystem(ABC):
         Parameters
         ----------
         param_name:
-            name of parameter to be varied
+            name of the parameter to be varied.
         param_vals:
-            parameter values to be plugged in
+            parameter values to be plugged in.
         noise_channels:
-            channels to be plotted, if None then noise channels given by
-            `supported_noise_channels` are used
+            channels to be plotted; if ``None``, the noise channels returned
+            by :meth:`supported_noise_channels` are used.
         common_noise_options:
-            common options used when calculating coherence times
+            common options used when calculating coherence times.
         spectrum_data:
-            spectral data used during noise calculations
+            spectral data used during noise calculations.
         get_rate:
-            determines if rate or time should be plotted
+            whether to plot the rate (``True``) or the time (``False``).
         scale:
-            a number that all data is multiplied by before being plotted
+            a number that all data is multiplied by before being plotted.
         num_cpus:
-            number of cores to be used for computation
+            number of cores to be used for computation.
 
         Returns
         -------
-        Figure, Axes
+        Matplotlib ``Figure`` and ``Axes`` (or array of axes) for the
+        rendered plot, suitable for further customisation.
         """
         num_cpus = num_cpus or settings.NUM_CPUS
         common_noise_options = (
@@ -427,10 +445,10 @@ class NoisySystem(ABC):
                     opts = noise_channel[1]
                     max_level = max(max_level, opts.get("i", 1), opts.get("j", 1))
 
-            spectrum_data = self.get_spectrum_vs_paramvals(  # type:ignore
+            spectrum_data = self.get_spectrum_vs_paramvals(  # type: ignore[attr-defined]
                 param_name,
                 param_vals,
-                evals_count=max_level + 1,  # type: ignore
+                evals_count=max_level + 1,
                 subtract_ground=True,
                 get_eigenstates=True,
                 filename=None,
@@ -446,12 +464,12 @@ class NoisySystem(ABC):
                 scale
                 * self.set_and_return(
                     param_name, param_val
-                ).t1_effective(  # type:ignore
+                ).t1_effective(  # type: ignore[attr-defined]
                     noise_channels=noise_channels,
                     common_noise_options=common_noise_options,
                     esys=(
-                        spectrum_data.energy_table[param_idx, :],  # type:ignore
-                        spectrum_data.state_table[param_idx],  # type:ignore
+                        spectrum_data.energy_table[param_idx, :],
+                        spectrum_data.state_table[param_idx],  # type: ignore[index]
                     ),
                 )
                 for param_idx, param_val in enumerate(param_vals)
@@ -459,7 +477,7 @@ class NoisySystem(ABC):
         )
 
         # Set the parameter we varied to its initial value
-        setattr(self, param_name, current_val)  # type:ignore
+        setattr(self, param_name, current_val)
 
         plotting_options = {
             "title": "t1_effective",
@@ -479,7 +497,7 @@ class NoisySystem(ABC):
         plotting_options.update(kwargs)
 
         fig, axes = plotting.data_vs_paramvals(
-            param_vals, noise_vals, **plotting_options
+            param_vals, noise_vals, **plotting_options  # type: ignore[arg-type]
         )
 
         fig.tight_layout()
@@ -491,28 +509,27 @@ class NoisySystem(ABC):
         self,
         param_name: str,
         param_vals: ndarray,
-        noise_channels: Union[str, List[str], List[Tuple[str, Dict]]] = None,
-        common_noise_options: Dict = None,
-        spectrum_data: SpectrumData = None,
+        noise_channels: str | list[str] | list[tuple[str, dict]] | None = None,
+        common_noise_options: dict | None = None,
+        spectrum_data: SpectrumData | None = None,
         get_rate: bool = False,
         scale: float = 1,
-        num_cpus: Optional[int] = None,
+        num_cpus: int | None = None,
         **kwargs,
-    ) -> Tuple[Figure, Axes]:
-        r"""Plot effective :math:`T_2` coherence time (rate) as a function of changing
-        parameter.
+    ) -> tuple[Figure, Axes]:
+        r"""Plot effective :math:`T_2` coherence time (rate) vs. changing parameter.
 
-        The effective :math:`T_2` is calculated from both pure dephasing channels,
-        as well as depolarization channels, according to the formula:
+        The effective :math:`T_2` is calculated from both pure dephasing and
+        depolarization channels, according to the formula:
 
         .. math::
             \frac{1}{T_{2}^{\rm eff}} = \sum_k \frac{1}{T_{\phi}^{k}}
             +  \frac{1}{2} \sum_j \frac{1}{T_{1}^{j}}
 
-        where :math:`k` (:math:`j`) run over the relevant pure dephasing (
-        depolarization) channels that can contribute to the effective noise. By
-        default all noise channels given by the method `effective_noise_channels` are
-        included.
+        where :math:`k` (:math:`j`) runs over the relevant pure dephasing
+        (depolarization) channels that can contribute to the effective noise.
+        By default, all noise channels returned by
+        :meth:`effective_noise_channels` are included.
 
         For example, assuming `qubit` is a qubit object with :attr:`flux` being one of its
         parameters, one can see how the effective :math:`T_2` varies as the :attr:`flux`
@@ -525,26 +542,27 @@ class NoisySystem(ABC):
         Parameters
         ----------
         param_name:
-            name of parameter to be varied
+            name of the parameter to be varied.
         param_vals:
-            parameter values to be plugged in
+            parameter values to be plugged in.
         noise_channels:
-            channels to be plotted, if None then noise channels given by
-            `supported_noise_channels` are used
+            channels to be plotted; if ``None``, the noise channels returned
+            by :meth:`supported_noise_channels` are used.
         common_noise_options:
-            common options used when calculating coherence times
+            common options used when calculating coherence times.
         spectrum_data:
-            spectral data used during noise calculations
+            spectral data used during noise calculations.
         get_rate:
-            determines if rate or time should be plotted
+            whether to plot the rate (``True``) or the time (``False``).
         scale:
-            a number that all data is multiplied by before being plotted
+            a number that all data is multiplied by before being plotted.
         num_cpus:
-            number of cores to be used for computation
+            number of cores to be used for computation.
 
         Returns
         -------
-        Figure, Axes
+        Matplotlib ``Figure`` and ``Axes`` (or array of axes) for the
+        rendered plot, suitable for further customisation.
         """
         num_cpus = num_cpus or settings.NUM_CPUS
         common_noise_options = (
@@ -578,10 +596,10 @@ class NoisySystem(ABC):
                     opts = noise_channel[1]
                     max_level = max(max_level, opts.get("i", 1), opts.get("j", 1))
 
-            spectrum_data = self.get_spectrum_vs_paramvals(  # type:ignore
+            spectrum_data = self.get_spectrum_vs_paramvals(  # type: ignore[attr-defined]
                 param_name,
                 param_vals,
-                evals_count=max_level + 1,  # type: ignore
+                evals_count=max_level + 1,
                 subtract_ground=True,
                 get_eigenstates=True,
                 filename=None,
@@ -599,8 +617,8 @@ class NoisySystem(ABC):
                     noise_channels=noise_channels,
                     common_noise_options=common_noise_options,
                     esys=(
-                        spectrum_data.energy_table[v_i, :],  # type:ignore
-                        spectrum_data.state_table[v_i],  # type:ignore
+                        spectrum_data.energy_table[v_i, :],
+                        spectrum_data.state_table[v_i],  # type: ignore[index]
                     ),
                     get_rate=get_rate,
                 )
@@ -627,7 +645,7 @@ class NoisySystem(ABC):
         plotting_options.update(kwargs)
 
         fig, axes = plotting.data_vs_paramvals(
-            param_vals, noise_vals, **plotting_options
+            param_vals, noise_vals, **plotting_options  # type: ignore[arg-type]
         )
 
         fig.tight_layout()
@@ -635,29 +653,30 @@ class NoisySystem(ABC):
 
     def _effective_rate(
         self,
-        noise_channels: Union[List[str], List[Tuple[str, Dict]]],
-        common_noise_options: Dict,
-        esys: Tuple[ndarray, ndarray],
+        noise_channels: list[str] | list[tuple[str, dict]],
+        common_noise_options: dict,
+        esys: tuple[ndarray, ndarray],
         noise_type: str,
     ) -> float:
-        """Helper method used when calculating the effective rates by methods
-        `t1_effective` and `t2_effective`.
+        """Compute effective coherence rate from a list of noise channels.
+
+        Helper used by :meth:`t1_effective` and :meth:`t2_effective`.
 
         Parameters
         ----------
         noise_channels:
-            channels to be plotted, if None then noise channels given by
-            `supported_noise_channels` are used
+            channels to include; if ``None``, the noise channels returned by
+            :meth:`supported_noise_channels` are used.
         common_noise_options:
-            common options used when calculating coherence times
+            common options used when calculating coherence times.
         esys:
-            spectral data used during noise calculations
+            spectral data used during noise calculations.
         noise_type:
-            type of noise, one of 'tphi' or 't1'
+            type of noise, one of ``'tphi'`` or ``'t1'``.
 
         Returns
         -------
-            coherence rate
+        coherence rate.
         """
         rate = 0.0
 
@@ -718,9 +737,9 @@ class NoisySystem(ABC):
 
     def t1_effective(
         self,
-        noise_channels: Optional[Union[str, List[str], List[Tuple[str, Dict]]]] = None,
-        common_noise_options: Optional[Dict] = None,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        noise_channels: str | list[str] | list[tuple[str, dict]] | None = None,
+        common_noise_options: dict | None = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
@@ -730,14 +749,14 @@ class NoisySystem(ABC):
         depolarizing noise channels, according to the formula:
 
         .. math::
-            \frac{1}{T_{1}^{\rm eff}} = \frac{1}{2} \sum_k \frac{1}{T_{1}^{k}}
+            \frac{1}{T_{1}^{\rm eff}} = \sum_k \frac{1}{T_{1}^{k}}
 
         where :math:`k` runs over the channels that can contribute to the effective
-        noise. By default all the depolarizing noise channels given by the method
-        `effective_noise_channels` are included. Users can also provide specific
-        noise channels, with selected options, to be included in the effective
-        :math:`T_1` calculation. For example, assuming `qubit` is a qubit object,
-        can can execute::
+        noise. By default, all depolarizing noise channels returned by
+        :meth:`effective_noise_channels` are included. Users can also provide
+        specific noise channels, with selected options, to be included in the
+        effective :math:`T_1` calculation. For example, assuming `qubit` is a
+        qubit object, one can execute::
 
             tune_tmon.t1_effective(noise_channels=['t1_charge_impedance',
                                     't1_flux_bias_line'],
@@ -746,20 +765,19 @@ class NoisySystem(ABC):
         Parameters
         ----------
         noise_channels:
-            channels to be plotted, if None then noise channels given by
-            `supported_noise_channels` are used
+            channels to include; if ``None``, the noise channels returned by
+            :meth:`supported_noise_channels` are used.
         common_noise_options:
-            common options used when calculating coherence times
+            common options used when calculating coherence times.
         esys:
-            spectral data used during noise calculations
+            spectral data used during noise calculations.
         get_rate:
-            get rate or time
-
+            whether to return the rate (``True``) or the time (``False``).
 
         Returns
         -------
-            decoherence time in units of :math:`2\pi` (system units), or rate
-             in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or rate
+        in inverse units.
         """
         common_noise_options = (
             {} if common_noise_options is None else common_noise_options
@@ -820,9 +838,9 @@ class NoisySystem(ABC):
 
     def t2_effective(
         self,
-        noise_channels: Union[str, List[str], List[Tuple[str, Dict]]] = None,
-        common_noise_options: Dict = None,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        noise_channels: str | list[str] | list[tuple[str, dict]] | None = None,
+        common_noise_options: dict | None = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
     ) -> float:
         r"""Calculate the effective :math:`T_2` time (or rate).
@@ -834,12 +852,13 @@ class NoisySystem(ABC):
             \frac{1}{T_{2}^{\rm eff}} = \sum_k \frac{1}{T_{\phi}^{k}}
             +  \frac{1}{2} \sum_j \frac{1}{T_{1}^{j}},
 
-        where :math:`k` (:math:`j`) run over the relevant pure dephasing (
-        depolarization) channels that can contribute to the effective noise. By
-        default all the noise channels given by the method `effective_noise_channels`
-        are included. Users can also provide specific noise channels, with selected
-        options, to be included in the effective :math:`T_2` calculation. For
-        example, assuming `qubit` is a qubit object, can can execute::
+        where :math:`k` (:math:`j`) runs over the relevant pure dephasing
+        (depolarization) channels that can contribute to the effective noise.
+        By default, all noise channels returned by
+        :meth:`effective_noise_channels` are included. Users can also provide
+        specific noise channels, with selected options, to be included in the
+        effective :math:`T_2` calculation. For example, assuming `qubit` is a
+        qubit object, one can execute::
 
             qubit.t2_effective(noise_channels=['t1_flux_bias_line', 't1_capacitive',
                                                ('tphi_1_over_f_flux', dict(A_noise=3e-6))],
@@ -847,21 +866,20 @@ class NoisySystem(ABC):
 
         Parameters
         ----------
-        noise_channels: None or str or list(str) or list(tuple(str, dict))
-            channels to be plotted, if None then noise channels given by
-            `supported_noise_channels` are used
-        common_noise_options: dict
-            common options used when calculating coherence times
-        esys: tuple(evals, evecs)
-            spectral data used during noise calculations
-        get_rate: bool
-            get rate or time
+        noise_channels:
+            channels to include; if ``None``, the noise channels returned by
+            :meth:`supported_noise_channels` are used.
+        common_noise_options:
+            common options used when calculating coherence times.
+        esys:
+            spectral data used during noise calculations.
+        get_rate:
+            whether to return the rate (``True``) or the time (``False``).
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or
-            rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or
+        rate in inverse units.
         """
         common_noise_options = (
             {} if common_noise_options is None else common_noise_options
@@ -909,13 +927,29 @@ class NoisySystem(ABC):
 
     def transition_energy_derivative(
         self,
-        ni,
-        nf,
-        esys,
-        hamiltonian_derivative,
-    ):
-        """Returns the first order and second order derivative of the nth
-        eigenenergy."""
+        ni: int,
+        nf: int,
+        esys: tuple[ndarray, ndarray],
+        hamiltonian_derivative: ndarray | csc_matrix | list[ndarray | csc_matrix],
+    ) -> ndarray:
+        """Return the first-order derivative of the ``ni``-to-``nf`` transition energy.
+
+        Parameters
+        ----------
+        ni:
+            initial state index.
+        nf:
+            final state index.
+        esys:
+            ``(eigenvalues, eigenvectors)`` tuple.
+        hamiltonian_derivative:
+            derivative of the Hamiltonian with respect to the noisy parameter,
+            or a list of such derivatives.
+
+        Returns
+        -------
+        length-1 array containing the transition-energy derivative.
+        """
         eigs, evecs = esys
         hamiltonian_derivative = (
             [hamiltonian_derivative]
@@ -934,36 +968,36 @@ class NoisySystem(ABC):
         A_noise: float,
         i: int,
         j: int,
-        noise_op: Union[ndarray, csc_matrix],
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        noise_op: ndarray | csc_matrix,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
-        r"""Calculate the 1/f dephasing time (or rate) due to  arbitrary noise source.
+        r"""Calculate the 1/f dephasing time (or rate) due to an arbitrary noise source.
 
-        We assume that the qubit energies (or the passed in eigenspectrum) has units
-        of frequency (and *not* angular frequency).
+        Assumes that the qubit energies (or the passed-in eigenspectrum) have
+        units of frequency (and *not* angular frequency).
 
         Parameters
         ----------
         A_noise:
-            noise strength
-        i: int >=0
-            state index that along with j defines a qubit
-        j: int >=0
-            state index that along with i defines a qubit
+            noise strength.
+        i:
+            state index that, together with ``j``, defines the qubit.
+        j:
+            state index that, together with ``i``, defines the qubit.
         noise_op:
-            noise operator, typically Hamiltonian derivative w.r.t. noisy parameter
+            noise operator, typically the Hamiltonian derivative with respect
+            to the noisy parameter.
         esys:
-            evals, evecs tuple
+            ``(evals, evecs)`` tuple.
         get_rate:
-            get rate or time
+            whether to return the rate (``True``) or the time (``False``).
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units),
-            or rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units),
+        or rate in inverse units.
         """
         # Sanity check
         if i == j or i < 0 or j < 0:
@@ -1016,7 +1050,7 @@ class NoisySystem(ABC):
         A_noise: float = NOISE_PARAMS["A_flux"],
         i: int = 0,
         j: int = 1,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
@@ -1025,21 +1059,20 @@ class NoisySystem(ABC):
         Parameters
         ----------
         A_noise:
-            noise strength
-        i: int >=0
-            state index that along with j defines a qubit
-        j: int >=0
-            state index that along with i defines a qubit
+            noise strength.
+        i:
+            state index that, together with ``j``, defines the qubit.
+        j:
+            state index that, together with ``i``, defines the qubit.
         esys:
-            evals, evecs tuple
+            ``(evals, evecs)`` tuple.
         get_rate:
-            get rate or time
+            whether to return the rate (``True``) or the time (``False``).
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or
-            rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or
+        rate in inverse units.
         """
 
         if "tphi_1_over_f_flux" not in self.supported_noise_channels():
@@ -1063,30 +1096,29 @@ class NoisySystem(ABC):
         A_noise: float = NOISE_PARAMS["A_cc"],
         i: int = 0,
         j: int = 1,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
-        r"""Calculate the 1/f dephasing time (or rate) due to critical current noise.
+        r"""Calculate the 1/f dephasing time (or rate) due to critical-current noise.
 
         Parameters
         ----------
         A_noise:
-            noise strength
-        i: int >=0
-            state index that along with j defines a qubit
-        j: int >=0
-            state index that along with i defines a qubit
+            noise strength.
+        i:
+            state index that, together with ``j``, defines the qubit.
+        j:
+            state index that, together with ``i``, defines the qubit.
         esys:
-            evals, evecs tuple
+            ``(evals, evecs)`` tuple.
         get_rate:
-            get rate or time
+            whether to return the rate (``True``) or the time (``False``).
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or
-            rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or
+        rate in inverse units.
         """
 
         if "tphi_1_over_f_cc" not in self.supported_noise_channels():
@@ -1110,7 +1142,7 @@ class NoisySystem(ABC):
         A_noise: float = NOISE_PARAMS["A_ng"],
         i: int = 0,
         j: int = 1,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
@@ -1119,22 +1151,20 @@ class NoisySystem(ABC):
         Parameters
         ----------
         A_noise:
-            noise strength
-        i: int >=0
-            state index that along with j defines a qubit
-        j: int >=0
-            state index that along with i defines a qubit
+            noise strength.
+        i:
+            state index that, together with ``j``, defines the qubit.
+        j:
+            state index that, together with ``i``, defines the qubit.
         esys:
-            evals, evecs tuple
+            ``(evals, evecs)`` tuple.
         get_rate:
-            get rate or time
-
+            whether to return the rate (``True``) or the time (``False``).
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or rate
-            in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or rate
+        in inverse units.
         """
         if "tphi_1_over_f_ng" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -1156,55 +1186,54 @@ class NoisySystem(ABC):
         self,
         i: int,
         j: int,
-        noise_op: Union[ndarray, csc_matrix],
+        noise_op: ndarray | csc_matrix,
         spectral_density: Callable,
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
     ) -> float:
-        r"""Calculate the transition time (or rate) using Fermi's Golden Rule due to a
-        noise channel with a spectral density `spectral_density` and system noise
-        operator `noise_op`. Mathematically, it reads:
+        r"""Calculate :math:`T_1` time (or rate) from Fermi's Golden Rule.
+
+        For a noise channel with spectral density ``spectral_density`` and system
+        noise operator ``noise_op``, this reads:
 
         .. math::
 
             \frac{1}{T_1} = \frac{1}{\hbar^2} |\langle i| A_{\rm noise} | j \rangle|^2 S(\omega)
 
-        We assume that the qubit energies (or the passed in eigenspectrum) has units
-        of frequency (and *not* angular frequency).
-
-        The `spectral_density` argument should be a callable object (typically a
-        function) of one argument, which is assumed to be an angular frequency (in
-        the units currently set as system units.
+        Assumes that the qubit energies (or the passed-in eigenspectrum) have
+        units of frequency (and *not* angular frequency).
 
         Parameters
         ----------
-        i: int >=0
-            state index that along with j defines a transition (i->j)
-        j: int >=0
-            state index that along with i defines a transition (i->j)
+        i:
+            state index that, together with ``j``, defines a transition
+            (``i->j``).
+        j:
+            state index that, together with ``i``, defines a transition
+            (``i->j``).
         noise_op:
-            noise operator
+            noise operator.
         T:
-            Temperature defined in Kelvin
+            temperature in Kelvin.
         spectral_density:
-            defines a spectral density, must take two arguments: `omega` and `T`
-            (assumed to be in units of `2 \pi * <system units>`)
+            callable defining the spectral density. Must take two arguments
+            ``omega`` and ``T``, with ``omega`` an angular frequency (in units
+            of :math:`2\pi` times the system frequency units).
         total:
-            if False return a time/rate associated with a transition from state i to state j.
-            if True return a time/rate associated with both i to j and j to i transitions
+            if ``False``, return a time/rate associated with the ``i -> j``
+            transition only; if ``True``, sum the ``i -> j`` and ``j -> i``
+            contributions.
         esys:
-            evals, evecs tuple
+            ``(evals, evecs)`` tuple.
         get_rate:
-            get rate or time
-
+            whether to return the rate (``True``) or the time (``False``).
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or rate
-            in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or rate
+        in inverse units.
         """
 
         if settings.T1_DEFAULT_WARNING:
@@ -1258,42 +1287,47 @@ class NoisySystem(ABC):
         self,
         i: int = 1,
         j: int = 0,
-        Q_cap: Optional[Union[float, Callable]] = None,
+        Q_cap: float | Callable | None = None,
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
-        noise_op: Optional[Union[ndarray, csc_matrix, qt.Qobj]] = None,
-        branch_params: Optional[dict] = None,
+        noise_op: ndarray | csc_matrix | qt.Qobj | None = None,
+        branch_params: float | int | None = None,
     ) -> float:
-        r""":math:`T_1` due to dielectric dissipation in the Josephson junction
-        capacitances.
+        r""":math:`T_1` due to dielectric dissipation in the Josephson junction capacitances.
 
         References: Smith et al (2020), see also Nguyen et al (2019).
 
         Parameters
         ----------
-        i: int >=0
-            state index that along with j defines a transition (i->j)
-        j: int >=0
-            state index that along with i defines a transition (i->j)
-        Q_cap
-            capacitive quality factor; a fixed value or function of `omega`
+        i:
+            state index that, together with ``j``, defines a transition
+            (``i->j``).
+        j:
+            state index that, together with ``i``, defines a transition
+            (``i->j``).
+        Q_cap:
+            capacitive quality factor; a fixed value or a function of ``omega``.
         T:
-            temperature in Kelvin
+            temperature in Kelvin.
         total:
-            if False return a time/rate associated with a transition from state i to state j.
-            if True return a time/rate associated with both i to j and j to i transitions
+            if ``False``, return a time/rate associated with the ``i -> j``
+            transition only; if ``True``, sum the ``i -> j`` and ``j -> i``
+            contributions.
         esys:
-            evals, evecs tuple
+            ``(evals, evecs)`` tuple.
         get_rate:
-            get rate or time
+            whether to return the rate (``True``) or the time (``False``).
+        noise_op:
+            optional noise operator overriding the default ``self.n_operator()``.
+        branch_params:
+            scalar capacitive energy used in place of ``self.EC``.
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or rate
-             in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or rate
+        in inverse units.
         """
         if "t1_capacitive" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -1353,39 +1387,46 @@ class NoisySystem(ABC):
         self,
         i: int = 1,
         j: int = 0,
-        Z: Union[float, Callable] = NOISE_PARAMS["R_0"],
+        Z: float | Callable = NOISE_PARAMS["R_0"],
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
-        noise_op: Optional[Union[ndarray, csc_matrix, qt.Qobj]] = None,
+        noise_op: ndarray | csc_matrix | qt.Qobj | None = None,
     ) -> float:
         r"""Noise due to charge coupling to an impedance (such as a transmission line).
 
-        References: Schoelkopf et al (2003), Ithier et al (2005)
+        References: Schoelkopf et al (2003), Ithier et al (2005).
+
+        Only the real part of the (possibly complex) impedance ``Z`` enters the
+        spectral density; any imaginary component is discarded.
 
         Parameters
         ----------
-        i: int >=0
-            state index that along with j defines a transition (i->j)
-        j: int >=0
-            state index that along with i defines a transition (i->j)
+        i:
+            state index that, together with ``j``, defines a transition
+            (``i->j``).
+        j:
+            state index that, together with ``i``, defines a transition
+            (``i->j``).
         Z:
-            impedance; a fixed value or function of `omega`
+            impedance; a fixed value or a function of ``omega``.
         T:
-            temperature in Kelvin
+            temperature in Kelvin.
         total:
-            if False return a time/rate associated with a transition from state i to state j.
-            if True return a time/rate associated with both i to j and j to i transitions
+            if ``False``, return a time/rate associated with the ``i -> j``
+            transition only; if ``True``, sum the ``i -> j`` and ``j -> i``
+            contributions.
         esys:
-            evals, evecs tuple
+            ``(evals, evecs)`` tuple.
         get_rate:
-            get rate or time
+            whether to return the rate (``True``) or the time (``False``).
+        noise_op:
+            optional noise operator overriding the default ``self.n_operator()``.
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or rate in inverse units.
         """
         if "t1_charge_impedance" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -1432,43 +1473,50 @@ class NoisySystem(ABC):
         i: int = 1,
         j: int = 0,
         M: float = NOISE_PARAMS["M"],
-        Z: Union[complex, float, Callable] = NOISE_PARAMS["R_0"],
+        Z: complex | float | Callable = NOISE_PARAMS["R_0"],
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
-        noise_op_method: Optional[Callable] = None,
+        noise_op_method: Callable | None = None,
     ) -> float:
         r"""Noise due to a bias flux line.
 
-        References: Koch et al (2007), Groszkowski et al (2018)
+        References: Koch et al (2007), Groszkowski et al (2018).
+
+        Only the real part of the (possibly complex) impedance ``Z`` enters the
+        spectral density; any imaginary component is discarded.
 
         Parameters
         ----------
-        i: int >=0
-            state index that along with j defines a transition (i->j)
-        j: int >=0
-            state index that along with i defines a transition (i->j)
+        i:
+            state index that, together with ``j``, defines a transition
+            (``i->j``).
+        j:
+            state index that, together with ``i``, defines a transition
+            (``i->j``).
         M:
-            Inductance in units of \Phi_0 / Ampere
+            mutual inductance in units of :math:`\Phi_0 / \text{A}`.
         Z:
-            A complex impedance; a fixed value or function of `omega`
+            complex impedance; a fixed value or a function of ``omega``.
         T:
-            temperature in Kelvin
+            temperature in Kelvin.
         total:
-            if False return a time/rate associated with a transition from state i to state j.
-            if True return a time/rate associated with both i to j and j to i transitions
+            if ``False``, return a time/rate associated with the ``i -> j``
+            transition only; if ``True``, sum the ``i -> j`` and ``j -> i``
+            contributions.
         esys:
-            evals, evecs tuple
+            ``(evals, evecs)`` tuple.
         get_rate:
-            get rate or time
-
+            whether to return the rate (``True``) or the time (``False``).
+        noise_op_method:
+            optional zero-argument callable returning the noise operator;
+            defaults to ``self.d_hamiltonian_d_flux``.
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units),
-            or rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units),
+        or rate in inverse units.
         """
         if "t1_flux_bias_line" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -1514,13 +1562,13 @@ class NoisySystem(ABC):
         self,
         i: int = 1,
         j: int = 0,
-        Q_ind: Union[float, Callable] = None,
+        Q_ind: float | Callable | None = None,
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
-        noise_op: Optional[Union[ndarray, csc_matrix, qt.Qobj]] = None,
-        branch_params: Optional[dict] = None,
+        noise_op: ndarray | csc_matrix | qt.Qobj | None = None,
+        branch_params: float | int | None = None,
     ) -> float:
         r""":math:`T_1` due to inductive dissipation in a superinductor.
 
@@ -1528,29 +1576,33 @@ class NoisySystem(ABC):
 
         Parameters
         ----------
-        i: int >=0
-            state index that along with j defines a transition (i->j)
-        j: int >=0
-            state index that along with i defines a transition (i->j)
+        i:
+            state index that, together with ``j``, defines a transition
+            (``i->j``).
+        j:
+            state index that, together with ``i``, defines a transition
+            (``i->j``).
         Q_ind:
-            inductive quality factor; a fixed value or function of `omega`
+            inductive quality factor; a fixed value or a function of ``omega``.
         T:
-            temperature in Kelvin
+            temperature in Kelvin.
         total:
-            if False return a time/rate associated with a transition from state i to
-            state j.
-            if True return a time/rate associated with both i to j and j
-            to i transitions
+            if ``False``, return a time/rate associated with the ``i -> j``
+            transition only; if ``True``, sum the ``i -> j`` and ``j -> i``
+            contributions.
         esys:
-            evals, evecs tuple
+            ``(evals, evecs)`` tuple.
         get_rate:
-            get rate or time
+            whether to return the rate (``True``) or the time (``False``).
+        noise_op:
+            optional noise operator overriding the default ``self.phi_operator()``.
+        branch_params:
+            scalar inductive energy used in place of ``self.EL``.
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or rate
-            in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or rate
+        in inverse units.
         """
         if "t1_inductive" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -1621,46 +1673,53 @@ class NoisySystem(ABC):
         self,
         i: int = 1,
         j: int = 0,
-        Y_qp: Optional[Union[float, Callable]] = None,
+        Y_qp: float | Callable | None = None,
         x_qp: float = NOISE_PARAMS["x_qp"],
         T: float = NOISE_PARAMS["T"],
         Delta: float = NOISE_PARAMS["Delta"],
         total: bool = True,
-        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
-        noise_op: Optional[Union[ndarray, csc_matrix, qt.Qobj]] = None,
+        noise_op: ndarray | csc_matrix | qt.Qobj | None = None,
     ) -> float:
         r"""Noise due to quasiparticle tunneling across a Josephson junction.
 
         References: Smith et al (2020), Catelani et al (2011), Pop et al (2014).
 
+        Only the real part of the (possibly complex) admittance ``Y_qp`` enters the
+        spectral density; any imaginary component is discarded.
 
         Parameters
         ----------
-        i: int >=0
-            state index that along with j defines a transition (i->j)
-        j: int >=0
-            state index that along with i defines a transition (i->j)
+        i:
+            state index that, together with ``j``, defines a transition
+            (``i->j``).
+        j:
+            state index that, together with ``i``, defines a transition
+            (``i->j``).
         Y_qp:
-            complex admittance; a fixed value or function of `omega`
+            complex admittance; a fixed value or a function of ``omega``.
         x_qp:
-            quasiparticle density (in units of eV)
+            quasiparticle density (in units of eV).
         T:
-            temperature in Kelvin
+            temperature in Kelvin.
         Delta:
-            superconducting gap (in units of eV)
+            superconducting gap (in units of eV).
         total:
-            if False return a time/rate associated with a transition from state i to state j.
-            if True return a time/rate associated with both i to j and j to i transitions
+            if ``False``, return a time/rate associated with the ``i -> j``
+            transition only; if ``True``, sum the ``i -> j`` and ``j -> i``
+            contributions.
         esys:
-            evals, evecs tuple
+            ``(evals, evecs)`` tuple.
         get_rate:
-            get rate or time
+            whether to return the rate (``True``) or the time (``False``).
+        noise_op:
+            optional noise operator overriding the default
+            ``self.sin_phi_operator(alpha=0.5, beta=0.5 * (2 * pi * self.flux))``.
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or rate in inverse units.
         """
         if "t1_quasiparticle_tunneling" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -1671,10 +1730,7 @@ class NoisySystem(ABC):
         if Y_qp is None:
 
             def y_qp_fun(omega, T):
-                """Based on Eq.
-
-                S23 in the appendix of Smith et al (2020).
-                """
+                """Based on Eq. S23 in the appendix of Smith et al (2020)."""
                 # Note that y_qp_fun is always symmetric in omega, i.e. In Smith et al 2020,
                 # we essentially have something proportional to sinh(omega)/omega
                 omega = abs(omega)
@@ -1711,10 +1767,7 @@ class NoisySystem(ABC):
                 return Y_qp
 
         def spectral_density(omega, T):
-            """Based on Eq.
-
-            19 in Smith et al (2020).
-            """
+            """Based on Eq. 19 in Smith et al (2020)."""
             therm_ratio = calc_therm_ratio(omega, T)
 
             return (

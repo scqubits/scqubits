@@ -10,7 +10,9 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import TYPE_CHECKING, Tuple
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -24,33 +26,35 @@ if TYPE_CHECKING:
 
 def bare_matrixelement(
     sweep: "ParameterSweep",
-    paramindex_tuple: Tuple[int, ...],
-    paramvals_tuple: Tuple[float, ...],
+    paramindex_tuple: tuple[int, ...],
+    paramvals_tuple: tuple[float, ...],
     operator_name: str,
     subsystem: QubitBaseClass,
 ) -> np.ndarray:
-    """Given parameter sweep data, compute and return a matrix element table using the
-    bare states of the specified subsystem.
+    """Compute a matrix-element table in the bare states of the given subsystem.
+
+    The result is evaluated from the parameter sweep data at the specified
+    parameter-index point.
 
     Parameters
     ----------
     sweep:
-        `ParameterSweep` object to be used for the computation
+        :class:`ParameterSweep` object to be used for the computation.
     paramindex_tuple:
-        a complete set of parameter indices (i.e. a single point in the multi-dim
-        parameter space)
+        a complete set of parameter indices (i.e. a single point in the
+        multi-dim parameter space).
     paramvals_tuple:
-        [not used, but required by `generator` interface]
+        [not used, but required by the ``generator`` interface].
     operator_name:
-        operator for which matrix elements are requested, given in string form
+        name of the operator for which matrix elements are requested.
     subsystem:
-        subsystem belonging to the underlying Hilbert space and compatible with the
-        specified operator name
+        subsystem belonging to the underlying Hilbert space and compatible
+        with the specified operator name.
 
     Returns
     -------
-        ndarray of matrix elements, in general complex-valued; shape: square array of
-        size set by the truncated_dim of the subsystem
+    Array of matrix elements (in general complex-valued); square array of size
+    set by the ``truncated_dim`` of the subsystem.
     """
     subsys_index = sweep.get_subsys_index(subsystem)
     bare_evecs = sweep["bare_evecs"][subsys_index][paramindex_tuple]
@@ -63,29 +67,31 @@ def bare_matrixelement(
 
 def dressed_matrixelement(
     sweep: "ParameterSweep",
-    paramindex_tuple: Tuple[int, ...],
-    paramvals_tuple: Tuple[float, ...],
+    paramindex_tuple: tuple[int, ...],
+    paramvals_tuple: tuple[float, ...],
     operator: Qobj,
 ) -> np.ndarray:
-    """Given parameter sweep data, compute and return a matrix element table using the
-    dressed states of the composite Hilbert space.
+    """Compute a matrix-element table in the dressed states of the composite system.
+
+    The result is evaluated from the parameter sweep data at the specified
+    parameter-index point.
 
     Parameters
     ----------
     sweep:
-        `ParameterSweep` object to be used for the computation
+        :class:`ParameterSweep` object to be used for the computation.
     paramindex_tuple:
-        a complete set of parameter indices (i.e. a single point in the multi-dim
-        parameter space)
+        a complete set of parameter indices (i.e. a single point in the
+        multi-dim parameter space).
     paramvals_tuple:
-        [not used, but required by `generator` interface]
+        [not used, but required by the ``generator`` interface].
     operator:
-        given as `Qobj`, valid operator in the full Hilbert space
+        a valid operator in the full Hilbert space, given as a :class:`qutip.Qobj`.
 
     Returns
     -------
-        ndarray of matrix elements, in general complex-valued; shape: square array of
-        size set by the truncated_dim of the subsystem
+    Array of matrix elements (in general complex-valued); square array of size
+    set by the ``truncated_dim`` of the subsystem.
     """
     evecs = sweep["evecs"][paramindex_tuple]
     return np.asarray(

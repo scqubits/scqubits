@@ -17,18 +17,24 @@ making it easy to work with composite Hilbert spaces consisting of coupled
 superconducting qubits and harmonic modes. Internally, numerics within scqubits is
 carried out with the help of Numpy and Scipy; plotting capabilities rely on Matplotlib.
 """
+
 #######################################################################################
 
 
 import warnings
+
+from typing import TYPE_CHECKING
+
+# diagonalization namespace (DIAG_METHODS already imported above)
+import scqubits.core.diag as diag
 
 from scqubits import settings
 
 # core
 from scqubits.core.central_dispatch import CentralDispatch
 from scqubits.core.cos2phi_qubit import Cos2PhiQubit
-from scqubits.core.discretization import Grid1d
 from scqubits.core.diag import DIAG_METHODS
+from scqubits.core.discretization import Grid1d
 from scqubits.core.flux_qubit import FluxQubit
 from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.generic_qubit import GenericQubit
@@ -58,34 +64,31 @@ from scqubits.core.zeropi_full import FullZeroPi
 # file IO
 from scqubits.io_utils.fileio import read, write
 
-# diagonalization
-import scqubits.core.diag as diag
-from scqubits.core.diag import (
-    DIAG_METHODS,
-)
-
-# Import of custom-circuit modules needs to take place after other imports to
-# avoid circular import issues
-from scqubits.core.circuit import Circuit
-from scqubits.core.circuit_utils import truncation_template
-from scqubits.core.symbolic_circuit import SymbolicCircuit
-
-
-# GUI
-try:
+# GUI — graceful fallback when the optional `ipyvuetify` dependency is missing.
+# At type-check time, mypy always sees the real classes; at runtime, the
+# try/except applies and substitutes error-raising stubs if imports fail.
+if TYPE_CHECKING:
     from scqubits.explorer.explorer_widget import Explorer
     from scqubits.ui.gui import GUI
-except (ImportError, NameError):
+else:
+    try:
+        from scqubits.explorer.explorer_widget import Explorer
+        from scqubits.ui.gui import GUI
+    except (ImportError, NameError):
 
-    def Explorer(*args, **kwargs):
-        warnings.warn(
-            "scqubits: could not create Explorer - did you install the optional dependency ipyvuetify?"
-        )
+        def Explorer(*args, **kwargs):
+            raise ImportError(
+                "scqubits: Explorer requires the optional dependency "
+                "`ipyvuetify`. Install it with `pip install scqubits[gui]` "
+                "or `pip install ipyvuetify`."
+            )
 
-    def GUI(*args, **kwargs):
-        warnings.warn(
-            "scqubits: could not create GUI - did you install the optional dependency ipyvuetify?"
-        )
+        def GUI(*args, **kwargs):
+            raise ImportError(
+                "scqubits: GUI requires the optional dependency "
+                "`ipyvuetify`. Install it with `pip install scqubits[gui]` "
+                "or `pip install ipyvuetify`."
+            )
 
 
 # for showing scqubits info
@@ -95,13 +98,17 @@ from scqubits.utils.misc import about, cite
 from scqubits.utils.spectrum_utils import identity_wrap, sweep_data_to_hilbertspace
 
 # Import of custom-circuit modules needs to take place after other imports to
-# avoid circular import issues
-from scqubits.core.circuit import Circuit
-from scqubits.core.circuit_utils import (
-    truncation_template,
+# avoid circular import issues. The isort markers below preserve this
+# ordering — do not remove.
+# isort: off
+from scqubits.core.circuit import Circuit, ConfigureError
+from scqubits.core.circuit_internals.utils import truncation_template
+from scqubits.core.circuit_internals.yaml_assembly import (
     assemble_circuit,
     assemble_transformation_matrix,
 )
+
+# isort: on
 
 # version
 try:
@@ -115,6 +122,7 @@ except ImportError:
 
 # build a public API list by finding all names not starting with underscore
 import scqubits as _scq
+
 from scqubits.utils.misc import inspect_public_API as _inspect_public_API
 
 __all__ = _inspect_public_API(

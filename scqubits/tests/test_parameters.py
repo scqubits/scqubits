@@ -53,4 +53,6 @@ def tst_name():
 
 def test_paramvals_list():
     tst = Parameters(paramvals_by_name)
-    assert tst.paramvals_list == [paramvals1, paramvals2]
+    assert len(tst.paramvals_list) == 2
+    assert np.array_equal(tst.paramvals_list[0], paramvals1)
+    assert np.array_equal(tst.paramvals_list[1], paramvals2)
