@@ -403,12 +403,8 @@ def recast_esys_mapdata(
     return eigenenergy_table, eigenstate_table
 
 
-def _to_cuoperator(subsys_operator: Qobj) -> Qobj:
-    """Convert a Qobj to a CuOperator with optimal format for cuQuantum.
-
-    Determines the best storage format (dense/dia/csr) based on operator
-    dimension and sparsity, then wraps as a CuOperator.
-    """
+def _format_for_cuoperator(subsys_operator: Qobj) -> Qobj:
+    """Pick dense/dia/csr storage format for cuQuantum. No backend required."""
     dim = subsys_operator.shape[0]
 
     if dim <= 16:
@@ -425,8 +421,21 @@ def _to_cuoperator(subsys_operator: Qobj) -> Qobj:
         else:
             fmt = "csr"
 
-    subsys_operator = subsys_operator.to(fmt)
+    return subsys_operator.to(fmt)
 
+
+def _create_identity_wrap_list(subsys_list: List["QuantumSys"]) -> List[Qobj]:
+    return [
+        qt.operators.qeye(the_subsys.truncated_dim) for the_subsys in subsys_list
+    ]
+
+
+def _cuquantum_identity_factors(
+    subsys_operator: Qobj,
+    subsys_list: List["QuantumSys"],
+) -> Tuple[Qobj, List[Qobj]]:
+    """Format subsystem op outside backend; wrap op and qeyes in one backend session."""
+    subsys_operator = _format_for_cuoperator(subsys_operator)
     try:
         import qutip_cuquantum as qcu
     except ImportError:
@@ -435,8 +444,9 @@ def _to_cuoperator(subsys_operator: Qobj) -> Qobj:
         )
     ctx = get_cuquantum_workstream()
     with qcu.CuQuantumBackend(ctx):
-        return qt.Qobj(qcu.CuOperator(subsys_operator.data))
-
+        cu_op = qt.Qobj(qcu.CuOperator(subsys_operator.data))
+        eyes = _create_identity_wrap_list(subsys_list)
+        return cu_op, eyes
 
 def identity_wrap(
     operator: Union[str, ndarray, Qobj, Callable],
@@ -485,11 +495,12 @@ def identity_wrap(
     )
 
     if use_cuquantum:
-        subsys_operator = _to_cuoperator(subsys_operator)
+        subsys_operator, operator_identitywrap_list = _cuquantum_identity_factors(
+            subsys_operator, subsys_list
+        )
+    else:
+        operator_identitywrap_list = _create_identity_wrap_list(subsys_list)
 
-    operator_identitywrap_list = [
-        qt.operators.qeye(the_subsys.truncated_dim) for the_subsys in subsys_list
-    ]
     subsystem_index = subsys_list.index(subsystem)
     operator_identitywrap_list[subsystem_index] = subsys_operator
     return qt.tensor(operator_identitywrap_list)

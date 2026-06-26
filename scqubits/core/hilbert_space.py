@@ -137,6 +137,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         self,
         subsystem_list: List[QuantumSys],
         bare_esys: Optional[Dict[int, ndarray]] = None,
+        use_cuquantum: bool = False,
     ) -> qt.Qobj:
         """Returns the full Hamiltonian of the interacting quantum system described by
         the HilbertSpace object.
@@ -149,6 +150,9 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         bare_esys:
             optionally, the bare eigensystems for each subsystem can be provided to
             speed up computation; these are provided in dict form via <subsys>: esys)
+        use_cuquantum:
+            if True, automatically format operators and wrap as CuOperator for
+            GPU-accelerated dispatch.
 
         Returns
         -------
@@ -156,7 +160,8 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         """
         hamiltonian = cast(qt.Qobj, self.g_strength)
         id_wrapped_ops = self.id_wrap_all_ops(
-            self.operator_list, subsystem_list, bare_esys=bare_esys
+            self.operator_list, subsystem_list, bare_esys=bare_esys,
+            use_cuquantum=use_cuquantum,
         )
         for op in id_wrapped_ops:
             hamiltonian *= op
@@ -169,6 +174,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         operator_list: List[Tuple[int, Union[ndarray, csc_matrix, Callable]]],
         subsystem_list: List[QuantumSys],
         bare_esys: Optional[Dict[int, ndarray]] = None,
+        use_cuquantum: bool = False,
     ) -> List[qt.Qobj]:
         """Returns a list of identity-wrapped operators, one for each operator in
         operator_list. Note: at this point, any callable operator is actually evaluated.
@@ -183,6 +189,9 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         bare_esys:
             optionally, the bare eigensystems for each subsystem can be provided to
             speed up computation; these are provided in dict form via <subsys>: esys)
+        use_cuquantum:
+            if True, automatically format operators and wrap as CuOperator for
+            GPU-accelerated dispatch.
 
         Returns
         -------
@@ -213,6 +222,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
                     subsystem_list,
                     evecs=evecs,
                     op_in_eigenbasis=op_in_eigenbasis,
+                    use_cuquantum=use_cuquantum,
                 )
             )
         return id_wrapped_operators
@@ -315,6 +325,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         self,
         subsys_list: List[QuantumSys],
         bare_esys: Optional[Dict[int, ndarray]] = None,
+        use_cuquantum: bool = False,
     ) -> Dict[str, qt.Qobj]:
         idwrapped_ops_by_name = {}
         for subsys_index, name, op in self.operator_list:
@@ -328,6 +339,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
                 subsys_list,
                 evecs=evecs,
                 op_in_eigenbasis=False,
+                use_cuquantum=use_cuquantum,
             )
         return idwrapped_ops_by_name
 
@@ -335,6 +347,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         self,
         subsystem_list: List[QuantumSys],
         bare_esys: Optional[Dict[int, ndarray]] = None,
+        use_cuquantum: bool = False,
     ) -> qt.Qobj:
         """
         Parameters
@@ -345,9 +358,13 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         bare_esys:
             optionally, the bare eigensystems for each subsystem can be provided to
             speed up computation; these are provided in dict form via <subsys>: esys)
+        use_cuquantum:
+            if True, automatically format operators and wrap as CuOperator for
+            GPU-accelerated dispatch.
         """
         idwrapped_ops_by_name = self.id_wrap_all_ops(
-            subsystem_list, bare_esys=bare_esys
+            subsystem_list, bare_esys=bare_esys,
+            use_cuquantum=use_cuquantum,
         )
         idwrapped_ops_by_name.update(
             {
@@ -912,6 +929,7 @@ class HilbertSpace(
     def hamiltonian(
         self,
         bare_esys: Optional[Dict[int, ndarray]] = None,
+        use_cuquantum: bool = False,
     ) -> qt.Qobj:
         """
         Parameters
@@ -919,18 +937,27 @@ class HilbertSpace(
         bare_esys:
             optionally, the bare eigensystems for each subsystem can be provided to
             speed up computation; these are provided in dict form via <subsys>: esys
+        use_cuquantum:
+            if True, automatically format operators and wrap as CuOperator for
+            GPU-accelerated dispatch.
 
         Returns
         -------
             Hamiltonian of the composite system, including the interaction between
             components
         """
-        hamiltonian = self.bare_hamiltonian(bare_esys=bare_esys)
-        hamiltonian += self.interaction_hamiltonian(bare_esys=bare_esys)
+        hamiltonian = self.bare_hamiltonian(
+            bare_esys=bare_esys, use_cuquantum=use_cuquantum
+        )
+        hamiltonian += self.interaction_hamiltonian(
+            bare_esys=bare_esys, use_cuquantum=use_cuquantum
+        )
         return hamiltonian
 
     def bare_hamiltonian(
-        self, bare_esys: Optional[Dict[int, ndarray]] = None
+        self,
+        bare_esys: Optional[Dict[int, ndarray]] = None,
+        use_cuquantum: bool = False,
     ) -> qt.Qobj:
         """
         Parameters
@@ -938,6 +965,9 @@ class HilbertSpace(
         bare_esys:
             optionally, the bare eigensystems for each subsystem can be provided to
             speed up computation; these are provided in dict form via <subsys>: esys
+        use_cuquantum:
+            if True, automatically format operators and wrap as CuOperator for
+            GPU-accelerated dispatch.
 
         Returns
         -------
@@ -945,20 +975,27 @@ class HilbertSpace(
             independent of the external parameter
         """
         # We create a dimension [1] system if no subsystems have been given
-        bare_hamiltonian = qt.qzero(
-            [1] if len(self.subsystem_dims) == 0 else self.subsystem_dims
-        )
+        if len(self.subsystem_dims) == 0:
+            return qt.qzero([1])
 
+        bare_hamiltonian = None
         for subsys_index, subsys in enumerate(self):
             if bare_esys is not None and subsys_index in bare_esys:
                 evals = bare_esys[subsys_index][0]
             else:
                 evals = subsys.eigenvals(evals_count=subsys.truncated_dim)
-            bare_hamiltonian += self.diag_hamiltonian(subsys, evals)
+            term = self.diag_hamiltonian(
+                subsys, evals, use_cuquantum=use_cuquantum
+            )
+            bare_hamiltonian = (
+                term if bare_hamiltonian is None else bare_hamiltonian + term
+            )
         return bare_hamiltonian
 
     def interaction_hamiltonian(
-        self, bare_esys: Optional[Dict[int, ndarray]] = None
+        self,
+        bare_esys: Optional[Dict[int, ndarray]] = None,
+        use_cuquantum: bool = False,
     ) -> qt.Qobj:
         """Returns the interaction Hamiltonian, based on the interaction terms specified
         for the current HilbertSpace object.
@@ -968,6 +1005,9 @@ class HilbertSpace(
         bare_esys:
             optionally, the bare eigensystems for each subsystem can be provided to
             speed up computation; these are provided in dict form via <subsys>: esys
+        use_cuquantum:
+            if True, automatically format operators and wrap as CuOperator for
+            GPU-accelerated dispatch.
 
         Returns
         -------
@@ -984,8 +1024,9 @@ class HilbertSpace(
             if isinstance(term, qt.Qobj):
                 hamiltonian += term
             elif isinstance(term, (InteractionTerm, InteractionTermStr)):
-                hamiltonian += (
-                    term.hamiltonian(self.subsystem_list, bare_esys=bare_esys)
+                hamiltonian += term.hamiltonian(
+                    self.subsystem_list, bare_esys=bare_esys,
+                    use_cuquantum=use_cuquantum,
                 )
             else:
                 raise TypeError(
@@ -994,7 +1035,12 @@ class HilbertSpace(
                 )
         return hamiltonian
 
-    def diag_hamiltonian(self, subsystem: QuantumSys, evals: ndarray = None) -> qt.Qobj:
+    def diag_hamiltonian(
+        self,
+        subsystem: QuantumSys,
+        evals: ndarray = None,
+        use_cuquantum: bool = False,
+    ) -> qt.Qobj:
         """Returns a `qutip.Qobj` which has the eigenenergies of the object `subsystem`
         on the diagonal.
 
@@ -1004,6 +1050,9 @@ class HilbertSpace(
             Subsystem for which the Hamiltonian is to be provided.
         evals:
             Eigenenergies can be provided as `evals`; otherwise, they are calculated.
+        use_cuquantum:
+            if True, automatically format operators and wrap as CuOperator for
+            GPU-accelerated dispatch.
         """
         evals_count = subsystem.truncated_dim
 
@@ -1011,7 +1060,8 @@ class HilbertSpace(
             evals = subsystem.eigenvals(evals_count=evals_count)
         diag_qt_op = qt.Qobj(np.diagflat(evals[0:evals_count]))  # type:ignore
         return spec_utils.identity_wrap(
-            diag_qt_op, subsystem, self.subsystem_list, op_in_eigenbasis=True
+            diag_qt_op, subsystem, self.subsystem_list, op_in_eigenbasis=True,
+            use_cuquantum=use_cuquantum,
         )
 
     ###################################################################################
