@@ -710,7 +710,10 @@ def esys_cuquantum(
         import qutip_cuquantum as qcu
         import cuquantum.densitymat as cudm
     except ImportError as e:
-        raise ImportError(str(e)) # from e Does from e provide addtional information? look up where is from allowed
+        raise ImportError(
+            "esys_cuquantum requires cupy, qutip-cuquantum, and cuquantum "
+            "with CUDA support."
+        ) from e
 
     ctx = get_cuquantum_workstream()
 
@@ -765,7 +768,7 @@ def esys_cuquantum(
     evecs = np.empty((evals_count,), dtype=object)
 
     with qcu.CuQuantumBackend(ctx):
-        for i, evec in enumerate(result.evecs): #consider converting list on densepurestates to numpy array.
+        for i, evec in enumerate(result.evecs): 
             evecs[i] = Qobj(
                 qcu.state.CuState(evec).to_array(),
                 dims=[subsys_dims, [1]],

@@ -405,18 +405,23 @@ def recast_esys_mapdata(
 
 def _format_for_cuoperator(subsys_operator: Qobj) -> Qobj:
     """Pick dense/dia/csr storage format for cuQuantum. No backend required."""
-    dim = subsys_operator.shape[0]
+    dense_dim_max = 16
+    dia_d_max = 16
+    csr_alpha = 2.5  # S_csr ≈ α·nnz; ρ₀ = 1/α for dense/csr crossover
 
-    if dim <= 16:
+    n = subsys_operator.shape[0]
+
+    if n <= dense_dim_max:
         fmt = "dense"
     else:
         sparse_op = subsys_operator.to("csr").data.as_scipy()
         nnz = sparse_op.nnz
-        num_occupied_diags = len(sparse_op.todia().offsets)
+        d = len(sparse_op.todia().offsets)
+        rho = nnz / (n * n)
 
-        if num_occupied_diags <= 16:
-            fmt = "dia"
-        elif nnz / (num_occupied_diags * dim) > 0.8:
+        if rho > 1 / csr_alpha:
+            fmt = "dense"
+        elif d <= dia_d_max and n * d < csr_alpha * nnz:
             fmt = "dia"
         else:
             fmt = "csr"
