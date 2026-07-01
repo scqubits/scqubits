@@ -407,23 +407,21 @@ def recast_esys_mapdata(
 
 def _cuoperator_data(operator: np.ndarray) -> Data:
     """Pick dense/dia/csr QuTiP Data for CuOperator wrapping. No backend required."""
-    dense_dim_max = 16
     dia_d_max = 16
-    csr_alpha = 2.5  # S_csr ≈ α·nnz; ρ₀ = 1/α for dense/csr crossover
+    csr_alpha = 2.5  # S_csr ≈ α·nnz
 
     n = operator.shape[0]
-
-    if n <= dense_dim_max:
-        return qt.core.data.Dense(operator)
-
     sparse_op = csr_matrix(operator)
     nnz = sparse_op.nnz
     d = len(sparse_op.todia().offsets)
-    rho = nnz / (n * n)
 
-    if rho > 1 / csr_alpha:
+    s_dense = n * n
+    s_csr = csr_alpha * nnz
+    s_dia = n * d if d <= dia_d_max else float("inf")
+
+    if s_dense <= s_csr and s_dense <= s_dia:
         return qt.core.data.Dense(operator)
-    if d <= dia_d_max and n * d < csr_alpha * nnz:
+    if s_dia <= s_csr:
         return qt.core.data.Dia(sparse_op.todia())
     return qt.core.data.CSR(sparse_op)
 
