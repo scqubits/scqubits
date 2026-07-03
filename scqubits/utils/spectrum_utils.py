@@ -406,24 +406,17 @@ def recast_esys_mapdata(
 
 
 def _cuoperator_data(operator: np.ndarray) -> Data:
-    """Pick dense/dia/csr QuTiP Data for CuOperator wrapping. No backend required."""
+    """Pick dense/dia QuTiP Data for CuOperator wrapping. No backend required."""
     dia_d_max = 16
-    csr_alpha = 2.5  # S_csr ≈ α·nnz
 
     n = operator.shape[0]
-    sparse_op = csr_matrix(operator)
-    nnz = sparse_op.nnz
-    d = len(sparse_op.todia().offsets)
-
-    s_dense = n * n
-    s_csr = csr_alpha * nnz
-    s_dia = n * d if d <= dia_d_max else float("inf")
-
-    if s_dense <= s_csr and s_dense <= s_dia:
+    if n <= dia_d_max:
         return qt.core.data.Dense(operator)
-    if s_dia <= s_csr:
-        return qt.core.data.Dia(sparse_op.todia())
-    return qt.core.data.CSR(sparse_op)
+
+    dia_op = csr_matrix(operator).todia()
+    if len(dia_op.offsets) <= dia_d_max:
+        return qt.core.data.Dia(dia_op)
+    return qt.core.data.CSR(csr_matrix(operator))
 
 
 def _create_identity_wrap_list(subsys_list: List["QuantumSys"]) -> List[Qobj]:
