@@ -108,6 +108,9 @@ def get_map_method(
     the returned iterator in ``tqdm`` and get a live progress bar that advances as
     workers finish, while results are still yielded in input order.
     """
+    num_cpus = _validate_positive_thread_int(
+        num_cpus, "num_cpus must be a positive int (>= 1)"
+    )
     if num_cpus == 1:
         return map
 
@@ -156,6 +159,33 @@ def _validate_positive_thread_int(value: Any, requirement: str) -> int:
     if value < 1:
         raise ValueError("{}, got {}".format(requirement, value))
     return value
+
+
+def _resolve_explicit_num_cpus(num_cpus: "int | str | None") -> int:
+    """Validate an explicit ``num_cpus`` (outside the ``"auto"`` path) to a worker count.
+
+    ``None`` falls back to ``settings.NUM_CPUS``; a positive int is returned as-is.
+    Everything else -- ``bool`` (an int subclass), a non-``"auto"`` string such as a
+    typo'd ``"Auto"``, a float, or an int ``< 1`` -- raises, instead of being
+    silently coerced to ``settings.NUM_CPUS``. The ``"auto"`` sentinel is handled by
+    the caller before this point, so any string reaching here is an invalid value.
+
+    Parameters
+    ----------
+    num_cpus:
+        the caller's explicit ``num_cpus`` value (never ``"auto"``).
+    """
+    if num_cpus is None:
+        num_cpus = settings.NUM_CPUS
+    if isinstance(num_cpus, str):
+        raise ValueError(
+            'num_cpus must be a positive int, "auto", or None; got {!r}'.format(
+                num_cpus
+            )
+        )
+    return _validate_positive_thread_int(
+        num_cpus, 'num_cpus must be a positive int, "auto", or None'
+    )
 
 
 def _effective_blas_cap(num_cpus: int, blas_threads: Optional[int]) -> Optional[int]:
