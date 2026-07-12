@@ -1,4 +1,4 @@
-name: Locally install scqubits with mambabuild and run pytests
+name: Locally build scqubits with conda-build and run pytests
 
 on:
   workflow_dispatch:
@@ -47,10 +47,10 @@ jobs:
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-      - name: Build with mambabuild
+      - name: Build conda package
         run: |
-          conda install boa
-          conda mambabuild . --no-test
+          conda install -n base conda-build
+          conda build . --no-test
 
       - name: Install scqubits locally and run tests
         run: |
