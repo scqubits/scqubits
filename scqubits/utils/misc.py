@@ -226,11 +226,15 @@ def qt_ket_to_ndarray(qobj_ket: qt.Qobj) -> np.ndarray:
 
 
 def Qobj_to_scipy_csc_matrix(qobj_array: qt.Qobj) -> sp.sparse.csc_matrix:
-    return (
+    csc_data = (
         qobj_array.to("csr").data.as_scipy().tocsc()
         if qt.__version__ >= "5.0.0"
         else qobj_array.data.tocsc()
     )
+    # qutip >= 5.3.1 yields a sparse array here; callers expect csc_matrix
+    if not sp.sparse.isspmatrix(csc_data):
+        csc_data = sp.sparse.csc_matrix(csc_data)
+    return csc_data
 
 
 def get_shape(lst, shape=()):
