@@ -709,11 +709,11 @@ def esys_cuquantum(
         import cupy
         import qutip_cuquantum as qcu
         import cuquantum.densitymat as cudm
-    except ImportError as e:
+    except ImportError as exc:
         raise ImportError(
             "esys_cuquantum requires cupy, qutip-cuquantum, and cuquantum "
             "with CUDA support."
-        ) from e
+        ) from exc
 
     ctx = get_cuquantum_workstream()
 

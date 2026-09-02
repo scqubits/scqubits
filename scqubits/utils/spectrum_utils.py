@@ -34,6 +34,9 @@ from scqubits.utils.typedefs import QuantumSys
 from scqubits.utils.misc import Qobj_to_scipy_csc_matrix
 from scqubits.utils.cuquantum_utils import get_cuquantum_workstream
 
+# Threshold for operator size and diagonal count in the Dense/Dia storage decision.
+DIA_D_MAX = 16
+
 
 def eigsh_safe(*args, **kwargs):
     """Wrapper method for `scipy.sparse.linalg.eigsh` which ensures the following.
@@ -407,16 +410,14 @@ def recast_esys_mapdata(
 
 def _cuoperator_data(operator: np.ndarray) -> Data:
     """Pick dense/dia QuTiP Data for CuOperator wrapping. No backend required."""
-    dia_d_max = 16
-
     n = operator.shape[0]
-    if n <= dia_d_max:
+    if n <= DIA_D_MAX:
         return qt.core.data.Dense(operator)
 
-    dia_op = csr_matrix(operator).todia()
-    if len(dia_op.offsets) <= dia_d_max:
+    dia_op = dia_matrix(operator)
+    if dia_op.offsets.size <= DIA_D_MAX:
         return qt.core.data.Dia(dia_op)
-    return qt.core.data.CSR(csr_matrix(operator))
+    return qt.core.data.Dense(operator)
 
 
 def _create_identity_wrap_list(subsys_list: List["QuantumSys"]) -> List[Qobj]:
