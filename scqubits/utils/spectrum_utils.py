@@ -32,7 +32,6 @@ if TYPE_CHECKING:
 
 from scqubits.utils.typedefs import QuantumSys
 from scqubits.utils.misc import Qobj_to_scipy_csc_matrix
-from scqubits.utils.cuquantum_utils import get_cuquantum_workstream
 
 # Threshold for operator size and diagonal count in the Dense/Dia storage decision.
 DIA_D_MAX = 16
@@ -408,40 +407,25 @@ def recast_esys_mapdata(
     return eigenenergy_table, eigenstate_table
 
 
-def _cuoperator_data(operator: np.ndarray) -> Data:
-    """Pick dense/dia QuTiP Data for CuOperator wrapping. No backend required."""
-    n = operator.shape[0]
-    if n <= DIA_D_MAX:
-        return qt.core.data.Dense(operator)
-
-    dia_op = dia_matrix(operator)
-    if dia_op.offsets.size <= DIA_D_MAX:
-        return qt.core.data.Dia(dia_op)
-    return qt.core.data.Dense(operator)
-
-
-def _create_identity_wrap_list(subsys_list: List["QuantumSys"]) -> List[Qobj]:
-    return [
-        qt.operators.qeye(the_subsys.truncated_dim) for the_subsys in subsys_list
-    ]
-
-
-def _cuquantum_identity_factors(
-    subsys_operator: np.ndarray,
-    subsys_list: List["QuantumSys"],
-) -> Tuple[Qobj, List[Qobj]]:
-    """Format subsystem op outside backend; wrap op and qeyes in one backend session."""
+def _cuoperator_data(operator: np.ndarray) -> Tuple[Data, type]:
+    """Pick dense/dia QuTiP Data for CuOperator wrapping."""
     try:
         import qutip_cuquantum as qcu
     except ImportError:
         raise ImportError(
             "Package qutip-cuquantum is required when use_cuquantum=True."
         )
-    ctx = get_cuquantum_workstream()
-    with qcu.CuQuantumBackend(ctx):
-        cu_op = qt.Qobj(qcu.CuOperator(_cuoperator_data(subsys_operator)))
-        eyes = _create_identity_wrap_list(subsys_list)
-        return cu_op, eyes
+
+    if operator.shape[0] <= DIA_D_MAX:
+        operator_data = qt.core.data.Dense(operator)
+    else:
+        dia_op = dia_matrix(operator)
+        operator_data = (
+            qt.core.data.Dia(dia_op)
+            if dia_op.offsets.size <= DIA_D_MAX
+            else qt.core.data.Dense(operator)
+        )
+    return qcu.CuOperator(operator_data), qcu.CuOperator
 
 
 def identity_wrap(
@@ -490,13 +474,15 @@ def identity_wrap(
         operator, subsystem, op_in_eigenbasis, evecs  # type:ignore
     )
 
+    operator_dtype = None
     if use_cuquantum:
-        subsys_operator, operator_identitywrap_list = _cuquantum_identity_factors(
-            subsys_operator, subsys_list
-        )
-    else:
-        subsys_operator = qt.Qobj(subsys_operator)
-        operator_identitywrap_list = _create_identity_wrap_list(subsys_list)
+        subsys_operator, operator_dtype = _cuoperator_data(subsys_operator)
+
+    subsys_operator = qt.Qobj(subsys_operator)
+    operator_identitywrap_list = [
+        qt.operators.qeye(the_subsys.truncated_dim, dtype=operator_dtype)
+        for the_subsys in subsys_list
+    ]
 
     subsystem_index = subsys_list.index(subsystem)
     operator_identitywrap_list[subsystem_index] = subsys_operator

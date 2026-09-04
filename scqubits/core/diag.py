@@ -767,12 +767,11 @@ def esys_cuquantum(
     evals = result.evals[:, 0].get()
     evecs = np.empty((evals_count,), dtype=object)
 
-    with qcu.CuQuantumBackend(ctx):
-        for i, evec in enumerate(result.evecs): 
-            evecs[i] = Qobj(
-                qcu.state.CuState(evec).to_array(),
-                dims=[subsys_dims, [1]],
-            )
+    for i, evec in enumerate(result.evecs):
+        evecs[i] = Qobj(
+            qcu.state.CuState(evec).to_array(),
+            dims=[subsys_dims, [1]],
+        )
 
     return evals, evecs.view(QutipEigenstates)
 

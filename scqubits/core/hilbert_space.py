@@ -38,7 +38,6 @@ from numpy import ndarray
 from scipy.sparse import csc_matrix, dia_matrix
 
 import scqubits.core.central_dispatch as dispatch
-from scqubits.utils.cuquantum_utils import get_cuquantum_workstream
 import scqubits.core.descriptors as descriptors
 import scqubits.core.diag as diag
 import scqubits.core.oscillator as osc
@@ -797,27 +796,20 @@ class HilbertSpace(
             speed up computation; these are provided in dict form via <subsys>: esys
         """
 
-        if qt.settings.core["default_dtype"] == "cuDensity":
-            hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
-            if self.evals_method != "evals_cuquantum":
-                self.evals_method = "evals_cuquantum"
-                warnings.warn(
-                    "Detected qutip-cuquantum backend activated. "
-                    "Setting evals_method to evals_cuquantum.",
-                    UserWarning,
-                )
-        elif self.evals_method == "evals_cuquantum":
-            try:
-                import qutip_cuquantum as qcu
-            except ImportError:
-                raise ImportError(
-                    "Package qutip-cuquantum is not installed."
-                )
-            ctx = get_cuquantum_workstream()
-            with qcu.CuQuantumBackend(ctx):
-                hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
-        else:
-            hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
+        if (
+            qt.settings.core["default_dtype"] == "cuDensity"
+            and self.evals_method != "evals_cuquantum"
+        ):
+            self.evals_method = "evals_cuquantum"
+            warnings.warn(
+                "Detected qutip-cuquantum backend activated. "
+                "Setting evals_method to evals_cuquantum.",
+                UserWarning,
+            )
+        hamiltonian_mat = self.hamiltonian(
+            bare_esys=bare_esys,
+            use_cuquantum=self.evals_method == "evals_cuquantum",
+        )
 
         if not hasattr(self, "evals_method") or self.evals_method is None:
             evals = hamiltonian_mat.eigenenergies(eigvals=evals_count)
@@ -860,27 +852,20 @@ class HilbertSpace(
             eigenvalues and eigenvectors
         """
 
-        if qt.settings.core["default_dtype"] == "cuDensity":
-            hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
-            if self.esys_method != "esys_cuquantum":
-                self.esys_method = "esys_cuquantum"
-                warnings.warn(
-                    "Detected qutip-cuquantum backend activated. "
-                    "Setting esys_method to esys_cuquantum.",
-                    UserWarning,
-                )
-        elif self.esys_method == "esys_cuquantum":
-            try:
-                import qutip_cuquantum as qcu
-            except ImportError:
-                raise ImportError(
-                    "Package qutip-cuquantum is not installed."
-                )
-            ctx = get_cuquantum_workstream()
-            with qcu.CuQuantumBackend(ctx):
-                hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
-        else:
-            hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
+        if (
+            qt.settings.core["default_dtype"] == "cuDensity"
+            and self.esys_method != "esys_cuquantum"
+        ):
+            self.esys_method = "esys_cuquantum"
+            warnings.warn(
+                "Detected qutip-cuquantum backend activated. "
+                "Setting esys_method to esys_cuquantum.",
+                UserWarning,
+            )
+        hamiltonian_mat = self.hamiltonian(
+            bare_esys=bare_esys,
+            use_cuquantum=self.esys_method == "esys_cuquantum",
+        )
 
         if not hasattr(self, "esys_method") or self.esys_method is None:
             evals, evecs = hamiltonian_mat.eigenstates(eigvals=evals_count)
