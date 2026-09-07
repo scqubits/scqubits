@@ -50,17 +50,18 @@ import scqubits.ui.hspace_widget
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
-import warnings
 
 from scqubits.core.namedslots_array import NamedSlotsNdarray, Parameters
 from scqubits.core.storage import SpectrumData
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
+from scqubits.utils.cuquantum_utils import _CUQUANTUM_BACKEND_ERROR
 
 
 if settings.IN_IPYTHON:
     from tqdm.notebook import tqdm
 else:
     from tqdm import tqdm
+
 
 if TYPE_CHECKING:
     from scqubits.io_utils.fileio import IOData
@@ -679,6 +680,9 @@ class HilbertSpace(
 
         .. _lexical order: https://en.wikipedia.org/wiki/Lexicographic_order#Cartesian_products/
         """
+        if qt.settings.core["default_dtype"] == "cuDensity":
+            raise RuntimeError(_CUQUANTUM_BACKEND_ERROR)
+
         self._lookup_exists = True
         bare_esys_dict = self.generate_bare_esys(
             update_subsystem_indices=update_subsystem_indices
@@ -690,27 +694,19 @@ class HilbertSpace(
         else:
             num_evals = BEs_count
 
-        if qt.settings.core["default_dtype"] == "cuDensity":
-            raise ValueError(
-                "cuQuantum backend is not supported. Please deactivate "
-                "cuQuantum backend and use default backend."
-            )
-        elif (
+        if (
             self.esys_method == "esys_cuquantum"
             and (ordering == "DE" or ordering == "LX")
         ):
             krylov_block_size = settings.CUQUANTUM_MIN_KRYLOV_BLOCK_SIZE
             max_buffer_ratio = settings.CUQUANTUM_MAX_BUFFER_RATIO
-            allowed_num_eigvals = int(
-                np.ceil(
-                    self.dimension / (2 *krylov_block_size * max_buffer_ratio)
-                )
-                - 1
-            )
+            allowed_num_eigvals = (
+                self.dimension - krylov_block_size
+            ) // (2 * krylov_block_size * max_buffer_ratio)
             raise ValueError(
                 "Cannot use cuQuantum eigensolver with DE or LX ordering. "
-                "Please use Bare Energy ordering and set BEs_count below "
-                f"the allowed value: {allowed_num_eigvals}."
+                "Please use Bare Energy ordering and set BEs_count to no more "
+                f"than {allowed_num_eigvals}."
             )
 
         evals, evecs = self.eigensys(evals_count=num_evals, bare_esys=bare_esys_dict)
@@ -796,16 +792,8 @@ class HilbertSpace(
             speed up computation; these are provided in dict form via <subsys>: esys
         """
 
-        if (
-            qt.settings.core["default_dtype"] == "cuDensity"
-            and self.evals_method != "evals_cuquantum"
-        ):
-            self.evals_method = "evals_cuquantum"
-            warnings.warn(
-                "Detected qutip-cuquantum backend activated. "
-                "Setting evals_method to evals_cuquantum.",
-                UserWarning,
-            )
+        if qt.settings.core["default_dtype"] == "cuDensity":
+            raise RuntimeError(_CUQUANTUM_BACKEND_ERROR)
         hamiltonian_mat = self.hamiltonian(
             bare_esys=bare_esys,
             use_cuquantum=self.evals_method == "evals_cuquantum",
@@ -852,16 +840,8 @@ class HilbertSpace(
             eigenvalues and eigenvectors
         """
 
-        if (
-            qt.settings.core["default_dtype"] == "cuDensity"
-            and self.esys_method != "esys_cuquantum"
-        ):
-            self.esys_method = "esys_cuquantum"
-            warnings.warn(
-                "Detected qutip-cuquantum backend activated. "
-                "Setting esys_method to esys_cuquantum.",
-                UserWarning,
-            )
+        if qt.settings.core["default_dtype"] == "cuDensity":
+            raise RuntimeError(_CUQUANTUM_BACKEND_ERROR)
         hamiltonian_mat = self.hamiltonian(
             bare_esys=bare_esys,
             use_cuquantum=self.esys_method == "esys_cuquantum",

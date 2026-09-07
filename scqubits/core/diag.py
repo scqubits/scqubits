@@ -23,7 +23,6 @@ import numpy as np
 import qutip as qt
 import scipy as sp
 import scqubits.settings as settings
-import warnings
 
 
 def _dict_merge(
@@ -683,35 +682,37 @@ def esys_jax_dense(
     return evals, evecs
 
 
-def esys_cuquantum(
+def _cuquantum_eigensolver(
     hamiltonian: Qobj, evals_count: int, **kwargs
-) -> Tuple[ndarray, QutipEigenstates]:
-    """Diagonalization via cuQuantum density-matrix OperatorSpectrumSolver (Krylov).
+) -> Any:
+    """Run cuDensityMat's Krylov eigensolver and return its native result.
 
-    Requires qutip-cuquantum, cuQuantum, and cupy. Uses the shared workstream from
-    :func:`~scqubits.utils.cuquantum_utils.get_cuquantum_workstream` and
-    CUQUANTUM_* Krylov parameters from ``settings``.
+    The solver uses scqubits' shared cuQuantum workstream and the ``CUQUANTUM_*``
+    Krylov parameters in :mod:`scqubits.settings`. Random normalized states are
+    generated as the initial Krylov vectors.
 
     Parameters
     ----------
     hamiltonian:
         qutip.Qobj Hamiltonian to be diagonalized.
     evals_count:
-        how many eigenvalues/vectors should be returned
+        number of eigenpairs to calculate
     kwargs:
-        optional settings that are passed onto the diagonalization routine
+        optional settings that are passed onto the diagonalization routine;
+        currently unused
 
     Returns
     -------
-    tuple of ndarray (eigenvalues) and QutipEigenstates (eigenvectors as Qobj)
+    OperatorSpectrumResult
+        native cuDensityMat result containing eigenvalues, eigenstates, and residuals
     """
     try:
         import cupy
-        import qutip_cuquantum as qcu
         import cuquantum.densitymat as cudm
+        from qutip_cuquantum import CuQobjEvo
     except ImportError as exc:
         raise ImportError(
-            "esys_cuquantum requires cupy, qutip-cuquantum, and cuquantum "
+            "cuQuantum eigensolvers require cupy, qutip-cuquantum, and cuquantum "
             "with CUDA support."
         ) from exc
 
@@ -730,23 +731,17 @@ def esys_cuquantum(
         max_restarts=max_restarts,
     )
 
-    if (
-        min_krylov_block_size * max_buffer_ratio * evals_count
-        > hspace_dim / 2 # ask nvidia if they can provide this on their end and provide in docs
-    ):
-        allowed_num_eigvals = int(
-            np.ceil(
-                hspace_dim / (2 *min_krylov_block_size * max_buffer_ratio)
-            )
-            - 1
-        )
+    allowed_num_eigvals = (
+        hspace_dim - min_krylov_block_size
+    ) // (2 * min_krylov_block_size * max_buffer_ratio)
+    if evals_count > allowed_num_eigvals:
         raise ValueError(
             f"Too many eigenvalues requested. Maximum number of eigenvalues "
             f"allowed is {allowed_num_eigvals}. Reduce min_krylov_block_size, "
             f"max_buffer_ratio, or increase the Hilbert space dimension."
         )
 
-    batch_size = 1 # densepurestate entry is not well explained. we don't know what it is. ## I think one can create a batch of initial states and solve them in parallel.
+    batch_size = 1 # OperatorSpectrumSolver currently supports only non-batched states.
 
     seed_states = []
     for _ in range(evals_count):
@@ -759,27 +754,76 @@ def esys_cuquantum(
         seed_state.inplace_scale(1.0 / cupy.sqrt(norm))
         seed_states.append(seed_state)
 
-    cudm_operator = qcu.CuQobjEvo(qt.QobjEvo(hamiltonian)).operator #This is a temporary solution. We need to wait for the formal convertion function.
+    cudm_operator = CuQobjEvo(qt.QobjEvo(hamiltonian)).operator # Convert through CuQobjEvo until a dedicated conversion function is available.
     spectrum = cudm.OperatorSpectrumSolver(cudm_operator, "SA", True, config)
     spectrum.prepare(ctx, seed_states[0], max_num_eigvals=evals_count)
-    result = spectrum.compute(0.0, None, seed_states, 1e-10)
+    return spectrum.compute(0.0, None, seed_states, 1e-10)
+
+
+def evals_cuquantum(
+    hamiltonian: Qobj, evals_count: int, **kwargs
+) -> ndarray:
+    """Diagonalization based on cuDensityMat's Krylov eigensolver. Only
+    eigenvalues are returned.
+
+    Requires that cupy, qutip-cuquantum, and cuQuantum are installed.
+
+    Parameters
+    ----------
+    hamiltonian:
+        qutip.Qobj Hamiltonian to be diagonalized
+    evals_count:
+        number of eigenvalues to return
+    kwargs:
+        optional settings that are passed onto the diagonalization routine;
+        currently unused
+
+    Returns
+    -------
+        lowest requested eigenvalues of the Hamiltonian
+    """
+    result = _cuquantum_eigensolver(hamiltonian, evals_count, **kwargs)
+    return result.evals[:, 0].get()
+
+
+def esys_cuquantum(
+    hamiltonian: Qobj, evals_count: int, **kwargs
+) -> Tuple[ndarray, QutipEigenstates]:
+    """Diagonalization based on cuDensityMat's Krylov eigensolver. Both
+    eigenvalues and eigenvectors are returned.
+
+    Requires that cupy, qutip-cuquantum, and cuQuantum are installed.
+
+    Parameters
+    ----------
+    hamiltonian:
+        qutip.Qobj Hamiltonian to be diagonalized
+    evals_count:
+        number of eigenvalues and eigenvectors to return
+    kwargs:
+        optional settings that are passed onto the diagonalization routine;
+        currently unused
+
+    Returns
+    -------
+        lowest requested eigenvalues and corresponding eigenvectors as Qobj instances
+    """
+    result = _cuquantum_eigensolver(hamiltonian, evals_count, **kwargs)
+    from qutip_cuquantum import CuState
+
+    subsys_dims = hamiltonian.dims[0]
 
     evals = result.evals[:, 0].get()
     evecs = np.empty((evals_count,), dtype=object)
 
     for i, evec in enumerate(result.evecs):
         evecs[i] = Qobj(
-            qcu.state.CuState(evec).to_array(),
+            CuState(evec).to_array(),
             dims=[subsys_dims, [1]],
         )
 
     return evals, evecs.view(QutipEigenstates)
 
-
-def evals_cuquantum(
-    hamiltonian: Union[Qobj], evals_count: int, **kwargs
-) -> ndarray:
-    return esys_cuquantum(hamiltonian, evals_count, **kwargs)[0]
 
 # Default values of various noise constants and parameters.
 DIAG_METHODS = {

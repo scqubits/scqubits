@@ -12,6 +12,11 @@
 
 """Process-wide cuQuantum density-matrix runtime resources (workstream, etc.)."""
 
+_CUQUANTUM_BACKEND_ERROR = (
+    "Running scqubits code inside qutip-cuquantum's CuQuantumBackend is not "
+    "supported. Exit the backend context before calling scqubits."
+)
+
 try:
     from cuquantum.densitymat import WorkStream
 
