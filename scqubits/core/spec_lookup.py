@@ -907,6 +907,7 @@ class SpectrumLookupMixin(MixinCompatible):
         excite_op_list = [
             self._branch_analysis_excite_op(mode) for mode in hspace.subsystem_list
         ]
+
         # generate a list of their bare energies
         bare_evals_by_sys = self._data["bare_evals"]
         bare_evals = np.zeros(dims)
