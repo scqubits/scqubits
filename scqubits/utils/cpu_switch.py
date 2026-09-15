@@ -49,6 +49,17 @@ _spawn_guard_warned = False
 
 _RAY_OBJECT_CACHE: Dict[str, Any] = {}
 
+# Ray's default object store is ~30% of RAM, which OOMs Jupyter kernels and
+# shared login nodes. 512 MiB is above Ray's minimum (~75 MiB) and enough for
+# typical ParameterSweep payloads; override with a larger value only if a
+# sweep is spilling to disk because of this cap.
+_DEFAULT_RAY_OBJECT_STORE_MEMORY = 512 * 1024 * 1024
+
+# True only if this process called ``ray.init`` via :func:`_ensure_local_ray`.
+# An already-running cluster (user-started, or leftover from another library)
+# is left alone at interpreter exit.
+_ray_started_by_scqubits = False
+
 
 def _ray_object_cache_key(obj_ref: Any) -> str:
     return obj_ref.hex() if hasattr(obj_ref, "hex") else repr(obj_ref)
@@ -61,6 +72,140 @@ def get_cached_ray_object(obj_ref: Any) -> Any:
     if key not in _RAY_OBJECT_CACHE:
         _RAY_OBJECT_CACHE[key] = ray.get(obj_ref)
     return _RAY_OBJECT_CACHE[key]
+
+
+def _available_cpus() -> int:
+    """CPU budget visible to this process.
+
+    Prefers the Slurm allocation (``SLURM_CPUS_PER_TASK``, then
+    ``SLURM_CPUS_ON_NODE``) so a 1-task GPU job does not advertise the
+    whole node's core count. Falls back to the process CPU affinity mask,
+    then to ``os.cpu_count()``.
+
+    Returns
+    -------
+    int
+        A positive CPU count.
+    """
+    for key in ("SLURM_CPUS_PER_TASK", "SLURM_CPUS_ON_NODE"):
+        raw = os.environ.get(key)
+        if not raw:
+            continue
+        try:
+            n_cpus = int(str(raw).split("(")[0].strip())
+        except ValueError:
+            continue
+        if n_cpus > 0:
+            return n_cpus
+
+    try:
+        n_cpus = len(os.sched_getaffinity(0))
+        if n_cpus > 0:
+            return n_cpus
+    except (AttributeError, OSError):
+        pass
+
+    return os.cpu_count() or 1
+
+
+def _ray_worker_env_vars() -> Dict[str, str]:
+    """Environment variables injected into Ray workers via ``runtime_env``.
+
+    The driver process may already have ``JAX_PLATFORM_NAME=gpu`` (set by a
+    JAX / dynamiqs helper on the driver). Ray workers inherit the parent
+    environment unless ``runtime_env`` overrides it; every worker then
+    initializes JAX on the same GPU and the node hangs. ParameterSweep
+    workers do numpy/scipy linear algebra, not GPU mesolve, so they are
+    forced onto the CPU.
+
+    ``JAX_ENABLE_X64`` and any BLAS/OpenMP thread-count variables already
+    set on the driver are copied through so spawn-like Ray workers see the
+    same precision and thread cap that pathos fork workers inherit.
+
+    Returns
+    -------
+    dict
+        ``env_vars`` mapping for ``ray.init(runtime_env=...)``.
+    """
+    env: Dict[str, str] = {"JAX_PLATFORM_NAME": "cpu"}
+    x64 = os.environ.get("JAX_ENABLE_X64")
+    if x64 is not None:
+        env["JAX_ENABLE_X64"] = x64
+    for var in _BLAS_THREAD_ENV_VARS:
+        val = os.environ.get(var)
+        if val is not None:
+            env[var] = val
+    return env
+
+
+def _shutdown_ray_if_ours() -> None:
+    """Shut down a Ray cluster that :func:`_ensure_local_ray` started.
+
+    Called from the interpreter-exit handler. Does nothing if Ray was
+    already running before scqubits initialized it, so a user-started
+    cluster is not torn down from under them.
+    """
+    global _ray_started_by_scqubits
+    if not _ray_started_by_scqubits:
+        return
+    try:
+        import ray
+
+        if ray.is_initialized():
+            ray.shutdown()
+    except Exception:
+        LOGGER.warning(
+            "scqubits: Ray shutdown at interpreter exit failed; raylet "
+            "processes may linger.",
+            exc_info=True,
+        )
+    _ray_started_by_scqubits = False
+
+
+def _ensure_local_ray(num_cpus: int) -> None:
+    """Start a local Ray cluster if one is not already running.
+
+    A bare ``ray.init(num_cpus=...)`` is unsafe on shared HPC / Jupyter
+    nodes: it joins a stale ``RAY_ADDRESS`` if one is set, claims every
+    CPU ``os.cpu_count()`` reports (the whole node, not the Slurm
+    allocation), may reserve GPUs the driver already owns, starts a
+    dashboard on port 8265, and sizes the object store at ~30% of RAM.
+
+    This helper instead:
+
+    * uses ``address="local"`` so a leftover ``RAY_ADDRESS`` is not joined
+    * claims ``num_gpus=0`` (GPU work stays on the driver)
+    * disables the dashboard
+    * caps the object store at :data:`_DEFAULT_RAY_OBJECT_STORE_MEMORY`
+    * injects :func:`_ray_worker_env_vars` so workers do not inherit a
+      GPU JAX backend
+
+    If Ray is already initialized, this is a no-op: a new ``runtime_env``
+    cannot be applied to a running cluster.
+
+    Parameters
+    ----------
+    num_cpus:
+        CPU slots for the new cluster. Capped by :func:`_available_cpus`.
+    """
+    global _ray_started_by_scqubits
+    import ray
+
+    if ray.is_initialized():
+        return
+
+    n_cpus = max(1, min(int(num_cpus), _available_cpus()))
+    ray.init(
+        address="local",
+        num_cpus=n_cpus,
+        num_gpus=0,
+        ignore_reinit_error=True,
+        include_dashboard=False,
+        object_store_memory=_DEFAULT_RAY_OBJECT_STORE_MEMORY,
+        logging_level=logging.ERROR,
+        runtime_env={"env_vars": _ray_worker_env_vars()},
+    )
+    _ray_started_by_scqubits = True
 
 
 def _imap_with_chunksize(pool: Any, num_cpus: int, total: Optional[int]) -> Callable:
@@ -87,6 +232,25 @@ def _imap_with_chunksize(pool: Any, num_cpus: int, total: Optional[int]) -> Call
 
 
 def _make_ray_map(num_nodes: int, cpu_per_node: Optional[int] = None) -> Callable:
+    """Return a Ray-backed, order-preserving ``map`` for ``num_nodes`` workers.
+
+    Starts a local cluster via :func:`_ensure_local_ray` (no-op if Ray is
+    already running) sized to ``num_nodes * cpu_per_node``, capped by
+    :func:`_available_cpus`. Each remote task requests ``cpu_per_node``
+    CPUs (default 1).
+
+    Parameters
+    ----------
+    num_nodes:
+        number of concurrent Ray tasks the caller asked for.
+    cpu_per_node:
+        CPUs reserved per task. ``None`` defaults to 1.
+
+    Returns
+    -------
+    function
+        ``map``-style callable that yields results in input order.
+    """
     try:
         import ray
     except ImportError:
@@ -94,20 +258,30 @@ def _make_ray_map(num_nodes: int, cpu_per_node: Optional[int] = None) -> Callabl
             "scqubits multiprocessing mode set to 'ray'. Need but cannot find 'ray'!"
         )
 
+    # Default each Ray task to 1 CPU. The old default
+    # ``os.cpu_count() // num_nodes`` reserved many slots per task so that
+    # BLAS would not oversubscribe, but Ray never applied a BLAS thread cap
+    # (pathos does, via ``_capped_blas_threads``). On a 64-core node that
+    # made ``get_map_method(4)`` start a 64-CPU cluster. ParameterSweep
+    # omits ``cpu_per_node``, so the default must be the requested worker
+    # count, not the whole node. Callers that want BLAS isolation can still
+    # pass ``cpu_per_node`` explicitly.
     if cpu_per_node is None:
-        total_cpus = os.cpu_count()
-        if total_cpus is None:
-            cpu_per_node = 1
-            warnings.warn(
-                "Cannot determine number of CPUs available. Cpu per task set to 1."
-            )
-        else:
-            cpu_per_node = total_cpus // num_nodes
+        cpu_per_node = 1
     if cpu_per_node < 1:
         raise ValueError("Number of CPUs per task is less than 1.")
 
-    if not ray.is_initialized():
-        ray.init(num_cpus=num_nodes * cpu_per_node)
+    # Fit the cluster into the Slurm / affinity budget so a 4-CPU allocation
+    # cannot reserve a 64-core node. Clamp ``cpu_per_node`` first: a task
+    # that requests more CPUs than the cluster has will never be scheduled.
+    available = _available_cpus()
+    if cpu_per_node > available:
+        warnings.warn(
+            "cpu_per_node={} exceeds the {} CPUs visible to this process; "
+            "clamping to {}.".format(cpu_per_node, available, available)
+        )
+        cpu_per_node = available
+    _ensure_local_ray(num_nodes * cpu_per_node)
 
     def ray_map(func, iterable):
         func_ref = ray.put(func)
@@ -190,6 +364,9 @@ def get_map_method(
         ``chunksize=1`` (finest-grained progress, more dispatch overhead).
     cpu_per_node:
         number of CPUs per Ray task; only used when ``settings.MULTIPROC == "ray"``.
+        ``None`` defaults to 1 (one core per task, cluster size ``num_cpus``),
+        capped by the Slurm / affinity budget. The previous default of
+        ``os.cpu_count() // num_cpus`` reserved the whole node.
 
     Returns
     -------
@@ -633,10 +810,12 @@ def _new_pool(num_cpus: int, blas_threads: Optional[int] = None) -> object:
 
 @atexit.register
 def _shutdown_cached_pool() -> None:
-    """Shut down the worker pool cached in ``settings.POOL`` at interpreter exit.
+    """Shut down cached workers at interpreter exit.
 
-    Without this, the reused pool's worker processes outlive the interpreter and
-    are only reaped by the operating system.
+    Without this, the reused pathos / multiprocessing pool's worker processes
+    and any Ray raylet that scqubits started outlive the interpreter and are
+    only reaped by the operating system. A Ray cluster that was already
+    running before scqubits initialized Ray is left alone.
     """
     global _pool_signature
     pool = settings.POOL
@@ -644,3 +823,4 @@ def _shutdown_cached_pool() -> None:
         _shutdown_pool(pool)
         settings.POOL = None
         _pool_signature = None
+    _shutdown_ray_if_ours()

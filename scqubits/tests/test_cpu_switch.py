@@ -199,6 +199,106 @@ class TestImapChunksize:
         assert mapper("f", "it")[1] == 1
 
 
+class TestAvailableCpus:
+    def test_slurm_cpus_per_task_wins(self, monkeypatch):
+        monkeypatch.setenv("SLURM_CPUS_PER_TASK", "4")
+        monkeypatch.setenv("SLURM_CPUS_ON_NODE", "64")
+        assert cpu_switch._available_cpus() == 4
+
+    def test_slurm_cpus_on_node_when_per_task_unset(self, monkeypatch):
+        monkeypatch.delenv("SLURM_CPUS_PER_TASK", raising=False)
+        monkeypatch.setenv("SLURM_CPUS_ON_NODE", "8")
+        assert cpu_switch._available_cpus() == 8
+
+    def test_falls_back_to_affinity(self, monkeypatch):
+        monkeypatch.delenv("SLURM_CPUS_PER_TASK", raising=False)
+        monkeypatch.delenv("SLURM_CPUS_ON_NODE", raising=False)
+        monkeypatch.setattr(
+            cpu_switch.os, "sched_getaffinity", lambda _pid: set(range(6))
+        )
+        assert cpu_switch._available_cpus() == 6
+
+
+class TestRayWorkerEnvVars:
+    def test_forces_jax_platform_cpu(self, monkeypatch):
+        monkeypatch.setenv("JAX_PLATFORM_NAME", "gpu")
+        monkeypatch.setenv("JAX_ENABLE_X64", "True")
+        env = cpu_switch._ray_worker_env_vars()
+        assert env["JAX_PLATFORM_NAME"] == "cpu"
+        assert env["JAX_ENABLE_X64"] == "True"
+
+    def test_copies_blas_caps(self, monkeypatch):
+        monkeypatch.setenv("OPENBLAS_NUM_THREADS", "2")
+        env = cpu_switch._ray_worker_env_vars()
+        assert env["OPENBLAS_NUM_THREADS"] == "2"
+
+
+class TestEnsureLocalRay:
+    def test_init_kwargs_are_hpc_safe(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        fake = MagicMock()
+        fake.is_initialized.return_value = False
+        monkeypatch.setitem(__import__("sys").modules, "ray", fake)
+        monkeypatch.setattr(cpu_switch, "_available_cpus", lambda: 8)
+        monkeypatch.setattr(cpu_switch, "_ray_started_by_scqubits", False)
+        cpu_switch._ensure_local_ray(4)
+        kwargs = fake.init.call_args.kwargs
+        assert kwargs["address"] == "local"
+        assert kwargs["num_cpus"] == 4
+        assert kwargs["num_gpus"] == 0
+        assert kwargs["include_dashboard"] is False
+        assert kwargs["ignore_reinit_error"] is True
+        assert kwargs["runtime_env"]["env_vars"]["JAX_PLATFORM_NAME"] == "cpu"
+
+    def test_caps_cpus_at_available(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        fake = MagicMock()
+        fake.is_initialized.return_value = False
+        monkeypatch.setitem(__import__("sys").modules, "ray", fake)
+        monkeypatch.setattr(cpu_switch, "_available_cpus", lambda: 2)
+        monkeypatch.setattr(cpu_switch, "_ray_started_by_scqubits", False)
+        cpu_switch._ensure_local_ray(16)
+        assert fake.init.call_args.kwargs["num_cpus"] == 2
+
+    def test_noop_if_already_initialized(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        fake = MagicMock()
+        fake.is_initialized.return_value = True
+        monkeypatch.setitem(__import__("sys").modules, "ray", fake)
+        cpu_switch._ensure_local_ray(4)
+        fake.init.assert_not_called()
+
+
+class TestMakeRayMap:
+    def test_default_cpu_per_node_is_one(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        fake = MagicMock()
+        fake.is_initialized.return_value = False
+        monkeypatch.setitem(__import__("sys").modules, "ray", fake)
+        monkeypatch.setattr(cpu_switch, "_available_cpus", lambda: 64)
+        monkeypatch.setattr(cpu_switch, "_ray_started_by_scqubits", False)
+        cpu_switch._make_ray_map(4)
+        # 4 workers * 1 CPU, not 4 * (64 // 4) = 64
+        assert fake.init.call_args.kwargs["num_cpus"] == 4
+
+    def test_clamps_cpu_per_node_to_available(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        fake = MagicMock()
+        fake.is_initialized.return_value = False
+        monkeypatch.setitem(__import__("sys").modules, "ray", fake)
+        monkeypatch.setattr(cpu_switch, "_available_cpus", lambda: 4)
+        monkeypatch.setattr(cpu_switch, "_ray_started_by_scqubits", False)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            cpu_switch._make_ray_map(4, cpu_per_node=16)
+        assert fake.init.call_args.kwargs["num_cpus"] == 4
+
+
 class TestPoolPickleReduction:
     # dill recurse can pull settings.POOL into a worker task (e.g. for circuits);
     # raw multiprocess pools must reduce to None rather than raise on pickle.
