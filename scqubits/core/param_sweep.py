@@ -236,7 +236,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
             List of :class:`SpectrumData` objects with bare eigensystem data, one per subsystem
         """
         multi_index = self._current_param_indices
-        sweep_param_indices = self.get_sweep_indices(multi_index)  # type:ignore
+        sweep_param_indices = self.get_sweep_indices(multi_index)  # type: ignore
         if len(sweep_param_indices) != 1:
             raise ValueError(
                 "All but one parameter must be fixed for `bare_specdata_list`."
@@ -268,7 +268,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
             :class:`SpectrumData` object with bare eigensystem data
         """
         multi_index = self._current_param_indices
-        sweep_param_indices = self.get_sweep_indices(multi_index)  # type:ignore
+        sweep_param_indices = self.get_sweep_indices(multi_index)  # type: ignore
         if len(sweep_param_indices) != 1:
             raise ValueError(
                 "All but one parameter must be fixed for `dressed_specdata`."
@@ -349,7 +349,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         range_list = [range(dim) for dim in self.hilbertspace.subsystem_dims]
         for subsys_index, subsys in enumerate(self.hilbertspace):
             if subsys not in subsys_list:
-                range_list[subsys_index] = [initial_state[subsys_index]]  # type:ignore
+                range_list[subsys_index] = [initial_state[subsys_index]]  # type: ignore
         final_state_list = list(itertools.product(*range_list))
         return final_state_list
 
@@ -780,7 +780,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         )
 
         specdata_all = copy.deepcopy(self[param_indices].dressed_specdata)
-        specdata_all.energy_table -= specdata_for_highlighting.subtract  # type:ignore
+        specdata_all.energy_table -= specdata_for_highlighting.subtract  # type: ignore
         specdata_all.energy_table /= photon_number
         if make_positive:
             specdata_all.energy_table = np.abs(specdata_all.energy_table)
@@ -803,7 +803,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         fig, axes = specdata_for_highlighting.plot_evals_vs_paramvals(
             label_list=specdata_for_highlighting.labels,
             fig_ax=fig_ax,
-            **kwargs,  # type:ignore
+            **kwargs,  # type: ignore
         )
         plot._LABELLINES_ENABLED = labellines_status
         return fig, axes
@@ -897,7 +897,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         self._data[sweep_name] = matrix_element_data
 
 
-class ParameterSweep(  # type:ignore
+class ParameterSweep(  # type: ignore
     ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable
 ):
     """Create multi-dimensional parameter sweeps for a quantum system described by a
@@ -1354,7 +1354,7 @@ class ParameterSweep(  # type:ignore
                     subsys.parent.affected_subsystem_indices.remove(parent_subsys_idx)
 
         evals, evecs = hilbertspace.eigensys(
-            evals_count=evals_count, bare_esys=bare_esys  # type:ignore
+            evals_count=evals_count, bare_esys=bare_esys  # type: ignore
         )
         esys_array = np.empty(shape=(2,), dtype=object)
         esys_array[0] = evals

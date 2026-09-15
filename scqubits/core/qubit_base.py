@@ -295,7 +295,7 @@ class QubitBaseClass(QuantumSystem, ABC):
     """
 
     # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
-    truncated_dim: int  # type:ignore
+    truncated_dim: int  # type: ignore
     _default_grid: Grid1d
     _sys_type: str
     _init_params: list
@@ -788,7 +788,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             bare_only=True,
             num_cpus=num_cpus,
         )
-        eigenenergies = sweep["bare_evals"]["subsys":0].toarray()  # type:ignore
+        eigenenergies = sweep["bare_evals"]["subsys":0].toarray()  # type: ignore
 
         if levels_tuple is None:
             dispersions = np.empty((len(transitions_tuple), len(param_vals)))
@@ -855,19 +855,19 @@ class QubitBaseClass(QuantumSystem, ABC):
                 # presence of levels argument will overwrite `transitions`;
                 # here: single level
                 levels_tuple: Optional[LevelsTuple] = (levels,)
-                transitions_tuple: TransitionsTuple = (transitions,)  # type:ignore
+                transitions_tuple: TransitionsTuple = (transitions,)  # type: ignore
             elif isinstance(levels, tuple):
                 # presence of levels argument will overwrite `transitions`;
                 # here: multiple levels
                 levels_tuple: Optional[LevelsTuple] = levels
-                transitions_tuple: TransitionsTuple = (transitions,)  # type:ignore
+                transitions_tuple: TransitionsTuple = (transitions,)  # type: ignore
             else:
                 raise ValueError(
                     "Invalid `levels` specification: expect int or tuple " "of int"
                 )
         elif isinstance(transitions[0], int):
             # transitions is inferred to be of form (i, j), so only a single one
-            transitions_tuple = (transitions,)  # type:ignore
+            transitions_tuple = (transitions,)  # type: ignore
             levels_tuple = None
         elif isinstance(transitions[0], tuple):
             # transitions is inferred to be of form ((i1, j1), ...) ,
@@ -1059,15 +1059,15 @@ class QubitBaseClass(QuantumSystem, ABC):
             label_list = [str(j) for j in levels_tuple]
         else:
             transitions_tuple: TransitionsTuple = (
-                transitions  # type:ignore
+                transitions  # type: ignore
                 if isinstance(transitions[0], tuple)
                 else (transitions,)
             )
             label_list = ["{}{}".format(i, j) for i, j in transitions_tuple]
 
         return plot.data_vs_paramvals(
-            xdata=specdata.param_vals,  # type:ignore
-            ydata=specdata.dispersion,  # type:ignore
+            xdata=specdata.param_vals,  # type: ignore
+            ydata=specdata.dispersion,  # type: ignore
             label_list=label_list,
             xlabel=specdata.param_name,
             ylabel="energy dispersion [{}]".format(units.get_units()),
@@ -1311,7 +1311,7 @@ class QubitBaseClass1d(QubitBaseClass):
         kwargs["fig_ax"] = fig_ax
         kwargs = {
             **self.wavefunction1d_defaults(
-                mode, evals, wavefunc_count=len(wavefunc_indices)  # type:ignore
+                mode, evals, wavefunc_count=len(wavefunc_indices)  # type: ignore
             ),
             **kwargs,
         }
@@ -1320,7 +1320,7 @@ class QubitBaseClass1d(QubitBaseClass):
 
         plot.wavefunction1d(
             wavefunctions,
-            potential_vals=potential_vals,  # type:ignore
+            potential_vals=potential_vals,  # type: ignore
             offset=energies,
             scaling=scaling,
             **kwargs,

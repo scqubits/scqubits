@@ -54,7 +54,7 @@ def display_bare_spectrum(
     if subtract_ground:
         bare_evals = bare_evals - bare_evals[:, 0, np.newaxis]
 
-    fig, axes = bare_evals[:, 0:evals_count].plot(  # type:ignore
+    fig, axes = bare_evals[:, 0:evals_count].plot(  # type: ignore
         title=title,
         ylabel="energy [{}]".format(units.get_units()),
         fig_ax=fig_ax,
@@ -76,7 +76,7 @@ def display_anharmonicity(
     anharmonicity = bare_evals[..., 2] - 2 * bare_evals[..., 1] + bare_evals[..., 0]
 
     title = "Anharmonicity: {}".format(subsys.id_str)
-    fig, axes = anharmonicity.plot(  # type:ignore
+    fig, axes = anharmonicity.plot(  # type: ignore
         title=title,
         ylabel="anharmonicity [{}]".format(units.get_units()),
         fig_ax=fig_ax,

@@ -101,8 +101,8 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         id_str: Optional[str] = None,
     ) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
-        self.truncated_dim: int = truncated_dim  # type:ignore
-        self.l_osc: Union[None, float] = l_osc  # type:ignore
+        self.truncated_dim: int = truncated_dim  # type: ignore
+        self.l_osc: Union[None, float] = l_osc  # type: ignore
         self.E_osc = E_osc
         self._image_filename = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "qubit_img/oscillator.jpg"
@@ -219,7 +219,7 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         truncated_dim: int = _default_evals_count,
         id_str: Optional[str] = None,
     ) -> None:
-        self.K: float = K  # type:ignore
+        self.K: float = K  # type: ignore
 
         super().__init__(
             E_osc=E_osc,

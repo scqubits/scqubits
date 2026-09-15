@@ -42,7 +42,7 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
 
-    truncated_dim = 2  # type:ignore
+    truncated_dim = 2  # type: ignore
     _sys_type: str
     _init_params: list
 

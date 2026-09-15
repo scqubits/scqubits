@@ -377,7 +377,7 @@ class SpectrumLookupMixin(MixinCompatible):
         dressed_index = self.dressed_index(bare_tuple, param_npindices)
 
         if dressed_index is None:
-            return np.nan  # type:ignore
+            return np.nan  # type: ignore
         if isinstance(dressed_index, numbers.Number):
             energy = self["evals"][param_npindices + (dressed_index,)]
             if subtract_ground:
@@ -729,7 +729,7 @@ class SpectrumLookupMixin(MixinCompatible):
             else:
                 # continue the depth-first search:
                 # recursively call the function and append all the branch states
-                (_branch_drs_indices, _branch_states) = self._branch_analysis_LX_step(
+                _branch_drs_indices, _branch_states = self._branch_analysis_LX_step(
                     subsys_priority,
                     recusion_depth + 1,
                     current_drs_idx,

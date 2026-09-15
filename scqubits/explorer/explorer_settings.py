@@ -20,7 +20,6 @@ import scqubits.ui.gui_custom_widgets as ui
 from scqubits.ui.gui_defaults import PlotType, mode_dropdown_list
 from scqubits.utils import misc as utils
 
-
 if TYPE_CHECKING:
     from scqubits import Explorer
     from scqubits.explorer.explorer_widget import PlotID

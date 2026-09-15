@@ -104,7 +104,7 @@ def _process_options(
         for key, value in kwargs.items()
         if key
         not in functools.reduce(
-            operator.concat, _direct_plot_options.values()  # type:ignore
+            operator.concat, _direct_plot_options.values()  # type: ignore
         )
     }
 

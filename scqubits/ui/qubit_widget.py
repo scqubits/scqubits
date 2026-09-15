@@ -15,7 +15,6 @@ from typing import Any, Callable, Dict, Optional
 import scqubits.core.units as units
 import scqubits.utils.misc as utils
 
-
 try:
     import ipyvuetify
     import ipywidgets

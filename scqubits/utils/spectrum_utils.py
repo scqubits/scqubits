@@ -273,7 +273,7 @@ def absorption_spectrum(spectrum_data: "SpectrumData") -> "SpectrumData":
     omitted.
     """
     assert isinstance(spectrum_data.energy_table, ndarray)
-    spectrum_data.energy_table = spectrum_data.energy_table.clip(min=0.0)  # type:ignore
+    spectrum_data.energy_table = spectrum_data.energy_table.clip(min=0.0)  # type: ignore
     return spectrum_data
 
 
@@ -287,7 +287,7 @@ def emission_spectrum(spectrum_data: "SpectrumData") -> "SpectrumData":
     """
     assert isinstance(spectrum_data.energy_table, ndarray)
     spectrum_data.energy_table *= -1.0
-    spectrum_data.energy_table = spectrum_data.energy_table.clip(min=0.0)  # type:ignore
+    spectrum_data.energy_table = spectrum_data.energy_table.clip(min=0.0)  # type: ignore
     return spectrum_data
 
 
@@ -352,9 +352,7 @@ def operator_in_subsys_eigenbasis(
     if isinstance(operator, str):
         return _opstring_in_eigenbasis(operator, subsystem, evecs)
     if isinstance(operator, (np.ndarray, csc_matrix, csr_matrix, dia_matrix, qt.Qobj)):
-        return _matrix_in_eigenbasis(
-            operator, subsystem, op_in_eigenbasis, evecs
-        )
+        return _matrix_in_eigenbasis(operator, subsystem, op_in_eigenbasis, evecs)
     raise TypeError("Unsupported operator type: ", type(operator))
 
 
@@ -471,7 +469,7 @@ def identity_wrap(
         operator = operator()
 
     subsys_operator = operator_in_subsys_eigenbasis(
-        operator, subsystem, op_in_eigenbasis, evecs  # type:ignore
+        operator, subsystem, op_in_eigenbasis, evecs  # type: ignore
     )
 
     operator_dtype = None

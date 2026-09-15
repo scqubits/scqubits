@@ -125,7 +125,9 @@ def _cast_matrix(
     return converted_mat
 
 
-def _convert_evecs_to_qobjs(evecs: ndarray, hamiltonian_qobj, wrap: bool = False) -> ndarray:
+def _convert_evecs_to_qobjs(
+    evecs: ndarray, hamiltonian_qobj, wrap: bool = False
+) -> ndarray:
     """Converts an `ndarray` containing eigenvectors (that would be typically returned
     from a diagonalization routine, such as `eighs` or `eigh`), to a numpy array of
     qutip's Qobjs. Potentially also wraps those into
@@ -218,7 +220,9 @@ def esys_scipy_dense(
     )
 
     evecs = (
-        _convert_evecs_to_qobjs(evecs, hamiltonian) if isinstance(hamiltonian, Qobj) else evecs
+        _convert_evecs_to_qobjs(evecs, hamiltonian)
+        if isinstance(hamiltonian, Qobj)
+        else evecs
     )
 
     return evals, evecs
@@ -314,7 +318,9 @@ def esys_scipy_sparse(
         evecs, _ = sp.linalg.qr(evecs, mode="economic")
 
     evecs = (
-        _convert_evecs_to_qobjs(evecs, hamiltonian) if isinstance(hamiltonian, Qobj) else evecs
+        _convert_evecs_to_qobjs(evecs, hamiltonian)
+        if isinstance(hamiltonian, Qobj)
+        else evecs
     )
 
     return evals, evecs
@@ -405,7 +411,9 @@ def esys_primme_sparse(
     evals, evecs = primme.eigsh(csc_matrix, k=evals_count, **options)
 
     evecs = (
-        _convert_evecs_to_qobjs(evecs, hamiltonian) if isinstance(hamiltonian, Qobj) else evecs
+        _convert_evecs_to_qobjs(evecs, hamiltonian)
+        if isinstance(hamiltonian, Qobj)
+        else evecs
     )
 
     return evals, evecs
@@ -482,7 +490,9 @@ def esys_cupy_dense(
     evals, evecs = evals_gpu[:evals_count].get(), evecs_gpu[:, :evals_count].get()
 
     evecs = (
-        _convert_evecs_to_qobjs(evecs, hamiltonian) if isinstance(hamiltonian, Qobj) else evecs
+        _convert_evecs_to_qobjs(evecs, hamiltonian)
+        if isinstance(hamiltonian, Qobj)
+        else evecs
     )
 
     return evals, evecs
@@ -575,7 +585,9 @@ def esys_cupy_sparse(
     evals, evecs = evals_gpu.get(), evecs_gpu.get()
 
     evecs = (
-        _convert_evecs_to_qobjs(evecs, hamiltonian) if isinstance(hamiltonian, Qobj) else evecs
+        _convert_evecs_to_qobjs(evecs, hamiltonian)
+        if isinstance(hamiltonian, Qobj)
+        else evecs
     )
 
     return evals, evecs
@@ -621,9 +633,7 @@ def evals_jax_dense(
     dense_matrix = _cast_matrix(hamiltonian, "dense")
 
     # We explicitly cast to a numpy array
-    evals = np.asarray(
-        jax.scipy.linalg.eigh(dense_matrix, eigvals_only=True, **kwargs)
-    )
+    evals = np.asarray(jax.scipy.linalg.eigh(dense_matrix, eigvals_only=True, **kwargs))
 
     # In eigh, the eigvals options is not currently implemented, although listed
     # in the jax docs, hence we have to "manually" only return the number of
@@ -667,9 +677,7 @@ def esys_jax_dense(
 
     dense_matrix = _cast_matrix(hamiltonian, "dense")
 
-    evals, evecs = jax.scipy.linalg.eigh(
-        dense_matrix, eigvals_only=False, **kwargs
-    )
+    evals, evecs = jax.scipy.linalg.eigh(dense_matrix, eigvals_only=False, **kwargs)
 
     # In eigh, the eigvals options is not currently implemented, although listed
     # in the jax docs, hence we only "manually" select the number of evals/evecs
@@ -677,14 +685,14 @@ def esys_jax_dense(
     evals, evecs = np.asarray(evals[:evals_count]), np.asarray(evecs[:, :evals_count])
 
     evecs = (
-        _convert_evecs_to_qobjs(evecs, hamiltonian) if isinstance(hamiltonian, Qobj) else evecs
+        _convert_evecs_to_qobjs(evecs, hamiltonian)
+        if isinstance(hamiltonian, Qobj)
+        else evecs
     )
     return evals, evecs
 
 
-def _cuquantum_eigensolver(
-    hamiltonian: Qobj, evals_count: int, **kwargs
-) -> Any:
+def _cuquantum_eigensolver(hamiltonian: Qobj, evals_count: int, **kwargs) -> Any:
     """Run cuDensityMat's Krylov eigensolver and return its native result.
 
     The solver uses scqubits' shared cuQuantum workstream and the ``CUQUANTUM_*``
@@ -731,9 +739,9 @@ def _cuquantum_eigensolver(
         max_restarts=max_restarts,
     )
 
-    allowed_num_eigvals = (
-        hspace_dim - min_krylov_block_size
-    ) // (2 * min_krylov_block_size * max_buffer_ratio)
+    allowed_num_eigvals = (hspace_dim - min_krylov_block_size) // (
+        2 * min_krylov_block_size * max_buffer_ratio
+    )
     if evals_count > allowed_num_eigvals:
         raise ValueError(
             f"Too many eigenvalues requested. Maximum number of eigenvalues "
@@ -741,28 +749,26 @@ def _cuquantum_eigensolver(
             f"max_buffer_ratio, or increase the Hilbert space dimension."
         )
 
-    batch_size = 1 # OperatorSpectrumSolver currently supports only non-batched states.
+    batch_size = 1  # OperatorSpectrumSolver currently supports only non-batched states.
 
     seed_states = []
     for _ in range(evals_count):
-        seed_state = cudm.DensePureState(
-            ctx, subsys_dims, batch_size, "complex128"
-        )
+        seed_state = cudm.DensePureState(ctx, subsys_dims, batch_size, "complex128")
         seed_state.allocate_storage()
         seed_state.storage[:] = cupy.random.randn(hspace_dim * batch_size)
         norm = seed_state.norm()
         seed_state.inplace_scale(1.0 / cupy.sqrt(norm))
         seed_states.append(seed_state)
 
-    cudm_operator = CuQobjEvo(qt.QobjEvo(hamiltonian)).operator # Convert through CuQobjEvo until a dedicated conversion function is available.
+    cudm_operator = CuQobjEvo(
+        qt.QobjEvo(hamiltonian)
+    ).operator  # Convert through CuQobjEvo until a dedicated conversion function is available.
     spectrum = cudm.OperatorSpectrumSolver(cudm_operator, "SA", True, config)
     spectrum.prepare(ctx, seed_states[0], max_num_eigvals=evals_count)
     return spectrum.compute(0.0, None, seed_states, 1e-10)
 
 
-def evals_cuquantum(
-    hamiltonian: Qobj, evals_count: int, **kwargs
-) -> ndarray:
+def evals_cuquantum(hamiltonian: Qobj, evals_count: int, **kwargs) -> ndarray:
     """Diagonalization based on cuDensityMat's Krylov eigensolver. Only
     eigenvalues are returned.
 
@@ -834,10 +840,14 @@ DIAG_METHODS = {
     "evals_scipy_sparse": evals_scipy_sparse,
     "esys_scipy_sparse": esys_scipy_sparse,
     "evals_scipy_sparse_SM": lambda hamiltonian, evals_count, **kwargs: evals_scipy_sparse(
-        hamiltonian, evals_count, **_dict_merge(dict(which="SM"), kwargs, overwrite=True)
+        hamiltonian,
+        evals_count,
+        **_dict_merge(dict(which="SM"), kwargs, overwrite=True),
     ),
     "esys_scipy_sparse_SM": lambda hamiltonian, evals_count, **kwargs: esys_scipy_sparse(
-        hamiltonian, evals_count, **_dict_merge(dict(which="SM"), kwargs, overwrite=True)
+        hamiltonian,
+        evals_count,
+        **_dict_merge(dict(which="SM"), kwargs, overwrite=True),
     ),
     "evals_scipy_sparse_LA_shift-inverse": lambda hamiltonian, evals_count, **kwargs: evals_scipy_sparse(
         hamiltonian,
@@ -868,7 +878,9 @@ DIAG_METHODS = {
         **_dict_merge(dict(which="SM"), kwargs, overwrite=True),
     ),
     "esys_primme_sparse_SM": lambda hamiltonian, evals_count, **kwargs: esys_primme_sparse(
-        hamiltonian, evals_count, **_dict_merge(dict(which="SM"), kwargs, overwrite=True)
+        hamiltonian,
+        evals_count,
+        **_dict_merge(dict(which="SM"), kwargs, overwrite=True),
     ),
     "evals_primme_sparse_LA_shift-inverse": lambda hamiltonian, evals_count, **kwargs: evals_primme_sparse(
         hamiltonian=hamiltonian,

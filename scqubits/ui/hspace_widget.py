@@ -174,7 +174,7 @@ class HilbertSpaceUi:
         main = importlib.import_module("__main__")
         return [
             method_name
-            for method_name in dir(main.__dict__[subsystem])  # type:ignore
+            for method_name in dir(main.__dict__[subsystem])  # type: ignore
             if "_operator" in method_name
             and method_name[0] != "_"
             and "get_" not in method_name

@@ -56,7 +56,6 @@ from scqubits.core.storage import SpectrumData
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
 from scqubits.utils.cuquantum_utils import _CUQUANTUM_BACKEND_ERROR
 
-
 if settings.IN_IPYTHON:
     from tqdm.notebook import tqdm
 else:
@@ -160,7 +159,9 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         """
         hamiltonian = cast(qt.Qobj, self.g_strength)
         id_wrapped_ops = self.id_wrap_all_ops(
-            self.operator_list, subsystem_list, bare_esys=bare_esys,
+            self.operator_list,
+            subsystem_list,
+            bare_esys=bare_esys,
             use_cuquantum=use_cuquantum,
         )
         for op in id_wrapped_ops:
@@ -363,7 +364,8 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
             GPU-accelerated dispatch.
         """
         idwrapped_ops_by_name = self.id_wrap_all_ops(
-            subsystem_list, bare_esys=bare_esys,
+            subsystem_list,
+            bare_esys=bare_esys,
             use_cuquantum=use_cuquantum,
         )
         idwrapped_ops_by_name.update(
@@ -694,15 +696,14 @@ class HilbertSpace(
         else:
             num_evals = BEs_count
 
-        if (
-            self.esys_method == "esys_cuquantum"
-            and (ordering == "DE" or ordering == "LX")
+        if self.esys_method == "esys_cuquantum" and (
+            ordering == "DE" or ordering == "LX"
         ):
             krylov_block_size = settings.CUQUANTUM_MIN_KRYLOV_BLOCK_SIZE
             max_buffer_ratio = settings.CUQUANTUM_MAX_BUFFER_RATIO
-            allowed_num_eigvals = (
-                self.dimension - krylov_block_size
-            ) // (2 * krylov_block_size * max_buffer_ratio)
+            allowed_num_eigvals = (self.dimension - krylov_block_size) // (
+                2 * krylov_block_size * max_buffer_ratio
+            )
             raise ValueError(
                 "Cannot use cuQuantum eigensolver with DE or LX ordering. "
                 "Please use Bare Energy ordering and set BEs_count to no more "
@@ -949,9 +950,7 @@ class HilbertSpace(
                 evals = bare_esys[subsys_index][0]
             else:
                 evals = subsys.eigenvals(evals_count=subsys.truncated_dim)
-            term = self.diag_hamiltonian(
-                subsys, evals, use_cuquantum=use_cuquantum
-            )
+            term = self.diag_hamiltonian(subsys, evals, use_cuquantum=use_cuquantum)
             bare_hamiltonian = (
                 term if bare_hamiltonian is None else bare_hamiltonian + term
             )
@@ -990,7 +989,8 @@ class HilbertSpace(
                 hamiltonian += term
             elif isinstance(term, (InteractionTerm, InteractionTermStr)):
                 hamiltonian += term.hamiltonian(
-                    self.subsystem_list, bare_esys=bare_esys,
+                    self.subsystem_list,
+                    bare_esys=bare_esys,
                     use_cuquantum=use_cuquantum,
                 )
             else:
@@ -1023,9 +1023,12 @@ class HilbertSpace(
 
         if evals is None:
             evals = subsystem.eigenvals(evals_count=evals_count)
-        diag_qt_op = qt.Qobj(np.diagflat(evals[0:evals_count]))  # type:ignore
+        diag_qt_op = qt.Qobj(np.diagflat(evals[0:evals_count]))  # type: ignore
         return spec_utils.identity_wrap(
-            diag_qt_op, subsystem, self.subsystem_list, op_in_eigenbasis=True,
+            diag_qt_op,
+            subsystem,
+            self.subsystem_list,
+            op_in_eigenbasis=True,
             use_cuquantum=use_cuquantum,
         )
 
@@ -1148,7 +1151,7 @@ class HilbertSpace(
             )
         else:
             func = functools.partial(
-                self._evals_for_paramval,  # type:ignore
+                self._evals_for_paramval,  # type: ignore
                 update_hilbertspace=update_hilbertspace,
                 evals_count=evals_count,
             )

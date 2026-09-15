@@ -99,7 +99,7 @@ class CircuitRoutines(ABC):
         obj_in_bytes = dill.dumps(self)
         initdata = {"subsystem_in_hex": obj_in_bytes.hex()}
         if hasattr(self, "_id_str"):
-            initdata["id_str"] = self._id_str  # type:ignore
+            initdata["id_str"] = self._id_str  # type: ignore
         iodata = dict_serialize(initdata)
         iodata.typename = type(self).__name__
         return iodata

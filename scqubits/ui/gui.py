@@ -1396,7 +1396,7 @@ class GUI:
                     display(error_label)
                 return
             if self.plot_renewal_requested:
-                self.fig, ax = self.active_qubit.plot_wavefunction(  # type:ignore
+                self.fig, ax = self.active_qubit.plot_wavefunction(  # type: ignore
                     which=eigenvalue_states,
                     mode=mode_value,
                     scaling=scale_value,
@@ -1409,7 +1409,7 @@ class GUI:
                         plt.show()
             else:
                 self.fig.axes[0].clear()
-                self.active_qubit.plot_wavefunction(  # type:ignore
+                self.active_qubit.plot_wavefunction(  # type: ignore
                     which=eigenvalue_states,
                     mode=mode_value,
                     scaling=scale_value,
@@ -1425,7 +1425,7 @@ class GUI:
                 grid_dict = {"phi_grid": phi_grid, "theta_grid": theta_grid}
 
             if self.plot_renewal_requested:
-                self.fig, ax = self.active_qubit.plot_wavefunction(  # type:ignore
+                self.fig, ax = self.active_qubit.plot_wavefunction(  # type: ignore
                     which=eigenvalue_states, mode=mode_value, **grid_dict
                 )
                 self.plot_renewal_requested = False
@@ -1437,7 +1437,7 @@ class GUI:
             else:
                 self.fig.delaxes(self.fig.axes[1])
                 self.fig.axes[0].clear()
-                self.active_qubit.plot_wavefunction(  # type:ignore
+                self.active_qubit.plot_wavefunction(  # type: ignore
                     which=eigenvalue_states,
                     mode=mode_value,
                     **grid_dict,

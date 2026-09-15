@@ -227,7 +227,10 @@ def test_custom_diagonalization_matches_default_using_custom_procedure():
 
     def custom_esys(hamiltonian, evals_count, **kwargs):
         evals, evecs = sp.linalg.eigh(
-            hamiltonian, subset_by_index=(0, evals_count - 1), eigvals_only=False, **kwargs
+            hamiltonian,
+            subset_by_index=(0, evals_count - 1),
+            eigvals_only=False,
+            **kwargs,
         )
         return evals, evecs
 

@@ -130,7 +130,7 @@ def process_ellipsis(
     """
     new_multi_idx: List[NpIndexNoEllipsis] = [
         slice(None, None, None)
-    ] * array.ndim  # type:ignore
+    ] * array.ndim  # type: ignore
     # Replace the slice(None, None, None) entries, starting from beginning until
     # Ellipsis is encountered
     slot = 0
@@ -243,7 +243,7 @@ class ExtIndexTupleObject:
             ), "Internal error in NamedSlotsNdarray: index missing `name` attribute!"
             slot_index = self._parameters.index_by_name[
                 extindex_object.name
-            ]  # type:ignore
+            ]  # type: ignore
             assert isinstance(slot_index, int), "Internal NamedSlotsNdarray error"
             converted_multi_index[slot_index] = extindex_object.std_idx_entry
         return tuple(converted_multi_index)

@@ -30,7 +30,7 @@ class ReadOnlyProperty(Generic[TargetType]):
 
     def __get__(self, instance: Any, *args, **kwargs) -> TargetType:
         if instance is None:  # when accessed on class level rather than instance level
-            return self  # type:ignore
+            return self  # type: ignore
         return instance.__dict__[self.name]
 
     def __set__(self, instance: Any, value: Any):
@@ -76,7 +76,7 @@ class WatchedProperty(Generic[TargetType]):
 
     def __get__(self, instance: object, owner: Any) -> TargetType:
         if instance is None:  # when accessed on class level rather than instance level
-            return self  # type:ignore
+            return self  # type: ignore
 
         assert self.attr_name
         if self.inner:

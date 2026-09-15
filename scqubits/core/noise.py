@@ -201,7 +201,7 @@ class NoisySystem(ABC):
                     opts = noise_channel[1]
                     max_level = max(max_level, opts.get("i", 1), opts.get("j", 1))
 
-            spectrum_data = self.get_spectrum_vs_paramvals(  # type:ignore
+            spectrum_data = self.get_spectrum_vs_paramvals(  # type: ignore
                 param_name,  # type: ignore
                 param_vals,
                 evals_count=max_level + 1,
@@ -249,7 +249,7 @@ class NoisySystem(ABC):
         # remember current value of param_name
         current_val = getattr(self, param_name)
 
-        for channel_idx, noise_channel in enumerate(noise_channels):  # type:ignore
+        for channel_idx, noise_channel in enumerate(noise_channels):  # type: ignore
             # case 1: noise_channel is a string representing the noise method
             if isinstance(noise_channel, str):
                 noise_channel_method = noise_channel
@@ -263,8 +263,8 @@ class NoisySystem(ABC):
                             noise_channel_method,
                         )(
                             esys=(
-                                spectrum_data.energy_table[param_idx, :],  # type:ignore
-                                spectrum_data.state_table[param_idx],  # type:ignore
+                                spectrum_data.energy_table[param_idx, :],  # type: ignore
+                                spectrum_data.state_table[param_idx],  # type: ignore
                             ),
                             **common_noise_options,
                         )
@@ -292,8 +292,8 @@ class NoisySystem(ABC):
                             noise_channel_method,
                         )(
                             esys=(
-                                spectrum_data.energy_table[param_idx, :],  # type:ignore
-                                spectrum_data.state_table[param_idx],  # type:ignore
+                                spectrum_data.energy_table[param_idx, :],  # type: ignore
+                                spectrum_data.state_table[param_idx],  # type: ignore
                             ),
                             **options,
                         )
@@ -427,7 +427,7 @@ class NoisySystem(ABC):
                     opts = noise_channel[1]
                     max_level = max(max_level, opts.get("i", 1), opts.get("j", 1))
 
-            spectrum_data = self.get_spectrum_vs_paramvals(  # type:ignore
+            spectrum_data = self.get_spectrum_vs_paramvals(  # type: ignore
                 param_name,
                 param_vals,
                 evals_count=max_level + 1,  # type: ignore
@@ -446,12 +446,12 @@ class NoisySystem(ABC):
                 scale
                 * self.set_and_return(
                     param_name, param_val
-                ).t1_effective(  # type:ignore
+                ).t1_effective(  # type: ignore
                     noise_channels=noise_channels,
                     common_noise_options=common_noise_options,
                     esys=(
-                        spectrum_data.energy_table[param_idx, :],  # type:ignore
-                        spectrum_data.state_table[param_idx],  # type:ignore
+                        spectrum_data.energy_table[param_idx, :],  # type: ignore
+                        spectrum_data.state_table[param_idx],  # type: ignore
                     ),
                 )
                 for param_idx, param_val in enumerate(param_vals)
@@ -459,7 +459,7 @@ class NoisySystem(ABC):
         )
 
         # Set the parameter we varied to its initial value
-        setattr(self, param_name, current_val)  # type:ignore
+        setattr(self, param_name, current_val)  # type: ignore
 
         plotting_options = {
             "title": "t1_effective",
@@ -578,7 +578,7 @@ class NoisySystem(ABC):
                     opts = noise_channel[1]
                     max_level = max(max_level, opts.get("i", 1), opts.get("j", 1))
 
-            spectrum_data = self.get_spectrum_vs_paramvals(  # type:ignore
+            spectrum_data = self.get_spectrum_vs_paramvals(  # type: ignore
                 param_name,
                 param_vals,
                 evals_count=max_level + 1,  # type: ignore
@@ -599,8 +599,8 @@ class NoisySystem(ABC):
                     noise_channels=noise_channels,
                     common_noise_options=common_noise_options,
                     esys=(
-                        spectrum_data.energy_table[v_i, :],  # type:ignore
-                        spectrum_data.state_table[v_i],  # type:ignore
+                        spectrum_data.energy_table[v_i, :],  # type: ignore
+                        spectrum_data.state_table[v_i],  # type: ignore
                     ),
                     get_rate=get_rate,
                 )

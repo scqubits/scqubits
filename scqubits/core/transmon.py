@@ -801,29 +801,29 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
                 [
                     [
                         np.abs(
-                            specdata_flux_0.energy_table[param_index, j]  # type:ignore
+                            specdata_flux_0.energy_table[param_index, j]  # type: ignore
                             - specdata_flux_05.energy_table[
                                 param_index, j
-                            ]  # type:ignore
+                            ]  # type: ignore
                         )
                         for param_index, _ in enumerate(param_vals)
                     ]
                     for j in levels_tuple
                 ]
             )
-            return specdata_flux_0.energy_table, dispersion  # type:ignore
+            return specdata_flux_0.energy_table, dispersion  # type: ignore
 
         dispersion_list = []
         for i, j in transitions_tuple:
             list_ij = []
             for param_index, _ in enumerate(param_vals):
-                ei_0 = specdata_flux_0.energy_table[param_index, i]  # type:ignore
-                ei_05 = specdata_flux_05.energy_table[param_index, i]  # type:ignore
-                ej_0 = specdata_flux_0.energy_table[param_index, j]  # type:ignore
-                ej_05 = specdata_flux_05.energy_table[param_index, j]  # type:ignore
+                ei_0 = specdata_flux_0.energy_table[param_index, i]  # type: ignore
+                ei_05 = specdata_flux_05.energy_table[param_index, i]  # type: ignore
+                ej_0 = specdata_flux_0.energy_table[param_index, j]  # type: ignore
+                ej_05 = specdata_flux_05.energy_table[param_index, j]  # type: ignore
                 list_ij.append(
                     np.max([np.abs(ei_0 - ej_0), np.abs(ei_05 - ej_05)])
                     - np.min([np.abs(ei_0 - ej_0), np.abs(ei_05 - ej_05)])
                 )
             dispersion_list.append(list_ij)
-        return specdata_flux_0.energy_table, np.asarray(dispersion_list)  # type:ignore
+        return specdata_flux_0.energy_table, np.asarray(dispersion_list)  # type: ignore

@@ -17,6 +17,7 @@ making it easy to work with composite Hilbert spaces consisting of coupled
 superconducting qubits and harmonic modes. Internally, numerics within scqubits is
 carried out with the help of Numpy and Scipy; plotting capabilities rely on Matplotlib.
 """
+
 #######################################################################################
 
 
@@ -66,7 +67,6 @@ from scqubits.core.circuit import Circuit
 from scqubits.core.circuit_utils import truncation_template
 from scqubits.core.symbolic_circuit import SymbolicCircuit
 
-
 # GUI
 try:
     from scqubits.explorer.explorer_widget import Explorer
@@ -91,7 +91,10 @@ from scqubits.utils.misc import about, cite
 from scqubits.utils.spectrum_utils import identity_wrap
 
 # cuQuantum utils
-from scqubits.utils.cuquantum_utils import set_cuquantum_workstream, get_cuquantum_workstream
+from scqubits.utils.cuquantum_utils import (
+    set_cuquantum_workstream,
+    get_cuquantum_workstream,
+)
 
 # Import of custom-circuit modules needs to take place after other imports to
 # avoid circular import issues
