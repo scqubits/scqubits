@@ -1121,6 +1121,8 @@ class ParameterSweep(  # type:ignore
         id_strs = [subsystem.id_str for subsystem in self.hilbertspace.subsystem_list]
 
         for parameter_name, subsystems in self._subsys_update_info.items():
+            if subsystems is None:
+                continue
             if not all(subsystem.id_str in id_strs for subsystem in subsystems):
                 raise ValueError(
                     f"Subsystems specified in "
