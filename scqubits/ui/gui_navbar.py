@@ -10,7 +10,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import Tuple
+from __future__ import annotations
 
 import scqubits.ui.gui_custom_widgets as ui
 import scqubits.utils.misc as utils
@@ -19,24 +19,11 @@ from scqubits.ui import gui_defaults as gui_defaults
 from scqubits.ui.gui_custom_widgets import flex_column
 from scqubits.ui.gui_defaults import NAV_COLOR
 
-try:
-    import ipyvuetify as v
-    import ipywidgets
-except ImportError:
-    _HAS_IPYVUETIFY = False
-else:
-    _HAS_IPYVUETIFY = True
-
-try:
-    from IPython.display import display
-except ImportError:
-    _HAS_IPYTHON = False
-else:
-    _HAS_IPYTHON = True
+from scqubits.utils._optional_deps import _HAS_IPYTHON, _HAS_IPYVUETIFY, v
 
 
 @utils.Required(ipyvuetify=_HAS_IPYVUETIFY, IPython=_HAS_IPYTHON)
-def create_navbar() -> Tuple[v.Card, dict]:
+def create_navbar() -> tuple[v.Card, dict]:
     # Navigation bar elements are:
     # CHOOSE_QUBIT
     # CHOOSE_PLOT

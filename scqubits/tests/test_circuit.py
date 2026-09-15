@@ -12,16 +12,21 @@
 ############################################################################
 
 import os
+
 import numpy as np
-import qutip as qt
 import pytest
-from scqubits.io_utils.fileio import read
+import qutip as qt
 
 import scqubits as scq
+
+from scqubits.io_utils.fileio import read
 
 TESTDIR, _ = os.path.split(scq.__file__)
 TESTDIR = os.path.join(TESTDIR, "tests", "")
 DATADIR = os.path.join(TESTDIR, "data", "")
+
+# Tests below exercise the legacy ``from_file`` flag and ``Circuit.from_yaml``.
+pytestmark = pytest.mark.filterwarnings("ignore::DeprecationWarning")
 
 
 @pytest.mark.usefixtures("num_cpus")
@@ -95,9 +100,6 @@ class TestCircuit:
             symbolic_param_dict={"ng1": 0},
             ext_basis="harmonic",
         )
-        circ.configure(
-            transformation_matrix=np.array([[1, 0, 0], [0, 1, 0], [0, 1, 1]])
-        )
         circ.cutoff_n_1 = 20
         circ.cutoff_ext_2 = 20
         circ.cutoff_ext_3 = 20
@@ -112,6 +114,27 @@ class TestCircuit:
             [2.51547879, 3.00329327, 3.5556228, 3.57568727, 4.13233136, 4.29671029]
         )
         assert np.allclose(eigs, eigs_ref)
+
+    @staticmethod
+    def test_symbolic_hamiltonian_rejects_transformation_matrix():
+        """``transformation_matrix=`` is unsupported on the symbolic-Hamiltonian
+        path: ``Circuit.configure`` raises ``ValueError`` rather than
+        silently ignoring the kwarg."""
+        import sympy as sm
+
+        sym_hamiltonian = sm.parse_expr(
+            "0.25*θ3**2 + 2.0*Q3**2 + 0.790697674419*Q2**2 + 0.45*θ2**2 + 7.674418604651*n1**2 + 7.674418604651*ng1**2 - 1.0*cos(θ1) + 0.5*θ2*θ3 + 1.395348837209*Q2*n1 + 1.395348837209*Q2*ng1 + 15.348837209302*n1*ng1"
+        )
+        circ = scq.Circuit(
+            input_string=None,
+            symbolic_hamiltonian=sym_hamiltonian,
+            symbolic_param_dict={"ng1": 0},
+            ext_basis="harmonic",
+        )
+        with pytest.raises(ValueError, match="transformation_matrix"):
+            circ.configure(
+                transformation_matrix=np.array([[1, 0, 0], [0, 1, 0], [0, 1, 1]])
+            )
 
     @staticmethod
     def test_eigenvals_harmonic():
@@ -340,3 +363,697 @@ class TestCircuit:
             expectation_vals,
             ref_expectation_vals,
         )
+
+
+class TestConfigureError:
+    """Pin behavior of ``Circuit.configure`` on invalid input.
+
+    On failure, the prior configuration is restored and a
+    :class:`~scqubits.core.circuit.ConfigureError` is raised with the
+    triggering exception preserved as ``__cause__``.
+    """
+
+    @staticmethod
+    def _make_zero_pi():
+        zp_yaml = """branches:
+        - ["JJ", 1, 2, 10, 20]
+        - ["JJ", 3, 4, 10, 20]
+        - ["L", 2, 3, 0.008]
+        - ["L", 4, 1, 0.008]
+        - ["C", 1, 3, 0.02]
+        - ["C", 2, 4, 0.02]
+        """
+        return scq.Circuit(zp_yaml, from_file=False, ext_basis="discretized")
+
+    def test_invalid_hierarchy_raises_configure_error(self):
+        from scqubits.core.circuit import ConfigureError
+
+        circ = self._make_zero_pi()
+        # system_hierarchy without subsystem_trunc_dims triggers the
+        # internal Exception in _configure.
+        with pytest.raises(ConfigureError) as excinfo:
+            circ.configure(system_hierarchy=[[1, 3], [2]])
+        assert excinfo.value.__cause__ is not None
+
+    def test_prior_configuration_is_restored_on_failure(self):
+        from scqubits.core.circuit import ConfigureError
+
+        circ = self._make_zero_pi()
+        prior_hierarchy = circ.system_hierarchy
+        prior_trunc_dims = circ.subsystem_trunc_dims
+        prior_transformation_matrix = circ.transformation_matrix.copy()
+        prior_closure_branches = list(circ.closure_branches)
+        prior_ext_basis = circ.ext_basis
+        with pytest.raises(ConfigureError):
+            circ.configure(system_hierarchy=[[1, 3], [2]])
+        assert circ.system_hierarchy == prior_hierarchy
+        assert circ.subsystem_trunc_dims == prior_trunc_dims
+        assert np.array_equal(circ.transformation_matrix, prior_transformation_matrix)
+        assert list(circ.closure_branches) == prior_closure_branches
+        assert circ.ext_basis == prior_ext_basis
+
+
+class TestClearUnnecessaryAttribs:
+    """``_clear_unnecessary_attribs`` consults a registry, not name patterns.
+
+    The contract: every per-variable attribute name installed by
+    ``_install_var_properties`` is recorded in ``self._dynamic_var_attribs``
+    and is dropped by ``_clear_unnecessary_attribs`` if the current
+    configuration no longer needs it. Substring-based name matching
+    would silently leak any new property kind whose name didn't match
+    the pattern; the registry has no such blind spot.
+    """
+
+    @staticmethod
+    def _make_zero_pi():
+        zp_yaml = """branches:
+        - ["JJ", 1, 2, 10, 20]
+        - ["JJ", 3, 4, 10, 20]
+        - ["L", 2, 3, 0.008]
+        - ["L", 4, 1, 0.008]
+        - ["C", 1, 3, 0.02]
+        - ["C", 2, 4, 0.02]
+        """
+        return scq.Circuit(zp_yaml, from_file=False, ext_basis="discretized")
+
+    def test_registry_clears_arbitrary_dynamic_attribute(self):
+        """A name in ``_dynamic_var_attribs`` but not in the necessary set is cleared."""
+        circ = self._make_zero_pi()
+        # Naming convention enforced by ``_clear_unnecessary_attribs``:
+        # the registry holds the public name (``"custom_kind_99"``) and
+        # the backing-store attribute is the same name with a leading
+        # underscore (``"_custom_kind_99"``).
+        object.__setattr__(circ, "_custom_kind_99", 42)
+        circ._dynamic_var_attribs.add("custom_kind_99")
+
+        circ._clear_unnecessary_attribs()
+
+        assert not hasattr(circ, "_custom_kind_99")
+        assert "custom_kind_99" not in circ._dynamic_var_attribs
+
+    def test_registry_preserves_currently_active_names(self):
+        """Names listed in ``cutoff_names`` survive a clearing pass."""
+        circ = self._make_zero_pi()
+        active_cutoffs = list(circ.cutoff_names)
+        # Sanity check the precondition: the registry contains every
+        # active cutoff name.
+        for name in active_cutoffs:
+            assert name in circ._dynamic_var_attribs
+
+        circ._clear_unnecessary_attribs()
+
+        for name in active_cutoffs:
+            assert hasattr(
+                circ, f"_{name}"
+            ), f"active cutoff {name!r} was wrongly cleared"
+            assert name in circ._dynamic_var_attribs
+
+
+class TestRecomputationContract:
+    """``SymbolicCircuit._STAGE2_ATTRIBUTES`` is the single source of truth
+    for which attributes flow from stage 1 (symbolic) to stage 2 (numerical).
+    A fresh ``Circuit`` constructed from YAML must end up with every name
+    in that tuple set on the instance. The test fails loudly on any name
+    in the tuple that doesn't make it onto a fresh instance — a contributor
+    adding a new attribute to ``SymbolicCircuit`` but forgetting to register
+    it in ``_STAGE2_ATTRIBUTES`` would otherwise leave ``Circuit`` blind to
+    it, or rely on it via the wrong helper.
+    """
+
+    TRANSMON_YAML = "branches:\n" "- [JJ, 1, 2, EJ=10, ECJ=20]\n" "- [C, 1, 2, EC=2]\n"
+    FLUXONIUM_YAML = (
+        "branches:\n"
+        "- [JJ, 1, 2, EJ=5.7, ECJ=20]\n"
+        "- [L, 1, 2, EL=0.39]\n"
+        "- [C, 1, 2, EC=10]\n"
+    )
+    ZERO_PI_YAML = (
+        "branches:\n"
+        '- ["JJ", 1, 2, 10, 20]\n'
+        '- ["JJ", 3, 4, 10, 20]\n'
+        '- ["L", 2, 3, 0.008]\n'
+        '- ["L", 4, 1, 0.008]\n'
+        '- ["C", 1, 3, 0.02]\n'
+        '- ["C", 2, 4, 0.02]\n'
+    )
+
+    @pytest.mark.parametrize(
+        "yaml,name",
+        [
+            (TRANSMON_YAML, "transmon"),
+            (FLUXONIUM_YAML, "fluxonium"),
+            (ZERO_PI_YAML, "zero_pi"),
+        ],
+    )
+    def test_every_stage2_attr_is_set_on_fresh_circuit(self, yaml, name):
+        circ = scq.Circuit.from_yaml_string(yaml, ext_basis="discretized")
+        for attr in circ.symbolic_circuit._STAGE2_ATTRIBUTES:
+            assert hasattr(circ, attr), (
+                f"{name}: _STAGE2_ATTRIBUTES name {attr!r} was not propagated "
+                f"to the numerical Circuit instance"
+            )
+
+    @pytest.mark.parametrize(
+        "yaml,name",
+        [
+            (TRANSMON_YAML, "transmon"),
+            (FLUXONIUM_YAML, "fluxonium"),
+            (ZERO_PI_YAML, "zero_pi"),
+        ],
+    )
+    def test_topology_stage2_attrs_match_after_configure(self, yaml, name):
+        """For attributes that ``_configure`` does not further process, the
+        value on a fresh ``Circuit`` should remain reference-identical to the
+        value on ``self.symbolic_circuit``. (Symbolic expressions like
+        ``hamiltonian_symbolic`` / ``potential_symbolic`` / ``lagrangian_*``
+        are excluded because ``_configure`` legitimately rewrites them.)"""
+        topology_attrs = (
+            "branches",
+            "closure_branches",
+            "ground_node",
+            "input_string",
+            "is_grounded",
+            "is_purely_harmonic",
+            "nodes",
+            "external_fluxes",
+            "offset_charges",
+            "free_charges",
+            "var_categories",
+        )
+        circ = scq.Circuit.from_yaml_string(yaml, ext_basis="discretized")
+        for attr in topology_attrs:
+            assert (
+                attr in circ.symbolic_circuit._STAGE2_ATTRIBUTES
+            ), f"{attr!r} should be in _STAGE2_ATTRIBUTES"
+            circ_val = getattr(circ, attr)
+            sym_val = getattr(circ.symbolic_circuit, attr)
+            assert (
+                circ_val is sym_val or circ_val == sym_val
+            ), f"{name}: {attr} value differs between Circuit and symbolic_circuit"
+
+
+class TestTypedOperatorAccessor:
+    """``Circuit.operator(name, *, energy_esys=...)`` is the typed dispatcher
+    for the dynamic ``<name>_operator`` methods that ``_set_operators`` binds
+    at ``_configure`` time. The dynamic methods are invisible to ``mypy`` /
+    IDE / sphinx-autodoc; the typed accessor restores tooling visibility.
+    """
+
+    YAML = "branches:\n" "- [JJ, 0, 1, EJ=10, ECJ=20]\n" "- [C, 0, 1, EC=2]\n"
+
+    def _make_transmon(self):
+        circ = scq.Circuit.from_yaml_string(self.YAML, ext_basis="discretized")
+        circ.cutoff_n_1 = 10
+        return circ
+
+    def test_operator_routes_to_dynamic_method(self):
+        circ = self._make_transmon()
+        # Both call paths must produce an identical native operator.
+        via_typed = circ.operator("n1")
+        via_dynamic = circ.n1_operator()
+        # Sparse / Qobj equality: compare the dense forms.
+        if hasattr(via_typed, "todense"):
+            np.testing.assert_array_equal(
+                np.asarray(via_typed.todense()),
+                np.asarray(via_dynamic.todense()),
+            )
+        else:
+            np.testing.assert_array_equal(
+                np.asarray(via_typed), np.asarray(via_dynamic)
+            )
+
+    def test_operator_unknown_name_lists_available(self):
+        circ = self._make_transmon()
+        with pytest.raises(AttributeError) as excinfo:
+            circ.operator("does_not_exist")
+        message = str(excinfo.value)
+        assert "available operators" in message
+        # The available list must list names in the form the caller would
+        # pass to operator() — i.e. WITHOUT the ``_operator`` suffix —
+        # so a user copy-pasting from the message can use it directly.
+        assert (
+            "_operator" not in message.split("available operators:")[1]
+        ), f"error message leaks _operator suffix: {message!r}"
+        # And at least one expected name (n1) should appear.
+        assert "'n1'" in message
+
+    def test_operator_energy_esys_kwarg_is_passed_through(self):
+        """Passing energy_esys=True must rotate the returned operator into
+        the energy eigenbasis. Compare to the dynamic method called with the
+        same argument to verify the kwarg flows correctly."""
+        circ = self._make_transmon()
+        via_typed = circ.operator("n1", energy_esys=True)
+        via_dynamic = circ.n1_operator(energy_esys=True)
+        np.testing.assert_allclose(
+            np.asarray(via_typed), np.asarray(via_dynamic), rtol=1e-12
+        )
+
+
+class TestNoiseChannelsRegistry:
+    """``NoisyCircuit.channels()`` returns the explicit registry built by
+    ``generate_noise_methods`` rather than the ``self.__dict__``-walk that
+    ``supported_noise_channels`` previously relied on. This pins the
+    registry so future generators that fail to register a method will be
+    caught.
+    """
+
+    YAML = (
+        "branches:\n"
+        "- [JJ, 0, 1, EJ=10, ECJ=20]\n"
+        "- [L, 0, 1, EL=0.04]\n"
+        "- [C, 0, 1, EC=2]\n"
+    )
+
+    def _make_fluxonium_with_noise(self):
+        circ = scq.Circuit.from_yaml_string(self.YAML, ext_basis="discretized")
+        circ.cutoff_ext_1 = 30
+        circ.configure(generate_noise_methods=True)
+        return circ
+
+    def test_channels_returns_dict_keyed_by_method_name(self):
+        circ = self._make_fluxonium_with_noise()
+        channels = circ.channels()
+        assert isinstance(channels, dict)
+        # The fluxonium fixture has 1 closure branch (the L branch becomes
+        # the spanning tree's closure for the JJ loop), so at minimum one
+        # ``tphi_1_over_f_flux1`` per-flux + the overall ``tphi_1_over_f_flux``
+        # aggregate must be present, plus some ``t1_*`` entries.
+        assert any(name.startswith("t1_") for name in channels)
+        assert any(name.startswith("tphi_1_over_f") for name in channels)
+
+    def test_supported_noise_channels_matches_legacy_dict_walk(self):
+        """The registry-driven ``supported_noise_channels()`` must return
+        the same set as a ``__dict__``-walk that substring-matches ``"t1_"``
+        / ``"tphi_1_over_f"`` against bound method names.
+
+        Without this parity check, a generator that bypasses
+        ``_register_noise_method`` and calls ``setattr`` directly is
+        silently dropped from ``supported_noise_channels()`` while still
+        appearing in ``__dict__``: a divergence detectable only by an
+        external observer.
+        """
+        circ = self._make_fluxonium_with_noise()
+        registry_names = sorted(circ.supported_noise_channels())
+        legacy_names = sorted(
+            method_name
+            for method_name in circ.__dict__
+            if "tphi_1_over_f" in method_name or "t1_" in method_name
+        )
+        assert registry_names == legacy_names, (
+            f"registry ({registry_names}) and legacy dict-walk "
+            f"({legacy_names}) disagree — a generator likely bypassed "
+            f"_register_noise_method"
+        )
+
+    def test_channels_returns_a_copy(self):
+        """Mutating the returned dict must not affect the underlying registry."""
+        circ = self._make_fluxonium_with_noise()
+        channels = circ.channels()
+        original_count = len(channels)
+        channels["bogus_channel"] = lambda: None
+        assert len(circ.channels()) == original_count
+
+
+class TestNamedConstructors:
+    """`Circuit.from_yaml_file` / `Circuit.from_yaml_string` are named
+    alternatives to the legacy ``Circuit(input_string, from_file=...)`` form.
+    """
+
+    YAML = """branches:
+    - ["JJ", 1, 2, 10, 20]
+    - ["JJ", 3, 4, 10, 20]
+    - ["L", 2, 3, 0.008]
+    - ["L", 4, 1, 0.008]
+    - ["C", 1, 3, 0.02]
+    - ["C", 2, 4, 0.02]
+    """
+
+    def test_from_yaml_string_matches_legacy_form(self):
+        legacy = scq.Circuit(self.YAML, from_file=False, ext_basis="discretized")
+        new = scq.Circuit.from_yaml_string(self.YAML, ext_basis="discretized")
+        assert isinstance(new, scq.Circuit)
+        assert new.ext_basis == legacy.ext_basis
+        assert new.is_purely_harmonic == legacy.is_purely_harmonic
+        assert new.var_categories == legacy.var_categories
+
+    def test_from_yaml_file_matches_legacy_form(self, tmp_path):
+        path = tmp_path / "zp.yaml"
+        path.write_text(self.YAML)
+        legacy = scq.Circuit(str(path), from_file=True, ext_basis="discretized")
+        new = scq.Circuit.from_yaml_file(str(path), ext_basis="discretized")
+        assert isinstance(new, scq.Circuit)
+        assert new.ext_basis == legacy.ext_basis
+        assert new.var_categories == legacy.var_categories
+
+
+class TestMakeBranchNodeIndexOffset:
+    """``make_branch`` accepts an explicit ``node_index_offset`` kwarg.
+
+    The legacy code inferred 0-vs-1-based indexing from ``any(n.is_ground()
+    for n in nodes_list)``.  Explicit passing decouples ``make_branch`` from
+    that whole-list inference; the inference path is preserved as the
+    ``None`` default for backward compatibility.
+    """
+
+    YAML_GROUNDED = (
+        "branches:\n"
+        "- [JJ, 0, 1, 10, 20]\n"
+        "- [L, 0, 1, 0.01]\n"
+        "- [C, 0, 1, 0.02]\n"
+    )
+    YAML_UNGROUNDED = (
+        "branches:\n"
+        "- [JJ, 1, 2, 10, 20]\n"
+        "- [L, 1, 2, 0.01]\n"
+        "- [C, 1, 2, 0.02]\n"
+    )
+
+    def test_yaml_grounded_round_trip(self):
+        """Branches in a 0-indexed circuit connect the declared node IDs."""
+        from scqubits.core.symbolic_circuit import SymbolicCircuit
+
+        circ = SymbolicCircuit.from_yaml(self.YAML_GROUNDED, from_file=False)
+        assert {n.index for n in circ.nodes} == {0, 1}
+        for branch in circ.branches:
+            assert {n.index for n in branch.nodes} == {0, 1}
+
+    def test_yaml_ungrounded_round_trip(self):
+        """Branches in a 1-indexed circuit connect the declared node IDs."""
+        from scqubits.core.symbolic_circuit import SymbolicCircuit
+
+        circ = SymbolicCircuit.from_yaml(self.YAML_UNGROUNDED, from_file=False)
+        assert {n.index for n in circ.nodes} == {1, 2}
+        for branch in circ.branches:
+            assert {n.index for n in branch.nodes} == {1, 2}
+
+
+class TestVariableTransformationMatrixClassification:
+    """``variable_transformation_matrix`` partitions basis rows into
+    sigma / free / periodic / frozen / rest with precedence
+    ``sigma > free > periodic > frozen > rest``.  The single-pass
+    dict-lookup must produce the same partition as the legacy
+    chain-of-exclusions for any basis layout."""
+
+    @staticmethod
+    def _legacy_partition(
+        new_basis, Σ, free_modes, periodic_modes, frozen_modes, is_grounded
+    ):
+        """Reference 5-comprehension cascade implementation; used to
+        cross-check that the optimized single-pass partition produces
+        identical output."""
+        if not is_grounded:
+            pos_Σ = [i for i in range(len(new_basis)) if new_basis[i].tolist() == Σ]
+        else:
+            pos_Σ = []
+        pos_free = [
+            i
+            for i in range(len(new_basis))
+            if i not in pos_Σ
+            if new_basis[i].tolist() in free_modes
+        ]
+        pos_periodic = [
+            i
+            for i in range(len(new_basis))
+            if i not in pos_Σ
+            if i not in pos_free
+            if new_basis[i].tolist() in periodic_modes
+        ]
+        pos_frozen = [
+            i
+            for i in range(len(new_basis))
+            if i not in pos_Σ
+            if i not in pos_free
+            if i not in pos_periodic
+            if new_basis[i].tolist() in frozen_modes
+        ]
+        pos_rest = [
+            i
+            for i in range(len(new_basis))
+            if i not in pos_Σ
+            if i not in pos_free
+            if i not in pos_periodic
+            if i not in pos_frozen
+        ]
+        return pos_Σ, pos_free, pos_periodic, pos_frozen, pos_rest
+
+    @staticmethod
+    def _new_partition(
+        new_basis, Σ, free_modes, periodic_modes, frozen_modes, is_grounded
+    ):
+        """The new single-pass implementation, isolated for testing."""
+        mode_to_label: dict[tuple, str] = {}
+        for m in frozen_modes:
+            mode_to_label[tuple(m)] = "frozen"
+        for m in periodic_modes:
+            mode_to_label[tuple(m)] = "periodic"
+        for m in free_modes:
+            mode_to_label[tuple(m)] = "free"
+        if not is_grounded:
+            mode_to_label[tuple(Σ)] = "sigma"
+        buckets = {"sigma": [], "free": [], "periodic": [], "frozen": [], "rest": []}
+        for i, row in enumerate(new_basis):
+            buckets[mode_to_label.get(tuple(row.tolist()), "rest")].append(i)
+        return (
+            buckets["sigma"],
+            buckets["free"],
+            buckets["periodic"],
+            buckets["frozen"],
+            buckets["rest"],
+        )
+
+    @pytest.mark.parametrize("is_grounded", [True, False])
+    def test_overlapping_modes_use_correct_precedence(self, is_grounded):
+        """A row in both free and frozen lists must classify as free, not frozen.
+        A row equal to Σ (when not grounded) must classify as sigma even if it
+        also appears in free / periodic / frozen."""
+        new_basis = np.array(
+            [
+                [1, 0, 0, 0],  # only in frozen — frozen
+                [0, 1, 0, 0],  # in free AND frozen — should be free (free > frozen)
+                [0, 0, 1, 0],  # only in periodic — periodic
+                [1, 1, 1, 1],  # equals Σ when not grounded; also in free
+                [0, 0, 0, 1],  # not in any — rest
+            ]
+        )
+        Σ = [1, 1, 1, 1]
+        free_modes = [[0, 1, 0, 0], [1, 1, 1, 1]]
+        periodic_modes = [[0, 0, 1, 0]]
+        frozen_modes = [[1, 0, 0, 0], [0, 1, 0, 0]]
+        legacy = self._legacy_partition(
+            new_basis, Σ, free_modes, periodic_modes, frozen_modes, is_grounded
+        )
+        new = self._new_partition(
+            new_basis, Σ, free_modes, periodic_modes, frozen_modes, is_grounded
+        )
+        assert legacy == new
+
+    def test_matches_legacy_on_random_layouts(self):
+        """Across many random row layouts, the new partition must equal the legacy one."""
+        import random
+
+        rng = random.Random(42)
+        for _ in range(50):
+            n_cols = rng.choice([3, 4, 5, 6])
+            n_rows = n_cols  # square basis
+            rows = []
+            for _ in range(n_rows):
+                rows.append([rng.choice([-1, 0, 1]) for _ in range(n_cols)])
+            new_basis = np.array(rows)
+            Σ = [1] * n_cols
+            # Build random mode lists by sampling rows
+            free_modes = [
+                rows[i] for i in rng.sample(range(n_rows), k=rng.randint(0, 2))
+            ]
+            periodic_modes = [
+                rows[i] for i in rng.sample(range(n_rows), k=rng.randint(0, 2))
+            ]
+            frozen_modes = [
+                rows[i] for i in rng.sample(range(n_rows), k=rng.randint(0, 2))
+            ]
+            for is_grounded in (True, False):
+                legacy = self._legacy_partition(
+                    new_basis, Σ, free_modes, periodic_modes, frozen_modes, is_grounded
+                )
+                new = self._new_partition(
+                    new_basis, Σ, free_modes, periodic_modes, frozen_modes, is_grounded
+                )
+                assert legacy == new, (
+                    f"mismatch: rows={rows}, free={free_modes}, "
+                    f"periodic={periodic_modes}, frozen={frozen_modes}, "
+                    f"is_grounded={is_grounded}"
+                )
+
+
+class TestFindPathToRootDFSRewrite:
+    """``_find_path_to_root`` returns the unique path from a node to the
+    spanning-tree root in O(depth) time, computed by DFS against an
+    ``_AdjacencyIndex`` view of the tree. The path is unique because a
+    spanning tree has no cycles."""
+
+    YAML = (
+        "branches:\n"
+        "- [JJ, 1, 2, 10, 20]\n"
+        "- [JJ, 3, 4, 10, 20]\n"
+        "- [L, 2, 3, 0.008]\n"
+        "- [L, 4, 1, 0.008]\n"
+        "- [C, 1, 3, 0.02]\n"
+        "- [C, 2, 4, 0.02]\n"
+    )
+
+    def test_path_to_root_for_root_returns_empty(self):
+        """The root node is generation 0 with empty ancestor / branch lists."""
+        from scqubits.core.symbolic_circuit import SymbolicCircuit
+
+        circ = SymbolicCircuit.from_yaml(self.YAML, from_file=False)
+        node_sets = circ.spanning_tree_dict["node_sets_for_trees"]
+        root = node_sets[0][0][0]
+        gen, ancestors, branches, tree_idx = circ._find_path_to_root(
+            root, circ.spanning_tree_dict
+        )
+        assert gen == 0
+        assert ancestors == []
+        assert branches == []
+        assert tree_idx == 0
+
+    def test_path_to_root_for_leaf_includes_all_intermediate(self):
+        """For a leaf node, the path includes every ancestor up to the root,
+        in root-to-leaf order."""
+        from scqubits.core.symbolic_circuit import SymbolicCircuit
+
+        circ = SymbolicCircuit.from_yaml(self.YAML, from_file=False)
+        # zero-pi has 4 nodes; pick the one in the deepest layer
+        node_sets = circ.spanning_tree_dict["node_sets_for_trees"][0]
+        deepest = node_sets[-1][0]
+        gen, ancestors, branches, _ = circ._find_path_to_root(
+            deepest, circ.spanning_tree_dict
+        )
+        assert gen == len(node_sets) - 1
+        # ancestor list ends just before the leaf, length = generation
+        assert len(ancestors) == gen
+        assert len(branches) == gen
+
+    def test_path_to_root_raises_for_unknown_node(self):
+        """A node not in any spanning tree raises ValueError (the legacy
+        permutation code silently returned stale data)."""
+        from scqubits.core.symbolic_circuit import SymbolicCircuit
+        from scqubits.core.symbolic_circuit_graph import Node
+
+        circ = SymbolicCircuit.from_yaml(self.YAML, from_file=False)
+        bogus = Node(99)
+        with pytest.raises(ValueError, match="not present in any spanning tree"):
+            circ._find_path_to_root(bogus, circ.spanning_tree_dict)
+
+
+class TestAdjacencyIndexCaching:
+    """``_adjacency_for_spanning_tree_dict`` reuses a built ``_AdjacencyIndex``
+    across repeated calls with the same spanning-tree dict — important when
+    ``_find_loop`` is invoked many times (e.g. once per closure branch in
+    ``_time_dependent_flux_distribution``)."""
+
+    YAML = (
+        "branches:\n"
+        "- [JJ, 1, 2, 10, 20]\n"
+        "- [JJ, 3, 4, 10, 20]\n"
+        "- [L, 2, 3, 0.008]\n"
+        "- [L, 4, 1, 0.008]\n"
+        "- [C, 1, 3, 0.02]\n"
+        "- [C, 2, 4, 0.02]\n"
+    )
+
+    def test_cache_reused_for_same_dict(self):
+        from scqubits.core.symbolic_circuit import SymbolicCircuit
+
+        circ = SymbolicCircuit.from_yaml(self.YAML, from_file=False)
+        idx_1 = circ._adjacency_for_spanning_tree_dict(circ.spanning_tree_dict)
+        idx_2 = circ._adjacency_for_spanning_tree_dict(circ.spanning_tree_dict)
+        assert idx_1 is idx_2, "cache returned a freshly-built index"
+
+    def test_cache_rebuilds_for_different_dict(self):
+        from scqubits.core.symbolic_circuit import SymbolicCircuit
+
+        circ = SymbolicCircuit.from_yaml(self.YAML, from_file=False)
+        idx_1 = circ._adjacency_for_spanning_tree_dict(circ.spanning_tree_dict)
+        # build a fresh dict (same content, different object identity)
+        fresh = circ._spanning_tree()
+        idx_2 = circ._adjacency_for_spanning_tree_dict(fresh)
+        assert idx_1 is not idx_2, "cache failed to rebuild for new dict"
+
+
+class TestHeuristicBasisCompletionPerformance:
+    """``_complete_basis_with_standard_vectors`` enumerates at most one
+    rank-test per distinct candidate vector (``C(n, zeros_count)`` total
+    for an ``n``-node circuit), so heuristic basis completion remains
+    polynomial in the node count rather than scaling with the number of
+    duplicate permutations a naive enumeration would produce."""
+
+    @staticmethod
+    def _ten_node_chain_yaml() -> str:
+        """Linear chain of 10 nodes connected by capacitors and a JJ at one end.
+
+        Constructed to be small enough to parse instantly but to land in
+        the ``basis_completion="heuristic"`` path with a non-trivial
+        ``vector_ref`` (8 ones, 2 zeros).
+        """
+        lines = ["branches:", "- [JJ, 0, 1, 10, 20]"]
+        for i in range(1, 10):
+            lines.append(f"- [C, {i}, {i + 1}, 0.02]")
+        return "\n".join(lines) + "\n"
+
+    def test_construction_completes_quickly(self):
+        """A 10-node circuit must build in well under 5 s.
+
+        Pre-fix: > 20 s on the user's machine (~564k SVDs).
+        Post-fix: well under 1 s (~45 SVDs in the heuristic loop)."""
+        import time
+
+        from scqubits.core.symbolic_circuit import SymbolicCircuit
+
+        yaml = self._ten_node_chain_yaml()
+        start = time.perf_counter()
+        SymbolicCircuit.from_yaml(yaml, from_file=False)
+        elapsed = time.perf_counter() - start
+        # Generous 5 s budget — the post-fix code on a slow CI runner
+        # should still come in well under 1 s.
+        assert elapsed < 5.0, (
+            f"SymbolicCircuit construction for the 10-node chain took "
+            f"{elapsed:.2f} s; expected < 1 s post-fix.  Pre-fix this "
+            f"was ~26 s due to O(n!) permutation rank-tests."
+        )
+
+    def test_dedupe_does_not_change_basis_for_simple_circuit(self):
+        """Belt-and-braces: two SymbolicCircuit instances built from the
+        same YAML must agree element-wise on
+        ``transformation_matrix``.  Different runs of the deduped loop
+        on the same input must be deterministic."""
+        from scqubits.core.symbolic_circuit import SymbolicCircuit
+
+        yaml = self._ten_node_chain_yaml()
+        circ_a = SymbolicCircuit.from_yaml(yaml, from_file=False)
+        circ_b = SymbolicCircuit.from_yaml(yaml, from_file=False)
+        np.testing.assert_array_equal(
+            circ_a.transformation_matrix, circ_b.transformation_matrix
+        )
+
+
+class TestSymbolicCircuitFromYamlResourceHandling:
+    """``SymbolicCircuit.from_yaml(file_path, from_file=True)`` must release
+    the file handle even if a parse error fires below the read."""
+
+    BAD_YAML = (
+        "branches:\n" "- [JJ, 1, 2, 10, 20]\n" "- [BAD_BRANCH_TYPE, 1, 2, 0.01]\n"
+    )
+
+    def test_file_handle_released_on_parse_error(self, tmp_path):
+        path = tmp_path / "bad.yaml"
+        path.write_text(self.BAD_YAML)
+        from scqubits.core.symbolic_circuit import SymbolicCircuit
+
+        # The ``match`` keyword pins the failure to "this YAML didn't parse".
+        # Without it the test would silently pass if the parser stopped
+        # raising on ``BAD_BRANCH_TYPE`` for some other reason in the future.
+        with pytest.raises(Exception, match="BAD"):
+            SymbolicCircuit.from_yaml(str(path), from_file=True)
+        # If the handle leaks (Windows-specific), unlink will fail with
+        # PermissionError. The ``with`` block in from_yaml prevents that.
+        path.unlink()
+        assert not path.exists()

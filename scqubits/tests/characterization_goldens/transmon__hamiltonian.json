@@ -1,0 +1,13 @@
+{
+  "kind": "hamiltonian",
+  "shape": [
+    31,
+    31
+  ],
+  "dtype": "complex128",
+  "trace": 18036.36363636,
+  "frobenius_norm": 4343.51609008,
+  "max_abs": 1636.36363636,
+  "min_diag": 0.0,
+  "max_diag": 1636.36363636
+}

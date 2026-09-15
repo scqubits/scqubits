@@ -1,0 +1,477 @@
+"""YAML grammar and parsing helpers for circuit definitions.
+
+The YAML input describes a circuit as a list of branches under a
+``branches:`` key. Each branch is one row of the form::
+
+    - [ <branch_type>, <node1>, <node2>, <param>, <aux params> ]
+
+or, for two-parameter branches such as JJ::
+
+    - [ <branch_type>, <node1>, <node2>, <param1>, <param2> ]
+
+where ``<branch_type>`` is one of ``"C"`` (capacitance), ``"L"``
+(inductance), ``"JJ"`` / ``"JJ2"`` / ``"JJ<n>"`` (Josephson junctions
+with up to ``n``-th harmonic), or
+``"ML"`` (mutual inductance between two ``L`` branches; in that case
+``<node1>`` and ``<node2>`` are *branch indices*, not node IDs).
+
+Each ``<param>`` is one of:
+
+- ``<symbol> = <number>`` — declare a parameter symbol with a default
+  value (e.g. ``EJ=10``, ``EML=0.01``);
+- ``<number>`` — bare numeric literal (e.g. ``10``);
+- ``<symbol>`` — re-use an already-declared symbol.
+
+Numeric values may carry a unit prefix (``GHz``, ``MHz``, ``kHz``,
+``Hz``); see ``convert_value_to_GHz`` for the conversion. Node IDs
+are integers; ``min(node_ids)`` must be either ``0`` (interpreted as
+ground) or ``1`` (no ground).
+
+The pyparsing grammar (``BRANCHES``) and the per-branch patterns
+(``BRANCH_JJ``, ``BRANCH_C``, ``BRANCH_L``, ``BRANCH_EM``) are exposed
+via ``__all__`` for downstream code that wants to extend the parser.
+"""
+
+from __future__ import annotations
+
+import os
+
+from collections.abc import Sequence
+
+import numpy as np
+import pyparsing as pp
+import scipy as sp
+import sympy as sm
+
+from pyparsing import Group, Literal, Opt, Or, Suppress
+
+from scqubits.core.circuit_internals.branch_metadata import _junction_order
+from scqubits.utils.misc import is_string_float
+
+__all__ = [
+    "BEG",
+    "END",
+    "CM",
+    "QM",
+    "INT",
+    "NUM",
+    "BRANCH_TYPES",
+    "JJ_ORDER",
+    "prefix_dict",
+    "PREFIX",
+    "energy_names",
+    "UNITS_FREQ_ENERGY",
+    "UNITS",
+    "SYMBOL",
+    "VALUES",
+    "ASSIGNS",
+    "PARAMS",
+    "aux_val",
+    "AUX_PARAM",
+    "order_count",
+    "find_jj_order",
+    "BRANCH_JJ",
+    "BRANCH_C",
+    "BRANCH_L",
+    "BRANCH_EM",
+    "BRANCHES",
+    "remove_comments",
+    "remove_branchline",
+    "strip_empty_lines",
+    "parse_code_line",
+    "convert_value_to_GHz",
+    "process_param",
+    "example_circuit",
+]
+
+# *****************************************************************
+#  GRAMMAR DEFINITIONS  (see module docstring for the YAML schema)
+# *****************************************************************
+
+
+# - Ignore in parsing ********************************************
+# Mark the following as characters / character combinations not
+# to be recorded in the parsed result. I.e., the grammar may expect
+# these in various places, but they are not carried forward into
+# the parsed result
+BEG = Suppress(Literal("-") + Literal("["))
+END = Suppress("]")
+CM = Suppress(",")
+QM = Opt(Suppress('"'))  # optional quotation mark: may use JJ, or "JJ"
+
+
+# - Numbers ******************************************************
+INT = pp.common.integer  # unsigned integer
+NUM = pp.common.fnumber  # float
+
+
+# - Branch types ***************************************************
+# build up dictionary of branch types
+# allow, for example, both "JJ" as well as just JJ using QM
+BRANCH_TYPES = {name: QM + name + QM for name in ["C", "L"]}
+for BTYPE in BRANCH_TYPES.values():
+    BTYPE.set_results_name("branch_type")
+
+JJ_ORDER = pp.Word(pp.nums).add_condition(
+    lambda tokens: int(tokens[0]) > 0, message="Junction order must be greater than 0."
+)
+BRANCH_TYPES["JJ"] = (
+    QM + pp.Combine(pp.Word("JJ") + Opt(JJ_ORDER) + Opt(pp.Word("s"))) + QM
+)  # defining grammar to find "JJi" where i is an optional natural number
+
+# - Mutual inductance ************
+BRANCH_TYPES["ML"] = QM + "ML" + QM
+
+# - Units: prefixes etc. **************************************************
+prefix_dict = {
+    "T": 1e12,  # Tera
+    "G": 1e9,  # Giga
+    "M": 1e6,  # Mega
+    "k": 1e3,  # kilo
+    "m": 1e-3,  # milli
+    "u": 1e-6,  # micro
+    "n": 1e-9,  # nano
+    "p": 1e-12,  # pico
+    "f": 1e-15,  # femto
+}
+PREFIX = pp.Char(list(prefix_dict.keys()))  # type: ignore[arg-type]
+
+energy_names = ["EJ", "EC", "EL", "EML"]
+
+
+UNITS_FREQ_ENERGY = Literal("Hz") ^ Literal("J") ^ Literal("eV")
+
+UNITS = {name: Opt(PREFIX, None) for name in energy_names}
+UNITS["EJ"] += UNITS_FREQ_ENERGY ^ Literal("A") ^ Literal("H")  # type: ignore[assignment]  # Ampere, Henry
+UNITS["EC"] += UNITS_FREQ_ENERGY ^ Literal("F")  # type: ignore[assignment]  # Farad
+UNITS["EL"] += UNITS_FREQ_ENERGY ^ Literal("H")  # type: ignore[assignment]  # Henry
+UNITS["EML"] += UNITS_FREQ_ENERGY ^ Literal("H")  # type: ignore[assignment]  # Henry
+for name, unit in UNITS.items():
+    unit.leave_whitespace()  # allow only "kHz", not "k Hz"
+    unit.set_name(f"{name}_UNITS")
+
+# - Parameter specifications --------------------------------
+SYMBOL = pp.common.identifier
+VALUES = {name: NUM + Opt(" ") + Opt(UNITS[name], None) for name in energy_names}
+ASSIGNS = {
+    name: SYMBOL + Suppress(Literal("=")) + VALUES[name] for name in energy_names
+}
+
+PARAMS = {
+    name: Or(
+        [
+            Group(ASSIGNS[name])("ASSIGN"),
+            Group(SYMBOL)("SYMBOL"),
+            Group(VALUES[name])("VALUE"),
+        ]
+    )
+    for name in energy_names
+}  # can specify in three ways
+
+# # - Branch specifications ------------------------------------------------------
+aux_val = pp.Word(
+    pp.printables.replace("]", "").replace("[", "") + " "
+)  # allowing for numerical expressions in auxiliary params
+AUX_PARAM = Group(pp.ZeroOrMore(CM + SYMBOL + Suppress(Literal("=")) + aux_val))(
+    "AUX_PARAM"
+)
+
+order_count = pp.Empty()
+
+
+def find_jj_order(str_result: str, location: int, tokens: pp.ParseResults):
+    """Parse-action helper that extracts the order of a Josephson-junction branch.
+
+    Used as a pyparsing parse action for ``order_count`` to determine the
+    junction order embedded in a ``JJ``-type branch specification.
+
+    Parameters
+    ----------
+    str_result:
+        the full input string being parsed.
+    location:
+        the location within the input string where parsing started.
+    tokens:
+        the tokens collected so far by pyparsing.
+
+    Returns
+    -------
+    The parse result containing the integer junction order extracted from the
+    branch specification.
+    """
+    JJ_TYPE = BEG + BRANCH_TYPES["JJ"]
+    JJ_TYPE.add_parse_action(lambda tokens: _junction_order(tokens[0]))
+    return JJ_TYPE.parse_string(str_result)
+
+
+order_count.set_parse_action(find_jj_order)
+
+BRANCH_JJ = (
+    BEG
+    + BRANCH_TYPES["JJ"]("BRANCH_TYPE")
+    + CM
+    + INT("node1")
+    + CM
+    + INT("node2")
+    + CM
+    + pp.counted_array(PARAMS["EJ"] + CM, int_expr=order_count)("EJ_VALS")
+    + PARAMS["EC"]("EC")
+    + AUX_PARAM
+    + END
+)
+
+BRANCH_C = (
+    BEG
+    + BRANCH_TYPES["C"]("BRANCH_TYPE")
+    + CM
+    + INT("node1")
+    + CM
+    + INT("node2")
+    + CM
+    + PARAMS["EC"]("EC")
+    + AUX_PARAM
+    + END
+)
+
+BRANCH_L = (
+    BEG
+    + BRANCH_TYPES["L"]("BRANCH_TYPE")
+    + CM
+    + INT("node1")
+    + CM
+    + INT("node2")
+    + CM
+    + PARAMS["EL"]("EL")
+    + AUX_PARAM
+    + END
+)
+
+BRANCH_EM = (
+    BEG
+    + BRANCH_TYPES["ML"]("BRANCH_TYPE")
+    + CM
+    + INT("branch1")
+    + CM
+    + INT("branch2")
+    + CM
+    + PARAMS["EML"]("EML")
+    + AUX_PARAM
+    + END
+)
+
+BRANCHES = Or([BRANCH_JJ, BRANCH_C, BRANCH_L, BRANCH_EM])
+
+# uncomment to create a html describing the grammar of this language
+# BRANCHES.create_diagram("branches.html")
+
+
+# - For filtering out only the code specifying the branches -----------------
+def remove_comments(code: str) -> str:
+    """Strip Python-style comments from a circuit YAML input string.
+
+    Parameters
+    ----------
+    code:
+        raw circuit-input source as a single string.
+
+    Returns
+    -------
+    The same source with comments removed.
+    """
+    return pp.pythonStyleComment.suppress().transform_string(code)
+
+
+def remove_branchline(code: str) -> str:
+    """Remove the leading ``branches:`` marker from a circuit-input string.
+
+    Parameters
+    ----------
+    code:
+        circuit-input source containing a ``branches:`` header.
+
+    Returns
+    -------
+    The source with the ``branches:`` line suppressed.
+    """
+    return Suppress(Literal("branches") + ":").transform_string(code)
+
+
+def strip_empty_lines(code: str) -> str:
+    """Drop empty lines and leading whitespace from each line of ``code``.
+
+    Parameters
+    ----------
+    code:
+        multi-line input string.
+
+    Returns
+    -------
+    The string rejoined with the platform's line separator, containing only
+    non-empty, left-stripped lines.
+    """
+    return os.linesep.join(
+        [line.lstrip() for line in code.splitlines() if line.lstrip()]
+    )
+
+
+pp.autoname_elements()
+
+
+# - Parsing and processing ParsedResults data ------------------------------
+def parse_code_line(code_line: str, _branch_count: int):
+    """Parse a single branch specification line of a circuit input file.
+
+    Parameters
+    ----------
+    code_line:
+        string describing the branch from the input file.
+    _branch_count:
+        the count of the branch in a given circuit.
+
+    Returns
+    -------
+    A tuple containing the branch type string, the two node indices, the list
+    of branch parameter results, the auxiliary-parameter parse results, and
+    the branch count passed in.
+    """
+    pp_result = BRANCHES.parse_string(code_line)
+    branch_type = pp_result.BRANCH_TYPE[0]
+
+    branch_type, node_idx1, node_idx2, *params, aux_params = pp_result
+
+    return branch_type, node_idx1, node_idx2, params, aux_params, _branch_count
+
+
+def convert_value_to_GHz(val: float, units: tuple[str | None, str] | None) -> float:
+    """Convert a given value and units to energy in GHz.
+
+    The units are given as a ``(prefix, unit_str)`` pair such that the prefix
+    is one of the keys of ``prefix_dict`` (``T``, ``G``, ``M``, ``k``, ``m``,
+    ``u``, ``n``, ``p``, ``f``) or ``None``, and the unit string is one of
+    ``Hz``, ``J``, ``eV``, ``F``, ``H``, ``A``. For example, ``("p", "H")``
+    represents picohenry.
+
+    Parameters
+    ----------
+    val:
+        value in given units.
+    units:
+        ``(prefix, unit_str)`` sequence describing the units, or ``None`` if
+        the value is already in GHz. ``prefix`` may be ``None`` for no SI
+        prefix.
+
+    Raises
+    ------
+    ValueError
+        If the unit is unknown.
+
+    Returns
+    -------
+    Energy in GHz.
+    """
+    # all the possible units
+    # capacitance F, inductance H, current A, energy J, frequency Hz, eV
+    # returns value in GHz
+    if units is None:
+        return val  # default is GHz
+
+    prefix = 1 if units[0] is None else prefix_dict[units[0]]
+    val *= prefix
+    unit_str = units[1]
+
+    h = sp.constants.h
+    e = sp.constants.e
+    Φ0 = sp.constants.h / (2 * e)
+    if unit_str == "Hz":
+        return val * 1e-9
+    elif unit_str == "J":
+        return val / h * 1e-9
+    elif unit_str == "eV":
+        return val * 1.602176634e-19 / h * 1e-9
+    elif unit_str == "F":
+        return e**2 / (2 * val * h) * 1e-9
+    elif unit_str == "H":
+        return Φ0**2 / (val * h * (2 * np.pi) ** 2) * 1e-9
+    elif unit_str == "A":
+        return val * Φ0 / (2 * np.pi * h) * 1e-9
+    else:
+        raise ValueError(f"Unknown unit {unit_str}")
+
+
+def process_param(  # type: ignore[return]
+    pattern: pp.ParseResults,
+) -> dict[sm.Symbol, float] | tuple[sm.Symbol | None, float | None]:
+    """Return a ``(symbol, value)`` tuple given a pyparsing-detected pattern.
+
+    Either the symbol or the value can be ``None``, when the symbol is already
+    assigned or when no symbol is assigned to the given branch parameter. For
+    auxiliary-parameter blocks, a dictionary mapping parameter names to their
+    parsed values is returned instead.
+
+    Parameters
+    ----------
+    pattern:
+        the pyparsing parse result describing one parameter or
+        auxiliary-parameter block, named ``"ASSIGN"``, ``"SYMBOL"``,
+        ``"VALUE"`` or ``"AUX_PARAM"``.
+
+    Returns
+    -------
+    A ``(sympy symbol or None, float value or None)`` tuple for ordinary
+    parameters, or a ``dict`` mapping auxiliary parameter names to their
+    values for an ``"AUX_PARAM"`` pattern.
+    """
+    name = pattern.getName()
+    if name == "ASSIGN":
+        sym = sm.symbols(pattern[0])
+        val = pattern[1]
+        units = None if pattern[-1] is None else pattern[-2:]
+        val_converted = convert_value_to_GHz(val, units)
+        return (sym, val_converted)
+    if name == "SYMBOL":
+        return (sm.symbols(pattern[0]), None)
+    if name == "VALUE":
+        units = None if pattern[-1] is None else pattern[-2:]
+        converted_val = convert_value_to_GHz(pattern[0], units)
+        return (None, converted_val)
+    if name == "AUX_PARAM":
+        num_of_aux_params = int(len(pattern) / 2)
+        aux_params = {}
+        for idx in range(num_of_aux_params):
+            aux_params[pattern[2 * idx]] = (
+                float(pattern[2 * idx + 1])
+                if is_string_float(pattern[2 * idx + 1])
+                else pattern[2 * idx + 1]
+            )
+        return aux_params
+
+
+_EXAMPLE_CIRCUITS_BY_QUBIT_NAME: dict[str, str] = {
+    "fluxonium": "nodes: 2\nbranches:\nJJ\t1,2\tEj\tEcj\nL\t1,2\tEl\nC\t1,2\tEc",
+    "transmon": "nodes: 2\nbranches:\nC\t1,2\tEc\nJJ\t1,2\tEj\tEcj\n",
+    "cos2phi": (
+        "nodes: 4\nbranches:\nC\t1,3\tEc\nJJ\t1,2\tEj\tEcj\n"
+        "JJ\t3, 4\tEj\tEcj\nL\t1,4\tEl\nL\t2,3\tEl\n\n"
+    ),
+    "zero_pi": (
+        "nodes: 4\nbranches:\nJJ\t1,2\tEj\tEcj\nL\t2,3\tEl\n"
+        "JJ\t3,4\tEj\tEcj\nL\t4,1\tEl\nC\t1,3\tEc\nC\t2,4\tEc\n"
+    ),
+}
+
+
+def example_circuit(qubit: str) -> str:
+    """Return an example YAML-style circuit-input string for a named qubit.
+
+    Used by tests and tutorials as a quick way to obtain a parseable
+    input string without having to type one out by hand.
+
+    Parameters
+    ----------
+    qubit:
+        one of ``"fluxonium"``, ``"transmon"``, ``"zero_pi"``,
+        ``"cos2phi"``.
+    """
+    if qubit in _EXAMPLE_CIRCUITS_BY_QUBIT_NAME:
+        return _EXAMPLE_CIRCUITS_BY_QUBIT_NAME[qubit]
+    raise AttributeError("Qubit not available or invalid input.")

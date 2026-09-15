@@ -10,8 +10,11 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import scipy as sp
@@ -19,6 +22,7 @@ import scipy as sp
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
+from scipy.sparse import csc_matrix
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
@@ -34,27 +38,55 @@ from scqubits.core.noise import NOISE_PARAMS, NoisySystem
 
 # -Flux qubit noise class
 class NoisyFluxQubit(NoisySystem, ABC):
+    """Mixin providing flux-qubit noise channels.
+
+    Subclasses must implement the Hamiltonian derivatives with respect to
+    the three Josephson energies and declare their supported noise channels.
+    """
+
     @abstractmethod
     def d_hamiltonian_d_EJ1(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
+        """Return the derivative of the Hamiltonian with respect to ``EJ1``.
+
+        Parameters
+        ----------
+        energy_esys:
+            basis selector; see concrete implementation for details.
+        """
         pass
 
     @abstractmethod
     def d_hamiltonian_d_EJ2(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
+        """Return the derivative of the Hamiltonian with respect to ``EJ2``.
+
+        Parameters
+        ----------
+        energy_esys:
+            basis selector; see concrete implementation for details.
+        """
         pass
 
     @abstractmethod
     def d_hamiltonian_d_EJ3(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
+        """Return the derivative of the Hamiltonian with respect to ``EJ3``.
+
+        Parameters
+        ----------
+        energy_esys:
+            basis selector; see concrete implementation for details.
+        """
         pass
 
     @classmethod
     @abstractmethod
-    def supported_noise_channels(cls) -> List[str]:
+    def supported_noise_channels(cls) -> list[str]:
+        """Return a list of supported noise channels."""
         pass
 
     def tphi_1_over_f_cc1(
@@ -62,12 +94,11 @@ class NoisyFluxQubit(NoisySystem, ABC):
         A_noise: float = NOISE_PARAMS["A_cc"],
         i: int = 0,
         j: int = 1,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
-        r"""Calculate the 1/f dephasing time (or rate) due to critical current noise of
-        junction associated with Josephson energy :math:`EJ1`.
+        r"""Calculate 1/f dephasing time (or rate) from junction-1 critical-current noise.
 
         Parameters
         ----------
@@ -84,8 +115,8 @@ class NoisyFluxQubit(NoisySystem, ABC):
 
         Returns
         -------
-            decoherence time in units of :math:`2\pi` (system units),
-             or rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units),
+        or rate in inverse units.
         """
         if "tphi_1_over_f_cc1" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -108,12 +139,11 @@ class NoisyFluxQubit(NoisySystem, ABC):
         A_noise: float = NOISE_PARAMS["A_cc"],
         i: int = 0,
         j: int = 1,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
-        r"""Calculate the 1/f dephasing time (or rate) due to critical current noise of
-        junction associated with Josephson energy :math:`EJ2`.
+        r"""Calculate 1/f dephasing time (or rate) from junction-2 critical-current noise.
 
         Parameters
         ----------
@@ -130,8 +160,8 @@ class NoisyFluxQubit(NoisySystem, ABC):
 
         Returns
         -------
-            :math:`T_{\phi}` time or rate:
-            decoherence time in units of :math:`2\pi` (system units), or rate in inverse units.
+        :math:`T_{\phi}` time in units of :math:`2\pi` (system units),
+        or rate in inverse units.
         """
         if "tphi_1_over_f_cc2" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -154,12 +184,11 @@ class NoisyFluxQubit(NoisySystem, ABC):
         A_noise: float = NOISE_PARAMS["A_cc"],
         i: int = 0,
         j: int = 1,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
-        r"""Calculate the 1/f dephasing time (or rate) due to critical current noise of
-        junction associated with Josephson energy :math:`EJ3`.
+        r"""Calculate 1/f dephasing time (or rate) from junction-3 critical-current noise.
 
         Parameters
         ----------
@@ -176,7 +205,8 @@ class NoisyFluxQubit(NoisySystem, ABC):
 
         Returns
         -------
-            decoherence time in units of :math:`2\pi` (system units), or rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units),
+        or rate in inverse units.
         """
         if "tphi_1_over_f_cc3" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -199,14 +229,14 @@ class NoisyFluxQubit(NoisySystem, ABC):
         A_noise: float = NOISE_PARAMS["A_cc"],
         i: int = 0,
         j: int = 1,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         get_rate: bool = False,
         **kwargs,
     ) -> float:
-        r"""Calculate the 1/f dephasing time (or rate) due to critical-current noise from
-        all three Josephson junctions :math:`EJ1`, :math:`EJ2` and :math:`EJ3`. The
-        combined noise is calculated by summing the rates from the individual
-        contributions.
+        r"""Calculate 1/f dephasing time (or rate) from combined critical-current noise.
+
+        The combined rate is the sum of the contributions from each of the three
+        Josephson junctions :math:`E_{J1}`, :math:`E_{J2}` and :math:`E_{J3}`.
 
         Parameters
         ----------
@@ -223,8 +253,8 @@ class NoisyFluxQubit(NoisySystem, ABC):
 
         Returns
         -------
-            decoherence time in units of :math:`2\pi` (system units),
-            or rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units),
+        or rate in inverse units.
         """
         if "tphi_1_over_f_cc" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -265,8 +295,8 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     .. math::
 
        H_\text{flux}=&(n_{i}-n_{gi})4(E_\text{C})_{ij}(n_{j}-n_{gj}) \\
-                    -&E_{J}\cos\phi_{1}-E_{J}\cos\phi_{2}-\alpha E_{J}\cos(2\pi f
-                    + \phi_{1} - \phi_{2}),
+                    -&E_{J1}\cos\phi_{1}-E_{J2}\cos\phi_{2}
+                    -E_{J3}\cos(2\pi f + \phi_{1} - \phi_{2}),
 
     where :math:`i,j\in\{1,2\}` is represented in the charge basis for both degrees
     of freedom. Initialize with, for example::
@@ -280,25 +310,38 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
     Parameters
     ----------
-    EJ1, EJ2, EJ3: float
-        Josephson energy of the ith junction
-        `EJ1 = EJ2`, with `EJ3 = alpha * EJ1` and `alpha <= 1`
-    ECJ1, ECJ2, ECJ3: float
-        charging energy associated with the ith junction
-    ECg1, ECg2: float
-        charging energy associated with the capacitive coupling to ground for the
-        two islands
-    ng1, ng2: float
-        offset charge associated with island i
-    flux: float
+    EJ1:
+        Josephson energy of junction 1; typically `EJ1 = EJ2`.
+    EJ2:
+        Josephson energy of junction 2; typically `EJ1 = EJ2`.
+    EJ3:
+        Josephson energy of junction 3; typically `EJ3 = alpha * EJ1`
+        with `alpha <= 1`.
+    ECJ1:
+        charging energy associated with junction 1
+    ECJ2:
+        charging energy associated with junction 2
+    ECJ3:
+        charging energy associated with junction 3
+    ECg1:
+        charging energy associated with the capacitive coupling to ground
+        for island 1
+    ECg2:
+        charging energy associated with the capacitive coupling to ground
+        for island 2
+    ng1:
+        offset charge associated with island 1
+    ng2:
+        offset charge associated with island 2
+    flux:
         magnetic flux through the circuit loop, measured in units of the flux quantum
-    ncut: int
-        charge number cutoff for the charge on both islands `n`,  `n = -ncut, ..., ncut`
+    ncut:
+        charge number cutoff for the charge on both islands ``n``, ``n = -ncut, ..., ncut``
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
         optional string by which this instance can be referred to in :class:`HilbertSpace`
-        and `ParameterSweep`. If not provided, an id is auto-generated.
+        and :class:`ParameterSweep`. If not provided, an id is auto-generated.
     esys_method:
         method for esys diagonalization, callable or string representation
     esys_method_options:
@@ -337,11 +380,11 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         flux: float,
         ncut: int,
         truncated_dim: int = 6,
-        id_str: Optional[str] = None,
-        evals_method: Union[Callable, str, None] = None,
-        evals_method_options: Union[dict, None] = None,
-        esys_method: Union[Callable, str, None] = None,
-        esys_method_options: Union[dict, None] = None,
+        id_str: str | None = None,
+        evals_method: Callable | str | None = None,
+        evals_method_options: dict | None = None,
+        esys_method: Callable | str | None = None,
+        esys_method_options: dict | None = None,
     ) -> None:
         base.QubitBaseClass.__init__(
             self,
@@ -369,7 +412,8 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         )  # for plotting in phi_j basis
 
     @staticmethod
-    def default_params() -> Dict[str, Any]:
+    def default_params() -> dict[str, Any]:
+        """Return a dictionary of default parameter values for this qubit class."""
         return {
             "EJ1": 1.0,
             "EJ2": 1.0,
@@ -387,7 +431,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         }
 
     @classmethod
-    def supported_noise_channels(cls) -> List[str]:
+    def supported_noise_channels(cls) -> list[str]:
         """Return a list of supported noise channels."""
         return [
             "tphi_1_over_f_cc1",
@@ -417,7 +461,22 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return np.linalg.inv(Cmat) / 2.0
 
     def _evals_calc(self, evals_count: int) -> ndarray:
-        hamiltonian_mat = self.hamiltonian()
+        """Compute the lowest ``evals_count`` eigenvalues of the Hamiltonian.
+
+        Uses :func:`scipy.linalg.eigh` (Hermitian solver), which returns real
+        eigenvalues in ascending order; the result is additionally passed through
+        :func:`numpy.sort` for safety.
+
+        Parameters
+        ----------
+        evals_count:
+            number of lowest eigenvalues to return
+
+        Returns
+        -------
+        sorted real eigenvalues as a 1D ndarray
+        """
+        hamiltonian_mat = np.asarray(self.hamiltonian())
         evals = sp.linalg.eigh(
             hamiltonian_mat,
             subset_by_index=(0, evals_count - 1),
@@ -426,8 +485,24 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         )
         return np.sort(evals)
 
-    def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
-        hamiltonian_mat = self.hamiltonian()
+    def _esys_calc(self, evals_count: int) -> tuple[ndarray, ndarray]:
+        """Compute the lowest ``evals_count`` eigenpairs of the Hamiltonian.
+
+        Uses :func:`scipy.linalg.eigh` (Hermitian solver), which yields real
+        eigenvalues in ascending order; eigenvectors are then re-ordered by
+        :func:`scqubits.utils.spectrum_utils.order_eigensystem`.
+
+        Parameters
+        ----------
+        evals_count:
+            number of lowest eigenpairs to return
+
+        Returns
+        -------
+        tuple ``(evals, evecs)`` with eigenvalues as a 1D array and eigenvectors
+        as columns of a 2D array
+        """
+        hamiltonian_mat = np.asarray(self.hamiltonian())
         evals, evecs = sp.linalg.eigh(
             hamiltonian_mat,
             subset_by_index=(0, evals_count - 1),
@@ -438,12 +513,19 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return evals, evecs
 
     def hilbertdim(self) -> int:
-        """Return Hilbert space dimension."""
+        """Return the Hilbert space dimension."""
         return (2 * self.ncut + 1) ** 2
 
     def potential(self, phi1: ndarray, phi2: ndarray) -> ndarray:
-        """Return value of the potential energy at phi1 and phi2, disregarding
-        constants."""
+        r"""Return the potential energy at :math:`\phi_1` and :math:`\phi_2`.
+
+        Parameters
+        ----------
+        phi1:
+            value(s) of the phase variable :math:`\phi_1`
+        phi2:
+            value(s) of the phase variable :math:`\phi_2`
+        """
         return (
             -self.EJ1 * np.cos(phi1)
             - self.EJ2 * np.cos(phi2)
@@ -487,7 +569,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return kinetic_mat
 
     def potentialmat(self) -> ndarray:
-        """Return the potential energy matrix for the potential."""
+        """Return the potential energy matrix."""
         potential_mat = (
             -0.5
             * self.EJ1
@@ -523,25 +605,28 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return potential_mat
 
     def hamiltonian(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
-        """Return Hamiltonian in the basis obtained by employing charge basis for both
-        degrees of freedom or in the eigenenergy basis.
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
+        """Return the Hamiltonian in the charge or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns Hamiltonian in the basis obtained by employing charge basis for both degrees of freedom.
-            If `True`, the energy eigenspectrum is computed, returns Hamiltonian in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns Hamiltonian in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns the Hamiltonian in the charge basis
+            for both degrees of freedom. If ``True``, the energy eigenspectrum
+            is computed and the Hamiltonian is returned in the energy
+            eigenbasis. If ``energy_esys = esys``, where ``esys`` is a tuple
+            containing two ndarrays (eigenvalues and energy eigenvectors), the
+            Hamiltonian is returned in the energy eigenbasis without recomputing
+            the eigenspectrum.
 
         Returns
         -------
-            Hamiltonian in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, the Hamiltonian has dimensions of :attr:`truncated_dim`
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, Hamiltonian has dimensions of m x m,
-            for m given eigenvectors.
+        Hamiltonian in chosen basis as ndarray. In the energy eigenbasis (with
+        ``energy_esys=True``), the Hamiltonian has dimensions
+        ``truncated_dim x truncated_dim``; if an eigensystem is supplied via
+        ``energy_esys=esys``, the Hamiltonian has dimensions ``m x m`` for ``m``
+        given eigenvectors.
         """
         hamiltonian_mat = self.kineticmat() + self.potentialmat()
         return self.process_hamiltonian(
@@ -549,25 +634,28 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         )
 
     def d_hamiltonian_d_EJ1(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
-        """Returns operator representing a derivative of the Hamiltonian with respect to
-        EJ1 in the native Hamiltonian basis or eigenenergy basis.
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
+        """Return the derivative of the Hamiltonian with respect to ``EJ1``.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator in the native Hamiltonian basis.
-            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns the operator in the native Hamiltonian
+            basis. If ``True``, the energy eigenspectrum is computed and the
+            operator is returned in the energy eigenbasis. If
+            ``energy_esys = esys``, where ``esys`` is a tuple containing two
+            ndarrays (eigenvalues and energy eigenvectors), the operator is
+            returned in the energy eigenbasis without recomputing the
+            eigenspectrum.
 
         Returns
         -------
-            Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
-            for m given eigenvectors.
+        Operator in chosen basis as ndarray. In the energy eigenbasis (with
+        ``energy_esys=True``), the operator has dimensions
+        ``truncated_dim x truncated_dim``; if an eigensystem is supplied via
+        ``energy_esys=esys``,
+        the operator has dimensions ``m x m`` for ``m`` given eigenvectors.
         """
         native = -0.5 * np.kron(
             self._exp_i_phi_operator() + self._exp_i_phi_operator().T, self._identity()
@@ -575,25 +663,28 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def d_hamiltonian_d_EJ2(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
-        """Returns operator representing a derivative of the Hamiltonian with respect to
-        EJ2 in the native Hamiltonian basis or eigenenergy basis.
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
+        """Return the derivative of the Hamiltonian with respect to ``EJ2``.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator in the native Hamiltonian basis.
-            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns the operator in the native Hamiltonian
+            basis. If ``True``, the energy eigenspectrum is computed and the
+            operator is returned in the energy eigenbasis. If
+            ``energy_esys = esys``, where ``esys`` is a tuple containing two
+            ndarrays (eigenvalues and energy eigenvectors), the operator is
+            returned in the energy eigenbasis without recomputing the
+            eigenspectrum.
 
         Returns
         -------
-            Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
-            for m given eigenvectors.
+        Operator in chosen basis as ndarray. In the energy eigenbasis (with
+        ``energy_esys=True``), the operator has dimensions
+        ``truncated_dim x truncated_dim``; if an eigensystem is supplied via
+        ``energy_esys=esys``,
+        the operator has dimensions ``m x m`` for ``m`` given eigenvectors.
         """
         native = -0.5 * np.kron(
             self._identity(), self._exp_i_phi_operator() + self._exp_i_phi_operator().T
@@ -601,25 +692,28 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def d_hamiltonian_d_EJ3(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
-        """Returns operator representing a derivative of the Hamiltonian with respect to
-        EJ3 in the native Hamiltonian basis or eigenenergy basis.
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
+        """Return the derivative of the Hamiltonian with respect to ``EJ3``.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator in the native Hamiltonian basis.
-            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns the operator in the native Hamiltonian
+            basis. If ``True``, the energy eigenspectrum is computed and the
+            operator is returned in the energy eigenbasis. If
+            ``energy_esys = esys``, where ``esys`` is a tuple containing two
+            ndarrays (eigenvalues and energy eigenvectors), the operator is
+            returned in the energy eigenbasis without recomputing the
+            eigenspectrum.
 
         Returns
         -------
-            Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
-            for m given eigenvectors.
+        Operator in chosen basis as ndarray. In the energy eigenbasis (with
+        ``energy_esys=True``), the operator has dimensions
+        ``truncated_dim x truncated_dim``; if an eigensystem is supplied via
+        ``energy_esys=esys``,
+        the operator has dimensions ``m x m`` for ``m`` given eigenvectors.
         """
         native = (
             -0.5
@@ -637,25 +731,28 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def d_hamiltonian_d_flux(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
-        """Returns the operator representing a derivative of the Hamiltonian with
-        respect to flux in the native Hamiltonian basis or eigenenergy basis.
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
+        """Return the derivative of the Hamiltonian with respect to ``flux``.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator in the native Hamiltonian basis.
-            If `True`, the energy eigenspectrum is computed, returns operator in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns the operator in the native Hamiltonian
+            basis. If ``True``, the energy eigenspectrum is computed and the
+            operator is returned in the energy eigenbasis. If
+            ``energy_esys = esys``, where ``esys`` is a tuple containing two
+            ndarrays (eigenvalues and energy eigenvectors), the operator is
+            returned in the energy eigenbasis without recomputing the
+            eigenspectrum.
 
         Returns
         -------
-            Operator in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m,
-            for m given eigenvectors.
+        Operator in chosen basis as ndarray. In the energy eigenbasis (with
+        ``energy_esys=True``), the operator has dimensions
+        ``truncated_dim x truncated_dim``; if an eigensystem is supplied via
+        ``energy_esys=esys``,
+        the operator has dimensions ``m x m`` for ``m`` given eigenvectors.
         """
         native = (
             2j
@@ -678,228 +775,258 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def _n_operator(self) -> ndarray:
+        r"""Return the single-island charge-number operator in the charge basis."""
         diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex128)
         return np.diag(diag_elements)
 
     def _exp_i_phi_operator(self) -> ndarray:
+        r"""Return the single-island operator :math:`e^{i\phi}` in the charge basis."""
         dim = 2 * self.ncut + 1
         off_diag_elements = np.ones(dim - 1, dtype=np.complex128)
         e_iphi_matrix = np.diag(off_diag_elements, k=-1)
         return e_iphi_matrix
 
     def _identity(self) -> ndarray:
+        """Return the single-island identity matrix in the charge basis."""
         dim = 2 * self.ncut + 1
         return np.eye(dim)
 
     def n_1_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
-        r"""Returns the charge number operator conjugate to :math:`\phi_1` in the charge?
-        or eigenenergy basis.
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
+        r"""Return charge-number operator conjugate to :math:`\phi_1`.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the charge number operator conjugate to :math:`\phi_1` in the charge basis.
-            If `True`, the energy eigenspectrum is computed, returns the charge number operator conjugate to :math:`\phi_1` in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns the charge number operator conjugate to :math:`\phi_1` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns the operator in the charge basis. If
+            ``True``, the energy eigenspectrum is computed and the operator is
+            returned in the energy eigenbasis. If ``energy_esys = esys``, where
+            ``esys`` is a tuple containing two
+            ndarrays (eigenvalues and energy eigenvectors), the operator is
+            returned in the energy eigenbasis without recomputing the
+            eigenspectrum.
 
         Returns
         -------
-            Charge number operator conjugate to :math:`\phi_1` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m, for m given eigenvectors.
+        Charge-number operator conjugate to :math:`\phi_1` in chosen basis as
+        ndarray. In the energy eigenbasis (with ``energy_esys=True``), the
+        operator has dimensions ``truncated_dim x truncated_dim``; if an
+        eigensystem is supplied via ``energy_esys=esys``, the operator has
+        dimensions ``m x m`` for ``m`` given eigenvectors.
         """
         native = np.kron(self._n_operator(), self._identity())
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def n_2_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
-        r"""Returns the charge number operator conjugate to :math:`\phi_2` in the charge?
-        or eigenenergy basis.
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
+        r"""Return charge-number operator conjugate to :math:`\phi_2`.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns the charge number operator conjugate to :math:`\phi_2` in the charge basis.
-            If `True`, the energy eigenspectrum is computed, returns the charge number operator conjugate to :math:`\phi_2` in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns the charge number operator conjugate to :math:`\phi_2` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns the operator in the charge basis. If
+            ``True``, the energy eigenspectrum is computed and the operator is
+            returned in the energy eigenbasis. If ``energy_esys = esys``, where
+            ``esys`` is a tuple containing two
+            ndarrays (eigenvalues and energy eigenvectors), the operator is
+            returned in the energy eigenbasis without recomputing the
+            eigenspectrum.
 
         Returns
         -------
-            Charge number operator conjugate to :math:`\phi_2` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless `energy_esys` is specified, operator has dimensions of :attr:`truncated_dim`
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, operator has dimensions of m x m, for m given eigenvectors.
+        Charge-number operator conjugate to :math:`\phi_2` in chosen basis as
+        ndarray. In the energy eigenbasis (with ``energy_esys=True``), the
+        operator has dimensions ``truncated_dim x truncated_dim``; if an
+        eigensystem is supplied via ``energy_esys=esys``, the operator has
+        dimensions ``m x m`` for ``m`` given eigenvectors.
         """
         native = np.kron(self._identity(), self._n_operator())
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def exp_i_phi_1_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
-        r"""Returns operator :math:`e^{i\phi_1}` in the charge or eigenenergy basis.
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
+        r"""Return operator :math:`e^{i\phi_1}` in the charge or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator :math:`e^{i\phi_1}` in the charge basis.
-            If `True`, the energy eigenspectrum is computed, returns operator :math:`e^{i\phi_1}` in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator :math:`e^{i\phi_1}` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns the operator in the charge basis. If
+            ``True``, the energy eigenspectrum is computed and the operator is
+            returned in the energy eigenbasis. If ``energy_esys = esys``, where
+            ``esys`` is a tuple containing two
+            ndarrays (eigenvalues and energy eigenvectors), the operator is
+            returned in the energy eigenbasis without recomputing the
+            eigenspectrum.
 
         Returns
         -------
-            Operator :math:`e^{i\phi_1}` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`e^{i\phi_1}` has dimensions of truncated_dim
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`e^{i\phi_1}` has dimensions of m x m,
-            for m given eigenvectors.
+        Operator :math:`e^{i\phi_1}` in chosen basis as ndarray. In the energy
+        eigenbasis (with ``energy_esys=True``), it has dimensions
+        ``truncated_dim x truncated_dim``; if an eigensystem is supplied via
+        ``energy_esys=esys``, it has dimensions ``m x m`` for ``m`` given
+        eigenvectors.
         """
         native = np.kron(self._exp_i_phi_operator(), self._identity())
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def exp_i_phi_2_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
-        r"""Returns operator :math:`e^{i\phi_2}` in the charge or eigenenergy basis.
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
+        r"""Return operator :math:`e^{i\phi_2}` in the charge or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator :math:`e^{i\phi_2}` in the charge basis.
-            If `True`, the energy eigenspectrum is computed, returns operator :math:`e^{i\phi_2}` in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator :math:`e^{i\phi_2}` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns the operator in the charge basis. If
+            ``True``, the energy eigenspectrum is computed and the operator is
+            returned in the energy eigenbasis. If ``energy_esys = esys``, where
+            ``esys`` is a tuple containing two
+            ndarrays (eigenvalues and energy eigenvectors), the operator is
+            returned in the energy eigenbasis without recomputing the
+            eigenspectrum.
 
         Returns
         -------
-            Operator :math:`e^{i\phi_2}` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`e^{i\phi_2}` has dimensions of truncated_dim
-            x :attr:`truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`e^{i\phi_2}` has dimensions of m x m,
-            for m given eigenvectors.
+        Operator :math:`e^{i\phi_2}` in chosen basis as ndarray. In the energy
+        eigenbasis (with ``energy_esys=True``), it has dimensions
+        ``truncated_dim x truncated_dim``; if an eigensystem is supplied via
+        ``energy_esys=esys``, it has dimensions ``m x m`` for ``m`` given
+        eigenvectors.
         """
         native = np.kron(self._identity(), self._exp_i_phi_operator())
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def cos_phi_1_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
-        r"""
-        Returns operator :math:`\cos \phi_1` in the charge or eigenenergy basis.
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
+        r"""Return operator :math:`\cos \phi_1` in the charge or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator :math:`\cos \phi_1` in the charge basis.
-            If `True`, the energy eigenspectrum is computed, returns operator :math:`\cos \phi_1` in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator :math:`\cos \phi_1` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns the operator in the charge basis. If
+            ``True``, the energy eigenspectrum is computed and the operator is
+            returned in the energy eigenbasis. If ``energy_esys = esys``, where
+            ``esys`` is a tuple containing two
+            ndarrays (eigenvalues and energy eigenvectors), the operator is
+            returned in the energy eigenbasis without recomputing the
+            eigenspectrum.
 
         Returns
         -------
-            Operator :math:`\cos \phi_1` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`\cos \phi_1` has dimensions of truncated_dim
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\cos \phi_1` has dimensions of m x m,
-            for m given eigenvectors.
+        Operator :math:`\cos \phi_1` in chosen basis as ndarray. In the energy
+        eigenbasis (with ``energy_esys=True``), it has dimensions
+        ``truncated_dim x truncated_dim``; if an eigensystem is supplied via
+        ``energy_esys=esys``, it has dimensions ``m x m`` for ``m`` given
+        eigenvectors.
         """
-        cos_op = 0.5 * self.exp_i_phi_1_operator()
+        cos_op = 0.5 * np.asarray(self.exp_i_phi_1_operator())
         cos_op += cos_op.T
         native = cos_op
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def cos_phi_2_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
-        r"""
-        Returns operator :math:`\cos \phi_2` in the charge or eigenenergy basis.
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
+        r"""Return operator :math:`\cos \phi_2` in the charge or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator :math:`\cos \phi_2` in the charge basis.
-            If `True`, the energy eigenspectrum is computed, returns operator :math:`\cos \phi_2` in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator :math:`\cos \phi_2` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns the operator in the charge basis. If
+            ``True``, the energy eigenspectrum is computed and the operator is
+            returned in the energy eigenbasis. If ``energy_esys = esys``, where
+            ``esys`` is a tuple containing two
+            ndarrays (eigenvalues and energy eigenvectors), the operator is
+            returned in the energy eigenbasis without recomputing the
+            eigenspectrum.
 
         Returns
         -------
-            Operator :math:`\cos \phi_2` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`\cos \phi_2` has dimensions of truncated_dim
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\cos \phi_2` has dimensions of m x m,
-            for m given eigenvectors.
+        Operator :math:`\cos \phi_2` in chosen basis as ndarray. In the energy
+        eigenbasis (with ``energy_esys=True``), it has dimensions
+        ``truncated_dim x truncated_dim``; if an eigensystem is supplied via
+        ``energy_esys=esys``, it has dimensions ``m x m`` for ``m`` given
+        eigenvectors.
         """
-        cos_op = 0.5 * self.exp_i_phi_2_operator()
+        cos_op = 0.5 * np.asarray(self.exp_i_phi_2_operator())
         cos_op += cos_op.T
         native = cos_op
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def sin_phi_1_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
-        r"""
-        Returns operator :math:`\sin \phi_1` in the charge or eigenenergy basis.
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
+        r"""Return operator :math:`\sin \phi_1` in the charge or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator :math:`\sin \phi_1` in the charge basis.
-            If `True`, the energy eigenspectrum is computed, returns operator :math:`\sin \phi_1` in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator :math:`\sin \phi_1` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns the operator in the charge basis. If
+            ``True``, the energy eigenspectrum is computed and the operator is
+            returned in the energy eigenbasis. If ``energy_esys = esys``, where
+            ``esys`` is a tuple containing two
+            ndarrays (eigenvalues and energy eigenvectors), the operator is
+            returned in the energy eigenbasis without recomputing the
+            eigenspectrum.
 
         Returns
         -------
-            Operator :math:`\sin \phi_1` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`\sin \phi_1` has dimensions of truncated_dim
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\sin \phi_1` has dimensions of m x m,
-            for m given eigenvectors.
+        Operator :math:`\sin \phi_1` in chosen basis as ndarray. In the energy
+        eigenbasis (with ``energy_esys=True``), it has dimensions
+        ``truncated_dim x truncated_dim``; if an eigensystem is supplied via
+        ``energy_esys=esys``, it has dimensions ``m x m`` for ``m`` given
+        eigenvectors.
         """
-        sin_op = -1j * 0.5 * self.exp_i_phi_1_operator()
+        sin_op = -1j * 0.5 * np.asarray(self.exp_i_phi_1_operator())
         sin_op += sin_op.conj().T
         native = sin_op
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def sin_phi_2_operator(
-        self, energy_esys: Union[bool, Tuple[ndarray, ndarray]] = False
-    ) -> ndarray:
-        r"""
-        Returns operator :math:`\sin \phi_2` in the charge or eigenenergy basis.
+        self, energy_esys: bool | tuple[ndarray, ndarray] = False
+    ) -> ndarray | csc_matrix:
+        r"""Return operator :math:`\sin \phi_2` in the charge or eigenenergy basis.
 
         Parameters
         ----------
         energy_esys:
-            If `False` (default), returns operator :math:`\sin \phi_2` in the charge basis.
-            If `True`, the energy eigenspectrum is computed, returns operator :math:`\sin \phi_1` in the energy eigenbasis.
-            If `energy_esys = esys`, where esys is a tuple containing two ndarrays (eigenvalues and energy eigenvectors),
-            returns operator :math:`\sin \phi_1` in the energy eigenbasis, and does not have to recalculate eigenspectrum.
+            If ``False`` (default), returns the operator in the charge basis. If
+            ``True``, the energy eigenspectrum is computed and the operator is
+            returned in the energy eigenbasis. If ``energy_esys = esys``, where
+            ``esys`` is a tuple containing two
+            ndarrays (eigenvalues and energy eigenvectors), the operator is
+            returned in the energy eigenbasis without recomputing the
+            eigenspectrum.
 
         Returns
         -------
-            Operator :math:`\sin \phi_2` in chosen basis as ndarray. If the eigenenergy basis is chosen,
-            unless energy_esys is specified, :math:`\sin \phi_2` has dimensions of truncated_dim
-            x `truncated_dim`. Otherwise, if eigenenergy basis is chosen, :math:`\sin \phi_2` has dimensions of m x m,
-            for m given eigenvectors.
+        Operator :math:`\sin \phi_2` in chosen basis as ndarray. In the energy
+        eigenbasis (with ``energy_esys=True``), it has dimensions
+        ``truncated_dim x truncated_dim``; if an eigensystem is supplied via
+        ``energy_esys=esys``, it has dimensions ``m x m`` for ``m`` given
+        eigenvectors.
         """
-        sin_op = -1j * 0.5 * self.exp_i_phi_2_operator()
+        sin_op = -1j * 0.5 * np.asarray(self.exp_i_phi_2_operator())
         sin_op += sin_op.conj().T
         native = sin_op
         return self.process_op(native_op=native, energy_esys=energy_esys)
 
     def plot_potential(
         self,
-        phi_grid: discretization.Grid1d = None,
-        contour_vals: ndarray = None,
+        phi_grid: discretization.Grid1d | None = None,
+        contour_vals: ndarray | None = None,
         **kwargs,
-    ) -> Tuple[Figure, Axes]:
-        r"""
-        Draw contour plot of the potential energy.
+    ) -> tuple[Figure, Axes]:
+        r"""Draw a contour plot of the potential energy.
 
         Parameters
         ----------
         phi_grid:
-            used for setting a custom grid for :math:`\phi`; if None use self._default_grid
+            custom grid for :math:`\phi`; if ``None``, uses ``self._default_grid``
         contour_vals:
             specific contours to draw
         **kwargs:
@@ -915,21 +1042,20 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
     def wavefunction(
         self,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         which: int = 0,
-        phi_grid: discretization.Grid1d = None,
+        phi_grid: discretization.Grid1d | None = None,
     ) -> storage.WaveFunctionOnGrid:
-        r"""
-        Return a flux qubit wave function in :math:`\phi_1`, :math:`\phi2` basis
+        r"""Return a flux qubit wave function in the :math:`\phi_1`, :math:`\phi_2` basis.
 
         Parameters
         ----------
         esys:
             eigenvalues, eigenvectors
         which:
-            index of desired wave function (default value = 0)
+            index of desired wave function (default: 0)
         phi_grid:
-            used for setting a custom grid for :math:`\phi`; if None use self._default_grid
+            custom grid for :math:`\phi`; if ``None``, uses ``self._default_grid``
         """
         evals_count = max(which + 1, 3)
         if esys is None:
@@ -961,35 +1087,35 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
     def plot_wavefunction(
         self,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: tuple[ndarray, ndarray] | None = None,
         which: int = 0,
-        phi_grid: discretization.Grid1d = None,
+        phi_grid: discretization.Grid1d | None = None,
         mode: str = "abs",
         zero_calibrate: bool = True,
         **kwargs,
-    ) -> Tuple[Figure, Axes]:
-        r"""Plots 2d phase-basis wave function.
+    ) -> tuple[Figure, Axes]:
+        r"""Plot the 2D phase-basis wave function.
 
         Parameters
         ----------
         esys:
-            eigenvalues, eigenvectors as obtained from `.eigensystem()`
+            eigenvalues, eigenvectors as obtained from :meth:`eigensystem`
         which:
-            index of wave function to be plotted (default value = 0)
+            index of wave function to be plotted (default: 0)
         phi_grid:
-            used for setting a custom grid for :math:`\phi`; if None use self._default_grid
+            custom grid for :math:`\phi`; if ``None``, uses ``self._default_grid``
         mode:
-            choices as specified in `constants.MODE_FUNC_DICT`
-            (default value = 'abs')
+            choices as specified in ``constants.MODE_FUNC_DICT``
+            (default: ``'abs'``)
         zero_calibrate:
-            if True, colors are adjusted to use zero wavefunction amplitude as the
-            neutral color in the palette
+            if ``True``, colors are adjusted to use zero wave function amplitude
+            as the neutral color in the palette
         **kwargs:
             plot options
         """
         amplitude_modifier = constants.MODE_FUNC_DICT[mode]
         wavefunc = self.wavefunction(esys, phi_grid=phi_grid, which=which)
-        wavefunc.amplitudes = amplitude_modifier(wavefunc.amplitudes)
+        wavefunc.amplitudes = amplitude_modifier(wavefunc.amplitudes)  # type: ignore[operator]
         if "figsize" not in kwargs:
             kwargs["figsize"] = (5, 5)
         return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)

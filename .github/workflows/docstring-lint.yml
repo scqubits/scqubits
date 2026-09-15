@@ -1,0 +1,43 @@
+name: docstring-lint
+
+on:
+  pull_request:
+    paths:
+      - 'scqubits/**/*.py'
+      - 'tools/docstring_lint.py'
+      - '.github/workflows/docstring-lint.yml'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out PR head with full history
+        uses: actions/checkout@v4
+        with:
+          # Need the full history (or at least the merge-base) so the
+          # linter can read main's version of each file via `git show`.
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Lint docstrings (compare against main)
+        # The linter is stdlib-only; no install step needed.
+        # ``--compare-to origin/main`` ensures only NEW docstring issues
+        # introduced by the PR cause a failure.  Pre-existing issues at
+        # main remain reported in the "FIXED" section if the PR happens
+        # to fix them, but they don't fail the build.
+        run: |
+          python tools/docstring_lint.py \
+              --compare-to origin/main \
+              scqubits/
+
+      - name: Self-test the linter
+        # Runs the linter's own unit tests so a regression in the tool
+        # itself is caught at the same gate that uses it.
+        run: |
+          pip install pytest
+          python -m pytest tools/test_docstring_lint.py

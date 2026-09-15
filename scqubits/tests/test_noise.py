@@ -12,6 +12,10 @@
 ############################################################################
 
 import numpy as np
+import pytest
+import scipy as sp
+
+from scipy.sparse import csc_matrix
 
 import scqubits.settings
 
@@ -24,6 +28,7 @@ from scqubits import (
     TunableTransmon,
     ZeroPi,
 )
+from scqubits.core.noise import calc_therm_ratio, convert_eV_to_Hz
 
 # WE do not need a warning during testing
 scqubits.settings.T1_DEFAULT_WARNING = False
@@ -178,3 +183,152 @@ class TestNoise:
             phi_cut=7,
         )
         assert compare_coherence_to_reference(qubit, "Cos2PhiQubit")
+
+
+@pytest.fixture
+def transmon():
+    return Transmon(EJ=0.5, EC=12.0, ng=0.3, ncut=150)
+
+
+@pytest.fixture
+def tunable_transmon():
+    return TunableTransmon(EJmax=20.0, EC=0.5, d=0.00, flux=0.04, ng=0.3, ncut=150)
+
+
+class TestNoiseHelpers:
+    """Unit tests for module-level helper functions in noise.py."""
+
+    def test_calc_therm_ratio_standard_units(self):
+        omega = 2 * np.pi * 5e9
+        T = 0.020
+        expected = sp.constants.hbar * omega / (sp.constants.k * T)
+        assert np.isclose(
+            calc_therm_ratio(omega, T, omega_in_standard_units=True), expected
+        )
+
+    def test_calc_therm_ratio_system_units(self):
+        omega_sys = 2 * np.pi * 5.0
+        T = 0.020
+        direct = calc_therm_ratio(2 * np.pi * 5e9, T, omega_in_standard_units=True)
+        assert np.isclose(calc_therm_ratio(omega_sys, T), direct)
+
+    def test_convert_eV_to_Hz(self):
+        expected = sp.constants.e / sp.constants.h
+        assert np.isclose(convert_eV_to_Hz(1.0), expected)
+        assert np.isclose(convert_eV_to_Hz(0.0), 0.0)
+
+
+class TestNoiseBranches:
+    @pytest.mark.parametrize(
+        "channel",
+        [
+            "tphi_1_over_f_cc",
+            "tphi_1_over_f_ng",
+            "t1_capacitive",
+            "t1_charge_impedance",
+        ],
+    )
+    def test_get_rate_is_reciprocal(self, transmon, channel):
+        time = getattr(transmon, channel)(get_rate=False)
+        rate = getattr(transmon, channel)(get_rate=True)
+        assert np.isclose(rate * time, 1.0)
+
+    @pytest.mark.parametrize(
+        "channel",
+        [
+            "tphi_1_over_f_cc",
+            "tphi_1_over_f_ng",
+            "t1_capacitive",
+            "t1_charge_impedance",
+        ],
+    )
+    def test_explicit_esys_matches_default_esys(self, transmon, channel):
+        esys = transmon.eigensys(evals_count=4)
+        default = getattr(transmon, channel)()
+        explicit = getattr(transmon, channel)(esys=esys)
+        assert np.isclose(default, explicit)
+
+    def test_unsupported_channel_raises(self, transmon):
+        with pytest.raises(RuntimeError, match="not supported"):
+            transmon.tphi_1_over_f_flux()
+
+    def test_tphi_1_over_f_rejects_equal_or_negative_indices(self, transmon):
+        esys = transmon.eigensys(evals_count=2)
+        noise_op = np.eye(transmon.hilbertdim())
+        with pytest.raises(ValueError, match="must be different"):
+            transmon.tphi_1_over_f(A_noise=1e-6, i=0, j=0, noise_op=noise_op, esys=esys)
+        with pytest.raises(ValueError, match="must be different"):
+            transmon.tphi_1_over_f(
+                A_noise=1e-6, i=-1, j=1, noise_op=noise_op, esys=esys
+            )
+
+    def test_t1_effective_equals_sum_of_rates(self, transmon):
+        t1_channels = [
+            c for c in transmon.effective_noise_channels() if c.startswith("t1")
+        ]
+        esys = transmon.eigensys(evals_count=3)
+        individual_rates = [
+            getattr(transmon, c)(esys=esys, get_rate=True) for c in t1_channels
+        ]
+        expected_rate = sum(individual_rates)
+        actual_rate = transmon.t1_effective(esys=esys, get_rate=True)
+        assert np.isclose(actual_rate, expected_rate)
+
+    def test_t2_effective_sums_tphi_rates_and_halved_t1_rates(self, transmon):
+        channels = transmon.effective_noise_channels()
+        esys = transmon.eigensys(evals_count=3)
+        expected_rate = 0.0
+        for channel in channels:
+            rate_k = getattr(transmon, channel)(esys=esys, get_rate=True)
+            expected_rate += 0.5 * rate_k if channel.startswith("t1") else rate_k
+        actual_rate = transmon.t2_effective(esys=esys, get_rate=True)
+        assert np.isclose(actual_rate, expected_rate)
+
+    def test_t1_effective_rejects_tphi_channel(self, transmon):
+        with pytest.raises(ValueError, match="Only t1 channels"):
+            transmon.t1_effective(noise_channels=["tphi_1_over_f_cc"])
+
+    def test_t1_effective_string_channel_equals_one_element_list(self, transmon):
+        esys = transmon.eigensys(evals_count=3)
+        from_str = transmon.t1_effective(
+            noise_channels="t1_capacitive", esys=esys, get_rate=True
+        )
+        from_list = transmon.t1_effective(
+            noise_channels=["t1_capacitive"], esys=esys, get_rate=True
+        )
+        assert np.isclose(from_str, from_list)
+
+    def test_effective_rate_rejects_invalid_channel_type(self, transmon):
+        esys = transmon.eigensys(evals_count=3)
+        with pytest.raises(ValueError, match="noise_channels"):
+            transmon._effective_rate(
+                noise_channels=[123],
+                common_noise_options={},
+                esys=esys,
+                noise_type="t1",
+            )
+
+    def test_tphi_1_over_f_dense_vs_sparse_noise_op(self, transmon):
+        esys = transmon.eigensys(evals_count=3)
+        dense_op = np.eye(transmon.hilbertdim()) * 0.3
+        sparse_op = csc_matrix(dense_op)
+        rate_dense = transmon.tphi_1_over_f(
+            A_noise=1e-6, i=0, j=1, noise_op=dense_op, esys=esys, get_rate=True
+        )
+        rate_sparse = transmon.tphi_1_over_f(
+            A_noise=1e-6, i=0, j=1, noise_op=sparse_op, esys=esys, get_rate=True
+        )
+        assert np.isclose(rate_dense, rate_sparse)
+
+    def test_t1_bidirectional_rate_is_at_least_unidirectional_rate(self, transmon):
+        # total=True sums the i->j and j->i spectral-density contributions;
+        # total=False keeps only one. The total rate must therefore be >= .
+        esys = transmon.eigensys(evals_count=3)
+        rate_bidirectional = transmon.t1_capacitive(
+            i=1, j=0, esys=esys, total=True, get_rate=True
+        )
+        rate_unidirectional = transmon.t1_capacitive(
+            i=1, j=0, esys=esys, total=False, get_rate=True
+        )
+        assert rate_bidirectional >= rate_unidirectional
+        assert rate_bidirectional > 0 and rate_unidirectional > 0

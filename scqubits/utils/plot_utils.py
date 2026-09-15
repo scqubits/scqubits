@@ -9,11 +9,14 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
+from __future__ import annotations
+
 import functools
 import operator
 import os
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 import matplotlib as mpl
 import numpy as np
@@ -28,7 +31,6 @@ from scqubits.utils import plot_defaults as defaults
 
 if TYPE_CHECKING:
     from scqubits.core.storage import WaveFunction
-
 
 # A dictionary of plotting options that are directly passed to specific matplotlib's
 # plot commands.
@@ -49,10 +51,10 @@ _direct_plot_options = {
 
 @mpl.rc_context(matplotlib_settings)
 def _extract_kwargs_options(
-    kwargs: Dict[str, Any],
+    kwargs: dict[str, Any],
     plot_type: str,
-    direct_plot_options: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    direct_plot_options: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Select options from kwargs for a given plot_type and return them in a dictionary.
 
     Parameters
@@ -82,7 +84,7 @@ def _extract_kwargs_options(
 
 @mpl.rc_context(matplotlib_settings)
 def _process_options(
-    figure: Figure, axes: Axes, opts: Optional[Dict[str, Any]] = None, **kwargs
+    figure: Figure, axes: Axes, opts: dict[str, Any] | None = None, **kwargs
 ) -> None:
     """Processes plotting options.
 
@@ -104,7 +106,7 @@ def _process_options(
         for key, value in kwargs.items()
         if key
         not in functools.reduce(
-            operator.concat, _direct_plot_options.values()  # type:ignore
+            operator.concat, _direct_plot_options.values()  # type: ignore[arg-type]
         )
     }
 
@@ -156,10 +158,10 @@ def despine_axes(axes: Axes) -> None:
 
 @mpl.rc_context(matplotlib_settings)
 def scale_wavefunctions(
-    wavefunc_list: List["WaveFunction"],
+    wavefunc_list: list["WaveFunction"],
     potential_vals: np.ndarray,
-    scaling: Optional[float],
-) -> List["WaveFunction"]:
+    scaling: float | None,
+) -> list["WaveFunction"]:
     scale_factors = np.array(
         [wavefunc.amplitude_scale_factor(potential_vals) for wavefunc in wavefunc_list]
     )
@@ -191,8 +193,8 @@ def plot_wavefunction_to_axes(
 def plot_potential_to_axes(
     axes: Axes,
     x_vals: ndarray,
-    potential_vals: Union[ndarray, List[float]],
-    offset_list: Union[ndarray, List[float]],
+    potential_vals: ndarray | list[float],
+    offset_list: ndarray | list[float],
     **kwargs,
 ) -> None:
     y_min = np.min(potential_vals)
@@ -201,7 +203,7 @@ def plot_potential_to_axes(
 
     y_max += 0.3 * y_range
     y_min = np.min(potential_vals) - 0.1 * y_range
-    axes.set_ylim([y_min, y_max])
+    axes.set_ylim((y_min, y_max))
 
     axes.plot(
         x_vals, potential_vals, color="gray", **_extract_kwargs_options(kwargs, "plot")
@@ -227,7 +229,7 @@ def add_numbers_to_axes(
 
 
 @mpl.rc_context(matplotlib_settings)
-def color_normalize(vals, mode: str) -> Tuple[float, float, mpl.colors.Normalize]:
+def color_normalize(vals, mode: str) -> tuple[float, float, mpl.colors.Normalize]:
     minval = min(vals)
     maxval = max(vals)
     if mode in ["abs", "abs_sqr"]:

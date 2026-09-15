@@ -11,14 +11,16 @@
 ############################################################################
 
 import importlib
+import warnings
+
 import numpy as np
 import pytest
 import scipy as sp
+
 import scqubits as scq
-import warnings
 import scqubits.utils.spectrum_utils as spec_utils
 
-from scqubits import Fluxonium, Transmon, HilbertSpace
+from scqubits import Fluxonium, HilbertSpace, Transmon
 
 diag_methods = scq.DIAG_METHODS.keys()
 

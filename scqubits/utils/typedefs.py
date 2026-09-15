@@ -12,25 +12,25 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, NewType, Tuple, Union
+from typing import TYPE_CHECKING, Union
 
 from numpy import ndarray
 from scipy.sparse import csc_matrix, dia_matrix
 
 if TYPE_CHECKING:
     from scqubits import GenericQubit, KerrOscillator, Oscillator
-    from scqubits.core.qubit_base import QubitBaseClass
+    from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass
 
 QuantumSys = Union["QubitBaseClass", "Oscillator", "KerrOscillator", "GenericQubit"]
 
-OscillatorList = List["Oscillator"]
-QubitList = List[Union["QubitBaseClass", "GenericQubit", "KerrOscillator"]]
+OscillatorList = list["Oscillator"]
+QubitList = list[Union["QubitBaseClass", "GenericQubit", "KerrOscillator"]]
 
 OperatorSpecification = Union[str, ndarray, csc_matrix, dia_matrix]
 
-NpIndex = Union[int, slice, Tuple[int], List[int]]
-NpIndexTuple = Tuple[NpIndex, ...]
+NpIndex = Union[int, slice, tuple[int], list[int]]
+NpIndexTuple = tuple[NpIndex, ...]
 NpIndices = Union[NpIndex, NpIndexTuple]
 
-GIndex = Union[int, float, complex, slice, Tuple[int], List[int]]
-GIndexTuple = Tuple[GIndex, ...]
+GIndex = Union[int, float, complex, slice, tuple[int], list[int]]
+GIndexTuple = tuple[GIndex, ...]

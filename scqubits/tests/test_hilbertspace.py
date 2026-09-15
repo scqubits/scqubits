@@ -16,6 +16,7 @@ import pytest
 import qutip as qt
 
 import scqubits as scq
+import scqubits.settings as settings
 
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.utils.spectrum_utils import get_matrixelement_table
@@ -594,3 +595,83 @@ class TestHilbertSpace:
 
         hspace.generate_lookup(ordering="DE")
         assert np.all(hspace["dressed_indices"][0].astype(int) == reference_indices)
+
+
+class TestAutoSparseDiag:
+    """Gating and the silent-mis-convergence guard for automatic sparse diag."""
+
+    @staticmethod
+    def _hermitian_qobj(dim, seed=12345):
+        rng = np.random.default_rng(seed)
+        mat = rng.standard_normal((dim, dim)) + 1j * rng.standard_normal((dim, dim))
+        mat = mat + mat.conj().T
+        return qt.Qobj(mat)
+
+    def test_gate_off_when_disabled(self, monkeypatch):
+        from scqubits.core.hilbert_space import _auto_sparse_diag_method
+
+        monkeypatch.setattr(settings, "AUTO_SPARSE_DIAG", False)
+        assert _auto_sparse_diag_method(5000, 10, "esys") is None
+
+    def test_gate_off_below_min_dim_and_for_many_evals(self, monkeypatch):
+        from scqubits.core.hilbert_space import _auto_sparse_diag_method
+
+        monkeypatch.setattr(settings, "AUTO_SPARSE_DIAG", True)
+        monkeypatch.setattr(settings, "SPARSE_DIAG_MIN_DIM", 1000)
+        monkeypatch.setattr(settings, "SPARSE_DIAG_MAX_EVALS_FRAC", 0.1)
+        assert _auto_sparse_diag_method(999, 5, "esys") is None  # below min dim
+        assert _auto_sparse_diag_method(5000, 600, "esys") is None  # too many evals
+        assert _auto_sparse_diag_method(5000, 10, "esys") == "esys_scipy_sparse"
+        assert _auto_sparse_diag_method(5000, 10, "evals") == "evals_scipy_sparse"
+
+    def test_trustworthy_accepts_genuine_esys(self):
+        from scqubits.core.diag import esys_scipy_sparse
+        from scqubits.core.hilbert_space import _sparse_result_trustworthy
+
+        ham = self._hermitian_qobj(40)
+        result = esys_scipy_sparse(ham, evals_count=6)
+        assert _sparse_result_trustworthy(ham, "esys", result, 6) is True
+
+    def test_trustworthy_rejects_corrupted_eigenvalue(self):
+        from scqubits.core.diag import esys_scipy_sparse
+        from scqubits.core.hilbert_space import _sparse_result_trustworthy
+
+        ham = self._hermitian_qobj(40)
+        evals, evecs = esys_scipy_sparse(ham, evals_count=6)
+        # a wrong eigenvalue makes ||H v - lambda v|| large -> residual check fails
+        evals = evals.copy()
+        evals[0] += 5.0
+        assert _sparse_result_trustworthy(ham, "esys", (evals, evecs), 6) is False
+
+    def test_trustworthy_rejects_wrong_count_and_nonfinite(self):
+        from scqubits.core.hilbert_space import _sparse_result_trustworthy
+
+        ham = self._hermitian_qobj(20)
+        assert _sparse_result_trustworthy(ham, "evals", np.zeros(5), 6) is False
+        bad = np.array([0.0, 1.0, np.nan, 2.0, 3.0, 4.0])
+        assert _sparse_result_trustworthy(ham, "evals", bad, 6) is False
+
+    def test_diagonalize_default_falls_back_on_untrustworthy(self, monkeypatch):
+        import scqubits.core.diag as diag
+        from scqubits.core import hilbert_space as hs
+
+        monkeypatch.setattr(settings, "AUTO_SPARSE_DIAG", True)
+        monkeypatch.setattr(settings, "SPARSE_DIAG_MIN_DIM", 1)
+        monkeypatch.setattr(settings, "SPARSE_DIAG_MAX_EVALS_FRAC", 1.0)
+        ham = self._hermitian_qobj(30)
+        dense_evals = np.sort(np.linalg.eigvalsh(ham.full()))[:5]
+
+        def corrupt_sparse(matrix, evals_count):
+            evals, evecs = diag.esys_scipy_sparse(matrix, evals_count=evals_count)
+            evals = evals.copy()
+            evals[0] += 10.0  # silently wrong: does not raise
+            return evals, evecs
+
+        monkeypatch.setitem(diag.DIAG_METHODS, "esys_scipy_sparse", corrupt_sparse)
+
+        with pytest.warns(RuntimeWarning, match="residual check"):
+            result = hs._diagonalize_default(
+                ham, 5, "esys", lambda: (dense_evals, None)
+            )
+        # fell back to the dense result, not the corrupted sparse one
+        assert np.allclose(result[0], dense_evals)

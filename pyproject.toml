@@ -13,7 +13,7 @@ description = "scqubits: superconducting qubits in Python"
 dynamic = ["version"]
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [
     { name = "Jens Koch", email = "jens-koch@northwestern.edu" },
     { name = "Peter Groszkowski", email = "piotrekg@gmail.com" },
@@ -43,11 +43,10 @@ dependencies = [
     "pathos>=0.3.0",
     "qutip>=4.3.1",
     "scipy>=1.5 ; sys_platform != 'darwin'",
-    "scipy>=1.5 ; sys_platform == 'darwin' and python_version < '3.10'",
-    "scipy>=1.5,<=1.13.1 ; sys_platform == 'darwin' and python_version >= '3.10'",
+    "scipy>=1.5,<=1.13.1 ; sys_platform == 'darwin'",
     "sympy",
+    "threadpoolctl",
     "tqdm",
-    "typing_extensions",
 ]
 
 [project.optional-dependencies]
@@ -56,8 +55,61 @@ gui = [
 ]
 develop = [
     "pytest", "traitlets", "h5py (>=2.10)",
+    "mypy", "types-tqdm", "scipy-stubs==1.15.2.2",
 ]
 
 [project.urls]
 Homepage = "https://scqubits.readthedocs.io"
 Repository = "https://github.com/scqubits/scqubits"
+
+[tool.black]
+target-version = ["py310"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_ignores = true
+no_implicit_optional = true
+
+# Third-party packages without type stubs on PyPI (checked 2026-04-23):
+# - qutip, sympy, dill, h5py, pathos, ipywidgets, ipyvuetify, labellines,
+#   matplotlib_inline, mpl_toolkits.axes_grid1, mpl_toolkits.mplot3d
+# For tqdm and scipy, real stub packages (types-tqdm, scipy-stubs) are
+# installed via the `develop` extra. For matplotlib overall, no good stubs
+# exist (unofficial matplotlib-stubs has too many coverage gaps — causes
+# more false positives than it fixes). For IPython, install via
+# `pip install ".[gui,develop]"`: IPython comes in transitively through
+# ipywidgets (in the `gui` extra) and ships py.typed-marked inline types.
+[[tool.mypy.overrides]]
+module = [
+    "dill",
+    "dill.*",
+    "h5py",
+    "h5py.*",
+    "ipyvuetify",
+    "ipyvuetify.*",
+    "ipywidgets",
+    "ipywidgets.*",
+    "labellines",
+    "labellines.*",
+    "matplotlib_inline",
+    "matplotlib_inline.*",
+    "mpl_toolkits.*",
+    "multiprocess",
+    "multiprocess.*",
+    "pathos",
+    "pathos.*",
+    # Optional acceleration backends imported inside diag.py fallbacks
+    "primme",
+    "cupy",
+    "cupy.*",
+    "cupyx.*",
+    "jax",
+    "jax.*",
+    "qutip",
+    "qutip.*",
+    "sympy",
+    "sympy.*",
+    # Optional BLAS-thread limiter used by cpu_switch for fork-based worker caps
+    "threadpoolctl",
+]
+ignore_missing_imports = true
