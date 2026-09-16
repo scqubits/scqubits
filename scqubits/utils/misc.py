@@ -225,12 +225,41 @@ def qt_ket_to_ndarray(qobj_ket: qt.Qobj) -> np.ndarray:
     )
 
 
+def is_matrix_data(obj: Any) -> bool:
+    """Return True if ``obj`` is a NumPy ndarray or any SciPy sparse container.
+
+    SciPy 1.8+ introduced sparse *arrays* (``csc_array``, ``csr_array``, …)
+    alongside the older ``spmatrix`` types. ``issparse`` is true for both, so
+    this helper is the drop-in replacement for ``isinstance(..., csc_matrix)``
+    checks that otherwise reject QuTiP 5.3.1+ / modern SciPy output.
+    """
+    return isinstance(obj, np.ndarray) or sp.sparse.issparse(obj)
+
+
+def as_csc_matrix(operator: Any) -> Any:
+    """Coerce a SciPy sparse array or non-CSC sparse matrix to ``csc_matrix``.
+
+    QuTiP's ``Qobj`` constructor historically accepts ``csc_matrix`` but not
+    sparse arrays. Dense ndarrays and already-CSC matrices are returned
+    unchanged.
+    """
+    if sp.sparse.issparse(operator) and not isinstance(operator, sp.sparse.csc_matrix):
+        return sp.sparse.csc_matrix(operator)
+    return operator
+
+
 def Qobj_to_scipy_csc_matrix(qobj_array: qt.Qobj) -> sp.sparse.csc_matrix:
-    return (
-        qobj_array.to("csr").data.as_scipy().tocsc()
-        if qt.__version__ >= "5.0.0"
-        else qobj_array.data.tocsc()
-    )
+    """Extract ``Qobj`` data as a SciPy ``csc_matrix``.
+
+    QuTiP 5.3.1 switched ``Data.as_scipy()`` to sparse *arrays*. Callers still
+    expect the legacy ``csc_matrix`` type, so arrays are coerced (the
+    conversion reuses the existing index/data buffers).
+    """
+    if qt.__version__ >= "5.0.0":
+        csc_data = qobj_array.to("csr").data.as_scipy().tocsc()
+    else:
+        csc_data = qobj_array.data.tocsc()
+    return as_csc_matrix(csc_data)
 
 
 def get_shape(lst, shape=()):
