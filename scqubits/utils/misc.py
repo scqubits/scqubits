@@ -228,20 +228,19 @@ def qt_ket_to_ndarray(qobj_ket: qt.Qobj) -> np.ndarray:
 def is_matrix_data(obj: Any) -> bool:
     """Return True if ``obj`` is a NumPy ndarray or any SciPy sparse container.
 
-    SciPy 1.8+ introduced sparse *arrays* (``csc_array``, ``csr_array``, …)
-    alongside the older ``spmatrix`` types. ``issparse`` is true for both, so
-    this helper is the drop-in replacement for ``isinstance(..., csc_matrix)``
-    checks that otherwise reject QuTiP 5.3.1+ / modern SciPy output.
+    Both sparse matrices (``csc_matrix``, …) and sparse arrays (``csc_array``,
+    …) count; ``qutip.Qobj`` does not.
     """
     return isinstance(obj, np.ndarray) or sp.sparse.issparse(obj)
 
 
 def as_csc_matrix(operator: Any) -> Any:
-    """Coerce a SciPy sparse array or non-CSC sparse matrix to ``csc_matrix``.
+    """Return a ``csc_matrix`` if ``operator`` is SciPy-sparse, else ``operator``.
 
-    QuTiP's ``Qobj`` constructor historically accepts ``csc_matrix`` but not
-    sparse arrays. Dense ndarrays and already-CSC matrices are returned
-    unchanged.
+    Already-CSC matrices and dense ndarrays are unchanged. Other sparse
+    formats, including sparse arrays, are converted. ``qutip.Qobj`` does not
+    accept sparse arrays, so callers that build a ``Qobj`` should run sparse
+    input through this helper first.
     """
     if sp.sparse.issparse(operator) and not isinstance(operator, sp.sparse.csc_matrix):
         return sp.sparse.csc_matrix(operator)
@@ -251,9 +250,9 @@ def as_csc_matrix(operator: Any) -> Any:
 def Qobj_to_scipy_csc_matrix(qobj_array: qt.Qobj) -> sp.sparse.csc_matrix:
     """Extract ``Qobj`` data as a SciPy ``csc_matrix``.
 
-    QuTiP 5.3.1 switched ``Data.as_scipy()`` to sparse *arrays*. Callers still
-    expect the legacy ``csc_matrix`` type, so arrays are coerced (the
-    conversion reuses the existing index/data buffers).
+    For QuTiP 5 the data come from ``Data.as_scipy()``. If that object is a
+    sparse array, it is coerced to ``csc_matrix`` (the conversion reuses the
+    existing index/data buffers).
     """
     if qt.__version__ >= "5.0.0":
         csc_data = qobj_array.to("csr").data.as_scipy().tocsc()

@@ -11,12 +11,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-"""QuTiP 5.3.1+ / SciPy sparse-array compatibility.
-
-QuTiP 5.3.1 switched ``Data.as_scipy()`` from ``spmatrix`` to ``sparray``.
-These tests lock in both the conversion helper and the HilbertSpace path
-that previously raised ``TypeError: Unsupported operator type: csc_array``.
-"""
+"""SciPy sparse-array handling in Qobj conversion and HilbertSpace."""
 
 from typing import Any
 
@@ -32,8 +27,7 @@ import scqubits as scq
 from scqubits.utils.misc import Qobj_to_scipy_csc_matrix, as_csc_matrix, is_matrix_data
 from scqubits.utils.spectrum_utils import convert_operator_to_qobj
 
-# SciPy < 1.8 has no sparse arrays. getattr avoids mypy's "cannot assign
-# None to a type" error from `from scipy.sparse import csc_array`.
+# Optional: SciPy < 1.8 has no csc_array. Typed as Any so mypy accepts None.
 csc_array: Any = getattr(sparse, "csc_array", None)
 
 
@@ -70,7 +64,7 @@ class TestSparseQobjCompat:
         assert np.allclose(qobj.full(), diag)
 
     def test_hilbertspace_generate_lookup_single_transmon(self):
-        """Regression for qutip 5.3.1: HilbertSpace.generate_lookup used to crash."""
+        """HilbertSpace.generate_lookup on a single Transmon."""
         tmon = scq.Transmon(EJ=5.0, EC=1.0, ng=0.0, ncut=5, truncated_dim=3)
         hilbertspace = scq.HilbertSpace([tmon])
         hilbertspace.generate_lookup()
