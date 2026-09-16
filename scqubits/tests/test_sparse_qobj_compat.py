@@ -18,9 +18,12 @@ These tests lock in both the conversion helper and the HilbertSpace path
 that previously raised ``TypeError: Unsupported operator type: csc_array``.
 """
 
+from typing import Any
+
 import numpy as np
 import pytest
 import qutip as qt
+import scipy.sparse as sparse
 
 from scipy.sparse import csc_matrix
 
@@ -29,10 +32,9 @@ import scqubits as scq
 from scqubits.utils.misc import Qobj_to_scipy_csc_matrix, as_csc_matrix, is_matrix_data
 from scqubits.utils.spectrum_utils import convert_operator_to_qobj
 
-try:
-    from scipy.sparse import csc_array
-except ImportError:  # SciPy < 1.8
-    csc_array = None
+# SciPy < 1.8 has no sparse arrays. getattr avoids mypy's "cannot assign
+# None to a type" error from `from scipy.sparse import csc_array`.
+csc_array: Any = getattr(sparse, "csc_array", None)
 
 
 class TestSparseQobjCompat:
