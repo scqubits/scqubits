@@ -51,7 +51,7 @@ dependencies = [
 
 [project.optional-dependencies]
 gui = [
-    "ipywidgets (>=7.5)", "ipyvuetify", "matplotlib-label-lines (>=0.3.6)", "h5py (>=2.10)",
+    "ipywidgets (>=7.5)", "ipyvuetify (>=1.8.10,<3)", "ipyvue (>=1.7,<2)", "matplotlib-label-lines (>=0.3.6)", "h5py (>=2.10)",
 ]
 develop = [
     "pytest", "traitlets", "h5py (>=2.10)",
