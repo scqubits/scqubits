@@ -36,7 +36,8 @@ requirements:
     - tqdm
   # Optional dependencies
     - ipywidgets >=7.5
-    - ipyvuetify
+    - ipyvuetify >=1.8.10,<3
+    - ipyvue >=1.7,<2
     - matplotlib-label-lines >=0.3.6
     - h5py >=2.10
 
