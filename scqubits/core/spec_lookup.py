@@ -883,7 +883,7 @@ class SpectrumLookupMixin(MixinCompatible):
 
         Eigenstate-bare-state pairing follows the "first-come-first-served"
         principle; the traversal order permutes the bare labels according to
-        ``subsys_priority``. The last mode in the list has its states labelled
+        ``subsys_priority``. The last mode in the list has its states labeled
         sequentially and organized in a single branch.
 
         Finally, this method organizes the eigenstates into a multi-dimensional

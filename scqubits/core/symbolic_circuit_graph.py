@@ -548,7 +548,7 @@ class _AdjacencyIndex:
         ``None`` by the caller.  Each node is visited exactly once because
         ``tree`` is acyclic.
         """
-        # adjacency: node -> list of (neighbour, branch) pairs, restricted
+        # adjacency: node -> list of (neighbor, branch) pairs, restricted
         # to the tree's branches
         adj: dict[Node, list[tuple[Node, Branch]]] = {}
         for branch in tree:
@@ -560,12 +560,12 @@ class _AdjacencyIndex:
         while frontier:
             next_frontier: list[Node] = []
             for current in frontier:
-                for neighbour, branch in adj.get(current, []):
-                    if neighbour in seen:
+                for neighbor, branch in adj.get(current, []):
+                    if neighbor in seen:
                         continue
-                    self._parent_in_tree[neighbour] = (current, branch)
-                    seen.add(neighbour)
-                    next_frontier.append(neighbour)
+                    self._parent_in_tree[neighbor] = (current, branch)
+                    seen.add(neighbor)
+                    next_frontier.append(neighbor)
             frontier = next_frontier
 
     def path_to_root(self, node: Node) -> tuple[int, list[Node], list[Branch], int]:
@@ -717,7 +717,7 @@ class SymbolicCircuitGraph(ABC):
 
         A node with zero branches is dropped outright. A node with exactly
         one branch is a leaf of the graph: its branch can't appear in any
-        loop, so the node-and-branch pair is removed and the neighbour's
+        loop, so the node-and-branch pair is removed and the neighbor's
         branch list is updated. Repeats until no floating nodes remain.
 
         Mutates ``circ`` in place.
@@ -732,10 +732,10 @@ class SymbolicCircuitGraph(ABC):
                 if len(node.branches) == 1:
                     leaf_branch = node.branches[0]
                     circ.branches.remove(leaf_branch)
-                    for neighbour in leaf_branch.nodes:
-                        if neighbour is not node:
-                            neighbour.branches = [
-                                b for b in neighbour.branches if b is not leaf_branch
+                    for neighbor in leaf_branch.nodes:
+                        if neighbor is not node:
+                            neighbor.branches = [
+                                b for b in neighbor.branches if b is not leaf_branch
                             ]
                             num_float_nodes += 1
                         else:
@@ -788,12 +788,12 @@ class SymbolicCircuitGraph(ABC):
         while len(visited) < num_nodes:
             current_layer = node_sets_for_trees[tree_index][node_set_index]
 
-            neighbours: list[Node] = []
+            neighbors: list[Node] = []
             for node in current_layer:
-                neighbours += node.connected_nodes("all")
+                neighbors += node.connected_nodes("all")
 
             next_layer = [
-                n for n in unique_elements_in_list(neighbours) if n not in visited
+                n for n in unique_elements_in_list(neighbors) if n not in visited
             ]
             if next_layer:
                 next_layer.sort(key=lambda node: node.index)
@@ -1721,7 +1721,7 @@ class SymbolicCircuitGraph(ABC):
         When ``track_sigma=True`` and the circuit is non-grounded, a
         mode lying in the Σ subspace is recorded in the ``"sigma"``
         bucket; otherwise it is silently skipped (matching the original
-        behaviour for the auto-generated basis vs. the user-provided
+        behavior for the auto-generated basis vs. the user-provided
         transformation respectively).
 
         Returns indices are 1-based to mirror the legacy convention.

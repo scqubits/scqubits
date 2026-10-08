@@ -313,7 +313,7 @@ use_closure_branches=True)` returns a dict with four keys:
   below).
 - `node_sets_for_trees: list[list[list[Node]]]` — for each tree, the
   BFS-layered node sets (generation 0 = root, generation 1 = its
-  neighbours, …).
+  neighbors, …).
 - `loop_branches_for_trees: list[list[Branch]]` — for each tree, all
   branches with both endpoints in the tree's node set.
 - `closure_branches_for_trees: list[list[Branch]]` — the subset of

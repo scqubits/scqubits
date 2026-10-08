@@ -489,7 +489,7 @@ def data_vs_paramvals(
     xdata = np.asarray(xdata)
     ydata = np.asarray(ydata)
 
-    # Normalise to 2-dim column arrays so the loop below is uniform.
+    # Normalize to 2-dim column arrays so the loop below is uniform.
     # A 1-dim array is treated as a single dataset (one column).
     x_cols = xdata.T if xdata.ndim == 2 else [xdata]
     y_cols = ydata.T if ydata.ndim == 2 else [ydata]
@@ -517,7 +517,7 @@ def data_vs_paramvals(
     if _LABELLINES_ENABLED:
         # Drop curves whose y values are all NaN (transition energies near
         # level crossings can produce such curves). labelLines raises and
-        # warns on them, leaving every other curve unlabelled too.
+        # warns on them, leaving every other curve unlabeled too.
         visible_lines = [
             line for line in axes.get_lines() if not np.all(np.isnan(line.get_ydata()))
         ]
