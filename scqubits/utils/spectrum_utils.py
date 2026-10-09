@@ -315,7 +315,7 @@ def convert_evecs_to_ndarray(evecs_qutip: ndarray) -> np.ndarray:
 
 
 def _matrix_in_eigenbasis(
-    operator: np.ndarray | csc_matrix | csr_matrix | qt.Qobj,
+    operator: np.ndarray | csc_matrix | csr_matrix | dia_matrix | qt.Qobj,
     subsystem: "QubitBaseClass" | "Oscillator",
     op_in_eigenbasis: bool,
     evecs: np.ndarray | None,
@@ -329,6 +329,8 @@ def _matrix_in_eigenbasis(
 
     if isinstance(operator, qt.Qobj):
         operator = Qobj_to_scipy_csc_matrix(operator)
+    elif isinstance(operator, dia_matrix):
+        operator = operator.tocsc()
     return operator[:dim, :dim]
 
 
@@ -345,14 +347,14 @@ def _opstring_in_eigenbasis(
 
 
 def operator_in_subsys_eigenbasis(
-    operator: np.ndarray | csc_matrix | csr_matrix | qt.Qobj | str,
+    operator: np.ndarray | csc_matrix | csr_matrix | dia_matrix | qt.Qobj | str,
     subsystem: "QubitBaseClass" | "Oscillator",
     op_in_eigenbasis: bool,
     evecs: np.ndarray | None,
 ) -> np.ndarray | csc_matrix | csr_matrix:
     if isinstance(operator, str):
         return _opstring_in_eigenbasis(operator, subsystem, evecs)
-    if isinstance(operator, (np.ndarray, csc_matrix, csr_matrix, qt.Qobj)):
+    if isinstance(operator, (np.ndarray, csc_matrix, csr_matrix, dia_matrix, qt.Qobj)):
         return _matrix_in_eigenbasis(operator, subsystem, op_in_eigenbasis, evecs)
     raise TypeError("Unsupported operator type: ", type(operator))
 
