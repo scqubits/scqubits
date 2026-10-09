@@ -50,7 +50,7 @@ if TYPE_CHECKING:
     from scqubits.io_utils.fileio import IOData
 
 from scqubits.core.qubit_base import QubitBaseClass
-from scqubits.utils.cuquantum_utils import _CUQUANTUM_BACKEND_ERROR
+from scqubits.utils.cuquantum_utils import _CUQUANTUM_BACKEND_ERROR, max_eigvals
 from scqubits.utils.typedefs import OscillatorList, QuantumSys, QubitList
 
 
@@ -926,11 +926,7 @@ class HilbertSpace(
             raise RuntimeError(_CUQUANTUM_BACKEND_ERROR)
 
         if self.esys_method == "esys_cuquantum" and ordering in ("DE", "LX"):
-            krylov_block_size = settings.CUQUANTUM_MIN_KRYLOV_BLOCK_SIZE
-            max_buffer_ratio = settings.CUQUANTUM_MAX_BUFFER_RATIO
-            allowed_num_eigvals = (self.dimension - krylov_block_size) // (
-                2 * krylov_block_size * max_buffer_ratio
-            )
+            allowed_num_eigvals = max_eigvals(self.dimension)
             raise ValueError(
                 "Cannot use cuQuantum eigensolver with DE or LX ordering. "
                 "Please use Bare Energy ordering and set BEs_count to no more "

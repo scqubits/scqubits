@@ -29,7 +29,7 @@ from scipy.sparse import csc_matrix
 import scqubits.settings as settings
 
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
-from scqubits.utils.cuquantum_utils import get_cuquantum_workstream
+from scqubits.utils.cuquantum_utils import get_cuquantum_workstream, max_eigvals
 from scqubits.utils.spectrum_utils import has_degeneracy, order_eigensystem
 
 
@@ -769,24 +769,20 @@ def _cuquantum_eigensolver(hamiltonian: Qobj, evals_count: int, **kwargs: Any) -
     subsys_dims = hamiltonian.dims[0]
     hspace_dim = hamiltonian.shape[0]
 
-    min_krylov_block_size = settings.CUQUANTUM_MIN_KRYLOV_BLOCK_SIZE
-    max_buffer_ratio = settings.CUQUANTUM_MAX_BUFFER_RATIO
-    max_restarts = settings.CUQUANTUM_MAX_RESTARTS
-
     config = cudm.OperatorSpectrumConfig(
-        min_krylov_block_size=min_krylov_block_size,
-        max_buffer_ratio=max_buffer_ratio,
-        max_restarts=max_restarts,
+        min_krylov_block_size=settings.CUQUANTUM_MIN_KRYLOV_BLOCK_SIZE,
+        max_buffer_ratio=settings.CUQUANTUM_MAX_BUFFER_RATIO,
+        max_restarts=settings.CUQUANTUM_MAX_RESTARTS,
     )
 
-    allowed_num_eigvals = (hspace_dim - min_krylov_block_size) // (
-        2 * min_krylov_block_size * max_buffer_ratio
-    )
+    allowed_num_eigvals = max_eigvals(hspace_dim)
     if evals_count > allowed_num_eigvals:
         raise ValueError(
             f"Too many eigenvalues requested. Maximum number of eigenvalues "
-            f"allowed is {allowed_num_eigvals}. Reduce min_krylov_block_size, "
-            f"max_buffer_ratio, or increase the Hilbert space dimension."
+            f"allowed is {allowed_num_eigvals}. Reduce the number of "
+            f"eigenvalues requested, or reduce "
+            f"scqubits.settings.CUQUANTUM_MIN_KRYLOV_BLOCK_SIZE and "
+            f"scqubits.settings.CUQUANTUM_MAX_BUFFER_RATIO."
         )
 
     batch_size = 1  # OperatorSpectrumSolver currently supports only non-batched states.

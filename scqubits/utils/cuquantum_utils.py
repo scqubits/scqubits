@@ -12,6 +12,8 @@
 
 """Process-wide cuQuantum density-matrix runtime resources (workstream, etc.)."""
 
+import scqubits.settings as settings
+
 _CUQUANTUM_BACKEND_ERROR = (
     "Running scqubits code inside qutip-cuquantum's CuQuantumBackend is not "
     "supported. Exit the backend context before calling scqubits."
@@ -23,6 +25,43 @@ try:
     _HAS_CUQUANTUM = True
 except ImportError:
     _HAS_CUQUANTUM = False
+
+
+def max_eigvals(dimension: int) -> int:
+    """Return the largest eigenvalue count the cuQuantum Krylov solver accepts.
+
+    The limit is ``floor((D - b) / (2 * b * r))``, where ``D`` is ``dimension``,
+    ``b`` is ``settings.CUQUANTUM_MIN_KRYLOV_BLOCK_SIZE``, and ``r`` is
+    ``settings.CUQUANTUM_MAX_BUFFER_RATIO``.
+
+    Parameters
+    ----------
+    dimension:
+        Hilbert-space dimension of the operator being diagonalized.
+
+    Returns
+    -------
+    int
+        Maximum number of eigenvalues the solver can return for this dimension
+        and the current Krylov settings.
+
+    Raises
+    ------
+    ValueError
+        If the dimension is too small for the current Krylov settings, so the
+        limit would be below 1.
+    """
+    block = settings.CUQUANTUM_MIN_KRYLOV_BLOCK_SIZE
+    ratio = settings.CUQUANTUM_MAX_BUFFER_RATIO
+    allowed = (dimension - block) // (2 * block * ratio)
+    if allowed < 1:
+        raise ValueError(
+            "Hilbert space dimension is too small for the cuQuantum Krylov "
+            "settings scqubits.settings.CUQUANTUM_MIN_KRYLOV_BLOCK_SIZE and "
+            "scqubits.settings.CUQUANTUM_MAX_BUFFER_RATIO."
+        )
+    return allowed
+
 
 # Lazy singleton; not on ``settings`` so user code cannot replace or clear it.
 _cuquantum_workstream = None
