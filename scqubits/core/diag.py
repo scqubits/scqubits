@@ -736,8 +736,9 @@ def _cuquantum_eigensolver(hamiltonian: Qobj, evals_count: int, **kwargs: Any) -
     """Run cuDensityMat's Krylov eigensolver and return its native result.
 
     The solver uses scqubits' shared cuQuantum workstream and the ``CUQUANTUM_*``
-    Krylov parameters in :mod:`scqubits.settings`. Random normalized states are
-    generated as the initial Krylov vectors.
+    Krylov parameters in :mod:`scqubits.settings`. Normalized states drawn from a
+    fixed seed are generated as the initial Krylov vectors, so repeated solves start
+    from the same vectors.
 
     Parameters
     ----------
@@ -797,13 +798,17 @@ def _cuquantum_eigensolver(hamiltonian: Qobj, evals_count: int, **kwargs: Any) -
 
     batch_size = 1  # OperatorSpectrumSolver currently supports only non-batched states.
 
+    # Fixed seed, so every solve starts from the same Krylov vectors. The generator is
+    # local, and cupy's global random state is left untouched. The draws are
+    # real-valued.
+    rng = cupy.random.default_rng(settings._SEED)
     seed_states = []
     for _ in range(evals_count):
         seed_state = cudm.DensePureState(
             workstream, subsys_dims, batch_size, "complex128"
         )
         seed_state.allocate_storage()
-        seed_state.storage[:] = cupy.random.randn(hspace_dim * batch_size)
+        seed_state.storage[:] = rng.standard_normal(hspace_dim * batch_size)
         norm = seed_state.norm()
         seed_state.inplace_scale(1.0 / cupy.sqrt(norm))
         seed_states.append(seed_state)
