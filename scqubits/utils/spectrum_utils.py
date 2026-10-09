@@ -426,7 +426,7 @@ def _cuoperator_data(operator: np.ndarray | csc_matrix | csr_matrix):
             if dia_op.offsets.size <= DIA_D_MAX
             else qt.core.data.Dense(operator)
         )
-    return qcu.CuOperator(operator_data), qcu.CuOperator
+    return qcu.CuOperator(operator_data)
 
 
 def identity_wrap(
@@ -477,7 +477,8 @@ def identity_wrap(
 
     operator_dtype = None
     if use_cuquantum:
-        subsys_operator, operator_dtype = _cuoperator_data(subsys_operator)
+        subsys_operator = _cuoperator_data(subsys_operator)
+        operator_dtype = type(subsys_operator)
 
     subsys_operator = qt.Qobj(subsys_operator)
     operator_identitywrap_list = [
