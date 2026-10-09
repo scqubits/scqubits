@@ -17,10 +17,7 @@ import importlib
 
 from typing import Literal
 
-import numpy as np
-
 from qutip import Qobj
-from scipy.sparse import csc_matrix
 
 from scqubits.ui.gui_defaults import NAV_COLOR
 
@@ -526,8 +523,8 @@ class HilbertSpaceUi:
                         )
                     ]
                     return False
-                if not isinstance(
-                    instance, (np.ndarray, csc_matrix, Qobj)
+                if not (
+                    isinstance(instance, Qobj) or utils.is_matrix_data(instance)
                 ) and not callable(instance):
                     self.status_output.children = [
                         v.Alert(
