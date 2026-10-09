@@ -746,14 +746,24 @@ def _cuquantum_eigensolver(hamiltonian: Qobj, evals_count: int, **kwargs: Any) -
     evals_count:
         number of eigenpairs to calculate
     kwargs:
-        optional settings that are passed onto the diagonalization routine;
-        currently unused
+        not accepted. Unexpected keywords raise ``TypeError``.
 
     Returns
     -------
     OperatorSpectrumResult
         native cuDensityMat result containing eigenvalues, eigenstates, and residuals
+
+    Raises
+    ------
+    TypeError
+        If any keyword arguments are passed.
     """
+    if kwargs:
+        names = ", ".join(repr(name) for name in kwargs)
+        raise TypeError(
+            "The cuQuantum eigensolver received unexpected keyword arguments: "
+            f"{names}. Remove them."
+        )
     try:
         import cupy
         import cuquantum.densitymat as cudm
@@ -818,12 +828,16 @@ def evals_cuquantum(hamiltonian: Qobj, evals_count: int, **kwargs: Any) -> ndarr
     evals_count:
         number of eigenvalues to return
     kwargs:
-        optional settings that are passed onto the diagonalization routine;
-        currently unused
+        not accepted. Unexpected keywords raise ``TypeError``.
 
     Returns
     -------
         lowest requested eigenvalues of the Hamiltonian
+
+    Raises
+    ------
+    TypeError
+        If any keyword arguments are passed.
     """
     result = _cuquantum_eigensolver(hamiltonian, evals_count, **kwargs)
     return result.evals[:, 0].get()
@@ -844,12 +858,16 @@ def esys_cuquantum(
     evals_count:
         number of eigenvalues and eigenvectors to return
     kwargs:
-        optional settings that are passed onto the diagonalization routine;
-        currently unused
+        not accepted. Unexpected keywords raise ``TypeError``.
 
     Returns
     -------
         lowest requested eigenvalues and corresponding eigenvectors as Qobj instances
+
+    Raises
+    ------
+    TypeError
+        If any keyword arguments are passed.
     """
     result = _cuquantum_eigensolver(hamiltonian, evals_count, **kwargs)
     from qutip_cuquantum import CuState
