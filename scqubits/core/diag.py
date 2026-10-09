@@ -969,6 +969,6 @@ DIAG_METHODS: dict[str, Callable[..., Any]] = {
     "evals_jax_dense": evals_jax_dense,
     "esys_jax_dense": esys_jax_dense,
     # cuquantum
-    "esys_cuquantum": esys_cuquantum,
     "evals_cuquantum": evals_cuquantum,
+    "esys_cuquantum": esys_cuquantum,
 }
