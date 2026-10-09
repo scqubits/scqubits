@@ -23,7 +23,7 @@ import scipy as sp
 
 from numpy import ndarray
 from qutip import Qobj
-from scipy.sparse import csc_matrix, csr_matrix, dia_matrix
+from scipy.sparse import csc_matrix, dia_matrix
 
 import scqubits.settings as settings
 
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from scqubits.core.qubit_base import QubitBaseClass
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
-from scqubits.utils.misc import Qobj_to_scipy_csc_matrix
+from scqubits.utils.misc import Qobj_to_scipy_csc_matrix, as_csc_matrix, is_matrix_data
 from scqubits.utils.typedefs import QuantumSys
 
 # Threshold for operator size and diagonal count in the Dense/Dia storage decision.
@@ -315,11 +315,11 @@ def convert_evecs_to_ndarray(evecs_qutip: ndarray) -> np.ndarray:
 
 
 def _matrix_in_eigenbasis(
-    operator: np.ndarray | csc_matrix | csr_matrix | dia_matrix | qt.Qobj,
+    operator: np.ndarray | csc_matrix | qt.Qobj,
     subsystem: "QubitBaseClass" | "Oscillator",
     op_in_eigenbasis: bool,
     evecs: np.ndarray | None,
-) -> np.ndarray | csc_matrix | csr_matrix:
+) -> np.ndarray | csc_matrix:
     dim = subsystem.truncated_dim
 
     if op_in_eigenbasis is False:
@@ -329,8 +329,6 @@ def _matrix_in_eigenbasis(
 
     if isinstance(operator, qt.Qobj):
         operator = Qobj_to_scipy_csc_matrix(operator)
-    elif isinstance(operator, dia_matrix):
-        operator = operator.tocsc()
     return operator[:dim, :dim]
 
 
@@ -347,15 +345,17 @@ def _opstring_in_eigenbasis(
 
 
 def operator_in_subsys_eigenbasis(
-    operator: np.ndarray | csc_matrix | csr_matrix | dia_matrix | qt.Qobj | str,
+    operator: np.ndarray | csc_matrix | dia_matrix | qt.Qobj | str,
     subsystem: "QubitBaseClass" | "Oscillator",
     op_in_eigenbasis: bool,
     evecs: np.ndarray | None,
-) -> np.ndarray | csc_matrix | csr_matrix:
+) -> np.ndarray | csc_matrix:
     if isinstance(operator, str):
         return _opstring_in_eigenbasis(operator, subsystem, evecs)
-    if isinstance(operator, (np.ndarray, csc_matrix, csr_matrix, dia_matrix, qt.Qobj)):
-        return _matrix_in_eigenbasis(operator, subsystem, op_in_eigenbasis, evecs)
+    if isinstance(operator, qt.Qobj) or is_matrix_data(operator):
+        return _matrix_in_eigenbasis(
+            as_csc_matrix(operator), subsystem, op_in_eigenbasis, evecs
+        )
     raise TypeError("Unsupported operator type: ", type(operator))
 
 
@@ -408,7 +408,7 @@ def recast_esys_mapdata(
     return eigenenergy_table, eigenstate_table
 
 
-def _cuoperator_data(operator: np.ndarray | csc_matrix | csr_matrix):
+def _cuoperator_data(operator: np.ndarray | csc_matrix):
     """Pick dense/dia QuTiP data for CuOperator wrapping."""
     try:
         import qutip_cuquantum as qcu

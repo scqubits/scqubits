@@ -37,7 +37,7 @@ import scqubits.utils.plotting as plotting
 
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import matplotlib_settings
-from scqubits.utils.misc import Qobj_to_scipy_csc_matrix
+from scqubits.utils.misc import Qobj_to_scipy_csc_matrix, is_matrix_data
 
 # flag that lets us show a warning about the default t1 behavior
 # (i.e., total=True setting) only once. Using the standard warnings
@@ -1365,9 +1365,9 @@ class NoisySystem(ABC):
             return s
 
         noise_op = noise_op or self.n_operator()  # type: ignore
-        if not isinstance(noise_op, (ndarray, csc_matrix, qt.Qobj)):
+        if not (isinstance(noise_op, qt.Qobj) or is_matrix_data(noise_op)):
             raise AttributeError(
-                "The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj."
+                "The type of the matrix noise_op is invalid. It should be an ndarray, a SciPy sparse matrix or array, or a qutip Qobj."
             )
         if isinstance(noise_op, (qt.Qobj)):
             noise_op = Qobj_to_scipy_csc_matrix(noise_op)
@@ -1450,9 +1450,9 @@ class NoisySystem(ABC):
             return s
 
         noise_op = noise_op or self.n_operator()  # type: ignore
-        if not isinstance(noise_op, (ndarray, csc_matrix, qt.Qobj)):
+        if not (isinstance(noise_op, qt.Qobj) or is_matrix_data(noise_op)):
             raise AttributeError(
-                "The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj."
+                "The type of the matrix noise_op is invalid. It should be an ndarray, a SciPy sparse matrix or array, or a qutip Qobj."
             )
         if isinstance(noise_op, (qt.Qobj)):
             noise_op = Qobj_to_scipy_csc_matrix(noise_op)
@@ -1651,9 +1651,9 @@ class NoisySystem(ABC):
             return s
 
         noise_op = noise_op or self.phi_operator()  # type: ignore
-        if not isinstance(noise_op, (ndarray, csc_matrix, qt.Qobj)):
+        if not (isinstance(noise_op, qt.Qobj) or is_matrix_data(noise_op)):
             raise AttributeError(
-                "The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj."
+                "The type of the matrix noise_op is invalid. It should be an ndarray, a SciPy sparse matrix or array, or a qutip Qobj."
             )
         if isinstance(noise_op, (qt.Qobj)):
             noise_op = Qobj_to_scipy_csc_matrix(noise_op)
@@ -1788,9 +1788,9 @@ class NoisySystem(ABC):
         # transform the operator using phi -> phi + 2*pi*flux
         noise_op = noise_op or self.sin_phi_operator(alpha=0.5, beta=0.5 * (2 * np.pi * self.flux))  # type: ignore
 
-        if not isinstance(noise_op, (ndarray, csc_matrix, qt.Qobj)):
+        if not (isinstance(noise_op, qt.Qobj) or is_matrix_data(noise_op)):
             raise AttributeError(
-                "The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj."
+                "The type of the matrix noise_op is invalid. It should be an ndarray, a SciPy sparse matrix or array, or a qutip Qobj."
             )
         if isinstance(noise_op, (qt.Qobj)):
             noise_op = Qobj_to_scipy_csc_matrix(noise_op)
