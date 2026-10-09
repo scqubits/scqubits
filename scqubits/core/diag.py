@@ -769,12 +769,6 @@ def _cuquantum_eigensolver(hamiltonian: Qobj, evals_count: int, **kwargs: Any) -
     subsys_dims = hamiltonian.dims[0]
     hspace_dim = hamiltonian.shape[0]
 
-    config = cudm.OperatorSpectrumConfig(
-        min_krylov_block_size=settings.CUQUANTUM_MIN_KRYLOV_BLOCK_SIZE,
-        max_buffer_ratio=settings.CUQUANTUM_MAX_BUFFER_RATIO,
-        max_restarts=settings.CUQUANTUM_MAX_RESTARTS,
-    )
-
     allowed_num_eigvals = max_eigvals(hspace_dim)
     if evals_count > allowed_num_eigvals:
         raise ValueError(
@@ -784,6 +778,12 @@ def _cuquantum_eigensolver(hamiltonian: Qobj, evals_count: int, **kwargs: Any) -
             f"scqubits.settings.CUQUANTUM_MIN_KRYLOV_BLOCK_SIZE and "
             f"scqubits.settings.CUQUANTUM_MAX_BUFFER_RATIO."
         )
+
+    config = cudm.OperatorSpectrumConfig(
+        min_krylov_block_size=settings.CUQUANTUM_MIN_KRYLOV_BLOCK_SIZE,
+        max_buffer_ratio=settings.CUQUANTUM_MAX_BUFFER_RATIO,
+        max_restarts=settings.CUQUANTUM_MAX_RESTARTS,
+    )
 
     batch_size = 1  # OperatorSpectrumSolver currently supports only non-batched states.
 

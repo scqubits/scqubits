@@ -14,17 +14,20 @@
 
 import scqubits.settings as settings
 
-_CUQUANTUM_BACKEND_ERROR = (
-    "Running scqubits code inside qutip-cuquantum's CuQuantumBackend is not "
-    "supported. Exit the backend context before calling scqubits."
-)
-
 try:
     from cuquantum.densitymat import WorkStream
 
     _HAS_CUQUANTUM = True
 except ImportError:
     _HAS_CUQUANTUM = False
+
+_CUQUANTUM_BACKEND_ERROR = (
+    "Running scqubits code inside qutip-cuquantum's CuQuantumBackend is not "
+    "supported. Exit the backend context before calling scqubits."
+)
+
+# Lazy singleton; not on ``settings`` so user code cannot replace or clear it.
+_cuquantum_workstream = None
 
 
 def max_eigvals(dimension: int) -> int:
@@ -48,11 +51,29 @@ def max_eigvals(dimension: int) -> int:
     Raises
     ------
     ValueError
-        If the dimension is too small for the current Krylov settings, so the
-        limit would be below 1.
+        If the Krylov block size is not an integer greater than 0, the buffer
+        ratio is not an integer greater than 1, the restart count is not an
+        integer greater than or equal to 0, or the dimension is too small for
+        those settings and the limit would be below 1.
     """
     block = settings.CUQUANTUM_MIN_KRYLOV_BLOCK_SIZE
     ratio = settings.CUQUANTUM_MAX_BUFFER_RATIO
+    restarts = settings.CUQUANTUM_MAX_RESTARTS
+    if isinstance(block, bool) or not isinstance(block, int) or block <= 0:
+        raise ValueError(
+            "Set scqubits.settings.CUQUANTUM_MIN_KRYLOV_BLOCK_SIZE to an "
+            "integer greater than 0."
+        )
+    if isinstance(ratio, bool) or not isinstance(ratio, int) or ratio <= 1:
+        raise ValueError(
+            "Set scqubits.settings.CUQUANTUM_MAX_BUFFER_RATIO to an integer "
+            "greater than 1."
+        )
+    if isinstance(restarts, bool) or not isinstance(restarts, int) or restarts < 0:
+        raise ValueError(
+            "Set scqubits.settings.CUQUANTUM_MAX_RESTARTS to an integer "
+            "greater than or equal to 0."
+        )
     allowed = (dimension - block) // (2 * block * ratio)
     if allowed < 1:
         raise ValueError(
@@ -61,10 +82,6 @@ def max_eigvals(dimension: int) -> int:
             "scqubits.settings.CUQUANTUM_MAX_BUFFER_RATIO."
         )
     return allowed
-
-
-# Lazy singleton; not on ``settings`` so user code cannot replace or clear it.
-_cuquantum_workstream = None
 
 
 def set_cuquantum_workstream(workstream: "WorkStream") -> None:
