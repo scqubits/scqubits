@@ -810,9 +810,11 @@ def _cuquantum_eigensolver(hamiltonian: Qobj, evals_count: int, **kwargs: Any) -
 
     # Convert through CuQobjEvo until a dedicated conversion function is available.
     cudm_operator = CuQobjEvo(qt.QobjEvo(hamiltonian)).operator
-    spectrum = cudm.OperatorSpectrumSolver(cudm_operator, "SA", True, config)
+    spectrum = cudm.OperatorSpectrumSolver(
+        cudm_operator, which="SA", hermitian=True, config=config
+    )
     spectrum.prepare(workstream, seed_states[0], max_num_eigvals=evals_count)
-    return spectrum.compute(0.0, None, seed_states, 1e-10)
+    return spectrum.compute(t=0.0, params=None, states=seed_states, tol=1e-10)
 
 
 def evals_cuquantum(hamiltonian: Qobj, evals_count: int, **kwargs: Any) -> ndarray:
