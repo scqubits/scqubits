@@ -153,6 +153,8 @@ def test_custom_diagonalization_evals_method_matches_default(library):
 
     library_diag_methods = _get_library_methods(library, evals=True)
     for method in library_diag_methods:
+        if method == "evals_cuquantum":
+            continue
         fluxonium = Fluxonium(
             EJ=8.9, EC=2.5, EL=0.5, flux=0.5, cutoff=120, evals_method=method
         )
@@ -225,9 +227,12 @@ def test_custom_diagonalization_matches_default_using_custom_procedure():
     """Test custom diagonalization gives same result as using the default method when
     using a custom procedure."""
 
-    def custom_esys(matrix, evals_count, **kwargs):
+    def custom_esys(hamiltonian, evals_count, **kwargs):
         evals, evecs = sp.linalg.eigh(
-            matrix, subset_by_index=(0, evals_count - 1), eigvals_only=False, **kwargs
+            hamiltonian,
+            subset_by_index=(0, evals_count - 1),
+            eigvals_only=False,
+            **kwargs,
         )
         return evals, evecs
 
@@ -285,6 +290,8 @@ def test_custom_diagonalization_evals_are_same_using_eigenvals_and_eigensys_defa
 
     library_diag_methods = _get_library_methods(library, evals=True)
     for method in library_diag_methods:
+        if method == "evals_cuquantum":
+            continue
         fluxonium = Fluxonium(
             EJ=8.9,
             EC=2.5,
@@ -333,6 +340,8 @@ def test_custom_diagonalization_esys_method_matches_default(library):
 
     library_diag_methods = _get_library_methods(library, evals=False)
     for method in library_diag_methods:
+        if method == "esys_cuquantum":
+            continue
         tmon = Transmon(EJ=30.02, EC=1.2, ng=0.0, ncut=301, esys_method=method)
         evals, evecs = tmon.eigensys()
 

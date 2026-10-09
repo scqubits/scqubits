@@ -35,6 +35,9 @@ if TYPE_CHECKING:
 from scqubits.utils.misc import Qobj_to_scipy_csc_matrix
 from scqubits.utils.typedefs import QuantumSys
 
+# Threshold for operator size and diagonal count in the Dense/Dia storage decision.
+DIA_D_MAX = 16
+
 
 def eigsh_safe(*args, **kwargs):
     """Wrapper method for `scipy.sparse.linalg.eigsh` which ensures the following.
@@ -311,49 +314,47 @@ def convert_evecs_to_ndarray(evecs_qutip: ndarray) -> np.ndarray:
     return evecs_ndarray
 
 
-def convert_matrix_to_qobj(
-    operator: np.ndarray | csc_matrix | dia_matrix,
+def _matrix_in_eigenbasis(
+    operator: np.ndarray | csc_matrix | csr_matrix | qt.Qobj,
     subsystem: "QubitBaseClass" | "Oscillator",
     op_in_eigenbasis: bool,
     evecs: np.ndarray | None,
-) -> qt.Qobj:
+) -> np.ndarray | csc_matrix | csr_matrix:
     dim = subsystem.truncated_dim
 
     if op_in_eigenbasis is False:
         if evecs is None:
             _, evecs = subsystem.eigensys(evals_count=dim)
-        operator_matrixelements = get_matrixelement_table(operator, evecs)
-        return qt.Qobj(operator_matrixelements)
-    return qt.Qobj(operator[:dim, :dim])  # type: ignore[index]
+        return get_matrixelement_table(operator, evecs)
+
+    if isinstance(operator, qt.Qobj):
+        operator = Qobj_to_scipy_csc_matrix(operator)
+    return operator[:dim, :dim]
 
 
-def convert_opstring_to_qobj(
+def _opstring_in_eigenbasis(
     operator: str,
     subsystem: "QubitBaseClass" | "Oscillator",
     evecs: np.ndarray | None,
-) -> qt.Qobj:
+) -> np.ndarray:
     dim = subsystem.truncated_dim
 
     if evecs is None:
         _, evecs = subsystem.eigensys(evals_count=dim)
-    operator_matrixelements = subsystem.matrixelement_table(operator, evecs=evecs)
-    return qt.Qobj(operator_matrixelements)
+    return subsystem.matrixelement_table(operator, evecs=evecs)
 
 
-def convert_operator_to_qobj(
-    operator: np.ndarray | csc_matrix | dia_matrix | qt.Qobj | str,
+def operator_in_subsys_eigenbasis(
+    operator: np.ndarray | csc_matrix | csr_matrix | qt.Qobj | str,
     subsystem: "QubitBaseClass" | "Oscillator",
     op_in_eigenbasis: bool,
     evecs: np.ndarray | None,
-) -> qt.Qobj:
-    if isinstance(operator, qt.Qobj):
-        operator = Qobj_to_scipy_csc_matrix(operator)
+) -> np.ndarray | csc_matrix | csr_matrix:
     if isinstance(operator, str):
-        return convert_opstring_to_qobj(operator, subsystem, evecs)
-    elif isinstance(operator, (np.ndarray, csc_matrix, csr_matrix, dia_matrix)):
-        return convert_matrix_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)  # type: ignore[arg-type]
-    else:
-        raise TypeError("Unsupported operator type: ", type(operator))
+        return _opstring_in_eigenbasis(operator, subsystem, evecs)
+    if isinstance(operator, (np.ndarray, csc_matrix, csr_matrix, qt.Qobj)):
+        return _matrix_in_eigenbasis(operator, subsystem, op_in_eigenbasis, evecs)
+    raise TypeError("Unsupported operator type: ", type(operator))
 
 
 def generate_target_states_list(
@@ -405,12 +406,36 @@ def recast_esys_mapdata(
     return eigenenergy_table, eigenstate_table
 
 
+def _cuoperator_data(operator: np.ndarray | csc_matrix | csr_matrix):
+    """Pick dense/dia QuTiP data for CuOperator wrapping."""
+    try:
+        import qutip_cuquantum as qcu
+    except ImportError as exc:
+        raise ImportError(
+            "Package qutip-cuquantum is required when use_cuquantum=True."
+        ) from exc
+
+    operator = operator.toarray() if sp.sparse.issparse(operator) else operator
+
+    if operator.shape[0] <= DIA_D_MAX:
+        operator_data = qt.core.data.Dense(operator)
+    else:
+        dia_op = dia_matrix(operator)
+        operator_data = (
+            qt.core.data.Dia(dia_op)
+            if dia_op.offsets.size <= DIA_D_MAX
+            else qt.core.data.Dense(operator)
+        )
+    return qcu.CuOperator(operator_data), qcu.CuOperator
+
+
 def identity_wrap(
     operator: str | ndarray | Qobj | Callable,
     subsystem: "QuantumSys",
     subsys_list: list["QuantumSys"],
     op_in_eigenbasis: bool = False,
     evecs: ndarray | None = None,
+    use_cuquantum: bool = False,
 ) -> Qobj:
     """Takes the `operator` belonging to `subsystem` and "wraps" it in identities. The
     full Hilbert space is taken to consist of all subsystems given as `subsys_list`.
@@ -432,6 +457,9 @@ def identity_wrap(
         `operator` is assumed to be in the internal QuantumSystem basis.
     evecs:
         internal `QuantumSystem` eigenstates, used to convert `operator` into eigenbasis
+    use_cuquantum:
+        if True, format the operator and wrap it as a CuOperator for
+        GPU-accelerated tensor-product dispatch.
 
     Returns
     -------
@@ -443,11 +471,18 @@ def identity_wrap(
     if not isinstance(operator, qt.Qobj) and callable(operator):
         operator = operator()
 
-    subsys_operator = convert_operator_to_qobj(
+    subsys_operator = operator_in_subsys_eigenbasis(
         operator, subsystem, op_in_eigenbasis, evecs  # type: ignore[arg-type]
     )
+
+    operator_dtype = None
+    if use_cuquantum:
+        subsys_operator, operator_dtype = _cuoperator_data(subsys_operator)
+
+    subsys_operator = qt.Qobj(subsys_operator)
     operator_identitywrap_list = [
-        qt.operators.qeye(the_subsys.truncated_dim) for the_subsys in subsys_list
+        qt.operators.qeye(the_subsys.truncated_dim, dtype=operator_dtype)
+        for the_subsys in subsys_list
     ]
     subsystem_index = subsys_list.index(subsystem)
     operator_identitywrap_list[subsystem_index] = subsys_operator
