@@ -297,6 +297,42 @@ def test_types_in_docstring_check_silent_on_returns_with_description() -> None:
     assert issues == []
 
 
+def test_types_in_docstring_check_flags_returns_with_named_type() -> None:
+    """DOC002 flags a numpydoc ``name : type`` Returns entry whose RHS is a
+    type (e.g. ``time or rate : float``), not only the bare-type form."""
+    source = textwrap.dedent("""\
+        def foo() -> float:
+            \"\"\"Summary.
+
+            Returns
+            -------
+            time or rate: float
+                the coherence time or rate.
+            \"\"\"
+        """)
+    issues = [i for i in lint_source(source, "fixture.py") if i.check_id == "DOC002"]
+    assert len(issues) == 1
+    assert "Returns" in issues[0].message
+    assert issues[0].snippet == "time or rate: float"
+
+
+def test_types_in_docstring_check_silent_on_returns_with_named_prose() -> None:
+    """A ``name: prose`` Returns entry (RHS is a description, not a type) is
+    fine -- DOC002 must not flag it."""
+    source = textwrap.dedent("""\
+        def foo() -> float:
+            \"\"\"Summary.
+
+            Returns
+            -------
+            result: the frequency in Hz
+                more detail.
+            \"\"\"
+        """)
+    issues = [i for i in lint_source(source, "fixture.py") if i.check_id == "DOC002"]
+    assert issues == []
+
+
 def test_work_narrative_check_flags_we_used_to() -> None:
     docstring = "We used to compute this differently."
     issues = _run_check_on_docstring(WorkNarrativeCheck(), docstring)

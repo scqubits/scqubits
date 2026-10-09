@@ -37,7 +37,7 @@ import scqubits.utils.plotting as plotting
 
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import matplotlib_settings
-from scqubits.utils.misc import Qobj_to_scipy_csc_matrix
+from scqubits.utils.misc import Qobj_to_scipy_csc_matrix, is_matrix_data
 
 # flag that lets us show a warning about the default t1 behavior
 # (i.e., total=True setting) only once. Using the standard warnings
@@ -777,7 +777,7 @@ class NoisySystem(ABC):
         Returns
         -------
         decoherence time in units of :math:`2\pi` (system units), or rate
-         in inverse units.
+        in inverse units.
         """
         common_noise_options = (
             {} if common_noise_options is None else common_noise_options
@@ -878,9 +878,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or
-            rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or
+        rate in inverse units.
         """
         common_noise_options = (
             {} if common_noise_options is None else common_noise_options
@@ -997,9 +996,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units),
-            or rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units),
+        or rate in inverse units.
         """
         # Sanity check
         if i == j or i < 0 or j < 0:
@@ -1073,9 +1071,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or
-            rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or
+        rate in inverse units.
         """
 
         if "tphi_1_over_f_flux" not in self.supported_noise_channels():
@@ -1120,9 +1117,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or
-            rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or
+        rate in inverse units.
         """
 
         if "tphi_1_over_f_cc" not in self.supported_noise_channels():
@@ -1167,9 +1163,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or rate
-            in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or rate
+        in inverse units.
         """
         if "tphi_1_over_f_ng" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -1237,9 +1232,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or rate
-            in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or rate
+        in inverse units.
         """
 
         if settings.T1_DEFAULT_WARNING:
@@ -1332,9 +1326,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or rate
-             in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or rate
+        in inverse units.
         """
         if "t1_capacitive" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -1372,9 +1365,9 @@ class NoisySystem(ABC):
             return s
 
         noise_op = noise_op or self.n_operator()  # type: ignore
-        if not isinstance(noise_op, (ndarray, csc_matrix, qt.Qobj)):
+        if not (isinstance(noise_op, qt.Qobj) or is_matrix_data(noise_op)):
             raise AttributeError(
-                "The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj."
+                "The type of the matrix noise_op is invalid. It should be an ndarray, a SciPy sparse matrix or array, or a qutip Qobj."
             )
         if isinstance(noise_op, (qt.Qobj)):
             noise_op = Qobj_to_scipy_csc_matrix(noise_op)
@@ -1433,8 +1426,7 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or rate in inverse units.
         """
         if "t1_charge_impedance" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -1458,9 +1450,9 @@ class NoisySystem(ABC):
             return s
 
         noise_op = noise_op or self.n_operator()  # type: ignore
-        if not isinstance(noise_op, (ndarray, csc_matrix, qt.Qobj)):
+        if not (isinstance(noise_op, qt.Qobj) or is_matrix_data(noise_op)):
             raise AttributeError(
-                "The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj."
+                "The type of the matrix noise_op is invalid. It should be an ndarray, a SciPy sparse matrix or array, or a qutip Qobj."
             )
         if isinstance(noise_op, (qt.Qobj)):
             noise_op = Qobj_to_scipy_csc_matrix(noise_op)
@@ -1523,9 +1515,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units),
-            or rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units),
+        or rate in inverse units.
         """
         if "t1_flux_bias_line" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -1610,9 +1601,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or rate
-            in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or rate
+        in inverse units.
         """
         if "t1_inductive" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -1661,9 +1651,9 @@ class NoisySystem(ABC):
             return s
 
         noise_op = noise_op or self.phi_operator()  # type: ignore
-        if not isinstance(noise_op, (ndarray, csc_matrix, qt.Qobj)):
+        if not (isinstance(noise_op, qt.Qobj) or is_matrix_data(noise_op)):
             raise AttributeError(
-                "The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj."
+                "The type of the matrix noise_op is invalid. It should be an ndarray, a SciPy sparse matrix or array, or a qutip Qobj."
             )
         if isinstance(noise_op, (qt.Qobj)):
             noise_op = Qobj_to_scipy_csc_matrix(noise_op)
@@ -1729,8 +1719,7 @@ class NoisySystem(ABC):
 
         Returns
         -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi` (system units), or rate in inverse units.
+        decoherence time in units of :math:`2\pi` (system units), or rate in inverse units.
         """
         if "t1_quasiparticle_tunneling" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -1799,9 +1788,9 @@ class NoisySystem(ABC):
         # transform the operator using phi -> phi + 2*pi*flux
         noise_op = noise_op or self.sin_phi_operator(alpha=0.5, beta=0.5 * (2 * np.pi * self.flux))  # type: ignore
 
-        if not isinstance(noise_op, (ndarray, csc_matrix, qt.Qobj)):
+        if not (isinstance(noise_op, qt.Qobj) or is_matrix_data(noise_op)):
             raise AttributeError(
-                "The type of the matrix noise_op is invalid. It should be an instance of ndarray, csc_matrix or qutip Qobj."
+                "The type of the matrix noise_op is invalid. It should be an ndarray, a SciPy sparse matrix or array, or a qutip Qobj."
             )
         if isinstance(noise_op, (qt.Qobj)):
             noise_op = Qobj_to_scipy_csc_matrix(noise_op)

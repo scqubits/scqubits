@@ -451,6 +451,16 @@ def matrix2d(
     return fig, axes
 
 
+def _repeat_curve_columns(
+    columns: np.ndarray | list[np.ndarray],
+    n_curves: int,
+) -> np.ndarray:
+    """Repeat a single curve column for multi-curve broadcasting."""
+    if isinstance(columns, np.ndarray):
+        return np.repeat(columns, n_curves, axis=0)
+    return np.array(columns * n_curves)
+
+
 @mpl.rc_context(matplotlib_settings)
 def data_vs_paramvals(
     xdata: np.ndarray,
@@ -476,14 +486,30 @@ def data_vs_paramvals(
     """
     fig, axes = kwargs.get("fig_ax") or plt.subplots()
 
+    xdata = np.asarray(xdata)
+    ydata = np.asarray(ydata)
+
+    # Normalise to 2-dim column arrays so the loop below is uniform.
+    # A 1-dim array is treated as a single dataset (one column).
+    x_cols = xdata.T if xdata.ndim == 2 else [xdata]
+    y_cols = ydata.T if ydata.ndim == 2 else [ydata]
+
+    # Broadcast: if one side has a single column, reuse it for every column of the other.
+    n_curves = max(len(x_cols), len(y_cols))
+    if len(x_cols) == 1:
+        x_cols = _repeat_curve_columns(x_cols, n_curves)
+    if len(y_cols) == 1:
+        y_cols = _repeat_curve_columns(y_cols, n_curves)
+
     if label_list is None:
-        axes.plot(xdata, ydata, **_extract_kwargs_options(kwargs, "plot"))
+        for xdataset, ydataset in zip(x_cols, y_cols):
+            axes.plot(xdataset, ydataset, **_extract_kwargs_options(kwargs, "plot"))
         _process_options(fig, axes, **kwargs)
         return fig, axes
 
-    for idx, ydataset in enumerate(ydata.T):
+    for idx, (xdataset, ydataset) in enumerate(zip(x_cols, y_cols)):
         axes.plot(
-            xdata,
+            xdataset,
             ydataset,
             label=label_list[idx],
             **_extract_kwargs_options(kwargs, "plot"),
@@ -509,9 +535,12 @@ def data_vs_paramvals(
         )
     _process_options(fig, axes, **kwargs)
 
-    # The following ensures that np.nan entries (as present in transition energy plots)
-    # cannot reduce the intended x range
-    axes.update_datalim(np.c_[xdata, [0] * len(xdata)], updatey=False)
+    # Ensures that np.nan entries (as present in transition energy plots)
+    # cannot reduce the intended x range. Use the full x span so multi-curve
+    # plots (e.g. branch analysis) are not clipped to the first column only.
+    x_min = np.nanmin(xdata)
+    x_max = np.nanmax(xdata)
+    axes.update_datalim(np.array([[x_min, 0.0], [x_max, 0.0]]), updatey=False)
     axes.autoscale()
 
     return fig, axes

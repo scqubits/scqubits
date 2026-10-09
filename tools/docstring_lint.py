@@ -299,6 +299,16 @@ _PARAM_TYPE_LINE = re.compile(
 )
 
 
+# Heuristic for a numpydoc *Returns* entry that names both a value and its type,
+# e.g. ``time or rate : float`` / ``result: ndarray``.  Unlike a parameter name,
+# the value name may be a free-text phrase, so the name group is permissive; the
+# RHS is type-checked by ``_looks_like_a_type`` before flagging.  The non-greedy
+# name stops at the first ``:``, so a description with an embedded ``:math:`` role
+# still matches (split before the role) but is not flagged, because its RHS is not
+# a bare type.
+_RETURNS_NAMED_TYPE_LINE = re.compile(r"^(?P<name>.+?)\s*:\s*(?P<rhs>\S.*)$")
+
+
 # Set of Python type names (built-ins + scqubits-relevant) that should be
 # recognized as types when they appear bare in a docstring.  Used by both
 # ``_looks_like_a_type`` (Parameters RHS) and ``_looks_like_bare_type_line``
@@ -462,9 +472,11 @@ def _has_return_annotation(node: ast.AST) -> bool:
 class TypesInDocstringCheck(Check):
     """DOC002 -- flags type annotations duplicated into the docstring.
 
-    Catches both the numpydoc ``name : type`` Parameters form *and* the
-    bare-type-on-first-line Returns form.  The rule fires only when
-    the function signature *already* carries the annotation -- i.e.
+    Catches the numpydoc ``name : type`` Parameters form and, in a
+    Returns/Yields section, both the bare-type-on-first-line form
+    (``float``) and the named ``name : type`` form (``time or rate :
+    float``).  The rule fires only when the function signature
+    *already* carries the annotation -- i.e.
     when the docstring is duplicating information that the type
     system already has.  Functions without signature annotations
     legitimately use the docstring as the type source and are not
@@ -536,30 +548,45 @@ class TypesInDocstringCheck(Check):
             )
 
     def _check_returns(self, section, start_line, body):
-        # Only invoked when the function has a ``-> ...`` annotation,
-        # so a bare-type first line in the section is genuinely
-        # duplicating the signature.  First non-blank body line: if it
-        # parses as a bare type (one identifier, possibly with
-        # ``[...]`` / ``|``), flag it.
+        # Only invoked when the function has a ``-> ...`` annotation, so a type
+        # in the section is genuinely duplicating the signature.  Inspect the
+        # first non-blank body line and flag either form numpydoc allows for a
+        # typed return:
+        #   - a bare type on its own line (``float``), or
+        #   - a named entry whose RHS is purely a type (``time or rate : float``).
+        # Anything else is a description and is left alone.
         body_lines = body.splitlines()
         for offset, line in enumerate(body_lines, start=1):
             if not line.strip():
                 continue
             stripped = line.strip()
-            if not _looks_like_bare_type_line(stripped):
-                return  # description first -- fine
             line_in_doc = start_line + 1 + offset
-            yield (
-                line_in_doc,
-                f"`{section}` section starts with bare type `{stripped}` "
-                f"(signature already declares the return type)",
-                stripped,
-                f"Drop the bare-type first line and put the description "
-                f"directly under the `{section}` header.  The signature's "
-                f"`-> {stripped}` annotation is the source of truth; "
-                f"Sphinx with napoleon surfaces the type from there.",
-            )
-            return
+            if _looks_like_bare_type_line(stripped):
+                yield (
+                    line_in_doc,
+                    f"`{section}` section starts with bare type `{stripped}` "
+                    f"(signature already declares the return type)",
+                    stripped,
+                    f"Drop the bare-type first line and put the description "
+                    f"directly under the `{section}` header.  The signature's "
+                    f"`-> {stripped}` annotation is the source of truth; "
+                    f"Sphinx with napoleon surfaces the type from there.",
+                )
+                return
+            named = _RETURNS_NAMED_TYPE_LINE.match(stripped)
+            if named and _looks_like_a_type(named.group("rhs")):
+                rhs = named.group("rhs").strip()
+                name = named.group("name").strip()
+                yield (
+                    line_in_doc,
+                    f"`{section}` entry `{name}` carries type `{rhs}` "
+                    f"(signature already declares the return type)",
+                    stripped,
+                    f"Drop the `: {rhs}` from the `{section}` entry and keep only "
+                    f"the description.  The signature's `-> {rhs}` annotation is "
+                    f"the source of truth; Sphinx with napoleon surfaces the type.",
+                )
+            return  # first non-blank line decides it
 
 
 # Phrases that indicate the docstring is narrating change history rather
