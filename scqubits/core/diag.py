@@ -19,7 +19,7 @@ from collections.abc import Callable
 from typing import Any
 
 import numpy as np
-import qutip as q
+import qutip as qt
 import scipy as sp
 
 from numpy import ndarray
@@ -29,6 +29,7 @@ from scipy.sparse import csc_matrix
 import scqubits.settings as settings
 
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
+from scqubits.utils.cuquantum_utils import get_cuquantum_workstream, max_eigvals
 from scqubits.utils.spectrum_utils import has_degeneracy, order_eigensystem
 
 
@@ -102,36 +103,36 @@ def _cast_matrix(
     if cast_to not in ["sparse", "dense"]:
         raise ValueError("Can only cast matrix to 'sparse' or 'dense' forms.")
 
-    m = matrix
+    converted_mat = matrix
 
     # First, if we are dealing with a Qobj, we convert it to either
     # an ndarray or a scipy sparse matrix.
     if isinstance(matrix, Qobj):
-        if q.__version__ >= "5.0.0":
-            if matrix.dtype == q.core.data.dense.Dense:
-                m = matrix.full()
+        if qt.__version__ >= "5.0.0":
+            if matrix.dtype == qt.core.data.dense.Dense:
+                converted_mat = matrix.full()
             else:
                 # This could be costly if the data is in a "Dia"
                 # form. In the future we may want to support other
                 # formats as well.
-                m = matrix.data_as("csr_matrix")
+                converted_mat = matrix.data_as("csr_matrix")
         else:
             # In previous versions of qutip data was always in the csr form
-            m = matrix.data
+            converted_mat = matrix.data
 
     # Next, we do casting dense or sparse (CSC) representation
     # if force_cast is True
     if force_cast:
-        if cast_to == "dense" and not isinstance(m, ndarray):
-            m = m.toarray()
+        if cast_to == "dense" and not isinstance(converted_mat, ndarray):
+            converted_mat = converted_mat.toarray()
         if cast_to == "sparse":
-            m = csc_matrix(m)
+            converted_mat = csc_matrix(converted_mat)
 
-    return m
+    return converted_mat
 
 
 def _convert_evecs_to_qobjs(
-    evecs: ndarray, matrix_qobj: Qobj, wrap: bool = False
+    evecs: ndarray, hamiltonian_qobj: Qobj, wrap: bool = False
 ) -> ndarray:
     """Convert an ``ndarray`` of eigenvectors to a numpy array of qutip Qobjs.
 
@@ -143,8 +144,8 @@ def _convert_evecs_to_qobjs(
     ----------
     evecs:
         ndarray of eigenvectors (as columns).
-    matrix_qobj:
-        matrix in qutip Qobj form, used to extract the tensor product
+    hamiltonian_qobj:
+        Hamiltonian in qutip Qobj form, used to extract the tensor product
         structure.
     wrap:
         whether to wrap results in :class:`QutipEigenstates`.
@@ -154,7 +155,7 @@ def _convert_evecs_to_qobjs(
     eigenvectors represented as Qobjs.
     """
     evecs_count = evecs.shape[1]
-    evec_dims = [matrix_qobj.dims[0], [1] * len(matrix_qobj.dims[0])]
+    evec_dims = [hamiltonian_qobj.dims[0], [1] * len(hamiltonian_qobj.dims[0])]
     evecs_qobj = np.empty((evecs_count,), dtype=object)
 
     for i in range(evecs_count):
@@ -172,7 +173,7 @@ def _convert_evecs_to_qobjs(
 
 
 def evals_scipy_dense(
-    matrix: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
+    hamiltonian: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
 ) -> ndarray:
     """Diagonalize via scipy's dense ``eigh``; return only eigenvalues.
 
@@ -180,7 +181,7 @@ def evals_scipy_dense(
 
     Parameters
     ----------
-    matrix:
+    hamiltonian:
         ndarray or qutip.Qobj to be diagonalized.
     evals_count:
         number of eigenvalues to return.
@@ -189,17 +190,17 @@ def evals_scipy_dense(
 
     Returns
     -------
-    eigenvalues of matrix.
+    eigenvalues of the Hamiltonian.
     """
-    m = _cast_matrix(matrix, "dense")
+    dense_matrix = _cast_matrix(hamiltonian, "dense")
 
     # scipy's `eigh` stubs only accept numeric ndarrays / nested sequences. Our
-    # `m` is ndarray | csc_matrix | Any after `_cast_matrix`, which is valid at
+    # `dense_matrix` is ndarray | csc_matrix | Any after `_cast_matrix`, which is valid at
     # runtime but not covered by those stubs — hence `arg-type`.
     # The stubs also declare a dtype-precision union return (float32|float64)
     # that doesn't match our bare `ndarray[Any, Any]` — hence `return-value`.
     evals = sp.linalg.eigh(
-        m,  # type: ignore[arg-type]
+        dense_matrix,  # type: ignore[arg-type]
         subset_by_index=(0, evals_count - 1),
         eigvals_only=True,
         **kwargs,
@@ -208,7 +209,7 @@ def evals_scipy_dense(
 
 
 def esys_scipy_dense(
-    matrix: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
+    hamiltonian: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
 ) -> tuple[ndarray, ndarray] | tuple[ndarray, QutipEigenstates]:
     """Diagonalize via scipy's dense ``eigh``; return eigenvalues and eigenvectors.
 
@@ -216,7 +217,7 @@ def esys_scipy_dense(
 
     Parameters
     ----------
-    matrix:
+    hamiltonian:
         ndarray or qutip.Qobj to be diagonalized.
     evals_count:
         number of eigenvalues/vectors to return.
@@ -226,22 +227,24 @@ def esys_scipy_dense(
     Returns
     -------
     tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if
-    ``matrix`` is a Qobj instance.
+    ``hamiltonian`` is a Qobj instance.
     """
-    m = _cast_matrix(matrix, "dense")
+    dense_matrix = _cast_matrix(hamiltonian, "dense")
 
     # See `evals_scipy_dense` above — same scipy-stubs input-type narrowness.
-    evals, evecs = sp.linalg.eigh(m, subset_by_index=(0, evals_count - 1), **kwargs)  # type: ignore[arg-type]
+    evals, evecs = sp.linalg.eigh(dense_matrix, subset_by_index=(0, evals_count - 1), **kwargs)  # type: ignore[arg-type]
 
     evecs = (
-        _convert_evecs_to_qobjs(evecs, matrix) if isinstance(matrix, Qobj) else evecs
+        _convert_evecs_to_qobjs(evecs, hamiltonian)
+        if isinstance(hamiltonian, Qobj)
+        else evecs
     )
 
     return evals, evecs
 
 
 def evals_scipy_sparse(
-    matrix: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
+    hamiltonian: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
 ) -> ndarray:
     """Diagonalize via scipy's sparse ``eigsh``; return only eigenvalues.
 
@@ -254,7 +257,7 @@ def evals_scipy_sparse(
 
     Parameters
     ----------
-    matrix:
+    hamiltonian:
         ndarray or qutip.Qobj to be diagonalized.
     evals_count:
         number of eigenvalues to return.
@@ -263,20 +266,20 @@ def evals_scipy_sparse(
 
     Returns
     -------
-    eigenvalues of matrix.
+    eigenvalues of the Hamiltonian.
     """
-    m = _cast_matrix(matrix, "sparse")
+    csc_matrix = _cast_matrix(hamiltonian, "sparse")
 
     options = _dict_merge(
         dict(
             which="SA",
-            v0=settings.arpack_v0(matrix.shape[0]),
+            v0=settings.arpack_v0(hamiltonian.shape[0]),
             return_eigenvectors=False,
         ),
         kwargs,
         overwrite=True,
     )
-    evals = sp.sparse.linalg.eigsh(m, k=evals_count, **options)
+    evals = sp.sparse.linalg.eigsh(csc_matrix, k=evals_count, **options)
 
     # eigsh's eigenvalue order depends on return_eigenvectors (scipy/scipy#9082) and
     # is not reliably ascending; sort explicitly to honor the documented convention.
@@ -284,7 +287,7 @@ def evals_scipy_sparse(
 
 
 def esys_scipy_sparse(
-    matrix: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
+    hamiltonian: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
 ) -> tuple[ndarray, ndarray] | tuple[ndarray, QutipEigenstates]:
     """Diagonalize via scipy's sparse ``eigsh``; return eigenvalues and eigenvectors.
 
@@ -309,7 +312,7 @@ def esys_scipy_sparse(
 
     Parameters
     ----------
-    matrix:
+    hamiltonian:
         ndarray or qutip.Qobj to be diagonalized.
     evals_count:
         number of eigenvalues/vectors to return.
@@ -319,20 +322,20 @@ def esys_scipy_sparse(
     Returns
     -------
     tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if
-    ``matrix`` is a Qobj instance.
+    ``hamiltonian`` is a Qobj instance.
     """
-    m = _cast_matrix(matrix, "sparse")
+    csc_matrix = _cast_matrix(hamiltonian, "sparse")
 
     options = _dict_merge(
         dict(
             which="SA",
-            v0=settings.arpack_v0(matrix.shape[0]),
+            v0=settings.arpack_v0(hamiltonian.shape[0]),
             return_eigenvectors=True,
         ),
         kwargs,
         overwrite=True,
     )
-    evals, evecs = sp.sparse.linalg.eigsh(m, k=evals_count, **options)
+    evals, evecs = sp.sparse.linalg.eigsh(csc_matrix, k=evals_count, **options)
 
     # eigsh's eigenvalue order depends on return_eigenvectors (scipy/scipy#9082) and
     # is not reliably ascending; sort explicitly (keeping evecs aligned) so that, like
@@ -344,7 +347,9 @@ def esys_scipy_sparse(
         evecs, _ = sp.linalg.qr(evecs, mode="economic")
 
     evecs = (
-        _convert_evecs_to_qobjs(evecs, matrix) if isinstance(matrix, Qobj) else evecs
+        _convert_evecs_to_qobjs(evecs, hamiltonian)
+        if isinstance(hamiltonian, Qobj)
+        else evecs
     )
 
     return evals, evecs
@@ -354,7 +359,7 @@ def esys_scipy_sparse(
 
 
 def evals_primme_sparse(
-    matrix: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
+    hamiltonian: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
 ) -> ndarray:
     """Diagonalize via primme's sparse ``eigsh``; return only eigenvalues.
 
@@ -363,7 +368,7 @@ def evals_primme_sparse(
 
     Parameters
     ----------
-    matrix:
+    hamiltonian:
         ndarray or qutip.Qobj to be diagonalized.
     evals_count:
         number of eigenvalues to return.
@@ -372,14 +377,14 @@ def evals_primme_sparse(
 
     Returns
     -------
-    eigenvalues of matrix.
+    eigenvalues of the Hamiltonian.
     """
     try:
         import primme
     except:
         raise ImportError("Package primme is not installed.")
 
-    m = _cast_matrix(matrix, "sparse")
+    csc_matrix = _cast_matrix(hamiltonian, "sparse")
 
     options = _dict_merge(
         dict(
@@ -390,13 +395,13 @@ def evals_primme_sparse(
         overwrite=True,
     )
 
-    evals = primme.eigsh(m, k=evals_count, **options)
+    evals = primme.eigsh(csc_matrix, k=evals_count, **options)
 
     return evals
 
 
 def esys_primme_sparse(
-    matrix: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
+    hamiltonian: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
 ) -> tuple[ndarray, ndarray] | tuple[ndarray, QutipEigenstates]:
     """Diagonalize via primme's sparse ``eigsh``; return eigenvalues and eigenvectors.
 
@@ -405,7 +410,7 @@ def esys_primme_sparse(
 
     Parameters
     ----------
-    matrix:
+    hamiltonian:
         ndarray or qutip.Qobj to be diagonalized.
     evals_count:
         number of eigenvalues/vectors to return.
@@ -415,14 +420,14 @@ def esys_primme_sparse(
     Returns
     -------
     tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if
-    ``matrix`` is a Qobj instance.
+    ``hamiltonian`` is a Qobj instance.
     """
     try:
         import primme
     except:
         raise ImportError("Package primme is not installed.")
 
-    m = _cast_matrix(matrix, "sparse")
+    csc_matrix = _cast_matrix(hamiltonian, "sparse")
 
     options = _dict_merge(
         dict(
@@ -433,10 +438,12 @@ def esys_primme_sparse(
         overwrite=True,
     )
 
-    evals, evecs = primme.eigsh(m, k=evals_count, **options)
+    evals, evecs = primme.eigsh(csc_matrix, k=evals_count, **options)
 
     evecs = (
-        _convert_evecs_to_qobjs(evecs, matrix) if isinstance(matrix, Qobj) else evecs
+        _convert_evecs_to_qobjs(evecs, hamiltonian)
+        if isinstance(hamiltonian, Qobj)
+        else evecs
     )
 
     return evals, evecs
@@ -446,7 +453,7 @@ def esys_primme_sparse(
 
 
 def evals_cupy_dense(
-    matrix: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
+    hamiltonian: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
 ) -> ndarray:
     """Diagonalize via cupy's dense ``eigvalsh``; return only eigenvalues.
 
@@ -455,7 +462,7 @@ def evals_cupy_dense(
 
     Parameters
     ----------
-    matrix:
+    hamiltonian:
         ndarray or qutip.Qobj to be diagonalized.
     evals_count:
         number of eigenvalues to return.
@@ -464,23 +471,23 @@ def evals_cupy_dense(
 
     Returns
     -------
-    eigenvalues of matrix.
+    eigenvalues of the Hamiltonian.
     """
     try:
         import cupy as cp
     except:
         raise ImportError("Package cupy is not installed.")
 
-    m = _cast_matrix(matrix, "dense")
+    dense_matrix = _cast_matrix(hamiltonian, "dense")
 
-    evals_gpu = cp.linalg.eigvalsh(cp.asarray(m), **kwargs)
+    evals_gpu = cp.linalg.eigvalsh(cp.asarray(dense_matrix), **kwargs)
     cp.cuda.Stream.null.synchronize()  # wait for GPU to finish
 
     return evals_gpu[:evals_count].get()
 
 
 def esys_cupy_dense(
-    matrix: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
+    hamiltonian: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
 ) -> tuple[ndarray, ndarray] | tuple[ndarray, QutipEigenstates]:
     """Diagonalize via cupy's dense ``eigh``; return eigenvalues and eigenvectors.
 
@@ -489,7 +496,7 @@ def esys_cupy_dense(
 
     Parameters
     ----------
-    matrix:
+    hamiltonian:
         ndarray or qutip.Qobj to be diagonalized.
     evals_count:
         number of eigenvalues/vectors to return.
@@ -499,29 +506,31 @@ def esys_cupy_dense(
     Returns
     -------
     tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if
-    ``matrix`` is a Qobj instance.
+    ``hamiltonian`` is a Qobj instance.
     """
     try:
         import cupy as cp
     except:
         raise ImportError("Package cupy is not installed.")
 
-    m = _cast_matrix(matrix, "dense")
+    dense_matrix = _cast_matrix(hamiltonian, "dense")
 
-    evals_gpu, evecs_gpu = cp.linalg.eigh(cp.asarray(m), **kwargs)
+    evals_gpu, evecs_gpu = cp.linalg.eigh(cp.asarray(dense_matrix), **kwargs)
     cp.cuda.Stream.null.synchronize()  # wait for GPU to finish
 
     evals, evecs = evals_gpu[:evals_count].get(), evecs_gpu[:, :evals_count].get()
 
     evecs = (
-        _convert_evecs_to_qobjs(evecs, matrix) if isinstance(matrix, Qobj) else evecs
+        _convert_evecs_to_qobjs(evecs, hamiltonian)
+        if isinstance(hamiltonian, Qobj)
+        else evecs
     )
 
     return evals, evecs
 
 
 def evals_cupy_sparse(
-    matrix: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
+    hamiltonian: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
 ) -> ndarray:
     """Diagonalize via cupy's sparse ``eigsh``; return only eigenvalues.
 
@@ -530,7 +539,7 @@ def evals_cupy_sparse(
 
     Parameters
     ----------
-    matrix:
+    hamiltonian:
         ndarray or qutip.Qobj to be diagonalized.
     evals_count:
         number of eigenvalues to return.
@@ -539,7 +548,7 @@ def evals_cupy_sparse(
 
     Returns
     -------
-    eigenvalues of matrix.
+    eigenvalues of the Hamiltonian.
     """
     try:
         import cupy as cp
@@ -549,7 +558,7 @@ def evals_cupy_sparse(
     except:
         raise ImportError("Package cupyx (part of cupy) is not installed.")
 
-    m = cp_csc_matrix(_cast_matrix(matrix, "sparse"))
+    csc_matrix = cp_csc_matrix(_cast_matrix(hamiltonian, "sparse"))
 
     options = _dict_merge(
         dict(
@@ -559,14 +568,14 @@ def evals_cupy_sparse(
         kwargs,
         overwrite=True,
     )
-    evals_gpu = eigsh(m, k=evals_count, **options)
+    evals_gpu = eigsh(csc_matrix, k=evals_count, **options)
 
     # return evals_gpu.get()[::-1]
     return evals_gpu.get()
 
 
 def esys_cupy_sparse(
-    matrix: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
+    hamiltonian: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
 ) -> tuple[ndarray, ndarray] | tuple[ndarray, QutipEigenstates]:
     """Diagonalize via cupy's sparse ``eigsh``; return eigenvalues and eigenvectors.
 
@@ -575,7 +584,7 @@ def esys_cupy_sparse(
 
     Parameters
     ----------
-    matrix:
+    hamiltonian:
         ndarray or qutip.Qobj to be diagonalized.
     evals_count:
         number of eigenvalues/vectors to return.
@@ -585,7 +594,7 @@ def esys_cupy_sparse(
     Returns
     -------
     tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if
-    ``matrix`` is a Qobj instance.
+    ``hamiltonian`` is a Qobj instance.
     """
     try:
         import cupy as cp
@@ -595,7 +604,7 @@ def esys_cupy_sparse(
     except:
         raise ImportError("Package cupyx (part of cupy) is not installed.")
 
-    m = cp_csc_matrix(_cast_matrix(matrix, "sparse"))
+    csc_matrix = cp_csc_matrix(_cast_matrix(hamiltonian, "sparse"))
 
     options = _dict_merge(
         dict(
@@ -605,12 +614,14 @@ def esys_cupy_sparse(
         kwargs,
         overwrite=True,
     )
-    evals_gpu, evecs_gpu = eigsh(m, k=evals_count, **options)
+    evals_gpu, evecs_gpu = eigsh(csc_matrix, k=evals_count, **options)
 
     evals, evecs = evals_gpu.get(), evecs_gpu.get()
 
     evecs = (
-        _convert_evecs_to_qobjs(evecs, matrix) if isinstance(matrix, Qobj) else evecs
+        _convert_evecs_to_qobjs(evecs, hamiltonian)
+        if isinstance(hamiltonian, Qobj)
+        else evecs
     )
 
     return evals, evecs
@@ -620,7 +631,7 @@ def esys_cupy_sparse(
 
 
 def evals_jax_dense(
-    matrix: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
+    hamiltonian: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
 ) -> ndarray:
     """Diagonalize via jax's dense ``jax.scipy.linalg.eigh``; return only eigenvalues.
 
@@ -636,7 +647,7 @@ def evals_jax_dense(
 
     Parameters
     ----------
-    matrix:
+    hamiltonian:
         ndarray or qutip.Qobj to be diagonalized.
     evals_count:
         number of eigenvalues to return.
@@ -645,7 +656,7 @@ def evals_jax_dense(
 
     Returns
     -------
-    eigenvalues of matrix.
+    eigenvalues of the Hamiltonian.
     """
     try:
         import jax
@@ -655,10 +666,10 @@ def evals_jax_dense(
     except:
         raise ImportError("Package jax is not installed.")
 
-    m = _cast_matrix(matrix, "dense")
+    dense_matrix = _cast_matrix(hamiltonian, "dense")
 
     # We explicitly cast to a numpy array
-    evals = np.asarray(jax.scipy.linalg.eigh(m, eigvals_only=True, **kwargs))
+    evals = np.asarray(jax.scipy.linalg.eigh(dense_matrix, eigvals_only=True, **kwargs))
 
     # In eigh, the eigvals options is not currently implemented, although listed
     # in the jax docs, hence we have to "manually" only return the number of
@@ -667,7 +678,7 @@ def evals_jax_dense(
 
 
 def esys_jax_dense(
-    matrix: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
+    hamiltonian: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
 ) -> tuple[ndarray, ndarray] | tuple[ndarray, QutipEigenstates]:
     """Diagonalize via jax's dense ``jax.scipy.linalg.eigh``; return evals and evecs.
 
@@ -684,7 +695,7 @@ def esys_jax_dense(
 
     Parameters
     ----------
-    matrix:
+    hamiltonian:
         ndarray or qutip.Qobj to be diagonalized.
     evals_count:
         number of eigenvalues/vectors to return.
@@ -694,7 +705,7 @@ def esys_jax_dense(
     Returns
     -------
     tuple of eigenvalues and eigenvectors. Eigenvectors are Qobjs if
-    ``matrix`` is a Qobj instance.
+    ``hamiltonian`` is a Qobj instance.
     """
     try:
         import jax
@@ -704,9 +715,9 @@ def esys_jax_dense(
     except:
         raise ImportError("Package jax is not installed.")
 
-    m = _cast_matrix(matrix, "dense")
+    dense_matrix = _cast_matrix(hamiltonian, "dense")
 
-    evals, evecs = jax.scipy.linalg.eigh(m, eigvals_only=False, **kwargs)
+    evals, evecs = jax.scipy.linalg.eigh(dense_matrix, eigvals_only=False, **kwargs)
 
     # In eigh, the eigvals options is not currently implemented, although listed
     # in the jax docs, hence we only "manually" select the number of evals/evecs
@@ -714,9 +725,172 @@ def esys_jax_dense(
     evals, evecs = np.asarray(evals[:evals_count]), np.asarray(evecs[:, :evals_count])
 
     evecs = (
-        _convert_evecs_to_qobjs(evecs, matrix) if isinstance(matrix, Qobj) else evecs
+        _convert_evecs_to_qobjs(evecs, hamiltonian)
+        if isinstance(hamiltonian, Qobj)
+        else evecs
     )
     return evals, evecs
+
+
+def _cuquantum_eigensolver(hamiltonian: Qobj, evals_count: int, **kwargs: Any) -> Any:
+    """Run cuDensityMat's Krylov eigensolver and return its native result.
+
+    The solver uses scqubits' shared cuQuantum workstream and the ``CUQUANTUM_*``
+    Krylov parameters in :mod:`scqubits.settings`. Normalized states drawn from a
+    fixed seed are generated as the initial Krylov vectors, so repeated solves start
+    from the same vectors.
+
+    Parameters
+    ----------
+    hamiltonian:
+        qutip.Qobj Hamiltonian to be diagonalized.
+    evals_count:
+        number of eigenpairs to calculate
+    kwargs:
+        not accepted. Unexpected keywords raise ``TypeError``.
+
+    Returns
+    -------
+    OperatorSpectrumResult
+        native cuDensityMat result containing eigenvalues, eigenstates, and residuals
+
+    Raises
+    ------
+    TypeError
+        If any keyword arguments are passed.
+    """
+    if kwargs:
+        names = ", ".join(repr(name) for name in kwargs)
+        raise TypeError(
+            "The cuQuantum eigensolver received unexpected keyword arguments: "
+            f"{names}. Remove them."
+        )
+    try:
+        import cupy
+        import cuquantum.densitymat as cudm
+        from qutip_cuquantum import CuQobjEvo
+    except ImportError as exc:
+        raise ImportError(
+            "cuQuantum eigensolvers require cupy, qutip-cuquantum, and cuquantum "
+            "with CUDA support."
+        ) from exc
+
+    workstream = get_cuquantum_workstream()
+
+    subsys_dims = hamiltonian.dims[0]
+    hspace_dim = hamiltonian.shape[0]
+
+    allowed_num_eigvals = max_eigvals(hspace_dim)
+    if evals_count > allowed_num_eigvals:
+        raise ValueError(
+            f"Too many eigenvalues requested. Maximum number of eigenvalues "
+            f"allowed is {allowed_num_eigvals}. Reduce the number of "
+            f"eigenvalues requested, or reduce "
+            f"scqubits.settings.CUQUANTUM_MIN_KRYLOV_BLOCK_SIZE and "
+            f"scqubits.settings.CUQUANTUM_MAX_BUFFER_RATIO."
+        )
+
+    config = cudm.OperatorSpectrumConfig(
+        min_krylov_block_size=settings.CUQUANTUM_MIN_KRYLOV_BLOCK_SIZE,
+        max_buffer_ratio=settings.CUQUANTUM_MAX_BUFFER_RATIO,
+        max_restarts=settings.CUQUANTUM_MAX_RESTARTS,
+    )
+
+    batch_size = 1  # OperatorSpectrumSolver currently supports only non-batched states.
+
+    # Fixed seed, so every solve starts from the same Krylov vectors. The generator is
+    # local, and cupy's global random state is left untouched. The draws are
+    # real-valued.
+    rng = cupy.random.default_rng(settings._SEED)
+    seed_states = []
+    for _ in range(evals_count):
+        seed_state = cudm.DensePureState(
+            workstream, subsys_dims, batch_size, "complex128"
+        )
+        seed_state.allocate_storage()
+        seed_state.storage[:] = rng.standard_normal(hspace_dim * batch_size)
+        norm = seed_state.norm()
+        seed_state.inplace_scale(1.0 / cupy.sqrt(norm))
+        seed_states.append(seed_state)
+
+    # Convert through CuQobjEvo until a dedicated conversion function is available.
+    cudm_operator = CuQobjEvo(qt.QobjEvo(hamiltonian)).operator
+    spectrum = cudm.OperatorSpectrumSolver(
+        cudm_operator, which="SA", hermitian=True, config=config
+    )
+    spectrum.prepare(workstream, seed_states[0], max_num_eigvals=evals_count)
+    return spectrum.compute(t=0.0, params=None, states=seed_states, tol=1e-10)
+
+
+def evals_cuquantum(hamiltonian: Qobj, evals_count: int, **kwargs: Any) -> ndarray:
+    """Diagonalization based on cuDensityMat's Krylov eigensolver.
+
+    Only eigenvalues are returned. Requires that cupy, qutip-cuquantum, and
+    cuQuantum are installed.
+
+    Parameters
+    ----------
+    hamiltonian:
+        qutip.Qobj Hamiltonian to be diagonalized
+    evals_count:
+        number of eigenvalues to return
+    kwargs:
+        not accepted. Unexpected keywords raise ``TypeError``.
+
+    Returns
+    -------
+        lowest requested eigenvalues of the Hamiltonian
+
+    Raises
+    ------
+    TypeError
+        If any keyword arguments are passed.
+    """
+    result = _cuquantum_eigensolver(hamiltonian, evals_count, **kwargs)
+    return result.evals[:, 0].get()
+
+
+def esys_cuquantum(
+    hamiltonian: Qobj, evals_count: int, **kwargs: Any
+) -> tuple[ndarray, QutipEigenstates]:
+    """Diagonalization based on cuDensityMat's Krylov eigensolver.
+
+    Both eigenvalues and eigenvectors are returned. Requires that cupy,
+    qutip-cuquantum, and cuQuantum are installed.
+
+    Parameters
+    ----------
+    hamiltonian:
+        qutip.Qobj Hamiltonian to be diagonalized
+    evals_count:
+        number of eigenvalues and eigenvectors to return
+    kwargs:
+        not accepted. Unexpected keywords raise ``TypeError``.
+
+    Returns
+    -------
+        lowest requested eigenvalues and corresponding eigenvectors as Qobj instances
+
+    Raises
+    ------
+    TypeError
+        If any keyword arguments are passed.
+    """
+    result = _cuquantum_eigensolver(hamiltonian, evals_count, **kwargs)
+    from qutip_cuquantum import CuState
+
+    subsys_dims = hamiltonian.dims[0]
+
+    evals = result.evals[:, 0].get()
+    evecs = np.empty((evals_count,), dtype=object)
+
+    for i, evec in enumerate(result.evecs):
+        evecs[i] = Qobj(
+            CuState(evec).to_array(),
+            dims=[subsys_dims, [1]],
+        )
+
+    return evals, evecs.view(QutipEigenstates)
 
 
 # Default values of various noise constants and parameters.
@@ -727,60 +901,66 @@ DIAG_METHODS: dict[str, Callable[..., Any]] = {
     # scipy sparse
     "evals_scipy_sparse": evals_scipy_sparse,
     "esys_scipy_sparse": esys_scipy_sparse,
-    "evals_scipy_sparse_SM": lambda matrix, evals_count, **kwargs: evals_scipy_sparse(
-        matrix, evals_count, **_dict_merge(dict(which="SM"), kwargs, overwrite=True)
+    "evals_scipy_sparse_SM": lambda hamiltonian, evals_count, **kwargs: evals_scipy_sparse(
+        hamiltonian,
+        evals_count,
+        **_dict_merge(dict(which="SM"), kwargs, overwrite=True),
     ),
-    "esys_scipy_sparse_SM": lambda matrix, evals_count, **kwargs: esys_scipy_sparse(
-        matrix, evals_count, **_dict_merge(dict(which="SM"), kwargs, overwrite=True)
+    "esys_scipy_sparse_SM": lambda hamiltonian, evals_count, **kwargs: esys_scipy_sparse(
+        hamiltonian,
+        evals_count,
+        **_dict_merge(dict(which="SM"), kwargs, overwrite=True),
     ),
-    "evals_scipy_sparse_LA_shift-inverse": lambda matrix, evals_count, **kwargs: evals_scipy_sparse(
-        matrix,
+    "evals_scipy_sparse_LA_shift-inverse": lambda hamiltonian, evals_count, **kwargs: evals_scipy_sparse(
+        hamiltonian,
         evals_count,
         **_dict_merge(dict(which="LA", sigma=0), kwargs, overwrite=True),
     ),
-    "esys_scipy_sparse_LA_shift-inverse": lambda matrix, evals_count, **kwargs: esys_scipy_sparse(
-        matrix,
+    "esys_scipy_sparse_LA_shift-inverse": lambda hamiltonian, evals_count, **kwargs: esys_scipy_sparse(
+        hamiltonian,
         evals_count,
         **_dict_merge(dict(which="LA", sigma=0), kwargs, overwrite=True),
     ),
-    "evals_scipy_sparse_LM_shift-inverse": lambda matrix, evals_count, **kwargs: evals_scipy_sparse(
-        matrix,
+    "evals_scipy_sparse_LM_shift-inverse": lambda hamiltonian, evals_count, **kwargs: evals_scipy_sparse(
+        hamiltonian,
         evals_count,
         **_dict_merge(dict(which="LM", sigma=0), kwargs, overwrite=True),
     ),
-    "esys_scipy_sparse_LM_shift-inverse": lambda matrix, evals_count, **kwargs: esys_scipy_sparse(
-        matrix,
+    "esys_scipy_sparse_LM_shift-inverse": lambda hamiltonian, evals_count, **kwargs: esys_scipy_sparse(
+        hamiltonian,
         evals_count,
         **_dict_merge(dict(which="LM", sigma=0), kwargs, overwrite=True),
     ),
     # primme sparse
     "evals_primme_sparse": evals_primme_sparse,
     "esys_primme_sparse": esys_primme_sparse,
-    "evals_primme_sparse_SM": lambda matrix, evals_count, **kwargs: evals_primme_sparse(
-        matrix=matrix,
+    "evals_primme_sparse_SM": lambda hamiltonian, evals_count, **kwargs: evals_primme_sparse(
+        hamiltonian=hamiltonian,
         evals_count=evals_count,
         **_dict_merge(dict(which="SM"), kwargs, overwrite=True),
     ),
-    "esys_primme_sparse_SM": lambda matrix, evals_count, **kwargs: esys_primme_sparse(
-        matrix, evals_count, **_dict_merge(dict(which="SM"), kwargs, overwrite=True)
+    "esys_primme_sparse_SM": lambda hamiltonian, evals_count, **kwargs: esys_primme_sparse(
+        hamiltonian,
+        evals_count,
+        **_dict_merge(dict(which="SM"), kwargs, overwrite=True),
     ),
-    "evals_primme_sparse_LA_shift-inverse": lambda matrix, evals_count, **kwargs: evals_primme_sparse(
-        matrix=matrix,
+    "evals_primme_sparse_LA_shift-inverse": lambda hamiltonian, evals_count, **kwargs: evals_primme_sparse(
+        hamiltonian=hamiltonian,
         evals_count=evals_count,
         **_dict_merge(dict(which="LA", sigma=0), kwargs, overwrite=True),
     ),
-    "esys_primme_sparse_LA_shift-inverse": lambda matrix, evals_count, **kwargs: esys_primme_sparse(
-        matrix=matrix,
+    "esys_primme_sparse_LA_shift-inverse": lambda hamiltonian, evals_count, **kwargs: esys_primme_sparse(
+        hamiltonian=hamiltonian,
         evals_count=evals_count,
         **_dict_merge(dict(which="LA", sigma=0), kwargs, overwrite=True),
     ),
-    "evals_primme_sparse_LM_shift-inverse": lambda matrix, evals_count, **kwargs: evals_primme_sparse(
-        matrix=matrix,
+    "evals_primme_sparse_LM_shift-inverse": lambda hamiltonian, evals_count, **kwargs: evals_primme_sparse(
+        hamiltonian=hamiltonian,
         evals_count=evals_count,
         **_dict_merge(dict(which="LM", sigma=0), kwargs, overwrite=True),
     ),
-    "esys_primme_sparse_LM_shift-inverse": lambda matrix, evals_count, **kwargs: esys_primme_sparse(
-        matrix=matrix,
+    "esys_primme_sparse_LM_shift-inverse": lambda hamiltonian, evals_count, **kwargs: esys_primme_sparse(
+        hamiltonian=hamiltonian,
         evals_count=evals_count,
         **_dict_merge(dict(which="LM", sigma=0), kwargs, overwrite=True),
     ),
@@ -793,4 +973,7 @@ DIAG_METHODS: dict[str, Callable[..., Any]] = {
     # jax dense
     "evals_jax_dense": evals_jax_dense,
     "esys_jax_dense": esys_jax_dense,
+    # cuquantum
+    "evals_cuquantum": evals_cuquantum,
+    "esys_cuquantum": esys_cuquantum,
 }
