@@ -23,7 +23,7 @@ import scipy as sp
 
 from numpy import ndarray
 from qutip import Qobj
-from scipy.sparse import csc_matrix, csr_matrix, dia_matrix
+from scipy.sparse import csc_matrix, dia_matrix
 
 import scqubits.settings as settings
 
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from scqubits.core.qubit_base import QubitBaseClass
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
-from scqubits.utils.misc import Qobj_to_scipy_csc_matrix
+from scqubits.utils.misc import Qobj_to_scipy_csc_matrix, as_csc_matrix, is_matrix_data
 from scqubits.utils.typedefs import QuantumSys
 
 
@@ -350,10 +350,11 @@ def convert_operator_to_qobj(
         operator = Qobj_to_scipy_csc_matrix(operator)
     if isinstance(operator, str):
         return convert_opstring_to_qobj(operator, subsystem, evecs)
-    elif isinstance(operator, (np.ndarray, csc_matrix, csr_matrix, dia_matrix)):
-        return convert_matrix_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)  # type: ignore[arg-type]
-    else:
-        raise TypeError("Unsupported operator type: ", type(operator))
+    if is_matrix_data(operator):
+        return convert_matrix_to_qobj(
+            as_csc_matrix(operator), subsystem, op_in_eigenbasis, evecs
+        )
+    raise TypeError("Unsupported operator type: ", type(operator))
 
 
 def generate_target_states_list(
