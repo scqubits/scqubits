@@ -44,7 +44,6 @@ def max_eigvals(dimension: int) -> int:
 
     Returns
     -------
-    int
         Maximum number of eigenvalues the solver can return for this dimension
         and the current Krylov settings.
 
