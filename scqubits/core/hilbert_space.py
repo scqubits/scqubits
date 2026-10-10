@@ -1333,7 +1333,7 @@ class HilbertSpace(
         evals_count: int = 10,
         get_eigenstates: bool = False,
         param_name: str = "external_parameter",
-        num_cpus: int | None = None,
+        num_cpus: int | str | None = None,
     ) -> SpectrumData:
         """Return the full-Hamiltonian spectrum as a function of an external param.
 
@@ -1357,14 +1357,29 @@ class HilbertSpace(
             name for the parameter that is varied in ``param_vals``
             (default: ``"external_parameter"``).
         num_cpus:
-            number of cores to use for computation (default:
-            ``settings.NUM_CPUS``).
+            number of cores to use for computation, or ``"auto"`` to let scqubits
+            choose the core count (and a per-worker BLAS-thread cap) from the
+            workload via :func:`~scqubits.recommend_parallelization`. With
+            ``settings.AUTO_PARALLEL = True`` an unspecified ``num_cpus`` is chosen
+            the same way (default: ``settings.NUM_CPUS``).
         """
-        num_cpus = num_cpus or settings.NUM_CPUS
+        if num_cpus == "auto" or (
+            num_cpus is None and getattr(settings, "AUTO_PARALLEL", False)
+        ):
+            from scqubits.utils.parallel_tuning import _auto_config
+
+            auto = _auto_config(self.dimension, len(param_vals), evals_count)
+            num_cpus = auto.num_cpus
+            blas_threads = auto.blas_threads
+        else:
+            num_cpus = cpu_switch._resolve_explicit_num_cpus(num_cpus)
+            blas_threads = None
         # get_map_method returns a lazy, order-preserving map (built-in map when
         # serial, pool.imap when parallel); wrapping its output in tqdm gives a live
         # progress bar that advances as each grid point completes.
-        target_map = cpu_switch.get_map_method(num_cpus, total=len(param_vals))
+        target_map = cpu_switch.get_map_method(
+            num_cpus, blas_threads, total=len(param_vals)
+        )
         if get_eigenstates:
             func = functools.partial(
                 self._esys_for_paramval,

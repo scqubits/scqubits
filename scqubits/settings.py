@@ -133,6 +133,21 @@ SPARSE_DIAG_MIN_DIM = 1000
 # (sparse `eigsh` only pays off when computing few of many eigenstates).
 SPARSE_DIAG_MAX_EVALS_FRAC = 0.1
 
+# Auto-parallelization (opt-in) --------------------------------------------------------
+# When True, sweep/spectrum methods called WITHOUT an explicit num_cpus behave as if
+# num_cpus="auto": the parallel-tuning heuristic (scqubits.recommend_parallelization)
+# picks num_cpus plus a per-worker BLAS-thread cap from the workload and applies them
+# live, with no kernel restart. Default False keeps current behavior and avoids
+# surprising plain scripts, where spawning workers needs an `if __name__ == "__main__":`
+# guard. Per-call opt-in via num_cpus="auto" works regardless of this flag.
+AUTO_PARALLEL = False
+
+# Where the one-time machine calibration produced by
+# scqubits.calibrate_parallelization() is stored and read from. None uses the
+# default ~/.scqubits/parallel_calibration.json. When a calibration is present the
+# parallelization heuristic replaces its default break-even with a measured one.
+PARALLEL_CALIBRATION_PATH: "str | None" = None
+
 # Matplotlib options -------------------------------------------------------------------
 # select fonts
 FONT_SELECTED = None
