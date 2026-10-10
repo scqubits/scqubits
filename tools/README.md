@@ -78,3 +78,21 @@ that touches `scqubits/**/*.py`. The workflow uses
 `--compare-to origin/main`, so only docstring issues *newly
 introduced* by the PR fail the build. Pre-existing issues at `main`
 remain reported in informational output but do not block merging.
+
+## `ci_package.py` — installed-package CI checks
+
+The Azure matrix builds an sdist, rebuilds its wheel, checks packaged test data
+and GUI assets, and installs it with the GUI extra. The Conda matrix selects the
+exact locally built artifact and resolves a fresh environment with a pinned
+Python major/minor version. Both run serial and multiprocessing tests outside
+the checkout, after checking the interpreter, import path, and dependencies.
+
+```bash
+python tools/ci_package.py --help
+python -m unittest discover -s tools -p test_ci_package.py
+```
+
+The helper uses the standard library; `pip-build` additionally requires `build`
+and pip. The test command requires pytest, and coverage reporting requires
+pytest-cov. Use fresh environments and empty artifact directories. Runtime CI
+installs GUI and test dependencies without the typing-only development extra.
