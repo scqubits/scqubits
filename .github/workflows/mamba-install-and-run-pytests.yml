@@ -10,57 +10,53 @@ jobs:
     defaults:
       run:
         shell: bash -el {0}
+    env:
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      VECLIB_MAXIMUM_THREADS: '1'
+      NUMEXPR_NUM_THREADS: '1'
+      MPLBACKEND: Agg
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
-        python-version: ['3.10', '3.11', '3.12']
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
-      - name: Python setup for the rest of the jobs
+      - name: Set up Conda build tooling
         uses: conda-incubator/setup-miniconda@v3
         with:
-            miniforge-variant: Miniforge3
-            mamba-version: "*"
-            use-mamba: true
-            auto-update-conda: true
-            python-version: ${{ matrix.python-version }}
-            channels: conda-forge, defaults
-            channel-priority: true
-            auto-activate-base: true
+          miniforge-version: latest
+          activate-environment: build-tools
+          python-version: '3.10'
+          channels: conda-forge
+          channel-priority: strict
 
-      - name: Add bin and Scripts to system path
-        run: |
-          echo $CONDA/bin >> $GITHUB_PATH
-          echo $CONDA/Scripts >> $GITHUB_PATH
-
-      - name: conda info
-        run: conda info
+      - name: Install build and lint tools
+        run: conda install -y --override-channels -c conda-forge conda-build flake8
 
       - name: Lint with flake8
         run: |
-          conda install flake8
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+          python -m unittest discover -s tools -p test_ci_package.py
+          python -m flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
-      - name: Build conda package
-        run: |
-          conda install -n base conda-build
-          conda build . --no-test
+      - name: Build conda package and run recipe tests
+        run: conda build . --override-channels -c conda-forge --output-folder "${RUNNER_TEMP}/scqubits-conda"
 
-      - name: Install scqubits locally and run tests
-        run: |
-          conda install -c local scqubits
-          conda install pytest pytest-cov pathos
-          pytest -v --pyargs --cov=scqubits --cov-report=xml
-          pytest -v --pyargs scqubits --num_cpus=4
+      - name: Install the exact artifact in a fresh Python environment
+        run: python -I tools/ci_package.py conda-install --output "${RUNNER_TEMP}/scqubits-conda" --python-version "${{ matrix.python-version }}"
+
+      - name: Verify installed package and run tests
+        run: conda run --no-capture-output -n scqubits-test python -I tools/ci_package.py test --python-version "${{ matrix.python-version }}" --recipe-version --coverage "${RUNNER_TEMP}/scqubits-coverage.xml"
 
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          files: ${{ runner.temp }}/scqubits-coverage.xml
           verbose: true

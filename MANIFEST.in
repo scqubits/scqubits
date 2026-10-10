@@ -7,3 +7,4 @@ recursive-include scqubits/tests/data *.h5
 graft scqubits/tests/data
 graft scqubits/core/qubit_img
 graft scqubits/ui/icons
+recursive-include scqubits/tests/characterization_goldens *.npy *.json

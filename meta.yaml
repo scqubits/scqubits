@@ -15,6 +15,9 @@ source:
 build:
   number: 0
   noarch: python
+  # A local checkout may not carry the release tag into the build directory.
+  script_env:
+    - SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SCQUBITS={{ version }}
   script: {{ PYTHON }} -m pip install . --no-deps --no-build-isolation -vv
 
 requirements:
@@ -32,9 +35,7 @@ requirements:
     - matplotlib-base >=3.5.1
     - numpy >=1.14.2
     - qutip >=4.3.1
-    # PyPI caps SciPy only on macOS. Keep a single noarch package by applying
-    # that cap on all platforms; this is more restrictive on Linux and Windows.
-    - scipy >=1.5,<=1.13.1
+    - scipy >=1.5
     - sympy
     - threadpoolctl
     - tqdm
