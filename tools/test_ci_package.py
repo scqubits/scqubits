@@ -39,6 +39,17 @@ class PackageCITest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "Expected Python 3.14"):
                 ci_package.test_installed("3.14", False, None)
 
+    def test_conda_uses_activation_executable_without_path_lookup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            (output / "noarch").mkdir()
+            (output / "noarch" / "scqubits-5.0.0-py_0.conda").touch()
+            executable = r"C:\Program Files\Miniforge3\Scripts\conda.exe"
+            with patch.dict(os.environ, {"CONDA_EXE": executable, "PATH": ""}):
+                with patch.object(ci_package, "run") as run:
+                    ci_package.conda_install(output, "3.14")
+            self.assertEqual(run.call_args.args[0], executable)
+
     def test_rejects_checkout_import(self):
         original_cwd = Path.cwd()
         try:

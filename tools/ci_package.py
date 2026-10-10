@@ -117,8 +117,12 @@ def conda_install(output: Path, python_version: str) -> None:
     # A channel-qualified MatchSpec keeps dependency solving enabled. Passing an
     # archive filename directly would use Conda's explicit-install path instead.
     artifact_spec = f"{output.resolve().as_uri()}::{name}={artifact_version}={build}"
+    # Shell activation can expose `conda` as a function while its executable is
+    # absent from PATH (notably in Windows named environments). Python cannot
+    # invoke that shell function; activation provides the executable explicitly.
+    conda_executable = os.environ.get("CONDA_EXE") or "conda"
     run(
-        "conda",
+        conda_executable,
         "create",
         "-y",
         "-n",
