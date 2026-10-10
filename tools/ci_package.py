@@ -145,39 +145,43 @@ def test_installed(
     if sys.version_info[:2] != requested:
         raise RuntimeError(f"Expected Python {python_version}; got {sys.version}")
     with tempfile.TemporaryDirectory(prefix="scqubits-tests-") as directory:
-        os.chdir(directory)
-        spec = importlib.util.find_spec("scqubits")
-        if spec is None or spec.origin is None:
-            raise RuntimeError("scqubits is not installed")
-        installed = Path(spec.origin).resolve()
-        if installed.is_relative_to(ROOT):
-            raise RuntimeError(f"Tests would import the checkout: {installed}")
-        print(
-            f"Python: {sys.version}\nscqubits: {version('scqubits')}\nImport: {installed}",
-            flush=True,
-        )
-        if check_recipe and version("scqubits") != recipe_version():
-            raise RuntimeError(
-                "Installed Python version metadata does not match meta.yaml"
+        previous_directory = Path.cwd()
+        try:
+            os.chdir(directory)
+            spec = importlib.util.find_spec("scqubits")
+            if spec is None or spec.origin is None:
+                raise RuntimeError("scqubits is not installed")
+            installed = Path(spec.origin).resolve()
+            if installed.is_relative_to(ROOT):
+                raise RuntimeError(f"Tests would import the checkout: {installed}")
+            print(
+                f"Python: {sys.version}\nscqubits: {version('scqubits')}\nImport: {installed}",
+                flush=True,
             )
-        run(sys.executable, "-I", "-m", "pip", "check")
-        run(sys.executable, "-I", "-m", "pip", "list")
-        # An explicit installed path lets pytest load conftest.py before parsing
-        # its custom --num_cpus option; --pyargs alone discovers it too late.
-        tests = str(installed.parent / "tests")
-        serial = [sys.executable, "-I", "-m", "pytest", "-v", tests]
-        if coverage is not None:
-            serial += ["--cov=scqubits", f"--cov-report=xml:{coverage.resolve()}"]
-        run(*serial)
-        run(
-            sys.executable,
-            "-I",
-            "-m",
-            "pytest",
-            "-v",
-            tests,
-            "--num_cpus=4",
-        )
+            if check_recipe and version("scqubits") != recipe_version():
+                raise RuntimeError(
+                    "Installed Python version metadata does not match meta.yaml"
+                )
+            run(sys.executable, "-I", "-m", "pip", "check")
+            run(sys.executable, "-I", "-m", "pip", "list")
+            # An explicit installed path lets pytest load conftest.py before parsing
+            # its custom --num_cpus option; --pyargs alone discovers it too late.
+            tests = str(installed.parent / "tests")
+            serial = [sys.executable, "-I", "-m", "pytest", "-v", tests]
+            if coverage is not None:
+                serial += ["--cov=scqubits", f"--cov-report=xml:{coverage.resolve()}"]
+            run(*serial)
+            run(
+                sys.executable,
+                "-I",
+                "-m",
+                "pytest",
+                "-v",
+                tests,
+                "--num_cpus=4",
+            )
+        finally:
+            os.chdir(previous_directory)
 
 
 def main() -> None:

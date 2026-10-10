@@ -49,6 +49,7 @@ class PackageCITest(unittest.TestCase):
                 requested = ".".join(map(str, ci_package.sys.version_info[:2]))
                 with self.assertRaisesRegex(RuntimeError, "import the checkout"):
                     ci_package.test_installed(requested, False, None)
+            self.assertEqual(Path.cwd(), original_cwd)
         finally:
             os.chdir(original_cwd)
 

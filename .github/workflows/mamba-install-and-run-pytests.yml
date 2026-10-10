@@ -35,18 +35,23 @@ jobs:
           activate-environment: build-tools
           python-version: '3.10'
           channels: conda-forge
+          conda-remove-defaults: true
           channel-priority: strict
 
       - name: Install build and lint tools
-        run: conda install -y --override-channels -c conda-forge conda-build flake8
+        # The conda shell function uses base's executable and plugin registry.
+        # Installing conda-build only in build-tools does not register `conda build`.
+        run: conda install -n base -y --override-channels -c conda-forge conda-build flake8
 
       - name: Lint with flake8
         run: |
           python -m unittest discover -s tools -p test_ci_package.py
-          python -m flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          conda run --no-capture-output -n base python -m flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
       - name: Build conda package and run recipe tests
-        run: conda build . --override-channels -c conda-forge --output-folder "${RUNNER_TEMP}/scqubits-conda"
+        run: |
+          python -c "import os; from pathlib import Path; Path(os.environ['RUNNER_TEMP'], 'scqubits-conda').mkdir(parents=True, exist_ok=True)"
+          conda build . --override-channels -c conda-forge --output-folder "${RUNNER_TEMP}/scqubits-conda"
 
       - name: Install the exact artifact in a fresh Python environment
         run: python -I tools/ci_package.py conda-install --output "${RUNNER_TEMP}/scqubits-conda" --python-version "${{ matrix.python-version }}"
