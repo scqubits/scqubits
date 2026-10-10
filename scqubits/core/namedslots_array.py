@@ -460,7 +460,7 @@ class Parameters:
         """
         if fixed_values is not None:
             # need to reformat as array of single-entry arrays
-            fixed_values_list = [np.asarray(value) for value in fixed_values]
+            fixed_values_list = [np.asarray([value]) for value in fixed_values]
         else:
             fixed_values_list = [
                 np.asarray([self[name][0]]) for name in fixed_parametername_list
