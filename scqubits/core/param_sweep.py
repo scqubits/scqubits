@@ -30,7 +30,6 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
 from qutip import Qobj
-from scipy.sparse import csc_matrix
 
 import scqubits as scq
 import scqubits.core.central_dispatch as dispatch
@@ -1386,10 +1385,14 @@ class ParameterSweep(
     def faulty_interactionterm_suspected(self) -> bool:
         """Check if any interaction terms are specified as fixed matrices."""
         for interactionterm in self._hilbertspace.interaction_list:
-            if isinstance(interactionterm, (ndarray, Qobj, csc_matrix)):
+            if isinstance(interactionterm, Qobj) or utils.is_matrix_data(
+                interactionterm
+            ):
                 return True
             for idx_operator in interactionterm.operator_list:
-                if isinstance(idx_operator[1], (ndarray, Qobj, csc_matrix)):
+                if isinstance(idx_operator[1], Qobj) or utils.is_matrix_data(
+                    idx_operator[1]
+                ):
                     return True
         return False
 

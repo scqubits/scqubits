@@ -1,17 +1,22 @@
-# Python package
-# Create and test a Python package on multiple Python versions.
-# Add steps that analyze code, save the dist with the build record, publish to a PyPI-compatible index, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/python
-
+# Test the built PyPI artifacts on every supported Python version.
 trigger:
   branches:
     include:
       - main
+      - peterg_versions
       - spc-main-devel
       - jk-devel
       - Danny_vchos
       - devel_peterg
       - peterg_qutip5
+
+variables:
+  OMP_NUM_THREADS: '1'
+  OPENBLAS_NUM_THREADS: '1'
+  MKL_NUM_THREADS: '1'
+  VECLIB_MAXIMUM_THREADS: '1'
+  NUMEXPR_NUM_THREADS: '1'
+  MPLBACKEND: Agg
 
 jobs:
 - job: Linux
@@ -25,32 +30,26 @@ jobs:
         python.version: '3.11'
       Python312:
         python.version: '3.12'
+      Python313:
+        python.version: '3.13'
+      Python314:
+        python.version: '3.14'
   steps:
+  - checkout: self
+    fetchDepth: 0
+    fetchTags: true
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '$(python.version)'
     displayName: 'Use Python $(python.version)'
   - script: |
-      pip install pytest pytest-azurepipelines
-      pip install ".[gui, develop]"
-    displayName: 'Install scqubits'
+      python -m unittest discover -s tools -p test_ci_package.py
+      python -m pip install build pytest pytest-azurepipelines
+      python -I tools/ci_package.py pip-build --output "$(Agent.TempDirectory)/scqubits-dist"
+    displayName: 'Build sdist and wheel; install wheel with GUI dependencies'
   - script: |
-      pip install pipdeptree
-      pipdeptree
-    displayName: 'pipdeptree'
-  - script: |
-      pytest -v --pyargs scqubits
-    displayName: 'Pytest: single-core'
-  - script: |
-      export OMP_NUM_THREADS=1
-      export OPENBLAS_NUM_THREADS=1
-      export MKL_NUM_THREADS=1
-      export VECLIB_MAXIMUM_THREADS=1
-      export NUMEXPR_NUM_THREADS=1
-      pytest -v --pyargs scqubits --num_cpus=4
-    displayName: 'Pytest: multiprocessing'
-#
-#
+      python -I tools/ci_package.py test --python-version "$(python.version)"
+    displayName: 'Verify installed package; run serial and multiprocessing tests'
 - job: Windows
   pool:
     vmImage: 'windows-latest'
@@ -62,35 +61,29 @@ jobs:
         python.version: '3.11'
       Python312:
         python.version: '3.12'
+      Python313:
+        python.version: '3.13'
+      Python314:
+        python.version: '3.14'
   steps:
+  - checkout: self
+    fetchDepth: 0
+    fetchTags: true
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '$(python.version)'
     displayName: 'Use Python $(python.version)'
   - script: |
-      pip install pytest-azurepipelines
-      pip install ".[gui, develop]"
-    displayName: 'Install scqubits'
+      python -m unittest discover -s tools -p test_ci_package.py
+      python -m pip install build pytest pytest-azurepipelines
+      python -I tools/ci_package.py pip-build --output "$(Agent.TempDirectory)/scqubits-dist"
+    displayName: 'Build sdist and wheel; install wheel with GUI dependencies'
   - script: |
-      pip install pipdeptree
-      pipdeptree
-    displayName: 'pipdeptree'
-  - script: |
-      pytest -v --pyargs scqubits
-    displayName: 'Pytest: single-core'
-  - script: |
-      set OMP_NUM_THREADS=1
-      set OPENBLAS_NUM_THREADS=1
-      set MKL_NUM_THREADS=1
-      set VECLIB_MAXIMUM_THREADS=1
-      set NUMEXPR_NUM_THREADS=1
-      pytest -v --pyargs scqubits --num_cpus=4
-    displayName: 'Pytest: multiprocessing'
-#
-#
+      python -I tools/ci_package.py test --python-version "$(python.version)"
+    displayName: 'Verify installed package; run serial and multiprocessing tests'
 - job: macOS
   pool:
-    vmImage: "macos-latest"
+    vmImage: 'macos-latest'
   strategy:
     matrix:
       Python310:
@@ -99,30 +92,23 @@ jobs:
         python.version: '3.11'
       Python312:
         python.version: '3.12'
+      Python313:
+        python.version: '3.13'
+      Python314:
+        python.version: '3.14'
   steps:
+  - checkout: self
+    fetchDepth: 0
+    fetchTags: true
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '$(python.version)'
     displayName: 'Use Python $(python.version)'
   - script: |
-      pip install pytest-azurepipelines
-      pip install pytest-xdist
-      pip install ".[gui, develop]"
-    displayName: 'Install scqubits'
+      python -m unittest discover -s tools -p test_ci_package.py
+      python -m pip install build pytest pytest-azurepipelines
+      python -I tools/ci_package.py pip-build --output "$(Agent.TempDirectory)/scqubits-dist"
+    displayName: 'Build sdist and wheel; install wheel with GUI dependencies'
   - script: |
-      pip install pipdeptree
-      pipdeptree
-    displayName: 'pipdeptree'
-  - script: |
-      export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
-      pytest -v --pyargs scqubits
-    displayName: 'Pytest: single-core'
-  - script: |
-      export OMP_NUM_THREADS=1
-      export OPENBLAS_NUM_THREADS=1
-      export MKL_NUM_THREADS=1
-      export VECLIB_MAXIMUM_THREADS=1
-      export NUMEXPR_NUM_THREADS=1
-      export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
-      pytest -v --pyargs scqubits --num_cpus=4
-    displayName: 'Pytest: multiprocessing'
+      python -I tools/ci_package.py test --python-version "$(python.version)"
+    displayName: 'Verify installed package; run serial and multiprocessing tests'

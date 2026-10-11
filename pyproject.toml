@@ -40,10 +40,8 @@ dependencies = [
     "pathos>=0.3.0",
     "matplotlib>=3.5.1",
     "numpy>=1.14.2",
-    "pathos>=0.3.0",
     "qutip>=4.3.1",
-    "scipy>=1.5 ; sys_platform != 'darwin'",
-    "scipy>=1.5,<=1.13.1 ; sys_platform == 'darwin'",
+    "scipy>=1.5",
     "sympy",
     "threadpoolctl",
     "tqdm",
@@ -51,7 +49,7 @@ dependencies = [
 
 [project.optional-dependencies]
 gui = [
-    "ipywidgets (>=7.5)", "ipyvuetify", "matplotlib-label-lines (>=0.3.6)", "h5py (>=2.10)",
+    "ipywidgets (>=7.5)", "ipyvuetify (>=1.8.10,<3)", "ipyvue (>=1.7,<2)", "matplotlib-label-lines (>=0.3.6)", "h5py (>=2.10)",
 ]
 develop = [
     "pytest", "traitlets", "h5py (>=2.10)",

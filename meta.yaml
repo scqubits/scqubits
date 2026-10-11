@@ -1,5 +1,5 @@
 {% set name = "scqubits" %}
-{% set version = "4.3.1" %}
+{% set version = "5.0.0" %}
 {% set python_min = "3.10" %}
 
 package:
@@ -7,14 +7,18 @@ package:
   version: {{ version }}
 
 source:
+  # Local build: use the checkout. For the feedstock, enable url/sha256 and remove path.
   # url: https://pypi.org/packages/source/{{ name[0] }}/{{ name }}/{{ name }}-{{ version }}.tar.gz
-  # sha256: ac6e86777299411c1b8746c744a37f96647093b344fede137d2161d2886ae0de
+  # sha256: REPLACE_WITH_SHA256_OF_THE_5_0_0_PYPI_SOURCE_ARCHIVE
   path: .
 
 build:
-  number: 1
+  number: 0
   noarch: python
-  script: {{ PYTHON }} -m pip install . -vv
+  # A local checkout may not carry the release tag into the build directory.
+  script_env:
+    - SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SCQUBITS={{ version }}
+  script: {{ PYTHON }} -m pip install . --no-deps --no-build-isolation -vv
 
 requirements:
   host:
@@ -33,10 +37,12 @@ requirements:
     - qutip >=4.3.1
     - scipy >=1.5
     - sympy
+    - threadpoolctl
     - tqdm
-  # Optional dependencies
+    # Include the GUI extra in the Conda package, as in the existing recipe.
     - ipywidgets >=7.5
-    - ipyvuetify
+    - ipyvuetify >=1.8.10,<3
+    - ipyvue >=1.7,<2
     - matplotlib-label-lines >=0.3.6
     - h5py >=2.10
 
@@ -57,7 +63,6 @@ about:
   license_family: BSD
   license_file: LICENSE
   summary: Superconducting qubits in Python
-
 
   description: |
     scqubits is an open-source Python library for simulating superconducting qubits. It is meant to give the user a
