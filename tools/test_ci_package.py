@@ -1,6 +1,7 @@
 """Regression tests for artifact selection and installed-package CI guards."""
 
 import os
+import subprocess
 import tarfile
 import tempfile
 import unittest
@@ -72,6 +73,104 @@ class PackageCITest(unittest.TestCase):
             with patch.object(ci_package, "run"):
                 with self.assertRaisesRegex(RuntimeError, "Unsafe sdist entry"):
                     ci_package.pip_build(output)
+
+    def test_reports_survive_cleanup_and_have_distinct_paths(self):
+        original_cwd = Path.cwd()
+        handles = []
+        working_directories = []
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            spec = SimpleNamespace(origin=str(base / "installed/scqubits/__init__.py"))
+
+            def record_run(*command):
+                if "pytest" not in command:
+                    return
+                working_directories.append(Path.cwd())
+                report = Path(
+                    next(
+                        x.split("=", 1)[1]
+                        for x in command
+                        if x.startswith("--junitxml=")
+                    )
+                )
+                report.write_text("<testsuites />")
+                # Keeping readers open reproduces the Windows sharing constraint.
+                handles.append(report.open("rb"))
+                if "--num_cpus=4" not in command:
+                    self.assertIn(f"--cov-report=xml:{base / 'coverage.xml'}", command)
+
+            try:
+                os.chdir(base)
+                with (
+                    patch.object(
+                        ci_package.importlib.util, "find_spec", return_value=spec
+                    ),
+                    patch.object(ci_package, "version", return_value="5.0.0"),
+                    patch.object(ci_package, "run", side_effect=record_run),
+                ):
+                    requested = ".".join(map(str, ci_package.sys.version_info[:2]))
+                    ci_package.test_installed(
+                        requested, False, Path("coverage.xml"), Path("reports")
+                    )
+                self.assertEqual(Path.cwd(), base)
+                self.assertEqual(len(working_directories), 2)
+                self.assertTrue(all(not path.exists() for path in working_directories))
+                self.assertEqual(
+                    {p.name for p in (base / "reports").iterdir()},
+                    {"serial.xml", "multiprocessing.xml"},
+                )
+                self.assertTrue(all(handle.read() for handle in handles))
+            finally:
+                for handle in handles:
+                    handle.close()
+                os.chdir(original_cwd)
+
+    def test_test_failures_propagate_and_preserve_reports(self):
+        original_cwd = Path.cwd()
+        for fail_parallel in (False, True):
+            with (
+                self.subTest(fail_parallel=fail_parallel),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                base = Path(directory)
+                spec = SimpleNamespace(
+                    origin=str(base / "installed/scqubits/__init__.py")
+                )
+                working_directories = []
+
+                def failing_run(*command):
+                    if "pytest" not in command:
+                        return
+                    working_directories.append(Path.cwd())
+                    report = Path(
+                        next(
+                            x.split("=", 1)[1]
+                            for x in command
+                            if x.startswith("--junitxml=")
+                        )
+                    )
+                    report.write_text("<testsuites />")
+                    if ("--num_cpus=4" in command) == fail_parallel:
+                        raise subprocess.CalledProcessError(1, command)
+
+                with (
+                    patch.object(
+                        ci_package.importlib.util, "find_spec", return_value=spec
+                    ),
+                    patch.object(ci_package, "version", return_value="5.0.0"),
+                    patch.object(ci_package, "run", side_effect=failing_run),
+                ):
+                    requested = ".".join(map(str, ci_package.sys.version_info[:2]))
+                    with self.assertRaises(subprocess.CalledProcessError):
+                        ci_package.test_installed(
+                            requested, False, None, base / "reports"
+                        )
+                self.assertEqual(Path.cwd(), original_cwd)
+                self.assertTrue(all(not path.exists() for path in working_directories))
+                self.assertTrue((base / "reports/serial.xml").is_file())
+                self.assertEqual(
+                    (base / "reports/multiprocessing.xml").exists(), fail_parallel
+                )
 
 
 if __name__ == "__main__":

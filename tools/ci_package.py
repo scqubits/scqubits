@@ -142,12 +142,22 @@ def conda_install(output: Path, python_version: str) -> None:
 
 
 def test_installed(
-    python_version: str, check_recipe: bool, coverage: Path | None
+    python_version: str,
+    check_recipe: bool,
+    coverage: Path | None,
+    report_dir: Path | None = None,
 ) -> None:
     """Verify interpreter/import metadata and execute both installed test suites."""
     requested = tuple(map(int, python_version.split(".")))
     if sys.version_info[:2] != requested:
         raise RuntimeError(f"Expected Python {python_version}; got {sys.version}")
+    # Resolve outputs before changing cwd. Reports must outlive the disposable
+    # test directory so Azure can read them in its subsequent publishing task.
+    if report_dir is not None:
+        report_dir = report_dir.resolve()
+        report_dir.mkdir(parents=True, exist_ok=True)
+    if coverage is not None:
+        coverage = coverage.resolve()
     with tempfile.TemporaryDirectory(prefix="scqubits-tests-") as directory:
         previous_directory = Path.cwd()
         try:
@@ -172,10 +182,12 @@ def test_installed(
             # its custom --num_cpus option; --pyargs alone discovers it too late.
             tests = str(installed.parent / "tests")
             serial = [sys.executable, "-I", "-m", "pytest", "-v", tests]
+            if report_dir is not None:
+                serial += [f"--junitxml={report_dir / 'serial.xml'}"]
             if coverage is not None:
-                serial += ["--cov=scqubits", f"--cov-report=xml:{coverage.resolve()}"]
+                serial += ["--cov=scqubits", f"--cov-report=xml:{coverage}"]
             run(*serial)
-            run(
+            parallel = [
                 sys.executable,
                 "-I",
                 "-m",
@@ -183,7 +195,10 @@ def test_installed(
                 "-v",
                 tests,
                 "--num_cpus=4",
-            )
+            ]
+            if report_dir is not None:
+                parallel += [f"--junitxml={report_dir / 'multiprocessing.xml'}"]
+            run(*parallel)
         finally:
             os.chdir(previous_directory)
 
@@ -200,13 +215,16 @@ def main() -> None:
     test.add_argument("--python-version", required=True)
     test.add_argument("--recipe-version", action="store_true")
     test.add_argument("--coverage", type=Path)
+    test.add_argument("--report-dir", type=Path)
     args = parser.parse_args()
     if args.command == "pip-build":
         pip_build(args.output)
     elif args.command == "conda-install":
         conda_install(args.output, args.python_version)
     else:
-        test_installed(args.python_version, args.recipe_version, args.coverage)
+        test_installed(
+            args.python_version, args.recipe_version, args.coverage, args.report_dir
+        )
 
 
 if __name__ == "__main__":

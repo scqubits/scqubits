@@ -96,3 +96,10 @@ The helper uses the standard library; `pip-build` additionally requires `build`
 and pip. The test command requires pytest, and coverage reporting requires
 pytest-cov. Use fresh environments and empty artifact directories. Runtime CI
 installs GUI and test dependencies without the typing-only development extra.
+
+Azure passes `test --report-dir` to write separate serial and multiprocessing
+JUnit reports outside the disposable test working directory. A subsequent
+`PublishTestResults@2` task publishes these files even when testing fails.
+The asynchronous `pytest-azurepipelines` plugin is not installed: on Windows,
+its report reader could keep a file open while the helper tried to delete it.
+Reports remain available until the agent cleans its temporary storage.

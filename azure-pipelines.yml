@@ -44,12 +44,24 @@ jobs:
     displayName: 'Use Python $(python.version)'
   - script: |
       python -m unittest discover -s tools -p test_ci_package.py
-      python -m pip install build pytest pytest-azurepipelines
+      python -m pip install build pytest
       python -I tools/ci_package.py pip-build --output "$(Agent.TempDirectory)/scqubits-dist"
     displayName: 'Build sdist and wheel; install wheel with GUI dependencies'
   - script: |
-      python -I tools/ci_package.py test --python-version "$(python.version)"
+      python -I tools/ci_package.py test --python-version "$(python.version)" --report-dir "$(Agent.TempDirectory)/scqubits-test-results"
     displayName: 'Verify installed package; run serial and multiprocessing tests'
+  - task: PublishTestResults@2
+    condition: succeededOrFailed()
+    inputs:
+      testResultsFormat: JUnit
+      searchFolder: '$(Agent.TempDirectory)/scqubits-test-results'
+      testResultsFiles: '*.xml'
+      mergeTestResults: false
+      failTaskOnFailedTests: true
+      failTaskOnFailureToPublishResults: true
+      failTaskOnMissingResultsFile: true
+      testRunTitle: '$(Agent.JobName) installed-package tests'
+    displayName: 'Publish serial and multiprocessing test results'
 - job: Windows
   pool:
     vmImage: 'windows-latest'
@@ -75,12 +87,24 @@ jobs:
     displayName: 'Use Python $(python.version)'
   - script: |
       python -m unittest discover -s tools -p test_ci_package.py
-      python -m pip install build pytest pytest-azurepipelines
+      python -m pip install build pytest
       python -I tools/ci_package.py pip-build --output "$(Agent.TempDirectory)/scqubits-dist"
     displayName: 'Build sdist and wheel; install wheel with GUI dependencies'
   - script: |
-      python -I tools/ci_package.py test --python-version "$(python.version)"
+      python -I tools/ci_package.py test --python-version "$(python.version)" --report-dir "$(Agent.TempDirectory)/scqubits-test-results"
     displayName: 'Verify installed package; run serial and multiprocessing tests'
+  - task: PublishTestResults@2
+    condition: succeededOrFailed()
+    inputs:
+      testResultsFormat: JUnit
+      searchFolder: '$(Agent.TempDirectory)/scqubits-test-results'
+      testResultsFiles: '*.xml'
+      mergeTestResults: false
+      failTaskOnFailedTests: true
+      failTaskOnFailureToPublishResults: true
+      failTaskOnMissingResultsFile: true
+      testRunTitle: '$(Agent.JobName) installed-package tests'
+    displayName: 'Publish serial and multiprocessing test results'
 - job: macOS
   pool:
     vmImage: 'macos-latest'
@@ -106,9 +130,21 @@ jobs:
     displayName: 'Use Python $(python.version)'
   - script: |
       python -m unittest discover -s tools -p test_ci_package.py
-      python -m pip install build pytest pytest-azurepipelines
+      python -m pip install build pytest
       python -I tools/ci_package.py pip-build --output "$(Agent.TempDirectory)/scqubits-dist"
     displayName: 'Build sdist and wheel; install wheel with GUI dependencies'
   - script: |
-      python -I tools/ci_package.py test --python-version "$(python.version)"
+      python -I tools/ci_package.py test --python-version "$(python.version)" --report-dir "$(Agent.TempDirectory)/scqubits-test-results"
     displayName: 'Verify installed package; run serial and multiprocessing tests'
+  - task: PublishTestResults@2
+    condition: succeededOrFailed()
+    inputs:
+      testResultsFormat: JUnit
+      searchFolder: '$(Agent.TempDirectory)/scqubits-test-results'
+      testResultsFiles: '*.xml'
+      mergeTestResults: false
+      failTaskOnFailedTests: true
+      failTaskOnFailureToPublishResults: true
+      failTaskOnMissingResultsFile: true
+      testRunTitle: '$(Agent.JobName) installed-package tests'
+    displayName: 'Publish serial and multiprocessing test results'
