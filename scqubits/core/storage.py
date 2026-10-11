@@ -249,7 +249,7 @@ class SpectrumData(DataStore):
 
     def subtract_ground(self) -> None:
         """Subtract ground state energies from spectrum."""
-        self.energy_table -= self.energy_table[:, 0]
+        self.energy_table -= self.energy_table[:, 0, np.newaxis]
 
     def plot_evals_vs_paramvals(
         self,
