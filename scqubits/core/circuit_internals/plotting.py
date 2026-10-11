@@ -436,6 +436,113 @@ class CircuitPlot(ABC, CircuitProtocol):
                 )
         return wf_ext_basis
 
+    def _validate_wavefunction_section_indices(
+        self, var_indices: tuple[int, ...], section: dict[int, float]
+    ) -> None:
+        """Check that plotted and fixed indices partition the dynamic variables.
+
+        Parameters
+        ----------
+        var_indices:
+            Variable indices retained as the section's axes.
+        section:
+            Physical coordinate for every variable not in ``var_indices``.
+        """
+        if any(
+            not isinstance(index, Integral) or isinstance(index, (bool, np.bool_))
+            for index in (*var_indices, *section)
+        ):
+            raise ValueError(
+                "Variable indices in var_indices and section must be integers."
+            )
+        plotted_indices = set(var_indices)
+        if len(plotted_indices) != len(var_indices):
+            raise ValueError("var_indices must not contain duplicate variable indices.")
+        dynamic_indices = set(self.dynamic_var_indices)
+        unknown_indices = (plotted_indices | set(section)) - dynamic_indices
+        if unknown_indices:
+            raise ValueError(f"Unknown variable indices: {sorted(unknown_indices)}.")
+        if plotted_indices & set(section):
+            raise ValueError("section must not include variables in var_indices.")
+        missing_indices = dynamic_indices - plotted_indices - set(section)
+        if missing_indices:
+            raise ValueError(
+                "section must specify every variable outside var_indices; "
+                f"missing indices: {sorted(missing_indices)}."
+            )
+
+    def _wavefunction_section_coordinates(
+        self,
+        var_index: int,
+        change_discrete_charge_to_phi: bool,
+        grids_dict: dict[int, discretization.Grid1d],
+    ) -> ndarray:
+        """Return finite physical coordinates for a fixed wavefunction variable.
+
+        Parameters
+        ----------
+        var_index:
+            Index of the fixed variable.
+        change_discrete_charge_to_phi:
+            Whether periodic variables use flux rather than charge coordinates.
+        grids_dict:
+            Resolved grids for variables in the flux basis.
+        """
+        if (
+            var_index in self.var_categories["periodic"]
+            and not change_discrete_charge_to_phi
+        ):
+            cutoff = self._charge_cutoff(var_index)
+            coordinates = np.arange(-cutoff, cutoff + 1)
+        else:
+            grid = grids_dict[var_index]
+            if not isinstance(grid, discretization.Grid1d):
+                raise ValueError(f"Grid for variable {var_index} must be a Grid1d.")
+            coordinates = grid.make_linspace()
+        if not coordinates.size or not np.all(np.isfinite(coordinates)):
+            raise ValueError(
+                f"Grid for variable {var_index} must contain finite coordinates."
+            )
+        return coordinates
+
+    def _wavefunction_section_sample_index(
+        self,
+        var_index: int,
+        value: float,
+        change_discrete_charge_to_phi: bool,
+        grids_dict: dict[int, discretization.Grid1d],
+    ) -> int:
+        """Validate a section value and find its nearest physical grid point.
+
+        Parameters
+        ----------
+        var_index:
+            Index of the fixed variable.
+        value:
+            Requested physical coordinate.
+        change_discrete_charge_to_phi:
+            Whether periodic variables use flux rather than charge coordinates.
+        grids_dict:
+            Resolved grids for variables in the flux basis.
+        """
+        if (
+            not isinstance(value, Real)
+            or isinstance(value, (bool, np.bool_))
+            or not np.isfinite(value)
+        ):
+            raise ValueError(
+                f"section value for variable {var_index} must be a finite real number."
+            )
+        coordinates = self._wavefunction_section_coordinates(
+            var_index, change_discrete_charge_to_phi, grids_dict
+        )
+        if value < coordinates.min() or value > coordinates.max():
+            raise ValueError(
+                f"section value for variable {var_index} is outside its grid range "
+                f"[{coordinates.min()}, {coordinates.max()}]."
+            )
+        return int(np.abs(coordinates - value).argmin())
+
     def _prepare_wavefunction_section(
         self,
         var_indices: tuple[int, ...],
@@ -465,28 +572,7 @@ class CircuitPlot(ABC, CircuitProtocol):
             raise ValueError("mode must be 'abs', 'abs-sqr', 'real', or 'imag'.")
         if not len(var_indices):
             raise ValueError("A wavefunction section needs at least one plotting axis.")
-        if any(
-            not isinstance(index, Integral) or isinstance(index, (bool, np.bool_))
-            for index in (*var_indices, *section)
-        ):
-            raise ValueError(
-                "Variable indices in var_indices and section must be integers."
-            )
-        plotted_indices = set(var_indices)
-        if len(plotted_indices) != len(var_indices):
-            raise ValueError("var_indices must not contain duplicate variable indices.")
-        dynamic_indices = set(self.dynamic_var_indices)
-        unknown_indices = (plotted_indices | set(section)) - dynamic_indices
-        if unknown_indices:
-            raise ValueError(f"Unknown variable indices: {sorted(unknown_indices)}.")
-        if plotted_indices & set(section):
-            raise ValueError("section must not include variables in var_indices.")
-        missing_indices = dynamic_indices - plotted_indices - set(section)
-        if missing_indices:
-            raise ValueError(
-                "section must specify every variable outside var_indices; "
-                f"missing indices: {sorted(missing_indices)}."
-            )
+        self._validate_wavefunction_section_indices(var_indices, section)
 
         grids = self.discretized_grids_dict_for_vars()
         if grids_dict is not None:
@@ -498,38 +584,129 @@ class CircuitPlot(ABC, CircuitProtocol):
                     var_index
                 ]
 
-        sample_indices: dict[int, int] = {}
-        for var_index, value in section.items():
-            if (
-                not isinstance(value, Real)
-                or isinstance(value, (bool, np.bool_))
-                or not np.isfinite(value)
-            ):
-                raise ValueError(
-                    f"section value for variable {var_index} must be a finite real number."
-                )
-            if (
-                var_index in self.var_categories["periodic"]
-                and not change_discrete_charge_to_phi
-            ):
-                cutoff = self._charge_cutoff(var_index)
-                coordinates = np.arange(-cutoff, cutoff + 1)
-            else:
-                grid = grids[var_index]
-                if not isinstance(grid, discretization.Grid1d):
-                    raise ValueError(f"Grid for variable {var_index} must be a Grid1d.")
-                coordinates = grid.make_linspace()
-            if not coordinates.size or not np.all(np.isfinite(coordinates)):
-                raise ValueError(
-                    f"Grid for variable {var_index} must contain finite coordinates."
-                )
-            if value < coordinates.min() or value > coordinates.max():
-                raise ValueError(
-                    f"section value for variable {var_index} is outside its grid range "
-                    f"[{coordinates.min()}, {coordinates.max()}]."
-                )
-            sample_indices[var_index] = int(np.abs(coordinates - value).argmin())
+        sample_indices = {
+            var_index: self._wavefunction_section_sample_index(
+                var_index, value, change_discrete_charge_to_phi, grids
+            )
+            for var_index, value in section.items()
+        }
         return grids, sample_indices
+
+    def _evaluate_wavefunction_section(
+        self,
+        wf: ndarray,
+        var_indices: tuple[int, ...],
+        sample_indices: dict[int, int],
+        section_grids: dict[int, discretization.Grid1d],
+        change_discrete_charge_to_phi: bool,
+    ) -> ndarray:
+        """Evaluate a wavefunction at fixed coordinates in the requested axis order.
+
+        Parameters
+        ----------
+        wf:
+            Wavefunction in the circuit's diagonalization basis.
+        var_indices:
+            Variable indices retained as the section's axes.
+        sample_indices:
+            Selected grid index for each fixed variable.
+        section_grids:
+            Resolved grids, reduced in place to one point for transformed fixed axes.
+        change_discrete_charge_to_phi:
+            Whether periodic variables use flux rather than charge coordinates.
+        """
+        all_var_indices = tuple(self.dynamic_var_indices)
+        wf_original_basis = self._reshape_and_change_to_variable_basis(
+            wf=wf, var_indices=all_var_indices
+        )
+        axes = {
+            index: self._get_var_dim_for_reshaped_wf(all_var_indices, index)
+            for index in all_var_indices
+        }
+        native_selection = [slice(None)] * wf_original_basis.ndim
+        for var_index, sample_index in sample_indices.items():
+            basis = self._basis_for_var_index(var_index)
+            if basis == "discretized" or (
+                basis == "periodic" and not change_discrete_charge_to_phi
+            ):
+                native_selection[axes[var_index]] = slice(
+                    sample_index, sample_index + 1
+                )
+            else:
+                coordinate = section_grids[var_index].make_linspace()[sample_index]
+                section_grids[var_index] = discretization.Grid1d(
+                    coordinate, coordinate, 1
+                )
+        # Keep singleton fixed axes so hierarchical axis positions stay valid.
+        # Transform them first, avoiding a full grid over coordinates that
+        # would otherwise be discarded when taking the section.
+        wf_original_basis = wf_original_basis[tuple(native_selection)]
+        wf_ext_basis = self._change_to_phi_basis(
+            wf_original_basis,
+            var_indices=tuple(sample_indices) + tuple(var_indices),
+            grids_dict=cast(
+                "dict[int, discretization.Grid1d | ndarray]", section_grids
+            ),
+            change_discrete_charge_to_phi=change_discrete_charge_to_phi,
+        )
+        selection: list[int | slice] = [slice(None)] * wf_ext_basis.ndim
+        for var_index in sample_indices:
+            selection[axes[var_index]] = 0
+        wf_section = wf_ext_basis[tuple(selection)]
+        remaining_axes = sorted(axes[index] for index in var_indices)
+        axis_order = [remaining_axes.index(axes[index]) for index in var_indices]
+        return np.transpose(wf_section, axis_order)
+
+    def _generate_wavefunction_section(
+        self,
+        which: int,
+        mode: str,
+        var_indices: tuple[int, ...],
+        eigensys: tuple[ndarray, ndarray] | None,
+        change_discrete_charge_to_phi: bool,
+        grids_dict: dict[int, discretization.Grid1d] | None,
+        section: dict[int, float],
+    ) -> ndarray:
+        """Return a wavefunction section after applying the requested display mode.
+
+        Parameters
+        ----------
+        which:
+            Index of the wavefunction to select.
+        mode:
+            Requested wavefunction component.
+        var_indices:
+            Variable indices retained as the section's axes.
+        eigensys:
+            Optional eigenvalues and eigenstates of the circuit.
+        change_discrete_charge_to_phi:
+            Whether periodic variables use flux rather than charge coordinates.
+        grids_dict:
+            Optional grids for variables transformed to the flux basis.
+        section:
+            Physical coordinate for every variable not in ``var_indices``.
+        """
+        section_grids, sample_indices = self._prepare_wavefunction_section(
+            var_indices, section, mode, change_discrete_charge_to_phi, grids_dict
+        )
+        if eigensys is None:
+            _, wfs = self.eigensys(evals_count=which + 1)
+        else:
+            _, wfs = eigensys
+        wf_section = self._evaluate_wavefunction_section(
+            wfs[:, which],
+            var_indices,
+            sample_indices,
+            section_grids,
+            change_discrete_charge_to_phi,
+        )
+        if mode == "abs-sqr":
+            return np.abs(wf_section) ** 2
+        if mode == "abs":
+            return np.abs(wf_section)
+        if mode == "real":
+            return np.real(wf_section).copy()
+        return np.imag(wf_section).copy()
 
     def generate_wf_plot_data(
         self,
@@ -590,61 +767,15 @@ class CircuitPlot(ABC, CircuitProtocol):
             )
         """
         if section is not None:
-            section_grids, sample_indices = self._prepare_wavefunction_section(
-                var_indices, section, mode, change_discrete_charge_to_phi, grids_dict
+            return self._generate_wavefunction_section(
+                which,
+                mode,
+                var_indices,
+                eigensys,
+                change_discrete_charge_to_phi,
+                grids_dict,
+                section,
             )
-            if eigensys is None:
-                _, wfs = self.eigensys(evals_count=which + 1)
-            else:
-                _, wfs = eigensys
-            all_var_indices = tuple(self.dynamic_var_indices)
-            wf_original_basis = self._reshape_and_change_to_variable_basis(
-                wf=wfs[:, which], var_indices=all_var_indices
-            )
-            axes = {
-                index: self._get_var_dim_for_reshaped_wf(all_var_indices, index)
-                for index in all_var_indices
-            }
-            native_selection = [slice(None)] * wf_original_basis.ndim
-            for var_index, sample_index in sample_indices.items():
-                basis = self._basis_for_var_index(var_index)
-                if basis == "discretized" or (
-                    basis == "periodic" and not change_discrete_charge_to_phi
-                ):
-                    native_selection[axes[var_index]] = slice(
-                        sample_index, sample_index + 1
-                    )
-                else:
-                    coordinate = section_grids[var_index].make_linspace()[sample_index]
-                    section_grids[var_index] = discretization.Grid1d(
-                        coordinate, coordinate, 1
-                    )
-            # Keep singleton fixed axes so hierarchical axis positions stay valid.
-            # Transform them first, avoiding a full grid over coordinates that
-            # would otherwise be discarded when taking the section.
-            wf_original_basis = wf_original_basis[tuple(native_selection)]
-            wf_ext_basis = self._change_to_phi_basis(
-                wf_original_basis,
-                var_indices=tuple(sample_indices) + tuple(var_indices),
-                grids_dict=cast(
-                    "dict[int, discretization.Grid1d | ndarray]", section_grids
-                ),
-                change_discrete_charge_to_phi=change_discrete_charge_to_phi,
-            )
-            selection: list[int | slice] = [slice(None)] * wf_ext_basis.ndim
-            for var_index in sample_indices:
-                selection[axes[var_index]] = 0
-            wf_section = wf_ext_basis[tuple(selection)]
-            remaining_axes = sorted(axes[index] for index in var_indices)
-            axis_order = [remaining_axes.index(axes[index]) for index in var_indices]
-            wf_section = np.transpose(wf_section, axis_order)
-            if mode == "abs-sqr":
-                return np.abs(wf_section) ** 2
-            if mode == "abs":
-                return np.abs(wf_section)
-            if mode == "real":
-                return np.real(wf_section).copy()
-            return np.imag(wf_section).copy()
 
         # checking to see if eigensys needs to be generated
         if eigensys is None:
