@@ -39,6 +39,15 @@ def test_params_count():
     assert tst.counts[1] == len(paramvals2)
 
 
+def test_create_reduced_with_explicit_fixed_value():
+    params = Parameters(paramvals_by_name)
+
+    reduced = params.create_reduced(["p1"], fixed_values=[4.0])
+
+    np.testing.assert_array_equal(reduced["p1"], np.array([4.0]))
+    assert reduced.counts == (1, len(paramvals2))
+
+
 def test_iterate():
     tst = Parameters(paramvals_by_name)
     lst = [paramvals1, paramvals2]
