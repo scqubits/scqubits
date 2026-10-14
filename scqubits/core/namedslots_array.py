@@ -665,7 +665,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
             multi_index_std = convert_to_std_npindex(multi_index_std, self._parameters)  # type: ignore[assignment]
             obj = super().__getitem__(multi_index_std)  # type: ignore[index]
 
-        if Ellipsis in multi_index_std:
+        if any(index is Ellipsis for index in multi_index_std):
             multi_index_std = process_ellipsis(self, multi_index_std)  # type: ignore[assignment]
         # If the resulting obj is a sliced view of the current array, then we must
         # adjust the internal Parameters instance accordingly
