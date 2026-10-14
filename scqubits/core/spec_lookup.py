@@ -471,7 +471,7 @@ class SpectrumLookupMixin(MixinCompatible):
         if isinstance(dressed_index, numbers.Number):
             energy = self["evals"][param_npindices + (dressed_index,)]
             if subtract_ground:
-                energy -= self["evals"][param_npindices + (0,)]
+                energy = energy - self["evals"][param_npindices + (0,)]
             return energy
 
         dressed_index = np.asarray(dressed_index)
