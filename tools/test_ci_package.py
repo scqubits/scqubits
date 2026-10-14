@@ -6,6 +6,7 @@ import tarfile
 import tempfile
 import unittest
 
+from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -79,7 +80,9 @@ class PackageCITest(unittest.TestCase):
         handles = []
         working_directories = []
         with tempfile.TemporaryDirectory() as directory:
-            base = Path(directory)
+            # Windows temporary paths may use 8.3 names; macOS /var may be a
+            # symlink. Match the helper's resolved paths rather than their aliases.
+            base = Path(directory).resolve()
             spec = SimpleNamespace(origin=str(base / "installed/scqubits/__init__.py"))
 
             def record_run(*command):
@@ -171,6 +174,26 @@ class PackageCITest(unittest.TestCase):
                 self.assertEqual(
                     (base / "reports/multiprocessing.xml").exists(), fail_parallel
                 )
+
+    def test_reports_with_aliased_temporary_root(self):
+        # A .. alias exercises path normalization on every OS without requiring
+        # Windows symlink privileges. The original assertion fails in this case.
+        with tempfile.TemporaryDirectory(prefix="ci path alias ") as directory:
+            root = Path(directory).resolve()
+            (root / "alias-parent").mkdir()
+            (root / "real").mkdir()
+            alias = root / "alias-parent" / ".." / "real"
+            temporary_directory = tempfile.TemporaryDirectory
+
+            @contextmanager
+            def aliased_directory(*args, **kwargs):
+                # Return the alias explicitly: newer Python versions normalize
+                # tempfile.tempdir before returning a newly created directory.
+                with temporary_directory(*args, dir=root / "real", **kwargs) as path:
+                    yield str(alias / Path(path).name)
+
+            with patch.object(tempfile, "TemporaryDirectory", aliased_directory):
+                self.test_reports_survive_cleanup_and_have_distinct_paths()
 
 
 if __name__ == "__main__":
