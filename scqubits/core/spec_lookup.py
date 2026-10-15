@@ -471,7 +471,7 @@ class SpectrumLookupMixin(MixinCompatible):
         if isinstance(dressed_index, numbers.Number):
             energy = self["evals"][param_npindices + (dressed_index,)]
             if subtract_ground:
-                energy -= self["evals"][param_npindices + (0,)]
+                energy = energy - self["evals"][param_npindices + (0,)]
             return energy
 
         dressed_index = np.asarray(dressed_index)
@@ -519,7 +519,7 @@ class SpectrumLookupMixin(MixinCompatible):
         param_indices_tuple = self.set_npindextuple(param_indices)
         energies = self["evals"][param_indices_tuple + (dressed_index,)]
         if subtract_ground:
-            energies -= self["evals"][param_indices_tuple + (0,)]
+            energies = energies - self["evals"][param_indices_tuple + (0,)]
         return energies
 
     @utils.check_lookup_exists
