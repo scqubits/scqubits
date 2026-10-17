@@ -43,10 +43,11 @@ jobs:
         # Installing conda-build only in build-tools does not register `conda build`.
         run: conda install -n base -y --override-channels -c conda-forge conda-build flake8
 
+      - name: Test CI helper
+        run: python -m unittest discover -s tools -p test_ci_package.py
+
       - name: Lint with flake8
-        run: |
-          python -m unittest discover -s tools -p test_ci_package.py
-          conda run --no-capture-output -n base python -m flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        run: conda run --no-capture-output -n base python -m flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
       - name: Build conda package and run recipe tests
         run: |

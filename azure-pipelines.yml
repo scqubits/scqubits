@@ -42,10 +42,11 @@ jobs:
     inputs:
       versionSpec: '$(python.version)'
     displayName: 'Use Python $(python.version)'
-  - script: |
-      python -m unittest discover -s tools -p test_ci_package.py
-      python -m pip install build pytest
-      python -I tools/ci_package.py pip-build --output "$(Agent.TempDirectory)/scqubits-dist"
+  - script: python -m unittest discover -s tools -p test_ci_package.py
+    displayName: 'Test CI helper'
+  - script: python -m pip install build pytest
+    displayName: 'Install build and test tools'
+  - script: python -I tools/ci_package.py pip-build --output "$(Agent.TempDirectory)/scqubits-dist"
     displayName: 'Build sdist and wheel; install wheel with GUI dependencies'
   - script: |
       python -I tools/ci_package.py test --python-version "$(python.version)" --report-dir "$(Agent.TempDirectory)/scqubits-test-results"
@@ -85,10 +86,11 @@ jobs:
     inputs:
       versionSpec: '$(python.version)'
     displayName: 'Use Python $(python.version)'
-  - script: |
-      python -m unittest discover -s tools -p test_ci_package.py
-      python -m pip install build pytest
-      python -I tools/ci_package.py pip-build --output "$(Agent.TempDirectory)/scqubits-dist"
+  - script: python -m unittest discover -s tools -p test_ci_package.py
+    displayName: 'Test CI helper'
+  - script: python -m pip install build pytest
+    displayName: 'Install build and test tools'
+  - script: python -I tools/ci_package.py pip-build --output "$(Agent.TempDirectory)/scqubits-dist"
     displayName: 'Build sdist and wheel; install wheel with GUI dependencies'
   - script: |
       python -I tools/ci_package.py test --python-version "$(python.version)" --report-dir "$(Agent.TempDirectory)/scqubits-test-results"
@@ -128,10 +130,11 @@ jobs:
     inputs:
       versionSpec: '$(python.version)'
     displayName: 'Use Python $(python.version)'
-  - script: |
-      python -m unittest discover -s tools -p test_ci_package.py
-      python -m pip install build pytest
-      python -I tools/ci_package.py pip-build --output "$(Agent.TempDirectory)/scqubits-dist"
+  - script: python -m unittest discover -s tools -p test_ci_package.py
+    displayName: 'Test CI helper'
+  - script: python -m pip install build pytest
+    displayName: 'Install build and test tools'
+  - script: python -I tools/ci_package.py pip-build --output "$(Agent.TempDirectory)/scqubits-dist"
     displayName: 'Build sdist and wheel; install wheel with GUI dependencies'
   - script: |
       python -I tools/ci_package.py test --python-version "$(python.version)" --report-dir "$(Agent.TempDirectory)/scqubits-test-results"
