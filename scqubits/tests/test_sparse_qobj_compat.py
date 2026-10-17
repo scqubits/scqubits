@@ -25,7 +25,7 @@ from scipy.sparse import csc_matrix
 import scqubits as scq
 
 from scqubits.utils.misc import Qobj_to_scipy_csc_matrix, as_csc_matrix, is_matrix_data
-from scqubits.utils.spectrum_utils import convert_operator_to_qobj
+from scqubits.utils.spectrum_utils import identity_wrap, operator_in_subsys_eigenbasis
 
 # Optional: SciPy < 1.8 has no csc_array. Typed as Any so mypy accepts None.
 csc_array: Any = getattr(sparse, "csc_array", None)
@@ -54,12 +54,22 @@ class TestSparseQobjCompat:
     @pytest.mark.skipif(
         csc_array is None, reason="scipy.sparse.csc_array not available"
     )
-    def test_convert_operator_to_qobj_accepts_csc_array(self):
+    def test_operator_in_subsys_eigenbasis_accepts_csc_array(self):
         tmon = scq.Transmon(EJ=5.0, EC=1.0, ng=0.0, ncut=5, truncated_dim=3)
         diag = np.diag([0.0, 1.0, 2.0])
-        qobj = convert_operator_to_qobj(
+        operator = operator_in_subsys_eigenbasis(
             csc_array(diag), tmon, op_in_eigenbasis=True, evecs=None
         )
+        assert isinstance(operator, csc_matrix)
+        assert np.allclose(operator.toarray(), diag)
+
+    @pytest.mark.skipif(
+        csc_array is None, reason="scipy.sparse.csc_array not available"
+    )
+    def test_identity_wrap_accepts_csc_array(self):
+        tmon = scq.Transmon(EJ=5.0, EC=1.0, ng=0.0, ncut=5, truncated_dim=3)
+        diag = np.diag([0.0, 1.0, 2.0])
+        qobj = identity_wrap(csc_array(diag), tmon, [tmon], op_in_eigenbasis=True)
         assert isinstance(qobj, qt.Qobj)
         assert np.allclose(qobj.full(), diag)
 
