@@ -108,17 +108,13 @@ def _cast_matrix(
     # First, if we are dealing with a Qobj, we convert it to either
     # an ndarray or a scipy sparse matrix.
     if isinstance(matrix, Qobj):
-        if qt.__version__ >= "5.0.0":
-            if matrix.dtype == qt.core.data.dense.Dense:
-                converted_mat = matrix.full()
-            else:
-                # This could be costly if the data is in a "Dia"
-                # form. In the future we may want to support other
-                # formats as well.
-                converted_mat = matrix.data_as("csr_matrix")
+        if matrix.dtype == qt.core.data.dense.Dense:
+            converted_mat = matrix.full()
         else:
-            # In previous versions of qutip data was always in the csr form
-            converted_mat = matrix.data
+            # This could be costly if the data is in a "Dia"
+            # form. In the future we may want to support other
+            # formats as well.
+            converted_mat = matrix.data_as("csr_matrix")
 
     # Next, we do casting dense or sparse (CSC) representation
     # if force_cast is True

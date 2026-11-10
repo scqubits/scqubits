@@ -40,7 +40,7 @@ dependencies = [
     "pathos>=0.3.0",
     "matplotlib>=3.5.1",
     "numpy>=1.14.2",
-    "qutip>=4.3.1",
+    "qutip>=5.0",
     "scipy>=1.5",
     "sympy",
     "threadpoolctl",
