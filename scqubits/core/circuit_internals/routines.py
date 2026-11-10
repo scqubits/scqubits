@@ -83,7 +83,6 @@ from scqubits.utils.misc import (
     unique_elements_in_list,
 )
 from scqubits.utils.spectrum_utils import (
-    convert_matrix_to_qobj,
     identity_wrap,
     order_eigensystem,
 )
