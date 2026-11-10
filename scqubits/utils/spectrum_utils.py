@@ -165,9 +165,9 @@ def matrix_element(
         matrix element
     """
     if isinstance(operator, qt.Qobj):
-        op_matrix = operator.data
+        op_matrix = Qobj_to_scipy_csc_matrix(operator)
     else:
-        op_matrix = operator
+        op_matrix = operator  # type: ignore[assignment]
 
     if isinstance(state1, qt.Qobj):
         vec1 = Qobj_to_scipy_csc_matrix(state1)
