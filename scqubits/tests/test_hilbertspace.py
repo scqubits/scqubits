@@ -632,6 +632,38 @@ class TestAutoSparseDiag:
         result = esys_scipy_sparse(ham, evals_count=6)
         assert _sparse_result_trustworthy(ham, "esys", result, 6) is True
 
+    @pytest.mark.parametrize(
+        "method_suffix", [None, "", "_SM"], ids=["auto", "SA", "SM"]
+    )
+    @pytest.mark.filterwarnings("error:scqubits.*falling back to dense:RuntimeWarning")
+    def test_sparse_preserves_zero_energy_vacuum(self, monkeypatch, method_suffix):
+        a = scq.Oscillator(E_osc=4.71, truncated_dim=4)
+        b = scq.Oscillator(E_osc=6.31, truncated_dim=5)
+        c = scq.Oscillator(E_osc=9.23, truncated_dim=3)
+        space = HilbertSpace([a, b, c])
+        space.add_interaction(
+            g=0.07 + 0.03j,
+            op1=a.creation_operator,
+            op2=b.annihilation_operator,
+            add_hc=True,
+        )
+        monkeypatch.setattr(settings, "AUTO_SPARSE_DIAG", False)
+        expected = space.eigenvals(evals_count=4)
+        if method_suffix is not None:
+            space.evals_method = "evals_scipy_sparse" + method_suffix
+            space.esys_method = "esys_scipy_sparse" + method_suffix
+        else:
+            monkeypatch.setattr(settings, "AUTO_SPARSE_DIAG", True)
+            monkeypatch.setattr(settings, "SPARSE_DIAG_MIN_DIM", 1)
+            monkeypatch.setattr(settings, "SPARSE_DIAG_MAX_EVALS_FRAC", 0.1)
+
+        evals, states = space.eigensys(evals_count=4)
+        np.testing.assert_allclose(evals, expected, atol=1e-10, rtol=0)
+        np.testing.assert_allclose(
+            space.eigenvals(evals_count=4), expected, atol=1e-10, rtol=0
+        )
+        np.testing.assert_allclose(abs(states[0].full()[0, 0]), 1.0)
+
     def test_trustworthy_rejects_corrupted_eigenvalue(self):
         from scqubits.core.diag import esys_scipy_sparse
         from scqubits.core.hilbert_space import _sparse_result_trustworthy

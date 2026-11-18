@@ -36,6 +36,139 @@ from scqubits.utils.misc import Qobj_to_scipy_csc_matrix, as_csc_matrix, is_matr
 from scqubits.utils.typedefs import QuantumSys
 
 
+def _eigsh_smallest_magnitude(
+    matrix,
+    k,
+    v0=None,
+    ncv=None,
+    maxiter=None,
+    tol=0,
+    return_eigenvectors=True,
+    Minv=None,
+    OPinv=None,
+    mode="normal",
+    *args,
+    **kwargs,
+):
+    """Find the eigenvalues closest to zero via imaginary shift-invert."""
+    solver_args = (v0, ncv, maxiter, tol, return_eigenvectors, Minv, OPinv)
+    if Minv is not None or OPinv is not None or mode != "normal":
+        return sp.sparse.linalg.eigsh(
+            matrix, k, None, None, "SM", *solver_args, mode, *args, **kwargs
+        )
+
+    if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
+        raise ValueError("expected a square matrix")
+    dim = matrix.shape[0]
+    if not 0 < k <= dim:
+        raise ValueError("k must be between 1 and the matrix dimension")
+
+    dtype = np.dtype(np.float64 if matrix.dtype.kind in "biu" else matrix.dtype)
+    real_dtype = np.empty(0, dtype=dtype).real.dtype
+    if k >= dim - 1:
+        dense = matrix.toarray() if sp.sparse.issparse(matrix) else matrix
+        if return_eigenvectors:
+            evals, evecs = sp.linalg.eigh(dense)
+            keep = np.argsort(abs(evals))[:k]
+            return evals[keep], evecs[:, keep]
+        evals = sp.linalg.eigvalsh(dense)
+        return evals[np.argsort(abs(evals))[:k]]
+
+    shifted = csc_matrix(matrix, dtype=np.complex128, copy=True)
+    scale = np.asarray(abs(shifted).sum(axis=1)).max()
+    if not np.isfinite(scale):
+        raise ValueError("SM shift-invert requires a finite matrix norm")
+    if scale == 0:
+        evals = np.zeros(k, dtype=real_dtype)
+        return (evals, np.eye(dim, k, dtype=dtype)) if return_eigenvectors else evals
+    shifted.data.real /= scale
+    shifted.data.imag /= scale
+
+    # |1 / (lambda - i*delta)| decreases with |lambda| and has no real pole.
+    delta = np.sqrt(np.finfo(float).eps)
+
+    def restore_eigenpairs(evals, evecs):
+        count = len(evals)
+        if dtype.kind != "c":
+            if count:
+                # Repeated eigenvalues can have complex basis vectors even
+                # for real H. Diagonalize H within their combined real span.
+                basis = sp.linalg.orth(np.hstack((evecs.real, evecs.imag)), rcond=delta)
+                if basis.shape[1] < count:
+                    raise np.linalg.LinAlgError(
+                        "SM shift-invert returned a rank-deficient real eigenspace"
+                    )
+                projected = basis.T @ (shifted.real @ basis)
+                evals, rotation = sp.linalg.eigh(projected)
+                keep = np.argsort(abs(evals))[:count]
+                evals, evecs = evals[keep], basis @ rotation[:, keep]
+            else:
+                evecs = evecs.real
+        return (evals.real * scale).astype(real_dtype), evecs.astype(dtype)
+
+    try:
+        result = sp.sparse.linalg.eigs(
+            shifted, k, None, 1j * delta, "LM", *solver_args, None, *args, **kwargs
+        )
+    except sp.sparse.linalg.ArpackNoConvergence as exc:
+        exc.eigenvalues, exc.eigenvectors = restore_eigenpairs(
+            exc.eigenvalues, exc.eigenvectors
+        )
+        raise
+    if return_eigenvectors:
+        return restore_eigenpairs(*result)
+    return (result.real * scale).astype(real_dtype)
+
+
+def eigsh_with_zero_workaround(
+    matrix, k=6, M=None, sigma=None, which="LM", *args, **kwargs
+):
+    """Call eigsh with a workaround for dropped zero eigenvalues (scqubits#334)."""
+    eigsh = sp.sparse.linalg.eigsh
+    sparse = sp.sparse.issparse(matrix)
+    if (
+        which not in ("SA", "SM")
+        or sigma is not None
+        or M is not None
+        or not (sparse or isinstance(matrix, np.ndarray))
+    ):
+        return eigsh(matrix, k, M, sigma, which, *args, **kwargs)
+    if which == "SM":
+        return _eigsh_smallest_magnitude(matrix, k, *args, **kwargs)
+
+    # ARPACK can start in range(H) and lose the null space. For a Hermitian H,
+    # scaling by its maximum absolute row sum puts the spectrum in [-1, 1].
+    # Shifting it to [-3, -1] preserves algebraic order and avoids a new zero.
+    dtype = np.float64 if matrix.dtype.kind in "biu" else matrix.dtype
+    shifted = (
+        csc_matrix(matrix, dtype=dtype, copy=True)
+        if sparse
+        else np.array(matrix, dtype=dtype, copy=True)
+    )
+    scale = np.asarray(abs(shifted).sum(axis=1, dtype=np.float64)).max(initial=0.0)
+    if not np.isfinite(scale):
+        return eigsh(matrix, k, M, sigma, which, *args, **kwargs)
+    if sparse:
+        shifted.data /= scale or 1.0
+        shifted.setdiag(shifted.diagonal() - 2.0)
+    else:
+        shifted /= scale or 1.0
+        shifted[np.diag_indices(shifted.shape[0])] -= 2.0
+
+    # A zero row sum uses a unit divisor and restores exact zero eigenvalues.
+    # Undo the transform in place to preserve SciPy's return type and dtype.
+    try:
+        result = eigsh(shifted, k, M, sigma, which, *args, **kwargs)
+    except sp.sparse.linalg.ArpackNoConvergence as exc:
+        exc.eigenvalues += 2.0
+        exc.eigenvalues *= scale
+        raise
+    evals = result[0] if isinstance(result, tuple) else result
+    evals += 2.0
+    evals *= scale
+    return result
+
+
 def eigsh_safe(*args, **kwargs):
     """Wrapper method for `scipy.sparse.linalg.eigsh` which ensures the following.
 
@@ -46,13 +179,13 @@ def eigsh_safe(*args, **kwargs):
     """
     mat_size = args[0].shape[0]
     kwargs["v0"] = settings.arpack_v0(mat_size)
-
-    if kwargs.get("return_eigenvectors"):
-        evals, evecs = sp.sparse.linalg.eigsh(*args, **kwargs)
+    result = eigsh_with_zero_workaround(*args, **kwargs)
+    if isinstance(result, tuple):
+        evals, evecs = result
         if has_degeneracy(evals):
             evecs, _ = sp.linalg.qr(evecs, mode="economic")
         return evals, evecs
-    return sp.sparse.linalg.eigsh(*args, **kwargs)
+    return result
 
 
 def has_degeneracy(evals: ndarray) -> bool:

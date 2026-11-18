@@ -17,9 +17,10 @@ import numpy as np
 import pytest
 import qutip as qt
 
-from scipy.sparse import csc_matrix, issparse
+from scipy.sparse import csc_matrix, diags, issparse
 
 from scqubits.core.diag import (
+    DIAG_METHODS,
     _cast_matrix,
     _convert_evecs_to_qobjs,
     _dict_merge,
@@ -27,12 +28,15 @@ from scqubits.core.diag import (
     esys_cupy_sparse,
     esys_jax_dense,
     esys_primme_sparse,
+    esys_scipy_sparse,
     evals_cupy_dense,
     evals_cupy_sparse,
     evals_jax_dense,
     evals_primme_sparse,
+    evals_scipy_sparse,
 )
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
+from scqubits.utils.spectrum_utils import eigsh_safe
 
 
 def _installed(library: str) -> bool:
@@ -229,3 +233,92 @@ class TestArpackV0NotPickledIntoWorkers:
             if isinstance(val, np.ndarray) and val.nbytes > 1_000_000
         ]
         assert big == [], f"large settings arrays leak into worker pickles: {big}"
+
+
+class TestScipySparseExactZeroEigenvalue:
+    @pytest.mark.parametrize(
+        "dtype", [np.float64, np.complex128, np.float32, np.complex64]
+    )
+    @pytest.mark.parametrize(
+        "diagonal",
+        [
+            np.arange(60.0),
+            np.arange(-3.0, 57.0),
+            np.arange(5.0, 65.0),
+            np.r_[-np.pi, np.arange(59.0)],
+            np.arange(60.0) * 1e-18,
+            np.zeros(60),
+        ],
+        ids=["ground-zero", "excited-zero", "no-zero", "minus-pi", "tiny", "all-zero"],
+    )
+    def test_sa_spectrum(self, dtype, diagonal):
+        original_diag = diagonal.astype(dtype)
+        matrix = diags(original_diag, format="csc")
+        expected = original_diag[:4].real
+        atol = 100 * np.finfo(dtype).eps * np.abs(diagonal).max()
+        evals = evals_scipy_sparse(matrix, evals_count=4)
+        evals_esys, evecs = esys_scipy_sparse(matrix, evals_count=4)
+        assert evals.dtype == evals_esys.dtype == expected.dtype
+        np.testing.assert_allclose(evals, expected, atol=atol, rtol=0)
+        np.testing.assert_allclose(evals_esys, expected, atol=atol, rtol=0)
+        np.testing.assert_allclose(
+            matrix @ evecs, evecs * evals_esys, atol=atol, rtol=0
+        )
+        np.testing.assert_array_equal(matrix.diagonal(), original_diag)
+
+    def test_eigsh_safe_default_returns_eigenvectors(self):
+        diagonal = np.arange(60.0)
+        matrix = np.diag(diagonal)
+        evals, evecs = eigsh_safe(matrix, 4, None, None, "SA")
+        np.testing.assert_allclose(evals, diagonal[:4], atol=1e-10, rtol=0)
+        np.testing.assert_allclose(abs(evecs[0, 0]), 1.0)
+        np.testing.assert_array_equal(np.diag(matrix), diagonal)
+
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64, np.complex128])
+    @pytest.mark.parametrize("scale", [1.0, 1e-18])
+    def test_sm_selects_by_magnitude_with_repeated_zero(self, dtype, scale):
+        diagonal = np.r_[0, 0, -0.5, 0.75, -3, np.arange(1.0, 56.0)]
+        matrix = diags((scale * diagonal).astype(dtype), format="csc")
+        expected = scale * np.array([-0.5, 0, 0, 0.75])
+        real_dtype = np.empty(0, dtype=dtype).real.dtype
+        atol = max(100 * np.finfo(real_dtype).eps, 1e-11) * scale
+        evals = DIAG_METHODS["evals_scipy_sparse_SM"](matrix, evals_count=4)
+        evals_esys, evecs = DIAG_METHODS["esys_scipy_sparse_SM"](matrix, evals_count=4)
+
+        assert evals.dtype == evals_esys.dtype == real_dtype
+        assert evecs.dtype == dtype
+        np.testing.assert_allclose(evals, expected, atol=atol, rtol=0)
+        np.testing.assert_allclose(evals_esys, expected, atol=atol, rtol=0)
+        np.testing.assert_allclose(
+            matrix @ evecs, evecs * evals_esys, atol=atol, rtol=0
+        )
+        np.testing.assert_allclose(
+            evecs.conj().T @ evecs, np.eye(4), atol=100 * np.finfo(real_dtype).eps
+        )
+
+    @pytest.mark.parametrize(
+        "diagonal, expected",
+        [([-6.0, -1.0, 0.0, 2.0], [-1.0, 0.0, 2.0]), (np.zeros(60), np.zeros(3))],
+        ids=["near-full", "all-zero"],
+    )
+    def test_sm_special_cases(self, diagonal, expected):
+        matrix = diags(diagonal, format="csc")
+        evals = evals_scipy_sparse(matrix, evals_count=3, which="SM")
+        evals_esys, evecs = esys_scipy_sparse(matrix, evals_count=3, which="SM")
+        np.testing.assert_array_equal(evals, expected)
+        np.testing.assert_array_equal(evals_esys, expected)
+        np.testing.assert_array_equal(matrix @ evecs, evecs * evals_esys)
+
+    @pytest.mark.parametrize(
+        "options, expected",
+        [
+            ({"which": "SM"}, [1, 2, 3, 4]),
+            ({"sigma": 0}, [57, 58, 59, 60]),
+            ({"M": diags(np.full(60, 2.0), format="csc")}, [0.5, 1, 1.5, 2]),
+        ],
+        ids=["smallest-magnitude", "shift-invert", "generalized"],
+    )
+    def test_other_modes_keep_their_selection(self, options, expected):
+        matrix = diags(np.arange(1.0, 61.0), format="csc")
+        evals = evals_scipy_sparse(matrix, evals_count=4, **options)
+        np.testing.assert_allclose(evals, expected, atol=1e-10, rtol=0)
