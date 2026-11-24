@@ -25,24 +25,6 @@ import warnings
 
 from typing import TYPE_CHECKING
 
-import scipy as _scipy
-from numpy.lib import NumpyVersion as _NumpyVersion
-
-# Exact zero eigenvalues can be omitted by affected ARPACK implementations.
-# No fixed SciPy release has been established; revisit this gate when one is.
-if _NumpyVersion(_scipy.__version__) >= "1.15.0":
-    warnings.warn(
-        f"SciPy {_scipy.__version__} may be affected by a sparse-eigensolver "
-        "issue that silently omits exact zero eigenvalues, even when convergence "
-        "is reported. This can affect scqubits calculations using SciPy sparse "
-        "diagonalization. Dense diagonalization is not affected by this issue. "
-        "See https://github.com/scqubits/scqubits/issues/334 for details "
-        "and workarounds, and https://github.com/scipy/scipy/issues/26823 "
-        "for the upstream report.",
-        RuntimeWarning,
-        stacklevel=2,
-    )
-
 # diagonalization namespace (DIAG_METHODS already imported above)
 import scqubits.core.diag as diag
 

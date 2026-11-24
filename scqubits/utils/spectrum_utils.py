@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import cmath
+import warnings
 
 from collections.abc import Callable
 from typing import TYPE_CHECKING
@@ -36,6 +37,31 @@ from scqubits.utils.misc import Qobj_to_scipy_csc_matrix, as_csc_matrix, is_matr
 from scqubits.utils.typedefs import QuantumSys
 
 
+def _eigsh_with_zero_warning(A, k=6, M=None, sigma=None, *args, **kwargs):
+    """Warn about exact-zero omission before ordinary SciPy sparse solves."""
+    # No fixed SciPy release has been established; revisit when one is.
+    scipy_version = np.lib.NumpyVersion(sp.__version__)
+    if (
+        (scipy_version.major, scipy_version.minor) >= (1, 15)
+        and M is None
+        and sigma is None
+    ):
+        # Keep a shared warning location so default filters suppress repeated solves.
+        warnings.warn(
+            f"SciPy {sp.__version__}: this sparse eigensolver can silently omit "
+            "a requested eigenvalue that is EXACTLY ZERO, even when convergence "
+            "is reported. This specific issue only affects Hamiltonians with an "
+            "EXACTLY ZERO eigenvalue; this warning does not mean one was detected "
+            "in your system. Dense diagonalization is unaffected by this issue. "
+            "Details and workarounds: "
+            "https://github.com/scqubits/scqubits/issues/334. "
+            "Upstream report: https://github.com/scipy/scipy/issues/26823.",
+            RuntimeWarning,
+        )
+
+    return sp.sparse.linalg.eigsh(A, k, M, sigma, *args, **kwargs)
+
+
 def eigsh_safe(*args, **kwargs):
     """Wrapper method for `scipy.sparse.linalg.eigsh` which ensures the following.
 
@@ -48,11 +74,11 @@ def eigsh_safe(*args, **kwargs):
     kwargs["v0"] = settings.arpack_v0(mat_size)
 
     if kwargs.get("return_eigenvectors"):
-        evals, evecs = sp.sparse.linalg.eigsh(*args, **kwargs)
+        evals, evecs = _eigsh_with_zero_warning(*args, **kwargs)
         if has_degeneracy(evals):
             evecs, _ = sp.linalg.qr(evecs, mode="economic")
         return evals, evecs
-    return sp.sparse.linalg.eigsh(*args, **kwargs)
+    return _eigsh_with_zero_warning(*args, **kwargs)
 
 
 def has_degeneracy(evals: ndarray) -> bool:

@@ -29,7 +29,11 @@ from scipy.sparse import csc_matrix
 import scqubits.settings as settings
 
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
-from scqubits.utils.spectrum_utils import has_degeneracy, order_eigensystem
+from scqubits.utils.spectrum_utils import (
+    _eigsh_with_zero_warning,
+    has_degeneracy,
+    order_eigensystem,
+)
 
 
 def _dict_merge(
@@ -276,7 +280,7 @@ def evals_scipy_sparse(
         kwargs,
         overwrite=True,
     )
-    evals = sp.sparse.linalg.eigsh(m, k=evals_count, **options)
+    evals = _eigsh_with_zero_warning(m, k=evals_count, **options)
 
     # eigsh's eigenvalue order depends on return_eigenvectors (scipy/scipy#9082) and
     # is not reliably ascending; sort explicitly to honor the documented convention.
@@ -332,7 +336,7 @@ def esys_scipy_sparse(
         kwargs,
         overwrite=True,
     )
-    evals, evecs = sp.sparse.linalg.eigsh(m, k=evals_count, **options)
+    evals, evecs = _eigsh_with_zero_warning(m, k=evals_count, **options)
 
     # eigsh's eigenvalue order depends on return_eigenvectors (scipy/scipy#9082) and
     # is not reliably ascending; sort explicitly (keeping evecs aligned) so that, like
