@@ -948,6 +948,40 @@ Cutoff accessors on the mixin: `_charge_cutoff(var_index)` returns
 `cutoff_ext_<var_index>`. These hide the attribute-name convention
 from the rest of the plotting code.
 
+### Wavefunction sections
+
+`plot_wavefunction` normally sums the probability density over variables
+outside `var_indices`. Pass `section` to hold those variables at physical
+coordinates instead. For a circuit with dynamic variables 1, 2 and 3:
+
+```python
+fig, axes = circuit.plot_wavefunction(
+    var_indices=(1, 2),
+    section={3: 0.0},
+    mode="abs-sqr",
+)
+```
+
+The section mapping must provide every dynamic variable that is not a plot
+axis. Values select the nearest point on the corresponding grid; values
+outside its range raise `ValueError`. Flux coordinates are dimensionless
+angles. With `change_discrete_charge_to_phi=False`, periodic variables use
+charge labels in units of `2e` instead. Extended variables in a discretized
+basis always use their diagonalization grid, while custom `grids_dict`
+entries can set the sampling grid for harmonic and periodic flux variables.
+
+Sections support `abs-sqr`, `abs`, `real` and `imag`. They retain the scale
+of the original wavefunction and are not normalized again. A zero section
+therefore stays zero. Omitting `section` preserves marginal plotting.
+
+`generate_wf_plot_data(..., section={...})` returns the same section data
+without drawing a figure, with array axes in `var_indices` order. Plotting
+sorts the selected variable indices as usual and supports one or two axes.
+Hierarchical circuits are expanded into their native variable basis before
+selection. Fixed charge and discretized axes are sliced directly; fixed
+harmonic and periodic flux axes are evaluated at one selected grid point,
+avoiding a dense flux grid over variables that will not be displayed.
+
 ---
 
 ## 12. Symbolic methods (LaTeX, transforms)
