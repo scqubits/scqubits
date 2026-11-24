@@ -31,6 +31,18 @@ def test_index_access():
     assert np.allclose(tst[0], data[0])
 
 
+def test_numpy_array_index_access():
+    source = np.arange(12).reshape(3, 4)
+    paramvals = np.array([10, 20, 30])
+    tst = NamedSlotsNdarray(source, {"x": paramvals})
+    indices = np.array([0, 2])
+
+    result = tst[indices]
+
+    np.testing.assert_array_equal(np.asarray(result), source[indices])
+    np.testing.assert_array_equal(result.param_info["x"], paramvals[indices])
+
+
 def test_name_access():
     tst = NamedSlotsNdarray(data, paramvals_by_name)
     assert np.allclose(tst["p2":1], data[:, 1, :])
