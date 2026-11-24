@@ -229,3 +229,16 @@ OVERLAP_THRESHOLD = 0.5
 # The following determines the threshold for the number of nodes above which the
 # symbolic inversion of the capacitance matrix is skipped.
 SYM_INVERSION_MAX_NODES = 3
+
+# Minimum Krylov block size for the cuQuantum eigensolver.
+# Must be an integer greater than 0.
+CUQUANTUM_MIN_KRYLOV_BLOCK_SIZE = 1
+
+# Maximum ratio of Krylov blocks to the number of requested eigenvalues.
+# Must be an integer greater than 1.
+CUQUANTUM_MAX_BUFFER_RATIO = 5
+
+# Maximum number of thick restarts for the cuQuantum eigensolver.
+# Must be an integer greater than or equal to 0. Zero performs one expansion
+# and does not restart.
+CUQUANTUM_MAX_RESTARTS = 20

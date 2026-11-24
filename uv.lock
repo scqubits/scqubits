@@ -1501,7 +1501,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.14.2" },
     { name = "pathos", specifier = ">=0.3.0" },
     { name = "pytest", marker = "extra == 'develop'" },
-    { name = "qutip", specifier = ">=4.3.1" },
+    { name = "qutip", specifier = ">=5.0" },
     { name = "scipy", marker = "sys_platform != 'darwin'", specifier = ">=1.5" },
     { name = "scipy", marker = "sys_platform == 'darwin'", specifier = ">=1.5,<=1.13.1" },
     { name = "scipy-stubs", marker = "extra == 'develop'", specifier = "==1.15.2.2" },

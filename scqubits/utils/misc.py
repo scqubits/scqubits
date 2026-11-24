@@ -218,11 +218,7 @@ def remove_nones(dict_data: dict[str, Any]) -> dict[str, Any]:
 def qt_ket_to_ndarray(qobj_ket: qt.Qobj) -> np.ndarray:
     # Qutip's `.eigenstates()` returns an object-valued ndarray, each idx_entry of which
     # is a Qobj ket.
-    return (
-        qobj_ket.data.as_ndarray()
-        if qt.__version__ >= "5.0.0"
-        else qobj_ket.data.toarray()
-    )
+    return qobj_ket.data.as_ndarray()
 
 
 def is_matrix_data(obj: Any) -> bool:
@@ -250,14 +246,11 @@ def as_csc_matrix(operator: Any) -> Any:
 def Qobj_to_scipy_csc_matrix(qobj_array: qt.Qobj) -> sp.sparse.csc_matrix:
     """Extract ``Qobj`` data as a SciPy ``csc_matrix``.
 
-    For QuTiP 5 the data come from ``Data.as_scipy()``. If that object is a
-    sparse array, it is coerced to ``csc_matrix`` (the conversion reuses the
-    existing index/data buffers).
+    The data come from ``Data.as_scipy()``. If that object is a sparse array,
+    it is coerced to ``csc_matrix`` (the conversion reuses the existing
+    index/data buffers).
     """
-    if qt.__version__ >= "5.0.0":
-        csc_data = qobj_array.to("csr").data.as_scipy().tocsc()
-    else:
-        csc_data = qobj_array.data.tocsc()
+    csc_data = qobj_array.to("csr").data.as_scipy().tocsc()
     return as_csc_matrix(csc_data)
 
 
