@@ -575,7 +575,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         transitions_tuple: TransitionsTuple = ((0, 1),),
         levels_tuple: LevelsTuple | None = None,
         point_count: int = 50,
-        num_cpus: int | None = None,
+        num_cpus: int | str | None = None,
     ) -> tuple[ndarray, ndarray]:
         """Compute energies and charge-noise dispersion for the requested transitions.
 
@@ -850,7 +850,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         transitions_tuple: TransitionsTuple = ((0, 1),),
         levels_tuple: LevelsTuple | None = None,
         point_count: int = 50,
-        num_cpus: int | None = None,
+        num_cpus: int | str | None = None,
     ) -> tuple[ndarray, ndarray]:
         """Compute energies and flux-noise dispersion for the requested transitions.
 

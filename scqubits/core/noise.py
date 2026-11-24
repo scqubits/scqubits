@@ -150,7 +150,7 @@ class NoisySystem(ABC):
         common_noise_options: dict | None = None,
         spectrum_data: SpectrumData | None = None,
         scale: float = 1,
-        num_cpus: int | None = None,
+        num_cpus: int | str | None = None,
         **kwargs,
     ) -> tuple[Figure, Axes | ndarray]:
         r"""Show coherence-vs-parameter plots for the qubit's noise channels.
@@ -180,14 +180,17 @@ class NoisySystem(ABC):
         scale:
             a number that all data is multiplied by before being plotted.
         num_cpus:
-            number of cores to be used for computation.
+            number of cores to use for computation, or ``"auto"`` to let
+            scqubits choose from the workload (see
+            :func:`~scqubits.recommend_parallelization`); with
+            ``settings.AUTO_PARALLEL = True`` an unspecified ``num_cpus`` is
+            chosen the same way (default: ``settings.NUM_CPUS``).
 
         Returns
         -------
         Matplotlib ``Figure`` and ``Axes`` (or array of axes) for the
         rendered plot, suitable for further customisation.
         """
-        num_cpus = num_cpus or settings.NUM_CPUS
         common_noise_options = (
             {} if common_noise_options is None else common_noise_options
         )
@@ -361,7 +364,7 @@ class NoisySystem(ABC):
         spectrum_data: SpectrumData | None = None,
         get_rate: bool = False,
         scale: float = 1,
-        num_cpus: int | None = None,
+        num_cpus: int | str | None = None,
         **kwargs,
     ) -> tuple[Figure, Axes]:
         r"""Plot effective :math:`T_1` coherence time (rate) vs. changing parameter.
@@ -402,14 +405,17 @@ class NoisySystem(ABC):
         scale:
             a number that all data is multiplied by before being plotted.
         num_cpus:
-            number of cores to be used for computation.
+            number of cores to use for computation, or ``"auto"`` to let
+            scqubits choose from the workload (see
+            :func:`~scqubits.recommend_parallelization`); with
+            ``settings.AUTO_PARALLEL = True`` an unspecified ``num_cpus`` is
+            chosen the same way (default: ``settings.NUM_CPUS``).
 
         Returns
         -------
         Matplotlib ``Figure`` and ``Axes`` (or array of axes) for the
         rendered plot, suitable for further customisation.
         """
-        num_cpus = num_cpus or settings.NUM_CPUS
         common_noise_options = (
             {} if common_noise_options is None else common_noise_options
         )
@@ -514,7 +520,7 @@ class NoisySystem(ABC):
         spectrum_data: SpectrumData | None = None,
         get_rate: bool = False,
         scale: float = 1,
-        num_cpus: int | None = None,
+        num_cpus: int | str | None = None,
         **kwargs,
     ) -> tuple[Figure, Axes]:
         r"""Plot effective :math:`T_2` coherence time (rate) vs. changing parameter.
@@ -557,14 +563,17 @@ class NoisySystem(ABC):
         scale:
             a number that all data is multiplied by before being plotted.
         num_cpus:
-            number of cores to be used for computation.
+            number of cores to use for computation, or ``"auto"`` to let
+            scqubits choose from the workload (see
+            :func:`~scqubits.recommend_parallelization`); with
+            ``settings.AUTO_PARALLEL = True`` an unspecified ``num_cpus`` is
+            chosen the same way (default: ``settings.NUM_CPUS``).
 
         Returns
         -------
         Matplotlib ``Figure`` and ``Axes`` (or array of axes) for the
         rendered plot, suitable for further customisation.
         """
-        num_cpus = num_cpus or settings.NUM_CPUS
         common_noise_options = (
             {} if common_noise_options is None else common_noise_options
         )
