@@ -229,6 +229,22 @@ class TestParameterSweep:
         # Tuple-shape errors still fire.
         with pytest.raises(ValueError, match="number of subsystems"):
             sweep._validate_states(initial=(0, 0), final=None)
+            
+    def test_energy_by_dressed_index_subtract_ground_preserves_cache(self, num_cpus):
+        """Regression (#318): ``energy_by_dressed_index(subtract_ground=True)``
+        must not subtract the ground-state energy from the cached ``evals``
+        in place.
+        """
+        sweep = self.initialize(num_cpus)
+        evals_before = np.array(sweep["evals"]).copy()
+        expected = evals_before[..., 1] - evals_before[..., 0]
+
+        first = sweep.energy_by_dressed_index(1, subtract_ground=True)
+        second = sweep.energy_by_dressed_index(1, subtract_ground=True)
+
+        assert np.allclose(sweep["evals"], evals_before)
+        assert np.allclose(first, expected)
+        assert np.allclose(second, expected)
 
 
 class TestProgressBarParallelDispatch:
