@@ -29,7 +29,11 @@ from scipy.sparse import csc_matrix
 import scqubits.settings as settings
 
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
-from scqubits.utils.spectrum_utils import has_degeneracy, order_eigensystem
+from scqubits.utils.spectrum_utils import (
+    eigsh_with_zero_workaround,
+    has_degeneracy,
+    order_eigensystem,
+)
 
 
 def _dict_merge(
@@ -243,7 +247,7 @@ def esys_scipy_dense(
 def evals_scipy_sparse(
     matrix: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
 ) -> ndarray:
-    """Diagonalize via scipy's sparse ``eigsh``; return only eigenvalues.
+    """Diagonalize via SciPy's sparse solvers and return only eigenvalues.
 
     Assumes a Hermitian sparse matrix; returns real eigenvalues in ascending
     order.
@@ -276,7 +280,7 @@ def evals_scipy_sparse(
         kwargs,
         overwrite=True,
     )
-    evals = sp.sparse.linalg.eigsh(m, k=evals_count, **options)
+    evals = eigsh_with_zero_workaround(m, k=evals_count, **options)
 
     # eigsh's eigenvalue order depends on return_eigenvectors (scipy/scipy#9082) and
     # is not reliably ascending; sort explicitly to honor the documented convention.
@@ -286,7 +290,7 @@ def evals_scipy_sparse(
 def esys_scipy_sparse(
     matrix: ndarray | csc_matrix | Qobj, evals_count: int, **kwargs: Any
 ) -> tuple[ndarray, ndarray] | tuple[ndarray, QutipEigenstates]:
-    """Diagonalize via scipy's sparse ``eigsh``; return eigenvalues and eigenvectors.
+    """Diagonalize via SciPy's sparse solvers and return eigenvalues and eigenvectors.
 
     Assumes a Hermitian sparse matrix; returns real eigenvalues in ascending
     order.
@@ -332,7 +336,7 @@ def esys_scipy_sparse(
         kwargs,
         overwrite=True,
     )
-    evals, evecs = sp.sparse.linalg.eigsh(m, k=evals_count, **options)
+    evals, evecs = eigsh_with_zero_workaround(m, k=evals_count, **options)
 
     # eigsh's eigenvalue order depends on return_eigenvectors (scipy/scipy#9082) and
     # is not reliably ascending; sort explicitly (keeping evecs aligned) so that, like
